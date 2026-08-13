@@ -10,3 +10,7 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Ignore all docs except NODES.md
+docs/*
+!docs/NODES.md
