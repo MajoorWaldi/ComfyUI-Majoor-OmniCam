@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "Interactive camera authoring and proxy-reference playblasts for ComfyUI video models."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 dependencies = []
 classifiers = [
   "Operating System :: OS Independent",
@@ -17,8 +17,9 @@ Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main
 "Bug Tracker" = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/issues"
 
 [tool.comfy]
-PublisherId = "REPLACE_WITH_COMFY_REGISTRY_PUBLISHER_ID"
-DisplayName = "Majoor OmniCam"
+PublisherId = "majoorwaldi"
+DisplayName = "Majoor Assets Manager"
+Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.svg"
 requires-comfyui = ">=0.32.0"
 
 [tool.ruff]
