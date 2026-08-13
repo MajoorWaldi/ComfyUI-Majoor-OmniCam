@@ -1,0 +1,33 @@
+[project]
+name = "majoor-omnicam"
+version = "0.3.0"
+description = "Interactive camera authoring and proxy-reference playblasts for ComfyUI video models."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+classifiers = [
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Repository = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam"
+Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main/docs"
+"Bug Tracker" = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/issues"
+
+[tool.comfy]
+PublisherId = "REPLACE_WITH_COMFY_REGISTRY_PUBLISHER_ID"
+DisplayName = "Majoor OmniCam"
+requires-comfyui = ">=0.32.0"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+ignore = ["N999"] # The required ComfyUI custom-node directory contains hyphens.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

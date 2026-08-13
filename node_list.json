@@ -1,0 +1,19 @@
+{
+  "nodes": [
+    "MajoorOmniCamDirector",
+    "MajoorOmniCamTrackSampler",
+    "MajoorOmniCamH3Adapter",
+    "MajoorOmniCamWanATIAdapter",
+    "MajoorOmniCamWanNativeCamera",
+    "MajoorOmniCamWanVideoWrapperATI",
+    "MajoorOmniCamATIPreview",
+    "MajoorOmniCamLTXAdapter",
+    "MajoorOmniCamLTXCameraGuide",
+    "MajoorOmniCamCameraTools",
+    "MajoorOmniCamSequenceBuilder",
+    "MajoorOmniCamSequenceShot",
+    "MajoorOmniCamSequenceManifest",
+    "MajoorOmniCamBlenderExport",
+    "MajoorOmniCamUnrealExport"
+  ]
+}

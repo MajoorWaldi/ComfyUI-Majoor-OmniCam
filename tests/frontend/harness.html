@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>OmniCam WebGL test</title></head>
+  <body>
+    <div id="status">loading</div>
+    <script type="module">
+      import * as THREE from "three";
+      import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
+      import { OmniWebGLViewport, encodeDeterministicPlayblast, supportsDeterministicEncoding } from "/web-src/viewport.js";
+      const state = {
+        render_mode: "omni_ref",
+        card_fit: "contain",
+        objects: [
+          { id: "subject", type: "card", position: [0, 1.5, 0], size: [2, 3], enabled: true },
+          { id: "cube", type: "cube", position: [2, 0.75, -1], rotation: [10, 20, 30], size: [1.5, 1.5, 1.5], enabled: true },
+        ],
+        keyframes: [
+          { frame: 0, camera: { position: [6, 4, 6] } },
+          { frame: 23, camera: { position: [-6, 4, 6] } },
+        ],
+      };
+      const camera = { position: [6, 4, 6], target: [0, 1.5, 0], fov: 35, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
+      try {
+        const viewport = new OmniWebGLViewport();
+        viewport.render(state, camera, new Map(), 640, 360);
+        const perspectivePixels = viewport.canvas.width * viewport.canvas.height;
+        camera.camera_type = "orthographic";
+        viewport.render(state, camera, new Map(), 640, 360);
+        const modeChildren = {};
+        for (const mode of ["omni_ref", "card_grid", "graybox", "grid", "point_field", "wireframe"]) {
+          state.render_mode = mode;
+          viewport.render(state, camera, new Map(), 640, 360);
+          modeChildren[mode] = viewport.content.children.length;
+        }
+        const modelScene = new THREE.Scene(); modelScene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+        const glb = await new GLTFExporter().parseAsync(modelScene, { binary: true });
+        const modelUrl = URL.createObjectURL(new Blob([glb], { type: "model/gltf-binary" }));
+        state.render_mode = "omni_ref"; state.objects.push({ id: "model", type: "glb", position: [0, 0, -1], rotation: [0, 45, 0], size: [1, 1, 1], enabled: true });
+        viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]]));
+        for (let retry = 0; retry < 50 && !viewport.models.has("model"); retry++) await new Promise((resolve) => setTimeout(resolve, 20));
+        viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]]));
+        const glbLoaded = viewport.models.has("model") && viewport.content.children.some((child) => child.userData.omnicamId === "model");
+        const codec = await supportsDeterministicEncoding(640, 360);
+        let encodedBytes = 0;
+        if (codec) {
+          const encoded = await encodeDeterministicPlayblast(viewport.canvas, 2, 24, async () => viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]])));
+          encodedBytes = encoded.size;
+        }
+        viewport.dispose();
+        URL.revokeObjectURL(modelUrl);
+        window.omnicamTest = { perspectivePixels, modeChildren, glbLoaded, codec, encodedBytes, disposed: viewport.disposed, width: viewport.canvas.width, height: viewport.canvas.height };
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        window.omnicamTest = { error: String(error?.stack || error) };
+        document.querySelector("#status").textContent = "failed";
+      }
+    </script>
+  </body>
+</html>

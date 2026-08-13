@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "fps": 24,
+  "duration_frames": 120,
+  "width": 1280,
+  "height": 720,
+  "render_mode": "omni_ref",
+  "keyframes": [
+    {
+      "frame": 0,
+      "camera": {
+        "position": [6.0, 3.5, 6.0],
+        "target": [0.0, 1.5, 0.0],
+        "fov": 35.0,
+        "roll": 0.0,
+        "camera_type": "perspective",
+        "zoom": 1.0,
+        "near": 0.01,
+        "far": 10000.0
+      },
+      "interpolation": "ease"
+    },
+    {
+      "frame": 119,
+      "camera": {
+        "position": [-6.0, 3.5, 6.0],
+        "target": [0.0, 1.5, 0.0],
+        "fov": 35.0,
+        "roll": 0.0,
+        "camera_type": "perspective",
+        "zoom": 1.0,
+        "near": 0.01,
+        "far": 10000.0
+      },
+      "interpolation": "ease"
+    }
+  ],
+  "objects": [
+    {
+      "id": "subject",
+      "type": "card",
+      "name": "Subject",
+      "position": [0.0, 1.5, 0.0],
+      "size": [2.0, 3.0],
+      "enabled": true
+    }
+  ],
+  "metadata": {
+    "example": "simple orbit-like move"
+  }
+}

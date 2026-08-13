@@ -1,0 +1,2 @@
+# Runtime dependencies intentionally empty.
+# OmniCam uses ComfyUI's bundled aiohttp/Python APIs; frontend dependencies are bundled at build time.

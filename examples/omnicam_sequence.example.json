@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "fps": 24,
+  "duration_frames": 240,
+  "shots": [
+    {
+      "index": 0,
+      "name": "Establishing orbit",
+      "start_frame": 0,
+      "end_frame": 119,
+      "handles": {"in": 0, "out": 8},
+      "adapter_settings": {"h3_proxy_preset": "parallax"},
+      "reference": "hero_card",
+      "track": {
+        "schema_version": 1,
+        "fps": 24,
+        "duration_frames": 120,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "keyframes": [{"frame": 0, "camera": {"position": [6, 4, 6], "target": [0, 1.5, 0], "fov": 35, "roll": 0, "camera_type": "perspective", "zoom": 1, "near": 0.01, "far": 10000}, "interpolation": "ease"}],
+        "objects": [],
+        "metadata": {}
+      }
+    },
+    {
+      "index": 1,
+      "name": "Detail dolly",
+      "start_frame": 120,
+      "end_frame": 239,
+      "handles": {"in": 8, "out": 0},
+      "adapter_settings": {"ltx_camera_profile": "dolly_in"},
+      "reference": "detail_card",
+      "track": {
+        "schema_version": 1,
+        "fps": 24,
+        "duration_frames": 120,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "keyframes": [{"frame": 0, "camera": {"position": [6, 4, 6], "target": [0, 1.5, 0], "fov": 35, "roll": 0, "camera_type": "perspective", "zoom": 1, "near": 0.01, "far": 10000}, "interpolation": "ease"}],
+        "objects": [],
+        "metadata": {}
+      }
+    }
+  ],
+  "metadata": {}
+}
