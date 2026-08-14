@@ -14,3 +14,4 @@ Thumbs.db
 # Ignore all docs except NODES.md
 docs/*
 !docs/NODES.md
+!docs/ROADMAP_FULL_AUDIT.md

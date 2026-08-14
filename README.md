@@ -7,6 +7,8 @@ Majoor OmniCam 0.3.0 is a model-agnostic camera-layout tool embedded in ComfyUI.
 - Bundled Three.js/WebGL viewport with Canvas fallback; no CDN or runtime network request.
 - Orbit, pan, dolly, scoped WASD/QE fly controls, perspective/orthographic cameras, FOV and roll.
 - Load3D-style compact `Scene`, `Camera`, `Show` and `Output` menus plus a graduated timeline with PrimeIcon playback/key controls, playhead, visible keys, retiming and a complete camera-key inspector.
+- Native tooltips and zone-aware right-click menus for the viewport, scene objects, cameras, timeline keys, curve editor and camera previews. These expose create, rename, duplicate, show/hide, delete, set-key, interpolation, primary-camera and per-preview playblast actions.
+- Multi-camera preview strip with an explicit primary/playblast camera, per-preview recording, camera creation/duplication/renaming/deletion, and visible Bézier tangent handles in the curve editor.
 - Image/video cards from optional upstream Comfy inputs or local managed uploads, a multi-item upstream selector, managed GLB/OBJ/FBX/STL/PLY scenes, fit/fill/stretch, primitives, inspector, guides, proxy presets, and burn-in.
 - World/local axis-constrained translate, rotate and scale gizmos whose transforms survive workflow reload.
 - Deterministic frame-stepped WebCodecs/WebM playblast encoding with a realtime MediaRecorder fallback, stored below `ComfyUI/input/omnicam/playblasts/`.
@@ -63,8 +65,11 @@ npm run test:browser
 | , / . | Previous / next keyframe |
 | Delete / Backspace | Delete selected keyframe |
 | Ctrl/Cmd + C / V | Copy selected keyframe / paste at playhead |
+| Right click | Open the contextual menu for the viewport, object, camera, key, curve, or camera preview under the pointer |
 
 Keyboard shortcuts act only when focus is inside OmniCam. They stop before ComfyUI's global graph handler and remain inactive while the user edits an input, select or content-editable field.
+
+Camera preview behavior: click a preview to make it the primary playblast output, double-click to edit that camera, or right-click to edit, rename, duplicate, delete, set a key, make primary, or record that preview. The curve editor displays Bézier tangent handles for a selected Bézier key; the **Handles** control and curve context menu toggle them.
 
 A selected key is yellow and becomes red only during its next camera edit. At the end of that viewport interaction it is disarmed and returns to blue, preventing later moves from rewriting it. Enable **Auto Key** to create or replace the key at the playhead on every camera edit; the viewport border is red while editing and orange while Auto Key is enabled.
 
@@ -100,6 +105,7 @@ Still requiring the corresponding external environment: paid H3 transfer benchma
 - [Guide complet des 15 nœuds](docs/NODES.md)
 - [Product and architecture](docs/MASTER_SPEC.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Full audit implementation checklist](docs/ROADMAP_FULL_AUDIT.md)
 - [Integrations](docs/INTEGRATIONS.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Manual QA](docs/MANUAL_QA.md)

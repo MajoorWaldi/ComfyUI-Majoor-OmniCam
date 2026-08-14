@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+test("director UI mounts with viewport, timeline, curve editor and previews", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  const status = await page.locator("#status").textContent();
+  const result = await page.evaluate(() => window.omnicamMount);
+  expect(status, result?.error ?? "no error").toBe("ready");
+  expect(result.mounted).toBe(true);
+  expect(result.canvasSized).toBe(true);
+  expect(result.hasTimeline).toBe(true);
+  expect(result.hasCurve).toBe(true);
+  expect(result.hasPreviews).toBe(true);
+  expect(result.keysCount).toBeGreaterThan(0);
+});
+
 test("renders perspective and orthographic scenes and releases WebGL", async ({ page }) => {
   await page.goto("/tests/frontend/harness.html");
   await expect(page.locator("#status")).toHaveText("ready");

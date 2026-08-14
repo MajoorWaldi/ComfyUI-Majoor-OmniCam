@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "check": "node --check web/omnicam.js && node --check web/omnicam-webgl.js",
+    "build:dev": "vite build --mode development",
+    "dev": "vite build --mode development --watch",
+    "check": "node --check web/omnicam.js && node --check web/omnicam-webgl.js && node --check web/omnicam-core.js && node --check web/omnicam-history.js && node --check web/omnicam-ui.js && node --check web/omnicam-playblast.js && node --check web/omnicam-media.js && node --check web/omnicam-template.js && node --check web/omnicam-i18n.js && node --check web/omnicam-commands.js && node --check web/omnicam-state-sync.js && node --check web/omnicam-cameras.js && node --check web/omnicam-record.js && node --check web/omnicam-scene.js && node --check web/omnicam-timeline.js && node --check web/omnicam-viewport-controls.js && node --check web/omnicam-dom-media.js && node --check web/omnicam-diagnostics.js",
+    "test:unit": "node --test tests/frontend/director-modules.node.mjs",
     "test:browser": "playwright test",
     "test:live": "playwright test --config playwright.live.config.mjs"
   },

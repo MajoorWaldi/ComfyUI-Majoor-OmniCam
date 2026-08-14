@@ -94,7 +94,8 @@ export class OmniWebGLViewport {
   constructor(invalidate = () => {}, onModelLoaded = () => {}) {
     this.canvas = document.createElement("canvas");
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
-    this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    // render() receives backing-store pixels from the host canvas, so Three.js must not apply DPR again.
+    this.renderer.setPixelRatio(1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x121212);
@@ -326,9 +327,9 @@ export class OmniWebGLViewport {
     this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
     const pathKey = JSON.stringify(state.keyframes); if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state); }
     this.content.visible = true;
-    const aspect = width / Math.max(1, height), drawing = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    const aspect = width / Math.max(1, height);
     const camera = this.configureCamera(cameraState, aspect); this.activeCamera = camera;
-    this.renderer.setScissorTest(false); this.renderer.setViewport(0, 0, drawing.x, drawing.y); this.renderer.render(this.scene, camera);
+    this.renderer.setScissorTest(false); this.renderer.setViewport(0, 0, width, height); this.renderer.render(this.scene, camera);
   }
 
   dispose() {
