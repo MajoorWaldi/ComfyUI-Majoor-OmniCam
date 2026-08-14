@@ -4,6 +4,7 @@ import math
 import random
 from dataclasses import asdict
 from itertools import pairwise
+from typing import Any
 
 from .track import CameraKeyframe, CameraState, OmniCamTrack
 
@@ -187,3 +188,110 @@ def apply_dolly_zoom(track: OmniCamTrack) -> OmniCamTrack:
         camera.fov = math.degrees(2.0 * math.atan(base_tangent * base_distance / max(distance, 1e-6)))
         keys.append(CameraKeyframe(key.frame, camera, key.interpolation))
     return _copy_track(track, keys)
+
+
+def locked_camera(track: OmniCamTrack) -> OmniCamTrack:
+    """Locked-camera preset: freeze the frame-0 camera for the whole duration."""
+    start = track.sample(0)
+    keys = [
+        CameraKeyframe(0, start, "linear"),
+        CameraKeyframe(track.duration_frames - 1, CameraState.from_dict(asdict(start)), "linear"),
+    ]
+    return _copy_track(track, keys)
+
+
+def validate_zero_motion(track: OmniCamTrack, tolerance: float = 1e-6) -> bool:
+    """Return True when every sampled camera matches the first frame within tolerance."""
+    reference = track.sample(0)
+    for _, camera in track.samples():
+        for field in ("position", "target"):
+            if any(abs(getattr(camera, field)[i] - getattr(reference, field)[i]) > tolerance for i in range(3)):
+                raise ValueError(f"Camera motion detected in a locked track: {field} drifts at runtime")
+        for field in ("fov", "roll", "zoom"):
+            if abs(getattr(camera, field) - getattr(reference, field)) > tolerance:
+                raise ValueError(f"Camera motion detected in a locked track: {field} changes over time")
+    return True
+
+
+def _angular_speed(cameras: list[CameraState], fps: int) -> list[float]:
+    speeds = [0.0]
+    for previous, current in pairwise(cameras):
+        forward_a = _normalize([previous.target[i] - previous.position[i] for i in range(3)])
+        forward_b = _normalize([current.target[i] - current.position[i] for i in range(3)])
+        angle = math.degrees(math.acos(max(-1.0, min(1.0, sum(forward_a[i] * forward_b[i] for i in range(3))))))
+        speeds.append(angle * fps)
+    return speeds
+
+
+def motion_health_check(track: OmniCamTrack, limits: dict[str, float] | None = None, subject: list[float] | None = None) -> dict[str, Any]:
+    """Measure speed, angular speed, acceleration, jerk, FOV drift and framing loss.
+
+    ``limits`` carries model-specific recommended maxima supplied by adapters
+    (keys: max_speed, max_angular_speed, max_acceleration, max_jerk,
+    max_fov_change). The core never hardcodes model semantics: without limits
+    the report is purely descriptive. Framing loss counts frames where the
+    subject point (the ``subject`` object when present) leaves the image.
+    """
+    limits = limits or {}
+    cameras = [track.sample(frame) for frame in range(track.duration_frames)]
+    speeds = motion_speed_profile(track)
+    angular = _angular_speed(cameras, track.fps)
+    accelerations = [0.0, *[abs(b - a) * track.fps for a, b in pairwise(speeds)]]
+    jerks = [0.0, *[abs(b - a) * track.fps for a, b in pairwise(accelerations)]]
+    fovs = [camera.fov for camera in cameras]
+    framing_loss = 0
+    from .projection import project_point
+
+    if subject is None:
+        subject_object = next((obj for obj in track.objects if obj.get("id") == "subject"), None)
+        subject = list(subject_object.get("position", [0.0, 1.5, 0.0])) if isinstance(subject_object, dict) else [0.0, 1.5, 0.0]
+    for camera in cameras:
+        projected = project_point(subject, camera, track.width, track.height)
+        if projected is None or not (0 <= projected[0] < track.width and 0 <= projected[1] < track.height):
+            framing_loss += 1
+    report = {
+        "max_speed": max(speeds, default=0.0),
+        "max_angular_speed": max(angular, default=0.0),
+        "max_acceleration": max(accelerations, default=0.0),
+        "max_jerk": max(jerks, default=0.0),
+        "max_fov_change": max(fovs, default=0.0) - min(fovs, default=0.0),
+        "framing_loss_frames": framing_loss,
+        "duration_frames": track.duration_frames,
+        "fps": track.fps,
+        "violations": [],
+    }
+    metric_keys = ("max_speed", "max_angular_speed", "max_acceleration", "max_jerk", "max_fov_change")
+    for metric in metric_keys:
+        recommended = limits.get(metric)
+        if recommended is not None and report[metric] > float(recommended):
+            report["violations"].append({"metric": metric, "value": report[metric], "recommended_max": float(recommended)})
+    if framing_loss and limits.get("allow_framing_loss") is not True:
+        report["violations"].append({"metric": "framing_loss_frames", "value": framing_loss, "recommended_max": 0})
+    report["ok"] = not report["violations"]
+    return report
+
+
+def retime_to_speed(track: OmniCamTrack, target_speed: float) -> OmniCamTrack:
+    """Re-time the track so the peak camera translation speed matches target_speed.
+
+    Timing is normalized by stretching the keyframe spacing and the track
+    duration; frame values are re-quantized. Tracks already at or below the
+    target are returned unchanged.
+    """
+    target_speed = max(1e-6, float(target_speed))
+    peak = max(motion_speed_profile(track), default=0.0)
+    if peak <= target_speed or peak <= 0.0:
+        return track
+    scale = peak / target_speed
+    payload = track.to_dict()
+    payload["duration_frames"] = max(track.duration_frames, round(track.duration_frames * scale))
+    keys = []
+    used: set[int] = set()
+    for key in track.keyframes:
+        frame = min(payload["duration_frames"] - 1, max(0, round(key.frame * scale)))
+        while frame in used and frame < payload["duration_frames"] - 1:
+            frame += 1
+        used.add(frame)
+        keys.append({"frame": frame, "camera": asdict(key.camera), "interpolation": key.interpolation})
+    payload["keyframes"] = keys
+    return OmniCamTrack.from_dict(payload)

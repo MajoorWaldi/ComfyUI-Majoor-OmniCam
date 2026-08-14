@@ -4,6 +4,16 @@ import math
 
 from ..core.track import CameraState, OmniCamTrack
 
+# Recommended motion limits for Wan camera conditioning (adapter scope only).
+WAN_RECOMMENDED_MOTION_LIMITS = {
+    "max_speed": 6.0,
+    "max_angular_speed": 90.0,
+    "max_acceleration": 30.0,
+    "max_jerk": 300.0,
+    "max_fov_change": 20.0,
+    "allow_framing_loss": False,
+}
+
 
 def _normalize(value: list[float]) -> list[float]:
     length = math.sqrt(sum(component * component for component in value))

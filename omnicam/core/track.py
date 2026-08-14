@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -8,10 +9,19 @@ from typing import Any
 SCHEMA_VERSION = 1
 
 
+def _finite(value: Any, default: float) -> float:
+    """Coerce to a finite float; NaN and Infinity are replaced by the default."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return default
+    return number if math.isfinite(number) else default
+
+
 def _vec3(value: Any, default: tuple[float, float, float]) -> list[float]:
     if not isinstance(value, (list, tuple)) or len(value) != 3:
         return list(default)
-    return [float(value[0]), float(value[1]), float(value[2])]
+    return [_finite(value[0], default[0]), _finite(value[1], default[1]), _finite(value[2], default[2])]
 
 
 def _clamp(v: float, lo: float, hi: float) -> float:
@@ -20,6 +30,12 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 
 def _lerp(a: float, b: float, t: float) -> float:
     return a + (b - a) * t
+
+
+def _lerp_angle(a: float, b: float, t: float) -> float:
+    """Interpolate an angle in degrees over the shortest arc."""
+    delta = (b - a + 540.0) % 360.0 - 180.0
+    return a + delta * t
 
 
 def _lerp3(a: list[float], b: list[float], t: float) -> list[float]:
@@ -57,15 +73,15 @@ class CameraState:
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> CameraState:
         data = data or {}
-        near = max(1e-4, float(data.get("near", 0.01)))
-        far = max(near + 1e-4, float(data.get("far", 10000.0)))
+        near = max(1e-4, _finite(data.get("near", 0.01), 0.01))
+        far = max(near + 1e-4, _finite(data.get("far", 10000.0), 10000.0))
         return cls(
             position=_vec3(data.get("position"), (6.0, 4.0, 6.0)),
             target=_vec3(data.get("target"), (0.0, 1.5, 0.0)),
-            fov=float(data.get("fov", 35.0)),
-            roll=float(data.get("roll", 0.0)),
+            fov=_finite(data.get("fov", 35.0), 35.0),
+            roll=_finite(data.get("roll", 0.0), 0.0),
             camera_type=str(data.get("camera_type", data.get("cameraType", "perspective"))),
-            zoom=float(data.get("zoom", 1.0)),
+            zoom=_finite(data.get("zoom", 1.0), 1.0),
             near=near,
             far=far,
         )
@@ -76,14 +92,20 @@ class CameraKeyframe:
     frame: int
     camera: CameraState
     interpolation: str = "ease"
+    tangents: dict[str, Any] | None = None
+    references: list[dict[str, Any]] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CameraKeyframe:
         camera_payload = data.get("camera") if isinstance(data.get("camera"), dict) else data
+        tangents = data.get("tangents")
+        references = data.get("references")
         return cls(
-            frame=max(0, int(data.get("frame", 0))),
+            frame=max(0, int(_finite(data.get("frame", 0), 0))),
             camera=CameraState.from_dict(camera_payload),
             interpolation=str(data.get("interpolation", "ease")),
+            tangents=dict(tangents) if isinstance(tangents, dict) else None,
+            references=[dict(ref) for ref in references if isinstance(ref, dict)] if isinstance(references, list) else None,
         )
 
 
@@ -105,13 +127,17 @@ class OmniCamTrack:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OmniCamTrack:
-        schema_version = int(data.get("schema_version", data.get("schemaVersion", SCHEMA_VERSION)))
-        if schema_version != SCHEMA_VERSION:
-            raise ValueError(f"Unsupported OmniCam track schema: {schema_version}")
-        fps = max(1, min(120, int(data.get("fps", 24))))
-        duration_frames = max(1, int(data.get("duration_frames", data.get("durationFrames", fps * 5))))
-        width = max(64, min(4096, int(data.get("width", 1280))))
-        height = max(64, min(4096, int(data.get("height", 720))))
+        from .migrations import TRACK_SCHEMA, CURRENT_VERSIONS, migrate_payload
+
+        raw_version = int(data.get("schema_version", data.get("schemaVersion", 0)) or 0)
+        if raw_version > CURRENT_VERSIONS[TRACK_SCHEMA]:
+            raise ValueError(f"Unsupported OmniCam track schema: {raw_version}")
+        data = migrate_payload(data, TRACK_SCHEMA)
+        schema_version = int(data.get("schema_version", SCHEMA_VERSION))
+        fps = max(1, min(120, int(_finite(data.get("fps", 24), 24))))
+        duration_frames = max(1, int(_finite(data.get("duration_frames", data.get("durationFrames", fps * 5)), fps * 5)))
+        width = max(64, min(4096, int(_finite(data.get("width", 1280), 1280))))
+        height = max(64, min(4096, int(_finite(data.get("height", 720), 720))))
         render_mode = str(data.get("render_mode", data.get("renderMode", "omni_ref")))
 
         raw_keyframes = data.get("keyframes", [])
@@ -162,6 +188,8 @@ class OmniCamTrack:
                     "frame": k.frame,
                     "camera": asdict(k.camera),
                     "interpolation": k.interpolation,
+                    **({"tangents": k.tangents} if k.tangents else {}),
+                    **({"references": k.references} if k.references else {}),
                 }
                 for k in self.keyframes
             ],
@@ -194,8 +222,9 @@ class OmniCamTrack:
             position=_lerp3(a.position, b.position, t),
             target=_lerp3(a.target, b.target, t),
             fov=_lerp(a.fov, b.fov, t),
-            roll=_lerp(a.roll, b.roll, t),
-            camera_type=a.camera_type if t < 0.5 else b.camera_type,
+            roll=_lerp_angle(a.roll, b.roll, t),
+            # Projection changes are cuts at the right key boundary, not midpoint switches.
+            camera_type=a.camera_type if t < 1.0 else b.camera_type,
             zoom=_lerp(a.zoom, b.zoom, t),
             near=_lerp(a.near, b.near, t),
             far=_lerp(a.far, b.far, t),

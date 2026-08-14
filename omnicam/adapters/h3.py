@@ -9,6 +9,17 @@ H3_PROXY_PRESETS = {
     "debug": {"render_mode": "omni_ref", "point_count": 90, "burn_in": True},
 }
 
+# Model-specific recommended motion limits (adapter scope only; the core stays neutral).
+# Units: world units/s, degrees/s, world units/s², world units/s³, degrees total.
+H3_RECOMMENDED_MOTION_LIMITS = {
+    "max_speed": 8.0,
+    "max_angular_speed": 120.0,
+    "max_acceleration": 40.0,
+    "max_jerk": 400.0,
+    "max_fov_change": 25.0,
+    "allow_framing_loss": False,
+}
+
 
 def classify_camera_motion(track: OmniCamTrack) -> str:
     start = track.sample(0)

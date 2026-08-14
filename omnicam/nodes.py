@@ -35,12 +35,16 @@ from .core.camera_tools import (
     smooth_camera_path,
 )
 from .core.sequence import build_sequence, playblast_manifest, sequence_to_json, validate_sequence
+from .core.edl import edl_to_shots, otio_to_shots, sequence_to_edl, sequence_to_otio
+from .core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass
+from .core.editor_state import editor_state_to_track
 from .core.track import OmniCamTrack, camera_to_load3d
 
 OMNICAM_TRACK = IO.Custom("MAJOOR_OMNICAM_TRACK")
 OMNICAM_ATI_BRIDGE = IO.Custom("MAJOOR_OMNICAM_ATI_BRIDGE")
 OMNICAM_LTX_BRIDGE = IO.Custom("MAJOOR_OMNICAM_LTX_BRIDGE")
 OMNICAM_SEQUENCE = IO.Custom("MAJOOR_OMNICAM_SEQUENCE")
+OMNICAM_EDITOR_STATE = IO.Custom("OMNICAM_EDITOR_STATE")
 
 
 def _resolve_video(path: str | None):
@@ -114,7 +118,14 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         image=None,
         video=None,
     ) -> IO.NodeOutput:
-        track = OmniCamTrack.from_json(state_json)
+        raw_state: dict[str, Any] = {}
+        try:
+            parsed = json.loads(state_json) if state_json else {}
+            raw_state = parsed if isinstance(parsed, dict) else {}
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Invalid OmniCam state JSON: {exc}") from exc
+        # Explicit editor-state → primary-track conversion (playblast camera wins).
+        track = OmniCamTrack.from_dict(editor_state_to_track(raw_state, validate=False))
         # Backend values are authoritative when a workflow is queued.
         track.width = int(width)
         track.height = int(height)
@@ -499,6 +510,86 @@ class MajoorOmniCamUnrealExport(IO.ComfyNode):
         return IO.NodeOutput(script_path, json_path)
 
 
+class MajoorOmniCamSequenceEDL(IO.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return IO.Schema(
+            node_id="MajoorOmniCamSequenceEDL",
+            display_name="OmniCam Sequence → EDL/OTIO Export",
+            category="Majoor/OmniCam/Sequence",
+            description="Exports the sequence as CMX3600 EDL text and OTIO JSON for editorial interchange.",
+            inputs=[OMNICAM_SEQUENCE.Input("sequence"), IO.String.Input("title", default="OmniCam Sequence", multiline=False)],
+            outputs=[IO.String.Output(display_name="edl"), IO.String.Output(display_name="otio_json")],
+        )
+
+    @classmethod
+    def execute(cls, sequence: dict[str, Any], title: str) -> IO.NodeOutput:
+        return IO.NodeOutput(sequence_to_edl(sequence, title or "OmniCam Sequence"), json.dumps(sequence_to_otio(sequence, title or "OmniCam Sequence"), indent=2))
+
+
+class MajoorOmniCamSequenceEDLImport(IO.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return IO.Schema(
+            node_id="MajoorOmniCamSequenceEDLImport",
+            display_name="OmniCam EDL/OTIO Shot Import",
+            category="Majoor/OmniCam/Sequence",
+            description="Parses an EDL or OTIO JSON document into the shot skeleton list (names, order, durations) consumed by the Sequence Builder.",
+            inputs=[
+                IO.String.Input("document", default="", multiline=True),
+                IO.Combo.Input("format", options=["auto", "edl", "otio"]),
+                IO.Int.Input("fps", default=24, min=1, max=120, step=1),
+            ],
+            outputs=[IO.String.Output(display_name="shot_names"), IO.String.Output(display_name="durations_json")],
+        )
+
+    @classmethod
+    def execute(cls, document: str, format: str, fps: int) -> IO.NodeOutput:
+        text = document.strip()
+        if not text:
+            raise ValueError("Provide an EDL or OTIO document")
+        mode = format
+        if mode == "auto":
+            mode = "otio" if text.startswith("{") else "edl"
+        if mode == "otio":
+            shots = otio_to_shots(json.loads(text), fps)
+        else:
+            shots = edl_to_shots(text, fps)
+        names = "\n".join(shot["name"] for shot in shots)
+        durations = json.dumps([shot["duration_frames"] for shot in shots])
+        return IO.NodeOutput(names, durations)
+
+
+class MajoorOmniCamControlPasses(IO.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return IO.Schema(
+            node_id="MajoorOmniCamControlPasses",
+            display_name="OmniCam Control Passes",
+            category="Majoor/OmniCam/Adapters",
+            description="Exports geometry-derived control passes (object IDs, depth, normals, optical flow) as JSON payloads for ControlNet-style conditioning.",
+            inputs=[
+                OMNICAM_TRACK.Input("camera_track"),
+                IO.Combo.Input("pass_type", options=["object_ids", "depth", "normals", "optical_flow"]),
+                IO.Int.Input("step", default=1, min=1, max=64, advanced=True),
+            ],
+            outputs=[IO.String.Output(display_name="pass_json")],
+        )
+
+    @classmethod
+    def execute(cls, camera_track: dict[str, Any], pass_type: str, step: int) -> IO.NodeOutput:
+        track = OmniCamTrack.from_dict(camera_track)
+        if pass_type == "object_ids":
+            payload = object_id_pass(track, step=step)
+        elif pass_type == "depth":
+            payload = depth_pass(track, step=step)
+        elif pass_type == "normals":
+            payload = normals_pass(track, step=step)
+        else:
+            payload = optical_flow_pass(track, step=step)
+        return IO.NodeOutput(json.dumps(payload, indent=2))
+
+
 ALL_NODES = [
     MajoorOmniCamDirector,
     MajoorOmniCamTrackSampler,
@@ -510,9 +601,12 @@ ALL_NODES = [
     MajoorOmniCamLTXAdapter,
     MajoorOmniCamLTXCameraGuide,
     MajoorOmniCamCameraTools,
+    MajoorOmniCamControlPasses,
     MajoorOmniCamSequenceBuilder,
     MajoorOmniCamSequenceShot,
     MajoorOmniCamSequenceManifest,
+    MajoorOmniCamSequenceEDL,
+    MajoorOmniCamSequenceEDLImport,
     MajoorOmniCamBlenderExport,
     MajoorOmniCamUnrealExport,
 ]

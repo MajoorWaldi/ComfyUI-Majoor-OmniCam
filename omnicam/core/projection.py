@@ -35,9 +35,18 @@ def norm(v):
 
 
 def basis(camera: CameraState):
-    forward = norm(sub(camera.target, camera.position))
+    offset = sub(camera.target, camera.position)
+    if math.sqrt(dot(offset, offset)) < 1e-6:
+        forward = [0.0, 0.0, -1.0]
+    else:
+        forward = norm(offset)
     world_up = [0.0, 1.0, 0.0]
-    right = norm(cross(forward, world_up))
+    right = cross(forward, world_up)
+    if math.sqrt(dot(right, right)) < 1e-6:
+        # Forward is parallel to world up: pick a stable fallback axis.
+        world_up = [0.0, 0.0, -1.0 if forward[1] > 0 else 1.0]
+        right = cross(forward, world_up)
+    right = norm(right)
     up = norm(cross(right, forward))
     if abs(camera.roll) > 1e-9:
         r = math.radians(camera.roll)
@@ -54,6 +63,12 @@ def project_point(point, camera: CameraState, width: int, height: int):
         return None
     x = dot(rel, right)
     y = dot(rel, up)
+    if camera.camera_type == "orthographic":
+        half_height = 5.0 / max(0.01, camera.zoom)
+        half_width = half_height * width / max(1, height)
+        sx = width * (0.5 + x / (2.0 * half_width))
+        sy = height * (0.5 - y / (2.0 * half_height))
+        return [sx, sy, z]
     f = 0.5 * height / math.tan(math.radians(max(1e-3, camera.fov)) * 0.5)
     sx = width * 0.5 + x * f / z
     sy = height * 0.5 - y * f / z

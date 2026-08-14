@@ -16,6 +16,16 @@ LTX_CAMERA_LORAS = {
     "truck_right": "ltx-2-19b-lora-camera-control-dolly-right.safetensors",
 }
 
+# LTX camera LoRAs expect slow, single-axis moves (adapter scope only).
+LTX_RECOMMENDED_MOTION_LIMITS = {
+    "max_speed": 4.0,
+    "max_angular_speed": 60.0,
+    "max_acceleration": 20.0,
+    "max_jerk": 200.0,
+    "max_fov_change": 15.0,
+    "allow_framing_loss": False,
+}
+
 
 def ltx_camera_control_profile(track: OmniCamTrack) -> dict[str, Any]:
     motion = classify_camera_motion(track)
