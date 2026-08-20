@@ -24,7 +24,7 @@ CAMERA_TYPES = frozenset({"perspective", "orthographic"})
 OBJECT_TYPES = frozenset({"card", "cube", "sphere", "human", "null", "ground", "model", "glb"})
 MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe"})
 PROJECTION_MODES = CAMERA_TYPES
-TANGENT_MODES = frozenset({"auto", "vector", "free", "aligned"})
+TANGENT_MODES = frozenset({"auto", "vector", "free", "aligned", "flat"})
 
 FOV_RANGE = (5.0, 150.0)
 ROLL_RANGE = (-180.0, 180.0)
@@ -99,18 +99,33 @@ def validate_camera(payload: dict[str, Any], path: str = "camera") -> dict[str, 
 
 
 def validate_tangents(payload: Any, path: str) -> dict[str, Any] | None:
-    """Editable Bézier handles: normalized segment offsets around the key value."""
+    """Editable Bézier handles: normalized segment offsets around the key value (per-key or per-channel)."""
     if payload is None:
         return None
     if not isinstance(payload, dict):
         raise ValidationError(f"{path} must be an object")
-    return {
+    validated: dict[str, Any] = {
         "mode": whitelist(payload.get("mode", "auto"), TANGENT_MODES, f"{path}.mode"),
         "out_x": clamp_number(payload.get("out_x", 1 / 3), 0.01, 0.99, f"{path}.out_x"),
         "out_y": require_finite(payload.get("out_y", 0.0), f"{path}.out_y"),
         "in_x": clamp_number(payload.get("in_x", -1 / 3), -0.99, -0.01, f"{path}.in_x"),
         "in_y": require_finite(payload.get("in_y", 0.0), f"{path}.in_y"),
     }
+    channels = payload.get("channels")
+    if isinstance(channels, dict):
+        validated_channels = {}
+        for ch_id, ch_payload in channels.items():
+            if isinstance(ch_payload, dict):
+                validated_channels[str(ch_id)[:40]] = {
+                    "mode": whitelist(ch_payload.get("mode", validated["mode"]), TANGENT_MODES, f"{path}.channels[{ch_id}].mode"),
+                    "out_x": clamp_number(ch_payload.get("out_x", 1 / 3), 0.01, 0.99, f"{path}.channels[{ch_id}].out_x"),
+                    "out_y": require_finite(ch_payload.get("out_y", 0.0), f"{path}.channels[{ch_id}].out_y"),
+                    "in_x": clamp_number(ch_payload.get("in_x", -1 / 3), -0.99, -0.01, f"{path}.channels[{ch_id}].in_x"),
+                    "in_y": require_finite(ch_payload.get("in_y", 0.0), f"{path}.channels[{ch_id}].in_y"),
+                }
+        if validated_channels:
+            validated["channels"] = validated_channels
+    return validated
 
 
 def validate_reference(payload: Any, path: str) -> dict[str, Any]:
@@ -160,7 +175,10 @@ def validate_camera_keyframes(keyframes: Any, duration_frames: int, path: str, l
 def validate_transform(transform: Any, path: str) -> dict[str, Any]:
     if not isinstance(transform, dict):
         raise ValidationError(f"{path} must be an object")
-    size = validate_vec3(transform.get("size", [1, 1, 1]), f"{path}.size")
+    raw_size = transform.get("size", [1, 1, 1])
+    if isinstance(raw_size, (list, tuple)) and len(raw_size) == 2:
+        raw_size = [raw_size[0], raw_size[1], 0.01]
+    size = validate_vec3(raw_size, f"{path}.size")
     return {
         "position": validate_vec3(transform.get("position", [0, 0, 0]), f"{path}.position"),
         "rotation": validate_vec3(transform.get("rotation", [0, 0, 0]), f"{path}.rotation"),

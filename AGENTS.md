@@ -186,13 +186,12 @@ Targets for the production WebGL viewport:
 
 ## 12. Documentation rule
 
-When behavior changes, update at least one of:
+When behavior changes, update the relevant maintained document:
 
-- `README.md`
-- `docs/PRODUCT_SPEC.md`
-- `docs/ARCHITECTURE.md`
-- `docs/INTEGRATIONS.md`
-- `docs/ROADMAP.md`
+- `README.md` for product behavior and setup;
+- `docs/NODES.md` for node inputs, outputs, or usage;
+- `docs/SHORTCUTS.md` for controls and interaction changes;
+- `docs/SECURITY.md` for file handling, limits, or security changes.
 
 ## 13. Definition of done
 
@@ -206,3 +205,15 @@ A feature is done only when:
 6. Manual viewport QA passes.
 7. Documentation updated.
 8. No model-specific dependency leaked into the core track.
+
+## 14. Source-file size and feature modules
+
+- Hand-written source files must not exceed 500 lines.
+- Do not satisfy this limit by minifying, joining statements, or otherwise
+  hiding complexity on fewer physical lines.
+- Every new feature, substantial behavior, or independent responsibility must
+  be implemented in its own appropriately named module.
+- Existing public import paths may remain as small facade modules that re-export
+  the implementation from focused modules.
+- Split a file before adding a feature when the change would push it beyond the
+  500-line limit.

@@ -1,10 +1,16 @@
-import * as THREE from "three";
+﻿import * as THREE from "three";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { BufferTarget, CanvasSource, Output, Quality, WebMOutputFormat, canEncodeVideo } from "mediabunny";
+
+import { generatePointField, sampleCamera, sampleObjectTransform } from "./director/core.js";
+import { createResourceMethods } from "./viewport/resources.js";
+import { createSceneMethods } from "./viewport/scene.js";
+import { createCameraPickingMethods } from "./viewport/camera-picking.js";
+import { createRenderMethods } from "./viewport/render.js";
 
 const neutral = new THREE.MeshStandardMaterial({ color: 0x8c929b, roughness: 0.9, metalness: 0 });
 const wire = new THREE.MeshBasicMaterial({ color: 0xaeb5c0, wireframe: true });
@@ -20,9 +26,15 @@ function checkerMaterial() {
 }
 
 function objectMaterial(object, mode) {
-  if (mode === "wireframe" || object.material_mode === "wireframe") return wire.clone();
+  if (mode === "wireframe" || object.material_mode === "wireframe") {
+    const mat = wire.clone();
+    if (object.color) mat.color = new THREE.Color(object.color);
+    return mat;
+  }
   if (object.material_mode === "checker") return checkerMaterial();
-  return neutral.clone();
+  const mat = neutral.clone();
+  if (object.color) mat.color = new THREE.Color(object.color);
+  return mat;
 }
 
 function applyModelMaterial(root, mode) {
@@ -62,7 +74,9 @@ function textureFor(media) {
 function cardMesh(object, media, fit) {
   const [width, height] = object.size || [2, 3];
   const group = new THREE.Group();
-  group.add(new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ color: 0x161a22, side: THREE.DoubleSide })));
+  const basePlane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ color: 0x161a22, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+  basePlane.frustumCulled = false;
+  group.add(basePlane);
   const texture = textureFor(media);
   if (!texture) return group;
 
@@ -84,16 +98,34 @@ function cardMesh(object, media, fit) {
       texture.offset.y = (1 - texture.repeat.y) * 0.5;
     }
   }
-  const image = new THREE.Mesh(new THREE.PlaneGeometry(imageWidth, imageHeight), new THREE.MeshBasicMaterial({ color: 0xffffff, map: texture, side: THREE.DoubleSide }));
+  const image = new THREE.Mesh(
+    new THREE.PlaneGeometry(imageWidth, imageHeight),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+      alphaTest: 0.01,
+      depthWrite: true,
+    })
+  );
+  image.frustumCulled = false;
   image.position.z = 0.002;
   group.add(image);
+  group.frustumCulled = false;
   return group;
 }
 
 export class OmniWebGLViewport {
   constructor(invalidate = () => {}, onModelLoaded = () => {}) {
     this.canvas = document.createElement("canvas");
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      antialias: true,
+      alpha: false,
+      preserveDrawingBuffer: true,
+      logarithmicDepthBuffer: true,
+    });
     // render() receives backing-store pixels from the host canvas, so Three.js must not apply DPR again.
     this.renderer.setPixelRatio(1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -103,10 +135,14 @@ export class OmniWebGLViewport {
     const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(5, 8, 4); this.scene.add(key);
     this.content = new THREE.Group(); this.scene.add(this.content);
     this.path = new THREE.Group(); this.scene.add(this.path);
+    this.liveCameras = new THREE.Group(); this.scene.add(this.liveCameras);
+    this.selectionGroup = new THREE.Group(); this.scene.add(this.selectionGroup);
     this.perspective = new THREE.PerspectiveCamera(35, 16 / 9, 0.01, 10000);
     this.orthographic = new THREE.OrthographicCamera(-5, 5, 2.8125, -2.8125, 0.01, 10000);
     this.sceneKey = "";
     this.mediaSignature = "";
+    this.bgImageUrl = "";
+    this.bgTexture = null;
     this.disposed = false;
     this.invalidate = invalidate;
     this.onModelLoaded = onModelLoaded;
@@ -149,7 +185,25 @@ export class OmniWebGLViewport {
       }
       const previous = this.models.get(id);
       if (previous) disposeObject(previous.scene, true);
-      scene.traverse((child) => { child.userData.omnicamModelResource = true; });
+      scene.traverse((child) => {
+        child.userData.omnicamModelResource = true;
+        child.frustumCulled = false;
+        if (child.isMesh) {
+          child.frustumCulled = false;
+          if (child.material) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            for (const mat of mats) {
+              mat.side = THREE.DoubleSide;
+            }
+          }
+        }
+        if (child.isPoints) child.frustumCulled = false;
+        if (child.isSkinnedMesh) {
+          child.frustumCulled = false;
+          child.computeBoundingBox?.();
+          child.computeBoundingSphere?.();
+        }
+      });
       let meshes = 0, points = 0, bones = 0, vertices = 0;
       scene.traverse((child) => {
         if (child.isMesh) { meshes += 1; vertices += child.geometry?.getAttribute?.("position")?.count || 0; }
@@ -157,6 +211,7 @@ export class OmniWebGLViewport {
         if (child.isBone) bones += 1;
       });
       const content = new THREE.Group();
+      content.frustumCulled = false;
       content.add(scene);
       if (!meshes && !points && bones) {
         const helper = new THREE.SkeletonHelper(scene);
@@ -176,6 +231,7 @@ export class OmniWebGLViewport {
       content.scale.setScalar(normalizationScale);
       content.position.set(-boundsCenter.x * normalizationScale, -bounds.min.y * normalizationScale, -boundsCenter.z * normalizationScale);
       const container = new THREE.Group();
+      container.frustumCulled = false;
       container.add(content);
       const mixer = animations.length ? new THREE.AnimationMixer(scene) : null;
       if (mixer) mixer.clipAction(animations[0]).play();
@@ -187,164 +243,42 @@ export class OmniWebGLViewport {
     } catch (error) {
       if (this.modelLoads.get(id) === signature) this.modelLoads.delete(id);
       console.warn(`OmniCam could not load ${format.toUpperCase()} ${id}`, error);
+      const isLegacyFBX = error?.message?.includes("FBX version not supported") || error?.message?.includes("6100") || error?.message?.includes("6000");
+      const errorMessage = isLegacyFBX
+        ? "FBX Version 6.1 (Legacy) non supportée — Exportez en FBX 2014+ (7.4) ou GLB"
+        : (error?.message || "Erreur de format 3D");
+      this.onModelLoaded({ id, format, error: errorMessage, isLegacyFBX });
     }
   }
 
-  removeModel(id) {
-    const model = this.models.get(id);
-    if (model) disposeObject(model.scene, true);
-    this.models.delete(id); this.modelLoads.delete(id); this.sceneKey = "";
-  }
-
-  selectAnimation(id, index) {
-    const model = this.models.get(id);
-    if (!model?.mixer || !model.clips.length) return;
-    model.selectedClip = Math.max(0, Math.min(model.clips.length - 1, Number(index) || 0));
-    model.duration = model.clips[model.selectedClip].duration || 0;
-    model.mixer.stopAllAction();
-    model.mixer.clipAction(model.clips[model.selectedClip]).play();
-    this.invalidate();
-  }
-
-  rebuild(state, mediaById, modelUrlsById) {
-    disposeObject(this.content); this.content.clear();
-    this.objectNodes.clear();
-    const mode = state.render_mode;
-    const grid = new THREE.GridHelper(120, 120, 0x777777, 0x3b3b3b);
-    grid.userData.omnicamCaptureGuide = true;
-    this.content.add(grid);
-    if (["omni_ref", "point_field"].includes(mode)) {
-      const points = [];
-      for (let index = 0; index < 160; index++) {
-        const angle = index * 2.3999632297, radius = 1.5 + (index % 13) * 0.38;
-        points.push(Math.cos(angle) * radius, 0.15 + ((index * 0.618) % 1) * 4, Math.sin(angle) * radius);
-      }
-      const pointGeometry = new THREE.BufferGeometry(); pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
-      this.content.add(new THREE.Points(pointGeometry, new THREE.PointsMaterial({ color: 0x9ca8ba, size: 0.055, sizeAttenuation: true })));
-    }
-    if (["grid", "point_field"].includes(mode)) return;
-    for (const object of state.objects) {
-      if (object.enabled === false) continue;
-      const size = object.size || [1, 1, 1]; let mesh;
-      if (object.type === "glb" || object.type === "model") {
-        const url = modelUrlsById.get(object.id);
-        const model = this.models.get(object.id);
-        const format = object.format || (object.type === "glb" ? "glb" : "");
-        if (url && (model?.url !== url || model?.format !== format)) this.loadModel(object.id, url, format);
-        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, object.material_mode || "textured"); }
-        else mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2] || 1), wire.clone());
-      } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode));
-      else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));
-      else if (object.type === "card") {
-        mesh = object.material_mode && object.material_mode !== "textured" ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), objectMaterial(object, mode)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
-      } else if (object.type === "null") {
-        const axes = new THREE.AxesHelper(0.5); axes.position.fromArray(object.position || [0, 0, 0]); axes.userData.omnicamId = object.id; this.objectNodes.set(object.id, axes); this.content.add(axes); continue;
-      } else {
-        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));
-      }
-      mesh.position.fromArray(object.position || [0, 0, 0]);
-      mesh.rotation.set(...(object.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad));
-      if (object.type !== "card") mesh.scale.fromArray(size);
-      mesh.userData.omnicamId = object.id; this.objectNodes.set(object.id, mesh); this.content.add(mesh);
-    }
-  }
-
-  rebuildPath(state) {
-    disposeObject(this.path); this.path.clear();
-    if (state.keyframes.length < 2) return;
-    const curve = new THREE.CatmullRomCurve3(state.keyframes.map((key) => new THREE.Vector3().fromArray(key.camera.position)));
-    const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(Math.max(24, state.keyframes.length * 16)));
-    this.path.add(new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x7694d1 })));
-    for (const key of state.keyframes) {
-      const marker = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0xf2d06b }));
-      marker.position.fromArray(key.camera.position); this.path.add(marker);
-      const position = new THREE.Vector3().fromArray(key.camera.position);
-      const target = new THREE.Vector3().fromArray(key.camera.target || [0, 0, 0]);
-      const forward = target.clone().sub(position).normalize();
-      let right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
-      if (right.lengthSq() < 1e-8) right.set(1, 0, 0); else right.normalize();
-      const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-      const distance = THREE.MathUtils.clamp(position.distanceTo(target) * 0.08, 0.25, 0.8);
-      const halfHeight = key.camera.camera_type === "orthographic" ? distance * 0.55 : distance * Math.tan(THREE.MathUtils.degToRad(key.camera.fov || 35) * 0.5);
-      const halfWidth = halfHeight * (state.width || 16) / Math.max(1, state.height || 9);
-      const center = position.clone().addScaledVector(forward, distance);
-      const corners = [
-        center.clone().addScaledVector(right, -halfWidth).addScaledVector(up, -halfHeight),
-        center.clone().addScaledVector(right, halfWidth).addScaledVector(up, -halfHeight),
-        center.clone().addScaledVector(right, halfWidth).addScaledVector(up, halfHeight),
-        center.clone().addScaledVector(right, -halfWidth).addScaledVector(up, halfHeight),
-      ];
-      const segments = [];
-      for (const corner of corners) segments.push(position, corner);
-      for (let index = 0; index < 4; index++) segments.push(corners[index], corners[(index + 1) % 4]);
-      const frustum = new THREE.BufferGeometry().setFromPoints(segments);
-      this.path.add(new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({ color: 0x4d638f })));
-    }
-  }
-
-  configureCamera(cameraState, aspect) {
-    let camera;
-    if (cameraState.camera_type === "orthographic") {
-      camera = this.orthographic; const halfHeight = 5 / Math.max(0.01, cameraState.zoom || 1); camera.left = -halfHeight * aspect; camera.right = halfHeight * aspect; camera.top = halfHeight; camera.bottom = -halfHeight; camera.near = cameraState.near; camera.far = cameraState.far; camera.updateProjectionMatrix();
-    } else {
-      camera = this.perspective; camera.fov = cameraState.fov; camera.aspect = aspect; camera.near = cameraState.near; camera.far = cameraState.far; camera.updateProjectionMatrix();
-    }
-    camera.position.fromArray(cameraState.position); camera.up.fromArray(cameraState.up || [0, 1, 0]); camera.lookAt(new THREE.Vector3().fromArray(cameraState.target)); camera.rotateZ(-THREE.MathUtils.degToRad(cameraState.roll || 0));
-    return camera;
-  }
-
-  pick(x, y, width, height) {
-    if (!this.activeCamera) return null;
-    this.pointer.set(x / Math.max(1, width) * 2 - 1, 1 - y / Math.max(1, height) * 2);
-    this.raycaster.setFromCamera(this.pointer, this.activeCamera);
-    for (const hit of this.raycaster.intersectObjects(this.content.children, true)) {
-      let object = hit.object;
-      while (object && !object.userData.omnicamId) object = object.parent;
-      if (object?.userData.omnicamId) return object.userData.omnicamId;
-    }
-    return null;
-  }
-
-  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false) {
-    if (this.disposed) return;
-    if (this.canvas.width !== width || this.canvas.height !== height) this.renderer.setSize(width, height, false);
-    const sceneKey = JSON.stringify([state.render_mode, state.card_fit, state.objects.map((object) => { const { position, rotation, keyframes, size, ...shape } = object; if (object.type === "card") shape.size = size; return shape; })]);
-    const mediaSignature = [...mediaById.entries()].map(([id, media]) => `${id}:${media?.src || ""}`).join("|");
-    const modelSignature = [...modelUrlsById.entries()].map(([id, url]) => `${id}:${url}`).join("|");
-    if (sceneKey !== this.sceneKey || mediaSignature !== this.mediaSignature || modelSignature !== this.modelSignature) {
-      this.sceneKey = sceneKey; this.mediaSignature = mediaSignature; this.modelSignature = modelSignature; this.rebuild(state, mediaById, modelUrlsById);
-    }
-    for (const model of this.models.values()) {
-      if (model.mixer && model.duration > 0) model.mixer.setTime((frame / Math.max(1, state.fps || 24)) % model.duration);
-    }
-    for (const object of state.objects) {
-      const node = this.objectNodes.get(object.id); if (!node) continue;
-      node.position.fromArray(object.position || [0, 0, 0]); node.rotation.set(...(object.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad));
-      if (object.type !== "card" && object.type !== "null") node.scale.fromArray(object.size || [1, 1, 1]);
-    }
-    this.path.visible = !cleanCapture;
-    const editorGrid = ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(state.render_mode);
-    this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
-    const pathKey = JSON.stringify(state.keyframes); if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state); }
-    this.content.visible = true;
-    const aspect = width / Math.max(1, height);
-    const camera = this.configureCamera(cameraState, aspect); this.activeCamera = camera;
-    this.renderer.setScissorTest(false); this.renderer.setViewport(0, 0, width, height); this.renderer.render(this.scene, camera);
-  }
-
-  dispose() {
-    if (this.disposed) return; this.disposed = true;
-    disposeObject(this.content); disposeObject(this.path);
-    for (const model of this.models.values()) disposeObject(model.scene, true);
-    this.models.clear(); this.modelLoads.clear();
-    this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.width = 1; this.canvas.height = 1;
-  }
 }
+const viewportDependencies = { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform };
+Object.assign(
+  OmniWebGLViewport.prototype,
+  createResourceMethods(viewportDependencies),
+  createSceneMethods(viewportDependencies),
+  createCameraPickingMethods(viewportDependencies),
+  createRenderMethods(viewportDependencies),
+);
 
 export async function supportsDeterministicEncoding(width, height) {
   if (!globalThis.VideoEncoder || !globalThis.VideoFrame) return null;
-  for (const codec of ["vp9", "vp8"]) if (await canEncodeVideo(codec, { width, height })) return codec;
+  for (const codec of ["vp9", "vp8"]) {
+    try {
+      if (await withTimeout(canEncodeVideo(codec, { width, height }), 5_000, `Checking ${codec} support`)) return codec;
+    } catch (_) {
+      // A codec probe is optional; try the next codec or realtime fallback.
+    }
+  }
   return null;
+}
+
+function withTimeout(promise, timeoutMs, operation) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${operation} timed out`)), timeoutMs); }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 export async function encodeDeterministicPlayblast(canvas, frameCount, fps, renderFrame) {
@@ -353,14 +287,14 @@ export async function encodeDeterministicPlayblast(canvas, frameCount, fps, rend
   const output = new Output({ format: new WebMOutputFormat(), target: new BufferTarget() });
   const source = new CanvasSource(canvas, { codec, quality: new Quality("high"), keyFrameInterval: 1 });
   output.addVideoTrack(source, { frameRate: fps });
-  await output.start();
+  await withTimeout(output.start(), 10_000, "Starting deterministic encoder");
   try {
     const duration = 1 / fps;
     for (let frame = 0; frame < frameCount; frame++) {
       await renderFrame(frame);
-      await source.add(frame * duration, duration, { keyFrame: frame % fps === 0 });
+      await withTimeout(source.add(frame * duration, duration, { keyFrame: frame % fps === 0 }), 10_000, `Encoding frame ${frame + 1}`);
     }
-    await output.finalize();
+    await withTimeout(output.finalize(), 20_000, "Finalizing deterministic playblast");
   } catch (error) {
     if (output.state !== "finalized") await output.cancel().catch(() => {});
     throw error;

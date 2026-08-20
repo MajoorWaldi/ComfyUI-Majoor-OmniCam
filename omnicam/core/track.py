@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import json
 import math
 from collections.abc import Iterable
@@ -40,6 +41,185 @@ def _lerp_angle(a: float, b: float, t: float) -> float:
 
 def _lerp3(a: list[float], b: list[float], t: float) -> list[float]:
     return [_lerp(a[i], b[i], t) for i in range(3)]
+
+
+TANGENT_MODES = frozenset({"auto", "vector", "free", "aligned", "flat"})
+
+
+def _default_handles() -> dict[str, Any]:
+    return {"out_x": 1.0 / 3.0, "out_y": 0.0, "in_x": -1.0 / 3.0, "in_y": 0.0, "mode": "auto"}
+
+
+def _get_channel_tangents(key: Any, channel_id: str) -> dict[str, Any]:
+    tangents = getattr(key, "tangents", None) if not isinstance(key, dict) else key.get("tangents")
+    if not isinstance(tangents, dict):
+        return {}
+    channels = tangents.get("channels")
+    if isinstance(channels, dict) and channel_id in channels and isinstance(channels[channel_id], dict):
+        return channels[channel_id]
+    return tangents
+
+
+def _resolve_channel_handles(
+    key: Any,
+    channel_id: str,
+    previous_key: Any = None,
+    next_key: Any = None,
+    channel_getter: Any = None,
+) -> dict[str, Any]:
+    stored = _get_channel_tangents(key, channel_id)
+    top_tangents = getattr(key, "tangents", None) if not isinstance(key, dict) else key.get("tangents")
+    fallback_mode = top_tangents.get("mode", "auto") if isinstance(top_tangents, dict) else "auto"
+    mode = str(stored.get("mode", fallback_mode))
+    if mode not in TANGENT_MODES:
+        mode = "auto"
+
+    cur_frame = getattr(key, "frame", 0) if not isinstance(key, dict) else key.get("frame", 0)
+    prev_frame = getattr(previous_key, "frame", cur_frame - 1) if previous_key is not None and not isinstance(previous_key, dict) else (previous_key.get("frame", cur_frame - 1) if isinstance(previous_key, dict) else cur_frame - 1)
+    next_frame = getattr(next_key, "frame", cur_frame + 1) if next_key is not None and not isinstance(next_key, dict) else (next_key.get("frame", cur_frame + 1) if isinstance(next_key, dict) else cur_frame + 1)
+
+    prev_span = max(1e-6, float(cur_frame - prev_frame))
+    next_span = max(1e-6, float(next_frame - cur_frame))
+
+    cur_val = float(channel_getter(key)) if channel_getter else 0.0
+    prev_val = float(channel_getter(previous_key)) if previous_key is not None and channel_getter else cur_val
+    next_val = float(channel_getter(next_key)) if next_key is not None and channel_getter else cur_val
+
+    def _get_auto() -> dict[str, Any]:
+        d_prev = (cur_val - prev_val) / prev_span
+        d_next = (next_val - cur_val) / next_span
+        slope = (d_prev + d_next) * 0.5
+        if previous_key is None:
+            slope = d_next
+        elif next_key is None:
+            slope = d_prev
+        if d_prev * d_next <= 0 and previous_key is not None and next_key is not None:
+            slope = 0.0
+        return {
+            "out_x": 1.0 / 3.0,
+            "out_y": slope * next_span * (1.0 / 3.0),
+            "in_x": -1.0 / 3.0,
+            "in_y": -slope * prev_span * (1.0 / 3.0),
+        }
+
+    if mode == "vector":
+        in_slope = (cur_val - prev_val) / prev_span
+        out_slope = (next_val - cur_val) / next_span
+        return {
+            "out_x": 1.0 / 3.0,
+            "out_y": out_slope * next_span * (1.0 / 3.0),
+            "in_x": -1.0 / 3.0,
+            "in_y": -in_slope * prev_span * (1.0 / 3.0),
+            "mode": mode,
+        }
+
+    if mode == "flat":
+        return {"out_x": 1.0 / 3.0, "out_y": 0.0, "in_x": -1.0 / 3.0, "in_y": 0.0, "mode": mode}
+
+    if mode == "auto":
+        auto_h = _get_auto()
+        return {**auto_h, "mode": mode}
+
+    auto_fallback = _get_auto()
+    out_x = _clamp(float(stored.get("out_x", auto_fallback["out_x"])), 0.01, 0.99)
+    out_y = float(stored.get("out_y", auto_fallback["out_y"]))
+    in_x = _clamp(float(stored.get("in_x", auto_fallback["in_x"])), -0.99, -0.01)
+    in_y = float(stored.get("in_y", auto_fallback["in_y"]))
+
+    if mode == "aligned":
+        len_out = math.hypot(out_x, out_y) or 1e-6
+        len_in = math.hypot(in_x, in_y) or 1e-6
+        in_x = (-out_x / len_out) * len_in
+        in_y = (-out_y / len_out) * len_in
+
+    return {"out_x": out_x, "out_y": out_y, "in_x": in_x, "in_y": in_y, "mode": mode}
+
+
+def _resolve_handles(key: Any, previous_key: Any = None, next_key: Any = None) -> dict[str, Any]:
+    return _resolve_channel_handles(key, "default", previous_key, next_key, lambda k: getattr(k, "value", 0.0) if hasattr(k, "value") else (k.get("value", 0.0) if isinstance(k, dict) else 0.0))
+
+
+def _bezier_ease_with_handles(
+    t: float,
+    key: Any,
+    previous_key: Any = None,
+    next_key: Any = None,
+    span_frames: float = 1.0,
+    prev_span_frames: float | None = None,
+) -> float:
+    handles = _resolve_handles(key, previous_key, next_key)
+    p1x = _clamp(handles["out_x"], 0.01, 0.99)
+    p2x = _clamp(1.0 + handles["in_x"], 0.01, 0.99)
+    out_slope = handles["out_y"] / max(1e-6, handles["out_x"]) / max(1.0, float(span_frames))
+    in_slope = handles["in_y"] / max(1e-6, abs(handles["in_x"])) / max(1.0, float(prev_span_frames or span_frames))
+    p1y = out_slope * p1x
+    p2y = 1.0 + in_slope * (p2x - 1.0)
+    u = _clamp(t, 0.0, 1.0)
+    v = 1.0 - u
+    return 3.0 * v * v * u * p1y + 3.0 * v * u * u * p2y + u * u * u
+
+
+def _sample_channel(
+    keyframes: list[Any],
+    frame_f: float,
+    channel_id: str,
+    channel_getter: Any,
+    is_angle: bool = False,
+) -> float:
+    if not keyframes:
+        return 0.0
+
+    def _kf_frame(k: Any) -> float:
+        return float(getattr(k, "frame", k.get("frame", 0.0) if isinstance(k, dict) else 0.0))
+
+    def _kf_interp(k: Any) -> str:
+        return str(getattr(k, "interpolation", k.get("interpolation", "ease") if isinstance(k, dict) else "ease"))
+
+    first_frame = _kf_frame(keyframes[0])
+    last_frame = _kf_frame(keyframes[-1])
+
+    if frame_f <= first_frame:
+        return float(channel_getter(keyframes[0]))
+    if frame_f >= last_frame:
+        return float(channel_getter(keyframes[-1]))
+
+    frames = [_kf_frame(k) for k in keyframes]
+    idx = bisect.bisect_right(frames, frame_f) - 1
+    idx = max(0, min(len(keyframes) - 2, idx))
+    left = keyframes[idx]
+    right = keyframes[idx + 1]
+    prev = keyframes[idx - 1] if idx > 0 else None
+    next_key = keyframes[idx + 2] if idx + 2 < len(keyframes) else None
+
+    left_frame = _kf_frame(left)
+    right_frame = _kf_frame(right)
+    span = max(1.0, float(right_frame - left_frame))
+    u = _clamp((frame_f - left_frame) / span, 0.0, 1.0)
+
+    y0 = float(channel_getter(left))
+    y1 = float(channel_getter(right))
+    if is_angle:
+        delta = (y1 - y0 + 540.0) % 360.0 - 180.0
+        y1 = y0 + delta
+
+    is_bezier = _kf_interp(left) == "bezier" or _kf_interp(right) == "bezier"
+    if is_bezier:
+        handles_left = _resolve_channel_handles(left, channel_id, prev, right, channel_getter)
+        handles_right = _resolve_channel_handles(right, channel_id, left, next_key, channel_getter)
+        p0 = y0
+        p1 = y0 + float(handles_left.get("out_y", 0.0))
+        p2 = y1 + float(handles_right.get("in_y", 0.0))
+        p3 = y1
+        v = 1.0 - u
+        return (
+            v * v * v * p0
+            + 3.0 * v * v * u * p1
+            + 3.0 * v * u * u * p2
+            + u * u * u * p3
+        )
+
+    t = _ease(u, _kf_interp(left))
+    return y0 + (y1 - y0) * t
 
 
 def _ease(t: float, mode: str) -> float:
@@ -202,32 +382,49 @@ class OmniCamTrack:
 
     def sample(self, frame: float) -> CameraState:
         frame_f = _clamp(float(frame), 0.0, float(max(0, self.duration_frames - 1)))
-        if frame_f <= self.keyframes[0].frame:
-            return CameraState.from_dict(asdict(self.keyframes[0].camera))
-        if frame_f >= self.keyframes[-1].frame:
-            return CameraState.from_dict(asdict(self.keyframes[-1].camera))
+        if not self.keyframes:
+            return CameraState(position=[6.0, 4.0, 6.0], target=[0.0, 1.5, 0.0])
 
-        left = self.keyframes[0]
-        right = self.keyframes[-1]
-        for idx in range(len(self.keyframes) - 1):
-            a, b = self.keyframes[idx], self.keyframes[idx + 1]
-            if a.frame <= frame_f <= b.frame:
-                left, right = a, b
-                break
+        px = _sample_channel(self.keyframes, frame_f, "pos_x", lambda k: k.camera.position[0])
+        py = _sample_channel(self.keyframes, frame_f, "pos_y", lambda k: k.camera.position[1])
+        pz = _sample_channel(self.keyframes, frame_f, "pos_z", lambda k: k.camera.position[2])
+        tx = _sample_channel(self.keyframes, frame_f, "target_x", lambda k: k.camera.target[0])
+        ty = _sample_channel(self.keyframes, frame_f, "target_y", lambda k: k.camera.target[1])
+        tz = _sample_channel(self.keyframes, frame_f, "target_z", lambda k: k.camera.target[2])
 
-        span = max(1.0, float(right.frame - left.frame))
-        t = _ease((frame_f - left.frame) / span, left.interpolation)
-        a, b = left.camera, right.camera
+        # Check Look-At target tracking constraint
+        target_obj_id = self.metadata.get("target_object_id") if isinstance(self.metadata, dict) else None
+        if target_obj_id and self.objects:
+            for obj in self.objects:
+                if isinstance(obj, dict) and obj.get("id") == target_obj_id:
+                    obj_keys = obj.get("keyframes") or []
+                    if obj_keys:
+                        ox = _sample_channel(obj_keys, frame_f, "pos_x", lambda k: (k.get("transform") or obj).get("position", [0, 0, 0])[0])
+                        oy = _sample_channel(obj_keys, frame_f, "pos_y", lambda k: (k.get("transform") or obj).get("position", [0, 0, 0])[1])
+                        oz = _sample_channel(obj_keys, frame_f, "pos_z", lambda k: (k.get("transform") or obj).get("position", [0, 0, 0])[2])
+                        tx, ty, tz = ox, oy, oz
+                    elif "position" in obj:
+                        pos = obj["position"]
+                        tx, ty, tz = float(pos[0]), float(pos[1]), float(pos[2])
+                    break
+
+        fov = _sample_channel(self.keyframes, frame_f, "fov", lambda k: k.camera.fov)
+        roll = _sample_channel(self.keyframes, frame_f, "roll", lambda k: k.camera.roll, is_angle=True)
+        zoom = _sample_channel(self.keyframes, frame_f, "zoom", lambda k: k.camera.zoom)
+        near = _sample_channel(self.keyframes, frame_f, "near", lambda k: k.camera.near)
+        far = _sample_channel(self.keyframes, frame_f, "far", lambda k: k.camera.far)
+
+        camera_type = self.keyframes[-1].camera.camera_type if frame_f >= self.keyframes[-1].frame else self.keyframes[0].camera.camera_type
+
         return CameraState(
-            position=_lerp3(a.position, b.position, t),
-            target=_lerp3(a.target, b.target, t),
-            fov=_lerp(a.fov, b.fov, t),
-            roll=_lerp_angle(a.roll, b.roll, t),
-            # Projection changes are cuts at the right key boundary, not midpoint switches.
-            camera_type=a.camera_type if t < 1.0 else b.camera_type,
-            zoom=_lerp(a.zoom, b.zoom, t),
-            near=_lerp(a.near, b.near, t),
-            far=_lerp(a.far, b.far, t),
+            position=[px, py, pz],
+            target=[tx, ty, tz],
+            fov=_clamp(fov, 5.0, 150.0),
+            roll=roll,
+            camera_type=camera_type,
+            zoom=max(0.01, zoom),
+            near=max(1e-4, near),
+            far=max(near + 1e-4, far),
         )
 
     def samples(self, step: int = 1) -> Iterable[tuple[int, CameraState]]:

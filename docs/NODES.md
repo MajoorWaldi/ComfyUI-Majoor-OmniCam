@@ -113,26 +113,30 @@ Identifiant interne : `MajoorOmniCamTrackSampler`.
 
 Ce nœud est utile pour inspecter une caméra à l'image 0, à la dernière image ou à un point intermédiaire. Il permet aussi d'envoyer une caméra OmniCam vers un nœud compatible `LOAD3D_CAMERA` sans convertir toute la trajectoire.
 
-## 3. OmniCam → MiniMax H3 Omni Reference
+## 3. OmniCam → Universal Reference & AI Prompts
 
 Identifiant interne : `MajoorOmniCamH3Adapter`.
 
-Prépare la voie principale pour MiniMax H3 : une vidéo de référence caméra accompagnée d'un fragment de prompt qui demande de reproduire le mouvement sans copier l'apparence du proxy.
+Adaptateur multimodal fournissant la vidéo de référence caméra playblast et générant des prompts cinématiques taillés sur mesure pour MiniMax H3, Kling, Luma Dream Machine, HunyuanVideo, Wan 2.1 et les flux universels.
 
 ### Entrées
 
 - `camera_track` : piste utilisée pour classifier le mouvement et annoncer sa durée.
 - `proxy_video` : playblast optionnel venant du Director.
 - `video_ref_token` : jeton H3, par défaut `<Video 1>`.
+- `prompt_style` : style de prompt cinématique généré (`h3`, `universal`, `kling`, `luma`, `hunyuan`, `wan`).
+- `base_prompt` : prompt descriptif de base (optionnel) auquel le guidage caméra cinématique est concaténé.
 
 ### Sorties
 
 - `camera_reference_video` : la vidéo proxy transmise vers H3.
-- `prompt_fragment` : texte décrivant trajectoire, cadrage, vitesse, accélération, parallaxe et timing.
+- `prompt_fragment` : texte décrivant trajectoire, cadrage, vitesse, accélération, parallaxe et timing pour H3 Omni Reference.
+- `cinematic_prompt` : prompt cinématique stylisé selon le moteur d'IA choisi.
+- `camera_analysis_json` : métadonnées complètes de dynamique caméra (focale, vitesse, rotation, effet vertigo).
 
 ### Utilité
 
-Connectez `camera_reference_video` à une référence vidéo H3 et ajoutez `prompt_fragment` au prompt final. Le bouton **H3 Setup** du Director peut créer et relier cette partie lorsque le nœud H3 attendu est installé.
+Connectez `camera_reference_video` à une référence vidéo H3 et ajoutez `prompt_fragment` ou `cinematic_prompt` au prompt final. Le bouton **H3 Setup** du Director peut créer et relier cette partie lorsque le nœud H3 attendu est installé.
 
 ## 4. OmniCam → Wan ATI Bridge
 
@@ -142,7 +146,7 @@ Projette un ensemble stable de points 3D dans la caméra à chaque image. Le dé
 
 ### Entrées et sorties
 
-- Entrées : `camera_track`, `point_count` de 4 à 128.
+- Entrées : `camera_track`, `point_count` de 4 à 128, et `distribution` (`balanced`, `subject_focus`, `ground_parallax`).
 - Sorties : `ati_bridge` typé et `ati_json` lisible.
 
 ### Utilité

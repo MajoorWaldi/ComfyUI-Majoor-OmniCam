@@ -75,14 +75,41 @@ def project_point(point, camera: CameraState, width: int, height: int):
     return [sx, sy, z]
 
 
-def make_reference_points(count: int = 16, radius: float = 2.5, height: float = 3.0):
+def make_reference_points(
+    count: int = 16,
+    radius: float = 2.5,
+    height: float = 3.0,
+    distribution: str = "balanced",
+    center: list[float] | None = None,
+) -> list[list[float]]:
     count = max(4, int(count))
     points = []
+    cx, cy, cz = center if center and len(center) >= 3 else [0.0, 0.0, 0.0]
     rings = max(2, int(math.sqrt(count)))
-    for i in range(count):
-        angle = (2.0 * math.pi * i) / count
-        ring = i % rings
-        r = radius * (0.45 + 0.55 * (ring / max(1, rings - 1)))
-        y = 0.25 + height * ((i * 0.61803398875) % 1.0)
-        points.append([math.cos(angle) * r, y, math.sin(angle) * r])
+
+    dist = (distribution or "balanced").lower()
+
+    if dist == "subject_focus":
+        # Tight concentration around target subject
+        for i in range(count):
+            angle = (2.0 * math.pi * i) / count
+            r = radius * 0.4 * (0.2 + 0.8 * ((i % rings) / max(1, rings - 1)))
+            y = cy + (height * 0.4) * (((i * 0.61803398875) % 1.0) - 0.5)
+            points.append([cx + math.cos(angle) * r, y, cz + math.sin(angle) * r])
+    elif dist == "ground_parallax":
+        # Dense ground plane points with stratified depth for maximum parallax estimation
+        for i in range(count):
+            angle = (2.0 * math.pi * i) / count
+            r = radius * (0.3 + 1.2 * ((i % rings) / max(1, rings - 1)))
+            y = 0.05 + 0.4 * ((i * 0.381966) % 1.0)  # Near floor
+            points.append([cx + math.cos(angle) * r, y, cz + math.sin(angle) * r])
+    else:
+        # Balanced cylinder & dome distribution
+        for i in range(count):
+            angle = (2.0 * math.pi * i) / count
+            ring = i % rings
+            r = radius * (0.45 + 0.55 * (ring / max(1, rings - 1)))
+            y = 0.25 + height * ((i * 0.61803398875) % 1.0)
+            points.append([cx + math.cos(angle) * r, y, cz + math.sin(angle) * r])
+
     return points

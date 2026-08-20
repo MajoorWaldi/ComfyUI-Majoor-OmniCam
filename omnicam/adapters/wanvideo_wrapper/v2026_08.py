@@ -15,8 +15,12 @@ COMPATIBILITY = {
 }
 
 
-def track_to_ati_tracks(track: OmniCamTrack, point_count: int = 16) -> list[list[dict[str, float]]]:
-    bridge = track_to_ati_bridge(track, point_count)
+def track_to_ati_tracks(
+    track: OmniCamTrack,
+    point_count: int = 16,
+    distribution: str = "balanced",
+) -> list[list[dict[str, float]]]:
+    bridge = track_to_ati_bridge(track, point_count, distribution=distribution)
     tracks = []
     for trajectory in bridge["trajectories"]:
         samples = trajectory["samples"]
@@ -40,5 +44,9 @@ def track_to_ati_tracks(track: OmniCamTrack, point_count: int = 16) -> list[list
     return tracks
 
 
-def track_to_ati_json(track: OmniCamTrack, point_count: int = 16) -> str:
-    return json.dumps(track_to_ati_tracks(track, point_count), separators=(",", ":"))
+def track_to_ati_json(
+    track: OmniCamTrack,
+    point_count: int = 16,
+    distribution: str = "balanced",
+) -> str:
+    return json.dumps(track_to_ati_tracks(track, point_count, distribution=distribution), separators=(",", ":"))

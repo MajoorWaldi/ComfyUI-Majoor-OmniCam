@@ -4,8 +4,14 @@
 
 import { add, cameraBasis, cloneCamera, length, mul, sub } from "./omnicam-core.js";
 
-const TRANSFORM_KEYS = { t: "translate", r: "rotate", s: "scale" };
-const FLY_KEYS = new Set(["w", "a", "s", "d", "q", "e"]);
+const TRANSFORM_KEYS = {
+  w: "translate",
+  g: "translate",
+  e: "rotate",
+  r: "rotate",
+  s: "scale",
+  t: "translate",
+};
 
 export function isEditableTarget(target) {
   return (
@@ -27,6 +33,7 @@ export function dispatchDirectorKey(ui, event) {
   if (ui.contextMenu.onKey(event)) return true;
 
   const key = event.key.toLowerCase();
+  const code = event.code;
   const capture = () => {
     event.preventDefault();
     event.stopPropagation();
@@ -54,17 +61,26 @@ export function dispatchDirectorKey(ui, event) {
   }
   if (event.ctrlKey || event.metaKey || event.altKey) return false;
 
-  if (ui.selectedObject() && TRANSFORM_KEYS[key]) {
+  // Standard 3D Software Viewport hotkeys: W = Translate, E = Rotate, R = Scale, G = Grab
+  if (TRANSFORM_KEYS[key] && !ui.isNavigatingFly) {
     capture();
     if (!event.repeat) ui.setTransformMode(TRANSFORM_KEYS[key]);
     return true;
   }
-  if (key === "i") {
+  if (key === "q") {
+    capture();
+    ui.selectedEntity = "camera";
+    ui.selectedObjectId = null;
+    ui.refreshObjects();
+    ui.render();
+    return true;
+  }
+  if (key === "i" || key === "k") {
     capture();
     if (!event.repeat) ui.insertKeyframe();
     return true;
   }
-  if (event.code === "Space") {
+  if (code === "Space") {
     capture();
     if (!event.repeat) ui.togglePlay();
     return true;
@@ -74,9 +90,89 @@ export function dispatchDirectorKey(ui, event) {
     if (!event.repeat) ui.frameTarget();
     return true;
   }
+  if (key === "n") {
+    capture();
+    if (!event.repeat) ui.toggleInspector();
+    return true;
+  }
+
+  // Standard 3D Software Selection Modes (Blender/Maya standard keys):
+  // 1: Vertex selection mode
+  // 2: Edge selection mode
+  // 3: Face / Polygon selection mode
+  // 4: Object / Whole selection mode
+  if (code === "Digit1" || (!code.startsWith("Numpad") && key === "1")) {
+    capture();
+    ui.setSelectMode("vertex");
+    return true;
+  }
+  if (code === "Digit2" || (!code.startsWith("Numpad") && key === "2")) {
+    capture();
+    ui.setSelectMode("edge");
+    return true;
+  }
+  if (code === "Digit3" || (!code.startsWith("Numpad") && key === "3")) {
+    capture();
+    ui.setSelectMode("face");
+    return true;
+  }
+  if (code === "Digit4" || (!code.startsWith("Numpad") && key === "4")) {
+    capture();
+    ui.setSelectMode("object");
+    return true;
+  }
+
+  // Standard 3D Software Numpad View Switching:
+  // Numpad 0: Active Camera view
+  // Numpad 1: Perspective / Front view
+  // Numpad 3: Right Side view
+  // Numpad 7: Top view
+  // Numpad 9: Bottom view
+  // Numpad 5: Toggle Camera / Perspective
+  if (code === "Numpad0") {
+    capture();
+    ui.setViewMode("camera");
+    return true;
+  }
+  if (code === "Numpad1") {
+    capture();
+    ui.setViewMode("perspective");
+    return true;
+  }
+  if (code === "Numpad3") {
+    capture();
+    ui.setViewMode("right");
+    return true;
+  }
+  if (code === "Numpad7") {
+    capture();
+    ui.setViewMode("top");
+    return true;
+  }
+  if (code === "Numpad9") {
+    capture();
+    ui.setViewMode("bottom");
+    return true;
+  }
+  if (code === "Numpad5") {
+    capture();
+    ui.setViewMode(ui.state.view_mode === "camera" ? "perspective" : "camera");
+    return true;
+  }
+
   if (event.key === "Delete" || event.key === "Backspace") {
     capture();
     if (!event.repeat) ui.deleteKeyframe();
+    return true;
+  }
+  if (event.key === "ArrowUp" || (event.shiftKey && event.key === "ArrowRight") || key === ".") {
+    capture();
+    ui.goToAdjacentKey(1);
+    return true;
+  }
+  if (event.key === "ArrowDown" || (event.shiftKey && event.key === "ArrowLeft") || key === ",") {
+    capture();
+    ui.goToAdjacentKey(-1);
     return true;
   }
   if (event.key === "ArrowLeft") {
@@ -87,16 +183,6 @@ export function dispatchDirectorKey(ui, event) {
   if (event.key === "ArrowRight") {
     capture();
     ui.setFrame(ui.frame + 1);
-    return true;
-  }
-  if (key === ",") {
-    capture();
-    ui.goToAdjacentKey(-1);
-    return true;
-  }
-  if (key === ".") {
-    capture();
-    ui.goToAdjacentKey(1);
     return true;
   }
   if (event.key === "Home") {
@@ -110,29 +196,32 @@ export function dispatchDirectorKey(ui, event) {
     ui.selectKeyframe(keys[keys.length - 1]);
     return true;
   }
-  if (!FLY_KEYS.has(key)) return false;
 
-  capture();
-  const camera = ui.viewportCamera();
-  const editorView = ui.state.view_mode !== "camera";
-  const { right, up, forward } = cameraBasis(camera);
-  const speed = (event.shiftKey ? 0.6 : 0.18) * ui.cameraSpeed;
-  let delta = [0, 0, 0];
-  if (key === "w") delta = mul(forward, speed);
-  if (key === "s") delta = mul(forward, -speed);
-  if (key === "d") delta = mul(right, speed);
-  if (key === "a") delta = mul(right, -speed);
-  if (key === "e") delta = mul(up, speed);
-  if (key === "q") delta = mul(up, -speed);
-  if (!editorView) ui.beginCameraEdit();
-  camera.position = add(camera.position, delta);
-  camera.target = add(camera.target, delta);
-  if (editorView) {
-    ui.serialize();
-    ui.render();
-  } else {
-    ui.commitCameraEdit();
-    ui.finishCameraEdit();
+  // Fly camera navigation when navigating
+  if (["w", "a", "s", "d", "q", "e"].includes(key) && ui.isNavigatingFly) {
+    capture();
+    const camera = ui.viewportCamera();
+    const editorView = ui.state.view_mode !== "camera";
+    const { right, up, forward } = cameraBasis(camera);
+    const speed = (event.shiftKey ? 0.6 : 0.18) * ui.cameraSpeed;
+    let delta = [0, 0, 0];
+    if (key === "w") delta = mul(forward, speed);
+    if (key === "s") delta = mul(forward, -speed);
+    if (key === "d") delta = mul(right, speed);
+    if (key === "a") delta = mul(right, -speed);
+    if (key === "e") delta = mul(up, speed);
+    if (key === "q") delta = mul(up, -speed);
+    if (!editorView) ui.beginCameraEdit();
+    camera.position = add(camera.position, delta);
+    camera.target = add(camera.target, delta);
+    if (editorView) {
+      ui.serialize();
+      ui.render();
+    } else {
+      ui.commitCameraEdit();
+      ui.finishCameraEdit();
+    }
+    return true;
   }
-  return true;
+  return false;
 }

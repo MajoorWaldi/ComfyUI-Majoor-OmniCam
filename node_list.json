@@ -1,18 +1,20 @@
 {
   "nodes": [
     "MajoorOmniCamDirector",
-    "MajoorOmniCamTrackSampler",
     "MajoorOmniCamH3Adapter",
-    "MajoorOmniCamWanATIAdapter",
     "MajoorOmniCamWanNativeCamera",
+    "MajoorOmniCamLTXCameraGuide",
     "MajoorOmniCamWanVideoWrapperATI",
+    "MajoorOmniCamTrackSampler",
+    "MajoorOmniCamWanATIAdapter",
     "MajoorOmniCamATIPreview",
     "MajoorOmniCamLTXAdapter",
-    "MajoorOmniCamLTXCameraGuide",
-    "MajoorOmniCamCameraTools",
+    "MajoorOmniCamControlPasses",
     "MajoorOmniCamSequenceBuilder",
     "MajoorOmniCamSequenceShot",
     "MajoorOmniCamSequenceManifest",
+    "MajoorOmniCamSequenceEDL",
+    "MajoorOmniCamSequenceEDLImport",
     "MajoorOmniCamBlenderExport",
     "MajoorOmniCamUnrealExport"
   ]

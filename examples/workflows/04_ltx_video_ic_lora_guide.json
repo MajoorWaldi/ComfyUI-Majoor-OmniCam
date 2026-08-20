@@ -1,0 +1,94 @@
+{
+  "last_node_id": 5,
+  "last_link_id": 4,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "MajoorOmniCamDirector",
+      "pos": [40, 60],
+      "size": [860, 620],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {"name": "camera_track", "type": "MAJOOR_OMNICAM_TRACK", "links": [1], "slot_index": 0},
+        {"name": "proxy_video", "type": "VIDEO", "links": [2], "slot_index": 1},
+        {"name": "camera_info", "type": "LOAD3D_CAMERA", "links": null, "slot_index": 2},
+        {"name": "track_json", "type": "STRING", "links": null, "slot_index": 3},
+        {"name": "audio", "type": "AUDIO", "links": null, "slot_index": 4}
+      ],
+      "properties": {"Node name for S&R": "MajoorOmniCamDirector"},
+      "widgets_values": ["{}", "", "", 768, 512, 24, 4.0, "omni_ref"]
+    },
+    {
+      "id": 2,
+      "type": "MajoorOmniCamLTXCameraGuide",
+      "pos": [940, 60],
+      "size": [360, 260],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "camera_track", "type": "MAJOOR_OMNICAM_TRACK", "link": 1},
+        {"name": "proxy_video", "type": "VIDEO", "link": 2}
+      ],
+      "outputs": [
+        {"name": "guide_frames", "type": "IMAGE", "links": [3], "slot_index": 0},
+        {"name": "cinematic_prompt", "type": "STRING", "links": [4], "slot_index": 1},
+        {"name": "camera_profile_json", "type": "STRING", "links": null, "slot_index": 2}
+      ],
+      "properties": {"Node name for S&R": "MajoorOmniCamLTXCameraGuide"},
+      "widgets_values": ["A cinematic hero character walking down misty neon street, 8k masterpiece"]
+    },
+    {
+      "id": 3,
+      "type": "ShowText|pysssss",
+      "pos": [1340, 60],
+      "size": [380, 180],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "text", "type": "STRING", "link": 4}
+      ],
+      "outputs": [
+        {"name": "STRING", "type": "STRING", "links": null, "slot_index": 0}
+      ],
+      "properties": {"Node name for S&R": "ShowText|pysssss"},
+      "widgets_values": [""]
+    },
+    {
+      "id": 4,
+      "type": "PreviewImage",
+      "pos": [940, 360],
+      "size": [360, 320],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "images", "type": "IMAGE", "link": 3}
+      ],
+      "outputs": [],
+      "properties": {"Node name for S&R": "PreviewImage"},
+      "widgets_values": []
+    }
+  ],
+  "links": [
+    [1, 1, 0, 2, 0, "MAJOOR_OMNICAM_TRACK"],
+    [2, 1, 1, 2, 1, "VIDEO"],
+    [3, 2, 0, 4, 0, "IMAGE"],
+    [4, 2, 1, 3, 0, "STRING"]
+  ],
+  "groups": [
+    {
+      "title": "LTX-Video IC-LoRA Cameraman Guide Pipeline",
+      "bounding": [20, 10, 1740, 710],
+      "color": "#7c3aed",
+      "font_size": 24
+    }
+  ],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

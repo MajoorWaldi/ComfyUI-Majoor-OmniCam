@@ -7,8 +7,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "dev": "vite build --mode development --watch",
-    "check": "node --check web/omnicam.js && node --check web/omnicam-webgl.js && node --check web/omnicam-core.js && node --check web/omnicam-history.js && node --check web/omnicam-ui.js && node --check web/omnicam-playblast.js && node --check web/omnicam-media.js && node --check web/omnicam-template.js && node --check web/omnicam-i18n.js && node --check web/omnicam-commands.js && node --check web/omnicam-state-sync.js && node --check web/omnicam-cameras.js && node --check web/omnicam-record.js && node --check web/omnicam-scene.js && node --check web/omnicam-timeline.js && node --check web/omnicam-viewport-controls.js && node --check web/omnicam-dom-media.js && node --check web/omnicam-diagnostics.js",
-    "test:unit": "node --test tests/frontend/director-modules.node.mjs",
+    "check": "npm run check:lines && npm run check:encoding && node --check web/omnicam.js && node --check web/omnicam-webgl.js && node --check web/omnicam-core.js && node --check web/omnicam-history.js && node --check web/omnicam-ui.js && node --check web/omnicam-playblast.js && node --check web/omnicam-media.js && node --check web/omnicam-template.js && node --check web/omnicam-i18n.js && node --check web/omnicam-commands.js && node --check web/omnicam-state-sync.js && node --check web/omnicam-cameras.js && node --check web/omnicam-record.js && node --check web/omnicam-scene.js && node --check web/omnicam-timeline.js && node --check web/omnicam-timeline-interaction.js && node --check web/omnicam-curve-editor.js && node --check web/omnicam-playback-transport.js && node --check web/omnicam-motion-presets.js && node --check web/omnicam-background-manager.js && node --check web/omnicam-viewport-overlays.js && node --check web/omnicam-viewport-controls.js && node --check web/omnicam-event-bindings.js && node --check web/omnicam-dom-media.js && node --check web/omnicam-diagnostics.js",
+    "check:lines": "node scripts/check_source_lines.mjs",
+    "check:encoding": "node scripts/check_text_encoding.mjs",
+    "test:unit": "node --test tests/frontend/director-modules.node.mjs tests/frontend/parity.node.mjs",
     "test:browser": "playwright test",
     "test:live": "playwright test --config playwright.live.config.mjs"
   },

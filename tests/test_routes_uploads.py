@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import sys
 import types
-from pathlib import Path
+import asyncio
+from io import BytesIO
 
 import pytest
 from aiohttp import web
+from PIL import Image
 
 _INPUT_DIR: list[str] = ["unused"]
 
@@ -32,9 +34,17 @@ from omnicam import routes  # noqa: E402
 @pytest.fixture()
 def input_dir(tmp_path, monkeypatch):
     _INPUT_DIR[0] = str(tmp_path)
+    routes._quota_usage = None
+    routes._quota_reserved = 0
     monkeypatch.setattr(routes, "MAX_FOLDER_BYTES", 4 * 1024 * 1024 * 1024)
     monkeypatch.setattr(routes, "MIN_FREE_BYTES", 0)
     return tmp_path
+
+
+def png_bytes(width=2, height=2):
+    output = BytesIO()
+    Image.new("RGB", (width, height), "red").save(output, "PNG")
+    return output.getvalue()
 
 
 class FakeField:
@@ -100,7 +110,7 @@ def test_signature_checks():
 
 @pytest.mark.asyncio
 async def test_upload_writes_file_off_loop_and_indexes(input_dir):
-    payload = b"\x89PNG\r\n\x1a\n" + b"0" * 2048
+    payload = png_bytes()
     request = FakeRequest(FakeField("file", "card.png", [payload]))
     result = await routes._save_multipart_file(request, "cards", {".png"}, 1024 * 1024)
     assert result["size"] == len(payload)
@@ -168,7 +178,10 @@ async def test_assets_index_and_cleanup(input_dir):
     (managed / "drop.png").write_bytes(b"\x89PNG\r\n\x1a\n")
 
     index = await routes.list_assets(FakeRequest())
-    names = {asset["relative"] for asset in index._body and __import__("json").loads(index.body)["assets"]}
+    index_body = __import__("json").loads(index.body)
+    assert index_body["root"] == "omnicam"
+    assert str(input_dir) not in index.body.decode()
+    names = {asset["relative"] for asset in index_body["assets"]}
     assert {"cards/keep.png", "cards/drop.png"} <= names
 
     import json
@@ -189,3 +202,46 @@ async def test_cleanup_rejects_traversal(input_dir):
     with pytest.raises(web.HTTPNotFound):
         await routes.cleanup_assets(FakeRequest(json_body={"files": ["cards/missing.png"]}))
     assert (input_dir / "outside.txt").exists()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_validates_all_targets_before_deleting(input_dir):
+    managed = input_dir / "omnicam" / "cards"
+    managed.mkdir(parents=True)
+    keep = managed / "keep.png"
+    keep.write_bytes(png_bytes())
+    with pytest.raises(web.HTTPNotFound):
+        await routes.cleanup_assets(FakeRequest(json_body={"files": ["cards/keep.png", "cards/missing.png"]}))
+    assert keep.exists()
+
+
+def test_env_limit_rejects_invalid_and_out_of_range(monkeypatch):
+    monkeypatch.setenv("OMNICAM_TEST_LIMIT", "not-a-number")
+    assert routes._env_limit("OMNICAM_TEST_LIMIT", 123) == 123
+    monkeypatch.setenv("OMNICAM_TEST_LIMIT", "-1")
+    assert routes._env_limit("OMNICAM_TEST_LIMIT", 123) == 123
+    monkeypatch.setenv("OMNICAM_TEST_LIMIT", "456")
+    assert routes._env_limit("OMNICAM_TEST_LIMIT", 123) == 456
+
+
+@pytest.mark.asyncio
+async def test_concurrent_quota_reservations_cannot_overcommit(input_dir, monkeypatch):
+    monkeypatch.setattr(routes, "MAX_FOLDER_BYTES", 150)
+    results = await asyncio.gather(
+        routes._reserve_quota(input_dir, 100),
+        routes._reserve_quota(input_dir, 100),
+        return_exceptions=True,
+    )
+    assert sum(result is None for result in results) == 1
+    assert sum(isinstance(result, web.HTTPInsufficientStorage) for result in results) == 1
+    await routes._finish_quota_reservation(100)
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_excessive_image_dimensions(input_dir, monkeypatch):
+    monkeypatch.setattr(routes, "MAX_IMAGE_PIXELS", 3)
+    request = FakeRequest(FakeField("file", "large.png", [png_bytes(2, 2)]))
+    with pytest.raises(web.HTTPBadRequest) as exc_info:
+        await routes._save_multipart_file(request, "cards", {".png"}, 1024 * 1024)
+    assert "dimensions" in exc_info.value.text
+    assert not any(p.is_file() for p in (input_dir / "omnicam").rglob("*"))

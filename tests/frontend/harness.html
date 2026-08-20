@@ -6,7 +6,7 @@
     <script type="module">
       import * as THREE from "three";
       import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
-      import { OmniWebGLViewport, encodeDeterministicPlayblast, supportsDeterministicEncoding } from "/web-src/viewport.js";
+      import { OmniWebGLViewport } from "/web-src/viewport.js";
       const state = {
         render_mode: "omni_ref",
         card_fit: "contain",
@@ -40,15 +40,9 @@
         for (let retry = 0; retry < 50 && !viewport.models.has("model"); retry++) await new Promise((resolve) => setTimeout(resolve, 20));
         viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]]));
         const glbLoaded = viewport.models.has("model") && viewport.content.children.some((child) => child.userData.omnicamId === "model");
-        const codec = await supportsDeterministicEncoding(640, 360);
-        let encodedBytes = 0;
-        if (codec) {
-          const encoded = await encodeDeterministicPlayblast(viewport.canvas, 2, 24, async () => viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]])));
-          encodedBytes = encoded.size;
-        }
         viewport.dispose();
         URL.revokeObjectURL(modelUrl);
-        window.omnicamTest = { perspectivePixels, modeChildren, glbLoaded, codec, encodedBytes, disposed: viewport.disposed, width: viewport.canvas.width, height: viewport.canvas.height };
+        window.omnicamTest = { perspectivePixels, modeChildren, glbLoaded, disposed: viewport.disposed, width: viewport.canvas.width, height: viewport.canvas.height };
         document.querySelector("#status").textContent = "ready";
       } catch (error) {
         window.omnicamTest = { error: String(error?.stack || error) };

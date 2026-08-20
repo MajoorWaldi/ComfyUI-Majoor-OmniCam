@@ -1,12 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import { EditorHistory } from "../../web/omnicam-history.js";
-import { cameraBasis, bezierEaseWithHandles, cloneCamera, defaultState, lerpAngle, project, resolveHandles, sampleCamera, sanitizeState, worldTransform } from "../../web/omnicam-core.js";
+import { applyCameraShake, cameraBasis, bezierEaseWithHandles, cloneCamera, defaultState, generateCameraPreset, lerpAngle, project, resolveChannelHandles, resolveHandles, sampleCamera, sanitizeState, worldTransform } from "../../web/omnicam-core.js";
 import { uploadPlayblast } from "../../web/omnicam-playblast.js";
 import { ObjectUrlRegistry, uploadManagedFile } from "../../web/omnicam-media.js";
 import { getLocale, registerLocale, setLocale, t } from "../../web/omnicam-i18n.js";
 import { activeCameraTrack, playblastCameraTrack, serializeEditorState } from "../../web/omnicam-state-sync.js";
+import { captureRealtimePlayblast } from "../../web/omnicam-playblast.js";
 
 test("director state sanitization preserves the canonical default camera", () => {
   const state = sanitizeState({});
@@ -43,6 +45,32 @@ test("object URL registry revokes replaced and cleared blob URLs", () => {
   const revoked = []; let serial = 0; const registry = new ObjectUrlRegistry({ createObjectURL: () => `blob:${++serial}`, revokeObjectURL: (url) => revoked.push(url) });
   registry.replace("subject", {}); registry.replace("subject", {}); registry.clear();
   assert.deepEqual(revoked, ["blob:1", "blob:2"]); assert.equal(registry.urls.size, 0);
+});
+
+test("realtime playblast fails clearly when MediaRecorder is absent", async () => {
+  await assert.rejects(
+    captureRealtimePlayblast({ canvas: { captureStream() {} }, fps: 24, frameCount: 1, renderFrame() {}, mediaRecorder: null }),
+    /MediaRecorder unsupported/,
+  );
+});
+
+test("every template action has an implementation reference", async () => {
+  const template = await readFile(new URL("../../web-src/template.js", import.meta.url), "utf8");
+  const sources = await Promise.all([
+    "event-bindings.js", "event-bindings/transport-media.js",
+    "event-bindings/viewport-settings.js", "event-bindings/editor-global.js",
+    "director.js", "commands.js", "cameras.js", "scene.js", "scene/objects.js",
+  ].map((name) => readFile(new URL(`../../web-src/${name}`, import.meta.url), "utf8")));
+  const actions = [...template.matchAll(/data-act="([^"]+)"/g)].map((match) => match[1]);
+  const missing = [...new Set(actions)].filter((action) => !sources.some((source) => source.includes(action)));
+  assert.deepEqual(missing, []);
+});
+
+test("user-controlled names are not interpolated into innerHTML", async () => {
+  const sources = await Promise.all(["timeline.js", "scene.js", "director.js"].map((name) => readFile(new URL(`../../web-src/${name}`, import.meta.url), "utf8")));
+  for (const source of sources) {
+    assert.doesNotMatch(source, /innerHTML\s*=.*(?:camera|object|trackingObj|activeCam)\.name/);
+  }
 });
 
 test("managed media upload reports backend errors", async () => {
@@ -122,17 +150,53 @@ test("i18n catalogs translate and fall back to the source string", () => {
   setLocale("en");
 });
 
-test("editable Bézier tangents: modes and easing", () => {
-  const key = { frame: 10, value: 5, tangents: { mode: "vector", out_x: 0.4, out_y: 3, in_x: -0.4, in_y: 3 } };
-  const vector = resolveHandles(key, null, null);
-  assert.equal(vector.out_y, 0); // vector ignores stored slopes
-  const free = resolveHandles({ ...key, tangents: { ...key.tangents, mode: "free" } }, null, null);
-  assert.equal(free.out_y, 3);
-  const aligned = resolveHandles({ ...key, tangents: { mode: "aligned", out_x: 0.3, out_y: 2, in_x: -0.5, in_y: -4 } }, null, null);
-  // aligned mirrors direction while preserving each side's length
-  assert.ok(Math.sign(aligned.in_x) === -Math.sign(aligned.out_x));
-  const eased = bezierEaseWithHandles(0.5, { frame: 0, value: 0, tangents: { mode: "vector" } }, null, { frame: 10, value: 1 }, 10, 10);
-  assert.ok(Math.abs(eased - 0.5) < 0.02); // vector ≈ linear
+test("editable Bézier tangents: modes, 2-sided handles and independent per-channel sampling", () => {
+  const key = {
+    frame: 10,
+    tangents: {
+      mode: "auto",
+      channels: {
+        pos_x: { mode: "free", out_x: 0.33, out_y: 5.0, in_x: -0.33, in_y: -2.0 },
+        pos_y: { mode: "flat", out_x: 0.33, out_y: 0.0, in_x: -0.33, in_y: 0.0 },
+        pos_z: { mode: "aligned", out_x: 0.35, out_y: 1.0, in_x: -0.35, in_y: -1.0 },
+      },
+    },
+  };
+
+  const handlesX = resolveChannelHandles(key, "pos_x", null, null, () => 0);
+  assert.equal(handlesX.out_y, 5.0);
+  assert.equal(handlesX.in_y, -2.0);
+  assert.equal(handlesX.mode, "free");
+
+  const handlesY = resolveChannelHandles(key, "pos_y", null, null, () => 0);
+  assert.equal(handlesY.out_y, 0.0);
+  assert.equal(handlesY.in_y, 0.0);
+  assert.equal(handlesY.mode, "flat");
+
+  const handlesZ = resolveChannelHandles(key, "pos_z", null, null, () => 0);
+  assert.equal(handlesZ.mode, "aligned");
+  assert.ok(Math.sign(handlesZ.in_x) === -Math.sign(handlesZ.out_x));
+
+  // Verify independent channel sampling: altering X tangents does not alter Y or Z
+  const stateA = {
+    keyframes: [
+      { frame: 0, camera: { position: [0, 0, 0], target: [0, 0, 0], fov: 35, roll: 0, zoom: 1 }, interpolation: "bezier", tangents: { channels: { pos_x: { mode: "free", out_y: 10.0 } } } },
+      { frame: 20, camera: { position: [10, 10, 10], target: [0, 0, 0], fov: 35, roll: 0, zoom: 1 }, interpolation: "bezier" },
+    ],
+  };
+  const stateB = {
+    keyframes: [
+      { frame: 0, camera: { position: [0, 0, 0], target: [0, 0, 0], fov: 35, roll: 0, zoom: 1 }, interpolation: "bezier", tangents: { channels: { pos_x: { mode: "free", out_y: -10.0 } } } },
+      { frame: 20, camera: { position: [10, 10, 10], target: [0, 0, 0], fov: 35, roll: 0, zoom: 1 }, interpolation: "bezier" },
+    ],
+  };
+  const sampleA = sampleCamera(stateA, 10);
+  const sampleB = sampleCamera(stateB, 10);
+  // X must be significantly different due to opposite out_y handles
+  assert.notEqual(sampleA.position[0], sampleB.position[0]);
+  // Y and Z must remain identical because X handle modifications do not mutate Y or Z
+  assert.equal(sampleA.position[1], sampleB.position[1]);
+  assert.equal(sampleA.position[2], sampleB.position[2]);
 });
 
 test("editor state sanitizes markers, playback range and snapping", () => {
@@ -172,4 +236,67 @@ test("track flags sanitize locked/muted/solo and parent ids", () => {
   assert.equal(state.objects[0].locked, true);
   assert.equal(state.objects[0].parent_id, "root");
   assert.equal(state.objects[1].parent_id, null);
+});
+
+test("camera presets generate valid trajectory keyframes", () => {
+  const orbit = generateCameraPreset("orbit_360", { duration_frames: 120, target: [0, 1, 0] });
+  assert.equal(orbit.length, 5);
+  assert.equal(orbit[0].frame, 0);
+  assert.equal(orbit[4].frame, 119);
+  assert.deepEqual(orbit[0].camera.target, [0, 1, 0]);
+
+  const vertigo = generateCameraPreset("dolly_zoom", { duration_frames: 90, target: [0, 1.5, 0] });
+  assert.equal(vertigo.length, 2);
+  assert.ok(vertigo[0].camera.fov < vertigo[1].camera.fov);
+});
+
+test("camera dynamic target tracking constraint follows moving target object along timeline", () => {
+  const state = {
+    keyframes: [{ frame: 0, camera: { position: [0, 5, 10], target: [0, 0, 0] }, interpolation: "linear" }],
+    target_object_id: "car",
+    objects: [
+      {
+        id: "car",
+        type: "cube",
+        keyframes: [
+          { frame: 0, transform: { position: [0, 1, 0], rotation: [0, 0, 0], size: [1, 1, 1] }, interpolation: "linear" },
+          { frame: 100, transform: { position: [50, 1, 100], rotation: [0, 0, 0], size: [1, 1, 1] }, interpolation: "linear" },
+        ],
+      },
+    ],
+  };
+  const at0 = sampleCamera(state, 0);
+  assert.deepEqual(at0.target, [0, 1, 0]);
+  const at50 = sampleCamera(state, 50);
+  assert.deepEqual(at50.target, [25, 1, 50]);
+  const at100 = sampleCamera(state, 100);
+  assert.deepEqual(at100.target, [50, 1, 100]);
+});
+
+test("cinema lens conversion matches 35mm full frame standard", async () => {
+  const { focalLengthToFov, fovToFocalLength, CINEMA_LENSES } = await import("../../web/omnicam-cameras.js");
+  assert.equal(CINEMA_LENSES.length, 8);
+  const fov50 = focalLengthToFov(50);
+  assert.ok(fov50 > 38 && fov50 < 41);
+  const fl50 = fovToFocalLength(fov50);
+  assert.ok(Math.abs(fl50 - 50) < 0.1);
+});
+
+test("blocking scene sets generate spatial parallax objects and camera paths", async () => {
+  const { applyBlockingScenePreset } = await import("../../web/omnicam-motion-presets.js");
+  const ui = {
+    checkpoint: () => {},
+    state: { duration_frames: 100, active_camera_id: "c1", objects: [] },
+    activeCameraTrack: () => ({ id: "c1", keyframes: [] }),
+    serialize: () => {},
+    refreshObjects: () => {},
+    refreshKeys: () => {},
+    setFrame: () => {},
+    render: () => {},
+    setStatus: () => {},
+  };
+  applyBlockingScenePreset(ui, "foreground_reveal");
+  assert.equal(ui.state.objects.length, 3);
+  assert.equal(ui.state.keyframes.length, 2);
+  assert.equal(ui.state.objects[0].id, "fg_pillar");
 });

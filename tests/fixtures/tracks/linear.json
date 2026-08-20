@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "fps": 24,
+  "duration_frames": 25,
+  "width": 1280,
+  "height": 720,
+  "render_mode": "omni_ref",
+  "keyframes": [
+    {
+      "frame": 0,
+      "camera": {
+        "position": [0.0, 0.0, 10.0],
+        "target": [0.0, 0.0, 0.0],
+        "fov": 45.0,
+        "roll": 0.0,
+        "camera_type": "perspective",
+        "zoom": 1.0,
+        "near": 0.01,
+        "far": 1000.0
+      },
+      "interpolation": "linear"
+    },
+    {
+      "frame": 24,
+      "camera": {
+        "position": [10.0, 5.0, 0.0],
+        "target": [0.0, 0.0, 0.0],
+        "fov": 30.0,
+        "roll": 15.0,
+        "camera_type": "perspective",
+        "zoom": 1.0,
+        "near": 0.01,
+        "far": 1000.0
+      },
+      "interpolation": "linear"
+    }
+  ],
+  "objects": [],
+  "metadata": {}
+}

@@ -1,5 +1,3 @@
-import math
-
 import pytest
 
 from omnicam.core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass

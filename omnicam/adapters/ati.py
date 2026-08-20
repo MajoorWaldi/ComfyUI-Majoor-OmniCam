@@ -6,14 +6,19 @@ from ..core.projection import make_reference_points, project_point
 from ..core.track import OmniCamTrack
 
 
-def track_to_ati_bridge(track: OmniCamTrack, point_count: int = 16) -> dict[str, Any]:
+def track_to_ati_bridge(
+    track: OmniCamTrack,
+    point_count: int = 16,
+    distribution: str = "balanced",
+) -> dict[str, Any]:
     """Build a deterministic 2D trajectory bridge from a 3D camera track.
 
     ATI's official interface is trajectory-driven. This payload intentionally stays adapter-neutral:
     it contains pixel-space and normalized trajectories that a Kijai/WanVideoWrapper-specific bridge
     can translate without coupling OmniCam core to one third-party node API.
     """
-    points_3d = make_reference_points(point_count)
+    target = track.sample(0).target if track.keyframes else [0.0, 1.5, 0.0]
+    points_3d = make_reference_points(count=point_count, distribution=distribution, center=target)
     trajectories = []
     for point_id, point in enumerate(points_3d):
         samples = []

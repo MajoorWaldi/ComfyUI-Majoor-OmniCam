@@ -8,3 +8,9 @@ def test_ati_bridge_has_requested_tracks():
     assert bridge["format"] == "majoor.omnicam.ati-bridge.v1"
     assert len(bridge["trajectories"]) == 12
     assert len(bridge["trajectories"][0]["samples"]) == 8
+
+    bridge_focus = track_to_ati_bridge(track, 16, distribution="subject_focus")
+    assert len(bridge_focus["trajectories"]) == 16
+
+    bridge_ground = track_to_ati_bridge(track, 16, distribution="ground_parallax")
+    assert len(bridge_ground["trajectories"]) == 16

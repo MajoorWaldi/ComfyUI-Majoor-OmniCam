@@ -49,6 +49,14 @@ export function restoreAssets(ui) {
 export function onModelLoaded(ui, model) {
   ui.modelInfoById.set(model.id, model);
   const object = ui.state.objects.find((item) => item.id === model.id);
+  if (model.error) {
+    if (object) object.load_error = model.error;
+    ui.setStatus(`⚠️ ${model.error}`);
+    ui.refreshObjects();
+    if (model.id === ui.selectedObjectId) ui.refreshInspector();
+    return;
+  }
+  if (object) object.load_error = null;
   if (object?.animation_index) ui.webgl?.selectAnimation(model.id, object.animation_index);
   if (model.id === ui.selectedObjectId) ui.refreshInspector();
   if (!model.meshes && !model.points && model.bones) ui.setStatus(t(`${model.format.toUpperCase()} animation only: ${model.bones} bones, no mesh · skeleton preview`));
@@ -168,4 +176,182 @@ export function loadSelectedReference(ui) {
     ui.setStatus(t("Upstream media refreshed"));
   };
   image.src = comfyApi.apiURL(`/view?${new URLSearchParams(result).toString()}`);
+}
+
+export async function syncUpstreamInputs(ui) {
+  if (!ui.node) return;
+  const graph = ui.node.graph;
+  if (!graph) return;
+
+  let anyUpdated = false;
+  const inputs = ui.node.inputs || [];
+
+  let hasImageLink = false;
+  let hasAudioLink = false;
+  const activeUpstreamModelIds = new Set();
+
+  for (const input of inputs) {
+    const inputName = String(input.name || "").toLowerCase();
+    if (input.link == null) continue;
+    const link = graph.links ? graph.links[input.link] : null;
+    if (!link) continue;
+    const originNode = graph.getNodeById(link.origin_id);
+    if (!originNode) continue;
+
+    // 1. IMAGE or VIDEO Input
+    if (inputName === "image" || inputName === "video") {
+      hasImageLink = true;
+      const imageWidget = originNode.widgets?.find((w) =>
+        ["image", "image_path", "upload", "file", "filename", "video", "video_path"].includes(String(w.name).toLowerCase())
+      );
+      if (imageWidget && imageWidget.value) {
+        const val = String(imageWidget.value);
+        const isVideo = /\.(mp4|webm|mov)(?:\s|$)/i.test(val);
+        const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
+        const query = new URLSearchParams({ filename: val, type: "input" });
+        if (subfolder) query.set("subfolder", String(subfolder));
+        const url = comfyApi ? comfyApi.apiURL(`/view?${query.toString()}`) : `/view?${query.toString()}`;
+        const subject = ui.state.objects.find((o) => o.id === "subject");
+        if (subject) {
+          subject.asset = val;
+          await loadMediaUrl(ui, subject, url);
+          ui.upstreamImageConnected = true;
+          anyUpdated = true;
+          ui.setStatus(t(`Upstream ${isVideo ? "video" : "image"}: ${val}`));
+        }
+      } else if (originNode.imgs?.length) {
+        const firstImg = originNode.imgs[0];
+        if (firstImg) {
+          ui.cardMediaById.set("subject", firstImg);
+          ui.cardMedia = firstImg;
+          ui.upstreamImageConnected = true;
+          anyUpdated = true;
+          ui.render();
+          ui.setStatus(t("Upstream image preview synced"));
+        }
+      }
+    }
+
+    // 2. AUDIO Input
+    if (inputName === "audio") {
+      hasAudioLink = true;
+      const audioWidget = originNode.widgets?.find((w) =>
+        ["audio", "audio_path", "audio_file", "file", "filename"].includes(String(w.name).toLowerCase())
+      );
+      if (audioWidget && audioWidget.value) {
+        const val = String(audioWidget.value);
+        const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
+        const query = new URLSearchParams({ filename: val, type: "input" });
+        if (subfolder) query.set("subfolder", String(subfolder));
+        const url = comfyApi ? comfyApi.apiURL(`/view?${query.toString()}`) : `/view?${query.toString()}`;
+        try {
+          const resp = await fetch(url);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const file = new File([blob], val, { type: blob.type || "audio/wav" });
+            await ui.loadAudioFile(file);
+            ui.upstreamAudioConnected = true;
+            anyUpdated = true;
+            ui.setStatus(t(`Upstream audio: ${val}`));
+          }
+        } catch (err) {
+          console.warn("Failed to fetch upstream audio:", err);
+        }
+      }
+    }
+
+    // 3. 3D SCENE / MODEL Input
+    if (inputName === "scene_3d" || inputName === "model" || inputName === "mesh") {
+      const modelWidget = originNode.widgets?.find((w) =>
+        ["model_file", "model", "file", "filename", "filepath", "mesh", "scene", "3d_file"].includes(String(w.name).toLowerCase())
+      );
+      if (modelWidget && modelWidget.value) {
+        const val = String(modelWidget.value);
+        const format = val.split(".").pop()?.toLowerCase();
+        if (["glb", "gltf", "obj", "fbx", "stl", "ply"].includes(format)) {
+          const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
+          const query = new URLSearchParams({ filename: val, type: "input" });
+          if (subfolder) query.set("subfolder", String(subfolder));
+          const url = comfyApi ? comfyApi.apiURL(`/view?${query.toString()}`) : `/view?${query.toString()}`;
+          const modelId = `upstream_scene_${originNode.id}`;
+          activeUpstreamModelIds.add(modelId);
+          let obj = ui.state.objects.find((o) => o.id === modelId);
+          if (!obj) {
+            obj = {
+              id: modelId,
+              type: "model",
+              format: format === "gltf" ? "glb" : format,
+              name: `Upstream: ${val.replace(/\.[^.]+$/i, "")}`,
+              position: [0, 0, 0],
+              rotation: [0, 0, 0],
+              size: [1, 1, 1],
+              material_mode: "textured",
+              keyframes: [],
+              enabled: true,
+              asset: val,
+            };
+            ui.state.objects.push(obj);
+          } else {
+            obj.asset = val;
+            obj.format = format === "gltf" ? "glb" : format;
+          }
+          ui.modelUrlsById.set(modelId, url);
+          ui.serialize();
+          ui.refreshObjects();
+          ui.render();
+          anyUpdated = true;
+          ui.setStatus(t(`Upstream 3D model: ${val}`));
+        }
+      }
+    }
+  }
+
+  // Handle Disconnections / Removals
+  // 1. Cleanup disconnected Image/Video
+  if (!hasImageLink && ui.upstreamImageConnected) {
+    ui.cardMedia = null;
+    ui.cardMediaById.delete("subject");
+    const subject = ui.state.objects.find((o) => o.id === "subject");
+    if (subject) subject.asset = "";
+    ui.upstreamImageConnected = false;
+    anyUpdated = true;
+    ui.setStatus(t("Upstream image disconnected · card reset"));
+  }
+
+  // 2. Cleanup disconnected Audio
+  if (!hasAudioLink && ui.upstreamAudioConnected) {
+    if (ui.audioSource) {
+      try { ui.audioSource.stop(); } catch (_) {}
+      ui.audioSource = null;
+    }
+    ui.audioBuffer = null;
+    ui.audioWaveformPeaks = null;
+    ui.upstreamAudioConnected = false;
+    ui.refreshKeys();
+    anyUpdated = true;
+    ui.setStatus(t("Upstream audio disconnected · audio track cleared"));
+  }
+
+  // 3. Cleanup disconnected 3D Scenes / Models
+  const deadUpstreamModels = ui.state.objects.filter(
+    (o) => o.id.startsWith("upstream_scene_") && !activeUpstreamModelIds.has(o.id)
+  );
+  if (deadUpstreamModels.length > 0) {
+    for (const deadObj of deadUpstreamModels) {
+      ui.modelUrlsById.delete(deadObj.id);
+      ui.modelInfoById.delete(deadObj.id);
+      ui.webgl?.removeModel(deadObj.id);
+    }
+    ui.state.objects = ui.state.objects.filter(
+      (o) => !deadUpstreamModels.some((d) => d.id === o.id)
+    );
+    ui.refreshObjects();
+    anyUpdated = true;
+    ui.setStatus(t("Upstream 3D scene disconnected · model removed"));
+  }
+
+  if (anyUpdated) {
+    ui.serialize();
+    ui.render();
+  }
 }

@@ -1,14 +1,19 @@
 // Camera manager and camera-preview strip for the OmniCam Director.
 
-import { app } from "../../scripts/app.js";
 import { cloneCamera, sampleCamera } from "./omnicam-core.js";
 import { confirmAction, promptText } from "./omnicam-ui.js";
 import { t } from "./omnicam-i18n.js";
 
+function nextCameraId(state) {
+  const prefix = `camera_${Date.now().toString(36)}`;
+  let id = prefix;
+  let suffix = 2;
+  while (state.cameras.some((camera) => camera.id === id)) id = `${prefix}_${suffix++}`;
+  return id;
+}
+
 export function refreshCameraSelectors(ui) {
-  for (const role of ["playblast-camera"]) {
-    const select = ui.root.querySelector(`[data-role="${role}"]`);
-    if (!select) continue;
+  for (const select of ui.root.querySelectorAll('[data-role="playblast-camera"]')) {
     select.innerHTML = "";
     for (const camera of ui.state.cameras) {
       const option = document.createElement("option");
@@ -17,6 +22,16 @@ export function refreshCameraSelectors(ui) {
       select.appendChild(option);
     }
     select.value = ui.state.playblast_camera_id;
+  }
+  for (const select of ui.root.querySelectorAll('[data-role="active-camera-select"]')) {
+    select.innerHTML = "";
+    for (const camera of ui.state.cameras) {
+      const option = document.createElement("option");
+      option.value = camera.id;
+      option.textContent = camera.name;
+      select.appendChild(option);
+    }
+    select.value = ui.state.active_camera_id;
   }
   refreshCameraPreviews(ui);
 }
@@ -106,10 +121,11 @@ export function refreshCameraPreviews(ui) {
 export function addCamera(ui) {
   ui.checkpoint("Add camera");
   ui.syncActiveCameraTrack();
-  const id = `camera_${Date.now().toString(36)}`;
+  const id = nextCameraId(ui.state);
   const name = `Camera ${ui.state.cameras.length + 1}`;
   const camera = cloneCamera(ui.camera);
-  ui.state.cameras.push({ id, name, camera, keyframes: [{ frame: 0, camera: cloneCamera(camera), interpolation: ui.root.querySelector('[data-role="interp"]').value }] });
+  const interpolation = ui.root.querySelector('[data-role="key-interp"]')?.value || ui.root.querySelector('[data-role="interp"]')?.value || "ease";
+  ui.state.cameras.push({ id, name, camera, keyframes: [{ frame: 0, camera: cloneCamera(camera), interpolation }] });
   ui.activateCamera(id);
   ui.setStatus(t(`${name} added`));
 }
@@ -117,7 +133,7 @@ export function addCamera(ui) {
 export async function renameCamera(ui, id) {
   const camera = ui.state.cameras.find((item) => item.id === id);
   if (!camera) return;
-  const name = (await promptText(app, t("Rename camera"), t("Camera name"), camera.name))?.trim();
+  const name = (await promptText(t("Rename camera"), t("Camera name"), camera.name))?.trim();
   if (!name || name === camera.name) return;
   ui.checkpoint("Rename camera");
   camera.name = name.slice(0, 80);
@@ -134,7 +150,7 @@ export function duplicateCamera(ui, id) {
   ui.checkpoint("Duplicate camera");
   ui.syncActiveCameraTrack();
   const copy = JSON.parse(JSON.stringify(source));
-  copy.id = `camera_${Date.now().toString(36)}`;
+  copy.id = nextCameraId(ui.state);
   copy.name = `${source.name} Copy`;
   ui.state.cameras.push(copy);
   ui.cameraPreviewSignature = "";
@@ -145,7 +161,7 @@ export function duplicateCamera(ui, id) {
 export async function deleteCamera(ui, id) {
   if (ui.state.cameras.length <= 1) return ui.setStatus(t("At least one camera is required"));
   const camera = ui.state.cameras.find((item) => item.id === id);
-  if (!camera || !(await confirmAction(app, t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
+  if (!camera || !(await confirmAction(t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
   ui.checkpoint("Delete camera");
   const wasActive = id === ui.state.active_camera_id;
   ui.state.cameras = ui.state.cameras.filter((item) => item.id !== id);
@@ -199,8 +215,11 @@ export function setPlayblastCamera(ui, id) {
 
 export function toggleCameraView(ui) {
   ui.state.camera_view_visible = !ui.state.camera_view_visible;
-  ui.root.querySelector('[data-role="camera-view-row"]').hidden = !ui.state.camera_view_visible;
-  ui.root.querySelector('.view-nav [data-act="toggle-camera-view"]')?.classList.toggle("active", ui.state.camera_view_visible);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-view-row"]')) el.hidden = !ui.state.camera_view_visible;
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-camera-view"]')) {
+    btn.classList.toggle("active", ui.state.camera_view_visible);
+    btn.setAttribute("aria-pressed", String(ui.state.camera_view_visible));
+  }
   ui.serialize();
   if (ui.state.camera_view_visible)
     requestAnimationFrame(() => {
@@ -275,4 +294,44 @@ export function drawPreviewOverlays(ui, context, width, height) {
     }
     context.restore();
   }
+}
+
+export const CINEMA_LENSES = [
+  { mm: 14, name: "14mm Ultra-Wide" },
+  { mm: 18, name: "18mm Super-Wide" },
+  { mm: 24, name: "24mm Wide" },
+  { mm: 35, name: "35mm Normal-Wide" },
+  { mm: 50, name: "50mm Standard" },
+  { mm: 85, name: "85mm Portrait" },
+  { mm: 105, name: "105mm Medium Tele" },
+  { mm: 135, name: "135mm Telephoto" },
+];
+
+export function fovToFocalLength(fovDegrees, sensorWidth = 36) {
+  const fovClamped = Math.max(1, Math.min(179, Number(fovDegrees) || 35));
+  const rad = (fovClamped * Math.PI) / 360;
+  return (sensorWidth / 2) / Math.max(1e-9, Math.tan(rad));
+}
+
+export function focalLengthToFov(focalLengthMm, sensorWidth = 36) {
+  const flClamped = Math.max(1, Number(focalLengthMm) || 50);
+  return (2 * Math.atan((sensorWidth / 2) / flClamped) * 180) / Math.PI;
+}
+
+export function applyCinemaLens(ui, focalLengthMm) {
+  const fov = focalLengthToFov(focalLengthMm);
+  const activeCam = ui.activeCameraTrack();
+  if (activeCam?.keyframes?.length && ui.activeKeyframe()) {
+    ui.activeKeyframe().camera.fov = fov;
+    ui.scheduleSerialize();
+    ui.render();
+    ui.refreshKeyEditor();
+  } else {
+    ui.camera.fov = fov;
+    ui.render();
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) {
+    el.value = String(fov.toFixed(1));
+  }
+  ui.setStatus(`Lens: ${focalLengthMm}mm (FOV ${fov.toFixed(1)}°)`);
 }

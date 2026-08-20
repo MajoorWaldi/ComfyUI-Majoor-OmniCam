@@ -295,3 +295,203 @@ def retime_to_speed(track: OmniCamTrack, target_speed: float) -> OmniCamTrack:
         keys.append({"frame": frame, "camera": asdict(key.camera), "interpolation": key.interpolation})
     payload["keyframes"] = keys
     return OmniCamTrack.from_dict(payload)
+
+
+def fov_to_focal_length(fov_degrees: float, sensor_width_mm: float = 36.0) -> float:
+    """Convert horizontal FOV in degrees to 35mm equivalent focal length in mm."""
+    fov_clamped = max(1.0, min(179.0, float(fov_degrees)))
+    rad = math.radians(fov_clamped) / 2.0
+    return (sensor_width_mm / 2.0) / max(1e-9, math.tan(rad))
+
+
+def focal_length_to_fov(focal_length_mm: float, sensor_width_mm: float = 36.0) -> float:
+    """Convert focal length in mm to horizontal FOV in degrees for a given sensor width."""
+    fl_clamped = max(1.0, float(focal_length_mm))
+    return math.degrees(2.0 * math.atan((sensor_width_mm / 2.0) / fl_clamped))
+
+
+def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
+    """Analyze a canonical OmniCam track to extract cinematic motion metadata.
+
+    Detects translation intent (dolly/truck/crane), rotation (pan/tilt/roll),
+    orbital arcs, optical dynamics (dolly zoom / vertigo), and lens classification.
+    """
+    duration = max(1, track.duration_frames)
+    start_cam = track.sample(0)
+    end_cam = track.sample(duration - 1)
+    # Basis at start
+    right, up, forward = _basis(start_cam)
+
+    # Translation vector from start to end
+    delta_p = [end_cam.position[i] - start_cam.position[i] for i in range(3)]
+    # Projections onto start camera local axes
+    dolly_amount = sum(delta_p[i] * forward[i] for i in range(3))
+    truck_amount = sum(delta_p[i] * right[i] for i in range(3))
+    crane_amount = sum(delta_p[i] * up[i] for i in range(3))
+
+    # Distance to target
+    start_dist_to_target = math.sqrt(sum((start_cam.position[i] - start_cam.target[i]) ** 2 for i in range(3)))
+    end_dist_to_target = math.sqrt(sum((end_cam.position[i] - end_cam.target[i]) ** 2 for i in range(3)))
+    dist_to_target_delta = end_dist_to_target - start_dist_to_target
+
+    # Orbital analysis (azimuth angle change around target in XZ plane)
+    v_start_xz = (start_cam.position[0] - start_cam.target[0], start_cam.position[2] - start_cam.target[2])
+    v_end_xz = (end_cam.position[0] - end_cam.target[0], end_cam.position[2] - end_cam.target[2])
+    ang_start = math.atan2(v_start_xz[0], v_start_xz[1])
+    ang_end = math.atan2(v_end_xz[0], v_end_xz[1])
+    delta_angle = (ang_end - ang_start + math.pi) % (2.0 * math.pi) - math.pi
+    orbit_degrees = math.degrees(delta_angle)
+
+    # Optical analysis
+    start_focal_mm = fov_to_focal_length(start_cam.fov)
+    end_focal_mm = fov_to_focal_length(end_cam.fov)
+    fov_delta = end_cam.fov - start_cam.fov
+
+    # Lens categorization
+    avg_focal_mm = (start_focal_mm + end_focal_mm) / 2.0
+    if avg_focal_mm < 20.0:
+        lens_type = "ultra-wide lens"
+    elif avg_focal_mm < 30.0:
+        lens_type = "wide-angle lens"
+    elif avg_focal_mm < 60.0:
+        lens_type = "standard 50mm lens"
+    elif avg_focal_mm < 110.0:
+        lens_type = "portrait 85mm lens"
+    else:
+        lens_type = "telephoto lens"
+
+    # Dolly zoom (vertigo effect) detection
+    is_dolly_zoom = False
+    if abs(fov_delta) > 5.0 and abs(dist_to_target_delta) > 0.5:
+        # Distance decreases while FOV increases (push-in + zoom-out), or vice-versa
+        if (dist_to_target_delta < 0 and fov_delta > 0) or (dist_to_target_delta > 0 and fov_delta < 0):
+            is_dolly_zoom = True
+
+    # Speed metrics
+    speeds = motion_speed_profile(track)
+    peak_speed = max(speeds, default=0.0)
+    avg_speed = sum(speeds) / max(1, len(speeds))
+    pacing = "slow and steady" if peak_speed < 1.0 else ("moderate speed" if peak_speed < 3.0 else "fast dynamic")
+
+    # Movements tags
+    movements: list[str] = []
+    if is_dolly_zoom:
+        movements.append("vertigo dolly-zoom effect")
+    else:
+        if abs(orbit_degrees) > 20.0:
+            direction = "clockwise" if orbit_degrees < 0 else "counter-clockwise"
+            movements.append(f"{abs(round(orbit_degrees))}° {direction} orbit around subject")
+        if abs(dolly_amount) > 0.5:
+            movements.append("push-in (dolly forward)" if dolly_amount > 0 else "pull-back (dolly backward)")
+        if abs(truck_amount) > 0.5:
+            movements.append("truck right" if truck_amount > 0 else "truck left")
+        if abs(crane_amount) > 0.5:
+            movements.append("crane up" if crane_amount > 0 else "crane down")
+
+    roll_delta = end_cam.roll - start_cam.roll
+    if abs(roll_delta) > 5.0:
+        movements.append(f"{round(roll_delta)}° Dutch roll tilt")
+
+    if not movements:
+        movements.append("static framing with subtle floating motion")
+
+    return {
+        "movements": movements,
+        "primary_movement": movements[0],
+        "pacing": pacing,
+        "lens_type": lens_type,
+        "start_focal_mm": round(start_focal_mm, 1),
+        "end_focal_mm": round(end_focal_mm, 1),
+        "start_fov": round(start_cam.fov, 1),
+        "end_fov": round(end_cam.fov, 1),
+        "is_dolly_zoom": is_dolly_zoom,
+        "orbit_degrees": round(orbit_degrees, 1),
+        "dolly_amount": round(dolly_amount, 2),
+        "truck_amount": round(truck_amount, 2),
+        "crane_amount": round(crane_amount, 2),
+        "peak_speed": round(peak_speed, 2),
+        "avg_speed": round(avg_speed, 2),
+        "duration_seconds": round(duration / max(1, track.fps), 2),
+    }
+
+
+def build_cinematic_motion_prompt(
+    track: OmniCamTrack,
+    base_prompt: str = "",
+    style: str = "universal",
+    include_technical_specs: bool = True,
+) -> str:
+    """Generate a rich, director-level cinematic motion prompt describing the camera path.
+
+    Formulated specifically for high-adherence video diffusion models (MiniMax H3,
+    Kling, Luma Dream Machine, HunyuanVideo, Wan 2.1, LTX).
+    """
+    analysis = analyze_camera_trajectory(track)
+    movements_desc = ", ".join(analysis["movements"])
+    lens_desc = f"shot on a {analysis['start_focal_mm']}mm {analysis['lens_type']}"
+
+    style_lower = (style or "universal").lower()
+
+    if style_lower == "h3":
+        # MiniMax H3 / Hailuo Omni Reference prompt structure
+        camera_prompt = (
+            f"The camera executes a {analysis['pacing']} {movements_desc}, {lens_desc}. "
+            "Maintain smooth camera trajectory, continuous spatial depth, realistic parallax progression, "
+            f"and stable subject framing at {track.fps}fps."
+        )
+    elif style_lower == "kling":
+        # Kling AI camera prompt syntax
+        kling_moves = []
+        if analysis["is_dolly_zoom"]:
+            kling_moves.append("Zoom in, Camera move back (Vertigo)")
+        else:
+            if abs(analysis["orbit_degrees"]) > 20.0:
+                kling_moves.append("Orbit around subject" if analysis["orbit_degrees"] > 0 else "Orbit counter-clockwise")
+            if abs(analysis["dolly_amount"]) > 0.5:
+                kling_moves.append("Push in" if analysis["dolly_amount"] > 0 else "Pull out")
+            if abs(analysis["truck_amount"]) > 0.5:
+                kling_moves.append("Pan right" if analysis["truck_amount"] > 0 else "Pan left")
+            if abs(analysis["crane_amount"]) > 0.5:
+                kling_moves.append("Tilt up" if analysis["crane_amount"] > 0 else "Tilt down")
+        if not kling_moves:
+            kling_moves.append("Static shot")
+        camera_prompt = f"Camera Movement: {', '.join(kling_moves)}. Lens: {analysis['start_focal_mm']}mm. Pace: {analysis['pacing']}."
+    elif style_lower == "luma":
+        # Luma Dream Machine camera syntax
+        luma_moves = []
+        if analysis["is_dolly_zoom"]:
+            luma_moves.append("dolly zoom vertigo effect")
+        else:
+            if abs(analysis["orbit_degrees"]) > 20.0:
+                luma_moves.append("orbit camera around subject")
+            if abs(analysis["dolly_amount"]) > 0.5:
+                luma_moves.append("push forward into scene" if analysis["dolly_amount"] > 0 else "dolly backward pulling away")
+            if abs(analysis["truck_amount"]) > 0.5:
+                luma_moves.append("truck camera right" if analysis["truck_amount"] > 0 else "truck camera left")
+            if abs(analysis["crane_amount"]) > 0.5:
+                luma_moves.append("pedestal crane camera up" if analysis["crane_amount"] > 0 else "crane camera down")
+        if not luma_moves:
+            luma_moves.append("smooth handheld cinematic floating camera")
+        camera_prompt = f"Camera motion: {', '.join(luma_moves)}, {analysis['pacing']}, cinematic {analysis['start_focal_mm']}mm lens."
+    elif style_lower == "hunyuan":
+        # HunyuanVideo natural language cinematic description
+        camera_prompt = (
+            f"Film captured with a cinematic camera performing {movements_desc}. "
+            f"Equipped with a {analysis['start_focal_mm']}mm {analysis['lens_type']}, delivering {analysis['pacing']} movement, "
+            "clear multi-planar depth separation, and fluid motion blur."
+        )
+    elif style_lower == "wan":
+        # Wan 2.1 motion prompt cues
+        camera_prompt = (
+            f"Dynamic camera movement: {movements_desc}, {analysis['pacing']} pace, {lens_desc}. "
+            "Accurate optical flow, physical 3D scene coherence, smooth trajectory."
+        )
+    else:
+        # Universal director prompt
+        camera_prompt = f"Cinematic {analysis['pacing']} camera motion, {movements_desc}, {lens_desc}"
+        if include_technical_specs:
+            camera_prompt += f", smooth fluid motion blur, {track.fps}fps, strong spatial parallax and geometric depth consistency"
+
+    if base_prompt and base_prompt.strip():
+        return f"{base_prompt.strip()}. {camera_prompt}" if not base_prompt.strip().endswith(".") else f"{base_prompt.strip()} {camera_prompt}"
+    return camera_prompt if camera_prompt.endswith(".") else f"{camera_prompt}."

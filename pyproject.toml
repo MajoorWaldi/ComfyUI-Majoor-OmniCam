@@ -20,7 +20,7 @@ Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main
 PublisherId = "majoorwaldi"
 DisplayName = "Majoor OmniCam"
 Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.svg"
-requires-comfyui = ">=0.32.0"
+requires-comfyui = ">=0.3.0"
 
 [tool.ruff]
 line-length = 110

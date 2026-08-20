@@ -63,36 +63,80 @@ export function syncFromWidgets(ui, persist = true) {
   if (!ui.timelineKeyframes().some((key) => key.frame === ui.selectedKeyFrame)) ui.selectedKeyFrame = ui.timelineKeyframes()[0]?.frame ?? null;
   ui.state.render_mode = ui.modeWidget?.value || ui.state.render_mode;
   const q = (sel) => ui.root.querySelector(sel);
-  q('[data-role="mode"]').value = ui.state.render_mode;
-  q('[data-role="guides"]').checked = ui.state.guides !== false;
-  q('[data-role="playblast-grid"]').checked = Boolean(ui.state.playblast_grid);
-  q('[data-role="burn-in"]').checked = Boolean(ui.state.burn_in);
-  q('[data-role="speed-heatmap"]').checked = Boolean(ui.state.speed_heatmap);
-  q('[data-role="card-fit"]').value = ui.state.card_fit || "contain";
-  const layoutSelect = q('[data-role="preview-layout"]');
-  if (layoutSelect) layoutSelect.value = ui.state.preview_layout || "auto";
-  const safeAreas = q('[data-role="safe-areas"]');
-  if (safeAreas) safeAreas.checked = Boolean(ui.state.safe_areas);
-  const resolutionGate = q('[data-role="resolution-gate"]');
-  if (resolutionGate) resolutionGate.checked = Boolean(ui.state.resolution_gate);
-  const aspectSelect = q('[data-role="aspect-ratio"]');
-  if (aspectSelect) aspectSelect.value = ui.state.aspect_ratio || "auto";
-  q('[data-role="gizmo-space"]').value = ui.state.gizmo_space || "world";
-  q('[data-role="view-mode"]').value = ui.state.view_mode || "camera";
-  q('[data-role="ui-density"]').value = ui.state.ui_density || "advanced";
+  for (const el of ui.root.querySelectorAll('[data-role="mode"]')) el.value = ui.state.render_mode;
+  for (const el of ui.root.querySelectorAll('[data-role="guides"]')) el.checked = ui.state.guides !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="playblast-grid"]')) el.checked = Boolean(ui.state.playblast_grid);
+  for (const el of ui.root.querySelectorAll('[data-role="show-wireframe"]')) el.checked = Boolean(ui.state.show_wireframe);
+  for (const el of ui.root.querySelectorAll('[data-role="show-vertices"]')) el.checked = Boolean(ui.state.show_vertices);
+  for (const el of ui.root.querySelectorAll('[data-role="select-mode"]')) el.value = ui.state.select_mode || "object";
+  for (const el of ui.root.querySelectorAll('[data-role="burn-in"]')) el.checked = Boolean(ui.state.burn_in);
+  for (const el of ui.root.querySelectorAll('[data-role="speed-heatmap"]')) el.checked = Boolean(ui.state.speed_heatmap);
+  for (const el of ui.root.querySelectorAll('[data-role="point-density"]')) el.value = ui.state.point_density || "balanced";
+  for (const el of ui.root.querySelectorAll('[data-role="point-color"]')) el.value = ui.state.point_color || "#cbd5e1";
+  for (const el of ui.root.querySelectorAll('[data-role="point-spread"]')) el.value = ui.state.point_spread || "all_views";
+  for (const el of ui.root.querySelectorAll('[data-role="card-fit"]')) el.value = ui.state.card_fit || "contain";
+  for (const el of ui.root.querySelectorAll('[data-role="preview-layout"]')) el.value = ui.state.preview_layout || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="safe-areas"]')) el.checked = Boolean(ui.state.safe_areas);
+  for (const el of ui.root.querySelectorAll('[data-role="resolution-gate"]')) el.checked = Boolean(ui.state.resolution_gate);
+  for (const el of ui.root.querySelectorAll('[data-role="aspect-ratio"]')) el.value = ui.state.aspect_ratio || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="viewport-bg-color"]')) el.value = ui.state.viewport_bg_color || "#121212";
+  for (const el of ui.root.querySelectorAll('[data-role="gizmo-space"]')) el.value = ui.state.gizmo_space || "world";
+  for (const el of ui.root.querySelectorAll('[data-role="view-mode"]')) el.value = ui.state.view_mode || "camera";
+  for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) el.value = ui.state.ui_density || "advanced";
   ui.root.dataset.density = ui.state.ui_density || "advanced";
-  q('[data-role="camera-view-row"]').hidden = !ui.state.camera_view_visible;
-  ui.root.querySelector('.view-nav [data-act="toggle-camera-view"]')?.classList.toggle("active", ui.state.camera_view_visible);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-view-row"]')) el.hidden = !ui.state.camera_view_visible;
+  for (const tcv of ui.root.querySelectorAll('[data-act="toggle-camera-view"]')) {
+    tcv.classList.toggle("active", ui.state.camera_view_visible);
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-type"]')) el.value = ui.camera.camera_type || "perspective";
+  for (const el of ui.root.querySelectorAll('[data-role="speed"]')) el.value = String(ui.cameraSpeed || 1);
+  for (const btn of ui.root.querySelectorAll('[data-act="loop"]')) {
+    btn.classList.toggle("active", Boolean(ui.state.loop_playback));
+    btn.setAttribute("aria-pressed", String(Boolean(ui.state.loop_playback)));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-snap"]')) {
+    btn.classList.toggle("active", ui.state.snap_enabled !== false);
+    btn.setAttribute("aria-pressed", String(ui.state.snap_enabled !== false));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-timecode"]')) {
+    btn.classList.toggle("active", ui.state.timecode_mode === "timecode");
+    btn.setAttribute("aria-pressed", String(ui.state.timecode_mode === "timecode"));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="auto-key"]')) {
+    btn.classList.toggle("active", Boolean(ui.state.auto_key));
+    btn.setAttribute("aria-pressed", String(Boolean(ui.state.auto_key)));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-select-mode]')) {
+    const isMode = btn.dataset.selectMode === (ui.state.select_mode || "object");
+    btn.classList.toggle("active", isMode);
+    btn.setAttribute("aria-pressed", String(isMode));
+  }
+  for (const btn of ui.root.querySelectorAll('[data-transform-mode]')) {
+    const isMode = btn.dataset.transformMode === (ui.state.gizmo_mode || "translate");
+    btn.classList.toggle("active", isMode);
+    btn.setAttribute("aria-pressed", String(isMode));
+  }
+  const inspector = ui.root.querySelector('[data-role="viewport-inspector"]');
+  const isInspectorOpen = inspector && inspector.dataset.collapsed !== "true";
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-inspector"]')) {
+    btn.classList.toggle("active", Boolean(isInspectorOpen));
+    btn.setAttribute("aria-pressed", String(Boolean(isInspectorOpen)));
+  }
   ui.refreshCameraSelectors();
   const scrub = q('[data-role="scrub"]');
-  scrub.max = String(ui.state.duration_frames - 1);
-  q('[data-role="frame"]').max = String(ui.state.duration_frames - 1);
-  q('[data-role="key-frame"]').max = String(ui.state.duration_frames - 1);
-  q('[data-role="duration-seconds"]').value = String(ui.state.duration_frames / ui.state.fps);
-  q('[data-role="timeline-fps"]').value = String(ui.state.fps);
+  if (scrub) scrub.max = String(ui.state.duration_frames - 1);
+  const frameEl = q('[data-role="frame"]');
+  if (frameEl) frameEl.max = String(ui.state.duration_frames - 1);
+  const keyFrameEl = q('[data-role="key-frame"]');
+  if (keyFrameEl) keyFrameEl.max = String(ui.state.duration_frames - 1);
+  const durationSecEl = q('[data-role="duration-seconds"]');
+  if (durationSecEl) durationSecEl.value = String(ui.state.duration_frames / ui.state.fps);
+  const timelineFpsEl = q('[data-role="timeline-fps"]');
+  if (timelineFpsEl) timelineFpsEl.value = String(ui.state.fps);
   ui.frame = clamp(ui.frame, 0, ui.state.duration_frames - 1);
   if (persist) ui.serialize();
   if (previousDuration !== ui.state.duration_frames || previousFps !== ui.state.fps) {
+    ui.computeAudioPeaks?.();
     ui.setFrame(ui.frame, false, true);
     ui.setStatus(`Timeline: ${ui.state.duration_frames} frames · ${(ui.state.duration_frames / ui.state.fps).toFixed(2)} s`);
   }

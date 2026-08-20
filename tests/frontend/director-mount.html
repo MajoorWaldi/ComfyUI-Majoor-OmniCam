@@ -27,7 +27,7 @@
         const node = {
           comfyClass: "MajoorOmniCamDirector",
           widgets: [
-            { name: "state_json", value: "{}" },
+            { name: "state_json", value: JSON.stringify({ cameras: [{ id: "camera_1", name: '<img data-omnicam-xss src=x onerror="window.__omnicamXss=true">', keyframes: [] }], active_camera_id: "camera_1", playblast_camera_id: "camera_1" }) },
             { name: "recording_path", value: "" },
             { name: "card_asset", value: "" },
             { name: "width", value: 1280 },
@@ -47,6 +47,7 @@
           connect() { return true; },
         };
         await extension.nodeCreated(node);
+        window.omnicamNode = node;
         await new Promise((resolve) => setTimeout(resolve, 250));
         const root = document.querySelector(".majoor-omnicam");
         const canvas = root?.querySelector(".viewport-wrap > canvas");
@@ -57,6 +58,8 @@
           hasCurve: Boolean(root?.querySelector('[data-role="curve-canvas"]')),
           hasPreviews: Boolean(root?.querySelector('[data-role="camera-previews"]')),
           keysCount: root?.querySelectorAll(".key").length ?? 0,
+          unsafeNameElements: root?.querySelectorAll("[data-omnicam-xss]").length ?? 0,
+          nameExecuted: Boolean(window.__omnicamXss),
           statusText: root?.querySelector('[data-role="status"]')?.textContent,
         };
         document.querySelector("#status").textContent = "ready";
