@@ -4,18 +4,6 @@
     "MajoorOmniCamH3Adapter",
     "MajoorOmniCamWanNativeCamera",
     "MajoorOmniCamLTXCameraGuide",
-    "MajoorOmniCamWanVideoWrapperATI",
-    "MajoorOmniCamTrackSampler",
-    "MajoorOmniCamWanATIAdapter",
-    "MajoorOmniCamATIPreview",
-    "MajoorOmniCamLTXAdapter",
-    "MajoorOmniCamControlPasses",
-    "MajoorOmniCamSequenceBuilder",
-    "MajoorOmniCamSequenceShot",
-    "MajoorOmniCamSequenceManifest",
-    "MajoorOmniCamSequenceEDL",
-    "MajoorOmniCamSequenceEDLImport",
-    "MajoorOmniCamBlenderExport",
-    "MajoorOmniCamUnrealExport"
+    "MajoorOmniCamWanVideoWrapperATI"
   ]
 }

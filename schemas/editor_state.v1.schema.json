@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "majoor.omnicam.editor-state.v1",
+  "type": "object",
+  "required": ["schema_version", "cameras", "objects"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "cameras": {"type": "array", "minItems": 1},
+    "objects": {"type": "array"},
+    "active_camera_id": {"type": "string"},
+    "playblast_camera_id": {"type": "string"}
+  },
+  "additionalProperties": true
+}

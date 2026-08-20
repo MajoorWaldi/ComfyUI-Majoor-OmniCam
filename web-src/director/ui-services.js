@@ -11,15 +11,22 @@ export class ContextMenuController {
     this.menu = root.querySelector('[data-role="context-menu"]');
     this.returnFocus = null;
     this.dismissHandler = null;
+    this.dismissTimer = null;
+    this.disposed = false;
     if (this.menu) {
       this.menu.classList.add("majoor-omnicam");
       this.menu.addEventListener("pointerdown", (e) => e.stopPropagation());
       this.menu.addEventListener("mousedown", (e) => e.stopPropagation());
       this.menu.addEventListener("click", (e) => e.stopPropagation());
       this.menu.addEventListener("contextmenu", (e) => { e.preventDefault(); e.stopPropagation(); });
+      this.menu.addEventListener("keydown", (e) => this.onKey(e));
     }
   }
   hide({ restoreFocus = false } = {}) {
+    if (this.dismissTimer !== null) {
+      clearTimeout(this.dismissTimer);
+      this.dismissTimer = null;
+    }
     if (this.dismissHandler) {
       document.removeEventListener("pointerdown", this.dismissHandler, true);
       document.removeEventListener("contextmenu", this.dismissHandler, true);
@@ -30,9 +37,10 @@ export class ContextMenuController {
     if (restoreFocus) this.returnFocus?.focus?.({ preventScroll: true });
   }
   show(event, title, actions) {
-    if (!this.menu) return;
+    if (!this.menu || this.disposed) return;
     event.preventDefault();
     event.stopPropagation();
+    event.stopImmediatePropagation?.();
     this.returnFocus = document.activeElement;
 
     // Ensure menu is attached directly to document.body so that ComfyUI canvas transforms don't distort coordinates
@@ -103,10 +111,19 @@ export class ContextMenuController {
       if (e.target && this.menu.contains(e.target)) return;
       this.hide();
     };
-    setTimeout(() => {
+    this.dismissTimer = setTimeout(() => {
+      this.dismissTimer = null;
+      if (this.disposed) return;
       document.addEventListener("pointerdown", this.dismissHandler, true);
       document.addEventListener("contextmenu", this.dismissHandler, true);
     }, 0);
+  }
+  dispose() {
+    if (this.disposed) return;
+    this.hide();
+    this.disposed = true;
+    this.menu?.remove();
+    this.menu = null;
   }
   onKey(event) {
     if (!this.menu || this.menu.hidden) return false;
@@ -143,7 +160,8 @@ export async function promptText(appOrTitle, titleOrMessage, messageOrValue, ini
   }
   const dialog = app?.extensionManager?.dialog || (typeof window !== "undefined" ? window.app?.extensionManager?.dialog : null);
   if (dialog?.prompt) return dialog.prompt({ title, message, defaultValue });
-  return typeof window !== "undefined" ? window.prompt(message || title, defaultValue) : defaultValue;
+  console.warn("OmniCam prompt unavailable: ComfyUI dialog API is not present");
+  return null;
 }
 
 export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
@@ -159,6 +177,6 @@ export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
   }
   const dialog = app?.extensionManager?.dialog || (typeof window !== "undefined" ? window.app?.extensionManager?.dialog : null);
   if (dialog?.confirm) return dialog.confirm({ title, message });
-  return typeof window !== "undefined" ? window.confirm(message || title) : true;
+  console.warn("OmniCam confirmation unavailable: ComfyUI dialog API is not present");
+  return false;
 }
-

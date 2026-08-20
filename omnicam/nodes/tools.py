@@ -18,8 +18,8 @@ from ..core.camera_tools import (
     motion_speed_profile,
     smooth_camera_path,
 )
-from ..core.track import OmniCamTrack, camera_to_load3d
-from .base import OMNICAM_TRACK
+from ..core.track import camera_to_load3d
+from .base import OMNICAM_TRACK, validated_track
 
 
 class MajoorOmniCamTrackSampler(IO.ComfyNode):
@@ -41,7 +41,7 @@ class MajoorOmniCamTrackSampler(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], frame: int) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         camera = track.sample(frame)
         payload = camera_to_load3d(camera, track.width / max(1, track.height))
         return IO.NodeOutput(payload, json.dumps(payload, indent=2))
@@ -74,7 +74,7 @@ class MajoorOmniCamCameraTools(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], operation: str, amount: float, seed: int, target_x: float, target_y: float, target_z: float) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         if operation in CAMERA_PRESETS:
             result = apply_camera_preset(track, operation, amount)
         elif operation == "shake":

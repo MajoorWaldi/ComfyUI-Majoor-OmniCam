@@ -35,6 +35,9 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
   await expect(page.locator('.majoor-omnicam .viewport-inspector')).toBeVisible();
   await expect(page.locator('.majoor-omnicam .viewport-actions [data-act="record"]')).toBeVisible();
   await expect(page.locator('.majoor-omnicam .viewport-actions [data-act="h3-setup"]')).toBeVisible();
+  await page.locator('.majoor-omnicam .viewport-wrap').click({ button: "right", position: { x: 300, y: 150 } });
+  await expect(page.locator('body > [data-role="context-menu"] .context-menu-title')).toHaveText("Viewport");
+  await page.keyboard.press("Escape");
   await page.locator('.majoor-omnicam [data-menu="scene"] summary').click();
   await expect(page.locator('.majoor-omnicam [data-object-type="cube"]')).toBeVisible();
   await page.locator('.majoor-omnicam .viewport-wrap').click({ position: { x: 300, y: 150 } });
@@ -55,6 +58,7 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
   });
   expect(clipping).toEqual({ near: 0.001, far: 5000, webglNear: 0.001, webglFar: 5000 });
   await page.locator('.majoor-omnicam .scene-item', { hasText: "Subject" }).click();
+  expect(await page.evaluate(() => window.omnicamLiveNode.__majoorOmniCam.gizmoGeometry()?.handles.length)).toBe(3);
 
   const pointerStart = await page.evaluate(() => {
     const node = window.omnicamLiveNode, ui = node.__majoorOmniCam, rect = ui.interactionElement.getBoundingClientRect();

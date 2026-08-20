@@ -60,6 +60,8 @@ export function createInteractionMethods(dependencies) {
       try { this.audioSource.stop(); } catch (_) {}
       this.audioSource = null;
     }
+    this.audioContext?.close?.().catch?.(() => {});
+    this.audioContext = null;
     // 3. Clear WebGL models, geometries, materials & textures in main viewport
     if (this.webgl) {
       for (const model of this.webgl.models.values()) {
@@ -71,10 +73,13 @@ export function createInteractionMethods(dependencies) {
       this.webgl.mediaSignature = "";
       this.webgl.modelSignature = "";
       this.webgl.pathKey = "";
-      if (this.webgl.bgTexture) {
-        try { this.webgl.bgTexture.dispose(); } catch (_) {}
-        this.webgl.bgTexture = null;
+      this.webgl.bgLoadGeneration += 1;
+      this.webgl.bgTextureLoads?.clear();
+      for (const texture of new Set(this.webgl.bgTextureCache?.values() || [])) {
+        try { texture.dispose(); } catch (_) {}
       }
+      this.webgl.bgTextureCache?.clear();
+      this.webgl.bgTexture = null;
       this.webgl.bgImageUrl = "";
     }
     // 4. Clear WebGL models, geometries, materials & textures in preview viewport
@@ -88,6 +93,14 @@ export function createInteractionMethods(dependencies) {
       this.cameraWebgl.mediaSignature = "";
       this.cameraWebgl.modelSignature = "";
       this.cameraWebgl.pathKey = "";
+      this.cameraWebgl.bgLoadGeneration += 1;
+      this.cameraWebgl.bgTextureLoads?.clear();
+      for (const texture of new Set(this.cameraWebgl.bgTextureCache?.values() || [])) {
+        try { texture.dispose(); } catch (_) {}
+      }
+      this.cameraWebgl.bgTextureCache?.clear();
+      this.cameraWebgl.bgTexture = null;
+      this.cameraWebgl.bgImageUrl = "";
     }
     // 5. Reset upstream signatures & card media caches
     this.upstreamSignature = "";
@@ -131,8 +144,9 @@ export function createInteractionMethods(dependencies) {
     button.classList.toggle("active", this.state.snap_enabled), button.setAttribute("aria-pressed", String(this.state.snap_enabled)), this.setStatus(`Snap ${this.state.snap_enabled ? "on" : "off"}`);
   },
   scheduleSerialize() {
-    this.serializeScheduled || (this.serializeScheduled = !0, requestAnimationFrame(() => {
-      this.serializeScheduled = !1, this.serialize();
+    this.serializeScheduled || (this.serializeScheduled = !0, this.serializeFrame = requestAnimationFrame(() => {
+      this.serializeScheduled = !1;
+      if (!this.disposed) this.serialize();
     }));
   },
   gizmoAxes(object) {

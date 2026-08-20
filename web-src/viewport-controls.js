@@ -1,4 +1,4 @@
-﻿// Viewport navigation, object picking and transform gizmo interaction.
+// Viewport navigation, object picking and transform gizmo interaction.
 
 import { add, cameraBasis, clamp, cloneCamera, cross, distanceToSegment, length, mul, norm, project, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "./omnicam-core.js";
 import { t } from "./omnicam-i18n.js";
@@ -143,8 +143,9 @@ export function gizmoGeometry(ui) {
   if (!entity) return null;
   const camera = viewportCamera(ui);
   const origin = entity.position;
+  if (!origin || !Number.isFinite(origin[0]) || !Number.isFinite(origin[1]) || !Number.isFinite(origin[2])) return null;
   const center = project(origin, camera, ui.canvas.width, ui.canvas.height);
-  if (!center) return null;
+  if (!center || !Number.isFinite(center[0]) || !Number.isFinite(center[1])) return null;
   const worldLength = Math.max(0.7, length(sub(camera.position, origin)) * 0.12);
   const axes = entity.type === "object" ? gizmoAxes(ui, entity.object, entity) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
   if (ui.state.gizmo_mode !== "rotate" || entity.type === "camera_target")
@@ -154,7 +155,7 @@ export function gizmoGeometry(ui) {
       worldLength,
       handles: axes
         .map((axis, index) => ({ index, axis, points: [center, project(add(origin, mul(axis, worldLength)), camera, ui.canvas.width, ui.canvas.height)] }))
-        .filter((handle) => handle.points[1]),
+        .filter((handle) => handle.points[1] && Number.isFinite(handle.points[1][0]) && Number.isFinite(handle.points[1][1])),
     };
   const handles = axes.map((normal, index) => {
     const seed = Math.abs(normal[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
@@ -163,9 +164,10 @@ export function gizmoGeometry(ui) {
     const points = [];
     for (let step = 0; step <= 48; step++) {
       const angle = (step / 48) * Math.PI * 2;
-      points.push(project(add(origin, add(mul(u, Math.cos(angle) * worldLength), mul(v, Math.sin(angle) * worldLength))), camera, ui.canvas.width, ui.canvas.height));
+      const pt = project(add(origin, add(mul(u, Math.cos(angle) * worldLength), mul(v, Math.sin(angle) * worldLength))), camera, ui.canvas.width, ui.canvas.height);
+      if (pt && Number.isFinite(pt[0]) && Number.isFinite(pt[1])) points.push(pt);
     }
-    return { index, axis: normal, points: points.filter(Boolean) };
+    return { index, axis: normal, points };
   });
   return { entity, center, worldLength, handles };
 }
@@ -222,6 +224,18 @@ export function pickSceneObject(ui, pointer) {
         return { type: "camera", camera: cam };
       }
     }
+
+    for (const obj of ui.state.objects) {
+      if (obj.enabled === false) continue;
+      for (const key of (obj.keyframes || [])) {
+        const keyPos = key.transform?.position;
+        if (!keyPos) continue;
+        const keyPt = project(keyPos, camera, ui.canvas.width, ui.canvas.height);
+        if (keyPt && Math.hypot(pointer[0] - keyPt[0], pointer[1] - keyPt[1]) <= 16 * Math.min(2, window.devicePixelRatio || 1)) {
+          return { type: "object_keyframe", object: obj, keyframe: key };
+        }
+      }
+    }
   }
 
   let best = null;
@@ -238,24 +252,29 @@ export function pickSceneObject(ui, pointer) {
 
 export function drawTransformGizmo(ui) {
   const geometry = gizmoGeometry(ui);
-  if (!geometry) return;
+  if (!geometry || !geometry.handles) return;
   const colors = ["#ef5b5b", "#58cc6b", "#5f82ef"];
   ui.ctx.save();
   ui.ctx.lineWidth = 4;
   ui.ctx.lineCap = "round";
   for (const handle of geometry.handles) {
-    ui.ctx.strokeStyle = colors[handle.index];
-    ui.ctx.fillStyle = colors[handle.index];
+    if (!handle?.points?.length) continue;
+    ui.ctx.strokeStyle = colors[handle.index] || "#ffffff";
+    ui.ctx.fillStyle = colors[handle.index] || "#ffffff";
     ui.ctx.beginPath();
     handle.points.forEach((point, index) => {
+      if (!point) return;
       if (index) ui.ctx.lineTo(point[0], point[1]);
       else ui.ctx.moveTo(point[0], point[1]);
     });
     ui.ctx.stroke();
-    if (ui.state.gizmo_mode !== "rotate" || geometry.entity.type === "camera_target") {
-      const end = handle.points[handle.points.length - 1];
-      if (ui.state.gizmo_mode === "scale" && geometry.entity.type === "object") ui.ctx.fillRect(end[0] - 6, end[1] - 6, 12, 12);
-      else {
+    if (ui.state.gizmo_mode !== "rotate" || geometry.entity?.type === "camera_target") {
+      const validPoints = handle.points.filter((p) => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+      if (!validPoints.length) continue;
+      const end = validPoints[validPoints.length - 1];
+      if (ui.state.gizmo_mode === "scale" && geometry.entity?.type === "object") {
+        ui.ctx.fillRect(end[0] - 6, end[1] - 6, 12, 12);
+      } else {
         ui.ctx.beginPath();
         ui.ctx.arc(end[0], end[1], 6, 0, Math.PI * 2);
         ui.ctx.fill();
@@ -264,6 +283,5 @@ export function drawTransformGizmo(ui) {
   }
   ui.ctx.restore();
 }
-
 
 export * from "./viewport-controls/interactions.js";

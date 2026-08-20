@@ -1,4 +1,4 @@
-﻿// WebGL viewport methods extracted from the public facade.
+// WebGL viewport methods extracted from the public facade.
 
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -22,6 +22,7 @@ export function createResourceMethods(dependencies) {
   rebuild(state, mediaById, modelUrlsById) {
     disposeObject(this.content); this.content.clear();
     this.objectNodes.clear();
+    this.selectionKey = "";
     const mode = state.render_mode;
     const grid = new THREE.GridHelper(120, 120, 0x777777, 0x3b3b3b);
     grid.userData.omnicamCaptureGuide = true;
@@ -68,7 +69,10 @@ export function createResourceMethods(dependencies) {
       if (object.type !== "card") mesh.scale.fromArray(size);
       mesh.userData.omnicamId = object.id;
       mesh.frustumCulled = false;
-      mesh.traverse((c) => { c.frustumCulled = false; });
+      mesh.traverse((c) => {
+        c.frustumCulled = false;
+        c.userData.omnicamId = object.id;
+      });
 
       if (state.show_wireframe) {
         mesh.traverse((child) => {

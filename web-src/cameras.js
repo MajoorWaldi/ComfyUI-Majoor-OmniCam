@@ -4,6 +4,17 @@ import { cloneCamera, sampleCamera } from "./omnicam-core.js";
 import { confirmAction, promptText } from "./omnicam-ui.js";
 import { t } from "./omnicam-i18n.js";
 
+export const CAMERA_PALETTE = [
+  "#4aa3ef", // Camera 1 - Blue/Cyan
+  "#f2a93b", // Camera 2 - Amber/Gold
+  "#48c774", // Camera 3 - Emerald/Green
+  "#b565d8", // Camera 4 - Purple
+  "#ec4899", // Camera 5 - Pink
+  "#06b6d4", // Camera 6 - Cyan
+  "#f97316", // Camera 7 - Orange
+  "#8b5cf6", // Camera 8 - Violet
+];
+
 function nextCameraId(state) {
   const prefix = `camera_${Date.now().toString(36)}`;
   let id = prefix;
@@ -49,9 +60,9 @@ export function refreshCameraPreviews(ui) {
   const layout = ui.state.preview_layout || "auto";
   if (strip.dataset.layout !== (layout === "auto" ? "" : layout)) strip.dataset.layout = layout === "auto" ? "" : layout;
   const row = ui.root.querySelector('[data-role="camera-view-row"]');
-  row.classList.toggle("maximized", Boolean(ui.state.maximized_camera_id));
+  if (row) row.classList.toggle("maximized", Boolean(ui.state.maximized_camera_id));
   const visible = visibleCameraTracks(ui);
-  const signature = visible.map((camera) => `${camera.id}:${camera.name}:${camera.muted ? 1 : 0}:${camera.solo ? 1 : 0}`).join("|");
+  const signature = visible.map((camera) => `${camera.id}:${camera.name}:${camera.muted ? 1 : 0}:${camera.solo ? 1 : 0}:${camera.color || ""}`).join("|");
   let rebuilt = false;
   if (signature !== ui.cameraPreviewSignature) {
     rebuilt = true;
@@ -63,7 +74,8 @@ export function refreshCameraPreviews(ui) {
       const tile = document.createElement("div");
       tile.className = "camera-preview-tile";
       tile.dataset.cameraId = camera.id;
-      tile.style.setProperty("--camera-color", `hsl(${(index * 115) % 360} 75% 52%)`);
+      const camColor = camera.color || CAMERA_PALETTE[index % CAMERA_PALETTE.length];
+      tile.style.setProperty("--camera-color", camColor);
       tile.title = t(`Click: set ${camera.name} as primary · Double-click: edit · Right-click: preview actions`);
       const header = document.createElement("div");
       header.className = "camera-preview-head";
@@ -106,6 +118,7 @@ export function refreshCameraPreviews(ui) {
   }
   for (const tile of strip.querySelectorAll(".camera-preview-tile")) {
     tile.classList.toggle("playblast", tile.dataset.cameraId === ui.state.playblast_camera_id);
+    tile.classList.toggle("active", tile.dataset.cameraId === ui.state.active_camera_id);
     tile.classList.toggle("maximized", tile.dataset.cameraId === ui.state.maximized_camera_id);
   }
   for (const marker of strip.querySelectorAll(".output-mark")) marker.hidden = marker.closest(".camera-preview-tile")?.dataset.cameraId !== ui.state.playblast_camera_id;
@@ -120,12 +133,37 @@ export function refreshCameraPreviews(ui) {
 
 export function addCamera(ui) {
   ui.checkpoint("Add camera");
+  ui.finishCameraEdit();
   ui.syncActiveCameraTrack();
   const id = nextCameraId(ui.state);
-  const name = `Camera ${ui.state.cameras.length + 1}`;
-  const camera = cloneCamera(ui.camera);
+  const count = ui.state.cameras.length;
+  const name = `Camera ${count + 1}`;
+
+  // Smart spatial seeding: calculate an orbital offset angle so new camera doesn't overlap exactly
+  const baseCam = cloneCamera(ui.camera);
+  const target = baseCam.target || [0, 1.5, 0];
+  const offset = [baseCam.position[0] - target[0], baseCam.position[1] - target[1], baseCam.position[2] - target[2]];
+  const angle = ((count * 45 + 30) * Math.PI) / 180;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  const rotatedX = offset[0] * cosA - offset[2] * sinA;
+  const rotatedZ = offset[0] * sinA + offset[2] * cosA;
+  baseCam.position = [
+    Math.round((target[0] + rotatedX) * 100) / 100,
+    Math.round(baseCam.position[1] * 100) / 100,
+    Math.round((target[2] + rotatedZ) * 100) / 100,
+  ];
+
+  const color = CAMERA_PALETTE[count % CAMERA_PALETTE.length];
   const interpolation = ui.root.querySelector('[data-role="key-interp"]')?.value || ui.root.querySelector('[data-role="interp"]')?.value || "ease";
-  ui.state.cameras.push({ id, name, camera, keyframes: [{ frame: 0, camera: cloneCamera(camera), interpolation }] });
+  ui.state.cameras.push({
+    id,
+    name,
+    color,
+    camera: baseCam,
+    keyframes: [{ frame: 0, camera: cloneCamera(baseCam), interpolation }],
+  });
+  ui.cameraPreviewSignature = "";
   ui.activateCamera(id);
   ui.setStatus(t(`${name} added`));
 }
@@ -148,10 +186,34 @@ export function duplicateCamera(ui, id) {
   const source = ui.state.cameras.find((item) => item.id === id);
   if (!source) return;
   ui.checkpoint("Duplicate camera");
+  ui.finishCameraEdit();
   ui.syncActiveCameraTrack();
   const copy = JSON.parse(JSON.stringify(source));
   copy.id = nextCameraId(ui.state);
   copy.name = `${source.name} Copy`;
+  const count = ui.state.cameras.length;
+  copy.color = CAMERA_PALETTE[count % CAMERA_PALETTE.length];
+
+  // Slight lateral offset so the duplicate is immediately visible and distinguishable in 3D
+  if (copy.camera?.position) {
+    copy.camera.position = [
+      Math.round((copy.camera.position[0] + 0.8) * 100) / 100,
+      copy.camera.position[1],
+      Math.round((copy.camera.position[2] + 0.8) * 100) / 100,
+    ];
+  }
+  if (copy.keyframes) {
+    for (const k of copy.keyframes) {
+      if (k.camera?.position) {
+        k.camera.position = [
+          Math.round((k.camera.position[0] + 0.8) * 100) / 100,
+          k.camera.position[1],
+          Math.round((k.camera.position[2] + 0.8) * 100) / 100,
+        ];
+      }
+    }
+  }
+
   ui.state.cameras.push(copy);
   ui.cameraPreviewSignature = "";
   ui.activateCamera(copy.id);
@@ -163,6 +225,7 @@ export async function deleteCamera(ui, id) {
   const camera = ui.state.cameras.find((item) => item.id === id);
   if (!camera || !(await confirmAction(t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
   ui.checkpoint("Delete camera");
+  ui.finishCameraEdit();
   const wasActive = id === ui.state.active_camera_id;
   ui.state.cameras = ui.state.cameras.filter((item) => item.id !== id);
   if (id === ui.state.playblast_camera_id) ui.state.playblast_camera_id = ui.state.cameras[0].id;
@@ -174,11 +237,15 @@ export async function deleteCamera(ui, id) {
     ui.state.camera = cloneCamera(next.camera);
     ui.camera = sampleCamera(next, ui.frame);
     ui.selectedEntity = "camera";
+    ui.selectedObjectId = null;
     ui.selectedKeyFrame = next.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
+    ui.editingKeyFrame = null;
   }
   ui.serialize();
+  ui.refreshCameraSelectors();
   ui.refreshObjects();
   ui.refreshKeys();
+  ui.refreshInspector();
   ui.render();
   ui.setStatus(t(`${camera.name} deleted`));
 }
@@ -186,19 +253,23 @@ export async function deleteCamera(ui, id) {
 export function activateCamera(ui, id) {
   const camera = ui.state.cameras.find((item) => item.id === id);
   if (!camera) return;
+  ui.finishCameraEdit();
   ui.syncActiveCameraTrack();
   ui.state.active_camera_id = camera.id;
   ui.state.keyframes = camera.keyframes;
   ui.state.camera = cloneCamera(camera.camera);
   ui.camera = sampleCamera(camera, ui.frame);
   ui.selectedEntity = "camera";
+  ui.selectedObjectId = null;
   ui.selectedKeyFrame = camera.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
   ui.editingKeyFrame = null;
   ui.serialize();
+  ui.refreshCameraSelectors();
   ui.refreshObjects();
   ui.refreshKeys();
+  ui.refreshInspector();
   ui.render();
-  ui.setStatus(t(`Editing ${camera.name}`));
+  ui.setStatus(t(`Camera: ${camera.name}`));
 }
 
 export function setPlayblastCamera(ui, id) {
@@ -208,7 +279,6 @@ export function setPlayblastCamera(ui, id) {
   ui.refreshCameraSelectors();
   ui.serialize();
   ui.refreshObjects();
-  ui.refreshKeys();
   ui.renderCameraView();
   ui.setStatus(t(`Playblast: ${camera.name}`));
 }

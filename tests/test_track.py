@@ -172,3 +172,19 @@ def test_camera_dynamic_target_tracking_constraint_follows_moving_object():
     assert track.sample(50).target == [10.0, 1.0, 40.0]
     assert track.sample(100).target == [20.0, 1.0, 80.0]
 
+
+def test_bezier_x_handles_change_timing():
+    def make(out_x):
+        return OmniCamTrack.from_dict({"duration_frames": 11, "keyframes": [
+            {"frame": 0, "camera": {"position": [0, 0, 5], "target": [0, 0, 0]}, "interpolation": "bezier", "tangents": {"channels": {"pos_x": {"mode": "free", "out_x": out_x, "out_y": 5}}}},
+            {"frame": 10, "camera": {"position": [10, 0, 5], "target": [0, 0, 0]}, "interpolation": "bezier", "tangents": {"channels": {"pos_x": {"mode": "free", "in_x": -0.2, "in_y": 0}}}},
+        ]})
+    assert make(0.1).sample(5).position[0] != pytest.approx(make(0.8).sample(5).position[0])
+
+
+def test_projection_switches_use_last_key_at_or_before_frame():
+    track = OmniCamTrack.from_dict({"duration_frames": 61, "keyframes": [
+        {"frame": frame, "camera": {"position": [0, 0, 5], "target": [0, 0, 0], "camera_type": kind}}
+        for frame, kind in [(0, "perspective"), (20, "orthographic"), (40, "perspective"), (60, "orthographic")]
+    ]})
+    assert [track.sample(frame).camera_type for frame in (19, 20, 39, 40, 59, 60)] == ["perspective", "orthographic", "orthographic", "perspective", "perspective", "orthographic"]

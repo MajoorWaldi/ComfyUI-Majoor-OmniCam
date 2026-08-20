@@ -1,4 +1,4 @@
-﻿// Extracted DOM bindings.
+// Extracted DOM bindings.
 
 import { clamp } from "../director/core.js";
 import { applyCinemaLens } from "../cameras.js";
@@ -71,7 +71,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const el of ui.root.querySelectorAll('[data-role="camera-color"]')) {
     el.addEventListener("input", (e) => {
-      const cam = ui.activeCamera();
+      const cam = ui.activeCameraTrack();
       if (cam) {
         cam.color = e.target.value;
         ui.scheduleSerialize();

@@ -67,12 +67,18 @@ export function dispatchDirectorKey(ui, event) {
     if (!event.repeat) ui.setTransformMode(TRANSFORM_KEYS[key]);
     return true;
   }
-  if (key === "q") {
+  if (key === "q" && !ui.isNavigatingFly) {
     capture();
+    ui.setSelectMode("object");
     ui.selectedEntity = "camera";
     ui.selectedObjectId = null;
+    ui.selectedKeyFrame = null;
+    ui.subSelection = null;
     ui.refreshObjects();
+    ui.refreshKeys();
+    ui.refreshInspector();
     ui.render();
+    ui.setStatus(`Object Mode · ${ui.activeCameraTrack().name}`);
     return true;
   }
   if (key === "i" || key === "k") {
@@ -90,17 +96,29 @@ export function dispatchDirectorKey(ui, event) {
     if (!event.repeat) ui.frameTarget();
     return true;
   }
+  if (key === "escape" && ui.isNavigatingFly) {
+    capture();
+    ui.isNavigatingFly = false;
+    ui.setStatus("Fly Mode OFF");
+    return true;
+  }
+  if ((event.shiftKey && (code === "Backquote" || key === "~")) || (key === "c" && !event.shiftKey && !event.altKey && !event.ctrlKey)) {
+    capture();
+    ui.isNavigatingFly = !ui.isNavigatingFly;
+    ui.setStatus(ui.isNavigatingFly ? "Fly Mode ON · WASD/QE to fly, Drag to look, Esc/C to exit" : "Fly Mode OFF");
+    return true;
+  }
   if (key === "n") {
     capture();
     if (!event.repeat) ui.toggleInspector();
     return true;
   }
 
-  // Standard 3D Software Selection Modes (Blender/Maya standard keys):
-  // 1: Vertex selection mode
-  // 2: Edge selection mode
-  // 3: Face / Polygon selection mode
-  // 4: Object / Whole selection mode
+  // 3D DCC Selection Modes (Blender / Maya standard shortcuts):
+  // 1: Vertex Mode
+  // 2: Edge Mode
+  // 3: Face / Polygon Mode
+  // 4: Object Mode
   if (code === "Digit1" || (!code.startsWith("Numpad") && key === "1")) {
     capture();
     ui.setSelectMode("vertex");

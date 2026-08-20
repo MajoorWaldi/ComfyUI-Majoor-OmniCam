@@ -27,7 +27,7 @@
         const node = {
           comfyClass: "MajoorOmniCamDirector",
           widgets: [
-            { name: "state_json", value: JSON.stringify({ cameras: [{ id: "camera_1", name: '<img data-omnicam-xss src=x onerror="window.__omnicamXss=true">', keyframes: [] }], active_camera_id: "camera_1", playblast_camera_id: "camera_1" }) },
+            { name: "state_json", value: JSON.stringify({ cameras: [{ id: "camera_1", name: '<img data-omnicam-xss src=x onerror="window.__omnicamXss=true">', keyframes: [] }], active_camera_id: "camera_1", playblast_camera_id: "camera_1", objects: [{ id: "qa_cube", name: "QA Cube", type: "cube", position: [0, 0.5, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [], enabled: true }] }) },
             { name: "recording_path", value: "" },
             { name: "card_asset", value: "" },
             { name: "width", value: 1280 },

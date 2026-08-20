@@ -1,11 +1,21 @@
-﻿// Pointer, drag and wheel interaction handlers.
+// Pointer, drag and wheel interaction handlers.
 
-import { add, cameraBasis, clamp, cloneCamera, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "../director/core.js";
+import { add, cameraBasis, clamp, cloneCamera, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
+import { t } from "../i18n.js";
 
 export function onPointerDown(ui, e) {
   if (e.target?.closest?.("button,input,select")) return;
+  if (e.button === 2 && !e.altKey) {
+    // The unmodified secondary button belongs to the OmniCam context menu.
+    // Swallow its pointer event before ComfyUI's graph canvas can see it;
+    // the following `contextmenu` event will open the local menu.
+    e.preventDefault?.();
+    e.stopPropagation?.();
+    e.stopImmediatePropagation?.();
+    return;
+  }
   e.preventDefault?.();
   e.stopPropagation?.();
   ui.closeMenus();
@@ -20,8 +30,14 @@ export function onPointerDown(ui, e) {
   const viewCamera = viewportCamera(ui);
   const editorView = ui.state.view_mode !== "camera";
 
-  // Check transform gizmo first
-  const picked = pickGizmo(ui, [pointerX, pointerY]);
+  // Only the primary button selects or edits scene entities. In particular,
+  // middle-button navigation must never be captured by a selected gizmo.
+  const canPick = e.button === 0;
+  // Plain left-drag is always viewport navigation, including over the selected
+  // object. Requiring Ctrl/Cmd for a gizmo drag removes the ambiguous capture
+  // that otherwise makes the camera appear locked after object selection.
+  const canEditGizmo = canPick && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+  const picked = canEditGizmo ? pickGizmo(ui, [pointerX, pointerY]) : null;
   if (picked) {
     const [a, b] = picked.segment;
     const screenLength = Math.max(1, Math.hypot(b[0] - a[0], b[1] - a[1]));
@@ -69,12 +85,14 @@ export function onPointerDown(ui, e) {
   }
 
   // Check scene objects, camera bodies, target aim diamonds, and 3D path keyframes
-  const hit = pickSceneObject(ui, [pointerX, pointerY]);
+  const hit = canPick ? pickSceneObject(ui, [pointerX, pointerY]) : null;
   ui.pointerHit = Boolean(picked || hit);
   if (hit) {
     if (hit.type === "camera_keyframe") {
+      ui.finishCameraEdit();
       ui.selectedEntity = "camera";
       ui.selectedObjectId = null;
+      ui.editingKeyFrame = null;
       ui.activateCamera(hit.camera.id);
       ui.setFrame(hit.keyframe.frame);
       ui.selectKeyframe(hit.keyframe);
@@ -86,9 +104,26 @@ export function onPointerDown(ui, e) {
       return;
     }
 
+    if (hit.type === "object_keyframe") {
+      ui.finishCameraEdit();
+      ui.selectedEntity = "object";
+      ui.selectedObjectId = hit.object.id;
+      ui.editingKeyFrame = null;
+      ui.setFrame(hit.keyframe.frame);
+      ui.selectKeyframe(hit.keyframe);
+      ui.refreshObjects();
+      ui.refreshKeys();
+      ui.refreshInspector();
+      ui.render();
+      ui.setStatus(t(`${hit.object.name || hit.object.type} · Keyframe @ F${hit.keyframe.frame} selected`));
+      return;
+    }
+
     if (hit.type === "camera_target") {
+      ui.finishCameraEdit();
       ui.selectedEntity = "camera_target";
       ui.selectedObjectId = null;
+      ui.editingKeyFrame = null;
       ui.activateCamera(hit.camera.id);
       ui.beginCameraEdit();
       const { right, up } = cameraBasis(viewCamera);
@@ -111,21 +146,24 @@ export function onPointerDown(ui, e) {
     }
 
     if (hit.type === "camera") {
+      ui.finishCameraEdit();
       ui.selectedEntity = "camera";
       ui.selectedObjectId = null;
+      ui.editingKeyFrame = null;
       ui.activateCamera(hit.camera.id);
       ui.refreshObjects();
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
       ui.setStatus(t(`${hit.camera.name} selected`));
-      return;
     }
 
     if (hit.type === "object" && hit.object) {
+      ui.finishCameraEdit();
       ui.selectedEntity = "object";
       ui.selectedObjectId = hit.object.id;
       ui.selectedKeyFrame = hit.object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null;
+      ui.editingKeyFrame = null;
       
       // If sub-element selection mode (vertex, edge, face) is active:
       if (ui.state.select_mode && ui.state.select_mode !== "object") {
@@ -140,31 +178,24 @@ export function onPointerDown(ui, e) {
         }
       } else {
         ui.subSelection = null;
+        ui.setStatus(t(`${hit.object.name || hit.object.type} selected`));
       }
 
       ui.refreshObjects();
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      // In 3D software (Blender/Maya/Unreal), clicking an object selects it while dragging immediately navigates (orbit/pan/dolly) the camera around it.
     }
-  }
-
-  // Alt + click on object for free screen-plane drag
-  const selected = ui.selectedObject();
-  const projected = selected ? project(selected.position || [0, 0, 0], viewCamera, ui.canvas.width, ui.canvas.height) : null;
-  if (e.altKey && !e.shiftKey && projected && Math.hypot(pointerX - projected[0], pointerY - projected[1]) <= 18 * Math.min(2, window.devicePixelRatio || 1)) {
-    ui.beginObjectEdit(selected);
-    ui.objectDrag = { x: e.clientX, y: e.clientY, position: [...selected.position], camera: cloneCamera(viewCamera), object: selected };
-    return;
   }
 
   // Standard 3D Software Viewport Navigation:
   // - Middle Click (or Alt+Middle, or Shift+Left/Middle): Pan
   // - Right Click (or Alt+Right): Dolly / Zoom
   // - Left Click (or Alt+Left): Orbit
+  // - Fly Navigation: First-person gaze look
   const isPan = e.button === 1 || (e.altKey && e.button === 1) || (e.shiftKey && (e.button === 0 || e.button === 1)) || viewCamera.camera_type === "orthographic";
-  const isDolly = e.button === 2 || (e.altKey && e.button === 2);
+  const isDolly = (e.altKey && e.button === 2) || (e.button === 2 && !ui.isNavigatingFly);
+  const isFly = Boolean(ui.isNavigatingFly);
 
   if (!editorView) ui.beginCameraEdit();
   if (editorView && !ui.state.editor_views) ui.state.editor_views = defaultEditorViews();
@@ -174,6 +205,7 @@ export function onPointerDown(ui, e) {
     y: e.clientY,
     shift: isPan,
     dolly: isDolly,
+    fly: isFly,
     camera: cloneCamera(viewCamera),
     target: editorView ? (ui.state.editor_views[ui.state.view_mode] || (ui.state.editor_views[ui.state.view_mode] = defaultEditorViews()[ui.state.view_mode])) : ui.camera,
     editorView,
@@ -270,6 +302,18 @@ export function onPointerMove(ui, e) {
     if (ui.drag.target.camera_type === "orthographic") {
       ui.drag.target.zoom = Math.max(0.01, (base.zoom || 1) / factor);
     }
+  } else if (ui.drag.fly) {
+    const offset = sub(base.target, base.position);
+    const r = length(offset);
+    let yaw = Math.atan2(offset[0], offset[2]);
+    let pitch = Math.asin(clamp(offset[1] / r, -0.999, 0.999));
+    yaw -= dx * 8e-3;
+    pitch = clamp(pitch - dy * 8e-3, -1.45, 1.45);
+    ui.drag.target.target = [
+      base.position[0] + r * Math.sin(yaw) * Math.cos(pitch),
+      base.position[1] + r * Math.sin(pitch),
+      base.position[2] + r * Math.cos(yaw) * Math.cos(pitch),
+    ];
   } else if (ui.drag.shift) {
     const { right, up } = cameraBasis(base);
     const scale = length(sub(base.position, base.target)) * 25e-4;
@@ -303,11 +347,12 @@ export function onPointerUp(ui, event) {
   // Deselect when user clicked in an empty area without dragging
   if (!ui.pointerHit && !ui.gizmoDrag && !ui.objectDrag && !ui.targetFreeDrag && ui.drag && event) {
     const moved = Math.hypot(event.clientX - ui.drag.x, event.clientY - ui.drag.y);
-    if (moved < 5) {
+    if (moved < 5 && (event.button === 0 || event.button === undefined)) {
       if (ui.selectedEntity === "object" || ui.selectedObjectId !== null || ui.selectedEntity === "camera_target") {
         ui.selectedEntity = "camera";
         ui.selectedObjectId = null;
         ui.selectedKeyFrame = null;
+        ui.subSelection = null;
         ui.refreshObjects();
         ui.refreshKeys();
         ui.refreshInspector();

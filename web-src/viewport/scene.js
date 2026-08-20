@@ -1,4 +1,4 @@
-﻿// WebGL viewport methods extracted from the public facade.
+// WebGL viewport methods extracted from the public facade.
 
 export function createSceneMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -24,7 +24,7 @@ export function createSceneMethods(dependencies) {
       const isActive = camera.id === state.active_camera_id;
       if (viewMode === "camera" && isActive) return;
 
-      const camData = sampleCamera(camera, frame);
+      const camData = sampleCamera(camera, frame, state.objects);
       const pos = new THREE.Vector3().fromArray(camData.position || [0, 0, 0]);
       const tgt = new THREE.Vector3().fromArray(camData.target || [0, 0, 0]);
       const forward = tgt.clone().sub(pos);
@@ -172,7 +172,11 @@ export function createSceneMethods(dependencies) {
     });
   },
 
-  updateSelection(state, selectedEntity, selectedObjectId, subSelection = null) {
+  updateSelection(state, selectedEntity, selectedObjectId, subSelection = null, selectionToken = "") {
+    const subToken = subSelection ? `${subSelection.mode || ""}:${subSelection.objectId || ""}:${(subSelection.point || []).join(",")}` : "";
+    const nextSelectionKey = `${selectedEntity}:${selectedObjectId || ""}:${selectionToken}:${subToken}`;
+    if (nextSelectionKey === this.selectionKey) return;
+    this.selectionKey = nextSelectionKey;
     disposeObject(this.selectionGroup);
     this.selectionGroup.clear();
     if (selectedEntity === "object" && selectedObjectId) {
@@ -180,57 +184,8 @@ export function createSceneMethods(dependencies) {
       if (node) {
         node.updateMatrixWorld(true);
 
-        // If a sub-element (vertex, edge, face) is selected on this object, render its specific marker:
-        if (subSelection && subSelection.objectId === selectedObjectId && subSelection.point) {
-          if (subSelection.mode === "vertex") {
-            const markerGeo = new THREE.SphereGeometry(0.06, 12, 8);
-            const markerMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, depthTest: false });
-            const marker = new THREE.Mesh(markerGeo, markerMat);
-            marker.position.fromArray(subSelection.point);
-            marker.renderOrder = 999;
-            this.selectionGroup.add(marker);
-
-            const ringGeo = new THREE.RingGeometry(0.08, 0.12, 16);
-            const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, depthTest: false });
-            const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.position.fromArray(subSelection.point);
-            if (this.activeCamera) ring.quaternion.copy(this.activeCamera.quaternion);
-            ring.renderOrder = 999;
-            this.selectionGroup.add(ring);
-          } else if (subSelection.mode === "edge" && subSelection.edge) {
-            const [p1, p2] = subSelection.edge;
-            const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p1), new THREE.Vector3(...p2)]);
-            const lineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 4, depthTest: false });
-            const line = new THREE.Line(lineGeo, lineMat);
-            line.renderOrder = 999;
-            this.selectionGroup.add(line);
-          } else if (subSelection.mode === "face" && subSelection.vertices) {
-            const [vA, vB, vC] = subSelection.vertices;
-            const faceGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(...vA), new THREE.Vector3(...vB), new THREE.Vector3(...vC)
-            ]);
-            faceGeo.setIndex([0, 1, 2]);
-            faceGeo.computeVertexNormals();
-            const faceMat = new THREE.MeshBasicMaterial({
-              color: 0x38bdf8,
-              opacity: 0.65,
-              transparent: true,
-              side: THREE.DoubleSide,
-              depthTest: false
-            });
-            const faceMesh = new THREE.Mesh(faceGeo, faceMat);
-            faceMesh.renderOrder = 999;
-            this.selectionGroup.add(faceMesh);
-
-            const outlineGeo = new THREE.BufferGeometry().setFromPoints([
-              new THREE.Vector3(...vA), new THREE.Vector3(...vB), new THREE.Vector3(...vC), new THREE.Vector3(...vA)
-            ]);
-            const outline = new THREE.Line(outlineGeo, new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 2, depthTest: false }));
-            outline.renderOrder = 999;
-            this.selectionGroup.add(outline);
-          }
-        } else {
-          // Standard Object Bounding Box
+        // Always render prominent bounding box around selected object
+        try {
           const box = new THREE.Box3();
           const bones = [];
           node.traverse((child) => {
@@ -246,13 +201,88 @@ export function createSceneMethods(dependencies) {
           } else {
             box.setFromObject(node);
           }
-          if (!box.isEmpty() && Number.isFinite(box.min.x) && Number.isFinite(box.max.x)) {
+          if (!box.isEmpty() && Number.isFinite(box.min.x) && Number.isFinite(box.max.x) && Number.isFinite(box.min.y) && Number.isFinite(box.max.y) && Number.isFinite(box.min.z) && Number.isFinite(box.max.z)) {
             box.expandByScalar(0.04);
             const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0x38bdf8));
             boxHelper.material.transparent = true;
-            boxHelper.material.opacity = 0.85;
+            boxHelper.material.opacity = 0.95;
             boxHelper.material.depthTest = false;
+            boxHelper.renderOrder = 9999;
             this.selectionGroup.add(boxHelper);
+          }
+        } catch (_) {}
+
+        if (state.show_wireframe) {
+          let highlightedMeshes = 0;
+          node.traverse((child) => {
+            if (!child.isMesh || !child.geometry || highlightedMeshes >= 64) return;
+          const overlay = new THREE.Mesh(child.geometry.clone(), new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.2,
+            depthTest: true,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            polygonOffset: true,
+            polygonOffsetFactor: -1,
+          }));
+            overlay.matrixAutoUpdate = false;
+            overlay.matrix.copy(child.matrixWorld);
+            overlay.frustumCulled = false;
+            overlay.renderOrder = 9998;
+            this.selectionGroup.add(overlay);
+            highlightedMeshes += 1;
+          });
+        }
+
+        // If a sub-element (vertex, edge, face) is selected on this object, render its specific marker on top:
+        if (subSelection && subSelection.objectId === selectedObjectId && subSelection.point) {
+          if (subSelection.mode === "vertex") {
+            const markerGeo = new THREE.SphereGeometry(0.08, 16, 12);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, depthTest: false });
+            const marker = new THREE.Mesh(markerGeo, markerMat);
+            marker.position.fromArray(subSelection.point);
+            marker.renderOrder = 10000;
+            this.selectionGroup.add(marker);
+
+            const ringGeo = new THREE.RingGeometry(0.1, 0.15, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, depthTest: false });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.fromArray(subSelection.point);
+            if (this.activeCamera) ring.quaternion.copy(this.activeCamera.quaternion);
+            ring.renderOrder = 10000;
+            this.selectionGroup.add(ring);
+          } else if (subSelection.mode === "edge" && subSelection.edge) {
+            const [p1, p2] = subSelection.edge;
+            const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...p1), new THREE.Vector3(...p2)]);
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 5, depthTest: false });
+            const line = new THREE.Line(lineGeo, lineMat);
+            line.renderOrder = 10000;
+            this.selectionGroup.add(line);
+          } else if (subSelection.mode === "face" && subSelection.vertices) {
+            const [vA, vB, vC] = subSelection.vertices;
+            const faceGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(...vA), new THREE.Vector3(...vB), new THREE.Vector3(...vC)
+            ]);
+            faceGeo.setIndex([0, 1, 2]);
+            faceGeo.computeVertexNormals();
+            const faceMat = new THREE.MeshBasicMaterial({
+              color: 0x38bdf8,
+              opacity: 0.75,
+              transparent: true,
+              side: THREE.DoubleSide,
+              depthTest: false
+            });
+            const faceMesh = new THREE.Mesh(faceGeo, faceMat);
+            faceMesh.renderOrder = 10000;
+            this.selectionGroup.add(faceMesh);
+
+            const outlineGeo = new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(...vA), new THREE.Vector3(...vB), new THREE.Vector3(...vC), new THREE.Vector3(...vA)
+            ]);
+            const outline = new THREE.Line(outlineGeo, new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 3, depthTest: false }));
+            outline.renderOrder = 10001;
+            this.selectionGroup.add(outline);
           }
         }
       }

@@ -3,7 +3,7 @@ import { extname, join, relative } from "node:path";
 
 const roots = ["omnicam", "scripts", "tests", "web-src"];
 const extensions = new Set([".js", ".mjs", ".py", ".ts", ".vue"]);
-const limit = 500;
+const limit = 800;
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

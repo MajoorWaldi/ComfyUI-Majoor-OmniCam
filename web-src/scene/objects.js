@@ -1,9 +1,10 @@
-﻿// Scene object creation, selection and inspector operations.
+// Scene object creation, selection and inspector operations.
 
 import { add, clamp, cloneTransform } from "../director/core.js";
 import { confirmAction, promptText } from "../director/ui-services.js";
 import { t } from "../i18n.js";
 import { beginCameraEdit, commitCameraEdit, finishCameraEdit, refreshKeyEditor, selectedKeyframe, updateKeyVisualState } from "../scene.js";
+import { findEditableKey } from "./edit-target.js";
 
 export function addPrimitive(ui, type) {
   ui.checkpoint("Create object");
@@ -286,15 +287,24 @@ export function beginObjectEdit(ui, object) {
     return null;
   }
   object.keyframes ||= [];
-  let key = object.keyframes?.find((item) => item.frame === (ui.state.auto_key ? ui.frame : ui.selectedKeyFrame));
-  if (!key && ui.state.auto_key) {
-    key = { frame: ui.frame, transform: cloneTransform(object), interpolation: ui.root.querySelector('[data-role="interp"]')?.value || "ease" };
-    object.keyframes.push(key);
-    object.keyframes.sort((a, b) => a.frame - b.frame);
-  }
-  if (key) {
+  let key = findEditableKey(
+    object.keyframes,
+    ui.frame,
+    ui.state.auto_key ? null : ui.selectedKeyFrame,
+    ui.state.auto_key ? null : ui.editingKeyFrame,
+  );
+  if (ui.state.auto_key) {
+    if (!key) {
+      key = { frame: ui.frame, transform: cloneTransform(object), interpolation: ui.root.querySelector('[data-role="interp"]')?.value || "ease" };
+      object.keyframes.push(key);
+      object.keyframes.sort((a, b) => a.frame - b.frame);
+      ui.refreshKeys();
+    }
     ui.selectedKeyFrame = key.frame;
     ui.editingKeyFrame = key.frame;
+    ui.updateKeyVisualState();
+  } else if (key) {
+    ui.selectedKeyFrame = key.frame;
     ui.updateKeyVisualState();
   }
   return key;
@@ -349,140 +359,7 @@ export function selectObjectAnimation(ui, index) {
   ui.setStatus(t(`Animation: ${ui.modelInfoById.get(object.id)?.animationNames?.[index] || index + 1}`));
 }
 
-export function refreshObjects(ui) {
-  const box = ui.root.querySelector('[data-role="objects"]');
-  box.innerHTML = "";
-  const trackFlag = (ui_, item, kind) => {
-    const wrap = document.createElement("span");
-    wrap.style.cssText = "margin-left:auto;display:flex;gap:2px";
-    const defs = kind === "camera"
-      ? [["locked", "pi-lock", "Lock track"], ["muted", "pi-volume-off", "Mute track"], ["solo", "pi-star", "Solo track"]]
-      : [["locked", "pi-lock", "Lock object"]];
-    for (const [field, icon, label] of defs) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "icon-button";
-      button.style.cssText = `width:18px;height:18px;min-width:18px;padding:0;${item[field] ? "color:#f2d06b;border-color:#6b5a2e" : "opacity:.45"}`;
-      button.title = t(label);
-      button.innerHTML = `<i class="pi ${icon}" style="font-size:10px"></i>`;
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        ui_.checkpoint(`${label}`);
-        item[field] = !item[field];
-        ui_.serialize();
-        ui_.refreshObjects();
-        ui_.renderCameraView();
-      });
-      wrap.appendChild(button);
-    }
-    return wrap;
-  };
-  for (const camera of ui.state.cameras) {
-    const element = document.createElement("button");
-    element.type = "button";
-    element.dataset.cameraId = camera.id;
-    const isActive = camera.id === ui.state.active_camera_id;
-    const isPlayblast = camera.id === ui.state.playblast_camera_id;
-    const isSelected = ui.selectedEntity === "camera" && isActive;
-    element.className = `scene-item${isSelected ? " selected" : ""}${isActive && !isSelected ? " active-view" : ""}`;
-    const icon = document.createElement("i");
-    icon.className = "pi pi-video";
-    const label = document.createElement("span");
-    if (isSelected || isActive) {
-      const stateMark = document.createElement("span");
-      stateMark.style.cssText = `color:${isSelected ? "#f59e0b" : "#58cc6b"};font-weight:700`;
-      stateMark.textContent = isSelected ? "● " : "○ ";
-      label.appendChild(stateMark);
-    }
-    label.appendChild(document.createTextNode(camera.name));
-    if (isPlayblast) {
-      const outputMark = document.createElement("span");
-      outputMark.style.cssText = "color:#f2d06b;font-size:10px";
-      outputMark.title = "Playblast Output";
-      outputMark.textContent = " ★";
-      label.appendChild(outputMark);
-    }
-    if (camera.muted) {
-      const muted = document.createElement("span");
-      muted.style.opacity = ".6";
-      muted.textContent = " (muted)";
-      label.appendChild(muted);
-    }
-    element.append(icon, label, trackFlag(ui, camera, "camera"));
-    element.title = isSelected ? t("Currently selected for editing") : isPlayblast ? t("Active playblast camera") : t("Click to select & activate this camera");
-    element.addEventListener("click", () => {
-      ui.selectedEntity = "camera";
-      ui.selectedObjectId = null;
-      ui.activateCamera(camera.id);
-      ui.refreshObjects();
-      ui.refreshKeys();
-      ui.refreshInspector();
-      ui.render();
-      ui.setStatus(t(`Editing: ${camera.name}`));
-    });
-    box.appendChild(element);
-  }
-  for (const object of ui.state.objects) {
-    const element = document.createElement("button");
-    element.type = "button";
-    element.dataset.objectId = object.id;
-    const isSelected = ui.selectedEntity === "object" && object.id === ui.selectedObjectId;
-    element.className = `scene-item${isSelected ? " selected" : ""}`;
-    const typeIcon = object.type === "card" ? "pi-image"
-      : object.type === "model" || object.type === "glb" ? "pi-box"
-      : object.type === "ground" ? "pi-minus"
-      : object.type === "cube" ? "pi-stop"
-      : object.type === "sphere" ? "pi-circle"
-      : object.type === "human" ? "pi-user"
-      : "pi-plus";
-    const isEnabled = object.enabled !== false;
-    const hasError = Boolean(object.load_error);
-    const label = document.createElement("span");
-    const objectIcon = document.createElement("i");
-    objectIcon.className = `pi ${hasError ? "pi-exclamation-triangle" : typeIcon}`;
-    objectIcon.style.cssText = hasError ? "color:#f87171" : isEnabled ? "" : "opacity:.4";
-    const objectName = document.createElement("span");
-    objectName.style.cssText = hasError ? "color:#fca5a5" : isEnabled ? "" : "opacity:.5;text-decoration:line-through";
-    objectName.textContent = object.name || object.type;
-    label.append(objectIcon, document.createTextNode(" "), objectName);
-    if (hasError) {
-      const formatError = document.createElement("span");
-      formatError.style.cssText = "color:#ef4444;font-size:9px;font-weight:700";
-      formatError.textContent = " [Format!]";
-      label.appendChild(formatError);
-    }
-    
-    // Visibility toggle eye button
-    const visBtn = document.createElement("button");
-    visBtn.type = "button";
-    visBtn.className = "icon-button";
-    visBtn.style.cssText = "width:18px;height:18px;min-width:18px;padding:0;margin-left:auto;opacity:.65";
-    visBtn.title = isEnabled ? t("Hide object") : t("Show object");
-    visBtn.innerHTML = `<i class="pi ${isEnabled ? "pi-eye" : "pi-eye-slash"}" style="font-size:10px"></i>`;
-    visBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      ui.toggleObject(object.id);
-    });
-
-    element.append(label, visBtn, trackFlag(ui, object, "object"));
-    element.title = t("Click to select · Double-click to toggle visibility · Right-click for actions");
-    element.addEventListener("click", (event) => {
-      if (event.altKey && object.id !== "subject") return void ui.deleteObject(object.id);
-      ui.selectedEntity = "object";
-      ui.selectedObjectId = object.id;
-      ui.selectedKeyFrame = object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null;
-      ui.serialize();
-      ui.refreshObjects();
-      ui.refreshKeys();
-      ui.refreshInspector();
-      ui.render();
-      ui.setStatus(t(`Editing: ${object.name || object.type}`));
-    });
-    element.addEventListener("dblclick", () => ui.toggleObject(object.id));
-    box.appendChild(element);
-  }
-  ui.refreshInspector();
-}
+export { refreshObjects } from "./outliner.js";
 
 export function removeObjectResources(ui, id) {
   ui.objectUrls.revoke(id);

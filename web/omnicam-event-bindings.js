@@ -1,378 +1,393 @@
 import "./omnicam-core.js";
 import "./omnicam-ui.js";
 import "./omnicam-i18n.js";
-import { onCurveWheel as p } from "./omnicam-curve-editor.js";
-import { onTimelineWheel as E } from "./omnicam-timeline-interaction.js";
-import { clamp as m } from "./omnicam-core.js";
-import { applyCinemaLens as b } from "./omnicam-cameras.js";
-import { applyBlockingScenePreset as S } from "./omnicam-motion-presets.js";
-function L(e, n, o) {
-  for (const a of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz"])
-    for (const d of e.root.querySelectorAll(`[data-role="${a}"]`))
-      d.addEventListener("input", () => e.updateSelectedObject(), { signal: o }), d.addEventListener("change", () => e.updateSelectedObject(), { signal: o });
-  for (const a of ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-near", "camera-far"])
-    for (const d of e.root.querySelectorAll(`[data-role="${a}"]`))
-      d.addEventListener("input", () => e.updateCameraFromHud(), { signal: o }), d.addEventListener("change", () => e.updateCameraFromHud(), { signal: o });
-  n('[data-role="animation-select"]')?.addEventListener("change", (a) => e.selectObjectAnimation(Number(a.target.value)), { signal: o }), n('[data-role="object-parent"]')?.addEventListener("change", (a) => e.setObjectParent(a.target.value || null), { signal: o }), n('[data-role="duration-seconds"]')?.addEventListener("change", (a) => {
-    e.durationWidget && (e.durationWidget.value = Number(a.target.value)), e.syncFromWidgets();
-  }, { signal: o }), n('[data-role="timeline-fps"]')?.addEventListener("change", (a) => {
-    e.fpsWidget && (e.fpsWidget.value = Number(a.target.value)), e.syncFromWidgets();
-  }, { signal: o }), n('[data-role="curve-group"]')?.addEventListener("change", () => e.drawCurveEditor(), { signal: o }), n('[data-act="curve-handles"]')?.addEventListener("click", () => e.toggleCurveHandles(), { signal: o });
-  for (const a of e.root.querySelectorAll("[data-curve-mode]"))
-    a.addEventListener("click", () => e.setCurveInterpolation(a.dataset.curveMode), { signal: o });
-  for (const a of e.root.querySelectorAll("[data-tangent-mode]"))
-    a.addEventListener("click", () => e.setTangentMode(a.dataset.tangentMode), { signal: o });
-  for (const a of e.root.querySelectorAll("[data-channel-filter]"))
-    a.addEventListener("click", () => e.setChannelFilter(a.dataset.channelFilter), { signal: o });
-  const r = n('[data-role="curve-canvas"]');
-  r && (r.addEventListener("pointerdown", (a) => e.onCurvePointerDown(a), { signal: o }), r.addEventListener("pointermove", (a) => e.onCurvePointerMove(a), { signal: o }), r.addEventListener("pointerup", (a) => e.onCurvePointerUp(a), { signal: o }), r.addEventListener("pointercancel", (a) => e.onCurvePointerUp(a), { signal: o }), r.addEventListener("wheel", (a) => p(e, a), { passive: !1, signal: o })), n('[data-act="curve-zoom-in"]')?.addEventListener("click", () => e.zoomCurve(1.25), { signal: o }), n('[data-act="curve-zoom-out"]')?.addEventListener("click", () => e.zoomCurve(0.8), { signal: o }), n('[data-act="curve-fit"]')?.addEventListener("click", () => e.resetCurveZoom(), { signal: o }), n('[data-role="key-frame"]')?.addEventListener("change", (a) => e.retimeSelectedKey(Number(a.target.value)), { signal: o });
-  for (const a of ["key-interp", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"])
-    n(`[data-role="${a}"]`)?.addEventListener("change", () => e.updateSelectedKey(), { signal: o });
-  for (const a of e.root.querySelectorAll('[data-role="ui-density"]'))
-    a.addEventListener("change", (d) => e.setDensity(d.target.value), { signal: o });
-  for (const a of e.root.querySelectorAll('[data-role="preview-layout"]'))
-    a.addEventListener("change", (d) => {
+import { onCurveWheel as S } from "./omnicam-curve-editor.js";
+import { onTimelineWheel as L } from "./omnicam-timeline-interaction.js";
+import { t as b } from "./omnicam-i18n.js";
+import { clamp as p } from "./omnicam-core.js";
+import { applyCinemaLens as h } from "./omnicam-cameras.js";
+import { applyBlockingScenePreset as k } from "./omnicam-motion-presets.js";
+function A(e, c, r) {
+  for (const o of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz"])
+    for (const d of e.root.querySelectorAll(`[data-role="${o}"]`))
+      d.addEventListener("input", () => e.updateSelectedObject(), { signal: r }), d.addEventListener("change", () => e.updateSelectedObject(), { signal: r });
+  for (const o of ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-near", "camera-far"])
+    for (const d of e.root.querySelectorAll(`[data-role="${o}"]`))
+      d.addEventListener("input", () => e.updateCameraFromHud(), { signal: r }), d.addEventListener("change", () => e.updateCameraFromHud(), { signal: r });
+  c('[data-role="animation-select"]')?.addEventListener("change", (o) => e.selectObjectAnimation(Number(o.target.value)), { signal: r }), c('[data-role="object-parent"]')?.addEventListener("change", (o) => e.setObjectParent(o.target.value || null), { signal: r }), c('[data-role="duration-seconds"]')?.addEventListener("change", (o) => {
+    e.durationWidget && (e.durationWidget.value = Number(o.target.value)), e.syncFromWidgets();
+  }, { signal: r }), c('[data-role="timeline-fps"]')?.addEventListener("change", (o) => {
+    e.fpsWidget && (e.fpsWidget.value = Number(o.target.value)), e.syncFromWidgets();
+  }, { signal: r }), c('[data-role="curve-group"]')?.addEventListener("change", () => e.drawCurveEditor(), { signal: r }), c('[data-act="curve-handles"]')?.addEventListener("click", () => e.toggleCurveHandles(), { signal: r });
+  for (const o of e.root.querySelectorAll("[data-curve-mode]"))
+    o.addEventListener("click", () => e.setCurveInterpolation(o.dataset.curveMode), { signal: r });
+  for (const o of e.root.querySelectorAll("[data-tangent-mode]"))
+    o.addEventListener("click", () => e.setTangentMode(o.dataset.tangentMode), { signal: r });
+  for (const o of e.root.querySelectorAll("[data-channel-filter]"))
+    o.addEventListener("click", () => e.setChannelFilter(o.dataset.channelFilter), { signal: r });
+  const t = c('[data-role="curve-canvas"]');
+  t && (t.addEventListener("pointerdown", (o) => e.onCurvePointerDown(o), { signal: r }), t.addEventListener("pointermove", (o) => e.onCurvePointerMove(o), { signal: r }), t.addEventListener("pointerup", (o) => e.onCurvePointerUp(o), { signal: r }), t.addEventListener("pointercancel", (o) => e.onCurvePointerUp(o), { signal: r }), t.addEventListener("wheel", (o) => S(e, o), { passive: !1, signal: r })), c('[data-act="curve-zoom-in"]')?.addEventListener("click", () => e.zoomCurve(1.25), { signal: r }), c('[data-act="curve-zoom-out"]')?.addEventListener("click", () => e.zoomCurve(0.8), { signal: r }), c('[data-act="curve-fit"]')?.addEventListener("click", () => e.resetCurveZoom(), { signal: r }), c('[data-role="key-frame"]')?.addEventListener("change", (o) => e.retimeSelectedKey(Number(o.target.value)), { signal: r });
+  for (const o of ["key-interp", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"])
+    c(`[data-role="${o}"]`)?.addEventListener("change", () => e.updateSelectedKey(), { signal: r });
+  for (const o of e.root.querySelectorAll('[data-role="ui-density"]'))
+    o.addEventListener("change", (d) => e.setDensity(d.target.value), { signal: r });
+  for (const o of e.root.querySelectorAll('[data-role="preview-layout"]'))
+    o.addEventListener("change", (d) => {
       e.state.preview_layout = d.target.value, e.scheduleSerialize(), e.refreshCameraPreviews(), e.renderCameraView(), e.setStatus(`Preview layout: ${d.target.value}`);
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-act="aim-at-object"]'))
-    a.addEventListener("click", () => {
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-act="aim-at-object"]'))
+    o.addEventListener("click", () => {
       e.aimAtSelectedObject(), e.closeMenus();
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-act="bake-aim-keys"]'))
-    a.addEventListener("click", () => {
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-act="bake-aim-keys"]'))
+    o.addEventListener("click", () => {
       e.bakeAimToKeyframes(), e.closeMenus();
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-role="camera-target-object"]'))
-    a.addEventListener("change", (d) => {
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-role="camera-target-object"]'))
+    o.addEventListener("change", (d) => {
       e.setCameraTrackingTarget(d.target.value);
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-act="focus-target"]'))
-    a.addEventListener("click", () => {
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-act="focus-target"]'))
+    o.addEventListener("click", () => {
       e.focusCameraTarget(), e.closeMenus();
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-role="gizmo-space"]'))
-    a.addEventListener("change", (d) => {
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-role="gizmo-space"]'))
+    o.addEventListener("change", (d) => {
       e.state.gizmo_space = d.target.value;
-      for (const y of e.root.querySelectorAll('[data-role="gizmo-space"]')) y.value = d.target.value;
+      for (const v of e.root.querySelectorAll('[data-role="gizmo-space"]')) v.value = d.target.value;
       e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-role="view-mode"]'))
-    a.addEventListener("change", (d) => e.setViewMode(d.target.value), { signal: o });
-  for (const a of e.root.querySelectorAll('[data-act="toggle-inspector"]'))
-    a.addEventListener("click", () => e.toggleInspector(), { signal: o });
-  for (const a of e.root.querySelectorAll('[data-act="clear-selection"]'))
-    a.addEventListener("click", () => {
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-role="view-mode"]'))
+    o.addEventListener("change", (d) => e.setViewMode(d.target.value), { signal: r });
+  for (const o of e.root.querySelectorAll('[data-act="toggle-inspector"]'))
+    o.addEventListener("click", () => e.toggleInspector(), { signal: r });
+  for (const o of e.root.querySelectorAll('[data-act="clear-selection"]'))
+    o.addEventListener("click", () => {
       e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedKeyFrame = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render();
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll('[data-role="timeline-summary"]'))
-    a.addEventListener("click", () => {
-      e.selectedEntity === "object" && (e.selectedEntity = "camera", e.selectedObjectId = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(t(`Editing: ${e.activeCameraTrack().name}`)));
-    }, { signal: o });
-  for (const a of e.root.querySelectorAll(".toolbar-menu"))
-    a.addEventListener("toggle", () => {
-      a.open && e.closeMenus(a);
-    }, { signal: o });
-  e.root.addEventListener("pointerdown", (a) => {
-    const d = a.composedPath?.()[0] || a.target;
-    d instanceof HTMLElement && d.closest(".context-menu, [data-role='context-menu']") || (a.stopPropagation(), d instanceof HTMLElement && !d.closest(".toolbar-menu") && e.closeMenus(), d instanceof HTMLElement && !d.closest(".key,.key-editor,canvas") && e.exitKeyEdit(!0), (!(d instanceof HTMLElement) || !d.closest("input,select,textarea,button,[contenteditable=true]")) && e.root.focus({ preventScroll: !0 }));
-  }, { signal: o }), document.addEventListener("pointerdown", (a) => {
-    const d = a.composedPath?.()[0] || a.target;
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll('[data-role="timeline-summary"]'))
+    o.addEventListener("click", () => {
+      e.selectedEntity === "object" && (e.selectedEntity = "camera", e.selectedObjectId = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(b(`Editing: ${e.activeCameraTrack().name}`)));
+    }, { signal: r });
+  for (const o of e.root.querySelectorAll(".toolbar-menu"))
+    o.addEventListener("toggle", () => {
+      o.open && e.closeMenus(o);
+    }, { signal: r });
+  const a = (o, d) => {
+    const v = o instanceof HTMLElement ? o.closest(".scene-item") : null;
+    if (!(!v || d.button === 2 || o.closest(".scene-action-btn")))
+      if (v.dataset.objectId) {
+        const y = e.state.objects.find((m) => m.id === v.dataset.objectId);
+        if (!y) return;
+        e.finishCameraEdit(), e.selectedEntity = "object", e.selectedObjectId = y.id, e.selectedKeyFrame = y.keyframes?.find((m) => m.frame === e.frame)?.frame ?? null, e.editingKeyFrame = null;
+        for (const m of e.root.querySelectorAll(".scene-item")) {
+          const E = m.dataset.objectId === y.id;
+          m.classList.toggle("selected", E), m.setAttribute("aria-selected", String(E));
+        }
+        e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(b(`Selected: ${y.name || y.type}`));
+      } else v.dataset.cameraId && e.activateCamera(v.dataset.cameraId);
+  };
+  e.root.addEventListener("pointerdown", (o) => {
+    a(o.composedPath?.()[0] || o.target, o);
+  }, { capture: !0, signal: r }), e.root.addEventListener("pointerdown", (o) => {
+    const d = o.composedPath?.()[0] || o.target;
+    d instanceof HTMLElement && d.closest(".context-menu, [data-role='context-menu']") || (o.stopPropagation(), d instanceof HTMLElement && !d.closest(".toolbar-menu") && e.closeMenus(), d instanceof HTMLElement && !d.closest(".key,.key-editor,canvas") && e.exitKeyEdit(!0), (!(d instanceof HTMLElement) || !d.closest("input,select,textarea,button,[contenteditable=true]")) && e.root.focus({ preventScroll: !0 }));
+  }, { signal: r }), document.addEventListener("pointerdown", (o) => {
+    const d = o.composedPath?.()[0] || o.target;
     d instanceof HTMLElement && d.closest(".context-menu, [data-role='context-menu']") || (!(d instanceof Node) || !e.root.contains(d)) && (e.closeMenus(), e.exitKeyEdit(!0));
-  }, { capture: !0, signal: o }), e.root.addEventListener("mousedown", (a) => a.stopPropagation(), { signal: o }), e.root.addEventListener("contextmenu", (a) => e.onContextMenu(a), { signal: o }), e.interactionElement?.addEventListener("pointerdown", (a) => e.onPointerDown(a), { signal: o }), e.interactionElement?.addEventListener("pointermove", (a) => e.onPointerMove(a), { signal: o }), e.interactionElement?.addEventListener("pointerup", (a) => e.onPointerUp(a), { signal: o }), e.interactionElement?.addEventListener("pointercancel", (a) => e.onPointerUp(a), { signal: o }), e.interactionElement?.addEventListener("dblclick", (a) => e.setTargetAtCursor(a), { signal: o }), e.interactionElement?.addEventListener("wheel", (a) => e.onWheel(a), { passive: !1, signal: o }), window.addEventListener("pointermove", (a) => {
-    e.keyDrag && e.onPointerMove(a);
-  }, { capture: !0, signal: o }), window.addEventListener("pointerup", (a) => {
-    e.keyDrag && e.onPointerUp(a);
-  }, { capture: !0, signal: o });
-  const c = n('[data-role="keys"]');
-  c && (c.addEventListener("pointerdown", (a) => e.onTimelinePointerDown(a), { signal: o }), c.addEventListener("pointermove", (a) => e.onTimelinePointerMove(a), { signal: o }), c.addEventListener("pointerup", (a) => e.onTimelinePointerUp(a), { signal: o }), c.addEventListener("pointercancel", (a) => e.onTimelinePointerUp(a), { signal: o }), c.addEventListener("wheel", (a) => E(e, a), { passive: !1, signal: o })), e.root.addEventListener("keydown", (a) => e.onKey(a), { signal: o });
+  }, { capture: !0, signal: r }), e.root.addEventListener("mousedown", (o) => o.stopPropagation(), { signal: r }), e.root.addEventListener("contextmenu", (o) => e.onContextMenu(o), { signal: r }), e.interactionElement?.addEventListener("pointerdown", (o) => e.onPointerDown(o), { signal: r }), e.interactionElement?.addEventListener("pointermove", (o) => e.onPointerMove(o), { signal: r }), e.interactionElement?.addEventListener("pointerup", (o) => e.onPointerUp(o), { signal: r }), e.interactionElement?.addEventListener("pointercancel", (o) => e.onPointerUp(o), { signal: r }), e.interactionElement?.addEventListener("dblclick", (o) => e.setTargetAtCursor(o), { signal: r }), e.interactionElement?.addEventListener("wheel", (o) => e.onWheel(o), { passive: !1, signal: r }), window.addEventListener("pointermove", (o) => {
+    e.keyDrag && e.onPointerMove(o);
+  }, { capture: !0, signal: r }), window.addEventListener("pointerup", (o) => {
+    e.keyDrag && e.onPointerUp(o);
+  }, { capture: !0, signal: r });
+  const n = c('[data-role="keys"]');
+  n && (n.addEventListener("pointerdown", (o) => e.onTimelinePointerDown(o), { signal: r }), n.addEventListener("pointermove", (o) => e.onTimelinePointerMove(o), { signal: r }), n.addEventListener("pointerup", (o) => e.onTimelinePointerUp(o), { signal: r }), n.addEventListener("pointercancel", (o) => e.onTimelinePointerUp(o), { signal: r }), n.addEventListener("wheel", (o) => L(e, o), { passive: !1, signal: r })), e.root.addEventListener("keydown", (o) => e.onKey(o), { signal: r });
   const l = new ResizeObserver(() => {
-    e.resizeCanvas(), e.render();
-  }), s = e.root.querySelector(".viewport-wrap");
-  s && l.observe(s);
-  const v = e.root.querySelector('[data-role="camera-previews"]');
-  v && l.observe(v), e.resizeObserver = l, e.updateEditState();
+    e.scheduleResizeAndRender();
+  }), f = e.root.querySelector(".viewport-wrap");
+  f && l.observe(f), e.resizeObserver = l, e.updateEditState();
 }
-function h(e, n, o) {
-  for (const r of e.root.querySelectorAll('[data-act="play"]'))
-    r.addEventListener("click", () => e.togglePlay(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="key"]'))
-    r.addEventListener("click", () => e.insertKeyframe(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="auto-key"]'))
-    r.addEventListener("click", () => e.toggleAutoKey(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="delete-key"]'))
-    r.addEventListener("click", () => e.deleteKeyframe(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="copy-key"]'))
-    r.addEventListener("click", () => e.copyKeyframe(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="paste-key"]'))
-    r.addEventListener("click", () => e.pasteKeyframe(), { signal: o });
-  n('[data-act="key-first"]')?.addEventListener("click", () => e.setFrame(0), { signal: o }), n('[data-act="key-last"]')?.addEventListener("click", () => e.setFrame(e.state.duration_frames - 1), { signal: o }), n('[data-act="previous-key"]')?.addEventListener("click", () => e.goToAdjacentKey(-1), { signal: o }), n('[data-act="next-key"]')?.addEventListener("click", () => e.goToAdjacentKey(1), { signal: o }), n('[data-act="previous-frame"]')?.addEventListener("click", () => e.setFrame(e.frame - 1), { signal: o }), n('[data-act="next-frame"]')?.addEventListener("click", () => e.setFrame(e.frame + 1), { signal: o }), n('[data-act="update-key"]')?.addEventListener("click", () => e.updateKeyFromView(), { signal: o }), n('[data-act="view-key"]')?.addEventListener("click", () => e.loadSelectedKeyView(), { signal: o });
-  for (const r of e.root.querySelectorAll('select[data-role="encoder"]'))
-    r.addEventListener("change", (c) => {
-      e.state.encoder = c.target.value, e.serialize(), e.setStatus(`Encoder: ${c.target.value}`);
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="fit-timeline"]'))
-    r.addEventListener("click", () => e.resetTimelineZoom(), { signal: o });
-  for (const r of e.root.querySelectorAll("[data-interp]"))
-    r.addEventListener("click", () => e.setKeyInterpolation(r.dataset.interp), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="reset-camera"]'))
-    r.addEventListener("click", () => e.resetCamera(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="loop"]'))
-    r.addEventListener("click", () => e.toggleLoop(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="range-start"]'))
-    r.addEventListener("click", () => e.setPlaybackRange("start"), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="range-end"]'))
-    r.addEventListener("click", () => e.setPlaybackRange("end"), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="range-clear"]'))
-    r.addEventListener("click", () => e.clearPlaybackRange(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="toggle-timecode"]'))
-    r.addEventListener("click", () => e.toggleTimecode(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="time"]'))
-    r.addEventListener("click", () => e.toggleTimecode(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="toggle-snap"]'))
-    r.addEventListener("click", () => e.toggleSnap(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="snap-frames"]'))
-    r.addEventListener("change", (c) => {
-      e.state.snap_frames = Math.max(1, Math.round(Number(c.target.value) || 1)), e.serialize(), e.setStatus(`Snap: ${e.state.snap_frames} frame${e.state.snap_frames === 1 ? "" : "s"}`);
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="add-camera"]'))
-    r.addEventListener("click", () => {
+function i(e, c, r) {
+  for (const t of e.root.querySelectorAll('[data-act="play"]'))
+    t.addEventListener("click", () => e.togglePlay(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="key"]'))
+    t.addEventListener("click", () => e.insertKeyframe(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="auto-key"]'))
+    t.addEventListener("click", () => e.toggleAutoKey(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="delete-key"]'))
+    t.addEventListener("click", () => e.deleteKeyframe(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="copy-key"]'))
+    t.addEventListener("click", () => e.copyKeyframe(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="paste-key"]'))
+    t.addEventListener("click", () => e.pasteKeyframe(), { signal: r });
+  c('[data-act="key-first"]')?.addEventListener("click", () => e.setFrame(0), { signal: r }), c('[data-act="key-last"]')?.addEventListener("click", () => e.setFrame(e.state.duration_frames - 1), { signal: r }), c('[data-act="previous-key"]')?.addEventListener("click", () => e.goToAdjacentKey(-1), { signal: r }), c('[data-act="next-key"]')?.addEventListener("click", () => e.goToAdjacentKey(1), { signal: r }), c('[data-act="previous-frame"]')?.addEventListener("click", () => e.setFrame(e.frame - 1), { signal: r }), c('[data-act="next-frame"]')?.addEventListener("click", () => e.setFrame(e.frame + 1), { signal: r }), c('[data-act="update-key"]')?.addEventListener("click", () => e.updateKeyFromView(), { signal: r }), c('[data-act="view-key"]')?.addEventListener("click", () => e.loadSelectedKeyView(), { signal: r });
+  for (const t of e.root.querySelectorAll('select[data-role="encoder"]'))
+    t.addEventListener("change", (a) => {
+      e.state.encoder = a.target.value, e.serialize(), e.setStatus(`Encoder: ${a.target.value}`);
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="fit-timeline"]'))
+    t.addEventListener("click", () => e.resetTimelineZoom(), { signal: r });
+  for (const t of e.root.querySelectorAll("[data-interp]"))
+    t.addEventListener("click", () => e.setKeyInterpolation(t.dataset.interp), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="reset-camera"]'))
+    t.addEventListener("click", () => e.resetCamera(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="loop"]'))
+    t.addEventListener("click", () => e.toggleLoop(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="range-start"]'))
+    t.addEventListener("click", () => e.setPlaybackRange("start"), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="range-end"]'))
+    t.addEventListener("click", () => e.setPlaybackRange("end"), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="range-clear"]'))
+    t.addEventListener("click", () => e.clearPlaybackRange(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="toggle-timecode"]'))
+    t.addEventListener("click", () => e.toggleTimecode(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="time"]'))
+    t.addEventListener("click", () => e.toggleTimecode(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="toggle-snap"]'))
+    t.addEventListener("click", () => e.toggleSnap(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="snap-frames"]'))
+    t.addEventListener("change", (a) => {
+      e.state.snap_frames = Math.max(1, Math.round(Number(a.target.value) || 1)), e.serialize(), e.setStatus(`Snap: ${e.state.snap_frames} frame${e.state.snap_frames === 1 ? "" : "s"}`);
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="add-camera"]'))
+    t.addEventListener("click", () => {
       e.addCamera(), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="record"]'))
-    r.addEventListener("click", () => e.makePlayblast(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="h3-setup"]'))
-    r.addEventListener("click", () => e.createH3Setup(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="sync-inputs"]'))
-    r.addEventListener("click", () => {
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="record"]'))
+    t.addEventListener("click", () => e.makePlayblast(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="h3-setup"]'))
+    t.addEventListener("click", () => e.createH3Setup(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="sync-inputs"]'))
+    t.addEventListener("click", () => {
       e.syncUpstreamInputs(), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="load-card"]'))
-    r.addEventListener("click", () => n('[data-role="file"]')?.click(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="add-card"]'))
-    r.addEventListener("click", () => e.addMediaCard(), { signal: o });
-  n('[data-role="file"]')?.addEventListener("change", (r) => e.loadCardFile(r.target.files?.[0]), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="load-model"]'))
-    r.addEventListener("click", () => {
-      e.closeMenus(), n('[data-role="model-file"]')?.click();
-    }, { signal: o });
-  n('[data-role="model-file"]')?.addEventListener("change", (r) => {
-    e.loadModelFile(r.target.files?.[0]), r.target.value = "";
-  }, { signal: o }), n('[data-act="load-audio"]')?.addEventListener("click", () => {
-    e.closeMenus(), n('[data-role="audio-file"]')?.click();
-  }, { signal: o }), n('[data-role="audio-file"]')?.addEventListener("change", (r) => {
-    e.loadAudioFile(r.target.files?.[0]), r.target.value = "";
-  }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="clear-caches"]'))
-    r.addEventListener("click", () => {
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="load-card"]'))
+    t.addEventListener("click", () => c('[data-role="file"]')?.click(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="add-card"]'))
+    t.addEventListener("click", () => e.addMediaCard(), { signal: r });
+  c('[data-role="file"]')?.addEventListener("change", (t) => e.loadCardFile(t.target.files?.[0]), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="load-model"]'))
+    t.addEventListener("click", () => {
+      e.closeMenus(), c('[data-role="model-file"]')?.click();
+    }, { signal: r });
+  c('[data-role="model-file"]')?.addEventListener("change", (t) => {
+    e.loadModelFile(t.target.files?.[0]), t.target.value = "";
+  }, { signal: r }), c('[data-act="load-audio"]')?.addEventListener("click", () => {
+    e.closeMenus(), c('[data-role="audio-file"]')?.click();
+  }, { signal: r }), c('[data-role="audio-file"]')?.addEventListener("change", (t) => {
+    e.loadAudioFile(t.target.files?.[0]), t.target.value = "";
+  }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="clear-caches"]'))
+    t.addEventListener("click", () => {
       e.clearCaches(), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll("[data-object-type]"))
-    r.addEventListener("click", () => {
-      e.addPrimitive(r.dataset.objectType), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll("[data-preset]"))
-    r.addEventListener("click", () => {
-      e.applyCameraPreset(r.dataset.preset), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll("[data-shake]"))
-    r.addEventListener("click", () => {
-      e.applyCameraShake(r.dataset.shake), e.closeMenus();
-    }, { signal: o });
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll("[data-object-type]"))
+    t.addEventListener("click", () => {
+      e.addPrimitive(t.dataset.objectType), e.closeMenus();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll("[data-preset]"))
+    t.addEventListener("click", () => {
+      e.applyCameraPreset(t.dataset.preset), e.closeMenus();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll("[data-shake]"))
+    t.addEventListener("click", () => {
+      e.applyCameraShake(t.dataset.shake), e.closeMenus();
+    }, { signal: r });
 }
-function k(e, n, o) {
-  for (const r of e.root.querySelectorAll('[data-role="mode"]'))
-    r.addEventListener("change", (c) => {
-      e.state.render_mode = c.target.value, e.modeWidget && (e.modeWidget.value = c.target.value);
-      for (const l of e.root.querySelectorAll('[data-role="mode"]')) l.value = c.target.value;
+function g(e, c, r) {
+  for (const t of e.root.querySelectorAll('[data-role="mode"]'))
+    t.addEventListener("change", (a) => {
+      e.state.render_mode = a.target.value, e.modeWidget && (e.modeWidget.value = a.target.value);
+      for (const n of e.root.querySelectorAll('[data-role="mode"]')) n.value = a.target.value;
       e.serialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="frame"]'))
-    r.addEventListener("change", (c) => e.setFrame(Number(c.target.value)), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="scrub"]'))
-    r.addEventListener("input", (c) => e.setFrame(Number(c.target.value)), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) {
-    const c = (l) => {
-      const s = m(Number(l.target.value), 5, 150);
-      e.activeCameraTrack().keyframes.length && e.activeKeyframe() ? (e.activeKeyframe().camera.fov = s, e.scheduleSerialize(), e.render(), e.refreshKeyEditor()) : (e.camera.fov = s, e.render());
-      for (const v of e.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) v.value = String(s);
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="frame"]'))
+    t.addEventListener("change", (a) => e.setFrame(Number(a.target.value)), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="scrub"]'))
+    t.addEventListener("input", (a) => e.setFrame(Number(a.target.value)), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) {
+    const a = (n) => {
+      const l = p(Number(n.target.value), 5, 150);
+      e.activeCameraTrack().keyframes.length && e.activeKeyframe() ? (e.activeKeyframe().camera.fov = l, e.scheduleSerialize(), e.render(), e.refreshKeyEditor()) : (e.camera.fov = l, e.render());
+      for (const f of e.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) f.value = String(l);
     };
-    r.addEventListener("input", c, { signal: o }), r.addEventListener("change", c, { signal: o });
+    t.addEventListener("input", a, { signal: r }), t.addEventListener("change", a, { signal: r });
   }
-  for (const r of e.root.querySelectorAll('[data-role="camera-roll"]')) {
-    const c = (l) => {
-      const s = m(Number(l.target.value), -180, 180);
-      e.activeCameraTrack().keyframes.length && e.activeKeyframe() ? (e.activeKeyframe().camera.roll = s, e.scheduleSerialize(), e.render(), e.refreshKeyEditor()) : (e.camera.roll = s, e.render());
-      for (const v of e.root.querySelectorAll('[data-role="camera-roll"]')) v.value = String(s);
+  for (const t of e.root.querySelectorAll('[data-role="camera-roll"]')) {
+    const a = (n) => {
+      const l = p(Number(n.target.value), -180, 180);
+      e.activeCameraTrack().keyframes.length && e.activeKeyframe() ? (e.activeKeyframe().camera.roll = l, e.scheduleSerialize(), e.render(), e.refreshKeyEditor()) : (e.camera.roll = l, e.render());
+      for (const f of e.root.querySelectorAll('[data-role="camera-roll"]')) f.value = String(l);
     };
-    r.addEventListener("input", c, { signal: o }), r.addEventListener("change", c, { signal: o });
+    t.addEventListener("input", a, { signal: r }), t.addEventListener("change", a, { signal: r });
   }
-  for (const r of e.root.querySelectorAll("[data-view]"))
-    r.addEventListener("click", () => e.setViewMode(r.dataset.view), { signal: o });
-  for (const r of e.root.querySelectorAll("[data-select-mode]"))
-    r.addEventListener("click", () => e.setSelectMode(r.dataset.selectMode), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="select-mode"]'))
-    r.addEventListener("change", (c) => e.setSelectMode(c.target.value), { signal: o });
-  for (const r of e.root.querySelectorAll("[data-transform-mode]"))
-    r.addEventListener("click", () => e.setTransformMode(r.dataset.transformMode), { signal: o });
-  n('[data-act="frame-target"]')?.addEventListener("click", () => e.frameTarget(), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="toggle-camera-view"]'))
-    r.addEventListener("click", () => e.toggleCameraView(), { signal: o });
-  for (const r of e.root.querySelectorAll(".inspector-tab, [data-tab]"))
-    r.addEventListener("click", () => {
-      const c = r.dataset.tab;
-      for (const l of e.root.querySelectorAll(".inspector-tab, [data-tab]")) l.classList.toggle("active", l === r);
-      for (const l of e.root.querySelectorAll(".inspector-tab-content, [data-tab-panel]"))
-        l.hidden = l.dataset.tabPanel !== c;
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="active-camera-select"]'))
-    r.addEventListener("change", (c) => e.activateCamera(c.target.value), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="camera-color"]'))
-    r.addEventListener("input", (c) => {
-      const l = e.activeCamera();
-      l && (l.color = c.target.value, e.scheduleSerialize(), e.render());
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="playblast-camera"]'))
-    r.addEventListener("change", (c) => e.setPlayblastCamera(c.target.value), { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="camera-type"]'))
-    r.addEventListener("change", (c) => {
-      e.camera.camera_type = c.target.value, f(e.root, "camera-type", c.target), e.beginCameraEdit(), e.commitCameraEdit(), e.finishCameraEdit(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="speed"]')) {
-    const c = (l) => {
-      const s = m(Number(l.target.value), 0.05, 5);
-      if (Number.isFinite(s)) {
-        e.cameraSpeed = s;
-        for (const v of e.root.querySelectorAll('[data-role="speed"]'))
-          v !== l.target && (v.value = String(s));
+  for (const t of e.root.querySelectorAll("[data-view]"))
+    t.addEventListener("click", () => e.setViewMode(t.dataset.view), { signal: r });
+  for (const t of e.root.querySelectorAll("[data-select-mode]"))
+    t.addEventListener("click", () => e.setSelectMode(t.dataset.selectMode), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="select-mode"]'))
+    t.addEventListener("change", (a) => e.setSelectMode(a.target.value), { signal: r });
+  for (const t of e.root.querySelectorAll("[data-transform-mode]"))
+    t.addEventListener("click", () => e.setTransformMode(t.dataset.transformMode), { signal: r });
+  c('[data-act="frame-target"]')?.addEventListener("click", () => e.frameTarget(), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="toggle-camera-view"]'))
+    t.addEventListener("click", () => e.toggleCameraView(), { signal: r });
+  for (const t of e.root.querySelectorAll(".inspector-tab, [data-tab]"))
+    t.addEventListener("click", () => {
+      const a = t.dataset.tab;
+      for (const n of e.root.querySelectorAll(".inspector-tab, [data-tab]")) n.classList.toggle("active", n === t);
+      for (const n of e.root.querySelectorAll(".inspector-tab-content, [data-tab-panel]"))
+        n.hidden = n.dataset.tabPanel !== a;
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="active-camera-select"]'))
+    t.addEventListener("change", (a) => e.activateCamera(a.target.value), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="camera-color"]'))
+    t.addEventListener("input", (a) => {
+      const n = e.activeCameraTrack();
+      n && (n.color = a.target.value, e.scheduleSerialize(), e.render());
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="playblast-camera"]'))
+    t.addEventListener("change", (a) => e.setPlayblastCamera(a.target.value), { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="camera-type"]'))
+    t.addEventListener("change", (a) => {
+      e.camera.camera_type = a.target.value, s(e.root, "camera-type", a.target), e.beginCameraEdit(), e.commitCameraEdit(), e.finishCameraEdit(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="speed"]')) {
+    const a = (n) => {
+      const l = p(Number(n.target.value), 0.05, 5);
+      if (Number.isFinite(l)) {
+        e.cameraSpeed = l;
+        for (const f of e.root.querySelectorAll('[data-role="speed"]'))
+          f !== n.target && (f.value = String(l));
       }
     };
-    r.addEventListener("input", c, { signal: o }), r.addEventListener("change", c, { signal: o });
+    t.addEventListener("input", a, { signal: r }), t.addEventListener("change", a, { signal: r });
   }
-  for (const r of e.root.querySelectorAll('[data-role="interp"]'))
-    r.addEventListener("change", (c) => {
-      e.activeKeyframe() && (e.activeKeyframe().interpolation = c.target.value, e.scheduleSerialize(), e.render());
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="point-density"]'))
-    r.addEventListener("change", (c) => {
-      e.state.point_density = c.target.value, e.scheduleSerialize(), e.render(), e.setStatus(`Point density: ${c.target.value}`);
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="point-color"]'))
-    r.addEventListener("input", (c) => {
-      e.state.point_color = c.target.value, e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="point-spread"]'))
-    r.addEventListener("change", (c) => {
-      e.state.point_spread = c.target.value, e.scheduleSerialize(), e.render(), e.setStatus(`Point spread: ${c.target.value}`);
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="card-fit"]'))
-    r.addEventListener("change", (c) => {
-      e.state.card_fit = c.target.value, e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="speed-heatmap"]'))
-    r.addEventListener("change", (c) => {
-      e.state.speed_heatmap = c.target.checked, f(e.root, "speed-heatmap", c.target, "checked"), e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="playblast-grid"]'))
-    r.addEventListener("change", (c) => {
-      e.state.playblast_grid = c.target.checked, f(e.root, "playblast-grid", c.target, "checked"), e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="show-wireframe"]'))
-    r.addEventListener("change", (c) => {
-      e.state.show_wireframe = c.target.checked, f(e.root, "show-wireframe", c.target, "checked"), e.scheduleSerialize(), e.webgl && (e.webgl.sceneKey = ""), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="show-vertices"]'))
-    r.addEventListener("change", (c) => {
-      e.state.show_vertices = c.target.checked, f(e.root, "show-vertices", c.target, "checked"), e.scheduleSerialize(), e.webgl && (e.webgl.sceneKey = ""), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="burn-in"]'))
-    r.addEventListener("change", (c) => {
-      e.state.burn_in = c.target.checked, f(e.root, "burn-in", c.target, "checked"), e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="guides"]'))
-    r.addEventListener("change", (c) => {
-      e.state.guides = c.target.checked, f(e.root, "guides", c.target, "checked"), e.scheduleSerialize(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="safe-areas"]'))
-    r.addEventListener("change", (c) => {
-      e.state.safe_areas = c.target.checked, f(e.root, "safe-areas", c.target, "checked"), e.scheduleSerialize(), e.renderCameraView(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="resolution-gate"]'))
-    r.addEventListener("change", (c) => {
-      e.state.resolution_gate = c.target.checked, f(e.root, "resolution-gate", c.target, "checked"), e.scheduleSerialize(), e.renderCameraView(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="aspect-ratio"]'))
-    r.addEventListener("change", (c) => {
-      e.state.aspect_ratio = c.target.value, f(e.root, "aspect-ratio", c.target), e.scheduleSerialize(), e.renderCameraView(), e.render();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="viewport-bg-color"]')) {
-    const c = (l) => {
-      e.state.viewport_bg_color = l.target.value, f(e.root, "viewport-bg-color", l.target), e.scheduleSerialize(), e.render();
+  for (const t of e.root.querySelectorAll('[data-role="interp"]'))
+    t.addEventListener("change", (a) => {
+      e.activeKeyframe() && (e.activeKeyframe().interpolation = a.target.value, e.scheduleSerialize(), e.render());
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="point-density"]'))
+    t.addEventListener("change", (a) => {
+      e.state.point_density = a.target.value, e.scheduleSerialize(), e.render(), e.setStatus(`Point density: ${a.target.value}`);
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="point-color"]'))
+    t.addEventListener("input", (a) => {
+      e.state.point_color = a.target.value, e.scheduleSerialize(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="point-spread"]'))
+    t.addEventListener("change", (a) => {
+      e.state.point_spread = a.target.value, e.scheduleSerialize(), e.render(), e.setStatus(`Point spread: ${a.target.value}`);
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="card-fit"]'))
+    t.addEventListener("change", (a) => {
+      e.state.card_fit = a.target.value, e.scheduleSerialize(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="speed-heatmap"]'))
+    t.addEventListener("change", (a) => {
+      e.state.speed_heatmap = a.target.checked, s(e.root, "speed-heatmap", a.target, "checked"), e.scheduleSerialize(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="playblast-grid"]'))
+    t.addEventListener("change", (a) => {
+      e.state.playblast_grid = a.target.checked, s(e.root, "playblast-grid", a.target, "checked"), e.scheduleSerialize(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="show-wireframe"]'))
+    t.addEventListener("change", (a) => {
+      e.state.show_wireframe = a.target.checked, s(e.root, "show-wireframe", a.target, "checked"), e.scheduleSerialize(), e.webgl && (e.webgl.sceneKey = ""), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="show-vertices"]'))
+    t.addEventListener("change", (a) => {
+      e.state.show_vertices = a.target.checked, s(e.root, "show-vertices", a.target, "checked"), e.scheduleSerialize(), e.webgl && (e.webgl.sceneKey = ""), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="burn-in"]'))
+    t.addEventListener("change", (a) => {
+      e.state.burn_in = a.target.checked, s(e.root, "burn-in", a.target, "checked"), e.scheduleSerialize(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="guides"]'))
+    t.addEventListener("change", (a) => {
+      e.state.guides = a.target.checked, s(e.root, "guides", a.target, "checked"), e.scheduleSerialize(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="safe-areas"]'))
+    t.addEventListener("change", (a) => {
+      e.state.safe_areas = a.target.checked, s(e.root, "safe-areas", a.target, "checked"), e.scheduleSerialize(), e.renderCameraView(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="resolution-gate"]'))
+    t.addEventListener("change", (a) => {
+      e.state.resolution_gate = a.target.checked, s(e.root, "resolution-gate", a.target, "checked"), e.scheduleSerialize(), e.renderCameraView(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="aspect-ratio"]'))
+    t.addEventListener("change", (a) => {
+      e.state.aspect_ratio = a.target.value, s(e.root, "aspect-ratio", a.target), e.scheduleSerialize(), e.renderCameraView(), e.render();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="viewport-bg-color"]')) {
+    const a = (n) => {
+      e.state.viewport_bg_color = n.target.value, s(e.root, "viewport-bg-color", n.target), e.scheduleSerialize(), e.render();
     };
-    r.addEventListener("input", c, { signal: o }), r.addEventListener("change", c, { signal: o });
+    t.addEventListener("input", a, { signal: r }), t.addEventListener("change", a, { signal: r });
   }
-  for (const r of e.root.querySelectorAll('[data-act="upload-viewport-bg"]'))
-    r.addEventListener("click", () => {
-      e.closeMenus(), n('[data-role="viewport-bg-file"]')?.click();
-    }, { signal: o });
-  n('[data-role="viewport-bg-file"]')?.addEventListener("change", (r) => {
-    e.loadViewportBgFile(r.target.files?.[0]), r.target.value = "";
-  }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="upload-viewport-bg-seq"]'))
-    r.addEventListener("click", () => {
-      e.closeMenus(), n('[data-role="viewport-bg-seq-file"]')?.click();
-    }, { signal: o });
-  n('[data-role="viewport-bg-seq-file"]')?.addEventListener("change", (r) => {
-    e.loadViewportBgSequence(Array.from(r.target.files || [])), r.target.value = "";
-  }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-act="clear-viewport-bg"]'))
-    r.addEventListener("click", () => {
+  for (const t of e.root.querySelectorAll('[data-act="upload-viewport-bg"]'))
+    t.addEventListener("click", () => {
+      e.closeMenus(), c('[data-role="viewport-bg-file"]')?.click();
+    }, { signal: r });
+  c('[data-role="viewport-bg-file"]')?.addEventListener("change", (t) => {
+    e.loadViewportBgFile(t.target.files?.[0]), t.target.value = "";
+  }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="upload-viewport-bg-seq"]'))
+    t.addEventListener("click", () => {
+      e.closeMenus(), c('[data-role="viewport-bg-seq-file"]')?.click();
+    }, { signal: r });
+  c('[data-role="viewport-bg-seq-file"]')?.addEventListener("change", (t) => {
+    e.loadViewportBgSequence(Array.from(t.target.files || [])), t.target.value = "";
+  }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-act="clear-viewport-bg"]'))
+    t.addEventListener("click", () => {
       e.clearViewportBgImage(), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="object-material"]'))
-    r.addEventListener("change", (c) => {
-      const l = e.selectedObject();
-      l && (l.material_mode = c.target.value, e.serialize(), e.render());
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="object-color"]'))
-    r.addEventListener("input", (c) => {
-      const l = e.selectedObject();
-      l && (l.color = c.target.value, e.scheduleSerialize(), e.render());
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="reference-select"]'))
-    r.addEventListener("change", (c) => {
-      e.state.reference_index = Number(c.target.value), e.serialize(), e.loadSelectedReference();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll("[data-proxy-preset]"))
-    r.addEventListener("click", () => {
-      e.applyProxyPreset(r.dataset.proxyPreset), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('select[data-role="proxy-preset"]'))
-    r.addEventListener("change", (c) => {
-      e.applyProxyPreset(c.target.value);
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll("[data-lens]"))
-    r.addEventListener("click", () => {
-      b(e, Number(r.dataset.lens));
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll("[data-blocking-scene]"))
-    r.addEventListener("click", () => {
-      S(e, r.dataset.blockingScene), e.closeMenus();
-    }, { signal: o });
-  for (const r of e.root.querySelectorAll('[data-role="show-radar"]'))
-    r.addEventListener("change", (c) => {
-      e.state.show_radar = c.target.checked, e.scheduleSerialize(), e.render(), e.setStatus(`Radar Mini-Map: ${c.target.checked ? "ON" : "OFF"}`);
-    }, { signal: o });
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="object-material"]'))
+    t.addEventListener("change", (a) => {
+      const n = e.selectedObject();
+      n && (n.material_mode = a.target.value, e.serialize(), e.render());
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="object-color"]'))
+    t.addEventListener("input", (a) => {
+      const n = e.selectedObject();
+      n && (n.color = a.target.value, e.scheduleSerialize(), e.render());
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="reference-select"]'))
+    t.addEventListener("change", (a) => {
+      e.state.reference_index = Number(a.target.value), e.serialize(), e.loadSelectedReference();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll("[data-proxy-preset]"))
+    t.addEventListener("click", () => {
+      e.applyProxyPreset(t.dataset.proxyPreset), e.closeMenus();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('select[data-role="proxy-preset"]'))
+    t.addEventListener("change", (a) => {
+      e.applyProxyPreset(a.target.value);
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll("[data-lens]"))
+    t.addEventListener("click", () => {
+      h(e, Number(t.dataset.lens));
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll("[data-blocking-scene]"))
+    t.addEventListener("click", () => {
+      k(e, t.dataset.blockingScene), e.closeMenus();
+    }, { signal: r });
+  for (const t of e.root.querySelectorAll('[data-role="show-radar"]'))
+    t.addEventListener("change", (a) => {
+      e.state.show_radar = a.target.checked, e.scheduleSerialize(), e.render(), e.setStatus(`Radar Mini-Map: ${a.target.checked ? "ON" : "OFF"}`);
+    }, { signal: r });
 }
-function f(e, n, o, r = "value") {
-  for (const c of e.querySelectorAll(`[data-role="${n}"]`))
-    c !== o && (c[r] = o[r]);
+function s(e, c, r, t = "value") {
+  for (const a of e.querySelectorAll(`[data-role="${c}"]`))
+    a !== r && (a[t] = r[t]);
 }
-function x(e) {
+function T(e) {
   e.abortController = new AbortController();
-  const n = e.abortController.signal, o = (r) => e.root.querySelector(r);
-  h(e, o, n), k(e, o, n), L(e, o, n);
+  const c = e.abortController.signal, r = (t) => e.root.querySelector(t);
+  i(e, r, c), g(e, r, c), A(e, r, c);
 }
 export {
-  x as bind,
-  f as syncMirroredControl
+  T as bind,
+  s as syncMirroredControl
 };

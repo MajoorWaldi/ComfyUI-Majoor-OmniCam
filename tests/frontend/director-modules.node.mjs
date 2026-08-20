@@ -9,6 +9,8 @@ import { ObjectUrlRegistry, uploadManagedFile } from "../../web/omnicam-media.js
 import { getLocale, registerLocale, setLocale, t } from "../../web/omnicam-i18n.js";
 import { activeCameraTrack, playblastCameraTrack, serializeEditorState } from "../../web/omnicam-state-sync.js";
 import { captureRealtimePlayblast } from "../../web/omnicam-playblast.js";
+import { onPointerDown } from "../../web/omnicam-viewport-controls.js";
+import { findEditableKey } from "../../web-src/scene/edit-target.js";
 
 test("director state sanitization preserves the canonical default camera", () => {
   const state = sanitizeState({});
@@ -47,11 +49,158 @@ test("object URL registry revokes replaced and cleared blob URLs", () => {
   assert.deepEqual(revoked, ["blob:1", "blob:2"]); assert.equal(registry.urls.size, 0);
 });
 
+test("viewport backgrounds use managed assets instead of serialized blob URLs", async () => {
+  const source = await readFile(new URL("../../web-src/background-manager.js", import.meta.url), "utf8");
+  assert.match(source, /uploadManagedFile/);
+  assert.match(source, /uploaded\.path/);
+  assert.doesNotMatch(source, /createObjectURL/);
+});
+
+test("background uploads discard stale requests and clean partial managed files", async () => {
+  const source = await readFile(new URL("../../web-src/background-manager.js", import.meta.url), "utf8");
+  assert.match(source, /backgroundRequestId/);
+  assert.match(source, /cleanupUploads/);
+  assert.match(source, /\/majoor\/omnicam\/cleanup/);
+});
+
+test("viewport background textures are bounded and stale loads are disposed", async () => {
+  const source = await readFile(new URL("../../web-src/viewport/render.js", import.meta.url), "utf8");
+  assert.match(source, /bgTextureCache\.size > 8/);
+  assert.match(source, /generation !== this\.bgLoadGeneration/);
+  assert.match(source, /tex\.dispose\(\)/);
+});
+
+test("fly navigation keeps Q for vertical movement", async () => {
+  const source = await readFile(new URL("../../web-src/commands.js", import.meta.url), "utf8");
+  assert.match(source, /key === "q" && !ui\.isNavigatingFly/);
+});
+
+test("upstream media preserves managed annotations and cancels stale work", async () => {
+  const source = await readFile(new URL("../../web-src/dom-media.js", import.meta.url), "utf8");
+  assert.match(source, /upstreamAssetValue/);
+  assert.ok(source.includes("(input|output|temp)"));
+  assert.match(source, /upstreamSyncId/);
+  assert.match(source, /AbortController/);
+});
+
+test("desktop dialogs never fall back to unavailable browser modal APIs", async () => {
+  const source = await readFile(new URL("../../web-src/director/ui-services.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /window\.(prompt|confirm)/);
+});
+
+test("render and disposal paths use revisions and release asynchronous resources", async () => {
+  const renderSource = await readFile(new URL("../../web-src/viewport/render.js", import.meta.url), "utf8");
+  const directorSource = await readFile(new URL("../../web-src/director/methods/render.js", import.meta.url), "utf8");
+  assert.match(renderSource, /state\.__omnicamRevision \?\?/);
+  assert.match(directorSource, /audioContext\?\.close/);
+  assert.match(directorSource, /cancelAnimationFrame/);
+  assert.match(directorSource, /upstreamFetchController\?\.abort/);
+});
+
 test("realtime playblast fails clearly when MediaRecorder is absent", async () => {
   await assert.rejects(
     captureRealtimePlayblast({ canvas: { captureStream() {} }, fps: 24, frameCount: 1, renderFrame() {}, mediaRecorder: null }),
     /MediaRecorder unsupported/,
   );
+});
+
+test("selecting a viewport object keeps camera navigation active", () => {
+  const object = { id: "subject", type: "cube", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
+  const camera = { position: [6, 4, 6], target: [0, 0, 0], up: [0, 1, 0], fov: 35, camera_type: "perspective", zoom: 1 };
+  const ui = {
+    state: { view_mode: "camera", objects: [object], cameras: [], gizmo_mode: "translate", gizmo_space: "world" },
+    camera,
+    canvas: { width: 800, height: 450, classList: { add() {} } },
+    interactionElement: {
+      focus() {},
+      setPointerCapture() {},
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }),
+    },
+    webgl: { pick: () => ({ type: "object", id: object.id }) },
+    selectedEntity: "camera",
+    selectedObjectId: null,
+    selectedKeyFrame: null,
+    closeMenus() {},
+    finishCameraEdit() {},
+    refreshObjects() {},
+    refreshKeys() {},
+    refreshInspector() {},
+    render() {},
+    setStatus() {},
+    beginCameraEdit() {},
+    selectedObject() { return this.state.objects.find((item) => item.id === this.selectedObjectId) || null; },
+  };
+  onPointerDown(ui, {
+    button: 0,
+    pointerId: 1,
+    clientX: 400,
+    clientY: 225,
+    altKey: false,
+    shiftKey: false,
+    target: { closest: () => null },
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  assert.equal(ui.selectedEntity, "object");
+  assert.equal(ui.selectedObjectId, object.id);
+  assert.ok(ui.drag, "the same pointer gesture should initialize camera navigation");
+});
+
+test("a selected object cannot capture a plain left-drag through its gizmo", async () => {
+  const source = await readFile(new URL("../../web-src/viewport-controls/interactions.js", import.meta.url), "utf8");
+  assert.match(source, /canEditGizmo = canPick && \(e\.ctrlKey \|\| e\.metaKey\)/);
+  assert.match(source, /const picked = canEditGizmo \? pickGizmo/);
+});
+
+test("selection rendering and outliner expose visible, contextual object feedback", async () => {
+  const selectionSource = await readFile(new URL("../../web-src/viewport/scene.js", import.meta.url), "utf8");
+  const outlinerSource = await readFile(new URL("../../web-src/scene/outliner.js", import.meta.url), "utf8");
+  assert.match(selectionSource, /Box3Helper/);
+  assert.doesNotMatch(selectionSource, /wireframe: true/);
+  assert.match(selectionSource, /nextSelectionKey/);
+  assert.match(outlinerSource, /openObjectContext\(event, object\.id\)/);
+  assert.match(outlinerSource, /event\.key === "Enter" \|\| event\.key === " "/);
+});
+
+test("secondary click is contained for the OmniCam context menu", () => {
+  const calls = [];
+  onPointerDown({ root: {}, interactionElement: {} }, {
+    button: 2,
+    altKey: false,
+    target: { closest: () => null },
+    preventDefault() { calls.push("default"); },
+    stopPropagation() { calls.push("propagation"); },
+    stopImmediatePropagation() { calls.push("immediate"); },
+  });
+  assert.deepEqual(calls, ["default", "propagation", "immediate"]);
+});
+
+test("middle-button navigation bypasses picking on a selected object", () => {
+  let pickCalls = 0;
+  const camera = { position: [6, 4, 6], target: [0, 0, 0], up: [0, 1, 0], fov: 35, camera_type: "perspective", zoom: 1 };
+  const ui = {
+    state: { view_mode: "camera", editor_views: {}, objects: [], cameras: [], gizmo_mode: "translate", gizmo_space: "world" },
+    camera,
+    canvas: { width: 800, height: 450, classList: { add() {} } },
+    interactionElement: {
+      focus() {}, setPointerCapture() {},
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }),
+    },
+    webgl: { pick() { pickCalls += 1; return { type: "object", id: "subject" }; } },
+    closeMenus() {}, beginCameraEdit() {}, selectedObject() { return null; },
+  };
+  onPointerDown(ui, {
+    button: 1, pointerId: 2, clientX: 400, clientY: 225,
+    altKey: false, shiftKey: false, target: { closest: () => null },
+    preventDefault() {}, stopPropagation() {},
+  });
+  assert.equal(pickCalls, 0);
+  assert.equal(ui.drag?.shift, true);
+});
+
+test("camera movement edits the existing playhead key without auto-key", () => {
+  const key = { frame: 0, camera: cloneCamera(defaultState().camera), interpolation: "ease" };
+  assert.equal(findEditableKey([key], 0, null, null), key);
 });
 
 test("every template action has an implementation reference", async () => {

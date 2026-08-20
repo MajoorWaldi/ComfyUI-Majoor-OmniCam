@@ -6,6 +6,9 @@ from pathlib import Path
 import folder_paths
 from comfy_api.latest import IO, InputImpl
 
+from ..core.track import OmniCamTrack
+from ..core.validation import validate_track_payload
+
 OMNICAM_TRACK = IO.Custom("MAJOOR_OMNICAM_TRACK")
 OMNICAM_ATI_BRIDGE = IO.Custom("MAJOOR_OMNICAM_ATI_BRIDGE")
 OMNICAM_LTX_BRIDGE = IO.Custom("MAJOOR_OMNICAM_LTX_BRIDGE")
@@ -23,6 +26,11 @@ def resolve_video(path: str | None):
     if not resolved or not os.path.isfile(resolved):
         return None
     return InputImpl.VideoFromFile(resolved)
+
+
+def validated_track(payload: dict) -> OmniCamTrack:
+    """Apply resource limits and strict canonical validation at node boundaries."""
+    return OmniCamTrack.from_dict(validate_track_payload(payload))
 
 
 def write_output(filename: str, content: str) -> str:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+from ..core.camera_math import camera_basis
 from ..core.track import CameraState, OmniCamTrack
 
 # Recommended motion limits for Wan camera conditioning (adapter scope only).
@@ -30,13 +31,7 @@ def _cross(a: list[float], b: list[float]) -> list[float]:
 
 def camera_to_wan_c2w(camera: CameraState) -> list[list[float]]:
     """Convert Three/OmniCam's Y-up look-at camera to Wan's +Z-forward camera matrix."""
-    forward = _normalize([camera.target[i] - camera.position[i] for i in range(3)])
-    right_axis = _cross(forward, [0.0, 1.0, 0.0])
-    right = _normalize(right_axis) if any(abs(value) > 1e-9 for value in right_axis) else [1.0, 0.0, 0.0]
-    up = _normalize(_cross(right, forward))
-    roll = math.radians(camera.roll)
-    rolled_right = [right[i] * math.cos(roll) + up[i] * math.sin(roll) for i in range(3)]
-    rolled_up = [up[i] * math.cos(roll) - right[i] * math.sin(roll) for i in range(3)]
+    rolled_right, rolled_up, forward = camera_basis(camera.position, camera.target, camera.roll)
     down = [-component for component in rolled_up]
     return [
         [rolled_right[0], down[0], forward[0], camera.position[0]],

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from comfy_api.latest import IO
 
 from .base import (
@@ -62,13 +61,9 @@ DEV_NODES = [
     MajoorOmniCamUnrealExport,
 ]
 
-ALL_NODES = CORE_NODES + PRO_NODES + DEV_NODES
-
-
 def get_registered_nodes() -> list[type[IO.ComfyNode]]:
-    if os.environ.get("OMNICAM_EXPERIMENTAL_NODES") == "1":
-        return CORE_NODES + PRO_NODES + DEV_NODES
-    return CORE_NODES + PRO_NODES
+    from ..node_registry import get_registered_nodes as registry_nodes
+    return registry_nodes()
 
 
 __all__ = [
@@ -99,6 +94,5 @@ __all__ = [
     "CORE_NODES",
     "PRO_NODES",
     "DEV_NODES",
-    "ALL_NODES",
     "get_registered_nodes",
 ]

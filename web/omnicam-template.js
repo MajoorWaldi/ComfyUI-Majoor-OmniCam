@@ -34,8 +34,9 @@ const o = `
       
       .majoor-omnicam [data-act="toggle-snap"].active,.majoor-omnicam [data-act="toggle-snap"][aria-pressed="true"]{background:linear-gradient(180deg,#d97706,#b45309) !important;border-color:#fbbf24 !important;color:#fff !important;box-shadow:0 0 10px rgba(245,158,11,0.5) !important}
       .majoor-omnicam [data-act="loop"].active,.majoor-omnicam [data-act="loop"][aria-pressed="true"]{background:linear-gradient(180deg,#2563eb,#1d4ed8) !important;border-color:#60a5fa !important;color:#fff !important;box-shadow:0 0 10px rgba(59,130,246,0.5) !important}
-      .majoor-omnicam [data-act="toggle-timecode"].active,.majoor-omnicam [data-act="toggle-timecode"][aria-pressed="true"]{background:linear-gradient(180deg,#7c3aed,#6d28d9) !important;border-color:#a78bfa !important;color:#fff !important;box-shadow:0 0 10px rgba(139,92,246,0.5) !important}
       .majoor-omnicam [data-act="toggle-camera-view"].active,.majoor-omnicam [data-act="toggle-inspector"].active{background:linear-gradient(180deg,#0284c7,#0369a1) !important;border-color:#38bdf8 !important;color:#fff !important;box-shadow:0 0 10px rgba(14,165,233,0.5) !important}
+      .majoor-omnicam [data-select-mode].active,.majoor-omnicam [data-select-mode][aria-pressed="true"]{background:linear-gradient(180deg,#0284c7,#0369a1) !important;border-color:#38bdf8 !important;color:#fff !important;box-shadow:0 0 10px rgba(56,189,248,0.6),inset 0 1px 0 rgba(255,255,255,0.3) !important}
+      .majoor-omnicam [data-transform-mode].active,.majoor-omnicam [data-transform-mode][aria-pressed="true"]{background:linear-gradient(180deg,#2563eb,#1d4ed8) !important;border-color:#60a5fa !important;color:#fff !important;box-shadow:0 0 10px rgba(59,130,246,0.6),inset 0 1px 0 rgba(255,255,255,0.3) !important}
       
       .majoor-omnicam .toolbar-menu{position:relative}.majoor-omnicam .toolbar-menu>summary{display:flex;align-items:center;gap:6px;min-height:28px;padding:4px 9px;border:1px solid transparent;border-radius:6px;cursor:pointer;white-space:nowrap;list-style:none}.majoor-omnicam .toolbar-menu>summary::-webkit-details-marker{display:none}.majoor-omnicam .toolbar-menu[open]>summary,.majoor-omnicam .toolbar-menu>summary:hover{background:#30303c;border-color:#484858}
       .majoor-omnicam .menu-panel{position:absolute;z-index:50;top:calc(100% + 5px);left:0;display:flex;flex-direction:column;gap:5px;width:240px;padding:8px;background:#202028;border:1px solid #4a4a5a;border-radius:8px;box-shadow:0 10px 24px #000c}.majoor-omnicam .menu-panel.right{right:0;left:auto}.majoor-omnicam .menu-panel button{display:flex;align-items:center;gap:7px;text-align:left}.majoor-omnicam .menu-panel label{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#bbb}.majoor-omnicam .menu-panel label>select,.majoor-omnicam .menu-panel label>input[type=number]{width:126px}.majoor-omnicam .menu-panel label>input[type=checkbox]{width:auto}.majoor-omnicam .menu-title{color:#888;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.majoor-omnicam .menu-divider{height:1px;margin:4px 0;background:#3a3a48}.majoor-omnicam .camera-menu-list{display:flex;max-height:180px;flex-direction:column;gap:4px;overflow-y:auto}.majoor-omnicam .camera-menu-list button.selected{border-color:#e3c35d;color:#f2d06b}
@@ -60,10 +61,13 @@ const o = `
       .majoor-omnicam canvas{display:block;width:100%;height:100%;pointer-events:auto;outline:none;cursor:grab}.majoor-omnicam canvas.dragging{cursor:grabbing}
       
       /* Floating Quick Bar in Viewport */
-      .majoor-omnicam .viewport-quick-bar{position:absolute;z-index:6;left:10px;top:10px;display:flex;align-items:center;gap:6px;padding:4px 8px;background:rgba(20, 20, 26, 0.88);border:1px solid rgba(255, 255, 255, 0.12);border-radius:7px;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.4)}
+      .majoor-omnicam .viewport-quick-bar{position:absolute;z-index:6;left:10px;right:270px;top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 8px;background:rgba(20, 20, 26, 0.88);border:1px solid rgba(255, 255, 255, 0.12);border-radius:7px;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.4)}
       .majoor-omnicam .viewport-quick-bar select{height:25px;min-width:105px;font-size:11px}
       .majoor-omnicam .viewport-quick-bar button{height:25px;padding:0 7px;display:inline-flex;align-items:center;gap:4px;font-size:11px}
       .majoor-omnicam .quick-divider{width:1px;height:16px;background:rgba(255,255,255,0.15);margin:0 2px}
+      .majoor-omnicam .selection-mode-group{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid #3c3c4a;border-radius:6px;background:#17171d}
+      .majoor-omnicam .selection-mode-group button{height:23px;padding:0 6px;font-size:10px;border-color:transparent;background:transparent;border-radius:4px;white-space:nowrap}
+      .majoor-omnicam .selection-mode-group .pi{font-size:9px}
       
       /* Sleek Glassmorphic HUD */
       .majoor-omnicam .hud{position:absolute;left:10px;top:48px;z-index:4;color:#eee;background:rgba(16, 16, 22, 0.85);border:1px solid rgba(255, 255, 255, 0.1);border-radius:7px;padding:6px 10px;pointer-events:none;backdrop-filter:blur(8px);box-shadow:0 4px 12px rgba(0,0,0,0.35);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:10px;line-height:1.45}
@@ -80,10 +84,19 @@ const o = `
       .majoor-omnicam .inspector-tab.active{background:linear-gradient(180deg,#35506c,#243b52) !important;border-color:#6f9bca !important;color:#fff !important;box-shadow:0 0 8px rgba(111,155,202,0.5) !important}
       
       /* Outliner & Items */
+      .majoor-omnicam .outliner-quick-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:6px}
+      .majoor-omnicam .outliner-quick-bar button{font-size:10px;padding:3px 2px;height:24px;display:inline-flex;align-items:center;justify-content:center;gap:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .majoor-omnicam .outliner-quick-bar button i{font-size:9px;flex-shrink:0}
       .majoor-omnicam .scene-tree{display:flex;flex-direction:column;gap:3px;max-height:150px;overflow-y:auto;overscroll-behavior:contain;margin-bottom:8px;background:#141418;padding:4px;border-radius:5px;border:1px solid #2e2e38}
-      .majoor-omnicam .scene-item{display:flex;align-items:center;gap:6px;width:100%;min-height:24px;padding:3px 6px;text-align:left;border-color:transparent;background:transparent;border-radius:4px;font-size:11px}
-      .majoor-omnicam .scene-item.selected{background:#35506c;border-color:#6f9bca;color:#fff}
-      .majoor-omnicam .scene-item .pi{width:14px;text-align:center}
+      .majoor-omnicam .scene-item{display:flex;align-items:center;gap:6px;width:100%;min-height:26px;padding:3px 6px;text-align:left;border:1px solid transparent;background:transparent;border-radius:4px;font-size:11px;cursor:pointer;user-select:none;box-sizing:border-box}
+      .majoor-omnicam .scene-item:hover{background:rgba(255,255,255,0.05)}
+      .majoor-omnicam .scene-item.selected{background:#263c54;border-color:#4a76a8;color:#fff}
+      .majoor-omnicam .scene-item.active-view{border-color:#38603c;background:rgba(56,96,60,0.25)}
+      .majoor-omnicam .scene-item-label{flex:1;min-width:0;display:inline-flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .majoor-omnicam .scene-item-actions{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;flex-shrink:0;margin-left:auto}
+      .majoor-omnicam .scene-action-btn{width:20px !important;height:20px !important;min-width:20px !important;padding:0 !important;display:inline-flex !important;align-items:center;justify-content:center;border-radius:4px;border:1px solid transparent;background:transparent;color:#9494a8;cursor:pointer;transition:all .15s ease}
+      .majoor-omnicam .scene-action-btn:hover{background:#31313e;border-color:#58586c;color:#fff}
+      .majoor-omnicam .scene-item .pi{width:14px;text-align:center;flex-shrink:0}
       
       /* Transform & Inputs Grid with Colored Axis Badges */
       .majoor-omnicam .transform-tools{display:flex;gap:6px;margin:6px 0}.majoor-omnicam .transform-tools button{width:28px;height:25px;padding:0;font-weight:600}.majoor-omnicam .transform-tools button.active{background:linear-gradient(180deg,#2563eb,#1d4ed8) !important;border-color:#60a5fa !important;color:#fff !important;box-shadow:0 0 10px rgba(59,130,246,0.6) !important}.majoor-omnicam .transform-tools select{min-width:0;flex:1;padding:2px 4px}
@@ -230,7 +243,7 @@ const o = `
       .majoor-omnicam .key-editor-header{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:6px}.majoor-omnicam .key-editor-grid,.majoor-omnicam .inspector-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:5px}.majoor-omnicam .key-editor-grid label,.majoor-omnicam .inspector-grid label{display:flex;align-items:center;justify-content:space-between;gap:4px;color:#bbb}.majoor-omnicam .key-editor-grid input,.majoor-omnicam .key-editor-grid select,.majoor-omnicam .inspector-grid input,.majoor-omnicam .inspector-grid select{min-width:0;width:70px}.majoor-omnicam .key-editor[data-empty="true"] .key-editor-grid{opacity:.45}
       .majoor-omnicam .status{margin-left:auto;color:#aaa}.majoor-omnicam .hint{color:#aaa;font-size:11px}
       .majoor-omnicam details.help{padding:7px 10px;background:#181820;color:#c8c8c8}.majoor-omnicam details.help summary{cursor:pointer;color:#f2d06b}.majoor-omnicam details.help p{margin:6px 0}
-      @container (max-width:700px){.majoor-omnicam .top{overflow-x:auto;overflow-y:hidden}.majoor-omnicam .viewport-quick-bar{right:10px;max-width:calc(100% - 20px);overflow-x:auto}.majoor-omnicam .viewport-tally-banner{top:48px;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.majoor-omnicam .hud{top:78px;right:10px;max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis}.majoor-omnicam .viewport-inspector{top:auto;bottom:10px;width:min(250px,calc(100% - 20px));max-height:42%}.majoor-omnicam .timeline-toolbar{overflow-x:auto;flex-wrap:nowrap}.majoor-omnicam .timeline-summary{display:none}}
+      @container (max-width:700px){.majoor-omnicam .top{overflow-x:auto;overflow-y:hidden}.majoor-omnicam .viewport-quick-bar{right:10px;max-width:calc(100% - 20px)}.majoor-omnicam .selection-mode-group button span{display:none}.majoor-omnicam .viewport-tally-banner{top:82px;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.majoor-omnicam .hud{top:108px;right:10px;max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis}.majoor-omnicam .viewport-inspector{top:auto;bottom:10px;width:min(250px,calc(100% - 20px));max-height:42%}.majoor-omnicam .timeline-toolbar{overflow-x:auto;flex-wrap:nowrap}.majoor-omnicam .timeline-summary{display:none}}
       @container (max-width:460px){.majoor-omnicam .viewport-wrap{min-height:360px;aspect-ratio:auto}.majoor-omnicam .camera-preview-strip[data-layout="2"],.majoor-omnicam .camera-preview-strip[data-layout="4"]{grid-auto-flow:row;grid-template-columns:1fr;grid-auto-columns:100%}.majoor-omnicam .menu-panel{width:min(240px,calc(100cqw - 24px))}}
 `;
 function n() {
@@ -323,15 +336,17 @@ function n() {
         <button class="icon-button" data-act="focus-target" title="${e("Frame Subject Target (F)")}"><i class="pi pi-search"></i></button>
         <button class="icon-button" data-act="toggle-camera-view" title="${e("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
         <span class="quick-divider"></span>
-        <button class="icon-button active" data-select-mode="object" title="${e("Object Select Mode (4)")}"><i class="pi pi-box" style="font-size:10px"></i></button>
-        <button class="icon-button" data-select-mode="vertex" title="${e("Vertex Select Mode (1)")}"><i class="pi pi-circle" style="font-size:10px"></i></button>
-        <button class="icon-button" data-select-mode="edge" title="${e("Edge Select Mode (2)")}"><i class="pi pi-minus" style="font-size:10px"></i></button>
-        <button class="icon-button" data-select-mode="face" title="${e("Face / Polygon Select Mode (3)")}"><i class="pi pi-stop" style="font-size:10px"></i></button>
+        <div class="selection-mode-group" role="group" aria-label="${e("Selection Mode")}">
+          <button class="active" data-select-mode="object" title="${e("Object Selection Mode (4)")}"><i class="pi pi-box"></i><span>${e("Object")}</span></button>
+          <button data-select-mode="vertex" title="${e("Vertex Selection Mode (1)")}"><i class="pi pi-circle"></i><span>${e("Vertex")}</span></button>
+          <button data-select-mode="edge" title="${e("Edge Selection Mode (2)")}"><i class="pi pi-minus"></i><span>${e("Edge")}</span></button>
+          <button data-select-mode="face" title="${e("Face / Polygon Selection Mode (3)")}"><i class="pi pi-stop"></i><span>${e("Face")}</span></button>
+        </div>
         <span class="quick-divider"></span>
         <button class="icon-button active" data-transform-mode="translate" title="${e("Translate / Move (W)")}">W</button>
         <button class="icon-button" data-transform-mode="rotate" title="${e("Rotate (E)")}">E</button>
         <button class="icon-button" data-transform-mode="scale" title="${e("Scale (R)")}">R</button>
-        <button class="icon-button" data-act="clear-selection" title="${e("Select Tool (Q)")}">Q</button>
+        <button class="icon-button" data-act="clear-selection" title="${e("Select Object Tool (Q)")}">Q</button>
         <span class="quick-divider"></span>
         <button class="primary" data-act="record" title="${e("Record proxy playblast")}"><i class="pi pi-video"></i> ${e("Playblast")}</button>
         <button class="icon-button" data-act="toggle-inspector" title="${e("Toggle Inspector Panel (N)")}"><i class="pi pi-sliders-h"></i></button>
@@ -354,12 +369,12 @@ function n() {
             <div class="menu-title" style="margin:0">${e("Outliner")}</div>
             <button data-act="load-model" class="icon-button" style="width:20px;height:20px;min-width:20px;border-radius:4px" title="${e("Import 3D Model (+)")}"><i class="pi pi-plus" style="font-size:10px"></i></button>
           </div>
-          <div style="display:flex;gap:3px;margin-bottom:6px;overflow-x:auto">
-            <button data-object-type="ground" style="font-size:10px;padding:2px 5px" title="${e("Add Ground (+)")}"><i class="pi pi-minus"></i> ${e("Ground")}</button>
-            <button data-object-type="cube" style="font-size:10px;padding:2px 5px" title="${e("Add Cube (+)")}"><i class="pi pi-stop"></i> ${e("Cube")}</button>
-            <button data-object-type="sphere" style="font-size:10px;padding:2px 5px" title="${e("Add Sphere (+)")}"><i class="pi pi-circle"></i> ${e("Sphere")}</button>
-            <button data-object-type="human" style="font-size:10px;padding:2px 5px" title="${e("Add Human (+)")}"><i class="pi pi-user"></i> ${e("Human")}</button>
-            <button data-object-type="null" style="font-size:10px;padding:2px 5px" title="${e("Add Null (+)")}"><i class="pi pi-plus"></i> ${e("Null")}</button>
+          <div class="outliner-quick-bar">
+            <button data-object-type="ground" title="${e("Add Ground (+)")}"><i class="pi pi-minus"></i> ${e("Ground")}</button>
+            <button data-object-type="cube" title="${e("Add Cube (+)")}"><i class="pi pi-stop"></i> ${e("Cube")}</button>
+            <button data-object-type="sphere" title="${e("Add Sphere (+)")}"><i class="pi pi-circle"></i> ${e("Sphere")}</button>
+            <button data-object-type="human" title="${e("Add Human (+)")}"><i class="pi pi-user"></i> ${e("Human")}</button>
+            <button data-object-type="null" title="${e("Add Null (+)")}"><i class="pi pi-plus"></i> ${e("Null")}</button>
           </div>
           <div class="scene-tree" data-role="objects"></div>
           
@@ -398,8 +413,8 @@ function n() {
             <input data-role="camera-color" type="color" value="#4aa3ef" title="${e("Camera Color")}" style="width:28px;height:24px;padding:0;cursor:pointer;background:transparent;border:1px solid #555;border-radius:4px">
           </div>
           <div style="display:flex;gap:4px;margin-bottom:8px">
-            <button data-act="add-camera" class="icon-button" style="flex:1;font-size:11px" title="${e("Create camera from current view")}"><i class="pi pi-plus"></i> ${e("Add Camera")}</button>
-            <button data-act="reset-camera" class="icon-button" style="font-size:11px;padding:0 6px" title="${e("Reset active camera")}"><i class="pi pi-refresh"></i></button>
+            <button data-act="add-camera" style="flex:1;height:28px;font-size:11px;padding:0 8px" title="${e("Create camera from current view")}"><i class="pi pi-plus"></i> ${e("Add Camera")}</button>
+            <button data-act="reset-camera" class="icon-button" style="width:28px;height:28px;min-width:28px" title="${e("Reset active camera")}"><i class="pi pi-refresh"></i></button>
           </div>
 
           <div class="menu-title">${e("Look-At Tracking Constraint")}</div>

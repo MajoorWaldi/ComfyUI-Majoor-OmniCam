@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "majoor.omnicam.sequence.v1",
+  "type": "object",
+  "required": ["schema_version", "shots"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "shots": {"type": "array"}
+  },
+  "additionalProperties": true
+}

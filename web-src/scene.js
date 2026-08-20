@@ -1,17 +1,20 @@
-﻿// Scene outliner, inspector, object commands and key editing.
+// Scene outliner, inspector, object commands and key editing.
 
 import { app } from "../../scripts/app.js";
 import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./omnicam-core.js";
 import { confirmAction, promptText } from "./omnicam-ui.js";
 import { t } from "./omnicam-i18n.js";
 import { playblastCameraTrack } from "./omnicam-state-sync.js";
+import { findEditableKey } from "./scene/edit-target.js";
 
 export function playblastCameraAtFrame(ui, sampleCameraFn) {
   return sampleCameraFn(playblastCameraTrack(ui), ui.frame);
 }
 
 export function timelineObject(ui) {
-  return ui.selectedEntity === "object" ? selectedObject(ui) : null;
+  return ui.selectedEntity === "object"
+    ? ui.state.objects.find((object) => object.id === ui.selectedObjectId) || null
+    : null;
 }
 
 export function timelineKeyframes(ui) {
@@ -147,21 +150,23 @@ export function beginCameraEdit(ui) {
     ui.setStatus(t(`${track.name} is locked`));
     return null;
   }
-  let key = ui.state.keyframes.find((item) => item.frame === ui.frame);
-  if (!key && ui.selectedEntity === "camera" && ui.selectedKeyFrame !== null) {
-    key = ui.state.keyframes.find((item) => item.frame === ui.selectedKeyFrame);
-  }
-  if (!key && ui.state.auto_key) {
-    key = { frame: ui.frame, camera: cloneCamera(ui.camera), interpolation: ui.root.querySelector('[data-role="key-interp"]')?.value || "ease" };
-    ui.state.keyframes.push(key);
-    ui.state.keyframes.sort((a, b) => a.frame - b.frame);
-    ui.refreshKeys();
-  }
-  ui.cameraEditKey = key || null;
-  if (key) {
+  let key = findEditableKey(
+    ui.state.keyframes,
+    ui.frame,
+    !ui.state.auto_key && ui.selectedEntity === "camera" ? ui.selectedKeyFrame : null,
+    !ui.state.auto_key ? ui.editingKeyFrame : null,
+  );
+  if (ui.state.auto_key) {
+    if (!key) {
+      key = { frame: ui.frame, camera: cloneCamera(ui.camera), interpolation: ui.root.querySelector('[data-role="key-interp"]')?.value || "ease" };
+      ui.state.keyframes.push(key);
+      ui.state.keyframes.sort((a, b) => a.frame - b.frame);
+      ui.refreshKeys();
+    }
     ui.selectedKeyFrame = key.frame;
     ui.editingKeyFrame = key.frame;
-  }
+  } else if (key) ui.selectedKeyFrame = key.frame;
+  ui.cameraEditKey = key || null;
   ui.cameraEditActive = true;
   ui.updateKeyVisualState();
   return key;

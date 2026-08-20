@@ -1,4 +1,4 @@
-﻿export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
+export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const v3 = (x = 0, y = 0, z = 0) => [x, y, z];
 export const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -157,8 +157,16 @@ export function sampleChannel(keys, frame, channelId, channelGetter, isAngle = f
     const p1 = y0 + (handlesLeft.out_y || 0);
     const p2 = y1 + (handlesRight.in_y || 0);
     const p3 = y1;
-    const v = 1 - u;
-    return v * v * v * p0 + 3 * v * v * u * p1 + 3 * v * u * u * p2 + u * u * u * p3;
+    const p1x = clamp(Number(handlesLeft.out_x ?? 1 / 3), 0, 1);
+    const p2x = clamp(1 + Number(handlesRight.in_x ?? -1 / 3), 0, 1);
+    let low = 0, high = 1;
+    for (let iteration = 0; iteration < 32; iteration++) {
+      const s = (low + high) * 0.5, inv = 1 - s;
+      const x = 3 * inv * inv * s * p1x + 3 * inv * s * s * p2x + s * s * s;
+      if (x < u) low = s; else high = s;
+    }
+    const s = (low + high) * 0.5, v = 1 - s;
+    return v * v * v * p0 + 3 * v * v * s * p1 + 3 * v * s * s * p2 + s * s * s * p3;
   }
 
   const t = ease(u, left.interpolation);
@@ -206,19 +214,28 @@ export function worldTransform(objects, object) {
 export function sampleObjectTransform(object, frame) {
   const keys = object.keyframes || [];
   if (!keys.length) return cloneTransform(object);
-  const px = sampleChannel(keys, frame, "pos_x", (k) => (k.transform || object).position[0]);
-  const py = sampleChannel(keys, frame, "pos_y", (k) => (k.transform || object).position[1]);
-  const pz = sampleChannel(keys, frame, "pos_z", (k) => (k.transform || object).position[2]);
-  const rx = sampleChannel(keys, frame, "rot_x", (k) => (k.transform || object).rotation[0], true);
-  const ry = sampleChannel(keys, frame, "rot_y", (k) => (k.transform || object).rotation[1], true);
-  const rz = sampleChannel(keys, frame, "rot_z", (k) => (k.transform || object).rotation[2], true);
-  const sx = sampleChannel(keys, frame, "scale_x", (k) => (k.transform || object).size[0]);
-  const sy = sampleChannel(keys, frame, "scale_y", (k) => (k.transform || object).size[1]);
-  const sz = sampleChannel(keys, frame, "scale_z", (k) => (k.transform || object).size[2]);
+  const base = cloneTransform(object);
+  const getPos = (k, idx) => (k.transform?.position || base.position)[idx] ?? 0;
+  const getRot = (k, idx) => (k.transform?.rotation || base.rotation)[idx] ?? 0;
+  const getSize = (k, idx) => (k.transform?.size || base.size)[idx] ?? (idx === 2 ? 0.01 : 1);
+
+  const px = sampleChannel(keys, frame, "pos_x", (k) => getPos(k, 0));
+  const py = sampleChannel(keys, frame, "pos_y", (k) => getPos(k, 1));
+  const pz = sampleChannel(keys, frame, "pos_z", (k) => getPos(k, 2));
+  const rx = sampleChannel(keys, frame, "rot_x", (k) => getRot(k, 0), true);
+  const ry = sampleChannel(keys, frame, "rot_y", (k) => getRot(k, 1), true);
+  const rz = sampleChannel(keys, frame, "rot_z", (k) => getRot(k, 2), true);
+  const sx = sampleChannel(keys, frame, "scale_x", (k) => getSize(k, 0));
+  const sy = sampleChannel(keys, frame, "scale_y", (k) => getSize(k, 1));
+  const sz = sampleChannel(keys, frame, "scale_z", (k) => getSize(k, 2));
   return {
-    position: [px, py, pz],
-    rotation: [rx, ry, rz],
-    size: [Math.max(0.01, sx), Math.max(0.01, sy), Math.max(0.01, sz)],
+    position: [Number.isFinite(px) ? px : base.position[0], Number.isFinite(py) ? py : base.position[1], Number.isFinite(pz) ? pz : base.position[2]],
+    rotation: [Number.isFinite(rx) ? rx : base.rotation[0], Number.isFinite(ry) ? ry : base.rotation[1], Number.isFinite(rz) ? rz : base.rotation[2]],
+    size: [
+      Math.max(0.01, Number.isFinite(sx) ? sx : base.size[0]),
+      Math.max(0.01, Number.isFinite(sy) ? sy : base.size[1]),
+      Math.max(0.01, Number.isFinite(sz) ? sz : base.size[2]),
+    ],
   };
 }
 

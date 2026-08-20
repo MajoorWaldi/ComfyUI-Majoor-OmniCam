@@ -1,4 +1,4 @@
-﻿// Extracted DOM bindings.
+// Extracted DOM bindings.
 
 import { clamp } from "../director/core.js";
 import { applyCinemaLens } from "../cameras.js";
@@ -6,6 +6,7 @@ import { applyBlockingScenePreset } from "../motion-presets.js";
 import { onCurveWheel } from "../curve-editor.js";
 import { onTimelineWheel } from "../timeline-interaction.js";
 import { syncMirroredControl } from "../event-bindings.js";
+import { t } from "../i18n.js";
 
 export function bindEditorAndGlobal(ui, q, signal) {
   for (const role of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz"]) {
@@ -134,6 +135,33 @@ export function bindEditorAndGlobal(ui, q, signal) {
       if (menu.open) ui.closeMenus(menu);
     }, { signal });
   }
+  const selectOutlinerItem = (target, event) => {
+    const sceneItem = target instanceof HTMLElement ? target.closest(".scene-item") : null;
+    if (!sceneItem || event.button === 2 || target.closest(".scene-action-btn")) return;
+    if (sceneItem.dataset.objectId) {
+      const object = ui.state.objects.find((item) => item.id === sceneItem.dataset.objectId);
+      if (!object) return;
+      ui.finishCameraEdit();
+      ui.selectedEntity = "object";
+      ui.selectedObjectId = object.id;
+      ui.selectedKeyFrame = object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null;
+      ui.editingKeyFrame = null;
+      for (const row of ui.root.querySelectorAll(".scene-item")) {
+        const selected = row.dataset.objectId === object.id;
+        row.classList.toggle("selected", selected);
+        row.setAttribute("aria-selected", String(selected));
+      }
+      ui.refreshKeys();
+      ui.refreshInspector();
+      ui.render();
+      ui.setStatus(t(`Selected: ${object.name || object.type}`));
+    } else if (sceneItem.dataset.cameraId) {
+      ui.activateCamera(sceneItem.dataset.cameraId);
+    }
+  };
+  ui.root.addEventListener("pointerdown", (event) => {
+    selectOutlinerItem(event.composedPath?.()[0] || event.target, event);
+  }, { capture: true, signal });
   ui.root.addEventListener("pointerdown", (event) => {
     const target = event.composedPath?.()[0] || event.target;
     if (target instanceof HTMLElement && target.closest(".context-menu, [data-role='context-menu']")) {
@@ -155,6 +183,8 @@ export function bindEditorAndGlobal(ui, q, signal) {
     }
   }, { capture: true, signal });
   ui.root.addEventListener("mousedown", (event) => event.stopPropagation(), { signal });
+  // Let row-specific object/camera handlers run first; the root bubble handler
+  // remains the fallback for the canvas, timeline and empty viewport areas.
   ui.root.addEventListener("contextmenu", (event) => ui.onContextMenu(event), { signal });
   ui.interactionElement?.addEventListener("pointerdown", (event) => ui.onPointerDown(event), { signal });
   ui.interactionElement?.addEventListener("pointermove", (event) => ui.onPointerMove(event), { signal });
@@ -178,13 +208,10 @@ export function bindEditorAndGlobal(ui, q, signal) {
   }
   ui.root.addEventListener("keydown", (event) => ui.onKey(event), { signal });
   const ro = new ResizeObserver(() => {
-    ui.resizeCanvas();
-    ui.render();
+    ui.scheduleResizeAndRender();
   });
   const wrapEl = ui.root.querySelector(".viewport-wrap");
   if (wrapEl) ro.observe(wrapEl);
-  const previewsEl = ui.root.querySelector('[data-role="camera-previews"]');
-  if (previewsEl) ro.observe(previewsEl);
   ui.resizeObserver = ro;
   ui.updateEditState();
 }

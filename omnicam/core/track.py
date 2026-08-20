@@ -210,12 +210,21 @@ def _sample_channel(
         p1 = y0 + float(handles_left.get("out_y", 0.0))
         p2 = y1 + float(handles_right.get("in_y", 0.0))
         p3 = y1
-        v = 1.0 - u
+        p1x = _clamp(float(handles_left.get("out_x", 1 / 3)), 0.0, 1.0)
+        p2x = _clamp(1.0 + float(handles_right.get("in_x", -1 / 3)), 0.0, 1.0)
+        low, high = 0.0, 1.0
+        for _ in range(32):
+            s = (low + high) * 0.5
+            inv = 1.0 - s
+            x = 3.0 * inv * inv * s * p1x + 3.0 * inv * s * s * p2x + s * s * s
+            if x < u:
+                low = s
+            else:
+                high = s
+        s = (low + high) * 0.5
+        v = 1.0 - s
         return (
-            v * v * v * p0
-            + 3.0 * v * v * u * p1
-            + 3.0 * v * u * u * p2
-            + u * u * u * p3
+            v * v * v * p0 + 3.0 * v * v * s * p1 + 3.0 * v * s * s * p2 + s * s * s * p3
         )
 
     t = _ease(u, _kf_interp(left))
@@ -414,7 +423,8 @@ class OmniCamTrack:
         near = _sample_channel(self.keyframes, frame_f, "near", lambda k: k.camera.near)
         far = _sample_channel(self.keyframes, frame_f, "far", lambda k: k.camera.far)
 
-        camera_type = self.keyframes[-1].camera.camera_type if frame_f >= self.keyframes[-1].frame else self.keyframes[0].camera.camera_type
+        frames = [key.frame for key in self.keyframes]
+        camera_type = self.keyframes[max(0, bisect.bisect_right(frames, frame_f) - 1)].camera.camera_type
 
         return CameraState(
             position=[px, py, pz],
@@ -435,7 +445,8 @@ class OmniCamTrack:
 
 def camera_to_load3d(camera: CameraState, aspect: float = 16 / 9) -> dict[str, Any]:
     """Return a LOAD3D_CAMERA-compatible payload based on current core CameraManager fields."""
-    return {
+    from .camera_math import camera_quaternion
+    payload = {
         "position": {"x": camera.position[0], "y": camera.position[1], "z": camera.position[2]},
         "target": {"x": camera.target[0], "y": camera.target[1], "z": camera.target[2]},
         "zoom": camera.zoom,
@@ -444,5 +455,11 @@ def camera_to_load3d(camera: CameraState, aspect: float = 16 / 9) -> dict[str, A
         "aspect": aspect,
         "near": camera.near,
         "far": camera.far,
-        "roll": camera.roll,
+        "quaternion": camera_quaternion(camera.position, camera.target, camera.roll),
     }
+    if camera.camera_type == "orthographic":
+        half_height = 5.0 / max(0.01, camera.zoom)
+        payload["frustum"] = {"left": -half_height * aspect, "right": half_height * aspect, "top": half_height, "bottom": -half_height}
+        payload.pop("fov", None)
+        payload.pop("aspect", None)
+    return payload

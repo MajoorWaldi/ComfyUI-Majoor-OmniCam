@@ -8,8 +8,7 @@ from ..adapters import (
     build_blender_script,
     build_unreal_python_script,
 )
-from ..core.track import OmniCamTrack
-from .base import OMNICAM_TRACK, write_output
+from .base import OMNICAM_TRACK, validated_track, write_output
 
 
 class MajoorOmniCamDCCExport(IO.ComfyNode):
@@ -34,7 +33,7 @@ class MajoorOmniCamDCCExport(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], target: str, filename_prefix: str, world_scale: float = 1.0) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         safe = "".join(c for c in filename_prefix if c.isalnum() or c in "-_ ").strip() or "omnicam_camera"
         if target.lower() == "unreal":
             script_path = write_output(f"{safe}.unreal.py", build_unreal_python_script(track))
@@ -64,7 +63,7 @@ class MajoorOmniCamBlenderExport(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], filename_prefix: str, world_scale: float = 1.0) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         safe = "".join(c for c in filename_prefix if c.isalnum() or c in "-_ ").strip() or "omnicam_camera"
         script_path = write_output(f"{safe}.blender.py", build_blender_script(track, world_scale))
         json_path = write_output(f"{safe}.json", track.to_json())
@@ -90,7 +89,7 @@ class MajoorOmniCamUnrealExport(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], filename_prefix: str) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         safe = "".join(c for c in filename_prefix if c.isalnum() or c in "-_ ").strip() or "omnicam_camera"
         script_path = write_output(f"{safe}.unreal.py", build_unreal_python_script(track))
         json_path = write_output(f"{safe}.json", track.to_json())

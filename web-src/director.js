@@ -1,4 +1,4 @@
-﻿import { app } from "../../scripts/app.js";
+import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { OmniWebGLViewport } from "./omnicam-webgl.js";
 import { EditorHistory } from "./omnicam-history.js";
@@ -32,7 +32,7 @@ import {
 import { captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame } from "./omnicam-record.js";
 import { computeAudioPeaks, loadAudioFile, stopPlay, togglePlay } from "./omnicam-playback-transport.js";
 import { applyCameraPreset, applyCameraShake, applyProxyPreset } from "./omnicam-motion-presets.js";
-import { clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence } from "./omnicam-background-manager.js";
+import { clearViewportBgImage, configureBackgroundManager, loadViewportBgFile, loadViewportBgSequence } from "./omnicam-background-manager.js";
 import {
   drawCameraPath,
   drawCard,
@@ -148,12 +148,16 @@ import {
   sampleObjectTransform,
   sanitizeState,
   worldTransform
+
 } from "./omnicam-core.js";
 configureCore({ api });
 configureDomMedia({ api });
+configureBackgroundManager({ api });
 class OmniCamDirectorUI {
   constructor(node) {
-    this.app = app, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.root.querySelector(".viewport-wrap"), this.interactionElement.tabIndex = -1, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
+    this.app = app, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
+    this.disposed = false;
+    this.renderRevision = 0;
     try {
       this.webgl = new OmniWebGLViewport(() => this.render(), (model) => this.onModelLoaded(model));
     } catch (error) {
@@ -185,36 +189,43 @@ Object.assign(
 function attachDirector(node) {
   if (node.__majoorOmniCam) return;
   const ui = new OmniCamDirectorUI(node);
-  node.__majoorOmniCam = ui, ui.hideInternalWidgets();
+  node.__majoorOmniCam = ui;
+  ui.hideInternalWidgets();
   const preferredHeight = () => Math.max(700, ui.root.scrollHeight || 0);
   ui.domWidget = node.addDOMWidget("majoor_omnicam_viewport", "omnicam", ui.root, {
-    serialize: !1,
-    hideOnZoom: !1,
+    serialize: false,
+    hideOnZoom: false,
     getMinHeight: () => 700,
     getHeight: preferredHeight,
     getMaxHeight: () => preferredHeight(),
     afterResize: () => {
-      ui.resizeCanvas(), ui.render();
+      ui.scheduleResizeAndRender();
     }
   });
-  const min = [760, 780], current = node.size || min;
+  const min = [760, 780];
+  const current = node.size || min;
   node.setSize([Math.max(current[0], min[0]), Math.max(current[1], min[1])]);
   const originalResize = node.onResize;
   node.onResize = function() {
-    originalResize?.apply(this, arguments), requestAnimationFrame(() => {
-      ui.resizeCanvas(), ui.render();
-    });
+    originalResize?.apply(this, arguments);
+    ui.scheduleResizeAndRender();
   };
   const originalConfigure = node.onConfigure;
   node.onConfigure = function() {
-    originalConfigure?.apply(this, arguments), requestAnimationFrame(() => {
+    originalConfigure?.apply(this, arguments);
+    cancelAnimationFrame(ui.restoreFrame);
+    ui.restoreFrame = requestAnimationFrame(() => {
+      if (ui.disposed) return;
       ui.restoreFromWidgets();
       ui.syncUpstreamInputs();
     });
   };
   const originalAfterGraphConfigured = node.onAfterGraphConfigured;
   node.onAfterGraphConfigured = function() {
-    originalAfterGraphConfigured?.apply(this, arguments), requestAnimationFrame(() => {
+    originalAfterGraphConfigured?.apply(this, arguments);
+    cancelAnimationFrame(ui.restoreFrame);
+    ui.restoreFrame = requestAnimationFrame(() => {
+      if (ui.disposed) return;
       ui.restoreFromWidgets();
       ui.syncUpstreamInputs();
     });
@@ -222,11 +233,13 @@ function attachDirector(node) {
   const originalConnectionsChange = node.onConnectionsChange;
   node.onConnectionsChange = function() {
     originalConnectionsChange?.apply(this, arguments);
-    setTimeout(() => ui.syncUpstreamInputs(), 60);
+    clearTimeout(ui.connectionTimer);
+    ui.connectionTimer = setTimeout(() => { if (!ui.disposed) ui.syncUpstreamInputs(); }, 60);
   };
   const originalRemoved = node.onRemoved;
   node.onRemoved = function() {
-    ui.dispose(), originalRemoved?.apply(this, arguments);
+    ui.dispose();
+    originalRemoved?.apply(this, arguments);
   };
   const originalExecuted = node.onExecuted;
   node.onExecuted = function(message) {

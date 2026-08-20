@@ -1,4 +1,4 @@
-﻿import { add, clamp, cross, dot, mul, norm, sampleChannel, sub } from "../core.js";
+import { add, clamp, cross, dot, mul, norm, sampleChannel, sub } from "../core.js";
 import { cloneCamera, defaultCamera, sampleObjectTransform } from "../core.js";
 
 export function annotatedAssetUrl(value) {
@@ -36,7 +36,7 @@ export function lerpAngle(a, b, t) {
   return a + delta * t;
 }
 
-export function sampleCamera(state, frame) {
+export function sampleCamera(state, frame, objects = null) {
   const keys = (state.keyframes || []).map((key) => ({
     ...key,
     camera: cloneCamera(key.camera || key || state.camera || defaultCamera()),
@@ -52,8 +52,9 @@ export function sampleCamera(state, frame) {
   // Live Look-At Target Tracking Constraint:
   // If target_object_id is set and the target object exists, follow its animated 3D position in real time!
   const targetObjId = state.target_object_id || state.camera?.target_object_id;
-  if (targetObjId && Array.isArray(state.objects)) {
-    const targetObj = state.objects.find((o) => o.id === targetObjId);
+  const allObjects = objects || state.objects;
+  if (targetObjId && Array.isArray(allObjects)) {
+    const targetObj = allObjects.find((o) => o.id === targetObjId);
     if (targetObj) {
       const objTransform = targetObj.keyframes?.length ? sampleObjectTransform(targetObj, frame) : targetObj;
       const offset = state.target_offset || state.camera?.target_offset || [0, 0, 0];
@@ -69,8 +70,9 @@ export function sampleCamera(state, frame) {
   const near = sampleChannel(keys, frame, "near", (k) => Number((k.camera || k).near ?? 0.01));
   const far = sampleChannel(keys, frame, "far", (k) => Number((k.camera || k).far ?? 10000));
   const firstKey = keys[0]?.camera || keys[0] || defaultCamera();
-  const lastKey = keys[keys.length - 1]?.camera || keys[keys.length - 1] || defaultCamera();
-  const cameraType = frame >= (keys[keys.length - 1]?.frame ?? 0) ? lastKey.camera_type : firstKey.camera_type;
+  let discreteKey = keys[0];
+  for (const key of keys) { if ((key.frame ?? 0) <= frame) discreteKey = key; else break; }
+  const cameraType = (discreteKey.camera || discreteKey).camera_type;
   return {
     position: [px, py, pz],
     target: [tx, ty, tz],
@@ -83,4 +85,3 @@ export function sampleCamera(state, frame) {
     ...(firstKey.up ? { up: [...firstKey.up] } : {}),
   };
 }
-

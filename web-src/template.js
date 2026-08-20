@@ -1,4 +1,4 @@
-﻿import { t } from "./omnicam-i18n.js";
+import { t } from "./omnicam-i18n.js";
 import { DIRECTOR_STYLES } from "./template/styles.js";
 export { DIRECTOR_STYLES } from "./template/styles.js";
 
@@ -93,15 +93,17 @@ export function buildRoot() {
         <button class="icon-button" data-act="focus-target" title="${t("Frame Subject Target (F)")}"><i class="pi pi-search"></i></button>
         <button class="icon-button" data-act="toggle-camera-view" title="${t("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
         <span class="quick-divider"></span>
-        <button class="icon-button active" data-select-mode="object" title="${t("Object Select Mode (4)")}"><i class="pi pi-box" style="font-size:10px"></i></button>
-        <button class="icon-button" data-select-mode="vertex" title="${t("Vertex Select Mode (1)")}"><i class="pi pi-circle" style="font-size:10px"></i></button>
-        <button class="icon-button" data-select-mode="edge" title="${t("Edge Select Mode (2)")}"><i class="pi pi-minus" style="font-size:10px"></i></button>
-        <button class="icon-button" data-select-mode="face" title="${t("Face / Polygon Select Mode (3)")}"><i class="pi pi-stop" style="font-size:10px"></i></button>
+        <div class="selection-mode-group" role="group" aria-label="${t("Selection Mode")}">
+          <button class="active" data-select-mode="object" title="${t("Object Selection Mode (4)")}"><i class="pi pi-box"></i><span>${t("Object")}</span></button>
+          <button data-select-mode="vertex" title="${t("Vertex Selection Mode (1)")}"><i class="pi pi-circle"></i><span>${t("Vertex")}</span></button>
+          <button data-select-mode="edge" title="${t("Edge Selection Mode (2)")}"><i class="pi pi-minus"></i><span>${t("Edge")}</span></button>
+          <button data-select-mode="face" title="${t("Face / Polygon Selection Mode (3)")}"><i class="pi pi-stop"></i><span>${t("Face")}</span></button>
+        </div>
         <span class="quick-divider"></span>
         <button class="icon-button active" data-transform-mode="translate" title="${t("Translate / Move (W)")}">W</button>
         <button class="icon-button" data-transform-mode="rotate" title="${t("Rotate (E)")}">E</button>
         <button class="icon-button" data-transform-mode="scale" title="${t("Scale (R)")}">R</button>
-        <button class="icon-button" data-act="clear-selection" title="${t("Select Tool (Q)")}">Q</button>
+        <button class="icon-button" data-act="clear-selection" title="${t("Select Object Tool (Q)")}">Q</button>
         <span class="quick-divider"></span>
         <button class="primary" data-act="record" title="${t("Record proxy playblast")}"><i class="pi pi-video"></i> ${t("Playblast")}</button>
         <button class="icon-button" data-act="toggle-inspector" title="${t("Toggle Inspector Panel (N)")}"><i class="pi pi-sliders-h"></i></button>
@@ -124,12 +126,12 @@ export function buildRoot() {
             <div class="menu-title" style="margin:0">${t("Outliner")}</div>
             <button data-act="load-model" class="icon-button" style="width:20px;height:20px;min-width:20px;border-radius:4px" title="${t("Import 3D Model (+)")}"><i class="pi pi-plus" style="font-size:10px"></i></button>
           </div>
-          <div style="display:flex;gap:3px;margin-bottom:6px;overflow-x:auto">
-            <button data-object-type="ground" style="font-size:10px;padding:2px 5px" title="${t("Add Ground (+)")}"><i class="pi pi-minus"></i> ${t("Ground")}</button>
-            <button data-object-type="cube" style="font-size:10px;padding:2px 5px" title="${t("Add Cube (+)")}"><i class="pi pi-stop"></i> ${t("Cube")}</button>
-            <button data-object-type="sphere" style="font-size:10px;padding:2px 5px" title="${t("Add Sphere (+)")}"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
-            <button data-object-type="human" style="font-size:10px;padding:2px 5px" title="${t("Add Human (+)")}"><i class="pi pi-user"></i> ${t("Human")}</button>
-            <button data-object-type="null" style="font-size:10px;padding:2px 5px" title="${t("Add Null (+)")}"><i class="pi pi-plus"></i> ${t("Null")}</button>
+          <div class="outliner-quick-bar">
+            <button data-object-type="ground" title="${t("Add Ground (+)")}"><i class="pi pi-minus"></i> ${t("Ground")}</button>
+            <button data-object-type="cube" title="${t("Add Cube (+)")}"><i class="pi pi-stop"></i> ${t("Cube")}</button>
+            <button data-object-type="sphere" title="${t("Add Sphere (+)")}"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
+            <button data-object-type="human" title="${t("Add Human (+)")}"><i class="pi pi-user"></i> ${t("Human")}</button>
+            <button data-object-type="null" title="${t("Add Null (+)")}"><i class="pi pi-plus"></i> ${t("Null")}</button>
           </div>
           <div class="scene-tree" data-role="objects"></div>
           
@@ -168,8 +170,8 @@ export function buildRoot() {
             <input data-role="camera-color" type="color" value="#4aa3ef" title="${t("Camera Color")}" style="width:28px;height:24px;padding:0;cursor:pointer;background:transparent;border:1px solid #555;border-radius:4px">
           </div>
           <div style="display:flex;gap:4px;margin-bottom:8px">
-            <button data-act="add-camera" class="icon-button" style="flex:1;font-size:11px" title="${t("Create camera from current view")}"><i class="pi pi-plus"></i> ${t("Add Camera")}</button>
-            <button data-act="reset-camera" class="icon-button" style="font-size:11px;padding:0 6px" title="${t("Reset active camera")}"><i class="pi pi-refresh"></i></button>
+            <button data-act="add-camera" style="flex:1;height:28px;font-size:11px;padding:0 8px" title="${t("Create camera from current view")}"><i class="pi pi-plus"></i> ${t("Add Camera")}</button>
+            <button data-act="reset-camera" class="icon-button" style="width:28px;height:28px;min-width:28px" title="${t("Reset active camera")}"><i class="pi pi-refresh"></i></button>
           </div>
 
           <div class="menu-title">${t("Look-At Tracking Constraint")}</div>

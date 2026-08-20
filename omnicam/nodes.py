@@ -7,7 +7,6 @@ registered by ``omnicam.nodes.get_registered_nodes``.
 from __future__ import annotations
 
 from .nodes import (
-    ALL_NODES,
     CORE_NODES,
     DEV_NODES,
     OMNICAM_ATI_BRIDGE,
@@ -69,6 +68,5 @@ __all__ = [
     "CORE_NODES",
     "PRO_NODES",
     "DEV_NODES",
-    "ALL_NODES",
     "get_registered_nodes",
 ]

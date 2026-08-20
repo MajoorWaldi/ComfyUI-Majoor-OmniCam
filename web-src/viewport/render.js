@@ -13,24 +13,48 @@ export function createRenderMethods(dependencies) {
       : (state.viewport_bg_image || "");
 
     if (activeBgUrl) {
-      if (this.bgImageUrl !== activeBgUrl) {
-        this.bgImageUrl = activeBgUrl;
+      this.bgImageUrl = activeBgUrl;
+      const cached = this.bgTextureCache.get(activeBgUrl);
+      if (cached) {
+        this.bgTextureCache.delete(activeBgUrl);
+        this.bgTextureCache.set(activeBgUrl, cached);
+        this.bgTexture = cached;
+        this.scene.background = cached;
+      } else if (!this.bgTextureLoads.has(activeBgUrl)) {
+        const generation = this.bgLoadGeneration;
+        this.bgTextureLoads.set(activeBgUrl, generation);
         const loader = new THREE.TextureLoader();
         loader.load(activeBgUrl, (tex) => {
+          this.bgTextureLoads.delete(activeBgUrl);
+          if (this.disposed || generation !== this.bgLoadGeneration) {
+            tex.dispose();
+            return;
+          }
           tex.colorSpace = THREE.SRGBColorSpace;
-          this.bgTexture = tex;
-          this.scene.background = tex;
+          this.bgTextureCache.set(activeBgUrl, tex);
+          while (this.bgTextureCache.size > 8) {
+            const oldestUrl = [...this.bgTextureCache.keys()].find((url) => url !== this.bgImageUrl);
+            if (!oldestUrl) break;
+            const oldest = this.bgTextureCache.get(oldestUrl);
+            this.bgTextureCache.delete(oldestUrl);
+            oldest?.dispose?.();
+          }
+          if (this.bgImageUrl === activeBgUrl) {
+            this.bgTexture = tex;
+            this.scene.background = tex;
+          }
           this.invalidate();
+        }, undefined, () => {
+          this.bgTextureLoads.delete(activeBgUrl);
         });
-      } else if (this.bgTexture) {
-        this.scene.background = this.bgTexture;
       }
     } else {
       this.bgImageUrl = "";
-      if (this.bgTexture) {
-        this.bgTexture.dispose();
-        this.bgTexture = null;
-      }
+      this.bgLoadGeneration += 1;
+      this.bgTextureLoads.clear();
+      for (const texture of new Set(this.bgTextureCache.values())) texture.dispose();
+      this.bgTextureCache.clear();
+      this.bgTexture = null;
       this.scene.background = new THREE.Color(state.viewport_bg_color || "#121212");
     }
 
@@ -66,7 +90,7 @@ export function createRenderMethods(dependencies) {
     const editorGrid = ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(state.render_mode);
     this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
     
-    const pathKey = JSON.stringify([
+    const pathKey = state.__omnicamRevision ?? JSON.stringify([
       state.active_camera_id,
       (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target])]),
       (state.objects || []).map((o) => [o.id, o.keyframes?.length, o.keyframes?.map((k) => [k.frame, k.transform?.position])]),
@@ -77,7 +101,7 @@ export function createRenderMethods(dependencies) {
     this.liveCameras.visible = !cleanCapture;
 
     if (!cleanCapture) {
-      this.updateSelection(state, selectedEntity, selectedObjectId, subSelection);
+      this.updateSelection(state, selectedEntity, selectedObjectId, subSelection, `${state.__omnicamRevision ?? "legacy"}:${frame}`);
       this.selectionGroup.visible = true;
     } else {
       this.selectionGroup.visible = false;
@@ -91,8 +115,11 @@ export function createRenderMethods(dependencies) {
 
   dispose() {
     if (this.disposed) return; this.disposed = true;
+    this.bgLoadGeneration += 1;
+    this.bgTextureLoads.clear();
     disposeObject(this.content); disposeObject(this.path); disposeObject(this.liveCameras); disposeObject(this.selectionGroup);
-    if (this.bgTexture) { this.bgTexture.dispose(); this.bgTexture = null; }
+    for (const texture of new Set(this.bgTextureCache.values())) texture.dispose();
+    this.bgTextureCache.clear(); this.bgTexture = null;
     for (const model of this.models.values()) disposeObject(model.scene, true);
     this.models.clear(); this.modelLoads.clear();
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.width = 1; this.canvas.height = 1;

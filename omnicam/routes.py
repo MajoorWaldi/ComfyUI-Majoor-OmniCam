@@ -79,7 +79,11 @@ def _signature_ok(extension: str, header: bytes) -> bool:
 
 
 def _managed_root() -> Path:
-    return (Path(folder_paths.get_input_directory()) / "omnicam").resolve()
+    input_root = Path(folder_paths.get_input_directory()).resolve()
+    root = (input_root / "omnicam").resolve()
+    if input_root not in root.parents:
+        raise web.HTTPInternalServerError(text="OmniCam managed input folder resolves outside ComfyUI input")
+    return root
 
 
 def _folder_size(directory: Path) -> int:
@@ -166,7 +170,10 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
         raise web.HTTPBadRequest(text="Expected multipart field named file/video/asset")
 
     filename = _safe_filename(field.filename or "asset.webm", allowed_extensions, fallback_ext=".webm")
-    dest_dir = (_managed_root() / subfolder).resolve()
+    managed_root = _managed_root()
+    dest_dir = (managed_root / subfolder).resolve()
+    if managed_root not in dest_dir.parents:
+        raise web.HTTPBadRequest(text="Invalid managed upload folder")
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = (dest_dir / filename).resolve()
     if dest.parent != dest_dir:

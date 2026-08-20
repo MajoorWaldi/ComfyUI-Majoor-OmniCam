@@ -3,7 +3,7 @@ from __future__ import annotations
 from comfy_api.latest import ComfyExtension
 from typing_extensions import override
 
-from .nodes import get_registered_nodes
+from .node_registry import get_registered_nodes
 
 
 class MajoorOmniCamExtension(ComfyExtension):

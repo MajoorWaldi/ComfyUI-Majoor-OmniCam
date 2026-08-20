@@ -14,6 +14,7 @@ captures, or persisting migrated documents:
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
 from typing import Any
@@ -231,6 +232,9 @@ def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None =
     limits = limits or DEFAULT_LIMITS
     if not isinstance(payload, dict):
         raise ValidationError("OmniCam track must be a JSON object")
+    encoded = json.dumps(payload, default=str).encode("utf-8")
+    if len(encoded) > limits.max_state_bytes:
+        raise ValidationError(f"track payload is {len(encoded)} bytes, above the {limits.max_state_bytes} limit")
     track = dict(payload)
     track["fps"] = _clamp_int(track.get("fps", 24), *FPS_RANGE, "fps")
     track["duration_frames"] = _clamp_int(track.get("duration_frames", track["fps"] * 5), 1, limits.max_duration_frames, "duration_frames")
@@ -294,8 +298,6 @@ def validate_editor_state(payload: dict[str, Any], limits: TrackLimits | None = 
         for role in ("active_camera_id", "playblast_camera_id"):
             if role in state and state[role] not in ids:
                 raise ValidationError(f"{role} references an unknown camera {state[role]!r}")
-    import json
-
     encoded = json.dumps(state, default=str).encode("utf-8")
     if len(encoded) > limits.max_state_bytes:
         raise ValidationError(f"editor state is {len(encoded)} bytes, above the {limits.max_state_bytes} limit")

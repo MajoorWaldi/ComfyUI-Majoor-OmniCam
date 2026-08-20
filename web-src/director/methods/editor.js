@@ -1,4 +1,4 @@
-﻿// OmniCam Director methods extracted from the UI facade.
+// OmniCam Director methods extracted from the UI facade.
 
 export function createEditorMethods(dependencies) {
   const { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
@@ -7,6 +7,14 @@ export function createEditorMethods(dependencies) {
     if (!["object", "vertex", "edge", "face"].includes(mode)) return;
     this.state.select_mode = mode;
     this.subSelection = null;
+    for (const button of this.root.querySelectorAll("[data-select-mode]")) {
+      const isMode = button.dataset.selectMode === mode;
+      button.classList.toggle("active", isMode);
+      button.setAttribute("aria-pressed", String(isMode));
+    }
+    for (const select of this.root.querySelectorAll('[data-role="select-mode"]')) {
+      select.value = mode;
+    }
     this.serialize();
     this.syncFromWidgets();
     this.render();
@@ -99,6 +107,12 @@ export function createEditorMethods(dependencies) {
     return this.contextMenu.show(event, title, actions);
   },
   onContextMenu(event) {
+    // OmniCam owns every context-menu gesture inside its DOM widget. Prevent
+    // LiteGraph/ComfyUI from opening a second menu even if no local action is
+    // ultimately available for the exact target.
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
     const target = event.target, preview = target.closest?.(".camera-preview-tile"), sceneItem = target.closest?.(".scene-item"), keyElement = target.closest?.(".key");
     if (preview) return this.openCameraContext(event, preview.dataset.cameraId, !0);
     if (sceneItem?.dataset.cameraId) return this.openCameraContext(event, sceneItem.dataset.cameraId, !1);
@@ -111,10 +125,43 @@ export function createEditorMethods(dependencies) {
       return this.setFrame(this.timelineFrameFromEvent(event, target.closest('[data-role="keys"]'))), this.openTimelineContext(event, !1);
     if (target.closest?.(".curve-editor")) return this.openCurveContext(event);
     if (target.closest?.(".viewport-wrap")) {
-      const rect = this.interactionElement.getBoundingClientRect(), x = (event.clientX - rect.left) * this.canvas.width / Math.max(1, rect.width), y = (event.clientY - rect.top) * this.canvas.height / Math.max(1, rect.height), hit = this.pickSceneObject([x, y]);
-      return hit ? (this.selectedEntity = "object", this.selectedObjectId = hit.id, this.refreshObjects(), this.refreshKeys(), this.openObjectContext(event, hit.id)) : this.openViewportContext(event);
+      const rect = this.interactionElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) * this.canvas.width) / Math.max(1, rect.width);
+      const y = ((event.clientY - rect.top) * this.canvas.height) / Math.max(1, rect.height);
+      const hit = this.pickSceneObject([x, y]);
+      if (hit) {
+        if ((hit.type === "object" || hit.type === "object_keyframe") && hit.object) {
+          this.selectedEntity = "object";
+          this.selectedObjectId = hit.object.id;
+          if (hit.keyframe) {
+            this.setFrame(hit.keyframe.frame);
+            this.selectedKeyFrame = hit.keyframe.frame;
+          } else {
+            this.selectedKeyFrame = hit.object.keyframes?.find((key) => key.frame === this.frame)?.frame ?? null;
+          }
+          this.refreshObjects();
+          this.refreshKeys();
+          this.refreshInspector();
+          this.render();
+          return this.openObjectContext(event, hit.object.id);
+        }
+        if (["camera", "camera_target", "camera_keyframe"].includes(hit.type) && hit.camera) {
+          this.selectedEntity = hit.type === "camera_target" ? "camera_target" : "camera";
+          this.selectedObjectId = null;
+          this.activateCamera(hit.camera.id);
+          if (hit.keyframe) {
+            this.setFrame(hit.keyframe.frame);
+            this.selectedKeyFrame = hit.keyframe.frame;
+          }
+          this.refreshObjects();
+          this.refreshKeys();
+          this.refreshInspector();
+          this.render();
+          return this.openCameraContext(event, hit.camera.id, false);
+        }
+      }
+      return this.openViewportContext(event);
     }
-    event.preventDefault(), event.stopPropagation();
   },
   openViewportContext(event) {
     const object = this.selectedObject();
@@ -252,17 +299,39 @@ export function createEditorMethods(dependencies) {
       { label: "Delete selected key", icon: "pi-trash", danger: !0, disabled: !this.selectedKeyframe(), run: () => this.deleteKeyframe() }
     ]);
   },
+  scheduleResizeAndRender() {
+    if (this.resizeScheduled) return;
+    this.resizeScheduled = true;
+    this.resizeFrame = requestAnimationFrame(() => {
+      this.resizeScheduled = false;
+      if (this.disposed) return;
+      this.resizeCanvas();
+      this.render();
+    });
+  },
   resizeCanvas() {
-    const wrap = this.root.querySelector(".viewport-wrap"), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(320, Math.round(wrap.clientWidth * dpr)), h = Math.max(180, Math.round(wrap.clientHeight * dpr));
-    (this.canvas.width !== w || this.canvas.height !== h) && (this.canvas.width = w, this.canvas.height = h);
+    const wrap = this.root.querySelector(".viewport-wrap");
+    if (!wrap) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const clientW = wrap.clientWidth || 320;
+    const clientH = wrap.clientHeight || 180;
+    const w = Math.max(320, Math.round(clientW * dpr));
+    const h = Math.max(180, Math.round(clientH * dpr));
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
     for (const canvas of this.cameraPreviewCanvases.values()) {
-      const previewWidth = Math.max(220, Math.round(canvas.clientWidth * dpr)), previewHeight = Math.max(140, Math.round(canvas.clientHeight * dpr));
-      (canvas.width !== previewWidth || canvas.height !== previewHeight) && (canvas.width = previewWidth, canvas.height = previewHeight);
+      const cw = canvas.clientWidth || 220;
+      const ch = canvas.clientHeight || 140;
+      const previewWidth = Math.max(220, Math.round(cw * dpr));
+      const previewHeight = Math.max(140, Math.round(ch * dpr));
+      if (canvas.width !== previewWidth || canvas.height !== previewHeight) {
+        canvas.width = previewWidth;
+        canvas.height = previewHeight;
+      }
     }
     this.drawCurveEditor();
   }
   };
 }
-
-
-

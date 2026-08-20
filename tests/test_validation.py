@@ -180,3 +180,8 @@ def test_tangent_validation_clamps_and_whitelists():
     assert cleaned["keyframes"][0]["tangents"]["in_x"] == -0.01
     with pytest.raises(ValidationError):
         validate_track_payload({"keyframes": [{"frame": 0, "camera": {}, "tangents": {"out_y": math.inf}}]})
+
+
+def test_track_payload_size_limit_applies_outside_editor_state():
+    with pytest.raises(ValidationError, match="track payload"):
+        validate_track_payload({"metadata": {"padding": "x" * 128}}, TrackLimits(max_state_bytes=64))

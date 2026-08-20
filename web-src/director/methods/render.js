@@ -1,4 +1,4 @@
-﻿// OmniCam Director methods extracted from the UI facade.
+// OmniCam Director methods extracted from the UI facade.
 
 export function createRenderMethods(dependencies) {
   const { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
@@ -18,19 +18,37 @@ export function createRenderMethods(dependencies) {
     }
     const mode = this.state.render_mode, viewCamera = this.viewportCamera();
     const worldObjects = this.state.objects.some((obj) => obj.parent_id) ? this.state.objects.map((obj) => obj.parent_id ? { ...obj, ...worldTransform(this.state.objects, obj) } : obj) : this.state.objects;
-    const renderState = worldObjects === this.state.objects ? this.state : { ...this.state, objects: worldObjects };
+    const backgroundSequence = (this.viewportBgSequenceImages || []).map((image) => image.src);
+    const backgroundImage = this.viewportBgImage?.src || "";
+    const renderState = {
+      ...this.state,
+      objects: worldObjects,
+      viewport_bg_image: backgroundImage,
+      viewport_bg_sequence: backgroundSequence,
+      __omnicamRevision: this.renderRevision || 0,
+    };
+    let webglRendered = false;
     if (this.webgl) {
       try {
         this.webgl.render(renderState, viewCamera, this.cardMediaById, w, h, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection);
         c.drawImage(this.webgl.canvas, 0, 0, w, h);
+        webglRendered = true;
       } catch (err) {
         console.error("[OmniCam WebGL Render Error]", err);
       }
-    } else {
-      (!this.recording && ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(mode) || this.recording && this.state.playblast_grid) && this.drawGrid(), ["omni_ref", "point_field"].includes(mode) && this.drawPointField();
-      for (const obj of worldObjects)
-        obj.enabled !== !1 && (obj.type === "card" && ["omni_ref", "card_grid", "graybox", "wireframe"].includes(mode) ? this.drawCard(obj) : ["cube", "ground", "glb", "model"].includes(obj.type) && mode !== "grid" && mode !== "point_field" ? this.drawCube(obj) : obj.type === "sphere" && mode !== "grid" && mode !== "point_field" ? this.drawSphere(obj) : obj.type === "human" && mode !== "grid" && mode !== "point_field" ? this.drawHuman(obj) : obj.type === "null" && this.drawNull(obj));
-      this.recording || this.drawCameraPath();
+    }
+    if (!webglRendered) {
+      (!this.recording && ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(mode) || this.recording && this.state.playblast_grid) && this.drawGrid();
+      ["omni_ref", "point_field"].includes(mode) && this.drawPointField();
+      for (const obj of worldObjects) {
+        if (obj.enabled === false) continue;
+        if (obj.type === "card" && ["omni_ref", "card_grid", "graybox", "wireframe"].includes(mode)) this.drawCard(obj);
+        else if (["cube", "ground", "glb", "model"].includes(obj.type) && mode !== "grid" && mode !== "point_field") this.drawCube(obj);
+        else if (obj.type === "sphere" && mode !== "grid" && mode !== "point_field") this.drawSphere(obj);
+        else if (obj.type === "human" && mode !== "grid" && mode !== "point_field") this.drawHuman(obj);
+        else if (obj.type === "null") this.drawNull(obj);
+      }
+      if (!this.recording) this.drawCameraPath();
     }
     !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays();
     const p = viewCamera.position, t = viewCamera.target;
@@ -72,7 +90,7 @@ export function createRenderMethods(dependencies) {
         context.fillRect(0, 0, width, height);
         if (this.cameraWebgl) {
           try {
-            this.cameraWebgl.render({ ...this.state, keyframes: [], playblast_grid: false }, camera, this.cardMediaById, width, height, this.modelUrlsById, this.frame, true);
+            this.cameraWebgl.render({ ...this.state, keyframes: [], playblast_grid: false, viewport_bg_image: this.viewportBgImage?.src || "", viewport_bg_sequence: (this.viewportBgSequenceImages || []).map((image) => image.src), __omnicamRevision: this.renderRevision || 0 }, camera, this.cardMediaById, width, height, this.modelUrlsById, this.frame, true);
             context.drawImage(this.cameraWebgl.canvas, 0, 0, width, height);
           } catch (err) {
             console.error("[OmniCam Preview Render Error]", err);
@@ -109,7 +127,13 @@ export function createRenderMethods(dependencies) {
     return syncUpstreamInputs(this);
   },
   dispose() {
-    this.stopPlay(), clearTimeout(this.previewClickTimer), this.abortController?.abort(), this.resizeObserver?.disconnect(), this.webgl?.dispose(), this.cameraWebgl?.dispose();
+    if (this.disposed) return;
+    this.disposed = true;
+    this.backgroundRequestId = (this.backgroundRequestId || 0) + 1;
+    this.upstreamSyncId = (this.upstreamSyncId || 0) + 1;
+    this.stopPlay(), clearTimeout(this.previewClickTimer), clearTimeout(this.connectionTimer), cancelAnimationFrame(this.restoreFrame), cancelAnimationFrame(this.serializeFrame), cancelAnimationFrame(this.resizeFrame), this.abortController?.abort(), this.upstreamFetchController?.abort(), this.resizeObserver?.disconnect(), this.contextMenu?.dispose(), this.webgl?.dispose(), this.cameraWebgl?.dispose();
+    if (this.audioSource) { try { this.audioSource.stop(); } catch (_) {} this.audioSource = null; }
+    this.audioContext?.close?.().catch?.(() => {}); this.audioContext = null;
     this.objectUrls.clear(), this.cardMediaById.clear(), this.modelUrlsById.clear(), this.modelInfoById.clear();
   }
 }

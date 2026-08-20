@@ -137,12 +137,16 @@ export class OmniWebGLViewport {
     this.path = new THREE.Group(); this.scene.add(this.path);
     this.liveCameras = new THREE.Group(); this.scene.add(this.liveCameras);
     this.selectionGroup = new THREE.Group(); this.scene.add(this.selectionGroup);
+    this.selectionKey = "";
     this.perspective = new THREE.PerspectiveCamera(35, 16 / 9, 0.01, 10000);
     this.orthographic = new THREE.OrthographicCamera(-5, 5, 2.8125, -2.8125, 0.01, 10000);
     this.sceneKey = "";
     this.mediaSignature = "";
     this.bgImageUrl = "";
     this.bgTexture = null;
+    this.bgTextureCache = new Map();
+    this.bgTextureLoads = new Map();
+    this.bgLoadGeneration = 0;
     this.disposed = false;
     this.invalidate = invalidate;
     this.onModelLoaded = onModelLoaded;

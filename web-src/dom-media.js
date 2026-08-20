@@ -12,7 +12,7 @@ export function configureDomMedia({ api }) {
   comfyApi = api;
 }
 
-export async function loadMediaUrl(ui, object, url) {
+export async function loadMediaUrl(ui, object, url, isCurrent = () => true) {
   if (!object || !url) return;
   const path = String(object.asset || url).toLowerCase();
   if (/\.(mp4|webm|mov)(?:\s|$)/.test(path)) {
@@ -25,19 +25,42 @@ export async function loadMediaUrl(ui, object, url) {
       video.addEventListener("loadeddata", resolve, { once: true });
       video.addEventListener("error", resolve, { once: true });
     });
+    if (!isCurrent()) { video.pause(); video.removeAttribute("src"); video.load(); return; }
     ui.cardMediaById.set(object.id, video);
     if (object.id === "subject") ui.cardMedia = video;
   } else {
     const image = new Image();
     image.src = url;
     await image.decode().catch(() => {});
+    if (!isCurrent()) { image.src = ""; return; }
     ui.cardMediaById.set(object.id, image);
     if (object.id === "subject") ui.cardMedia = image;
   }
   ui.render();
 }
 
+function upstreamAssetValue(value, subfolder = "") {
+  const raw = String(value || "");
+  const annotated = raw.match(/\s+\[(input|output|temp)\]$/);
+  const path = annotated ? raw.slice(0, annotated.index) : raw;
+  const type = annotated?.[1] || "input";
+  const joined = subfolder && !path.includes("/") && !path.includes("\\") ? `${subfolder}/${path}` : path;
+  return `${joined} [${type}]`;
+}
+
 export function restoreAssets(ui) {
+  if (ui.state.viewport_bg_image) {
+    const image = new Image();
+    image.src = annotatedAssetUrl(ui.state.viewport_bg_image);
+    image.decode().catch(() => {});
+    ui.viewportBgImage = image;
+  }
+  ui.viewportBgSequenceImages = (ui.state.viewport_bg_sequence || []).map((asset) => {
+    const image = new Image();
+    image.src = annotatedAssetUrl(asset);
+    image.decode().catch(() => {});
+    return image;
+  });
   for (const object of ui.state.objects) {
     if (!object.asset) continue;
     const url = annotatedAssetUrl(object.asset);
@@ -182,6 +205,12 @@ export async function syncUpstreamInputs(ui) {
   if (!ui.node) return;
   const graph = ui.node.graph;
   if (!graph) return;
+  const syncId = (ui.upstreamSyncId || 0) + 1;
+  ui.upstreamSyncId = syncId;
+  ui.upstreamFetchController?.abort();
+  const fetchController = new AbortController();
+  ui.upstreamFetchController = fetchController;
+  const isCurrent = () => !ui.disposed && ui.upstreamSyncId === syncId;
 
   let anyUpdated = false;
   const inputs = ui.node.inputs || [];
@@ -208,13 +237,12 @@ export async function syncUpstreamInputs(ui) {
         const val = String(imageWidget.value);
         const isVideo = /\.(mp4|webm|mov)(?:\s|$)/i.test(val);
         const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
-        const query = new URLSearchParams({ filename: val, type: "input" });
-        if (subfolder) query.set("subfolder", String(subfolder));
-        const url = comfyApi ? comfyApi.apiURL(`/view?${query.toString()}`) : `/view?${query.toString()}`;
+        const url = annotatedAssetUrl(upstreamAssetValue(val, subfolder));
         const subject = ui.state.objects.find((o) => o.id === "subject");
         if (subject) {
-          subject.asset = val;
-          await loadMediaUrl(ui, subject, url);
+          await loadMediaUrl(ui, subject, url, isCurrent);
+          if (!isCurrent()) return;
+          subject.asset = upstreamAssetValue(val, subfolder);
           ui.upstreamImageConnected = true;
           anyUpdated = true;
           ui.setStatus(t(`Upstream ${isVideo ? "video" : "image"}: ${val}`));
@@ -241,13 +269,12 @@ export async function syncUpstreamInputs(ui) {
       if (audioWidget && audioWidget.value) {
         const val = String(audioWidget.value);
         const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
-        const query = new URLSearchParams({ filename: val, type: "input" });
-        if (subfolder) query.set("subfolder", String(subfolder));
-        const url = comfyApi ? comfyApi.apiURL(`/view?${query.toString()}`) : `/view?${query.toString()}`;
+        const url = annotatedAssetUrl(upstreamAssetValue(val, subfolder));
         try {
-          const resp = await fetch(url);
+          const resp = await fetch(url, { signal: fetchController.signal });
           if (resp.ok) {
             const blob = await resp.blob();
+            if (!isCurrent()) return;
             const file = new File([blob], val, { type: blob.type || "audio/wav" });
             await ui.loadAudioFile(file);
             ui.upstreamAudioConnected = true;
@@ -255,6 +282,7 @@ export async function syncUpstreamInputs(ui) {
             ui.setStatus(t(`Upstream audio: ${val}`));
           }
         } catch (err) {
+          if (err?.name === "AbortError") return;
           console.warn("Failed to fetch upstream audio:", err);
         }
       }
@@ -270,9 +298,7 @@ export async function syncUpstreamInputs(ui) {
         const format = val.split(".").pop()?.toLowerCase();
         if (["glb", "gltf", "obj", "fbx", "stl", "ply"].includes(format)) {
           const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
-          const query = new URLSearchParams({ filename: val, type: "input" });
-          if (subfolder) query.set("subfolder", String(subfolder));
-          const url = comfyApi ? comfyApi.apiURL(`/view?${query.toString()}`) : `/view?${query.toString()}`;
+          const url = annotatedAssetUrl(upstreamAssetValue(val, subfolder));
           const modelId = `upstream_scene_${originNode.id}`;
           activeUpstreamModelIds.add(modelId);
           let obj = ui.state.objects.find((o) => o.id === modelId);
@@ -288,11 +314,11 @@ export async function syncUpstreamInputs(ui) {
               material_mode: "textured",
               keyframes: [],
               enabled: true,
-              asset: val,
+                  asset: upstreamAssetValue(val, subfolder),
             };
             ui.state.objects.push(obj);
           } else {
-            obj.asset = val;
+                obj.asset = upstreamAssetValue(val, subfolder);
             obj.format = format === "gltf" ? "glb" : format;
           }
           ui.modelUrlsById.set(modelId, url);

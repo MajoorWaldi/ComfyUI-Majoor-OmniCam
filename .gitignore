@@ -18,3 +18,5 @@ docs/*
 !docs/SECURITY.md
 !docs/VALIDATION_REPORT.md
 !docs/REFACTOR_CHECKLIST.md
+!docs/INTERNALS.md
+!docs/COMPATIBILITY.md

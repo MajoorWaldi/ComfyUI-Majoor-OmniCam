@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from .track import OmniCamTrack
+from .validation import validate_track_payload
 
 SEQUENCE_SCHEMA_VERSION = 1
 
@@ -15,7 +16,7 @@ def build_sequence(tracks: list[dict[str, Any]], names: list[str] | None = None,
     names = names or []
     settings = settings or []
     for index, payload in enumerate(tracks):
-        track = OmniCamTrack.from_dict(payload)
+        track = OmniCamTrack.from_dict(validate_track_payload(payload))
         if sequence_fps is None:
             sequence_fps = track.fps
         elif track.fps != sequence_fps:

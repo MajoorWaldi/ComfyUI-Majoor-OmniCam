@@ -173,17 +173,22 @@ export function drawCard(ui, obj) {
 }
 
 export function drawCameraPath(ui) {
-  for (const camera of ui.state.cameras || []) {
+  const cameraColors = ["#4aa3ef", "#f2a93b", "#48c774", "#b565d8", "#ec4899"];
+  (ui.state.cameras || []).forEach((camera, camIdx) => {
     const keys = camera.keyframes || [];
+    const color = camera.color || cameraColors[camIdx % cameraColors.length];
+    const isActive = camera.id === ui.state.active_camera_id;
     if (keys.length >= 2) {
-      for (let i = 0; i < keys.length - 1; i++) drawLine3D(ui, keys[i].camera.position, keys[i + 1].camera.position, "#6c82b0", 2);
+      for (let i = 0; i < keys.length - 1; i++) {
+        drawLine3D(ui, keys[i].camera.position, keys[i + 1].camera.position, color, isActive ? 2.2 : 1.2);
+      }
     }
     for (const k of keys) {
       const p = project(k.camera.position, ui.viewportCamera(), ui.canvas.width, ui.canvas.height);
       if (p) {
-        ui.ctx.fillStyle = k.frame === ui.frame ? "#f2d06b" : "#7694d1";
+        ui.ctx.fillStyle = k.frame === ui.frame ? "#f2d06b" : color;
         ui.ctx.beginPath();
-        ui.ctx.arc(p[0], p[1], 4, 0, Math.PI * 2);
+        ui.ctx.arc(p[0], p[1], isActive ? 4.5 : 3.5, 0, Math.PI * 2);
         ui.ctx.fill();
       }
     }
@@ -191,14 +196,14 @@ export function drawCameraPath(ui) {
       const live = sampleCamera(camera, ui.frame);
       const p = project(live.position, ui.viewportCamera(), ui.canvas.width, ui.canvas.height);
       if (p) {
-        ui.ctx.fillStyle = camera.id === ui.state.active_camera_id ? "#f2d06b" : "#4aa3ef";
+        ui.ctx.fillStyle = isActive ? "#f2d06b" : color;
         ui.ctx.beginPath();
-        ui.ctx.arc(p[0], p[1], 6, 0, Math.PI * 2);
+        ui.ctx.arc(p[0], p[1], isActive ? 6.5 : 4.5, 0, Math.PI * 2);
         ui.ctx.fill();
       }
-      if (live.target) drawLine3D(ui, live.position, live.target, "#f2d06b88", 1);
+      if (live.target) drawLine3D(ui, live.position, live.target, `${color}88`, 1);
     }
-  }
+  });
 }
 
 export function drawSpeedHeatmap(ui) {
@@ -277,9 +282,11 @@ export function drawOverlays(ui) {
       c.restore();
     }
   }
-  if (!ui.recording) ui.drawTransformGizmo();
+  if (!ui.recording) {
+    try { ui.drawTransformGizmo(); } catch (err) { console.warn("[OmniCam Gizmo Error]", err); }
+  }
   if (!ui.recording && ui.state.show_radar) {
-    drawTopDownRadar(ui, c, w, h);
+    try { drawTopDownRadar(ui, c, w, h); } catch (err) { console.warn("[OmniCam Radar Error]", err); }
   }
   if (ui.state.burn_in) {
     const camera = ui.viewportCamera();
@@ -293,33 +300,77 @@ export function drawOverlays(ui) {
   }
 }
 
+function getCameraHeightColor(y) {
+  if (y <= -1.0) return "#38bdf8"; // Deep cyan/blue (below ground / low)
+  if (y <= 0.2) return "#2dd4bf"; // Teal (ground level)
+  if (y <= 2.2) return "#4ade80"; // Green (standard human eye level: 0.2m - 2.2m)
+  if (y <= 5.0) return "#facc15"; // Yellow (medium tripod / low crane: 2.2m - 5m)
+  if (y <= 10.0) return "#fb923c"; // Orange (high crane / jib: 5m - 10m)
+  return "#f43f5e"; // Rose / Magenta (aerial / drone / high overhead: >10m)
+}
+
+function getCameraHeightLabel(y) {
+  const sign = y > 0 ? "+" : "";
+  return `${sign}${y.toFixed(1)}m`;
+}
+
 export function drawTopDownRadar(ui, c, w, h) {
-  const radarSize = 130;
-  const margin = 14;
-  const rx = w - radarSize - margin;
-  const ry = h - radarSize - margin;
-  const range = 8.0; // +/- 8 world units in X and Z
+  if (!w || !h || w < 80 || h < 80) return;
+  const radarSize = Math.min(138, Math.max(80, Math.min(w, h) - 20));
+  const margin = 10;
+  const rx = Math.max(0, w - radarSize - margin);
+  const ry = Math.max(0, h - radarSize - margin);
 
-  c.save();
-  // Radar background box
-  c.fillStyle = "rgba(12, 18, 28, 0.85)";
-  c.strokeStyle = "rgba(0, 210, 211, 0.4)";
-  c.lineWidth = 1.2;
-  c.beginPath();
-  c.roundRect(rx, ry, radarSize, radarSize, 6);
-  c.fill();
-  c.stroke();
+  const cam = ui.viewportCamera();
+  const camPos = cam?.position || [0, 1.5, 5];
+  const camTgt = cam?.target || [0, 0, 0];
 
-  // Radar title
-  c.fillStyle = "#00d2d3";
-  c.font = "9px monospace";
-  c.fillText("RADAR 2D (XZ)", rx + 8, ry + 13);
+  // Dynamic adaptive scale to ensure camera and target always stay in frame
+  const maxDist = Math.max(
+    Math.abs(camPos[0] || 0),
+    Math.abs(camPos[2] || 0),
+    Math.abs(camTgt[0] || 0),
+    Math.abs(camTgt[2] || 0),
+    4.0
+  );
+  const range = Math.max(6.0, Math.ceil((maxDist + 1.5) / 4) * 4);
 
-  // Center crosshair (world 0,0)
   const cx = rx + radarSize / 2;
   const cy = ry + radarSize / 2;
-  c.strokeStyle = "rgba(255, 255, 255, 0.15)";
+  const innerRadius = radarSize / 2 - 10;
+  const scale = innerRadius / range;
+
+  const toRadar = (x, z) => [cx + x * scale, cy + z * scale];
+
+  c.save();
+
+  // Clip to radar rounded box (with fallback for engines lacking roundRect)
+  c.beginPath();
+  if (typeof c.roundRect === "function") {
+    c.roundRect(rx, ry, radarSize, radarSize, 8);
+  } else {
+    c.rect(rx, ry, radarSize, radarSize);
+  }
+  c.clip();
+
+  // Radar background box
+  c.fillStyle = "rgba(10, 14, 22, 0.88)";
+  c.fillRect(rx, ry, radarSize, radarSize);
+
+  c.strokeStyle = "rgba(0, 210, 211, 0.35)";
+  c.lineWidth = 1.2;
+  c.strokeRect(rx, ry, radarSize, radarSize);
+
+  // Concentric range circles (half range & full range)
+  c.strokeStyle = "rgba(0, 210, 211, 0.12)";
   c.lineWidth = 1;
+  c.beginPath();
+  c.arc(cx, cy, innerRadius * 0.5, 0, Math.PI * 2);
+  c.arc(cx, cy, innerRadius, 0, Math.PI * 2);
+  c.stroke();
+
+  // Center crosshair (world 0,0)
+  c.strokeStyle = "rgba(255, 255, 255, 0.12)";
   c.beginPath();
   c.moveTo(rx + 6, cy);
   c.lineTo(rx + radarSize - 6, cy);
@@ -327,23 +378,32 @@ export function drawTopDownRadar(ui, c, w, h) {
   c.lineTo(cx, ry + radarSize - 6);
   c.stroke();
 
-  // Draw concentric range circle (4m)
-  c.strokeStyle = "rgba(0, 210, 211, 0.15)";
-  c.beginPath();
-  c.arc(cx, cy, (4.0 / range) * (radarSize / 2 - 10), 0, Math.PI * 2);
-  c.stroke();
+  // Height color for active camera
+  const camY = camPos[1] || 0;
+  const heightColor = getCameraHeightColor(camY);
+  const heightText = getCameraHeightLabel(camY);
 
-  const toRadar = (x, z) => {
-    const scale = (radarSize / 2 - 10) / range;
-    return [cx + x * scale, cy + z * scale];
-  };
+  // Header: RADAR title on left, Altitude on right with color badge
+  c.font = "bold 9px monospace";
+  c.fillStyle = "#00d2d3";
+  c.fillText("RADAR", rx + 7, ry + 13);
+
+  c.fillStyle = heightColor;
+  c.textAlign = "right";
+  c.fillText(`Y:${heightText}`, rx + radarSize - 7, ry + 13);
+  c.textAlign = "left";
+
+  // Scale ring label at bottom left
+  c.font = "8px monospace";
+  c.fillStyle = "rgba(255, 255, 255, 0.35)";
+  c.fillText(`±${range}m`, rx + 7, ry + radarSize - 6);
 
   // Draw scene objects
   for (const obj of ui.state.objects || []) {
     if (obj.enabled === false) continue;
     const pos = obj.transform?.position || obj.position || [0, 0, 0];
     const [ox, oz] = toRadar(pos[0], pos[2]);
-    if (ox < rx || ox > rx + radarSize || oz < ry || oz > ry + radarSize) continue;
+    if (ox < rx + 2 || ox > rx + radarSize - 2 || oz < ry + 2 || oz > ry + radarSize - 2) continue;
 
     c.fillStyle = obj.type === "card" ? "#48dbfb" : (obj.type === "human" ? "#ff9ff3" : "#feca57");
     c.beginPath();
@@ -351,13 +411,34 @@ export function drawTopDownRadar(ui, c, w, h) {
     c.fill();
   }
 
-  // Draw Camera position, target, and vision cone
-  const cam = ui.viewportCamera();
-  const [camX, camZ] = toRadar(cam.position[0], cam.position[2]);
-  const [tgtX, tgtZ] = toRadar(cam.target[0], cam.target[2]);
+  // Draw camera keyframe path points on radar
+  for (const k of ui.state.keyframes || []) {
+    const kPos = k.camera?.position;
+    if (kPos) {
+      const [kx, kz] = toRadar(kPos[0], kPos[2]);
+      if (kx >= rx + 4 && kx <= rx + radarSize - 4 && kz >= ry + 4 && kz <= ry + radarSize - 4) {
+        c.fillStyle = k.frame === ui.frame ? heightColor : "rgba(108, 130, 176, 0.6)";
+        c.beginPath();
+        c.arc(kx, kz, 1.8, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  }
 
-  // Look-at line
-  c.strokeStyle = "rgba(255, 234, 167, 0.6)";
+  // Camera and target positions with safety clamping inside radar bounds
+  const rawCamX = cx + camPos[0] * scale;
+  const rawCamZ = cy + camPos[2] * scale;
+  const pad = 8;
+  const camX = clamp(rawCamX, rx + pad, rx + radarSize - pad);
+  const camZ = clamp(rawCamZ, ry + pad, ry + radarSize - pad);
+
+  const rawTgtX = cx + camTgt[0] * scale;
+  const rawTgtZ = cy + camTgt[2] * scale;
+  const tgtX = clamp(rawTgtX, rx + pad, rx + radarSize - pad);
+  const tgtZ = clamp(rawTgtZ, ry + pad, ry + radarSize - pad);
+
+  // Look-at dashed line
+  c.strokeStyle = "rgba(255, 255, 255, 0.35)";
   c.lineWidth = 1;
   c.setLineDash([2, 2]);
   c.beginPath();
@@ -366,15 +447,25 @@ export function drawTopDownRadar(ui, c, w, h) {
   c.stroke();
   c.setLineDash([]);
 
-  // Vision cone
-  const dx = cam.target[0] - cam.position[0];
-  const dz = cam.target[2] - cam.position[2];
+  // Target dot with outer ring
+  c.fillStyle = "#ffffff";
+  c.beginPath();
+  c.arc(tgtX, tgtZ, 2.5, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = "rgba(255, 255, 255, 0.5)";
+  c.beginPath();
+  c.arc(tgtX, tgtZ, 4.5, 0, Math.PI * 2);
+  c.stroke();
+
+  // Vision cone with height tint
+  const dx = camTgt[0] - camPos[0];
+  const dz = camTgt[2] - camPos[2];
   const angle = Math.atan2(dz, dx);
   const halfFovRad = ((cam.fov || 35) * Math.PI) / 360;
-  const coneLen = 22;
+  const coneLen = clamp(18 * (scale / (innerRadius / 8)), 14, 28);
 
-  c.fillStyle = "rgba(254, 202, 87, 0.18)";
-  c.strokeStyle = "rgba(254, 202, 87, 0.7)";
+  c.fillStyle = heightColor + "28";
+  c.strokeStyle = heightColor;
   c.lineWidth = 1.2;
   c.beginPath();
   c.moveTo(camX, camZ);
@@ -384,8 +475,13 @@ export function drawTopDownRadar(ui, c, w, h) {
   c.fill();
   c.stroke();
 
-  // Camera dot
-  c.fillStyle = "#fffa65";
+  // Camera dot (height-colored glowing indicator)
+  c.fillStyle = heightColor + "44";
+  c.beginPath();
+  c.arc(camX, camZ, 6, 0, Math.PI * 2);
+  c.fill();
+
+  c.fillStyle = heightColor;
   c.beginPath();
   c.arc(camX, camZ, 3.5, 0, Math.PI * 2);
   c.fill();

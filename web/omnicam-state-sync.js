@@ -1,16 +1,17 @@
-import { sanitizeState as S, sampleCamera as b, cloneCamera as n, clamp as c } from "./omnicam-core.js";
-function f(e) {
-  return e.state.cameras.find((a) => a.id === e.state.active_camera_id) || e.state.cameras[0];
+import { cloneCamera as n, sanitizeState as S, sampleCamera as b, clamp as c } from "./omnicam-core.js";
+function d(e) {
+  return e?.state?.cameras?.length || (e.state.cameras = [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: n(e?.camera), keyframes: e?.state?.keyframes || [] }]), e.state.cameras.find((a) => a.id === e.state.active_camera_id) || e.state.cameras[0];
 }
 function h(e) {
-  return e.state.cameras.find((a) => a.id === e.state.playblast_camera_id) || f(e);
+  return e?.state?.cameras?.length && e.state.cameras.find((a) => a.id === e.state.playblast_camera_id) || d(e);
 }
 function A(e) {
-  const a = f(e);
-  a.camera = n(e.camera), a.keyframes = e.state.keyframes, e.state.camera = n(e.camera);
+  const a = d(e);
+  a && (a.camera = n(e.camera), a.keyframes = e.state.keyframes, e.state.camera = n(e.camera));
 }
 function k(e) {
-  A(e);
+  if (e.disposed) return;
+  e.renderRevision = (e.renderRevision || 0) + 1, A(e);
   const a = h(e);
   e.state.metadata = { ...e.state.metadata, playblast_camera_id: a.id, playblast_camera_name: a.name };
   const s = { ...e.state, camera: n(a.camera), keyframes: a.keyframes };
@@ -31,11 +32,11 @@ function W(e, a = !0) {
   e.state.width = Number(e.widthWidget?.value || e.state.width), e.state.height = Number(e.heightWidget?.value || e.state.height), e.state.fps = Number(e.fpsWidget?.value || e.state.fps), e.state.duration_frames = Math.max(1, Math.round(Number(e.durationWidget?.value || 5) * e.state.fps));
   for (const t of e.state.cameras) {
     for (const o of t.keyframes) o.frame = c(Math.round(o.frame), 0, e.state.duration_frames - 1);
-    t.keyframes = [...new Map(t.keyframes.map((o) => [o.frame, o])).values()].sort((o, d) => o.frame - d.frame);
+    t.keyframes = [...new Map(t.keyframes.map((o) => [o.frame, o])).values()].sort((o, f) => o.frame - f.frame);
   }
-  e.state.keyframes = f(e).keyframes;
+  e.state.keyframes = d(e).keyframes;
   for (const t of e.state.objects)
-    t.keyframes = [...new Map((t.keyframes || []).map((o) => [c(Math.round(o.frame), 0, e.state.duration_frames - 1), { ...o, frame: c(Math.round(o.frame), 0, e.state.duration_frames - 1) }])).values()].sort((o, d) => o.frame - d.frame);
+    t.keyframes = [...new Map((t.keyframes || []).map((o) => [c(Math.round(o.frame), 0, e.state.duration_frames - 1), { ...o, frame: c(Math.round(o.frame), 0, e.state.duration_frames - 1) }])).values()].sort((o, f) => o.frame - f.frame);
   e.timelineKeyframes().some((t) => t.frame === e.selectedKeyFrame) || (e.selectedKeyFrame = e.timelineKeyframes()[0]?.frame ?? null), e.state.render_mode = e.modeWidget?.value || e.state.render_mode;
   const r = (t) => e.root.querySelector(t);
   for (const t of e.root.querySelectorAll('[data-role="mode"]')) t.value = e.state.render_mode;
@@ -70,6 +71,10 @@ function W(e, a = !0) {
     t.classList.toggle("active", e.state.snap_enabled !== !1), t.setAttribute("aria-pressed", String(e.state.snap_enabled !== !1));
   for (const t of e.root.querySelectorAll('[data-act="toggle-timecode"]'))
     t.classList.toggle("active", e.state.timecode_mode === "timecode"), t.setAttribute("aria-pressed", String(e.state.timecode_mode === "timecode"));
+  for (const t of e.root.querySelectorAll('[data-role="show-radar"]')) t.checked = !!e.state.show_radar;
+  for (const t of e.root.querySelectorAll('[data-role="encoder"]')) t.value = e.state.encoder || "auto";
+  for (const t of e.root.querySelectorAll('[data-role="proxy-preset"]')) t.value = e.state.proxy_preset || "balanced";
+  for (const t of e.root.querySelectorAll('[data-role="snap-frames"]')) t.value = String(e.state.snap_frames || 1);
   for (const t of e.root.querySelectorAll('[data-act="auto-key"]'))
     t.classList.toggle("active", !!e.state.auto_key), t.setAttribute("aria-pressed", String(!!e.state.auto_key));
   for (const t of e.root.querySelectorAll("[data-select-mode]")) {
@@ -88,10 +93,10 @@ function W(e, a = !0) {
   g && (g.max = String(e.state.duration_frames - 1));
   const y = r('[data-role="frame"]');
   y && (y.max = String(e.state.duration_frames - 1));
-  const i = r('[data-role="key-frame"]');
-  i && (i.max = String(e.state.duration_frames - 1));
-  const v = r('[data-role="duration-seconds"]');
-  v && (v.value = String(e.state.duration_frames / e.state.fps));
+  const v = r('[data-role="key-frame"]');
+  v && (v.max = String(e.state.duration_frames - 1));
+  const i = r('[data-role="duration-seconds"]');
+  i && (i.value = String(e.state.duration_frames / e.state.fps));
   const _ = r('[data-role="timeline-fps"]');
   _ && (_.value = String(e.state.fps)), e.frame = c(e.frame, 0, e.state.duration_frames - 1), a && e.serialize(), (s !== e.state.duration_frames || l !== e.state.fps) && (e.computeAudioPeaks?.(), e.setFrame(e.frame, !1, !0), e.setStatus(`Timeline: ${e.state.duration_frames} frames · ${(e.state.duration_frames / e.state.fps).toFixed(2)} s`));
 }
@@ -108,7 +113,7 @@ function B(e) {
   e.timelineKeyframes().some((r) => r.frame === e.selectedKeyFrame) || (e.selectedKeyFrame = e.timelineKeyframes()[0]?.frame ?? null), e.camera = b(e.state, Math.min(e.frame, e.state.duration_frames - 1)), e.syncFromWidgets(!1), e.root.querySelector('[data-role="gizmo-space"]').value = e.state.gizmo_space, e.restoreAssets(), e.refreshKeys(), e.refreshObjects(), e.render(), e.history?.clear();
 }
 export {
-  f as activeCameraTrack,
+  d as activeCameraTrack,
   w as bindWidgetCallbacks,
   h as playblastCameraTrack,
   B as restoreFromWidgets,

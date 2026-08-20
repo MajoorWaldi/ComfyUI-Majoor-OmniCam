@@ -1,4 +1,4 @@
-﻿// WebGL viewport methods extracted from the public facade.
+// WebGL viewport methods extracted from the public facade.
 
 export function createCameraPickingMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -59,23 +59,41 @@ export function createCameraPickingMethods(dependencies) {
     if (!this.activeCamera) return null;
     this.pointer.set((x / Math.max(1, width)) * 2 - 1, 1 - (y / Math.max(1, height)) * 2);
     this.raycaster.setFromCamera(this.pointer, this.activeCamera);
-    
-    // Check camera bodies and camera target points first
+
+    const candidates = [];
+
+    // Check camera bodies and camera target points
     if (this.liveCameras && this.liveCameras.visible) {
       for (const hit of this.raycaster.intersectObjects(this.liveCameras.children, true)) {
         if (hit.object?.userData?.omnicamType) {
-          return { type: hit.object.userData.omnicamType, id: hit.object.userData.omnicamId };
+          candidates.push({
+            distance: hit.distance,
+            type: hit.object.userData.omnicamType,
+            id: hit.object.userData.omnicamId,
+          });
         }
       }
     }
 
     // Check scene objects (cards, cubes, meshes, models)
-    for (const hit of this.raycaster.intersectObjects(this.content.children, true)) {
-      let object = hit.object;
-      while (object && !object.userData.omnicamId) object = object.parent;
-      if (object?.userData.omnicamId) return { type: "object", id: object.userData.omnicamId };
+    if (this.content && this.content.visible) {
+      for (const hit of this.raycaster.intersectObjects(this.content.children, true)) {
+        if (hit.object?.userData?.omnicamCaptureGuide || hit.object?.userData?.omnicamHelper) continue;
+        let object = hit.object;
+        while (object && !object.userData?.omnicamId) object = object.parent;
+        if (object?.userData?.omnicamId) {
+          candidates.push({
+            distance: hit.distance,
+            type: "object",
+            id: object.userData.omnicamId,
+          });
+        }
+      }
     }
-    return null;
+
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => a.distance - b.distance);
+    return { type: candidates[0].type, id: candidates[0].id };
   },
 
   pickSubElement(x, y, width, height, mode = "vertex") {

@@ -6,6 +6,7 @@ from __future__ import annotations
 import sys
 import types
 import asyncio
+import os
 from io import BytesIO
 
 import pytest
@@ -245,3 +246,15 @@ async def test_upload_rejects_excessive_image_dimensions(input_dir, monkeypatch)
         await routes._save_multipart_file(request, "cards", {".png"}, 1024 * 1024)
     assert "dimensions" in exc_info.value.text
     assert not any(p.is_file() for p in (input_dir / "omnicam").rglob("*"))
+
+
+def test_managed_root_rejects_symlink_escape(input_dir):
+    outside = input_dir.parent / f"{input_dir.name}-outside"
+    outside.mkdir(exist_ok=True)
+    link = input_dir / "omnicam"
+    try:
+        os.symlink(outside, link, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("directory symlinks are unavailable for this test user")
+    with pytest.raises(web.HTTPInternalServerError):
+        routes._managed_root()

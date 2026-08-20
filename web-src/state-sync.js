@@ -4,21 +4,31 @@
 import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./omnicam-core.js";
 
 export function activeCameraTrack(ui) {
+  if (!ui?.state?.cameras?.length) {
+    ui.state.cameras = [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(ui?.camera), keyframes: ui?.state?.keyframes || [] }];
+  }
   return ui.state.cameras.find((item) => item.id === ui.state.active_camera_id) || ui.state.cameras[0];
 }
 
 export function playblastCameraTrack(ui) {
+  if (!ui?.state?.cameras?.length) {
+    return activeCameraTrack(ui);
+  }
   return ui.state.cameras.find((item) => item.id === ui.state.playblast_camera_id) || activeCameraTrack(ui);
 }
 
 export function syncActiveCameraTrack(ui) {
   const active = activeCameraTrack(ui);
-  active.camera = cloneCamera(ui.camera);
-  active.keyframes = ui.state.keyframes;
-  ui.state.camera = cloneCamera(ui.camera);
+  if (active) {
+    active.camera = cloneCamera(ui.camera);
+    active.keyframes = ui.state.keyframes;
+    ui.state.camera = cloneCamera(ui.camera);
+  }
 }
 
 export function serializeEditorState(ui) {
+  if (ui.disposed) return;
+  ui.renderRevision = (ui.renderRevision || 0) + 1;
   syncActiveCameraTrack(ui);
   const playblastCamera = playblastCameraTrack(ui);
   ui.state.metadata = { ...ui.state.metadata, playblast_camera_id: playblastCamera.id, playblast_camera_name: playblastCamera.name };
@@ -102,6 +112,10 @@ export function syncFromWidgets(ui, persist = true) {
     btn.classList.toggle("active", ui.state.timecode_mode === "timecode");
     btn.setAttribute("aria-pressed", String(ui.state.timecode_mode === "timecode"));
   }
+  for (const el of ui.root.querySelectorAll('[data-role="show-radar"]')) el.checked = Boolean(ui.state.show_radar);
+  for (const el of ui.root.querySelectorAll('[data-role="encoder"]')) el.value = ui.state.encoder || "auto";
+  for (const el of ui.root.querySelectorAll('[data-role="proxy-preset"]')) el.value = ui.state.proxy_preset || "balanced";
+  for (const el of ui.root.querySelectorAll('[data-role="snap-frames"]')) el.value = String(ui.state.snap_frames || 1);
   for (const btn of ui.root.querySelectorAll('[data-act="auto-key"]')) {
     btn.classList.toggle("active", Boolean(ui.state.auto_key));
     btn.setAttribute("aria-pressed", String(Boolean(ui.state.auto_key)));

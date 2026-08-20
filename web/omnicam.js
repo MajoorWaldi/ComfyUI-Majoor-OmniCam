@@ -1,33 +1,42 @@
-import { app as ea } from "../../scripts/app.js";
-import { api as ta } from "../../scripts/api.js";
-import { OmniWebGLViewport as Qt } from "./omnicam-webgl.js";
-import { EditorHistory as oa } from "./omnicam-history.js";
-import { ContextMenuController as na, initializeTooltips as ga, promptText as ba } from "./omnicam-ui.js";
-import { ObjectUrlRegistry as la } from "./omnicam-media.js";
-import { buildRoot as ca } from "./omnicam-template.js";
-import { dispatchDirectorKey as Ca } from "./omnicam-commands.js";
-import { activeCameraTrack as wa, bindWidgetCallbacks as va, playblastCameraTrack as Sa, restoreFromWidgets as ja, serializeEditorState as Pa, syncActiveCameraTrack as ka, syncFromWidgets as Ma } from "./omnicam-state-sync.js";
-import { bind as Oa } from "./omnicam-event-bindings.js";
-import { activateCamera as Ka, addCamera as Fa, deleteCamera as Ta, drawPreviewOverlays as xa, duplicateCamera as Ea, maximizeCameraPreview as _a, refreshCameraPreviews as Ia, refreshCameraSelectors as za, renameCamera as Aa, setPlayblastCamera as Wa, toggleCameraView as Da } from "./omnicam-cameras.js";
-import { captureRealtime as Va, makePlayblast as Ha, uploadDirectorPlayblast as Ra, waitForMediaFrame as Ua } from "./omnicam-record.js";
-import { computeAudioPeaks as $a, loadAudioFile as Ba, stopPlay as La, togglePlay as qa } from "./omnicam-playback-transport.js";
-import { applyCameraPreset as Ga, applyCameraShake as Na, applyProxyPreset as Za } from "./omnicam-motion-presets.js";
-import { clearViewportBgImage as Ja, loadViewportBgFile as Xa, loadViewportBgSequence as Ya } from "./omnicam-background-manager.js";
-import { drawCameraPath as Qa, drawCard as er, drawCube as tr, drawGrid as ar, drawHuman as rr, drawLine3D as ir, drawNull as sr, drawOverlays as or, drawPointField as nr, drawSpeedHeatmap as lr, drawSphere as cr } from "./omnicam-viewport-overlays.js";
-import { curveChannels as dr, drawCurveEditor as mr, onCurvePointerDown as hr, onCurvePointerMove as ur, onCurvePointerUp as pr, onTimelinePointerDown as fr, onTimelinePointerMove as yr, onTimelinePointerUp as gr, refreshKeys as br, resetCurveZoom as Cr, resetTimelineZoom as wr, setChannelFilter as vr, setCurveInterpolation as Sr, setTangentMode as jr, timelineFrameFromEvent as Pr, toggleCurveHandles as kr, zoomCurve as Mr } from "./omnicam-timeline.js";
-import { drawTransformGizmo as Or, frameTarget as Kr, gizmoAxes as Fr, gizmoGeometry as Tr, onPointerDown as xr, onPointerMove as Er, onPointerUp as _r, onWheel as Ir, pickGizmo as zr, pickSceneObject as Ar, resetCamera as Wr, setTransformMode as Dr, setViewMode as Vr, viewportCamera as Hr } from "./omnicam-viewport-controls.js";
-import { configureDomMedia as da, loadCardFile as Rr, loadExecutionPreview as Ur, loadMediaUrl as $r, loadModelFile as Br, loadSelectedReference as Lr, onModelLoaded as qr, restoreAssets as Gr, syncUpstreamInputs as Nr } from "./omnicam-dom-media.js";
-import { refreshSetupDiagnostic as Zr } from "./omnicam-diagnostics.js";
-import { addMediaCard as Jr, addPrimitive as Xr, applyObjectAnimationFrame as Yr, beginCameraEdit as Qr, beginObjectEdit as ei, commitCameraEdit as ti, commitObjectEdit as ai, copyKeyframe as ri, deleteKeyframe as ii, deleteObject as si, duplicateObject as oi, exitKeyEdit as ni, finishCameraEdit as li, goToAdjacentKey as ci, insertKeyframe as di, loadSelectedKeyView as mi, pasteKeyframe as hi, playblastCameraAtFrame as ui, refreshInspector as pi, refreshKeyEditor as fi, refreshObjects as yi, removeObjectResources as gi, renameObject as bi, retimeSelectedKey as Ci, selectKeyframe as wi, selectedKeyframe as vi, selectedObject as Si, selectObjectAnimation as ji, setKeyInterpolation as Pi, setObjectParent as ki, timelineKeyframes as Mi, timelineObject as Oi, toggleAutoKey as Ki, toggleObject as Fi, updateCameraFromHud as Ti, updateEditState as xi, updateKeyVisualState as Ei, updateSelectedKey as _i, updateSelectedObject as Ii } from "./omnicam-scene.js";
-import { configureCore as ma, sanitizeState as ha, sampleCamera as ua, clamp as zi, cloneCamera as Ai, defaultCamera as Wi, sampleObjectTransform as Di, worldTransform as Vi } from "./omnicam-core.js";
-function Hi(o) {
-  const { app: s, api: u, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: k, initializeTooltips: w, promptText: v, ObjectUrlRegistry: M, buildRoot: O, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: R, playblastCameraTrack: U, restoreFromWidgets: $, serializeEditorState: B, syncActiveCameraTrack: L, syncFromWidgets: q, bind: G, activateCamera: N, addCamera: Z, deleteCamera: J, drawPreviewOverlays: K, duplicateCamera: X, maximizeCameraPreview: Y, refreshCameraPreviews: Q, refreshCameraSelectors: ee, renameCamera: te, setPlayblastCamera: ae, toggleCameraView: re, captureRealtime: ie, makePlayblast: se, uploadDirectorPlayblast: oe, waitForMediaFrame: ne, computeAudioPeaks: le, loadAudioFile: ce, stopPlay: de, togglePlay: me, applyCameraPreset: he, applyCameraShake: ue, applyProxyPreset: pe, clearViewportBgImage: fe, loadViewportBgFile: ye, loadViewportBgSequence: ge, drawCameraPath: be, drawCard: Ce, drawCube: we, drawGrid: ve, drawHuman: Se, drawLine3D: je, drawNull: Pe, drawOverlays: ke, drawPointField: Me, drawSpeedHeatmap: Oe, drawSphere: Ke, curveChannels: Fe, drawCurveEditor: F, onCurvePointerDown: T, onCurvePointerMove: x, onCurvePointerUp: E, onTimelinePointerDown: Te, onTimelinePointerMove: xe, onTimelinePointerUp: Ee, refreshKeys: _, resetCurveZoom: I, resetTimelineZoom: P, setChannelFilter: z, setCurveInterpolation: A, setTangentMode: W, timelineFrameFromEvent: _e, toggleCurveHandles: D, zoomCurve: Ie, drawTransformGizmo: ze, frameTarget: Ae, gizmoAxes: We, gizmoGeometry: De, onPointerDown: Ve, onPointerMove: He, onPointerUp: Re, onWheel: Ue, pickGizmo: $e, pickSceneObject: Be, resetCamera: Le, setTransformMode: qe, setViewMode: Ge, viewportCamera: Ne, loadCardFile: Ze, loadExecutionPreview: Je, loadMediaUrl: Xe, loadModelFile: Ye, loadSelectedReference: Qe, onModelLoaded: et, restoreAssets: tt, syncUpstreamInputs: at, configureDomMedia: Gt, refreshSetupDiagnostic: rt, addMediaCard: it, addPrimitive: st, applyObjectAnimationFrame: ot, beginCameraEdit: nt, beginObjectEdit: lt, commitCameraEdit: ct, commitObjectEdit: dt, copyKeyframe: mt, deleteKeyframe: ht, deleteObject: ut, duplicateObject: pt, exitKeyEdit: ft, finishCameraEdit: yt, goToAdjacentKey: gt, insertKeyframe: bt, loadSelectedKeyView: Ct, pasteKeyframe: wt, playblastCameraAtFrame: vt, refreshInspector: St, refreshKeyEditor: jt, refreshObjects: Pt, removeObjectResources: kt, renameObject: Mt, retimeSelectedKey: Ot, selectKeyframe: Kt, selectedKeyframe: Ft, selectedObject: Tt, selectObjectAnimation: xt, setKeyInterpolation: Et, setObjectParent: _t, timelineKeyframes: It, timelineObject: zt, toggleAutoKey: At, toggleObject: Wt, updateCameraFromHud: Dt, updateEditState: Vt, updateKeyVisualState: Ht, updateSelectedKey: Rt, updateSelectedObject: Ut, clamp: V, cloneCamera: Nt, configureCore: Zt, defaultCamera: $t, sampleCamera: f, sampleObjectTransform: y, sanitizeState: Bt, worldTransform: Lt } = o;
+import { app as ia } from "../../scripts/app.js";
+import { api as Zt } from "../../scripts/api.js";
+import { OmniWebGLViewport as ra } from "./omnicam-webgl.js";
+import { EditorHistory as ca } from "./omnicam-history.js";
+import { ContextMenuController as da, initializeTooltips as wa, promptText as va } from "./omnicam-ui.js";
+import { ObjectUrlRegistry as ma } from "./omnicam-media.js";
+import { buildRoot as ha } from "./omnicam-template.js";
+import { dispatchDirectorKey as Sa } from "./omnicam-commands.js";
+import { activeCameraTrack as ja, bindWidgetCallbacks as ka, playblastCameraTrack as Pa, restoreFromWidgets as Ma, serializeEditorState as Oa, syncActiveCameraTrack as Ka, syncFromWidgets as Fa } from "./omnicam-state-sync.js";
+import { bind as Ta } from "./omnicam-event-bindings.js";
+import { activateCamera as xa, addCamera as Ea, deleteCamera as _a, drawPreviewOverlays as Ia, duplicateCamera as Aa, maximizeCameraPreview as za, refreshCameraPreviews as Wa, refreshCameraSelectors as Ra, renameCamera as Da, setPlayblastCamera as Va, toggleCameraView as Ha } from "./omnicam-cameras.js";
+import { captureRealtime as Ua, makePlayblast as $a, uploadDirectorPlayblast as Ba, waitForMediaFrame as qa } from "./omnicam-record.js";
+import { computeAudioPeaks as La, loadAudioFile as Ga, stopPlay as Na, togglePlay as Za } from "./omnicam-playback-transport.js";
+import { applyCameraPreset as Ja, applyCameraShake as Xa, applyProxyPreset as Ya } from "./omnicam-motion-presets.js";
+import { configureBackgroundManager as Qa, clearViewportBgImage as er, loadViewportBgFile as tr, loadViewportBgSequence as ar } from "./omnicam-background-manager.js";
+import { drawCameraPath as rr, drawCard as ir, drawCube as sr, drawGrid as or, drawHuman as nr, drawLine3D as lr, drawNull as cr, drawOverlays as dr, drawPointField as mr, drawSpeedHeatmap as hr, drawSphere as ur } from "./omnicam-viewport-overlays.js";
+import { curveChannels as pr, drawCurveEditor as fr, onCurvePointerDown as gr, onCurvePointerMove as yr, onCurvePointerUp as br, onTimelinePointerDown as Cr, onTimelinePointerMove as wr, onTimelinePointerUp as vr, refreshKeys as Sr, resetCurveZoom as jr, resetTimelineZoom as kr, setChannelFilter as Pr, setCurveInterpolation as Mr, setTangentMode as Or, timelineFrameFromEvent as Kr, toggleCurveHandles as Fr, zoomCurve as Tr } from "./omnicam-timeline.js";
+import { drawTransformGizmo as xr, frameTarget as Er, gizmoAxes as _r, gizmoGeometry as Ir, onPointerDown as Ar, onPointerMove as zr, onPointerUp as Wr, onWheel as Rr, pickGizmo as Dr, pickSceneObject as Vr, resetCamera as Hr, setTransformMode as Ur, setViewMode as $r, viewportCamera as Br } from "./omnicam-viewport-controls.js";
+import { configureDomMedia as ua, loadCardFile as qr, loadExecutionPreview as Lr, loadMediaUrl as Gr, loadModelFile as Nr, loadSelectedReference as Zr, onModelLoaded as Jr, restoreAssets as Xr, syncUpstreamInputs as Yr } from "./omnicam-dom-media.js";
+import { refreshSetupDiagnostic as Qr } from "./omnicam-diagnostics.js";
+import { addMediaCard as ei, addPrimitive as ti, applyObjectAnimationFrame as ai, beginCameraEdit as ri, beginObjectEdit as ii, commitCameraEdit as si, commitObjectEdit as oi, copyKeyframe as ni, deleteKeyframe as li, deleteObject as ci, duplicateObject as di, exitKeyEdit as mi, finishCameraEdit as hi, goToAdjacentKey as ui, insertKeyframe as pi, loadSelectedKeyView as fi, pasteKeyframe as gi, playblastCameraAtFrame as yi, refreshInspector as bi, refreshKeyEditor as Ci, refreshObjects as wi, removeObjectResources as vi, renameObject as Si, retimeSelectedKey as ji, selectKeyframe as ki, selectedKeyframe as Pi, selectedObject as Mi, selectObjectAnimation as Oi, setKeyInterpolation as Ki, setObjectParent as Fi, timelineKeyframes as Ti, timelineObject as xi, toggleAutoKey as Ei, toggleObject as _i, updateCameraFromHud as Ii, updateEditState as Ai, updateKeyVisualState as zi, updateSelectedKey as Wi, updateSelectedObject as Ri } from "./omnicam-scene.js";
+import { configureCore as pa, sanitizeState as fa, sampleCamera as ga, clamp as Di, cloneCamera as Vi, defaultCamera as Hi, sampleObjectTransform as Ui, worldTransform as $i } from "./omnicam-core.js";
+function Bi(o) {
+  const { app: s, api: p, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: O, initializeTooltips: w, promptText: v, ObjectUrlRegistry: K, buildRoot: F, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: $, playblastCameraTrack: B, restoreFromWidgets: q, serializeEditorState: L, syncActiveCameraTrack: G, syncFromWidgets: N, bind: Z, activateCamera: J, addCamera: X, deleteCamera: Y, drawPreviewOverlays: T, duplicateCamera: Q, maximizeCameraPreview: ee, refreshCameraPreviews: te, refreshCameraSelectors: ae, renameCamera: re, setPlayblastCamera: ie, toggleCameraView: se, captureRealtime: oe, makePlayblast: ne, uploadDirectorPlayblast: le, waitForMediaFrame: ce, computeAudioPeaks: de, loadAudioFile: me, stopPlay: he, togglePlay: ue, applyCameraPreset: pe, applyCameraShake: fe, applyProxyPreset: ge, clearViewportBgImage: ye, loadViewportBgFile: be, loadViewportBgSequence: Ce, drawCameraPath: we, drawCard: ve, drawCube: Se, drawGrid: je, drawHuman: ke, drawLine3D: Pe, drawNull: Me, drawOverlays: Oe, drawPointField: Ke, drawSpeedHeatmap: Fe, drawSphere: Te, curveChannels: xe, drawCurveEditor: x, onCurvePointerDown: E, onCurvePointerMove: _, onCurvePointerUp: I, onTimelinePointerDown: Ee, onTimelinePointerMove: _e, onTimelinePointerUp: Ie, refreshKeys: A, resetCurveZoom: z, resetTimelineZoom: k, setChannelFilter: W, setCurveInterpolation: R, setTangentMode: D, timelineFrameFromEvent: Ae, toggleCurveHandles: V, zoomCurve: ze, drawTransformGizmo: We, frameTarget: Re, gizmoAxes: De, gizmoGeometry: Ve, onPointerDown: He, onPointerMove: Ue, onPointerUp: $e, onWheel: Be, pickGizmo: qe, pickSceneObject: Le, resetCamera: Ge, setTransformMode: Ne, setViewMode: Ze, viewportCamera: Je, loadCardFile: Xe, loadExecutionPreview: Ye, loadMediaUrl: Qe, loadModelFile: et, loadSelectedReference: tt, onModelLoaded: at, restoreAssets: rt, syncUpstreamInputs: it, configureDomMedia: Jt, refreshSetupDiagnostic: st, addMediaCard: ot, addPrimitive: nt, applyObjectAnimationFrame: lt, beginCameraEdit: ct, beginObjectEdit: dt, commitCameraEdit: mt, commitObjectEdit: ht, copyKeyframe: ut, deleteKeyframe: pt, deleteObject: ft, duplicateObject: gt, exitKeyEdit: yt, finishCameraEdit: bt, goToAdjacentKey: Ct, insertKeyframe: wt, loadSelectedKeyView: vt, pasteKeyframe: St, playblastCameraAtFrame: jt, refreshInspector: kt, refreshKeyEditor: Pt, refreshObjects: Mt, removeObjectResources: Ot, renameObject: Kt, retimeSelectedKey: Ft, selectKeyframe: Tt, selectedKeyframe: xt, selectedObject: Et, selectObjectAnimation: _t, setKeyInterpolation: It, setObjectParent: At, timelineKeyframes: zt, timelineObject: Wt, toggleAutoKey: Rt, toggleObject: Dt, updateCameraFromHud: Vt, updateEditState: Ht, updateKeyVisualState: Ut, updateSelectedKey: $t, updateSelectedObject: Bt, clamp: H, cloneCamera: Xt, configureCore: Yt, defaultCamera: qt, sampleCamera: f, sampleObjectTransform: g, sanitizeState: Lt, worldTransform: Gt } = o;
   return {
     setSelectMode(e) {
-      ["object", "vertex", "edge", "face"].includes(e) && (this.state.select_mode = e, this.subSelection = null, this.serialize(), this.syncFromWidgets(), this.render(), this.setStatus(`Select Mode: ${e.toUpperCase()}`));
+      if (["object", "vertex", "edge", "face"].includes(e)) {
+        this.state.select_mode = e, this.subSelection = null;
+        for (const t of this.root.querySelectorAll("[data-select-mode]")) {
+          const a = t.dataset.selectMode === e;
+          t.classList.toggle("active", a), t.setAttribute("aria-pressed", String(a));
+        }
+        for (const t of this.root.querySelectorAll('[data-role="select-mode"]'))
+          t.value = e;
+        this.serialize(), this.syncFromWidgets(), this.render(), this.setStatus(`Select Mode: ${e.toUpperCase()}`);
+      }
     },
     refreshSetupDiagnostic() {
-      rt(this);
+      st(this);
     },
     hideInternalWidgets() {
       for (const e of ["state_json", "recording_path", "card_asset"]) {
@@ -37,11 +46,11 @@ function Hi(o) {
       }
     },
     restoreFromWidgets() {
-      $(this);
+      q(this);
     },
     restoreHistorySnapshot(e) {
       const t = JSON.parse(e);
-      this.state = Bt(t.state), this.frame = V(t.frame, 0, this.state.duration_frames - 1), this.selectedEntity = t.selectedEntity, this.selectedObjectId = t.selectedObjectId, this.selectedKeyFrame = t.selectedKeyFrame, this.camera = f(this.state, this.frame), this.cameraPreviewSignature = "", this.serialize(), this.restoreAssets(), this.refreshObjects(), this.refreshKeys(), this.render();
+      this.state = Lt(t.state), this.frame = H(t.frame, 0, this.state.duration_frames - 1), this.selectedEntity = t.selectedEntity, this.selectedObjectId = t.selectedObjectId, this.selectedKeyFrame = t.selectedKeyFrame, this.camera = f(this.state, this.frame), this.cameraPreviewSignature = "", this.serialize(), this.restoreAssets(), this.refreshObjects(), this.refreshKeys(), this.render();
     },
     checkpoint(e) {
       this.history.checkpoint(e);
@@ -55,49 +64,49 @@ function Hi(o) {
       e && this.setStatus(`Redo: ${e}`);
     },
     bind() {
-      G(this);
+      Z(this);
     },
     bindWidgetCallbacks() {
-      R(this);
+      $(this);
     },
     syncFromWidgets(e = !0) {
-      q(this, e);
+      N(this, e);
     },
     serialize() {
-      B(this);
+      L(this);
     },
     activeCameraTrack() {
       return j(this);
     },
     playblastCameraTrack() {
-      return U(this);
+      return B(this);
     },
     syncActiveCameraTrack() {
-      L(this);
+      G(this);
     },
     refreshCameraSelectors() {
-      ee(this);
+      ae(this);
     },
     refreshCameraPreviews() {
-      Q(this);
+      te(this);
     },
     addCamera() {
-      Z(this);
+      X(this);
     },
     async renameCamera(e) {
-      return te(this, e);
+      return re(this, e);
     },
     duplicateCamera(e) {
-      X(this, e);
+      Q(this, e);
     },
     async deleteCamera(e) {
-      return J(this, e);
+      return Y(this, e);
     },
     activateCamera(e) {
-      N(this, e);
+      J(this, e);
     },
     setPlayblastCamera(e) {
-      ae(this, e);
+      ie(this, e);
     },
     closeMenus(e = null) {
       for (const t of this.root.querySelectorAll(".toolbar-menu")) t !== e && (t.open = !1);
@@ -113,22 +122,28 @@ function Hi(o) {
       return this.contextMenu.show(e, t, a);
     },
     onContextMenu(e) {
+      e.preventDefault(), e.stopPropagation(), e.stopImmediatePropagation?.();
       const t = e.target, a = t.closest?.(".camera-preview-tile"), r = t.closest?.(".scene-item"), i = t.closest?.(".key");
       if (a) return this.openCameraContext(e, a.dataset.cameraId, !0);
       if (r?.dataset.cameraId) return this.openCameraContext(e, r.dataset.cameraId, !1);
       if (r?.dataset.objectId) return this.openObjectContext(e, r.dataset.objectId);
       if (i) {
-        const c = this.timelineKeyframes().find((d) => d.frame === Number(i.dataset.keyFrame));
-        return c && this.selectKeyframe(c), this.openTimelineContext(e, !0);
+        const d = this.timelineKeyframes().find((h) => h.frame === Number(i.dataset.keyFrame));
+        return d && this.selectKeyframe(d), this.openTimelineContext(e, !0);
       }
       if (t.closest?.('[data-role="keys"]'))
         return this.setFrame(this.timelineFrameFromEvent(e, t.closest('[data-role="keys"]'))), this.openTimelineContext(e, !1);
       if (t.closest?.(".curve-editor")) return this.openCurveContext(e);
       if (t.closest?.(".viewport-wrap")) {
-        const c = this.interactionElement.getBoundingClientRect(), d = (e.clientX - c.left) * this.canvas.width / Math.max(1, c.width), g = (e.clientY - c.top) * this.canvas.height / Math.max(1, c.height), p = this.pickSceneObject([d, g]);
-        return p ? (this.selectedEntity = "object", this.selectedObjectId = p.id, this.refreshObjects(), this.refreshKeys(), this.openObjectContext(e, p.id)) : this.openViewportContext(e);
+        const d = this.interactionElement.getBoundingClientRect(), h = (e.clientX - d.left) * this.canvas.width / Math.max(1, d.width), u = (e.clientY - d.top) * this.canvas.height / Math.max(1, d.height), m = this.pickSceneObject([h, u]);
+        if (m) {
+          if ((m.type === "object" || m.type === "object_keyframe") && m.object)
+            return this.selectedEntity = "object", this.selectedObjectId = m.object.id, m.keyframe ? (this.setFrame(m.keyframe.frame), this.selectedKeyFrame = m.keyframe.frame) : this.selectedKeyFrame = m.object.keyframes?.find((l) => l.frame === this.frame)?.frame ?? null, this.refreshObjects(), this.refreshKeys(), this.refreshInspector(), this.render(), this.openObjectContext(e, m.object.id);
+          if (["camera", "camera_target", "camera_keyframe"].includes(m.type) && m.camera)
+            return this.selectedEntity = m.type === "camera_target" ? "camera_target" : "camera", this.selectedObjectId = null, this.activateCamera(m.camera.id), m.keyframe && (this.setFrame(m.keyframe.frame), this.selectedKeyFrame = m.keyframe.frame), this.refreshObjects(), this.refreshKeys(), this.refreshInspector(), this.render(), this.openCameraContext(e, m.camera.id, !1);
+        }
+        return this.openViewportContext(e);
       }
-      e.preventDefault(), e.stopPropagation();
     },
     openViewportContext(e) {
       const t = this.selectedObject();
@@ -193,14 +208,14 @@ function Hi(o) {
       ]));
     },
     moveShot(e, t) {
-      const a = this.state.cameras.findIndex((c) => c.id === e), r = a + t;
+      const a = this.state.cameras.findIndex((d) => d.id === e), r = a + t;
       if (a < 0 || r < 0 || r >= this.state.cameras.length) return;
       this.checkpoint("Reorder shot");
       const [i] = this.state.cameras.splice(a, 1);
       this.state.cameras.splice(r, 0, i), this.cameraPreviewSignature = "", this.serialize(), this.refreshObjects(), this.refreshKeys(), this.renderCameraView(), this.setStatus(`Shot order: ${i.name} → #${r + 1}`);
     },
     async editShotHandles(e) {
-      const t = this.state.cameras.find((c) => c.id === e);
+      const t = this.state.cameras.find((d) => d.id === e);
       if (!t) return;
       const a = t.handles || { in: 0, out: 0 }, r = await v(s, "Shot handles", "Handle frames: in,out", `${a.in},${a.out}`);
       if (r == null) return;
@@ -210,7 +225,7 @@ function Hi(o) {
     },
     openTimelineContext(e, t) {
       this.showContextMenu(e, t ? `Keyframe F${this.selectedKeyFrame}` : `Timeline F${this.frame}`, [
-        { label: "Fit timeline view (F)", icon: "pi-arrows-alt", shortcut: "F", run: () => P(this) },
+        { label: "Fit timeline view (F)", icon: "pi-arrows-alt", shortcut: "F", run: () => k(this) },
         { label: "Set / replace key", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
         { label: "Delete selected key", icon: "pi-trash", shortcut: "Delete", danger: !0, disabled: !this.selectedKeyframe(), run: () => this.deleteKeyframe() },
         { label: "Copy selected key", icon: "pi-copy", shortcut: "Ctrl+C", disabled: !this.selectedKeyframe(), run: () => this.copyKeyframe() },
@@ -236,7 +251,7 @@ function Hi(o) {
     },
     openCurveContext(e) {
       this.showContextMenu(e, "Curve editor", [
-        { label: "Fit all curves (Framing)", icon: "pi-arrows-alt", shortcut: "F", run: () => I(this) },
+        { label: "Fit all curves (Framing)", icon: "pi-arrows-alt", shortcut: "F", run: () => z(this) },
         { label: "Set key at playhead", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
         { label: this.showCurveHandles ? "Hide Bézier handles" : "Show Bézier handles", icon: "pi-share-alt", run: () => this.toggleCurveHandles() },
         null,
@@ -247,125 +262,137 @@ function Hi(o) {
         { label: "Delete selected key", icon: "pi-trash", danger: !0, disabled: !this.selectedKeyframe(), run: () => this.deleteKeyframe() }
       ]);
     },
+    scheduleResizeAndRender() {
+      this.resizeScheduled || (this.resizeScheduled = !0, this.resizeFrame = requestAnimationFrame(() => {
+        this.resizeScheduled = !1, !this.disposed && (this.resizeCanvas(), this.render());
+      }));
+    },
     resizeCanvas() {
-      const e = this.root.querySelector(".viewport-wrap"), t = Math.min(2, window.devicePixelRatio || 1), a = Math.max(320, Math.round(e.clientWidth * t)), r = Math.max(180, Math.round(e.clientHeight * t));
-      (this.canvas.width !== a || this.canvas.height !== r) && (this.canvas.width = a, this.canvas.height = r);
-      for (const i of this.cameraPreviewCanvases.values()) {
-        const c = Math.max(220, Math.round(i.clientWidth * t)), d = Math.max(140, Math.round(i.clientHeight * t));
-        (i.width !== c || i.height !== d) && (i.width = c, i.height = d);
+      const e = this.root.querySelector(".viewport-wrap");
+      if (!e) return;
+      const t = Math.min(2, window.devicePixelRatio || 1), a = e.clientWidth || 320, r = e.clientHeight || 180, i = Math.max(320, Math.round(a * t)), d = Math.max(180, Math.round(r * t));
+      (this.canvas.width !== i || this.canvas.height !== d) && (this.canvas.width = i, this.canvas.height = d);
+      for (const h of this.cameraPreviewCanvases.values()) {
+        const u = h.clientWidth || 220, m = h.clientHeight || 140, l = Math.max(220, Math.round(u * t)), y = Math.max(140, Math.round(m * t));
+        (h.width !== l || h.height !== y) && (h.width = l, h.height = y);
       }
       this.drawCurveEditor();
     }
   };
 }
-function Ri(o) {
-  const { app: s, api: u, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: k, initializeTooltips: w, promptText: v, ObjectUrlRegistry: M, buildRoot: O, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: R, playblastCameraTrack: U, restoreFromWidgets: $, serializeEditorState: B, syncActiveCameraTrack: L, syncFromWidgets: q, bind: G, activateCamera: N, addCamera: Z, deleteCamera: J, drawPreviewOverlays: K, duplicateCamera: X, maximizeCameraPreview: Y, refreshCameraPreviews: Q, refreshCameraSelectors: ee, renameCamera: te, setPlayblastCamera: ae, toggleCameraView: re, captureRealtime: ie, makePlayblast: se, uploadDirectorPlayblast: oe, waitForMediaFrame: ne, computeAudioPeaks: le, loadAudioFile: ce, stopPlay: de, togglePlay: me, applyCameraPreset: he, applyCameraShake: ue, applyProxyPreset: pe, clearViewportBgImage: fe, loadViewportBgFile: ye, loadViewportBgSequence: ge, drawCameraPath: be, drawCard: Ce, drawCube: we, drawGrid: ve, drawHuman: Se, drawLine3D: je, drawNull: Pe, drawOverlays: ke, drawPointField: Me, drawSpeedHeatmap: Oe, drawSphere: Ke, curveChannels: Fe, drawCurveEditor: F, onCurvePointerDown: T, onCurvePointerMove: x, onCurvePointerUp: E, onTimelinePointerDown: Te, onTimelinePointerMove: xe, onTimelinePointerUp: Ee, refreshKeys: _, resetCurveZoom: I, resetTimelineZoom: P, setChannelFilter: z, setCurveInterpolation: A, setTangentMode: W, timelineFrameFromEvent: _e, toggleCurveHandles: D, zoomCurve: Ie, drawTransformGizmo: ze, frameTarget: Ae, gizmoAxes: We, gizmoGeometry: De, onPointerDown: Ve, onPointerMove: He, onPointerUp: Re, onWheel: Ue, pickGizmo: $e, pickSceneObject: Be, resetCamera: Le, setTransformMode: qe, setViewMode: Ge, viewportCamera: Ne, loadCardFile: Ze, loadExecutionPreview: Je, loadMediaUrl: Xe, loadModelFile: Ye, loadSelectedReference: Qe, onModelLoaded: et, restoreAssets: tt, syncUpstreamInputs: at, configureDomMedia: Gt, refreshSetupDiagnostic: rt, addMediaCard: it, addPrimitive: st, applyObjectAnimationFrame: ot, beginCameraEdit: nt, beginObjectEdit: lt, commitCameraEdit: ct, commitObjectEdit: dt, copyKeyframe: mt, deleteKeyframe: ht, deleteObject: ut, duplicateObject: pt, exitKeyEdit: ft, finishCameraEdit: yt, goToAdjacentKey: gt, insertKeyframe: bt, loadSelectedKeyView: Ct, pasteKeyframe: wt, playblastCameraAtFrame: vt, refreshInspector: St, refreshKeyEditor: jt, refreshObjects: Pt, removeObjectResources: kt, renameObject: Mt, retimeSelectedKey: Ot, selectKeyframe: Kt, selectedKeyframe: Ft, selectedObject: Tt, selectObjectAnimation: xt, setKeyInterpolation: Et, setObjectParent: _t, timelineKeyframes: It, timelineObject: zt, toggleAutoKey: At, toggleObject: Wt, updateCameraFromHud: Dt, updateEditState: Vt, updateKeyVisualState: Ht, updateSelectedKey: Rt, updateSelectedObject: Ut, clamp: V, cloneCamera: Nt, configureCore: Zt, defaultCamera: $t, sampleCamera: f, sampleObjectTransform: y, sanitizeState: Bt, worldTransform: Lt } = o;
+function qi(o) {
+  const { app: s, api: p, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: O, initializeTooltips: w, promptText: v, ObjectUrlRegistry: K, buildRoot: F, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: $, playblastCameraTrack: B, restoreFromWidgets: q, serializeEditorState: L, syncActiveCameraTrack: G, syncFromWidgets: N, bind: Z, activateCamera: J, addCamera: X, deleteCamera: Y, drawPreviewOverlays: T, duplicateCamera: Q, maximizeCameraPreview: ee, refreshCameraPreviews: te, refreshCameraSelectors: ae, renameCamera: re, setPlayblastCamera: ie, toggleCameraView: se, captureRealtime: oe, makePlayblast: ne, uploadDirectorPlayblast: le, waitForMediaFrame: ce, computeAudioPeaks: de, loadAudioFile: me, stopPlay: he, togglePlay: ue, applyCameraPreset: pe, applyCameraShake: fe, applyProxyPreset: ge, clearViewportBgImage: ye, loadViewportBgFile: be, loadViewportBgSequence: Ce, drawCameraPath: we, drawCard: ve, drawCube: Se, drawGrid: je, drawHuman: ke, drawLine3D: Pe, drawNull: Me, drawOverlays: Oe, drawPointField: Ke, drawSpeedHeatmap: Fe, drawSphere: Te, curveChannels: xe, drawCurveEditor: x, onCurvePointerDown: E, onCurvePointerMove: _, onCurvePointerUp: I, onTimelinePointerDown: Ee, onTimelinePointerMove: _e, onTimelinePointerUp: Ie, refreshKeys: A, resetCurveZoom: z, resetTimelineZoom: k, setChannelFilter: W, setCurveInterpolation: R, setTangentMode: D, timelineFrameFromEvent: Ae, toggleCurveHandles: V, zoomCurve: ze, drawTransformGizmo: We, frameTarget: Re, gizmoAxes: De, gizmoGeometry: Ve, onPointerDown: He, onPointerMove: Ue, onPointerUp: $e, onWheel: Be, pickGizmo: qe, pickSceneObject: Le, resetCamera: Ge, setTransformMode: Ne, setViewMode: Ze, viewportCamera: Je, loadCardFile: Xe, loadExecutionPreview: Ye, loadMediaUrl: Qe, loadModelFile: et, loadSelectedReference: tt, onModelLoaded: at, restoreAssets: rt, syncUpstreamInputs: it, configureDomMedia: Jt, refreshSetupDiagnostic: st, addMediaCard: ot, addPrimitive: nt, applyObjectAnimationFrame: lt, beginCameraEdit: ct, beginObjectEdit: dt, commitCameraEdit: mt, commitObjectEdit: ht, copyKeyframe: ut, deleteKeyframe: pt, deleteObject: ft, duplicateObject: gt, exitKeyEdit: yt, finishCameraEdit: bt, goToAdjacentKey: Ct, insertKeyframe: wt, loadSelectedKeyView: vt, pasteKeyframe: St, playblastCameraAtFrame: jt, refreshInspector: kt, refreshKeyEditor: Pt, refreshObjects: Mt, removeObjectResources: Ot, renameObject: Kt, retimeSelectedKey: Ft, selectKeyframe: Tt, selectedKeyframe: xt, selectedObject: Et, selectObjectAnimation: _t, setKeyInterpolation: It, setObjectParent: At, timelineKeyframes: zt, timelineObject: Wt, toggleAutoKey: Rt, toggleObject: Dt, updateCameraFromHud: Vt, updateEditState: Ht, updateKeyVisualState: Ut, updateSelectedKey: $t, updateSelectedObject: Bt, clamp: H, cloneCamera: Xt, configureCore: Yt, defaultCamera: qt, sampleCamera: f, sampleObjectTransform: g, sanitizeState: Lt, worldTransform: Gt } = o;
   return {
     setChannelFilter(e) {
-      z(this, e);
+      W(this, e);
     },
     setFrame(e, t = !1, a = !0) {
-      this.frame = V(Math.round(e), 0, this.state.duration_frames - 1), this.editingKeyFrame !== this.frame && (this.editingKeyFrame = null), this.camera = f(this.activeCameraTrack(), this.frame), this.applyObjectAnimationFrame(), this.root.querySelector('[data-role="frame"]').value = String(this.frame), this.root.querySelector('[data-role="scrub"]').value = String(this.frame), this.root.querySelector('[data-role="fov"]').value = String(Math.round(this.camera.fov * 100) / 100), this.root.querySelector('[data-role="roll"]').value = String(Math.round((this.camera.roll || 0) * 100) / 100), this.root.querySelector('[data-role="camera-type"]').value = this.camera.camera_type;
+      this.frame = H(Math.round(e), 0, this.state.duration_frames - 1), this.editingKeyFrame !== this.frame && (this.editingKeyFrame = null), this.camera = f(this.activeCameraTrack(), this.frame), this.applyObjectAnimationFrame();
+      for (const l of this.root.querySelectorAll('[data-role="frame"]')) document.activeElement !== l && (l.value = String(this.frame));
+      for (const l of this.root.querySelectorAll('[data-role="scrub"]')) l.value = String(this.frame);
+      for (const l of this.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) document.activeElement !== l && (l.value = String(Math.round(this.camera.fov * 100) / 100));
+      for (const l of this.root.querySelectorAll('[data-role="roll"], [data-role="camera-roll"]')) document.activeElement !== l && (l.value = String(Math.round((this.camera.roll || 0) * 100) / 100));
+      for (const l of this.root.querySelectorAll('[data-role="camera-type"]')) document.activeElement !== l && (l.value = this.camera.camera_type || "perspective");
       const r = this.frame / this.state.fps;
-      for (const m of this.cardMediaById.values()) m instanceof HTMLVideoElement && Number.isFinite(m.duration) && m.duration > 0 && (m.currentTime = r % m.duration);
-      const i = Math.floor(r / 60), c = Math.floor(r % 60), d = Math.floor(r % 1 * 1e3), g = this.frame % Math.max(1, Math.round(this.state.fps)), p = Math.floor(this.frame / this.state.fps);
-      if (this.root.querySelector('[data-role="time"]').textContent = this.state.timecode_mode === "timecode" ? `${String(Math.floor(p / 3600)).padStart(2, "0")}:${String(Math.floor(p / 60) % 60).padStart(2, "0")}:${String(p % 60).padStart(2, "0")}:${String(g).padStart(2, "0")}` : `${String(i).padStart(2, "0")}:${String(c).padStart(2, "0")}.${String(d).padStart(3, "0")}`, a) this.refreshKeys();
+      for (const l of this.cardMediaById.values()) l instanceof HTMLVideoElement && Number.isFinite(l.duration) && l.duration > 0 && (l.currentTime = r % l.duration);
+      const i = Math.floor(r / 60), d = Math.floor(r % 60), h = Math.floor(r % 1 * 1e3), u = this.frame % Math.max(1, Math.round(this.state.fps)), m = Math.floor(this.frame / this.state.fps);
+      if (this.root.querySelector('[data-role="time"]').textContent = this.state.timecode_mode === "timecode" ? `${String(Math.floor(m / 3600)).padStart(2, "0")}:${String(Math.floor(m / 60) % 60).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}:${String(u).padStart(2, "0")}` : `${String(i).padStart(2, "0")}:${String(d).padStart(2, "0")}.${String(h).padStart(3, "0")}`, a) this.refreshKeys();
       else {
-        const m = Math.max(1, this.state.duration_frames - 1), l = this.root.querySelector('[data-role="keys"] .playhead');
-        l && (l.style.left = `${100 * this.frame / m}%`);
-        for (const h of this.root.querySelectorAll("[data-key-frame]")) {
-          const b = Number(h.dataset.keyFrame);
-          h.classList.toggle("at-playhead", b === this.frame), h.classList.toggle("selected", b === this.selectedKeyFrame), h.classList.toggle("editing", b === this.editingKeyFrame);
+        const l = Math.max(1, this.state.duration_frames - 1), y = this.root.querySelector('[data-role="keys"] .playhead');
+        y && (y.style.left = `${100 * this.frame / l}%`);
+        for (const P of this.root.querySelectorAll("[data-key-frame]")) {
+          const b = Number(P.dataset.keyFrame);
+          P.classList.toggle("at-playhead", b === this.frame), P.classList.toggle("selected", b === this.selectedKeyFrame), P.classList.toggle("editing", b === this.editingKeyFrame);
         }
         this.refreshKeyEditor(), this.drawCurveEditor();
       }
       t || this.serialize(), this.refreshInspector(), this.render();
     },
     timelineObject() {
-      return zt(this);
+      return Wt(this);
     },
     timelineKeyframes() {
-      return It(this);
+      return zt(this);
     },
     applyObjectAnimationFrame() {
-      ot(this, y);
+      lt(this, g);
     },
     insertKeyframe() {
       for (const e of this.root.querySelectorAll('[data-act="key"]'))
         e.classList.remove("key-pulse"), e.offsetWidth, e.classList.add("key-pulse");
-      bt(this);
-    },
-    setKeyInterpolation(e) {
-      Et(this, e);
-    },
-    deleteKeyframe() {
-      ht(this);
-    },
-    copyKeyframe() {
-      mt(this);
-    },
-    pasteKeyframe() {
       wt(this);
     },
+    setKeyInterpolation(e) {
+      It(this, e);
+    },
+    deleteKeyframe() {
+      pt(this);
+    },
+    copyKeyframe() {
+      ut(this);
+    },
+    pasteKeyframe() {
+      St(this);
+    },
     resetCamera() {
-      Le(this, $t);
+      Ge(this, qt);
     },
     selectedKeyframe() {
-      return Ft(this);
+      return xt(this);
     },
     selectKeyframe(e) {
-      Kt(this, e);
+      Tt(this, e);
     },
     beginCameraEdit() {
-      return nt(this);
+      return ct(this);
     },
     commitCameraEdit() {
-      ct(this);
+      mt(this);
     },
     finishCameraEdit() {
-      yt(this);
+      bt(this);
     },
     exitKeyEdit(e = !1) {
-      ft(this, e);
+      yt(this, e);
     },
     toggleAutoKey() {
-      At(this);
+      Rt(this);
     },
     updateEditState() {
-      Vt(this);
-    },
-    updateKeyVisualState() {
       Ht(this);
     },
+    updateKeyVisualState() {
+      Ut(this);
+    },
     curveChannels() {
-      return Fe(this);
+      return xe(this);
     },
     drawCurveEditor() {
-      F(this);
+      x(this);
     },
     onCurvePointerDown(e) {
-      T(this, e);
-    },
-    onCurvePointerMove(e) {
-      x(this, e);
-    },
-    onCurvePointerUp(e) {
       E(this, e);
     },
+    onCurvePointerMove(e) {
+      _(this, e);
+    },
+    onCurvePointerUp(e) {
+      I(this, e);
+    },
     setCurveInterpolation(e) {
-      A(this, e);
+      R(this, e);
     },
     setTangentMode(e) {
-      W(this, e);
+      D(this, e);
     },
     toggleCurveHandles() {
-      D(this);
+      V(this);
     },
     onTimelineWheel(e) {
       onTimelineWheel(this, e);
     },
     resetTimelineZoom() {
-      P(this);
+      k(this);
     },
     toggleInspector(e) {
       const t = this.root.querySelector('[data-role="viewport-inspector"]');
@@ -377,58 +404,58 @@ function Ri(o) {
       this.setStatus(a ? "Inspector hidden (N)" : "Inspector shown");
     },
     refreshKeys() {
-      _(this);
+      A(this);
     },
     refreshKeyEditor() {
-      jt(this);
+      Pt(this);
     },
     retimeSelectedKey(e, t = !1) {
-      Ot(this, e, t);
+      Ft(this, e, t);
     },
     updateSelectedKey() {
-      Rt(this);
+      $t(this);
     },
     updateKeyFromView() {
       updateKeyFromView(this);
     },
     loadSelectedKeyView() {
-      Ct(this);
+      vt(this);
     },
     goToAdjacentKey(e) {
-      gt(this, e);
+      Ct(this, e);
     },
     addPrimitive(e) {
-      st(this, e);
+      nt(this, e);
     },
     async renameObject(e) {
-      return Mt(this, e);
+      return Kt(this, e);
     },
     duplicateObject(e) {
-      pt(this, e);
+      gt(this, e);
     },
     toggleObject(e) {
-      Wt(this, e);
+      Dt(this, e);
     },
     async deleteObject(e) {
-      return ut(this, e);
+      return ft(this, e);
     },
     addMediaCard() {
-      it(this);
+      ot(this);
     },
     selectedObject() {
-      return Tt(this);
+      return Et(this);
     },
     playblastCameraAtFrame() {
-      return vt(this, f);
+      return jt(this, f);
     },
     viewportCamera() {
-      return Ne(this);
+      return Je(this);
     },
     setViewMode(e) {
-      Ge(this, e);
+      Ze(this, e);
     },
     toggleCameraView() {
-      re(this);
+      se(this);
     },
     setDensity(e) {
       ["basic", "animation", "advanced"].includes(e) || (e = "advanced"), this.state.ui_density = e, this.root.dataset.density = e, this.root.querySelector('[data-role="ui-density"]').value = e, this.serialize(), requestAnimationFrame(() => {
@@ -445,28 +472,28 @@ function Ri(o) {
       }
     },
     setTransformMode(e) {
-      qe(this, e);
+      Ne(this, e);
     },
     refreshInspector() {
-      St(this);
+      kt(this);
     },
     updateSelectedObject() {
-      Ut(this);
+      Bt(this);
     },
     beginObjectEdit(e) {
-      return lt(this, e);
+      return dt(this, e);
     },
     commitObjectEdit(e) {
-      dt(this, e);
+      ht(this, e);
     },
     updateCameraFromHud() {
-      Dt(this);
+      Vt(this);
     },
     selectObjectAnimation(e) {
-      xt(this, e);
+      _t(this, e);
     },
     setObjectParent(e) {
-      _t(this, e);
+      At(this, e);
     },
     applyProxyPreset(e) {
       const t = { balanced: { mode: "omni_ref", burn: !1 }, parallax: { mode: "point_field", burn: !1 }, subject: { mode: "card_grid", burn: !1 }, debug: { mode: "omni_ref", burn: !0 } }, a = t[e] || t.balanced;
@@ -486,17 +513,17 @@ function Ri(o) {
       a >= 0 && e.connect(0, t, a), r >= 0 && e.connect(1, t, r), this.setStatus(a >= 0 ? "H3 reference workflow created" : "H3 nodes created; connect camera video to Video 1");
     },
     refreshObjects() {
-      Pt(this);
+      Mt(this);
     },
     removeObjectResources(e) {
-      kt(this, e);
+      Ot(this, e);
     },
     aimAtSelectedObject(e) {
       this.checkpoint("Aim & track subject");
-      const t = this.activeCameraTrack(), a = e && this.state.objects.find((c) => c.id === e) || this.selectedObject() || this.state.objects.find((c) => c.id === "subject") || this.state.objects[0];
+      const t = this.activeCameraTrack(), a = e && this.state.objects.find((d) => d.id === e) || this.selectedObject() || this.state.objects.find((d) => d.id === "subject") || this.state.objects[0];
       if (!a) return;
       t.target_object_id = a.id, t.id === this.state.active_camera_id && (this.state.target_object_id = a.id);
-      const i = (a.type === "model" || a.type === "glb" ? this.webgl?.getObjectWorldCenter?.(a.id) : null) || (a.keyframes?.length ? y(a, this.frame).position : a.position || [0, 1.5, 0]);
+      const i = (a.type === "model" || a.type === "glb" ? this.webgl?.getObjectWorldCenter?.(a.id) : null) || (a.keyframes?.length ? g(a, this.frame).position : a.position || [0, 1.5, 0]);
       this.camera.target = [...i], this.beginCameraEdit(), this.commitCameraEdit(), this.finishCameraEdit(), this.serialize(), this.refreshInspector(), this.updateHudCamera(), this.render(), this.setStatus(`Camera tracking locked to ${a.name || a.id}`);
     },
     setCameraTrackingTarget(e) {
@@ -505,7 +532,7 @@ function Ri(o) {
       if (t.target_object_id = e || null, t.id === this.state.active_camera_id && (this.state.target_object_id = e || null), e) {
         const a = this.state.objects.find((r) => r.id === e);
         if (a) {
-          const i = (a.type === "model" || a.type === "glb" ? this.webgl?.getObjectWorldCenter?.(a.id) : null) || (a.keyframes?.length ? y(a, this.frame).position : a.position || [0, 1.5, 0]);
+          const i = (a.type === "model" || a.type === "glb" ? this.webgl?.getObjectWorldCenter?.(a.id) : null) || (a.keyframes?.length ? g(a, this.frame).position : a.position || [0, 1.5, 0]);
           this.camera.target = [...i], this.beginCameraEdit(), this.commitCameraEdit(), this.finishCameraEdit();
         }
       }
@@ -517,15 +544,15 @@ function Ri(o) {
       if (!a || !e.keyframes?.length) return;
       const r = a.type === "model" || a.type === "glb" ? this.webgl?.getObjectWorldCenter?.(a.id) : null;
       for (const i of e.keyframes) {
-        const c = (a.type === "model" || a.type === "glb") && r && !a.keyframes?.length ? r : a.keyframes?.length ? y(a, i.frame).position : a.position || [0, 1.5, 0];
-        i.camera.target = [...c];
+        const d = (a.type === "model" || a.type === "glb") && r && !a.keyframes?.length ? r : a.keyframes?.length ? g(a, i.frame).position : a.position || [0, 1.5, 0];
+        i.camera.target = [...d];
       }
       e.id === this.state.active_camera_id && (this.state.keyframes = e.keyframes), this.serialize(), this.refreshKeys(), this.refreshInspector(), this.render(), this.setStatus(`Aim baked across all keyframes following ${a.name || a.id}`);
     }
   };
 }
-function Ui(o) {
-  const { app: s, api: u, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: k, initializeTooltips: w, promptText: v, ObjectUrlRegistry: M, buildRoot: O, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: R, playblastCameraTrack: U, restoreFromWidgets: $, serializeEditorState: B, syncActiveCameraTrack: L, syncFromWidgets: q, bind: G, activateCamera: N, addCamera: Z, deleteCamera: J, drawPreviewOverlays: K, duplicateCamera: X, maximizeCameraPreview: Y, refreshCameraPreviews: Q, refreshCameraSelectors: ee, renameCamera: te, setPlayblastCamera: ae, toggleCameraView: re, captureRealtime: ie, makePlayblast: se, uploadDirectorPlayblast: oe, waitForMediaFrame: ne, computeAudioPeaks: le, loadAudioFile: ce, stopPlay: de, togglePlay: me, applyCameraPreset: he, applyCameraShake: ue, applyProxyPreset: pe, clearViewportBgImage: fe, loadViewportBgFile: ye, loadViewportBgSequence: ge, drawCameraPath: be, drawCard: Ce, drawCube: we, drawGrid: ve, drawHuman: Se, drawLine3D: je, drawNull: Pe, drawOverlays: ke, drawPointField: Me, drawSpeedHeatmap: Oe, drawSphere: Ke, curveChannels: Fe, drawCurveEditor: F, onCurvePointerDown: T, onCurvePointerMove: x, onCurvePointerUp: E, onTimelinePointerDown: Te, onTimelinePointerMove: xe, onTimelinePointerUp: Ee, refreshKeys: _, resetCurveZoom: I, resetTimelineZoom: P, setChannelFilter: z, setCurveInterpolation: A, setTangentMode: W, timelineFrameFromEvent: _e, toggleCurveHandles: D, zoomCurve: Ie, drawTransformGizmo: ze, frameTarget: Ae, gizmoAxes: We, gizmoGeometry: De, onPointerDown: Ve, onPointerMove: He, onPointerUp: Re, onWheel: Ue, pickGizmo: $e, pickSceneObject: Be, resetCamera: Le, setTransformMode: qe, setViewMode: Ge, viewportCamera: Ne, loadCardFile: Ze, loadExecutionPreview: Je, loadMediaUrl: Xe, loadModelFile: Ye, loadSelectedReference: Qe, onModelLoaded: et, restoreAssets: tt, syncUpstreamInputs: at, configureDomMedia: Gt, refreshSetupDiagnostic: rt, addMediaCard: it, addPrimitive: st, applyObjectAnimationFrame: ot, beginCameraEdit: nt, beginObjectEdit: lt, commitCameraEdit: ct, commitObjectEdit: dt, copyKeyframe: mt, deleteKeyframe: ht, deleteObject: ut, duplicateObject: pt, exitKeyEdit: ft, finishCameraEdit: yt, goToAdjacentKey: gt, insertKeyframe: bt, loadSelectedKeyView: Ct, pasteKeyframe: wt, playblastCameraAtFrame: vt, refreshInspector: St, refreshKeyEditor: jt, refreshObjects: Pt, removeObjectResources: kt, renameObject: Mt, retimeSelectedKey: Ot, selectKeyframe: Kt, selectedKeyframe: Ft, selectedObject: Tt, selectObjectAnimation: xt, setKeyInterpolation: Et, setObjectParent: _t, timelineKeyframes: It, timelineObject: zt, toggleAutoKey: At, toggleObject: Wt, updateCameraFromHud: Dt, updateEditState: Vt, updateKeyVisualState: Ht, updateSelectedKey: Rt, updateSelectedObject: Ut, clamp: V, cloneCamera: Nt, configureCore: Zt, defaultCamera: $t, sampleCamera: f, sampleObjectTransform: y, sanitizeState: Bt, worldTransform: Lt } = o;
+function Li(o) {
+  const { app: s, api: p, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: O, initializeTooltips: w, promptText: v, ObjectUrlRegistry: K, buildRoot: F, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: $, playblastCameraTrack: B, restoreFromWidgets: q, serializeEditorState: L, syncActiveCameraTrack: G, syncFromWidgets: N, bind: Z, activateCamera: J, addCamera: X, deleteCamera: Y, drawPreviewOverlays: T, duplicateCamera: Q, maximizeCameraPreview: ee, refreshCameraPreviews: te, refreshCameraSelectors: ae, renameCamera: re, setPlayblastCamera: ie, toggleCameraView: se, captureRealtime: oe, makePlayblast: ne, uploadDirectorPlayblast: le, waitForMediaFrame: ce, computeAudioPeaks: de, loadAudioFile: me, stopPlay: he, togglePlay: ue, applyCameraPreset: pe, applyCameraShake: fe, applyProxyPreset: ge, clearViewportBgImage: ye, loadViewportBgFile: be, loadViewportBgSequence: Ce, drawCameraPath: we, drawCard: ve, drawCube: Se, drawGrid: je, drawHuman: ke, drawLine3D: Pe, drawNull: Me, drawOverlays: Oe, drawPointField: Ke, drawSpeedHeatmap: Fe, drawSphere: Te, curveChannels: xe, drawCurveEditor: x, onCurvePointerDown: E, onCurvePointerMove: _, onCurvePointerUp: I, onTimelinePointerDown: Ee, onTimelinePointerMove: _e, onTimelinePointerUp: Ie, refreshKeys: A, resetCurveZoom: z, resetTimelineZoom: k, setChannelFilter: W, setCurveInterpolation: R, setTangentMode: D, timelineFrameFromEvent: Ae, toggleCurveHandles: V, zoomCurve: ze, drawTransformGizmo: We, frameTarget: Re, gizmoAxes: De, gizmoGeometry: Ve, onPointerDown: He, onPointerMove: Ue, onPointerUp: $e, onWheel: Be, pickGizmo: qe, pickSceneObject: Le, resetCamera: Ge, setTransformMode: Ne, setViewMode: Ze, viewportCamera: Je, loadCardFile: Xe, loadExecutionPreview: Ye, loadMediaUrl: Qe, loadModelFile: et, loadSelectedReference: tt, onModelLoaded: at, restoreAssets: rt, syncUpstreamInputs: it, configureDomMedia: Jt, refreshSetupDiagnostic: st, addMediaCard: ot, addPrimitive: nt, applyObjectAnimationFrame: lt, beginCameraEdit: ct, beginObjectEdit: dt, commitCameraEdit: mt, commitObjectEdit: ht, copyKeyframe: ut, deleteKeyframe: pt, deleteObject: ft, duplicateObject: gt, exitKeyEdit: yt, finishCameraEdit: bt, goToAdjacentKey: Ct, insertKeyframe: wt, loadSelectedKeyView: vt, pasteKeyframe: St, playblastCameraAtFrame: jt, refreshInspector: kt, refreshKeyEditor: Pt, refreshObjects: Mt, removeObjectResources: Ot, renameObject: Kt, retimeSelectedKey: Ft, selectKeyframe: Tt, selectedKeyframe: xt, selectedObject: Et, selectObjectAnimation: _t, setKeyInterpolation: It, setObjectParent: At, timelineKeyframes: zt, timelineObject: Wt, toggleAutoKey: Rt, toggleObject: Dt, updateCameraFromHud: Vt, updateEditState: Ht, updateKeyVisualState: Ut, updateSelectedKey: $t, updateSelectedObject: Bt, clamp: H, cloneCamera: Xt, configureCore: Yt, defaultCamera: qt, sampleCamera: f, sampleObjectTransform: g, sanitizeState: Lt, worldTransform: Gt } = o;
   return {
     setTargetAtCursor(e) {
       if (!e) return;
@@ -543,25 +570,25 @@ function Ui(o) {
       this.refreshInspector();
     },
     togglePlay() {
-      me(this);
+      ue(this);
     },
     stopPlay() {
-      de(this);
+      he(this);
     },
     computeAudioPeaks() {
-      le(this);
+      de(this);
     },
     async loadAudioFile(e) {
-      return ce(this, e);
+      return me(this, e);
     },
     applyCameraPreset(e) {
-      he(this, e);
+      pe(this, e);
     },
     applyCameraShake(e) {
-      ue(this, e);
+      fe(this, e);
     },
     applyProxyPreset(e) {
-      pe(this, e);
+      ge(this, e);
     },
     clearCaches() {
       if (this.checkpoint("Clear caches"), this.objectUrls?.clear(), this.audioSource) {
@@ -571,20 +598,20 @@ function Ui(o) {
         }
         this.audioSource = null;
       }
-      if (this.webgl) {
+      if (this.audioContext?.close?.().catch?.(() => {
+      }), this.audioContext = null, this.webgl) {
         for (const e of this.webgl.models.values())
           try {
             e.scene && disposeObject(e.scene, !0);
           } catch {
           }
-        if (this.webgl.models.clear(), this.webgl.modelLoads.clear(), this.webgl.sceneKey = "", this.webgl.mediaSignature = "", this.webgl.modelSignature = "", this.webgl.pathKey = "", this.webgl.bgTexture) {
+        this.webgl.models.clear(), this.webgl.modelLoads.clear(), this.webgl.sceneKey = "", this.webgl.mediaSignature = "", this.webgl.modelSignature = "", this.webgl.pathKey = "", this.webgl.bgLoadGeneration += 1, this.webgl.bgTextureLoads?.clear();
+        for (const e of new Set(this.webgl.bgTextureCache?.values() || []))
           try {
-            this.webgl.bgTexture.dispose();
+            e.dispose();
           } catch {
           }
-          this.webgl.bgTexture = null;
-        }
-        this.webgl.bgImageUrl = "";
+        this.webgl.bgTextureCache?.clear(), this.webgl.bgTexture = null, this.webgl.bgImageUrl = "";
       }
       if (this.cameraWebgl) {
         for (const e of this.cameraWebgl.models.values())
@@ -592,7 +619,13 @@ function Ui(o) {
             e.scene && disposeObject(e.scene, !0);
           } catch {
           }
-        this.cameraWebgl.models.clear(), this.cameraWebgl.modelLoads.clear(), this.cameraWebgl.sceneKey = "", this.cameraWebgl.mediaSignature = "", this.cameraWebgl.modelSignature = "", this.cameraWebgl.pathKey = "";
+        this.cameraWebgl.models.clear(), this.cameraWebgl.modelLoads.clear(), this.cameraWebgl.sceneKey = "", this.cameraWebgl.mediaSignature = "", this.cameraWebgl.modelSignature = "", this.cameraWebgl.pathKey = "", this.cameraWebgl.bgLoadGeneration += 1, this.cameraWebgl.bgTextureLoads?.clear();
+        for (const e of new Set(this.cameraWebgl.bgTextureCache?.values() || []))
+          try {
+            e.dispose();
+          } catch {
+          }
+        this.cameraWebgl.bgTextureCache?.clear(), this.cameraWebgl.bgTexture = null, this.cameraWebgl.bgImageUrl = "";
       }
       this.upstreamSignature = "", this.cameraPreviewSignature = "", this.cardMediaById.clear(), this.cardMedia = null, this.restoreAssets(), this.syncUpstreamInputs(), this.refreshObjects(), this.refreshKeys(), this.refreshCameraSelectors(), this.renderCameraView(), this.render(), this.setStatus("Caches cleared & memory freed");
     },
@@ -620,166 +653,166 @@ function Ui(o) {
       e.classList.toggle("active", this.state.snap_enabled), e.setAttribute("aria-pressed", String(this.state.snap_enabled)), this.setStatus(`Snap ${this.state.snap_enabled ? "on" : "off"}`);
     },
     scheduleSerialize() {
-      this.serializeScheduled || (this.serializeScheduled = !0, requestAnimationFrame(() => {
-        this.serializeScheduled = !1, this.serialize();
+      this.serializeScheduled || (this.serializeScheduled = !0, this.serializeFrame = requestAnimationFrame(() => {
+        this.serializeScheduled = !1, this.disposed || this.serialize();
       }));
     },
     gizmoAxes(e) {
-      return We(this, e);
-    },
-    gizmoGeometry(e) {
       return De(this, e);
     },
+    gizmoGeometry(e) {
+      return Ve(this, e);
+    },
     pickGizmo(e) {
-      return $e(this, e);
+      return qe(this, e);
     },
     pickSceneObject(e) {
-      return Be(this, e);
+      return Le(this, e);
     },
     drawTransformGizmo() {
-      ze(this);
+      We(this);
     },
     onPointerDown(e) {
-      Ve(this, e);
-    },
-    onPointerMove(e) {
       He(this, e);
     },
-    onPointerUp(e) {
-      Re(this, e);
-    },
-    onWheel(e) {
+    onPointerMove(e) {
       Ue(this, e);
     },
+    onPointerUp(e) {
+      $e(this, e);
+    },
+    onWheel(e) {
+      Be(this, e);
+    },
     timelineFrameFromEvent(e, t) {
-      return _e(this, e, t);
+      return Ae(this, e, t);
     },
     onTimelinePointerDown(e) {
-      Te(this, e);
-    },
-    onTimelinePointerMove(e) {
-      xe(this, e);
-    },
-    onTimelinePointerUp(e) {
       Ee(this, e);
     },
-    resetTimelineZoom() {
-      P(this);
+    onTimelinePointerMove(e) {
+      _e(this, e);
     },
-    refreshKeys() {
-      _(this);
-    },
-    drawCurveEditor() {
-      F(this);
-    },
-    toggleCurveHandles() {
-      D(this);
-    },
-    setCurveInterpolation(e) {
-      A(this, e);
-    },
-    setTangentMode(e) {
-      W(this, e);
-    },
-    setChannelFilter(e) {
-      z(this, e);
-    },
-    onCurvePointerDown(e) {
-      T(this, e);
-    },
-    onCurvePointerMove(e) {
-      x(this, e);
-    },
-    onCurvePointerUp(e) {
-      E(this, e);
-    },
-    zoomCurve(e) {
+    onTimelinePointerUp(e) {
       Ie(this, e);
     },
+    resetTimelineZoom() {
+      k(this);
+    },
+    refreshKeys() {
+      A(this);
+    },
+    drawCurveEditor() {
+      x(this);
+    },
+    toggleCurveHandles() {
+      V(this);
+    },
+    setCurveInterpolation(e) {
+      R(this, e);
+    },
+    setTangentMode(e) {
+      D(this, e);
+    },
+    setChannelFilter(e) {
+      W(this, e);
+    },
+    onCurvePointerDown(e) {
+      E(this, e);
+    },
+    onCurvePointerMove(e) {
+      _(this, e);
+    },
+    onCurvePointerUp(e) {
+      I(this, e);
+    },
+    zoomCurve(e) {
+      ze(this, e);
+    },
     resetCurveZoom() {
-      I(this);
+      z(this);
     },
     onKey(e) {
       S(this, e);
     },
     frameTarget() {
-      Ae(this);
+      Re(this);
     },
     async loadMediaUrl(e, t) {
-      return Xe(this, e, t);
+      return Qe(this, e, t);
     },
     restoreAssets() {
-      tt(this);
+      rt(this);
     },
     onModelLoaded(e) {
-      et(this, e);
+      at(this, e);
     },
     async loadModelFile(e) {
-      return Ye(this, e);
+      return et(this, e);
     },
     async loadCardFile(e) {
-      return Ze(this, e);
+      return Xe(this, e);
     },
     loadExecutionPreview(e) {
-      Je(this, e);
+      Ye(this, e);
     },
     loadSelectedReference() {
-      Qe(this);
+      tt(this);
     },
     drawLine3D(e, t, a = "#5a5a5a", r = 1) {
-      je(this, e, t, a, r);
+      Pe(this, e, t, a, r);
     },
     drawGrid() {
-      ve(this);
+      je(this);
     },
     drawPointField() {
-      Me(this);
+      Ke(this);
     },
     drawCube(e) {
-      we(this, e);
-    },
-    drawSphere(e) {
-      Ke(this, e);
-    },
-    drawHuman(e) {
       Se(this, e);
     },
+    drawSphere(e) {
+      Te(this, e);
+    },
+    drawHuman(e) {
+      ke(this, e);
+    },
     drawNull(e) {
-      Pe(this, e);
+      Me(this, e);
     },
     drawCard(e) {
-      Ce(this, e);
+      ve(this, e);
     },
     drawCameraPath() {
-      be(this);
+      we(this);
     },
     drawSpeedHeatmap() {
-      Oe(this);
+      Fe(this);
     },
     drawOverlays() {
-      ke(this);
+      Oe(this);
     },
     async loadViewportBgFile(e) {
-      return ye(this, e);
+      return be(this, e);
     },
     async loadViewportBgSequence(e) {
-      return ge(this, e);
+      return Ce(this, e);
     },
     clearViewportBgImage() {
-      fe(this);
+      ye(this);
     }
   };
 }
-function $i(o) {
-  const { app: s, api: u, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: k, initializeTooltips: w, promptText: v, ObjectUrlRegistry: M, buildRoot: O, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: R, playblastCameraTrack: U, restoreFromWidgets: $, serializeEditorState: B, syncActiveCameraTrack: L, syncFromWidgets: q, bind: G, activateCamera: N, addCamera: Z, deleteCamera: J, drawPreviewOverlays: K, duplicateCamera: X, maximizeCameraPreview: Y, refreshCameraPreviews: Q, refreshCameraSelectors: ee, renameCamera: te, setPlayblastCamera: ae, toggleCameraView: re, captureRealtime: ie, makePlayblast: se, uploadDirectorPlayblast: oe, waitForMediaFrame: ne, computeAudioPeaks: le, loadAudioFile: ce, stopPlay: de, togglePlay: me, applyCameraPreset: he, applyCameraShake: ue, applyProxyPreset: pe, clearViewportBgImage: fe, loadViewportBgFile: ye, loadViewportBgSequence: ge, drawCameraPath: be, drawCard: Ce, drawCube: we, drawGrid: ve, drawHuman: Se, drawLine3D: je, drawNull: Pe, drawOverlays: ke, drawPointField: Me, drawSpeedHeatmap: Oe, drawSphere: Ke, curveChannels: Fe, drawCurveEditor: F, onCurvePointerDown: T, onCurvePointerMove: x, onCurvePointerUp: E, onTimelinePointerDown: Te, onTimelinePointerMove: xe, onTimelinePointerUp: Ee, refreshKeys: _, resetCurveZoom: I, resetTimelineZoom: P, setChannelFilter: z, setCurveInterpolation: A, setTangentMode: W, timelineFrameFromEvent: _e, toggleCurveHandles: D, zoomCurve: Ie, drawTransformGizmo: ze, frameTarget: Ae, gizmoAxes: We, gizmoGeometry: De, onPointerDown: Ve, onPointerMove: He, onPointerUp: Re, onWheel: Ue, pickGizmo: $e, pickSceneObject: Be, resetCamera: Le, setTransformMode: qe, setViewMode: Ge, viewportCamera: Ne, loadCardFile: Ze, loadExecutionPreview: Je, loadMediaUrl: Xe, loadModelFile: Ye, loadSelectedReference: Qe, onModelLoaded: et, restoreAssets: tt, syncUpstreamInputs: at, configureDomMedia: Gt, refreshSetupDiagnostic: rt, addMediaCard: it, addPrimitive: st, applyObjectAnimationFrame: ot, beginCameraEdit: nt, beginObjectEdit: lt, commitCameraEdit: ct, commitObjectEdit: dt, copyKeyframe: mt, deleteKeyframe: ht, deleteObject: ut, duplicateObject: pt, exitKeyEdit: ft, finishCameraEdit: yt, goToAdjacentKey: gt, insertKeyframe: bt, loadSelectedKeyView: Ct, pasteKeyframe: wt, playblastCameraAtFrame: vt, refreshInspector: St, refreshKeyEditor: jt, refreshObjects: Pt, removeObjectResources: kt, renameObject: Mt, retimeSelectedKey: Ot, selectKeyframe: Kt, selectedKeyframe: Ft, selectedObject: Tt, selectObjectAnimation: xt, setKeyInterpolation: Et, setObjectParent: _t, timelineKeyframes: It, timelineObject: zt, toggleAutoKey: At, toggleObject: Wt, updateCameraFromHud: Dt, updateEditState: Vt, updateKeyVisualState: Ht, updateSelectedKey: Rt, updateSelectedObject: Ut, clamp: V, cloneCamera: Nt, configureCore: Zt, defaultCamera: $t, sampleCamera: f, sampleObjectTransform: y, sanitizeState: Bt, worldTransform: Lt } = o;
+function Gi(o) {
+  const { app: s, api: p, OmniWebGLViewport: n, EditorHistory: C, ContextMenuController: O, initializeTooltips: w, promptText: v, ObjectUrlRegistry: K, buildRoot: F, dispatchDirectorKey: S, activeCameraTrack: j, bindWidgetCallbacks: $, playblastCameraTrack: B, restoreFromWidgets: q, serializeEditorState: L, syncActiveCameraTrack: G, syncFromWidgets: N, bind: Z, activateCamera: J, addCamera: X, deleteCamera: Y, drawPreviewOverlays: T, duplicateCamera: Q, maximizeCameraPreview: ee, refreshCameraPreviews: te, refreshCameraSelectors: ae, renameCamera: re, setPlayblastCamera: ie, toggleCameraView: se, captureRealtime: oe, makePlayblast: ne, uploadDirectorPlayblast: le, waitForMediaFrame: ce, computeAudioPeaks: de, loadAudioFile: me, stopPlay: he, togglePlay: ue, applyCameraPreset: pe, applyCameraShake: fe, applyProxyPreset: ge, clearViewportBgImage: ye, loadViewportBgFile: be, loadViewportBgSequence: Ce, drawCameraPath: we, drawCard: ve, drawCube: Se, drawGrid: je, drawHuman: ke, drawLine3D: Pe, drawNull: Me, drawOverlays: Oe, drawPointField: Ke, drawSpeedHeatmap: Fe, drawSphere: Te, curveChannels: xe, drawCurveEditor: x, onCurvePointerDown: E, onCurvePointerMove: _, onCurvePointerUp: I, onTimelinePointerDown: Ee, onTimelinePointerMove: _e, onTimelinePointerUp: Ie, refreshKeys: A, resetCurveZoom: z, resetTimelineZoom: k, setChannelFilter: W, setCurveInterpolation: R, setTangentMode: D, timelineFrameFromEvent: Ae, toggleCurveHandles: V, zoomCurve: ze, drawTransformGizmo: We, frameTarget: Re, gizmoAxes: De, gizmoGeometry: Ve, onPointerDown: He, onPointerMove: Ue, onPointerUp: $e, onWheel: Be, pickGizmo: qe, pickSceneObject: Le, resetCamera: Ge, setTransformMode: Ne, setViewMode: Ze, viewportCamera: Je, loadCardFile: Xe, loadExecutionPreview: Ye, loadMediaUrl: Qe, loadModelFile: et, loadSelectedReference: tt, onModelLoaded: at, restoreAssets: rt, syncUpstreamInputs: it, configureDomMedia: Jt, refreshSetupDiagnostic: st, addMediaCard: ot, addPrimitive: nt, applyObjectAnimationFrame: lt, beginCameraEdit: ct, beginObjectEdit: dt, commitCameraEdit: mt, commitObjectEdit: ht, copyKeyframe: ut, deleteKeyframe: pt, deleteObject: ft, duplicateObject: gt, exitKeyEdit: yt, finishCameraEdit: bt, goToAdjacentKey: Ct, insertKeyframe: wt, loadSelectedKeyView: vt, pasteKeyframe: St, playblastCameraAtFrame: jt, refreshInspector: kt, refreshKeyEditor: Pt, refreshObjects: Mt, removeObjectResources: Ot, renameObject: Kt, retimeSelectedKey: Ft, selectKeyframe: Tt, selectedKeyframe: xt, selectedObject: Et, selectObjectAnimation: _t, setKeyInterpolation: It, setObjectParent: At, timelineKeyframes: zt, timelineObject: Wt, toggleAutoKey: Rt, toggleObject: Dt, updateCameraFromHud: Vt, updateEditState: Ht, updateKeyVisualState: Ut, updateSelectedKey: $t, updateSelectedObject: Bt, clamp: H, cloneCamera: Xt, configureCore: Yt, defaultCamera: qt, sampleCamera: f, sampleObjectTransform: g, sanitizeState: Lt, worldTransform: Gt } = o;
   return {
     render() {
       const e = this.ctx, t = this.canvas.width, a = this.canvas.height;
       if (e.fillStyle = this.state.viewport_bg_color || "#121212", e.fillRect(0, 0, t, a), this.viewportBgSequenceImages && this.viewportBgSequenceImages.length) {
-        const l = this.frame % this.viewportBgSequenceImages.length, h = this.viewportBgSequenceImages[l];
-        if (h?.complete && h.naturalWidth)
+        const c = this.frame % this.viewportBgSequenceImages.length, M = this.viewportBgSequenceImages[c];
+        if (M?.complete && M.naturalWidth)
           try {
-            e.drawImage(h, 0, 0, t, a);
+            e.drawImage(M, 0, 0, t, a);
           } catch {
           }
       } else if (this.viewportBgImage)
@@ -787,32 +820,39 @@ function $i(o) {
           e.drawImage(this.viewportBgImage, 0, 0, t, a);
         } catch {
         }
-      const r = this.state.render_mode, i = this.viewportCamera(), c = this.state.objects.some((l) => l.parent_id) ? this.state.objects.map((l) => l.parent_id ? { ...l, ...Lt(this.state.objects, l) } : l) : this.state.objects, d = c === this.state.objects ? this.state : { ...this.state, objects: c };
+      const r = this.state.render_mode, i = this.viewportCamera(), d = this.state.objects.some((c) => c.parent_id) ? this.state.objects.map((c) => c.parent_id ? { ...c, ...Gt(this.state.objects, c) } : c) : this.state.objects, h = (this.viewportBgSequenceImages || []).map((c) => c.src), u = this.viewportBgImage?.src || "", m = {
+        ...this.state,
+        objects: d,
+        viewport_bg_image: u,
+        viewport_bg_sequence: h,
+        __omnicamRevision: this.renderRevision || 0
+      };
+      let l = !1;
       if (this.webgl)
         try {
-          this.webgl.render(d, i, this.cardMediaById, t, a, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection), e.drawImage(this.webgl.canvas, 0, 0, t, a);
-        } catch (l) {
-          console.error("[OmniCam WebGL Render Error]", l);
+          this.webgl.render(m, i, this.cardMediaById, t, a, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection), e.drawImage(this.webgl.canvas, 0, 0, t, a), l = !0;
+        } catch (c) {
+          console.error("[OmniCam WebGL Render Error]", c);
         }
-      else {
+      if (!l) {
         (!this.recording && ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(r) || this.recording && this.state.playblast_grid) && this.drawGrid(), ["omni_ref", "point_field"].includes(r) && this.drawPointField();
-        for (const l of c)
-          l.enabled !== !1 && (l.type === "card" && ["omni_ref", "card_grid", "graybox", "wireframe"].includes(r) ? this.drawCard(l) : ["cube", "ground", "glb", "model"].includes(l.type) && r !== "grid" && r !== "point_field" ? this.drawCube(l) : l.type === "sphere" && r !== "grid" && r !== "point_field" ? this.drawSphere(l) : l.type === "human" && r !== "grid" && r !== "point_field" ? this.drawHuman(l) : l.type === "null" && this.drawNull(l));
+        for (const c of d)
+          c.enabled !== !1 && (c.type === "card" && ["omni_ref", "card_grid", "graybox", "wireframe"].includes(r) ? this.drawCard(c) : ["cube", "ground", "glb", "model"].includes(c.type) && r !== "grid" && r !== "point_field" ? this.drawCube(c) : c.type === "sphere" && r !== "grid" && r !== "point_field" ? this.drawSphere(c) : c.type === "human" && r !== "grid" && r !== "point_field" ? this.drawHuman(c) : c.type === "null" && this.drawNull(c));
         this.recording || this.drawCameraPath();
       }
       !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays();
-      const g = i.position, p = i.target, m = this.root.querySelector('[data-role="hud"]');
-      if (m) {
-        const l = this.activeCameraTrack(), h = this.state.view_mode === "camera", b = l.target_object_id || this.state.target_object_id, Jt = b ? this.state.objects.find((H) => H.id === b) : null, fa = i.fov * Math.PI / 360, ya = Math.round(18 / Math.tan(fa));
-        m.replaceChildren();
-        const aa = document.createElement("div"), Xt = document.createElement("span");
-        Xt.className = `hud-badge ${h ? "active" : ""}`, Xt.textContent = h ? `📷 ${l.name}` : `🌐 ${this.state.view_mode.toUpperCase()}`;
-        const Yt = document.createElement("span");
-        Yt.style.color = "#aaa", Yt.textContent = ` ${r}`, aa.append(Xt, Yt);
-        const ra = document.createElement("div");
-        ra.textContent = `F ${this.frame}/${this.state.duration_frames - 1} · ${this.state.fps}fps · FOV ${i.fov.toFixed(1)}° (≈${ya}mm)`;
-        const ia = document.createElement("div");
-        ia.textContent = Jt ? `🎯 Track: ${Jt.name || Jt.type}` : `P: [${g.map((H) => H.toFixed(1)).join(", ")}] · T: [${p.map((H) => H.toFixed(1)).join(", ")}]`, m.append(aa, ra, ia);
+      const y = i.position, P = i.target, b = this.root.querySelector('[data-role="hud"]');
+      if (b) {
+        const c = this.activeCameraTrack(), M = this.state.view_mode === "camera", Qt = c.target_object_id || this.state.target_object_id, ea = Qt ? this.state.objects.find((U) => U.id === Qt) : null, ba = i.fov * Math.PI / 360, Ca = Math.round(18 / Math.tan(ba));
+        b.replaceChildren();
+        const sa = document.createElement("div"), ta = document.createElement("span");
+        ta.className = `hud-badge ${M ? "active" : ""}`, ta.textContent = M ? `📷 ${c.name}` : `🌐 ${this.state.view_mode.toUpperCase()}`;
+        const aa = document.createElement("span");
+        aa.style.color = "#aaa", aa.textContent = ` ${r}`, sa.append(ta, aa);
+        const oa = document.createElement("div");
+        oa.textContent = `F ${this.frame}/${this.state.duration_frames - 1} · ${this.state.fps}fps · FOV ${i.fov.toFixed(1)}° (≈${Ca}mm)`;
+        const na = document.createElement("div");
+        na.textContent = ea ? `🎯 Track: ${ea.name || ea.type}` : `P: [${y.map((U) => U.toFixed(1)).join(", ")}] · T: [${P.map((U) => U.toFixed(1)).join(", ")}]`, b.append(sa, oa, na);
       }
       this.renderCameraView();
     },
@@ -822,133 +862,144 @@ function $i(o) {
         for (const e of this.state.cameras) {
           const t = this.cameraPreviewCanvases.get(e.id), a = this.cameraPreviewContexts.get(e.id);
           if (!t?.width || !a) continue;
-          const r = t.width, i = t.height, c = f(e, this.frame);
+          const r = t.width, i = t.height, d = f(e, this.frame);
           if (a.fillStyle = "#111", a.fillRect(0, 0, r, i), this.cameraWebgl)
             try {
-              this.cameraWebgl.render({ ...this.state, keyframes: [], playblast_grid: !1 }, c, this.cardMediaById, r, i, this.modelUrlsById, this.frame, !0), a.drawImage(this.cameraWebgl.canvas, 0, 0, r, i);
-            } catch (g) {
-              console.error("[OmniCam Preview Render Error]", g);
+              this.cameraWebgl.render({ ...this.state, keyframes: [], playblast_grid: !1, viewport_bg_image: this.viewportBgImage?.src || "", viewport_bg_sequence: (this.viewportBgSequenceImages || []).map((u) => u.src), __omnicamRevision: this.renderRevision || 0 }, d, this.cardMediaById, r, i, this.modelUrlsById, this.frame, !0), a.drawImage(this.cameraWebgl.canvas, 0, 0, r, i);
+            } catch (u) {
+              console.error("[OmniCam Preview Render Error]", u);
             }
-          K(this, a, r, i);
-          const d = this.root.querySelector(`[data-camera-frame="${e.id}"]`);
-          d && (d.textContent = `F${this.frame}`);
+          T(this, a, r, i);
+          const h = this.root.querySelector(`[data-camera-frame="${e.id}"]`);
+          h && (h.textContent = `F${this.frame}`);
         }
       }
     },
     drawPreviewOverlays(e, t, a) {
-      K(this, e, t, a);
+      T(this, e, t, a);
     },
     maximizeCameraPreview(e) {
-      Y(this, e);
+      ee(this, e);
     },
     setStatus(e) {
       this.root.querySelector('[data-role="status"]').textContent = e;
     },
     async makePlayblast() {
-      return se(this);
-    },
-    async waitForMediaFrame() {
       return ne(this);
     },
+    async waitForMediaFrame() {
+      return ce(this);
+    },
     async captureRealtimePlayblast() {
-      return ie(this);
+      return oe(this);
     },
     async uploadPlayblast(e) {
-      return oe(this, e);
+      return le(this, e);
     },
     async syncUpstreamInputs() {
-      return at(this);
+      return it(this);
     },
     dispose() {
-      this.stopPlay(), clearTimeout(this.previewClickTimer), this.abortController?.abort(), this.resizeObserver?.disconnect(), this.webgl?.dispose(), this.cameraWebgl?.dispose(), this.objectUrls.clear(), this.cardMediaById.clear(), this.modelUrlsById.clear(), this.modelInfoById.clear();
+      if (!this.disposed) {
+        if (this.disposed = !0, this.backgroundRequestId = (this.backgroundRequestId || 0) + 1, this.upstreamSyncId = (this.upstreamSyncId || 0) + 1, this.stopPlay(), clearTimeout(this.previewClickTimer), clearTimeout(this.connectionTimer), cancelAnimationFrame(this.restoreFrame), cancelAnimationFrame(this.serializeFrame), cancelAnimationFrame(this.resizeFrame), this.abortController?.abort(), this.upstreamFetchController?.abort(), this.resizeObserver?.disconnect(), this.contextMenu?.dispose(), this.webgl?.dispose(), this.cameraWebgl?.dispose(), this.audioSource) {
+          try {
+            this.audioSource.stop();
+          } catch {
+          }
+          this.audioSource = null;
+        }
+        this.audioContext?.close?.().catch?.(() => {
+        }), this.audioContext = null, this.objectUrls.clear(), this.cardMediaById.clear(), this.modelUrlsById.clear(), this.modelInfoById.clear();
+      }
     }
   };
 }
-const Bi = "Majoor.OmniCam.Director", sa = "MajoorOmniCamDirector";
-ma({ api: ta });
-da({ api: ta });
-class pa {
+const Ni = "Majoor.OmniCam.Director", la = "MajoorOmniCamDirector";
+pa({ api: Zt });
+ua({ api: Zt });
+Qa({ api: Zt });
+class ya {
   constructor(s) {
-    this.app = ea, this.node = s, this.root = ca(), this.root.tabIndex = -1, this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.root.querySelector(".viewport-wrap"), this.interactionElement.tabIndex = -1, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
+    this.app = ia, this.node = s, this.root = ha(), this.root.tabIndex = -1, this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 }), this.disposed = !1, this.renderRevision = 0;
     try {
-      this.webgl = new Qt(() => this.render(), (n) => this.onModelLoaded(n));
+      this.webgl = new ra(() => this.render(), (n) => this.onModelLoaded(n));
     } catch (n) {
       console.warn("OmniCam WebGL unavailable; using Canvas fallback", n), this.webgl = null;
     }
     try {
-      this.cameraWebgl = new Qt(() => this.renderCameraView(), () => {
+      this.cameraWebgl = new ra(() => this.renderCameraView(), () => {
       });
     } catch (n) {
       console.warn("OmniCam Camera View unavailable", n), this.cameraWebgl = null;
     }
     this.stateWidget = s.widgets?.find((n) => n.name === "state_json"), this.recordingWidget = s.widgets?.find((n) => n.name === "recording_path"), this.cardWidget = s.widgets?.find((n) => n.name === "card_asset"), this.widthWidget = s.widgets?.find((n) => n.name === "width"), this.heightWidget = s.widgets?.find((n) => n.name === "height"), this.fpsWidget = s.widgets?.find((n) => n.name === "fps"), this.durationWidget = s.widgets?.find((n) => n.name === "duration_seconds"), this.modeWidget = s.widgets?.find((n) => n.name === "render_mode");
-    let u = null;
+    let p = null;
     try {
-      u = JSON.parse(this.stateWidget?.value || "{}");
+      p = JSON.parse(this.stateWidget?.value || "{}");
     } catch {
     }
-    this.state = ha(u), this.frame = 0, this.camera = ua(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.objectUrls = new la(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.contextMenu = new na(this.root), this.history = new oa({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedKeyFrame: this.selectedKeyFrame }), restore: (n) => this.restoreHistorySnapshot(n) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bind(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic();
+    this.state = fa(p), this.frame = 0, this.camera = ga(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.objectUrls = new ma(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.contextMenu = new da(this.root), this.history = new ca({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedKeyFrame: this.selectedKeyFrame }), restore: (n) => this.restoreHistorySnapshot(n) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bind(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic();
   }
 }
-const qt = { app: ea, api: ta, OmniWebGLViewport: Qt, EditorHistory: oa, ContextMenuController: na, initializeTooltips: ga, promptText: ba, ObjectUrlRegistry: la, buildRoot: ca, dispatchDirectorKey: Ca, activeCameraTrack: wa, bindWidgetCallbacks: va, playblastCameraTrack: Sa, restoreFromWidgets: ja, serializeEditorState: Pa, syncActiveCameraTrack: ka, syncFromWidgets: Ma, bind: Oa, activateCamera: Ka, addCamera: Fa, deleteCamera: Ta, drawPreviewOverlays: xa, duplicateCamera: Ea, maximizeCameraPreview: _a, refreshCameraPreviews: Ia, refreshCameraSelectors: za, renameCamera: Aa, setPlayblastCamera: Wa, toggleCameraView: Da, captureRealtime: Va, makePlayblast: Ha, uploadDirectorPlayblast: Ra, waitForMediaFrame: Ua, computeAudioPeaks: $a, loadAudioFile: Ba, stopPlay: La, togglePlay: qa, applyCameraPreset: Ga, applyCameraShake: Na, applyProxyPreset: Za, clearViewportBgImage: Ja, loadViewportBgFile: Xa, loadViewportBgSequence: Ya, drawCameraPath: Qa, drawCard: er, drawCube: tr, drawGrid: ar, drawHuman: rr, drawLine3D: ir, drawNull: sr, drawOverlays: or, drawPointField: nr, drawSpeedHeatmap: lr, drawSphere: cr, curveChannels: dr, drawCurveEditor: mr, onCurvePointerDown: hr, onCurvePointerMove: ur, onCurvePointerUp: pr, onTimelinePointerDown: fr, onTimelinePointerMove: yr, onTimelinePointerUp: gr, refreshKeys: br, resetCurveZoom: Cr, resetTimelineZoom: wr, setChannelFilter: vr, setCurveInterpolation: Sr, setTangentMode: jr, timelineFrameFromEvent: Pr, toggleCurveHandles: kr, zoomCurve: Mr, drawTransformGizmo: Or, frameTarget: Kr, gizmoAxes: Fr, gizmoGeometry: Tr, onPointerDown: xr, onPointerMove: Er, onPointerUp: _r, onWheel: Ir, pickGizmo: zr, pickSceneObject: Ar, resetCamera: Wr, setTransformMode: Dr, setViewMode: Vr, viewportCamera: Hr, loadCardFile: Rr, loadExecutionPreview: Ur, loadMediaUrl: $r, loadModelFile: Br, loadSelectedReference: Lr, onModelLoaded: qr, restoreAssets: Gr, syncUpstreamInputs: Nr, configureDomMedia: da, refreshSetupDiagnostic: Zr, addMediaCard: Jr, addPrimitive: Xr, applyObjectAnimationFrame: Yr, beginCameraEdit: Qr, beginObjectEdit: ei, commitCameraEdit: ti, commitObjectEdit: ai, copyKeyframe: ri, deleteKeyframe: ii, deleteObject: si, duplicateObject: oi, exitKeyEdit: ni, finishCameraEdit: li, goToAdjacentKey: ci, insertKeyframe: di, loadSelectedKeyView: mi, pasteKeyframe: hi, playblastCameraAtFrame: ui, refreshInspector: pi, refreshKeyEditor: fi, refreshObjects: yi, removeObjectResources: gi, renameObject: bi, retimeSelectedKey: Ci, selectKeyframe: wi, selectedKeyframe: vi, selectedObject: Si, selectObjectAnimation: ji, setKeyInterpolation: Pi, setObjectParent: ki, timelineKeyframes: Mi, timelineObject: Oi, toggleAutoKey: Ki, toggleObject: Fi, updateCameraFromHud: Ti, updateEditState: xi, updateKeyVisualState: Ei, updateSelectedKey: _i, updateSelectedObject: Ii, clamp: zi, cloneCamera: Ai, configureCore: ma, defaultCamera: Wi, sampleCamera: ua, sampleObjectTransform: Di, sanitizeState: ha, worldTransform: Vi };
+const Nt = { app: ia, api: Zt, OmniWebGLViewport: ra, EditorHistory: ca, ContextMenuController: da, initializeTooltips: wa, promptText: va, ObjectUrlRegistry: ma, buildRoot: ha, dispatchDirectorKey: Sa, activeCameraTrack: ja, bindWidgetCallbacks: ka, playblastCameraTrack: Pa, restoreFromWidgets: Ma, serializeEditorState: Oa, syncActiveCameraTrack: Ka, syncFromWidgets: Fa, bind: Ta, activateCamera: xa, addCamera: Ea, deleteCamera: _a, drawPreviewOverlays: Ia, duplicateCamera: Aa, maximizeCameraPreview: za, refreshCameraPreviews: Wa, refreshCameraSelectors: Ra, renameCamera: Da, setPlayblastCamera: Va, toggleCameraView: Ha, captureRealtime: Ua, makePlayblast: $a, uploadDirectorPlayblast: Ba, waitForMediaFrame: qa, computeAudioPeaks: La, loadAudioFile: Ga, stopPlay: Na, togglePlay: Za, applyCameraPreset: Ja, applyCameraShake: Xa, applyProxyPreset: Ya, clearViewportBgImage: er, loadViewportBgFile: tr, loadViewportBgSequence: ar, drawCameraPath: rr, drawCard: ir, drawCube: sr, drawGrid: or, drawHuman: nr, drawLine3D: lr, drawNull: cr, drawOverlays: dr, drawPointField: mr, drawSpeedHeatmap: hr, drawSphere: ur, curveChannels: pr, drawCurveEditor: fr, onCurvePointerDown: gr, onCurvePointerMove: yr, onCurvePointerUp: br, onTimelinePointerDown: Cr, onTimelinePointerMove: wr, onTimelinePointerUp: vr, refreshKeys: Sr, resetCurveZoom: jr, resetTimelineZoom: kr, setChannelFilter: Pr, setCurveInterpolation: Mr, setTangentMode: Or, timelineFrameFromEvent: Kr, toggleCurveHandles: Fr, zoomCurve: Tr, drawTransformGizmo: xr, frameTarget: Er, gizmoAxes: _r, gizmoGeometry: Ir, onPointerDown: Ar, onPointerMove: zr, onPointerUp: Wr, onWheel: Rr, pickGizmo: Dr, pickSceneObject: Vr, resetCamera: Hr, setTransformMode: Ur, setViewMode: $r, viewportCamera: Br, loadCardFile: qr, loadExecutionPreview: Lr, loadMediaUrl: Gr, loadModelFile: Nr, loadSelectedReference: Zr, onModelLoaded: Jr, restoreAssets: Xr, syncUpstreamInputs: Yr, configureDomMedia: ua, refreshSetupDiagnostic: Qr, addMediaCard: ei, addPrimitive: ti, applyObjectAnimationFrame: ai, beginCameraEdit: ri, beginObjectEdit: ii, commitCameraEdit: si, commitObjectEdit: oi, copyKeyframe: ni, deleteKeyframe: li, deleteObject: ci, duplicateObject: di, exitKeyEdit: mi, finishCameraEdit: hi, goToAdjacentKey: ui, insertKeyframe: pi, loadSelectedKeyView: fi, pasteKeyframe: gi, playblastCameraAtFrame: yi, refreshInspector: bi, refreshKeyEditor: Ci, refreshObjects: wi, removeObjectResources: vi, renameObject: Si, retimeSelectedKey: ji, selectKeyframe: ki, selectedKeyframe: Pi, selectedObject: Mi, selectObjectAnimation: Oi, setKeyInterpolation: Ki, setObjectParent: Fi, timelineKeyframes: Ti, timelineObject: xi, toggleAutoKey: Ei, toggleObject: _i, updateCameraFromHud: Ii, updateEditState: Ai, updateKeyVisualState: zi, updateSelectedKey: Wi, updateSelectedObject: Ri, clamp: Di, cloneCamera: Vi, configureCore: pa, defaultCamera: Hi, sampleCamera: ga, sampleObjectTransform: Ui, sanitizeState: fa, worldTransform: $i };
 Object.assign(
-  pa.prototype,
-  Hi(qt),
-  Ri(qt),
-  Ui(qt),
-  $i(qt)
+  ya.prototype,
+  Bi(Nt),
+  qi(Nt),
+  Li(Nt),
+  Gi(Nt)
 );
-function Li(o) {
+function Zi(o) {
   if (o.__majoorOmniCam) return;
-  const s = new pa(o);
+  const s = new ya(o);
   o.__majoorOmniCam = s, s.hideInternalWidgets();
-  const u = () => Math.max(700, s.root.scrollHeight || 0);
+  const p = () => Math.max(700, s.root.scrollHeight || 0);
   s.domWidget = o.addDOMWidget("majoor_omnicam_viewport", "omnicam", s.root, {
     serialize: !1,
     hideOnZoom: !1,
     getMinHeight: () => 700,
-    getHeight: u,
-    getMaxHeight: () => u(),
+    getHeight: p,
+    getMaxHeight: () => p(),
     afterResize: () => {
-      s.resizeCanvas(), s.render();
+      s.scheduleResizeAndRender();
     }
   });
   const n = [760, 780], C = o.size || n;
   o.setSize([Math.max(C[0], n[0]), Math.max(C[1], n[1])]);
-  const k = o.onResize;
+  const O = o.onResize;
   o.onResize = function() {
-    k?.apply(this, arguments), requestAnimationFrame(() => {
-      s.resizeCanvas(), s.render();
-    });
+    O?.apply(this, arguments), s.scheduleResizeAndRender();
   };
   const w = o.onConfigure;
   o.onConfigure = function() {
-    w?.apply(this, arguments), requestAnimationFrame(() => {
-      s.restoreFromWidgets(), s.syncUpstreamInputs();
+    w?.apply(this, arguments), cancelAnimationFrame(s.restoreFrame), s.restoreFrame = requestAnimationFrame(() => {
+      s.disposed || (s.restoreFromWidgets(), s.syncUpstreamInputs());
     });
   };
   const v = o.onAfterGraphConfigured;
   o.onAfterGraphConfigured = function() {
-    v?.apply(this, arguments), requestAnimationFrame(() => {
-      s.restoreFromWidgets(), s.syncUpstreamInputs();
+    v?.apply(this, arguments), cancelAnimationFrame(s.restoreFrame), s.restoreFrame = requestAnimationFrame(() => {
+      s.disposed || (s.restoreFromWidgets(), s.syncUpstreamInputs());
     });
   };
-  const M = o.onConnectionsChange;
+  const K = o.onConnectionsChange;
   o.onConnectionsChange = function() {
-    M?.apply(this, arguments), setTimeout(() => s.syncUpstreamInputs(), 60);
+    K?.apply(this, arguments), clearTimeout(s.connectionTimer), s.connectionTimer = setTimeout(() => {
+      s.disposed || s.syncUpstreamInputs();
+    }, 60);
   };
-  const O = o.onRemoved;
+  const F = o.onRemoved;
   o.onRemoved = function() {
-    s.dispose(), O?.apply(this, arguments);
+    s.dispose(), F?.apply(this, arguments);
   };
   const S = o.onExecuted;
   o.onExecuted = function(j) {
     S?.apply(this, arguments), s.loadExecutionPreview(j), s.syncUpstreamInputs();
   };
 }
-ea.registerExtension({
-  name: Bi,
+ia.registerExtension({
+  name: Ni,
   async nodeCreated(o) {
-    (o.comfyClass === sa || o.constructor?.type === sa) && Li(o);
+    (o.comfyClass === la || o.constructor?.type === la) && Zi(o);
   }
 });

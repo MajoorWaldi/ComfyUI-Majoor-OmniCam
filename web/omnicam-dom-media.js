@@ -1,33 +1,55 @@
-import { clamp as I, annotatedAssetUrl as C } from "./omnicam-core.js";
-import { uploadManagedFile as U } from "./omnicam-media.js";
+import { clamp as M, annotatedAssetUrl as w } from "./omnicam-core.js";
+import { uploadManagedFile as $ } from "./omnicam-media.js";
 import { t as n } from "./omnicam-i18n.js";
-let b = null;
-function B({ api: e }) {
-  b = e;
+let I = null;
+function k({ api: e }) {
+  I = e;
 }
-async function $(e, t, s) {
+async function B(e, t, s, a = () => !0) {
   if (!t || !s) return;
-  const a = String(t.asset || s).toLowerCase();
-  if (/\.(mp4|webm|mov)(?:\s|$)/.test(a)) {
-    const o = document.createElement("video");
-    o.src = s, o.loop = !0, o.muted = !0, o.playsInline = !0, await new Promise((c) => {
-      o.addEventListener("loadeddata", c, { once: !0 }), o.addEventListener("error", c, { once: !0 });
-    }), e.cardMediaById.set(t.id, o), t.id === "subject" && (e.cardMedia = o);
+  const d = String(t.asset || s).toLowerCase();
+  if (/\.(mp4|webm|mov)(?:\s|$)/.test(d)) {
+    const r = document.createElement("video");
+    if (r.src = s, r.loop = !0, r.muted = !0, r.playsInline = !0, await new Promise((p) => {
+      r.addEventListener("loadeddata", p, { once: !0 }), r.addEventListener("error", p, { once: !0 });
+    }), !a()) {
+      r.pause(), r.removeAttribute("src"), r.load();
+      return;
+    }
+    e.cardMediaById.set(t.id, r), t.id === "subject" && (e.cardMedia = r);
   } else {
-    const o = new Image();
-    o.src = s, await o.decode().catch(() => {
-    }), e.cardMediaById.set(t.id, o), t.id === "subject" && (e.cardMedia = o);
+    const r = new Image();
+    if (r.src = s, await r.decode().catch(() => {
+    }), !a()) {
+      r.src = "";
+      return;
+    }
+    e.cardMediaById.set(t.id, r), t.id === "subject" && (e.cardMedia = r);
   }
   e.render();
 }
-function x(e) {
+function y(e, t = "") {
+  const s = String(e || ""), a = s.match(/\s+\[(input|output|temp)\]$/), d = a ? s.slice(0, a.index) : s, r = a?.[1] || "input";
+  return `${t && !d.includes("/") && !d.includes("\\") ? `${t}/${d}` : d} [${r}]`;
+}
+function O(e) {
+  if (e.state.viewport_bg_image) {
+    const t = new Image();
+    t.src = w(e.state.viewport_bg_image), t.decode().catch(() => {
+    }), e.viewportBgImage = t;
+  }
+  e.viewportBgSequenceImages = (e.state.viewport_bg_sequence || []).map((t) => {
+    const s = new Image();
+    return s.src = w(t), s.decode().catch(() => {
+    }), s;
+  });
   for (const t of e.state.objects) {
     if (!t.asset) continue;
-    const s = C(t.asset);
+    const s = w(t.asset);
     t.type === "glb" || t.type === "model" ? e.modelUrlsById.set(t.id, s) : t.type === "card" && !e.cardMediaById.has(t.id) && e.loadMediaUrl(t, s);
   }
 }
-function k(e, t) {
+function E(e, t) {
   e.modelInfoById.set(t.id, t);
   const s = e.state.objects.find((a) => a.id === t.id);
   if (t.error) {
@@ -36,11 +58,11 @@ function k(e, t) {
   }
   s && (s.load_error = null), s?.animation_index && e.webgl?.selectAnimation(t.id, s.animation_index), t.id === e.selectedObjectId && e.refreshInspector(), !t.meshes && !t.points && t.bones ? e.setStatus(n(`${t.format.toUpperCase()} animation only: ${t.bones} bones, no mesh · skeleton preview`)) : e.setStatus(n(`${t.format.toUpperCase()} loaded: ${t.meshes} mesh${t.meshes === 1 ? "" : "es"}, ${t.vertices} vertices`));
 }
-async function R(e, t) {
+async function F(e, t) {
   if (!t) return;
   const s = t.name.split(".").pop()?.toLowerCase();
   if (!["glb", "obj", "fbx", "stl", "ply"].includes(s)) return e.setStatus(n("Supported scenes: GLB, OBJ, FBX, STL, PLY. Convert ABC first."));
-  const a = `model_${Date.now().toString(36)}`, o = {
+  const a = `model_${Date.now().toString(36)}`, d = {
     id: a,
     type: "model",
     format: s,
@@ -53,19 +75,19 @@ async function R(e, t) {
     enabled: !0,
     asset: ""
   };
-  e.state.objects.push(o), e.selectedEntity = "object", e.selectedObjectId = a, e.selectedKeyFrame = null;
-  const c = e.objectUrls.replace(a, t);
-  e.modelUrlsById.set(a, c), e.serialize(), e.refreshObjects(), e.refreshKeys(), e.render(), e.setStatus(n(`Uploading ${s.toUpperCase()}...`));
+  e.state.objects.push(d), e.selectedEntity = "object", e.selectedObjectId = a, e.selectedKeyFrame = null;
+  const r = e.objectUrls.replace(a, t);
+  e.modelUrlsById.set(a, r), e.serialize(), e.refreshObjects(), e.refreshKeys(), e.render(), e.setStatus(n(`Uploading ${s.toUpperCase()}...`));
   try {
-    const S = await U(b, { route: "/majoor/omnicam/upload_model", field: "asset", file: t });
-    o.asset = S.path, e.serialize();
-    const w = e.modelInfoById.get(a);
-    w ? e.onModelLoaded(w) : e.setStatus(n(`${s.toUpperCase()}: ${S.name}`));
-  } catch (S) {
-    console.error(S), e.setStatus(n(`${s.toUpperCase()} loaded locally; backend upload failed`));
+    const p = await $(I, { route: "/majoor/omnicam/upload_model", field: "asset", file: t });
+    d.asset = p.path, e.serialize();
+    const S = e.modelInfoById.get(a);
+    S ? e.onModelLoaded(S) : e.setStatus(n(`${s.toUpperCase()}: ${p.name}`));
+  } catch (p) {
+    console.error(p), e.setStatus(n(`${s.toUpperCase()} loaded locally; backend upload failed`));
   }
 }
-async function A(e, t) {
+async function R(e, t) {
   if (!t) return;
   const s = e.selectedObject()?.type === "card" ? e.selectedObject() : e.state.objects.find((a) => a.id === "subject");
   if (e.cardUrl = e.objectUrls.replace(s.id, t), t.type.startsWith("video/")) {
@@ -79,119 +101,124 @@ async function A(e, t) {
   }
   e.render(), e.setStatus(n("Uploading card…"));
   try {
-    const a = await U(b, { route: "/majoor/omnicam/upload_asset", field: "asset", file: t });
+    const a = await $(I, { route: "/majoor/omnicam/upload_asset", field: "asset", file: t });
     s.asset = a.path, s.id === "subject" && (e.state.card_asset = a.path, e.cardWidget && (e.cardWidget.value = a.path)), e.serialize(), e.setStatus(n(`Card: ${a.name}`));
   } catch (a) {
     console.error(a), e.setStatus(n("Card loaded locally; backend upload failed"));
   }
 }
-function O(e, t) {
+function z(e, t) {
   e.executionReferences = Array.isArray(t?.images) ? t.images : [];
   const s = e.root.querySelector('[data-role="reference-select"]');
-  if (s.innerHTML = "", e.executionReferences.forEach((a, o) => {
-    const c = document.createElement("option");
-    c.value = String(o), c.textContent = a.filename || n(`Upstream ${o + 1}`), s.appendChild(c);
+  if (s.innerHTML = "", e.executionReferences.forEach((a, d) => {
+    const r = document.createElement("option");
+    r.value = String(d), r.textContent = a.filename || n(`Upstream ${d + 1}`), s.appendChild(r);
   }), !e.executionReferences.length) {
     const a = document.createElement("option");
     a.value = "0", a.textContent = n("No upstream reference"), s.appendChild(a);
     return;
   }
-  e.state.reference_index = I(e.state.reference_index || 0, 0, e.executionReferences.length - 1), s.value = String(e.state.reference_index), e.serialize(), e.loadSelectedReference();
+  e.state.reference_index = M(e.state.reference_index || 0, 0, e.executionReferences.length - 1), s.value = String(e.state.reference_index), e.serialize(), e.loadSelectedReference();
 }
-function E(e) {
+function W(e) {
   const t = e.executionReferences[e.state.reference_index];
   if (!t) return;
   const s = new Image();
   s.onload = () => {
     e.cardMedia = s, e.cardMediaById.set("subject", s), e.render(), e.setStatus(n("Upstream media refreshed"));
-  }, s.src = b.apiURL(`/view?${new URLSearchParams(t).toString()}`);
+  }, s.src = I.apiURL(`/view?${new URLSearchParams(t).toString()}`);
 }
-async function z(e) {
+async function P(e) {
   if (!e.node) return;
   const t = e.node.graph;
   if (!t) return;
-  let s = !1;
-  const a = e.node.inputs || [];
-  let o = !1, c = !1;
-  const S = /* @__PURE__ */ new Set();
-  for (const d of a) {
-    const m = String(d.name || "").toLowerCase();
-    if (d.link == null) continue;
-    const j = t.links ? t.links[d.link] : null;
-    if (!j) continue;
-    const p = t.getNodeById(j.origin_id);
-    if (p) {
-      if (m === "image" || m === "video") {
-        o = !0;
-        const i = p.widgets?.find(
-          (r) => ["image", "image_path", "upload", "file", "filename", "video", "video_path"].includes(String(r.name).toLowerCase())
+  const s = (e.upstreamSyncId || 0) + 1;
+  e.upstreamSyncId = s, e.upstreamFetchController?.abort();
+  const a = new AbortController();
+  e.upstreamFetchController = a;
+  const d = () => !e.disposed && e.upstreamSyncId === s;
+  let r = !1;
+  const p = e.node.inputs || [];
+  let S = !1, C = !1;
+  const U = /* @__PURE__ */ new Set();
+  for (const c of p) {
+    const g = String(c.name || "").toLowerCase();
+    if (c.link == null) continue;
+    const _ = t.links ? t.links[c.link] : null;
+    if (!_) continue;
+    const u = t.getNodeById(_.origin_id);
+    if (u) {
+      if (g === "image" || g === "video") {
+        S = !0;
+        const i = u.widgets?.find(
+          (o) => ["image", "image_path", "upload", "file", "filename", "video", "video_path"].includes(String(o.name).toLowerCase())
         );
         if (i && i.value) {
-          const r = String(i.value), g = /\.(mp4|webm|mov)(?:\s|$)/i.test(r), y = p.widgets?.find((f) => String(f.name).toLowerCase() === "subfolder")?.value || "", h = new URLSearchParams({ filename: r, type: "input" });
-          y && h.set("subfolder", String(y));
-          const u = b ? b.apiURL(`/view?${h.toString()}`) : `/view?${h.toString()}`, l = e.state.objects.find((f) => f.id === "subject");
-          l && (l.asset = r, await $(e, l, u), e.upstreamImageConnected = !0, s = !0, e.setStatus(n(`Upstream ${g ? "video" : "image"}: ${r}`)));
-        } else if (p.imgs?.length) {
-          const r = p.imgs[0];
-          r && (e.cardMediaById.set("subject", r), e.cardMedia = r, e.upstreamImageConnected = !0, s = !0, e.render(), e.setStatus(n("Upstream image preview synced")));
+          const o = String(i.value), b = /\.(mp4|webm|mov)(?:\s|$)/i.test(o), h = u.widgets?.find((m) => String(m.name).toLowerCase() === "subfolder")?.value || "", l = w(y(o, h)), f = e.state.objects.find((m) => m.id === "subject");
+          if (f) {
+            if (await B(e, f, l, d), !d()) return;
+            f.asset = y(o, h), e.upstreamImageConnected = !0, r = !0, e.setStatus(n(`Upstream ${b ? "video" : "image"}: ${o}`));
+          }
+        } else if (u.imgs?.length) {
+          const o = u.imgs[0];
+          o && (e.cardMediaById.set("subject", o), e.cardMedia = o, e.upstreamImageConnected = !0, r = !0, e.render(), e.setStatus(n("Upstream image preview synced")));
         }
       }
-      if (m === "audio") {
-        c = !0;
-        const i = p.widgets?.find(
-          (r) => ["audio", "audio_path", "audio_file", "file", "filename"].includes(String(r.name).toLowerCase())
+      if (g === "audio") {
+        C = !0;
+        const i = u.widgets?.find(
+          (o) => ["audio", "audio_path", "audio_file", "file", "filename"].includes(String(o.name).toLowerCase())
         );
         if (i && i.value) {
-          const r = String(i.value), g = p.widgets?.find((u) => String(u.name).toLowerCase() === "subfolder")?.value || "", y = new URLSearchParams({ filename: r, type: "input" });
-          g && y.set("subfolder", String(g));
-          const h = b ? b.apiURL(`/view?${y.toString()}`) : `/view?${y.toString()}`;
+          const o = String(i.value), b = u.widgets?.find((l) => String(l.name).toLowerCase() === "subfolder")?.value || "", h = w(y(o, b));
           try {
-            const u = await fetch(h);
-            if (u.ok) {
-              const l = await u.blob(), f = new File([l], r, { type: l.type || "audio/wav" });
-              await e.loadAudioFile(f), e.upstreamAudioConnected = !0, s = !0, e.setStatus(n(`Upstream audio: ${r}`));
+            const l = await fetch(h, { signal: a.signal });
+            if (l.ok) {
+              const f = await l.blob();
+              if (!d()) return;
+              const m = new File([f], o, { type: f.type || "audio/wav" });
+              await e.loadAudioFile(m), e.upstreamAudioConnected = !0, r = !0, e.setStatus(n(`Upstream audio: ${o}`));
             }
-          } catch (u) {
-            console.warn("Failed to fetch upstream audio:", u);
+          } catch (l) {
+            if (l?.name === "AbortError") return;
+            console.warn("Failed to fetch upstream audio:", l);
           }
         }
       }
-      if (m === "scene_3d" || m === "model" || m === "mesh") {
-        const i = p.widgets?.find(
-          (r) => ["model_file", "model", "file", "filename", "filepath", "mesh", "scene", "3d_file"].includes(String(r.name).toLowerCase())
+      if (g === "scene_3d" || g === "model" || g === "mesh") {
+        const i = u.widgets?.find(
+          (o) => ["model_file", "model", "file", "filename", "filepath", "mesh", "scene", "3d_file"].includes(String(o.name).toLowerCase())
         );
         if (i && i.value) {
-          const r = String(i.value), g = r.split(".").pop()?.toLowerCase();
-          if (["glb", "gltf", "obj", "fbx", "stl", "ply"].includes(g)) {
-            const y = p.widgets?.find((v) => String(v.name).toLowerCase() === "subfolder")?.value || "", h = new URLSearchParams({ filename: r, type: "input" });
-            y && h.set("subfolder", String(y));
-            const u = b ? b.apiURL(`/view?${h.toString()}`) : `/view?${h.toString()}`, l = `upstream_scene_${p.id}`;
-            S.add(l);
-            let f = e.state.objects.find((v) => v.id === l);
-            f ? (f.asset = r, f.format = g === "gltf" ? "glb" : g) : (f = {
-              id: l,
+          const o = String(i.value), b = o.split(".").pop()?.toLowerCase();
+          if (["glb", "gltf", "obj", "fbx", "stl", "ply"].includes(b)) {
+            const h = u.widgets?.find((j) => String(j.name).toLowerCase() === "subfolder")?.value || "", l = w(y(o, h)), f = `upstream_scene_${u.id}`;
+            U.add(f);
+            let m = e.state.objects.find((j) => j.id === f);
+            m ? (m.asset = y(o, h), m.format = b === "gltf" ? "glb" : b) : (m = {
+              id: f,
               type: "model",
-              format: g === "gltf" ? "glb" : g,
-              name: `Upstream: ${r.replace(/\.[^.]+$/i, "")}`,
+              format: b === "gltf" ? "glb" : b,
+              name: `Upstream: ${o.replace(/\.[^.]+$/i, "")}`,
               position: [0, 0, 0],
               rotation: [0, 0, 0],
               size: [1, 1, 1],
               material_mode: "textured",
               keyframes: [],
               enabled: !0,
-              asset: r
-            }, e.state.objects.push(f)), e.modelUrlsById.set(l, u), e.serialize(), e.refreshObjects(), e.render(), s = !0, e.setStatus(n(`Upstream 3D model: ${r}`));
+              asset: y(o, h)
+            }, e.state.objects.push(m)), e.modelUrlsById.set(f, l), e.serialize(), e.refreshObjects(), e.render(), r = !0, e.setStatus(n(`Upstream 3D model: ${o}`));
           }
         }
       }
     }
   }
-  if (!o && e.upstreamImageConnected) {
+  if (!S && e.upstreamImageConnected) {
     e.cardMedia = null, e.cardMediaById.delete("subject");
-    const d = e.state.objects.find((m) => m.id === "subject");
-    d && (d.asset = ""), e.upstreamImageConnected = !1, s = !0, e.setStatus(n("Upstream image disconnected · card reset"));
+    const c = e.state.objects.find((g) => g.id === "subject");
+    c && (c.asset = ""), e.upstreamImageConnected = !1, r = !0, e.setStatus(n("Upstream image disconnected · card reset"));
   }
-  if (!c && e.upstreamAudioConnected) {
+  if (!C && e.upstreamAudioConnected) {
     if (e.audioSource) {
       try {
         e.audioSource.stop();
@@ -199,28 +226,28 @@ async function z(e) {
       }
       e.audioSource = null;
     }
-    e.audioBuffer = null, e.audioWaveformPeaks = null, e.upstreamAudioConnected = !1, e.refreshKeys(), s = !0, e.setStatus(n("Upstream audio disconnected · audio track cleared"));
+    e.audioBuffer = null, e.audioWaveformPeaks = null, e.upstreamAudioConnected = !1, e.refreshKeys(), r = !0, e.setStatus(n("Upstream audio disconnected · audio track cleared"));
   }
-  const w = e.state.objects.filter(
-    (d) => d.id.startsWith("upstream_scene_") && !S.has(d.id)
+  const v = e.state.objects.filter(
+    (c) => c.id.startsWith("upstream_scene_") && !U.has(c.id)
   );
-  if (w.length > 0) {
-    for (const d of w)
-      e.modelUrlsById.delete(d.id), e.modelInfoById.delete(d.id), e.webgl?.removeModel(d.id);
+  if (v.length > 0) {
+    for (const c of v)
+      e.modelUrlsById.delete(c.id), e.modelInfoById.delete(c.id), e.webgl?.removeModel(c.id);
     e.state.objects = e.state.objects.filter(
-      (d) => !w.some((m) => m.id === d.id)
-    ), e.refreshObjects(), s = !0, e.setStatus(n("Upstream 3D scene disconnected · model removed"));
+      (c) => !v.some((g) => g.id === c.id)
+    ), e.refreshObjects(), r = !0, e.setStatus(n("Upstream 3D scene disconnected · model removed"));
   }
-  s && (e.serialize(), e.render());
+  r && (e.serialize(), e.render());
 }
 export {
-  B as configureDomMedia,
-  A as loadCardFile,
-  O as loadExecutionPreview,
-  $ as loadMediaUrl,
-  R as loadModelFile,
-  E as loadSelectedReference,
-  k as onModelLoaded,
-  x as restoreAssets,
-  z as syncUpstreamInputs
+  k as configureDomMedia,
+  R as loadCardFile,
+  z as loadExecutionPreview,
+  B as loadMediaUrl,
+  F as loadModelFile,
+  W as loadSelectedReference,
+  E as onModelLoaded,
+  O as restoreAssets,
+  P as syncUpstreamInputs
 };

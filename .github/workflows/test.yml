@@ -2,6 +2,7 @@ name: Tests
 on:
   push:
   pull_request:
+  workflow_call:
 
 jobs:
   python-core:
@@ -26,5 +27,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run check
+      - run: npm run test:unit
+      - run: git diff --exit-code -- web/
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

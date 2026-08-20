@@ -18,8 +18,7 @@ from ..adapters import (
 )
 from ..adapters.ltx import ltx_camera_control_profile
 from ..core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass
-from ..core.track import OmniCamTrack
-from .base import OMNICAM_ATI_BRIDGE, OMNICAM_LTX_BRIDGE, OMNICAM_TRACK
+from .base import OMNICAM_ATI_BRIDGE, OMNICAM_LTX_BRIDGE, OMNICAM_TRACK, validated_track
 
 
 class MajoorOmniCamH3Adapter(IO.ComfyNode):
@@ -70,7 +69,7 @@ class MajoorOmniCamH3Adapter(IO.ComfyNode):
         proxy_video=None,
     ) -> IO.NodeOutput:
         from ..core.camera_tools import analyze_camera_trajectory, build_cinematic_motion_prompt
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         analysis = analyze_camera_trajectory(track)
         cinematic = build_cinematic_motion_prompt(track, base_prompt=base_prompt, style=prompt_style)
         return IO.NodeOutput(
@@ -110,7 +109,7 @@ class MajoorOmniCamWanATIAdapter(IO.ComfyNode):
         point_count: int = 16,
         distribution: str = "balanced",
     ) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         bridge = track_to_ati_bridge(track, point_count=point_count, distribution=distribution)
         return IO.NodeOutput(bridge, json.dumps(bridge, indent=2))
 
@@ -141,7 +140,7 @@ class MajoorOmniCamWanNativeCamera(IO.ComfyNode):
     def execute(cls, camera_track: dict[str, Any], width: int, height: int, length: int) -> IO.NodeOutput:
         if (length - 1) % 4:
             raise ValueError("Wan camera length must be 4n+1 frames")
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         params = np.asarray(track_to_wan_camera_params(track, length), dtype=np.float32)
         embedding = process_pose_params(params, width=width, height=height, original_pose_width=track.width, original_pose_height=track.height)
         embedding = embedding.permute([3, 0, 1, 2]).unsqueeze(0).to(device=comfy.model_management.intermediate_device())
@@ -177,7 +176,7 @@ class MajoorOmniCamWanVideoWrapperATI(IO.ComfyNode):
     ) -> IO.NodeOutput:
         return IO.NodeOutput(
             track_to_ati_json(
-                OmniCamTrack.from_dict(camera_track),
+                validated_track(camera_track),
                 point_count=point_count,
                 distribution=distribution,
             )
@@ -208,7 +207,7 @@ class MajoorOmniCamATIPreview(IO.ComfyNode):
         point_count: int = 16,
         distribution: str = "balanced",
     ) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         bridge = track_to_ati_bridge(track, point_count=point_count, distribution=distribution)
         preview = image[:1].clone()
         height, width = preview.shape[1:3]
@@ -241,7 +240,7 @@ class MajoorOmniCamLTXAdapter(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], length: int = 0) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         bridge = track_to_ltx_camera_bridge(track, length or None)
         return IO.NodeOutput(bridge, json.dumps(bridge, indent=2))
 
@@ -258,6 +257,12 @@ class MajoorOmniCamLTXCameraGuide(IO.ComfyNode):
                 OMNICAM_TRACK.Input("camera_track"),
                 IO.Video.Input("proxy_video"),
                 IO.String.Input("base_prompt", default="", multiline=True, optional=True),
+                IO.Int.Input("start_frame", default=0, min=0, max=100000, advanced=True),
+                IO.Int.Input("end_frame", default=0, min=0, max=100000, advanced=True),
+                IO.Int.Input("max_frames", default=121, min=1, max=1000, advanced=True),
+                IO.Int.Input("resize_width", default=0, min=0, max=4096, step=8, advanced=True),
+                IO.Int.Input("resize_height", default=0, min=0, max=4096, step=8, advanced=True),
+                IO.Combo.Input("sampling_mode", options=["contiguous", "uniform"], advanced=True),
             ],
             outputs=[
                 IO.Image.Output(display_name="guide_frames"),
@@ -267,10 +272,30 @@ class MajoorOmniCamLTXCameraGuide(IO.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, camera_track: dict[str, Any], proxy_video, base_prompt: str = "") -> IO.NodeOutput:
+    def execute(cls, camera_track: dict[str, Any], proxy_video, base_prompt: str = "", start_frame: int = 0,
+                end_frame: int = 0, max_frames: int = 121, resize_width: int = 0,
+                resize_height: int = 0, sampling_mode: str = "contiguous") -> IO.NodeOutput:
         from ..core.camera_tools import build_cinematic_motion_prompt
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         frames = proxy_video.get_components().images
+        total = int(frames.shape[0])
+        start = min(max(0, int(start_frame)), max(0, total - 1))
+        stop = total if int(end_frame) <= 0 else min(total, max(start + 1, int(end_frame) + 1))
+        count = min(max(1, int(max_frames)), stop - start)
+        if sampling_mode == "uniform" and count < stop - start:
+            indices = torch.linspace(start, stop - 1, count, device=frames.device).round().long()
+            frames = frames.index_select(0, indices)
+        else:
+            frames = frames[start:start + count]
+        target_width = int(resize_width) or int(frames.shape[2])
+        target_height = int(resize_height) or int(frames.shape[1])
+        estimated = len(frames) * target_width * target_height * int(frames.shape[3]) * frames.element_size()
+        if estimated > 2 * 1024**3:
+            raise ValueError("LTX guide would exceed the 2 GiB decoded-frame safety limit; reduce frames or resolution")
+        if (target_height, target_width) != tuple(frames.shape[1:3]):
+            frames = torch.nn.functional.interpolate(
+                frames.permute(0, 3, 1, 2), size=(target_height, target_width), mode="bilinear", align_corners=False
+            ).permute(0, 2, 3, 1)
         cinematic = build_cinematic_motion_prompt(track, base_prompt=base_prompt, style="universal")
         return IO.NodeOutput(frames, cinematic, json.dumps(ltx_camera_control_profile(track), indent=2))
 
@@ -293,7 +318,7 @@ class MajoorOmniCamControlPasses(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], pass_type: str, step: int) -> IO.NodeOutput:
-        track = OmniCamTrack.from_dict(camera_track)
+        track = validated_track(camera_track)
         if pass_type == "object_ids":
             payload = object_id_pass(track, step=step)
         elif pass_type == "depth":
