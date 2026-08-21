@@ -1,10 +1,27 @@
-# Majoor OmniCam for ComfyUI
 
-Majoor OmniCam is a camera layout and animation tool for ComfyUI. It lets you
-prepare camera motion without running image or video generation while editing.
+<p align="center">
+  <img src="docs/assets/omnicam-banner.svg" width="110" alt="Majoor OmniCam">
+</p>
 
-You can position cameras, create keyframes, preview motion, and record a simple
-reference video for compatible video models.
+<h1 align="center">Majoor OmniCam for ComfyUI</h1>
+
+<p align="center">
+ Majoor OmniCam is a camera layout and animation tool for ComfyUI. It lets you
+prepare camera motion without running image or video generation while editing. You can position cameras, create keyframes, preview motion, and record a simple
+reference video for compatible video models. 
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/ComfyUI-0.31%2B-blue">
+  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.12-blue">
+  <img src="https://img.shields.io/badge/License-MIT-green">
+  <img src="https://img.shields.io/badge/Version-0.3.0-orange">
+</p>
+
+<p align="center">
+  <img src="docs/assets/omnicam-banner.png" alt="Majoor OmniCam Director">
+</p>
+
 
 ## Main features
 
