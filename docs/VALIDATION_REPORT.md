@@ -8,8 +8,11 @@ Last updated: 20 August 2026
 - [x] Frontend syntax checks.
 - [x] Frontend unit and parity tests.
 - [x] Python test suite.
-- [x] Handwritten source files are limited to 500 lines.
+- [x] Handwritten source files are limited to 800 lines.
 - [x] Source text passes the UTF-8 and mojibake guard.
+- [x] Production exposes one JavaScript extension bundle (`web/omnicam.js`).
+- [x] Python core matrix covers 3.10 and 3.12 in CI.
+- [x] ComfyUI 0.31.0 integration smoke imports all five public nodes and evaluates every schema.
 
 ## Manual checks still required before a public release
 

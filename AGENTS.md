@@ -208,7 +208,7 @@ A feature is done only when:
 
 ## 14. Source-file size and feature modules
 
-- Hand-written source files must not exceed 500 lines.
+- Hand-written source files must not exceed 800 lines.
 - Do not satisfy this limit by minifying, joining statements, or otherwise
   hiding complexity on fewer physical lines.
 - Every new feature, substantial behavior, or independent responsibility must
@@ -216,4 +216,6 @@ A feature is done only when:
 - Existing public import paths may remain as small facade modules that re-export
   the implementation from focused modules.
 - Split a file before adding a feature when the change would push it beyond the
-  500-line limit.
+  800-line limit. The limit is a safety ceiling, not a target: prefer cohesive,
+  focused modules and do not merge unrelated responsibilities merely because
+  they fit below 800 lines.

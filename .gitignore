@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.codex-pytest-temp/
 .ruff_cache/
 .venv/
 venv/
@@ -18,5 +19,3 @@ docs/*
 !docs/SECURITY.md
 !docs/VALIDATION_REPORT.md
 !docs/REFACTOR_CHECKLIST.md
-!docs/INTERNALS.md
-!docs/COMPATIBILITY.md

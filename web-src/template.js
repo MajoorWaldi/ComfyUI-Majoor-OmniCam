@@ -81,9 +81,11 @@ export function buildRoot() {
       
       <!-- Ergonomic Viewport Quick Bar -->
       <div class="viewport-quick-bar">
-        <select data-role="view-mode" title="${t("View mode: Camera (Numpad 0), Perspective (Numpad 1), Top (7), Side (3)")}">
+        <select data-role="view-mode" title="${t("View mode: Camera (Numpad 0), Front/Back (1), Top/Bottom (7), Right/Left (3)")}">
           <option value="camera">${t("Camera View")}</option>
           <option value="perspective">${t("Perspective")}</option>
+          <option value="front">${t("Front View")}</option>
+          <option value="back">${t("Back View")}</option>
           <option value="top">${t("Top View")}</option>
           <option value="right">${t("Right Side")}</option>
           <option value="left">${t("Left Side")}</option>
@@ -100,9 +102,9 @@ export function buildRoot() {
           <button data-select-mode="face" title="${t("Face / Polygon Selection Mode (3)")}"><i class="pi pi-stop"></i><span>${t("Face")}</span></button>
         </div>
         <span class="quick-divider"></span>
-        <button class="icon-button active" data-transform-mode="translate" title="${t("Translate / Move (W)")}">W</button>
-        <button class="icon-button" data-transform-mode="rotate" title="${t("Rotate (E)")}">E</button>
-        <button class="icon-button" data-transform-mode="scale" title="${t("Scale (R)")}">R</button>
+        <button class="icon-button active" data-transform-mode="translate" title="${t("Translation gizmo (click)")}">↔</button>
+        <button class="icon-button" data-transform-mode="rotate" title="${t("Rotation gizmo (click)")}">⟳</button>
+        <button class="icon-button" data-transform-mode="scale" title="${t("Scale gizmo (click)")}">⤢</button>
         <button class="icon-button" data-act="clear-selection" title="${t("Select Object Tool (Q)")}">Q</button>
         <span class="quick-divider"></span>
         <button class="primary" data-act="record" title="${t("Record proxy playblast")}"><i class="pi pi-video"></i> ${t("Playblast")}</button>
@@ -138,10 +140,13 @@ export function buildRoot() {
           <div class="entity-panel" data-role="object-panel">
             <div class="menu-title" data-role="selected-name">${t("Object Transform")}</div>
             <div class="transform-tools">
-              <button data-transform-mode="translate" title="${t("Translate (W)")}">W</button>
-              <button data-transform-mode="rotate" title="${t("Rotate (E)")}">E</button>
-              <button data-transform-mode="scale" title="${t("Scale (R)")}">R</button>
+              <button data-transform-mode="translate" title="${t("Translation gizmo (click)")}">↔</button>
+              <button data-transform-mode="rotate" title="${t("Rotation gizmo (click)")}">⟳</button>
+              <button data-transform-mode="scale" title="${t("Scale gizmo (click)")}">⤢</button>
               <select data-role="gizmo-space" title="${t("Transform space")}"><option value="world">${t("World")}</option><option value="local">${t("Local")}</option></select>
+              <select data-role="navigation-profile" title="${t("Navigation profile")}"><option value="maya">Maya</option><option value="blender">Blender</option></select>
+              <select data-role="spatial-snap-mode" title="${t("Spatial snapping")}"><option value="none">${t("No Snap")}</option><option value="grid">${t("Grid")}</option><option value="vertex">${t("Vertex")}</option></select>
+              <input data-role="spatial-grid-size" type="number" min="0.01" max="100" step="0.01" value="0.5" title="${t("Spatial grid size")}" style="width:58px">
             </div>
             <div class="animation-row" style="display:flex;align-items:center;gap:6px"><i class="pi pi-palette"></i><select data-role="object-material" style="flex:1" title="${t("Viewport material")}"><option value="textured">${t("Textures")}</option><option value="checker">${t("Checker")}</option><option value="neutral">${t("Neutral")}</option><option value="wireframe">${t("Wireframe")}</option></select><input data-role="object-color" type="color" value="#8c929b" title="${t("Object Color")}" style="width:28px;height:24px;padding:0;cursor:pointer;background:transparent;border:1px solid #555;border-radius:4px"></div>
             <div class="animation-row"><i class="pi pi-sitemap"></i><select data-role="object-parent" title="${t("Parent object")}"><option value="">${t("No parent")}</option></select></div>

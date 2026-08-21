@@ -10,6 +10,7 @@ export function createInteractionMethods(dependencies) {
     const y = ((event.clientY - rect.top) * this.canvas.height) / Math.max(1, rect.height);
     const point = this.webgl?.intersectScenePoint?.(x, y, this.canvas.width, this.canvas.height);
     if (point) {
+      this.checkpoint("Set camera target");
       this.beginCameraEdit();
       this.camera.target = [
         Math.round(point[0] * 1000) / 1000,

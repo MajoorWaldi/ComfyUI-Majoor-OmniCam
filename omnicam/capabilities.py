@@ -1,161 +1,98 @@
-"""Adapter capability registry and setup diagnostics.
-
-Detects which downstream nodes are installed in the running ComfyUI and
-exposes per-adapter compatibility states: native (core node), optional
-(third-party, verified), pinned (third-party at a pinned commit),
-experimental, unsupported. The core track never depends on these states;
-adapters use them to warn before queueing.
-"""
+"""Runtime adapter diagnostics derived from the single ADAPTER_INFO registry."""
 
 from __future__ import annotations
 
-import importlib.util
 from typing import Any
 
-# (adapter key, display, [(node class or module, state when found)], docs url)
-_CAPABILITY_PROBES: list[dict[str, Any]] = [
-    {
-        "adapter": "wan_native",
-        "display": "Wan Native Camera (Plücker)",
-        "state": "native",
-        "probes": {"nodes": ["WanCameraImageToVideo"], "modules": ["comfy_extras.nodes_camera_trajectory"]},
-        "docs": "https://docs.comfy.org/",
-    },
-    {
-        "adapter": "h3",
-        "display": "MiniMax H3 Omni Reference",
-        "state": "optional",
-        "probes": {"nodes": ["MinimaxHailuo03ReferenceNode", "MiniMaxHailuo03Reference"], "modules": []},
-        "docs": "https://github.com/Comfy-Org/ComfyUI",
-    },
-    {
-        "adapter": "wan_ati",
-        "display": "WanVideoWrapper ATI",
-        "state": "pinned",
-        "probes": {"nodes": ["WanVideoATITracks", "WanVideoATITracksVisualize"], "modules": []},
-        "docs": "https://github.com/kijai/ComfyUI-WanVideoWrapper",
-    },
-    {
-        "adapter": "ltx",
-        "display": "LTX-Video camera control",
-        "state": "experimental",
-        "probes": {"nodes": ["LTXVAddVideoICLoRAGuide", "LTXVAddGuide"], "modules": []},
-        "docs": "https://github.com/Lightricks/ComfyUI-LTXVideo",
-    },
-    {
-        "adapter": "blender",
-        "display": "Blender export",
-        "state": "native",  # file export, no node dependency
-        "probes": {"nodes": [], "modules": []},
-        "docs": "https://docs.blender.org/api/current/",
-    },
-    {
-        "adapter": "unreal",
-        "display": "Unreal Sequencer export",
-        "state": "experimental",
-        "probes": {"nodes": [], "modules": []},
-        "docs": "https://dev.epicgames.com/documentation/en-us/unreal-engine/",
-    },
-]
-
-COMPATIBILITY_STATES = ("native", "optional", "pinned", "experimental", "unsupported")
+from .adapters.registry import ADAPTER_INFO, CAPABILITY_STATES
 
 
-def _available_node_classes() -> set[str]:
-    """Best-effort access to the registered ComfyUI node class names."""
+def _available_node_mappings() -> dict[str, Any]:
     try:
         import nodes as comfy_nodes
-
-        return set(comfy_nodes.NODE_CLASS_MAPPINGS.keys())
+        return dict(comfy_nodes.NODE_CLASS_MAPPINGS)
     except Exception:
-        return set()
+        return {}
 
 
-def _module_available(name: str) -> bool:
+def _declared_inputs(node_class: Any) -> set[str] | None:
     try:
-        return importlib.util.find_spec(name) is not None
-    except (ImportError, ValueError):
-        return False
+        spec = node_class.INPUT_TYPES()
+    except Exception:
+        return None
+    if not isinstance(spec, dict):
+        return None
+    names: set[str] = set()
+    for group in ("required", "optional"):
+        values = spec.get(group, {})
+        if isinstance(values, dict):
+            names.update(str(name) for name in values)
+    return names
 
 
-def detect_capabilities(node_classes: set[str] | None = None) -> dict[str, Any]:
-    """Return the per-adapter capability map for the current ComfyUI install."""
-    available = _available_node_classes() if node_classes is None else set(node_classes)
+def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -> dict[str, Any]:
+    """Detect presence and, where introspectable, the actual socket contract."""
+    mappings = _available_node_mappings() if node_classes is None else (
+        dict(node_classes) if isinstance(node_classes, dict) else {name: None for name in node_classes}
+    )
     capabilities = []
-    for probe in _CAPABILITY_PROBES:
-        found_nodes = [name for name in probe["probes"]["nodes"] if name in available]
-        found_modules = [name for name in probe["probes"]["modules"] if _module_available(name)]
-        probed = bool(probe["probes"]["nodes"] or probe["probes"]["modules"])
-        installed = bool(found_nodes or found_modules)
-        state = probe["state"] if installed else ("native" if not probed else "unsupported")
-        capabilities.append(
-            {
-                "adapter": probe["adapter"],
-                "display": probe["display"],
-                "state": state,
-                "installed": installed,
-                "detected_nodes": found_nodes,
-                "detected_modules": found_modules,
-                "docs": probe["docs"],
-            }
-        )
-    return {
-        "format": "majoor.omnicam.capabilities.v1",
-        "states": COMPATIBILITY_STATES,
-        "capabilities": capabilities,
-    }
+    for adapter, info in ADAPTER_INFO.items():
+        candidates = list(info.get("required_node_classes", []))
+        detected = [name for name in candidates if name in mappings]
+        expected = set(info.get("expected_inputs", []))
+        contracts = [_declared_inputs(mappings[name]) for name in detected if mappings[name] is not None]
+        known = [inputs for inputs in contracts if inputs is not None]
+        if not detected:
+            state = "missing"
+        elif not known:
+            state = "detected_unverified"
+        elif any(expected.issubset(inputs) for inputs in known):
+            state = "verified"
+        else:
+            state = "incompatible"
+        capabilities.append({
+            "adapter": adapter, "display": info["display_name"], "state": state,
+            "installed": bool(detected), "detected_nodes": detected,
+            "expected_inputs": sorted(expected), "docs": info["docs"],
+        })
+    return {"format": "majoor.omnicam.capabilities.v2", "states": CAPABILITY_STATES, "capabilities": capabilities}
 
 
 def _remediation(entry: dict[str, Any]) -> str | None:
-    if entry["installed"] or entry["state"] == "native":
+    if entry["state"] == "verified":
         return None
-    return f"Install {entry['display']} or remove the corresponding OmniCam adapter from the workflow. See {entry['docs']}"
+    if entry["state"] == "incompatible":
+        return f"Update the downstream node or use a compatible adapter contract. See {entry['docs']}"
+    if entry["state"] == "detected_unverified":
+        return f"Verify the detected node inputs before queueing. See {entry['docs']}"
+    return f"Install {entry['display']} or remove its OmniCam adapter. See {entry['docs']}"
 
 
 def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Actionable setup diagnostic: one entry per missing or risky adapter."""
     capabilities = capabilities or detect_capabilities()
     issues = []
     for entry in capabilities["capabilities"]:
         remediation = _remediation(entry)
-        if remediation is None:
-            continue
-        issues.append(
-            {
-                "adapter": entry["adapter"],
-                "display": entry["display"],
-                "state": entry["state"],
-                "severity": "error" if entry["state"] == "unsupported" else "warning",
-                "message": f"{entry['display']} is not available in this ComfyUI install.",
-                "remediation": remediation,
-                "docs": entry["docs"],
-            }
-        )
-    return {"format": "majoor.omnicam.setup-diagnostic.v1", "ok": not any(issue["severity"] == "error" for issue in issues), "issues": issues}
+        if remediation:
+            issues.append({
+                "adapter": entry["adapter"], "display": entry["display"], "state": entry["state"],
+                "severity": "error" if entry["state"] in {"missing", "incompatible"} else "warning",
+                "message": f"{entry['display']} contract is {entry['state'].replace('_', ' ')}.",
+                "remediation": remediation, "docs": entry["docs"],
+            })
+    return {"format": "majoor.omnicam.setup-diagnostic.v2", "ok": not any(i["severity"] == "error" for i in issues), "issues": issues}
 
 
 def check_workflow_compatibility(workflow_node_types: list[str], capabilities: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Detect incompatible model/control combinations before queueing.
-
-    Given the node types present in a workflow, report adapters whose OmniCam
-    nodes are used while the required downstream model nodes are missing.
-    """
     capabilities = capabilities or detect_capabilities()
     present = set(workflow_node_types)
-    used = {
-        "h3": "MajoorOmniCamH3Adapter" in present,
-        "wan_ati": "MajoorOmniCamWanVideoWrapperATI" in present,
-        "wan_native": "MajoorOmniCamWanNativeCamera" in present,
-        "ltx": "MajoorOmniCamLTXAdapter" in present or "MajoorOmniCamLTXCameraGuide" in present,
+    usage = {
+        "h3": {"MajoorOmniCamH3Adapter"}, "wan_ati": {"MajoorOmniCamWanVideoWrapperATI"},
+        "wan_native": {"MajoorOmniCamWanNativeCamera"}, "wan_tracks_native": {"MajoorOmniCamWanVideoWrapperATI"},
+        "ltx": {"MajoorOmniCamLTXAdapter", "MajoorOmniCamLTXCameraGuide"},
     }
     problems = []
     for entry in capabilities["capabilities"]:
-        if used.get(entry["adapter"]) and entry["state"] == "unsupported":
-            problems.append(
-                {
-                    "adapter": entry["adapter"],
-                    "message": f"Workflow uses OmniCam's {entry['display']} adapter but {entry['display']} is not installed.",
-                    "remediation": _remediation(entry),
-                }
-            )
+        if present.intersection(usage.get(entry["adapter"], set())) and entry["state"] in {"missing", "incompatible"}:
+            problems.append({"adapter": entry["adapter"], "message": f"{entry['display']} contract is {entry['state']}.", "remediation": _remediation(entry)})
     return {"ok": not problems, "problems": problems}

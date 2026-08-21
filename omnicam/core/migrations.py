@@ -70,5 +70,18 @@ def _migrate_track_0_to_1(payload: dict[str, Any]) -> dict[str, Any]:
     return migrated
 
 
+def _migrate_sequence_0_to_1(payload: dict[str, Any]) -> dict[str, Any]:
+    """Normalize an unversioned legacy camera-sequence envelope."""
+    migrated = dict(payload)
+    migrated.pop("schemaVersion", None)
+    if "durationFrames" in migrated and "duration_frames" not in migrated:
+        migrated["duration_frames"] = migrated.pop("durationFrames")
+    migrated.setdefault("shots", [])
+    migrated.setdefault("metadata", {})
+    migrated["schema_version"] = 1
+    return migrated
+
+
 register_migration(TRACK_SCHEMA, 0, _migrate_track_0_to_1)
 register_migration(EDITOR_STATE_SCHEMA, 0, _migrate_track_0_to_1)
+register_migration(SEQUENCE_SCHEMA, 0, _migrate_sequence_0_to_1)

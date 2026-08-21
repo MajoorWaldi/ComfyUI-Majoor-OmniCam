@@ -6,15 +6,29 @@ on:
 
 jobs:
   python-core:
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+      - run: ruff check omnicam tests
+
+  comfyui-integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements-dev.txt
-      - run: pytest -q
-      - run: ruff check omnicam tests
+      - run: git clone --depth 1 --branch v0.31.0 https://github.com/Comfy-Org/ComfyUI.git .comfyui
+      - run: pip install -r .comfyui/requirements.txt
+      - run: PYTHONPATH=.comfyui:. python scripts/comfy_integration_smoke.py
 
   frontend:
     runs-on: ubuntu-latest

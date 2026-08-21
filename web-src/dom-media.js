@@ -96,7 +96,7 @@ export async function loadModelFile(ui, file) {
     type: "model",
     format,
     name: file.name.replace(/\.[^.]+$/i, ""),
-    position: [0, 0, -2],
+    position: [0, 0, 0],
     rotation: [0, 0, 0],
     size: [1, 1, 1],
     material_mode: "textured",
@@ -107,6 +107,7 @@ export async function loadModelFile(ui, file) {
   ui.state.objects.push(object);
   ui.selectedEntity = "object";
   ui.selectedObjectId = id;
+  ui.selectedObjectIds = new Set([id]);
   ui.selectedKeyFrame = null;
   const url = ui.objectUrls.replace(id, file);
   ui.modelUrlsById.set(id, url);

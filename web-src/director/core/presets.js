@@ -62,14 +62,20 @@ export function generateCameraPreset(presetName, { duration_frames = 120, target
   const [tx, ty, tz] = target;
 
   if (presetName === "orbit_360") {
-    const steps = 5;
+    // Component-wise spline interpolation between four quadrants produces a
+    // rounded square, not a circle. Dense linear samples keep radial error
+    // negligible and make the last key close the loop exactly.
+    const steps = Math.max(17, Math.min(65, Math.ceil(frames / 4) + 1));
     for (let i = 0; i < steps; i++) {
       const f = Math.round((i / (steps - 1)) * (frames - 1));
       const angle = (i / (steps - 1)) * Math.PI * 2;
+      const position = i === steps - 1
+        ? [tx, ty + height, tz + radius]
+        : [tx + Math.sin(angle) * radius, ty + height, tz + Math.cos(angle) * radius];
       keys.push({
         frame: f,
         camera: {
-          position: [tx + Math.sin(angle) * radius, ty + height, tz + Math.cos(angle) * radius],
+          position,
           target: [tx, ty, tz],
           fov: 35,
           roll: 0,
@@ -78,7 +84,7 @@ export function generateCameraPreset(presetName, { duration_frames = 120, target
           near: 0.01,
           far: 10000,
         },
-        interpolation: "bezier",
+        interpolation: "linear",
       });
     }
   } else if (presetName === "push_in") {

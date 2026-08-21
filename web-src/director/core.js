@@ -123,20 +123,23 @@ export function bezierEaseWithHandles(t, key, previousKey, nextKey, spanFrames, 
   return 3 * v * v * u * p1y + 3 * v * u * u * p2y + u * u * u;
 }
 
-export function sampleChannel(keys, frame, channelId, channelGetter, isAngle = false) {
+export function resolveSampleSegment(keys, frame) {
+  if (!keys.length || frame <= keys[0].frame || frame >= keys[keys.length - 1].frame) return null;
+  let low = 0, high = keys.length - 1;
+  while (low + 1 < high) {
+    const middle = (low + high) >> 1;
+    if (keys[middle].frame <= frame) low = middle; else high = middle;
+  }
+  return { leftIndex: low, left: keys[low], right: keys[low + 1] };
+}
+
+export function sampleChannel(keys, frame, channelId, channelGetter, isAngle = false, segment = null) {
   if (!keys.length) return 0;
   if (frame <= keys[0].frame) return channelGetter(keys[0]);
   if (frame >= keys[keys.length - 1].frame) return channelGetter(keys[keys.length - 1]);
 
-  let leftIndex = 0;
-  for (let index = 0; index < keys.length - 1; index++) {
-    if (keys[index].frame <= frame && frame <= keys[index + 1].frame) {
-      leftIndex = index;
-      break;
-    }
-  }
-  const left = keys[leftIndex];
-  const right = keys[leftIndex + 1];
+  const resolved = segment || resolveSampleSegment(keys, frame);
+  const { leftIndex, left, right } = resolved;
   const prev = leftIndex > 0 ? keys[leftIndex - 1] : null;
   const next = leftIndex + 2 < keys.length ? keys[leftIndex + 2] : null;
   const span = Math.max(1, right.frame - left.frame);
@@ -181,7 +184,10 @@ export function defaultEditorViews() {
   const target = [0, 1, 0];
   const view = (position, up = [0, 1, 0], cameraType = "orthographic") => ({ ...defaultCamera(), position, target: [...target], up, camera_type: cameraType, zoom: 1 });
   return {
-    perspective: view([8, 6, 8], [0, 1, 0], "perspective"), top: view([0, 14, 0], [0, 0, -1]), right: view([14, 1, 0]), left: view([-14, 1, 0]), bottom: view([0, -12, 0], [0, 0, 1]),
+    perspective: view([8, 6, 8], [0, 1, 0], "perspective"),
+    front: view([0, 1, 14]), back: view([0, 1, -14]),
+    top: view([0, 14, 0], [0, 0, -1]), bottom: view([0, -12, 0], [0, 0, 1]),
+    right: view([14, 1, 0]), left: view([-14, 1, 0]),
   };
 }
 
@@ -191,7 +197,7 @@ export function cloneTransform(value) {
   return { position: [...(value.position || [0, 0, 0])], rotation: [...(value.rotation || [0, 0, 0])], size };
 }
 
-export function worldTransform(objects, object) {
+function worldTransformLegacy(objects, object) {
   const byId = new Map(objects.map((item) => [item.id, item]));
   let position = [...(object.position || [0, 0, 0])];
   let rotation = [...(object.rotation || [0, 0, 0])];
@@ -219,15 +225,16 @@ export function sampleObjectTransform(object, frame) {
   const getRot = (k, idx) => (k.transform?.rotation || base.rotation)[idx] ?? 0;
   const getSize = (k, idx) => (k.transform?.size || base.size)[idx] ?? (idx === 2 ? 0.01 : 1);
 
-  const px = sampleChannel(keys, frame, "pos_x", (k) => getPos(k, 0));
-  const py = sampleChannel(keys, frame, "pos_y", (k) => getPos(k, 1));
-  const pz = sampleChannel(keys, frame, "pos_z", (k) => getPos(k, 2));
-  const rx = sampleChannel(keys, frame, "rot_x", (k) => getRot(k, 0), true);
-  const ry = sampleChannel(keys, frame, "rot_y", (k) => getRot(k, 1), true);
-  const rz = sampleChannel(keys, frame, "rot_z", (k) => getRot(k, 2), true);
-  const sx = sampleChannel(keys, frame, "scale_x", (k) => getSize(k, 0));
-  const sy = sampleChannel(keys, frame, "scale_y", (k) => getSize(k, 1));
-  const sz = sampleChannel(keys, frame, "scale_z", (k) => getSize(k, 2));
+  const segment = resolveSampleSegment(keys, frame);
+  const px = sampleChannel(keys, frame, "pos_x", (k) => getPos(k, 0), false, segment);
+  const py = sampleChannel(keys, frame, "pos_y", (k) => getPos(k, 1), false, segment);
+  const pz = sampleChannel(keys, frame, "pos_z", (k) => getPos(k, 2), false, segment);
+  const rx = sampleChannel(keys, frame, "rot_x", (k) => getRot(k, 0), true, segment);
+  const ry = sampleChannel(keys, frame, "rot_y", (k) => getRot(k, 1), true, segment);
+  const rz = sampleChannel(keys, frame, "rot_z", (k) => getRot(k, 2), true, segment);
+  const sx = sampleChannel(keys, frame, "scale_x", (k) => getSize(k, 0), false, segment);
+  const sy = sampleChannel(keys, frame, "scale_y", (k) => getSize(k, 1), false, segment);
+  const sz = sampleChannel(keys, frame, "scale_z", (k) => getSize(k, 2), false, segment);
   return {
     position: [Number.isFinite(px) ? px : base.position[0], Number.isFinite(py) ? py : base.position[1], Number.isFinite(pz) ? pz : base.position[2]],
     rotation: [Number.isFinite(rx) ? rx : base.rotation[0], Number.isFinite(ry) ? ry : base.rotation[1], Number.isFinite(rz) ? rz : base.rotation[2]],
@@ -356,7 +363,7 @@ export function defaultState() {
     metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, card_fit: "contain", card_asset: "", reference_index: 0,
     point_density: "balanced", point_spread: "all_views", point_color: "#cbd5e1", viewport_bg_color: "#121212", viewport_bg_image: "", viewport_bg_sequence: [],
     show_wireframe: false, show_vertices: false, select_mode: "object",
-    gizmo_mode: "translate", gizmo_space: "world", auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
+    gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "maya", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
   };
@@ -414,6 +421,7 @@ export function sanitizeState(raw) {
       locked: Boolean(item?.locked),
       muted: Boolean(item?.muted),
       solo: Boolean(item?.solo),
+      recording_path: typeof item?.recording_path === "string" ? item.recording_path : "",
     };
   });
   out.active_camera_id = out.cameras.some((item) => item.id === out.active_camera_id) ? out.active_camera_id : out.cameras[0].id;
@@ -437,7 +445,7 @@ export function sanitizeState(raw) {
       ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     })).sort((a, b) => a.frame - b.frame)
   }));
-  out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
+  out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = out.navigation_profile === "blender" ? "blender" : "maya"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
   out.select_mode = ["object", "vertex", "edge", "face"].includes(out.select_mode) ? out.select_mode : "object";
   out.show_wireframe = Boolean(out.show_wireframe);
   out.show_vertices = Boolean(out.show_vertices);
@@ -453,7 +461,7 @@ export function sanitizeState(raw) {
   out.preview_layout = ["auto", "1", "2", "4"].includes(String(out.preview_layout)) ? String(out.preview_layout) : "auto";
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
-  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
+  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
   const editorViews = defaultEditorViews(); out.editor_views = Object.fromEntries(Object.entries(editorViews).map(([name, camera]) => [name, cloneCamera(out.editor_views?.[name] || camera)]));
   return out;
 }
@@ -462,6 +470,58 @@ export function sanitizeState(raw) {
 export function rotateEuler(vector, rotation) {
   const [rx, ry, rz] = (rotation || [0, 0, 0]).map((value) => value * Math.PI / 180); let [x, y, z] = vector;
   [y, z] = [y * Math.cos(rx) - z * Math.sin(rx), y * Math.sin(rx) + z * Math.cos(rx)]; [x, z] = [x * Math.cos(ry) + z * Math.sin(ry), -x * Math.sin(ry) + z * Math.cos(ry)]; [x, y] = [x * Math.cos(rz) - y * Math.sin(rz), x * Math.sin(rz) + y * Math.cos(rz)]; return [x, y, z];
+}
+
+export function quaternionFromEuler(rotation = [0, 0, 0]) {
+  const [x, y, z] = rotation.map((value) => value * Math.PI / 360);
+  const cx = Math.cos(x), sx = Math.sin(x), cy = Math.cos(y), sy = Math.sin(y), cz = Math.cos(z), sz = Math.sin(z);
+  return [sx * cy * cz + cx * sy * sz, cx * sy * cz - sx * cy * sz, cx * cy * sz + sx * sy * cz, cx * cy * cz - sx * sy * sz];
+}
+
+export function multiplyQuaternions(a, b) {
+  return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+}
+
+export function rotateQuaternion(vector, [x, y, z, w]) {
+  const [vx, vy, vz] = vector;
+  const ix = w * vx + y * vz - z * vy, iy = w * vy + z * vx - x * vz, iz = w * vz + x * vy - y * vx, iw = -x * vx - y * vy - z * vz;
+  return [ix * w - iw * x - iy * z + iz * y, iy * w - iw * y - iz * x + ix * z, iz * w - iw * z - ix * y + iy * x];
+}
+
+export function eulerFromQuaternion([x, y, z, w]) {
+  const rx = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
+  const ry = Math.asin(Math.max(-1, Math.min(1, 2 * (w * y - z * x))));
+  const rz = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+  return [rx, ry, rz].map((value) => value * 180 / Math.PI);
+}
+
+function composeWorldTransform(local, parent) {
+  const parentQuaternion = parent.quaternion || quaternionFromEuler(parent.rotation);
+  const quaternion = multiplyQuaternions(parentQuaternion, local.quaternion || quaternionFromEuler(local.rotation));
+  return { position: add(rotateQuaternion(local.position.map((value, index) => value * parent.size[index]), parentQuaternion), parent.position), rotation: eulerFromQuaternion(quaternion), quaternion, size: local.size.map((value, index) => value * parent.size[index]) };
+}
+
+export function worldTransform(objects, object) {
+  const byId = new Map(objects.map((item) => [item.id, item]));
+  const resolveWorld = (item, seen = new Set()) => {
+    const local = { ...cloneTransform(item), quaternion: quaternionFromEuler(item.rotation) };
+    if (!item?.id || seen.has(item.id)) return local;
+    const parent = item.parent_id ? byId.get(item.parent_id) : null;
+    if (!parent) return local;
+    const visited = new Set(seen); visited.add(item.id);
+    return composeWorldTransform(local, resolveWorld(parent, visited));
+  };
+  return resolveWorld(object);
+}
+
+export function sampleObjectWorldTransform(objects, object, frame, seen = new Set()) {
+  const local = sampleObjectTransform(object, frame);
+  if (!object?.id || seen.has(object.id)) return local;
+  const visited = new Set(seen); visited.add(object.id);
+  const parent = object.parent_id ? objects.find((item) => item.id === object.parent_id) : null;
+  if (!parent) return local;
+  const parentWorld = sampleObjectWorldTransform(objects, parent, frame, visited);
+  return composeWorldTransform(local, parentWorld);
 }
 
 export * from "./core/camera.js";

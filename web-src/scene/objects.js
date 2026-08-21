@@ -14,7 +14,7 @@ export function addPrimitive(ui, type) {
     id,
     type,
     name: type === "human" ? t("Human Proxy") : type[0].toUpperCase() + type.slice(1),
-    position: ground ? [0, -0.05, 0] : [0, type === "human" ? 0 : 0.75, -2],
+    position: [0, 0, 0],
     rotation: [0, 0, 0],
     size: ground ? [12, 0.1, 12] : type === "human" ? [0.7, 1.8, 0.4] : [1.5, 1.5, 1.5],
     material_mode: ground ? "checker" : "textured",
@@ -24,6 +24,7 @@ export function addPrimitive(ui, type) {
   ui.state.objects.push(object);
   ui.selectedEntity = "object";
   ui.selectedObjectId = id;
+  ui.selectedObjectIds = new Set([id]);
   ui.selectedKeyFrame = null;
   ui.serialize();
   ui.refreshObjects();
@@ -56,6 +57,7 @@ export function duplicateObject(ui, id) {
   ui.state.objects.push(copy);
   ui.selectedEntity = "object";
   ui.selectedObjectId = copy.id;
+  ui.selectedObjectIds = new Set([copy.id]);
   ui.serialize();
   ui.refreshObjects();
   ui.refreshKeys();
@@ -82,6 +84,7 @@ export async function deleteObject(ui, id) {
   ui.checkpoint("Delete object");
   for (const child of ui.state.objects) if (child.parent_id === id) child.parent_id = null;
   ui.state.objects = ui.state.objects.filter((item) => item.id !== id);
+  ui.selectedObjectIds?.delete(id);
   ui.removeObjectResources(id);
   if (ui.selectedObjectId === id) {
     ui.selectedEntity = "camera";
@@ -101,7 +104,7 @@ export function addMediaCard(ui) {
     id,
     type: "card",
     name: `Media Card ${ui.state.objects.filter((item) => item.type === "card").length + 1}`,
-    position: [0, 1.5, -2],
+    position: [0, 0, 0],
     rotation: [0, 0, 0],
     size: [2, 3],
     material_mode: "textured",
@@ -111,6 +114,7 @@ export function addMediaCard(ui) {
   });
   ui.selectedEntity = "object";
   ui.selectedObjectId = id;
+  ui.selectedObjectIds = new Set([id]);
   ui.selectedKeyFrame = null;
   ui.serialize();
   ui.refreshObjects();
@@ -320,6 +324,9 @@ export function commitObjectEdit(ui, object) {
 }
 
 export function updateCameraFromHud(ui) {
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  if (!Number.isFinite(ui.lastCameraHudEditAt) || now - ui.lastCameraHudEditAt > 300) ui.checkpoint("Edit camera");
+  ui.lastCameraHudEditAt = now;
   const read = (role, fallback) => {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
     if (!el || el.value === "") return fallback;

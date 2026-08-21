@@ -103,3 +103,28 @@ def fov_to_focal_length(fov_degrees: float, sensor_size_mm: float) -> float:
 
 def focal_length_to_fov(focal_length_mm: float, sensor_size_mm: float) -> float:
     return math.degrees(2 * math.atan(float(sensor_size_mm) / (2 * max(1e-6, float(focal_length_mm)))))
+
+
+def quaternion_from_euler(rotation: Sequence[float]) -> list[float]:
+    x, y, z = (math.radians(float(value)) * 0.5 for value in rotation)
+    cx, sx, cy, sy, cz, sz = math.cos(x), math.sin(x), math.cos(y), math.sin(y), math.cos(z), math.sin(z)
+    return [sx * cy * cz + cx * sy * sz, cx * sy * cz - sx * cy * sz, cx * cy * sz + sx * sy * cz, cx * cy * cz - sx * sy * sz]
+
+
+def multiply_quaternions(a: Sequence[float], b: Sequence[float]) -> list[float]:
+    return [a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1], a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0], a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3], a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]]
+
+
+def rotate_quaternion(vector: Sequence[float], quaternion: Sequence[float]) -> list[float]:
+    x, y, z, w = quaternion
+    vx, vy, vz = vector
+    ix, iy, iz, iw = w * vx + y * vz - z * vy, w * vy + z * vx - x * vz, w * vz + x * vy - y * vx, -x * vx - y * vy - z * vz
+    return [ix * w - iw * x - iy * z + iz * y, iy * w - iw * y - iz * x + ix * z, iz * w - iw * z - ix * y + iy * x]
+
+
+def euler_from_quaternion(quaternion: Sequence[float]) -> list[float]:
+    x, y, z, w = quaternion
+    rx = math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
+    ry = math.asin(max(-1.0, min(1.0, 2 * (w * y - z * x))))
+    rz = math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+    return [math.degrees(value) for value in (rx, ry, rz)]

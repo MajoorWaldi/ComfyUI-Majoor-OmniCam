@@ -1,5 +1,13 @@
 // OmniCam Director methods extracted from the UI facade.
 
+function assetSignature(state) {
+  return JSON.stringify({
+    background: state.viewport_bg_image || "",
+    sequence: state.viewport_bg_sequence || [],
+    objects: (state.objects || []).map((object) => [object.id, object.type, object.asset || ""]),
+  });
+}
+
 export function createEditorMethods(dependencies) {
   const { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
   return {
@@ -35,7 +43,24 @@ export function createEditorMethods(dependencies) {
   },
   restoreHistorySnapshot(snapshot) {
     const value = JSON.parse(snapshot);
-    this.state = sanitizeState(value.state), this.frame = clamp(value.frame, 0, this.state.duration_frames - 1), this.selectedEntity = value.selectedEntity, this.selectedObjectId = value.selectedObjectId, this.selectedKeyFrame = value.selectedKeyFrame, this.camera = sampleCamera(this.state, this.frame), this.cameraPreviewSignature = "", this.serialize(), this.restoreAssets(), this.refreshObjects(), this.refreshKeys(), this.render();
+    const previousAssets = assetSignature(this.state);
+    const previousIds = new Set(this.state.objects.map((object) => object.id));
+    this.state = sanitizeState(value.state);
+    const nextIds = new Set(this.state.objects.map((object) => object.id));
+    for (const id of previousIds) if (!nextIds.has(id)) this.removeObjectResources(id);
+    this.frame = clamp(value.frame, 0, this.state.duration_frames - 1);
+    this.selectedEntity = value.selectedEntity;
+    this.selectedObjectId = value.selectedObjectId;
+    this.selectedObjectIds = new Set(value.selectedObjectId ? [value.selectedObjectId] : []);
+    this.selectedKeyFrame = value.selectedKeyFrame;
+    this.camera = sampleCamera(this.state, this.frame);
+    this.cameraPreviewSignature = "";
+    this.serialize();
+    if (previousAssets !== assetSignature(this.state)) this.restoreAssets();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
   },
   checkpoint(label) {
     this.history.checkpoint(label);
@@ -200,10 +225,13 @@ export function createEditorMethods(dependencies) {
       null,
       { label: "Camera tracks this object (Look-At)", icon: "pi-crosshairs", help: "Lock camera live look-at tracking to this moving object", run: () => this.aimAtSelectedObject(id) },
       { label: "Bake tracking to all camera keys", icon: "pi-check-square", help: "Write this object's motion into camera target keyframes", run: () => this.bakeAimToKeyframes() },
+      { label: "Select hierarchy", icon: "pi-sitemap", shortcut: "Shift+G", help: "Select this object and all descendants", run: () => this.selectHierarchy(id) },
       null,
-      { label: "Translate", icon: "pi-arrows-alt", shortcut: "W", run: () => this.setTransformMode("translate") },
-      { label: "Rotate", icon: "pi-refresh", shortcut: "E", run: () => this.setTransformMode("rotate") },
-      { label: "Scale", icon: "pi-expand", shortcut: "R", run: () => this.setTransformMode("scale") },
+      { label: "Translation gizmo", icon: "pi-arrows-alt", run: () => this.setTransformMode("translate") },
+      { label: "Rotation gizmo", icon: "pi-refresh", run: () => this.setTransformMode("rotate") },
+      { label: "Scale gizmo", icon: "pi-expand", run: () => this.setTransformMode("scale") },
+      null,
+      { label: "Reset entire animation", icon: "pi-replay", help: "Delete every animation key and return position/rotation to zero", run: () => this.resetObjectAnimation(id) },
       null,
       { label: "Delete object", icon: "pi-trash", danger: !0, disabled: id === "subject", help: id === "subject" ? "The canonical subject card cannot be deleted" : "Delete this object and its animation keys", run: () => this.deleteObject(id) }
     ]);
@@ -236,6 +264,8 @@ export function createEditorMethods(dependencies) {
       { label: "Rename camera…", icon: "pi-pencil", run: () => this.renameCamera(id) },
       { label: "Duplicate camera", icon: "pi-copy", run: () => this.duplicateCamera(id) },
       { label: "Create camera from current view", icon: "pi-plus", run: () => this.addCamera() },
+      null,
+      { label: "Reset entire animation", icon: "pi-replay", help: "Delete every camera key and return to a static zero pose at frame 0", run: () => this.resetCameraAnimation(id) },
       null,
       { label: "Delete camera", icon: "pi-trash", danger: !0, disabled: this.state.cameras.length <= 1, run: () => this.deleteCamera(id) }
     ]);

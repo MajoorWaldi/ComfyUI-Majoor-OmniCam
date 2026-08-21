@@ -5,6 +5,7 @@ export const app = {
   graph: null,
   registerExtension(extension) {
     extensions.push(extension);
+    window.__omnicamExtensions = extensions;
     window.__omnicamExtension = extension;
   },
 };

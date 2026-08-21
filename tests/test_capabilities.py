@@ -11,11 +11,20 @@ def test_detect_capabilities_marks_installed_nodes():
     caps = detect_capabilities({"WanCameraImageToVideo", "WanVideoATITracks"})
     by_adapter = {entry["adapter"]: entry for entry in caps["capabilities"]}
     assert by_adapter["wan_native"]["installed"] is True
-    assert by_adapter["wan_native"]["state"] == "native"
+    assert by_adapter["wan_native"]["state"] == "detected_unverified"
     assert by_adapter["wan_ati"]["installed"] is True
-    assert by_adapter["wan_ati"]["state"] == "pinned"
-    assert by_adapter["h3"]["state"] == "unsupported"
-    assert by_adapter["blender"]["state"] == "native"  # file export has no node dependency
+    assert by_adapter["wan_ati"]["state"] == "detected_unverified"
+    assert by_adapter["h3"]["state"] == "missing"
+
+
+def test_detect_capabilities_verifies_real_input_contract():
+    class WanNode:
+        @classmethod
+        def INPUT_TYPES(cls):
+            return {"required": {"camera_conditions": ("WAN_CAMERA_EMBEDDING",)}}
+
+    entry = next(item for item in detect_capabilities({"WanCameraImageToVideo": WanNode})["capabilities"] if item["adapter"] == "wan_native")
+    assert entry["state"] == "verified"
 
 
 def test_diagnostic_is_actionable():
@@ -29,7 +38,11 @@ def test_workflow_compatibility_flags_missing_downstream():
     result = check_workflow_compatibility(["MajoorOmniCamH3Adapter"], detect_capabilities(set()))
     assert result["ok"] is False
     assert result["problems"][0]["adapter"] == "h3"
-    ok = check_workflow_compatibility(["MajoorOmniCamH3Adapter"], detect_capabilities({"MinimaxHailuo03ReferenceNode"}))
+    class H3Node:
+        @classmethod
+        def INPUT_TYPES(cls):
+            return {"required": {"video": ("VIDEO",), "prompt": ("STRING",)}}
+    ok = check_workflow_compatibility(["MajoorOmniCamH3Adapter"], detect_capabilities({"MinimaxHailuo03ReferenceNode": H3Node}))
     assert ok["ok"] is True
 
 

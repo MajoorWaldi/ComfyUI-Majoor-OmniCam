@@ -227,6 +227,29 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
     return obj
 
 
+def validate_object_hierarchy(objects: list[dict[str, Any]]) -> None:
+    """Reject missing parents, self-parenting and cycles of any length."""
+    by_id = {obj["id"]: obj for obj in objects}
+    for object_id, obj in by_id.items():
+        parent_id = obj.get("parent_id")
+        if parent_id in (None, ""):
+            continue
+        if not isinstance(parent_id, str) or parent_id not in by_id:
+            raise ValidationError(f"object {object_id!r} references missing parent {parent_id!r}")
+        if parent_id == object_id:
+            raise ValidationError(f"object {object_id!r} cannot parent itself")
+    resolved: set[str] = set()
+    for object_id in by_id:
+        chain: set[str] = set()
+        current = object_id
+        while current and current not in resolved:
+            if current in chain:
+                raise ValidationError(f"object hierarchy contains a cycle through {current!r}")
+            chain.add(current)
+            current = str(by_id[current].get("parent_id") or "")
+        resolved.update(chain)
+
+
 def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None = None) -> dict[str, Any]:
     """Validate and clamp a canonical MAJOOR_OMNICAM_TRACK payload. Returns a cleaned copy."""
     limits = limits or DEFAULT_LIMITS
@@ -256,6 +279,20 @@ def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None =
         seen_ids.add(validated["id"])
         validated_objects.append(validated)
     track["objects"] = validated_objects
+    validate_object_hierarchy(validated_objects)
+    constraints = track.get("constraints")
+    if constraints is not None:
+        if not isinstance(constraints, dict):
+            raise ValidationError("constraints must be an object")
+        look_at = constraints.get("look_at")
+        if look_at is not None:
+            if not isinstance(look_at, dict):
+                raise ValidationError("constraints.look_at must be an object")
+            object_id = str(look_at.get("object_id") or "")
+            if not object_id or len(object_id) > 80:
+                raise ValidationError("constraints.look_at.object_id must be a non-empty id of at most 80 characters")
+            status = whitelist(look_at.get("status", "active"), {"active", "missing_target", "disabled_target"}, "constraints.look_at.status")
+            track["constraints"] = {**constraints, "look_at": {**look_at, "object_id": object_id, "offset": validate_vec3(look_at.get("offset", [0, 0, 0]), "constraints.look_at.offset"), "space": "world", "status": status}}
     if "camera" in track and isinstance(track["camera"], dict):
         track["camera"] = validate_camera(track["camera"], "camera")
     return track

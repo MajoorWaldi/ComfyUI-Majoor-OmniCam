@@ -12,7 +12,7 @@ export function viewportCamera(ui) {
 }
 
 export function setViewMode(ui, mode) {
-  if (!["camera", "perspective", "top", "right", "left", "bottom"].includes(mode)) return;
+  if (!["camera", "perspective", "front", "back", "top", "right", "left", "bottom"].includes(mode)) return;
   ui.state.view_mode = mode;
   for (const vm of ui.root.querySelectorAll('[data-role="view-mode"]')) vm.value = mode;
   ui.serialize();
@@ -34,6 +34,7 @@ export function setTransformMode(ui, mode) {
 }
 
 export function resetCamera(ui, defaultCameraFn) {
+  ui.checkpoint("Reset camera");
   ui.camera = defaultCameraFn();
   const fovEl = ui.root.querySelector('[data-role="fov"]');
   if (fovEl) fovEl.value = String(ui.camera.fov);
@@ -54,6 +55,7 @@ export function frameTarget(ui) {
 
   // 1. If a sub-element (vertex, edge, face) is selected, focus directly on it!
   if (ui.subSelection?.point) {
+    ui.checkpoint("Frame selection");
     const pt = ui.subSelection.point;
     const currentDir = norm(sub(camera.position, oldTarget));
     const dir = (Number.isFinite(currentDir[0]) && length(currentDir) > 0.1) ? currentDir : [0.707, 0.4, 0.707];
@@ -88,6 +90,7 @@ export function frameTarget(ui) {
   const dir = (Number.isFinite(currentDir[0]) && length(currentDir) > 0.1) ? currentDir : [0.707, 0.4, 0.707];
   const targetPos = targetObj.keyframes?.length ? sampleObjectTransform(targetObj, ui.frame).position : (targetObj.position || [0, 1.5, 0]);
 
+  ui.checkpoint("Frame subject");
   camera.target = [...targetPos];
   camera.position = add(camera.target, mul(dir, idealDist));
 
@@ -111,7 +114,7 @@ export function gizmoAxes(ui, object, entity) {
 export function activeGizmoEntity(ui) {
   if (ui.selectedEntity === "object") {
     const object = ui.selectedObject();
-    if (!object) return null;
+    if (!object || object.locked) return null;
     const modelCenter = (object.type === "model" || object.type === "glb") ? ui.webgl?.getObjectWorldCenter?.(object.id) : null;
     const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
     const position = modelCenter || transform.position || [0, 0, 0];
@@ -126,12 +129,12 @@ export function activeGizmoEntity(ui) {
   if (ui.state.view_mode !== "camera") {
     if (ui.selectedEntity === "camera_target") {
       const activeCam = ui.activeCameraTrack();
-      const camData = sampleCamera(activeCam, ui.frame);
+      const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
       return { type: "camera_target", position: camData.target || ui.camera.target || [0, 1.5, 0], rotation: [0, 0, 0] };
     }
     if (ui.selectedEntity === "camera") {
       const activeCam = ui.activeCameraTrack();
-      const camData = sampleCamera(activeCam, ui.frame);
+      const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
       return { type: "camera", position: camData.position || ui.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
     }
   }
@@ -175,6 +178,20 @@ export function gizmoGeometry(ui) {
 export function pickGizmo(ui, pointer) {
   const geometry = gizmoGeometry(ui);
   if (!geometry) return null;
+  const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+  const centerDistance = Math.hypot(pointer[0] - geometry.center[0], pointer[1] - geometry.center[1]);
+  if (ui.state.gizmo_mode === "translate" && geometry.entity.type === "object" && centerDistance <= 11 * pixelRatio) {
+    const center = geometry.center;
+    return {
+      free: true,
+      index: -1,
+      axis: [0, 0, 0],
+      distance: centerDistance,
+      segment: [center, [center[0] + 1, center[1]]],
+      worldLength: geometry.worldLength,
+      entity: geometry.entity,
+    };
+  }
   let best = null;
   for (const handle of geometry.handles)
     for (let index = 0; index < handle.points.length - 1; index++) {
@@ -183,7 +200,7 @@ export function pickGizmo(ui, pointer) {
       const distance = distanceToSegment(pointer, a, b);
       if (!best || distance < best.distance) best = { ...handle, distance, segment: [a, b], worldLength: geometry.worldLength, entity: geometry.entity };
     }
-  return best?.distance <= 14 * Math.min(2, window.devicePixelRatio || 1) ? best : null;
+  return best?.distance <= 18 * pixelRatio ? best : null;
 }
 
 export function pickSceneObject(ui, pointer) {
@@ -214,7 +231,7 @@ export function pickSceneObject(ui, pointer) {
           return { type: "camera_keyframe", camera: cam, keyframe: key };
         }
       }
-      const camData = sampleCamera(cam, ui.frame);
+      const camData = sampleCamera(cam, ui.frame, ui.state.objects);
       const tgtPoint = project(camData.target || [0, 1.5, 0], camera, ui.canvas.width, ui.canvas.height);
       if (tgtPoint && Math.hypot(pointer[0] - tgtPoint[0], pointer[1] - tgtPoint[1]) <= 18 * Math.min(2, window.devicePixelRatio || 1)) {
         return { type: "camera_target", camera: cam };
@@ -259,7 +276,9 @@ export function drawTransformGizmo(ui) {
   ui.ctx.lineCap = "round";
   for (const handle of geometry.handles) {
     if (!handle?.points?.length) continue;
-    ui.ctx.strokeStyle = colors[handle.index] || "#ffffff";
+    const highlighted = ui.hoveredGizmoHandle === handle.index || ui.gizmoDrag?.axisIndex === handle.index;
+    ui.ctx.lineWidth = highlighted ? 7 : 4;
+    ui.ctx.strokeStyle = highlighted ? "#ffffff" : (colors[handle.index] || "#ffffff");
     ui.ctx.fillStyle = colors[handle.index] || "#ffffff";
     ui.ctx.beginPath();
     handle.points.forEach((point, index) => {
@@ -280,6 +299,16 @@ export function drawTransformGizmo(ui) {
         ui.ctx.fill();
       }
     }
+  }
+  if (ui.state.gizmo_mode === "translate" && geometry.entity?.type === "object") {
+    const centerHighlighted = ui.hoveredGizmoHandle === "free" || ui.gizmoDrag?.free;
+    ui.ctx.fillStyle = centerHighlighted ? "#fbbf24" : "#f4f7fb";
+    ui.ctx.strokeStyle = "#15171c";
+    ui.ctx.lineWidth = 2;
+    ui.ctx.beginPath();
+    ui.ctx.arc(geometry.center[0], geometry.center[1], centerHighlighted ? 10 : 7, 0, Math.PI * 2);
+    ui.ctx.fill();
+    ui.ctx.stroke();
   }
   ui.ctx.restore();
 }

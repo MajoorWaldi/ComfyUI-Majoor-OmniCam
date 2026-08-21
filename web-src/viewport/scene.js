@@ -174,7 +174,7 @@ export function createSceneMethods(dependencies) {
 
   updateSelection(state, selectedEntity, selectedObjectId, subSelection = null, selectionToken = "") {
     const subToken = subSelection ? `${subSelection.mode || ""}:${subSelection.objectId || ""}:${(subSelection.point || []).join(",")}` : "";
-    const nextSelectionKey = `${selectedEntity}:${selectedObjectId || ""}:${selectionToken}:${subToken}`;
+    const nextSelectionKey = `${selectedEntity}:${selectedObjectId || ""}:${(state.__selectedObjectIds || []).join(",")}:${selectionToken}:${subToken}`;
     if (nextSelectionKey === this.selectionKey) return;
     this.selectionKey = nextSelectionKey;
     disposeObject(this.selectionGroup);
@@ -285,6 +285,23 @@ export function createSceneMethods(dependencies) {
             this.selectionGroup.add(outline);
           }
         }
+      }
+    }
+    if (selectedEntity === "object") {
+      for (const id of state.__selectedObjectIds || []) {
+        if (id === selectedObjectId) continue;
+        const node = this.objectNodes.get(id);
+        if (!node) continue;
+        node.updateMatrixWorld(true);
+        try {
+          const box = new THREE.Box3().setFromObject(node);
+          if (!box.isEmpty() && Number.isFinite(box.min.x)) {
+            box.expandByScalar(0.04);
+            const helper = new THREE.Box3Helper(box, new THREE.Color(0xfbbf24));
+            helper.material.transparent = true; helper.material.opacity = 0.85; helper.material.depthTest = false; helper.renderOrder = 9997;
+            this.selectionGroup.add(helper);
+          }
+        } catch (_) {}
       }
     }
   },

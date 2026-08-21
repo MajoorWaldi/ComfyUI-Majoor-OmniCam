@@ -3,7 +3,7 @@ import math
 import pytest
 
 from omnicam.core.editor_state import editor_state_to_track, select_track_camera
-from omnicam.core.migrations import TRACK_SCHEMA, migrate_payload
+from omnicam.core.migrations import SEQUENCE_SCHEMA, TRACK_SCHEMA, migrate_payload
 from omnicam.core.track import OmniCamTrack
 from omnicam.core.validation import (
     TrackLimits,
@@ -127,6 +127,31 @@ def test_editor_state_to_primary_track_uses_playblast_camera():
     assert track["fps"] == 30
 
 
+def test_editor_state_compiles_camera_look_at_constraint():
+    state = {
+        "duration_frames": 20,
+        "objects": [{"id": "actor", "type": "human", "position": [1, 2, 3], "enabled": True}],
+        "cameras": [{
+            "id": "camera_1", "camera": {}, "keyframes": [],
+            "target_object_id": "actor", "target_offset": [0, 1.5, -0.25],
+        }],
+        "active_camera_id": "camera_1",
+    }
+    track = editor_state_to_track(state)
+    assert track["constraints"]["look_at"] == {
+        "object_id": "actor", "offset": [0.0, 1.5, -0.25], "space": "world", "status": "active",
+    }
+    assert OmniCamTrack.from_dict(track).to_dict()["constraints"] == track["constraints"]
+
+
+def test_editor_state_marks_missing_and_disabled_look_at_targets():
+    base = {"cameras": [{"id": "cam", "camera": {}, "keyframes": [], "target_object_id": "actor"}], "active_camera_id": "cam"}
+    missing = editor_state_to_track(base)
+    assert missing["constraints"]["look_at"]["status"] == "missing_target"
+    disabled = editor_state_to_track({**base, "objects": [{"id": "actor", "type": "human", "enabled": False}]})
+    assert disabled["constraints"]["look_at"]["status"] == "disabled_target"
+
+
 def test_editor_state_explicit_camera_selection():
     state = {"cameras": [{"id": "a", "camera": {"position": [0, 0, 1]}, "keyframes": []}, {"id": "b", "camera": {"position": [9, 9, 9]}, "keyframes": []}]}
     assert select_track_camera(state, "b")["id"] == "b"
@@ -185,3 +210,20 @@ def test_tangent_validation_clamps_and_whitelists():
 def test_track_payload_size_limit_applies_outside_editor_state():
     with pytest.raises(ValidationError, match="track payload"):
         validate_track_payload({"metadata": {"padding": "x" * 128}}, TrackLimits(max_state_bytes=64))
+
+
+def test_unversioned_sequence_has_a_registered_migration():
+    migrated = migrate_payload({"schemaVersion": 0, "durationFrames": 10, "shots": []}, SEQUENCE_SCHEMA)
+    assert migrated["schema_version"] == 1
+    assert migrated["duration_frames"] == 10
+
+
+@pytest.mark.parametrize("objects", [
+    [{"id": "a", "parent_id": "missing"}],
+    [{"id": "a", "parent_id": "a"}],
+    [{"id": "a", "parent_id": "b"}, {"id": "b", "parent_id": "a"}],
+    [{"id": "a", "parent_id": "b"}, {"id": "b", "parent_id": "c"}, {"id": "c", "parent_id": "a"}],
+])
+def test_object_hierarchy_rejects_missing_parents_and_cycles(objects):
+    with pytest.raises(ValidationError):
+        validate_track_payload({"objects": objects})

@@ -31,6 +31,13 @@ export function serializeEditorState(ui) {
   ui.renderRevision = (ui.renderRevision || 0) + 1;
   syncActiveCameraTrack(ui);
   const playblastCamera = playblastCameraTrack(ui);
+  if (ui.recordingWidget) {
+    const hasPerCameraRecording = ui.state.cameras.some((camera) => Boolean(camera.recording_path));
+    if (!hasPerCameraRecording && !playblastCamera.recording_path && ui.recordingWidget.value) {
+      playblastCamera.recording_path = String(ui.recordingWidget.value);
+    }
+    ui.recordingWidget.value = playblastCamera.recording_path || "";
+  }
   ui.state.metadata = { ...ui.state.metadata, playblast_camera_id: playblastCamera.id, playblast_camera_name: playblastCamera.name };
   const payload = { ...ui.state, camera: cloneCamera(playblastCamera.camera), keyframes: playblastCamera.keyframes };
   if (ui.stateWidget) ui.stateWidget.value = JSON.stringify(payload);
@@ -41,6 +48,18 @@ export function serializeEditorState(ui) {
   if (ui.modeWidget) ui.modeWidget.value = ui.state.render_mode;
   if (ui.cardWidget) ui.cardWidget.value = ui.state.card_asset || "";
   ui.node.graph?.setDirtyCanvas?.(true, true);
+  for (const output of ui.node.outputs || []) {
+    for (const linkId of output?.links || []) {
+      const graph = ui.node.graph;
+      const link = graph?.links?.get?.(linkId) || graph?.links?.[linkId]
+        || graph?._links?.get?.(linkId) || graph?._links?.[linkId];
+      const targetId = link?.target_id ?? link?.targetId ?? (Array.isArray(link) ? link[3] : null);
+      const target = graph?.getNodeById?.(targetId) || graph?._nodes_by_id?.get?.(targetId)
+        || graph?._nodes_by_id?.[targetId];
+      const sequencer = target?.__majoorOmniCamSequencer;
+      if (sequencer) queueMicrotask(() => sequencer.syncConnectedSlots());
+    }
+  }
 }
 
 export function bindWidgetCallbacks(ui) {
@@ -91,6 +110,9 @@ export function syncFromWidgets(ui, persist = true) {
   for (const el of ui.root.querySelectorAll('[data-role="aspect-ratio"]')) el.value = ui.state.aspect_ratio || "auto";
   for (const el of ui.root.querySelectorAll('[data-role="viewport-bg-color"]')) el.value = ui.state.viewport_bg_color || "#121212";
   for (const el of ui.root.querySelectorAll('[data-role="gizmo-space"]')) el.value = ui.state.gizmo_space || "world";
+  for (const el of ui.root.querySelectorAll('[data-role="navigation-profile"]')) el.value = ui.state.navigation_profile || "maya";
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-snap-mode"]')) el.value = ui.state.spatial_snap_mode || "none";
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-grid-size"]')) el.value = String(ui.state.spatial_grid_size || 0.5);
   for (const el of ui.root.querySelectorAll('[data-role="view-mode"]')) el.value = ui.state.view_mode || "camera";
   for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) el.value = ui.state.ui_density || "advanced";
   ui.root.dataset.density = ui.state.ui_density || "advanced";

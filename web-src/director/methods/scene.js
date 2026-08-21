@@ -1,5 +1,7 @@
 // OmniCam Director methods extracted from the UI facade.
 
+import { resetCameraAnimation, resetObjectAnimation } from "../../animation-reset.js";
+
 export function createSceneMethods(dependencies) {
   const { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
   return {
@@ -9,7 +11,7 @@ export function createSceneMethods(dependencies) {
   setFrame(frame, fromPlayback = false, refreshTimeline = true) {
     this.frame = clamp(Math.round(frame), 0, this.state.duration_frames - 1);
     if (this.editingKeyFrame !== this.frame) this.editingKeyFrame = null;
-    this.camera = sampleCamera(this.activeCameraTrack(), this.frame);
+    this.camera = sampleCamera(this.activeCameraTrack(), this.frame, this.state.objects);
     this.applyObjectAnimationFrame();
     for (const el of this.root.querySelectorAll('[data-role="frame"]')) if (document.activeElement !== el) el.value = String(this.frame);
     for (const el of this.root.querySelectorAll('[data-role="scrub"]')) el.value = String(this.frame);
@@ -65,6 +67,12 @@ export function createSceneMethods(dependencies) {
   },
   resetCamera() {
     resetCamera(this, defaultCamera);
+  },
+  resetCameraAnimation(id) {
+    resetCameraAnimation(this, id);
+  },
+  resetObjectAnimation(id) {
+    resetObjectAnimation(this, id);
   },
   selectedKeyframe() {
     return selectedKeyframe(this);
@@ -166,6 +174,26 @@ export function createSceneMethods(dependencies) {
   },
   toggleObject(id) {
     toggleObject(this, id);
+  },
+  showAllObjects() {
+    const hidden = this.state.objects.filter((object) => object.enabled === false);
+    if (!hidden.length) return;
+    this.checkpoint("Show all objects");
+    for (const object of hidden) object.enabled = true;
+    this.serialize(); this.refreshObjects(); this.render(); this.setStatus("All objects shown");
+  },
+  selectHierarchy(id = this.selectedObjectId) {
+    if (!id) return;
+    const ids = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const object of this.state.objects) {
+        if (object.parent_id && ids.has(object.parent_id) && !ids.has(object.id)) { ids.add(object.id); changed = true; }
+      }
+    }
+    this.selectedObjectIds = ids; this.selectedObjectId = id; this.selectedEntity = "object";
+    this.refreshObjects(); this.refreshInspector(); this.render(); this.setStatus(`Hierarchy selected: ${ids.size} object(s)`);
   },
   async deleteObject(id) {
     return deleteObject(this, id);

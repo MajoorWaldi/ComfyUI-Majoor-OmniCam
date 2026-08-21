@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+from .camera_math import camera_basis
 from .track import CameraState
 
 
@@ -35,24 +36,7 @@ def norm(v):
 
 
 def basis(camera: CameraState):
-    offset = sub(camera.target, camera.position)
-    if math.sqrt(dot(offset, offset)) < 1e-6:
-        forward = [0.0, 0.0, -1.0]
-    else:
-        forward = norm(offset)
-    world_up = [0.0, 1.0, 0.0]
-    right = cross(forward, world_up)
-    if math.sqrt(dot(right, right)) < 1e-6:
-        # Forward is parallel to world up: pick a stable fallback axis.
-        world_up = [0.0, 0.0, -1.0 if forward[1] > 0 else 1.0]
-        right = cross(forward, world_up)
-    right = norm(right)
-    up = norm(cross(right, forward))
-    if abs(camera.roll) > 1e-9:
-        r = math.radians(camera.roll)
-        c, s = math.cos(r), math.sin(r)
-        right, up = add(mul(right, c), mul(up, s)), add(mul(up, c), mul(right, -s))
-    return right, up, forward
+    return camera_basis(camera.position, camera.target, camera.roll)
 
 
 def project_point(point, camera: CameraState, width: int, height: int):

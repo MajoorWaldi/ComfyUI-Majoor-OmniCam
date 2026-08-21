@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "majoor.omnicam.shot.v1",
+  "type": "object",
+  "required": ["schema_version", "kind", "id", "name", "video", "camera_track"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "omnicam_shot"},
+    "id": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "name": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "video": {},
+    "audio": {},
+    "camera_track": {"type": "object"},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": true
+}

@@ -7,6 +7,8 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from .camera_math import euler_from_quaternion, multiply_quaternions, quaternion_from_euler, rotate_quaternion
+
 SCHEMA_VERSION = 1
 
 
@@ -41,6 +43,66 @@ def _lerp_angle(a: float, b: float, t: float) -> float:
 
 def _lerp3(a: list[float], b: list[float], t: float) -> list[float]:
     return [_lerp(a[i], b[i], t) for i in range(3)]
+
+
+def _rotate_euler(vector: list[float], rotation: list[float]) -> list[float]:
+    """Match the Director's X -> Y -> Z Euler transform order."""
+    rx, ry, rz = (math.radians(value) for value in rotation)
+    x, y, z = vector
+    y, z = y * math.cos(rx) - z * math.sin(rx), y * math.sin(rx) + z * math.cos(rx)
+    x, z = x * math.cos(ry) + z * math.sin(ry), -x * math.sin(ry) + z * math.cos(ry)
+    x, y = x * math.cos(rz) - y * math.sin(rz), x * math.sin(rz) + y * math.cos(rz)
+    return [x, y, z]
+
+
+def _sample_object_transform(obj: dict[str, Any], frame: float) -> dict[str, list[float]]:
+    base_position = _vec3(obj.get("position"), (0.0, 0.0, 0.0))
+    base_rotation = _vec3(obj.get("rotation"), (0.0, 0.0, 0.0))
+    base_size = _vec3(obj.get("size"), (1.0, 1.0, 1.0))
+    keys = obj.get("keyframes") if isinstance(obj.get("keyframes"), list) else []
+    if not keys:
+        return {"position": base_position, "rotation": base_rotation, "size": base_size}
+
+    def component(key: dict[str, Any], field: str, index: int, fallback: list[float]) -> float:
+        transform = key.get("transform") if isinstance(key.get("transform"), dict) else {}
+        value = transform.get(field, fallback)
+        return _finite(value[index] if isinstance(value, (list, tuple)) and len(value) > index else fallback[index], fallback[index])
+
+    return {
+        "position": [_sample_channel(keys, frame, f"pos_{axis}", lambda key, i=i: component(key, "position", i, base_position)) for i, axis in enumerate("xyz")],
+        "rotation": [_sample_channel(keys, frame, f"rot_{axis}", lambda key, i=i: component(key, "rotation", i, base_rotation), is_angle=True) for i, axis in enumerate("xyz")],
+        "size": [max(0.01, _sample_channel(keys, frame, f"scale_{axis}", lambda key, i=i: component(key, "size", i, base_size))) for i, axis in enumerate("xyz")],
+    }
+
+
+def _sample_object_world_transform(objects: dict[str, dict[str, Any]], obj: dict[str, Any], frame: float, seen: set[str] | None = None) -> dict[str, list[float]]:
+    local = _sample_object_transform(obj, frame)
+    local["quaternion"] = quaternion_from_euler(local["rotation"])
+    object_id = str(obj.get("id") or "")
+    visited = set(seen or ())
+    if object_id in visited:
+        return local
+    visited.add(object_id)
+    parent = objects.get(str(obj.get("parent_id") or ""))
+    if not parent:
+        return local
+    parent_world = _sample_object_world_transform(objects, parent, frame, visited)
+    scaled = [local["position"][i] * parent_world["size"][i] for i in range(3)]
+    parent_quaternion = parent_world.get("quaternion") or quaternion_from_euler(parent_world["rotation"])
+    rotated = rotate_quaternion(scaled, parent_quaternion)
+    quaternion = multiply_quaternions(parent_quaternion, local["quaternion"])
+    return {
+        "position": [rotated[i] + parent_world["position"][i] for i in range(3)],
+        "rotation": euler_from_quaternion(quaternion),
+        "quaternion": quaternion,
+        "size": [local["size"][i] * parent_world["size"][i] for i in range(3)],
+    }
+
+
+def sample_object_world_transform(objects: list[dict[str, Any]], obj: dict[str, Any], frame: float) -> dict[str, list[float]]:
+    """Evaluate an object's animated transform and parent chain in world space."""
+    by_id = {str(item.get("id")): item for item in objects if isinstance(item, dict) and item.get("id")}
+    return _sample_object_world_transform(by_id, obj, frame)
 
 
 TANGENT_MODES = frozenset({"auto", "vector", "free", "aligned", "flat"})
@@ -308,6 +370,7 @@ class OmniCamTrack:
     keyframes: list[CameraKeyframe]
     objects: list[dict[str, Any]]
     metadata: dict[str, Any]
+    constraints: dict[str, Any]
     schema_version: int = SCHEMA_VERSION
 
     @property
@@ -349,6 +412,7 @@ class OmniCamTrack:
             keyframes=keyframes,
             objects=[o for o in data.get("objects", []) if isinstance(o, dict)],
             metadata=data.get("metadata", {}) if isinstance(data.get("metadata"), dict) else {},
+            constraints=data.get("constraints", {}) if isinstance(data.get("constraints"), dict) else {},
             schema_version=schema_version,
         )
 
@@ -383,6 +447,7 @@ class OmniCamTrack:
                 for k in self.keyframes
             ],
             "objects": self.objects,
+            **({"constraints": self.constraints} if self.constraints else {}),
             "metadata": self.metadata,
         }
 
@@ -401,21 +466,18 @@ class OmniCamTrack:
         ty = _sample_channel(self.keyframes, frame_f, "target_y", lambda k: k.camera.target[1])
         tz = _sample_channel(self.keyframes, frame_f, "target_z", lambda k: k.camera.target[2])
 
-        # Check Look-At target tracking constraint
-        target_obj_id = self.metadata.get("target_object_id") if isinstance(self.metadata, dict) else None
-        if target_obj_id and self.objects:
-            for obj in self.objects:
-                if isinstance(obj, dict) and obj.get("id") == target_obj_id:
-                    obj_keys = obj.get("keyframes") or []
-                    if obj_keys:
-                        ox = _sample_channel(obj_keys, frame_f, "pos_x", lambda k: (k.get("transform") or obj).get("position", [0, 0, 0])[0])
-                        oy = _sample_channel(obj_keys, frame_f, "pos_y", lambda k: (k.get("transform") or obj).get("position", [0, 0, 0])[1])
-                        oz = _sample_channel(obj_keys, frame_f, "pos_z", lambda k: (k.get("transform") or obj).get("position", [0, 0, 0])[2])
-                        tx, ty, tz = ox, oy, oz
-                    elif "position" in obj:
-                        pos = obj["position"]
-                        tx, ty, tz = float(pos[0]), float(pos[1]), float(pos[2])
-                    break
+        # Resolve Look-At in world space. Invalid/disabled targets deliberately
+        # fall back to the authored camera target instead of silently aiming at zero.
+        look_at = self.constraints.get("look_at") if isinstance(self.constraints, dict) else None
+        if not isinstance(look_at, dict) and isinstance(self.metadata, dict) and self.metadata.get("target_object_id"):
+            look_at = {"object_id": self.metadata["target_object_id"], "offset": self.metadata.get("target_offset", [0, 0, 0]), "status": "active"}
+        if isinstance(look_at, dict) and look_at.get("status", "active") == "active":
+            objects = {str(obj.get("id")): obj for obj in self.objects if isinstance(obj, dict) and obj.get("id")}
+            target_obj = objects.get(str(look_at.get("object_id") or ""))
+            if target_obj and target_obj.get("enabled", True) is not False:
+                world = _sample_object_world_transform(objects, target_obj, frame_f)
+                offset = _vec3(look_at.get("offset"), (0.0, 0.0, 0.0))
+                tx, ty, tz = (world["position"][i] + offset[i] for i in range(3))
 
         fov = _sample_channel(self.keyframes, frame_f, "fov", lambda k: k.camera.fov)
         roll = _sample_channel(self.keyframes, frame_f, "roll", lambda k: k.camera.roll, is_angle=True)

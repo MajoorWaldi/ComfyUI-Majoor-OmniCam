@@ -47,7 +47,7 @@ _SIGNATURES = {
     ".png": [(0, b"\x89PNG\r\n\x1a\n")],
     ".jpg": [(0, b"\xff\xd8\xff")],
     ".jpeg": [(0, b"\xff\xd8\xff")],
-    ".webp": [(0, b"RIFF")],
+    ".webp": [(0, b"RIFF"), (8, b"WEBP")],
     ".gif": [(0, b"GIF87a"), (0, b"GIF89a")],
     ".mp4": [(4, b"ftyp")],
     ".mov": [(4, b"ftyp")],
@@ -75,7 +75,9 @@ def _signature_ok(extension: str, header: bytes) -> bool:
     signatures = _SIGNATURES.get(extension)
     if not signatures:
         return True  # text formats (obj/stl/ply) are content-checked in upload_model
-    return any(len(header) >= offset + len(prefix) and header[offset : offset + len(prefix)] == prefix for offset, prefix in signatures)
+    checks = [len(header) >= offset + len(prefix) and header[offset : offset + len(prefix)] == prefix for offset, prefix in signatures]
+    # WebP has a compound signature; the other formats list alternatives.
+    return all(checks) if extension == ".webp" else any(checks)
 
 
 def _managed_root() -> Path:
@@ -139,28 +141,29 @@ def _validate_media_metadata(path: Path) -> None:
         except Exception as exc:
             raise web.HTTPBadRequest(text="Image metadata could not be validated") from exc
     elif extension in _PLAYBLAST_EXTENSIONS:
-        # OpenCV is part of common ComfyUI installations. When unavailable, the
-        # signature and byte limits remain enforced rather than adding a new
-        # heavyweight OmniCam dependency.
         try:
-            import cv2
-        except ImportError:
-            return
-        capture = cv2.VideoCapture(str(path))
+            import av
+            container = av.open(str(path))
+        except Exception as exc:
+            raise web.HTTPBadRequest(text="Video metadata could not be validated") from exc
         try:
-            if not capture.isOpened():
+            stream = next((item for item in container.streams if item.type == "video"), None)
+            if stream is None:
                 raise web.HTTPBadRequest(text="Video metadata could not be validated")
-            width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = float(capture.get(cv2.CAP_PROP_FPS))
-            frames = float(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-            duration = frames / fps if fps > 0 and frames >= 0 else 0
+            width, height = int(stream.width), int(stream.height)
+            if stream.duration is not None and stream.time_base is not None:
+                duration = float(stream.duration * stream.time_base)
+            elif container.duration is not None:
+                duration = float(container.duration) / 1_000_000.0
+            else:
+                fps = float(stream.average_rate or 0)
+                duration = float(stream.frames) / fps if fps > 0 and stream.frames > 0 else 0.0
             if width <= 0 or height <= 0 or width * height > MAX_VIDEO_PIXELS:
                 raise web.HTTPBadRequest(text="Video dimensions exceed the OmniCam safety limit")
             if duration <= 0 or duration > MAX_VIDEO_DURATION_SECONDS:
                 raise web.HTTPBadRequest(text="Video duration exceeds the OmniCam safety limit")
         finally:
-            capture.release()
+            container.close()
 
 
 async def _save_multipart_file(request: web.Request, subfolder: str, allowed_extensions: set[str], max_bytes: int) -> dict:

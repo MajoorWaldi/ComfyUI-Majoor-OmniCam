@@ -173,6 +173,34 @@ def test_camera_dynamic_target_tracking_constraint_follows_moving_object():
     assert track.sample(100).target == [20.0, 1.0, 80.0]
 
 
+def test_canonical_look_at_resolves_offset_and_animated_parent_in_world_space():
+    track = OmniCamTrack.from_dict({
+        "duration_frames": 11,
+        "constraints": {"look_at": {"object_id": "actor", "offset": [0, 1.5, 0], "space": "world", "status": "active"}},
+        "keyframes": [{"frame": 0, "camera": {"position": [0, 5, 10], "target": [9, 9, 9]}}],
+        "objects": [
+            {"id": "rig", "type": "null", "position": [10, 0, 0], "keyframes": [
+                {"frame": 0, "transform": {"position": [10, 0, 0], "rotation": [0, 0, 0], "size": [1, 1, 1]}, "interpolation": "linear"},
+                {"frame": 10, "transform": {"position": [20, 0, 0], "rotation": [0, 0, 0], "size": [1, 1, 1]}, "interpolation": "linear"},
+            ]},
+            {"id": "actor", "type": "human", "parent_id": "rig", "position": [2, 1, 0]},
+        ],
+    })
+    assert track.sample(0).target == [12.0, 2.5, 0.0]
+    assert track.sample(5).target == [17.0, 2.5, 0.0]
+    assert track.sample(10).target == [22.0, 2.5, 0.0]
+
+
+def test_invalid_look_at_target_falls_back_to_authored_camera_target():
+    for status, objects in (("missing_target", []), ("disabled_target", [{"id": "actor", "type": "human", "enabled": False}])):
+        track = OmniCamTrack.from_dict({
+            "constraints": {"look_at": {"object_id": "actor", "offset": [0, 1, 0], "status": status}},
+            "keyframes": [{"frame": 0, "camera": {"target": [4, 5, 6]}}],
+            "objects": objects,
+        })
+        assert track.sample(0).target == [4.0, 5.0, 6.0]
+
+
 def test_bezier_x_handles_change_timing():
     def make(out_x):
         return OmniCamTrack.from_dict({"duration_frames": 11, "keyframes": [

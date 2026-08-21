@@ -6,6 +6,8 @@ from omnicam.node_registry import INTERNAL_COMPONENTS, LEGACY_NODE_IDS, PUBLIC_N
 
 def test_public_registry_contains_exactly_five_unique_non_legacy_nodes():
     assert len(PUBLIC_NODES) == len(set(PUBLIC_NODES)) == 5
+    assert "MajoorOmniCamSequencer" not in PUBLIC_NODES
+    assert "MajoorOmniCamSequencer" in LEGACY_NODE_IDS
     assert not LEGACY_NODE_IDS.intersection(PUBLIC_NODES)
     assert INTERNAL_COMPONENTS
 

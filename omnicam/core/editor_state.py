@@ -10,6 +10,7 @@ independently.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from .migrations import EDITOR_STATE_SCHEMA, TRACK_SCHEMA, migrate_payload
@@ -17,6 +18,23 @@ from .validation import DEFAULT_LIMITS, TrackLimits, validate_editor_state
 
 EDITOR_STATE_TYPE = "OMNICAM_EDITOR_STATE"
 EDITOR_STATE_SCHEMA_VERSION = 1
+
+
+def _look_at_constraint(camera: dict[str, Any], objects: list[dict[str, Any]]) -> dict[str, Any]:
+    object_id = camera.get("target_object_id")
+    if not isinstance(object_id, str) or not object_id:
+        return {}
+    raw_offset = camera.get("target_offset", [0, 0, 0])
+    offset = []
+    for index in range(3):
+        try:
+            value = float(raw_offset[index])
+        except (IndexError, TypeError, ValueError):
+            value = 0.0
+        offset.append(value if math.isfinite(value) else 0.0)
+    target = next((obj for obj in objects if obj.get("id") == object_id), None)
+    status = "missing_target" if target is None else ("disabled_target" if target.get("enabled", True) is False else "active")
+    return {"look_at": {"object_id": object_id, "offset": offset, "space": "world", "status": status}}
 
 
 def select_track_camera(payload: dict[str, Any], camera_id: str | None = None) -> dict[str, Any]:
@@ -27,7 +45,11 @@ def select_track_camera(payload: dict[str, Any], camera_id: str | None = None) -
     cameras = payload.get("cameras")
     if not isinstance(cameras, list) or not cameras:
         # Legacy or minimal payloads carry the primary track at the top level.
-        return {"id": payload.get("active_camera_id", "camera_1"), "name": "Camera 1", "camera": payload.get("camera", {}), "keyframes": payload.get("keyframes", [])}
+        return {
+            "id": payload.get("active_camera_id", "camera_1"), "name": "Camera 1",
+            "camera": payload.get("camera", {}), "keyframes": payload.get("keyframes", []),
+            "target_object_id": payload.get("target_object_id"), "target_offset": payload.get("target_offset", [0, 0, 0]),
+        }
     for wanted in (camera_id, payload.get("playblast_camera_id"), payload.get("active_camera_id")):
         if wanted is None:
             continue
@@ -45,6 +67,8 @@ def editor_state_to_track(payload: dict[str, Any], camera_id: str | None = None,
     if validate:
         state = validate_editor_state(state, limits or DEFAULT_LIMITS)
     camera = select_track_camera(state, camera_id)
+    objects = state.get("objects", [])
+    constraints = _look_at_constraint(camera, objects)
     track = {
         "schema_version": 1,
         "fps": state.get("fps", 24),
@@ -54,7 +78,8 @@ def editor_state_to_track(payload: dict[str, Any], camera_id: str | None = None,
         "render_mode": state.get("render_mode", "omni_ref"),
         "camera": camera.get("camera"),
         "keyframes": camera.get("keyframes", []),
-        "objects": state.get("objects", []),
+        "objects": objects,
+        **({"constraints": constraints} if constraints else {}),
         "metadata": {
             **(state.get("metadata") if isinstance(state.get("metadata"), dict) else {}),
             "source_schema": EDITOR_STATE_SCHEMA,

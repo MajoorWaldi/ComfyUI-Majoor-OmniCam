@@ -3,11 +3,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import comfy.model_management
 import numpy as np
 import torch
 from comfy_api.latest import IO
-from comfy_extras.nodes_camera_trajectory import process_pose_params
 
 from ..adapters import (
     build_h3_prompt,
@@ -18,6 +16,7 @@ from ..adapters import (
 )
 from ..adapters.ltx import ltx_camera_control_profile
 from ..core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass
+from ..core.video_sampling import inspect_video, sample_video_frames, sampling_indices
 from .base import OMNICAM_ATI_BRIDGE, OMNICAM_LTX_BRIDGE, OMNICAM_TRACK, validated_track
 
 
@@ -138,6 +137,9 @@ class MajoorOmniCamWanNativeCamera(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], width: int, height: int, length: int) -> IO.NodeOutput:
+        import comfy.model_management
+        from comfy_extras.nodes_camera_trajectory import process_pose_params
+
         if (length - 1) % 4:
             raise ValueError("Wan camera length must be 4n+1 frames")
         track = validated_track(camera_track)
@@ -277,21 +279,25 @@ class MajoorOmniCamLTXCameraGuide(IO.ComfyNode):
                 resize_height: int = 0, sampling_mode: str = "contiguous") -> IO.NodeOutput:
         from ..core.camera_tools import build_cinematic_motion_prompt
         track = validated_track(camera_track)
-        frames = proxy_video.get_components().images
-        total = int(frames.shape[0])
-        start = min(max(0, int(start_frame)), max(0, total - 1))
-        stop = total if int(end_frame) <= 0 else min(total, max(start + 1, int(end_frame) + 1))
-        count = min(max(1, int(max_frames)), stop - start)
-        if sampling_mode == "uniform" and count < stop - start:
-            indices = torch.linspace(start, stop - 1, count, device=frames.device).round().long()
-            frames = frames.index_select(0, indices)
-        else:
-            frames = frames[start:start + count]
-        target_width = int(resize_width) or int(frames.shape[2])
-        target_height = int(resize_height) or int(frames.shape[1])
-        estimated = len(frames) * target_width * target_height * int(frames.shape[3]) * frames.element_size()
+        metadata = inspect_video(proxy_video)
+        planned_count = len(sampling_indices(
+            metadata.frame_count, start_frame, end_frame, max_frames, sampling_mode
+        ))
+        target_width = int(resize_width) or metadata.width
+        target_height = int(resize_height) or metadata.height
+        # Comfy IMAGE is normally float32 RGB; reject unsafe plans before decode.
+        estimated = planned_count * target_width * target_height * 3 * 4
         if estimated > 2 * 1024**3:
             raise ValueError("LTX guide would exceed the 2 GiB decoded-frame safety limit; reduce frames or resolution")
+        frames = sample_video_frames(
+            proxy_video,
+            start_frame=start_frame,
+            end_frame=end_frame,
+            max_frames=max_frames,
+            mode=sampling_mode,
+        )
+        if not frames.shape[0]:
+            raise ValueError("The LTX guide source contains no decodable video frames")
         if (target_height, target_width) != tuple(frames.shape[1:3]):
             frames = torch.nn.functional.interpolate(
                 frames.permute(0, 3, 1, 2), size=(target_height, target_width), mode="bilinear", align_corners=False
@@ -305,7 +311,7 @@ class MajoorOmniCamControlPasses(IO.ComfyNode):
     def define_schema(cls):
         return IO.Schema(
             node_id="MajoorOmniCamControlPasses",
-            display_name="OmniCam Control Passes",
+            display_name="OmniCam Scene Motion Analysis (Internal)",
             category="Majoor/OmniCam/Adapters",
             description="Exports geometry-derived control passes (object IDs, depth, normals, optical flow) as JSON payloads for ControlNet-style conditioning.",
             inputs=[

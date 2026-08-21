@@ -68,8 +68,8 @@ for key in TRACK["keyframes"]:
     mode = interpolation(key.get("interpolation", "ease"))
     for channel, value in zip(transform_channels, values):
         channel.add_key(frame, value, interpolation=mode)
-    sensor_width = float(component.get_editor_property("filmback").sensor_width)
-    focal_length = sensor_width / (2.0 * math.tan(math.radians(float(camera.get("fov", 35.0))) * 0.5))
+    sensor_height = float(component.get_editor_property("filmback").sensor_height)
+    focal_length = sensor_height / (2.0 * math.tan(math.radians(float(camera.get("fov", 35.0))) * 0.5))
     lens_channel.add_key(frame, focal_length, interpolation=mode)
 
 first = TRACK["keyframes"][0]["camera"]
@@ -80,7 +80,7 @@ unreal.EditorAssetLibrary.save_loaded_asset(sequence)
 def export_sequence(path):
     result = dict(TRACK)
     keys = []
-    sensor_width = float(component.get_editor_property("filmback").sensor_width)
+    sensor_height = float(component.get_editor_property("filmback").sensor_height)
     for source_key in TRACK["keyframes"]:
         frame = int(source_key["frame"])
         unreal.LevelSequenceEditorBlueprintLibrary.set_current_time(frame)
@@ -90,7 +90,7 @@ def export_sequence(path):
         position = omnicam_position(location)
         target = omnicam_position(location + forward * 100.0)
         focal_length = float(component.current_focal_length)
-        fov = math.degrees(2.0 * math.atan(sensor_width / (2.0 * max(focal_length, 1e-6))))
+        fov = math.degrees(2.0 * math.atan(sensor_height / (2.0 * max(focal_length, 1e-6))))
         keys.append({{"frame": frame, "camera": {{"position": position, "target": target, "fov": fov, "roll": -rotation.roll, "camera_type": "perspective", "zoom": 1.0, "near": 0.01, "far": 10000.0}}, "interpolation": source_key.get("interpolation", "ease")}})
     result["keyframes"] = keys
     with open(path, "w", encoding="utf-8") as handle:

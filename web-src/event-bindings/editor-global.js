@@ -100,6 +100,24 @@ export function bindEditorAndGlobal(ui, q, signal) {
       ui.render();
     }, { signal });
   }
+  for (const el of ui.root.querySelectorAll('[data-role="navigation-profile"]')) {
+    el.addEventListener("change", (event) => {
+      ui.state.navigation_profile = event.target.value === "blender" ? "blender" : "maya";
+      ui.scheduleSerialize(); ui.setStatus(`Navigation: ${ui.state.navigation_profile}`);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-snap-mode"]')) {
+    el.addEventListener("change", (event) => {
+      ui.state.spatial_snap_mode = ["grid", "vertex"].includes(event.target.value) ? event.target.value : "none";
+      ui.scheduleSerialize(); ui.setStatus(`Spatial Snap: ${ui.state.spatial_snap_mode}`);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="spatial-grid-size"]')) {
+    el.addEventListener("change", (event) => {
+      ui.state.spatial_grid_size = Math.max(0.01, Math.min(100, Number(event.target.value) || 0.5));
+      event.target.value = String(ui.state.spatial_grid_size); ui.scheduleSerialize();
+    }, { signal });
+  }
   for (const viewSelect of ui.root.querySelectorAll('[data-role="view-mode"]')) {
     viewSelect.addEventListener("change", (e) => ui.setViewMode(e.target.value), { signal });
   }

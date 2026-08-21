@@ -21,6 +21,8 @@ export async function captureRealtime(ui) {
 
 export async function uploadDirectorPlayblast(ui, blob) {
   const uploaded = await uploadPlayblast(api, blob);
+  const camera = ui.state.cameras.find((item) => item.id === ui.state.playblast_camera_id);
+  if (camera) camera.recording_path = uploaded.path;
   if (ui.recordingWidget) ui.recordingWidget.value = uploaded.path;
   ui.serialize();
   ui.setStatus(t(`Playblast ready: ${uploaded.name}`));

@@ -139,20 +139,17 @@ export function addCamera(ui) {
   const count = ui.state.cameras.length;
   const name = `Camera ${count + 1}`;
 
-  // Smart spatial seeding: calculate an orbital offset angle so new camera doesn't overlap exactly
+  // New entities are created at the world origin. Preserve the current viewing
+  // direction so the camera remains immediately usable from position 0,0,0.
   const baseCam = cloneCamera(ui.camera);
-  const target = baseCam.target || [0, 1.5, 0];
-  const offset = [baseCam.position[0] - target[0], baseCam.position[1] - target[1], baseCam.position[2] - target[2]];
-  const angle = ((count * 45 + 30) * Math.PI) / 180;
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-  const rotatedX = offset[0] * cosA - offset[2] * sinA;
-  const rotatedZ = offset[0] * sinA + offset[2] * cosA;
-  baseCam.position = [
-    Math.round((target[0] + rotatedX) * 100) / 100,
-    Math.round(baseCam.position[1] * 100) / 100,
-    Math.round((target[2] + rotatedZ) * 100) / 100,
+  const direction = [
+    (baseCam.target?.[0] ?? 0) - (baseCam.position?.[0] ?? 0),
+    (baseCam.target?.[1] ?? 0) - (baseCam.position?.[1] ?? 0),
+    (baseCam.target?.[2] ?? -1) - (baseCam.position?.[2] ?? 0),
   ];
+  const magnitude = Math.hypot(...direction) || 1;
+  baseCam.position = [0, 0, 0];
+  baseCam.target = direction.map((value) => value / magnitude);
 
   const color = CAMERA_PALETTE[count % CAMERA_PALETTE.length];
   const interpolation = ui.root.querySelector('[data-role="key-interp"]')?.value || ui.root.querySelector('[data-role="interp"]')?.value || "ease";
@@ -235,9 +232,10 @@ export async function deleteCamera(ui, id) {
     ui.state.active_camera_id = next.id;
     ui.state.keyframes = next.keyframes;
     ui.state.camera = cloneCamera(next.camera);
-    ui.camera = sampleCamera(next, ui.frame);
+    ui.camera = sampleCamera(next, ui.frame, ui.state.objects);
     ui.selectedEntity = "camera";
     ui.selectedObjectId = null;
+    ui.selectedObjectIds = new Set();
     ui.selectedKeyFrame = next.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
     ui.editingKeyFrame = null;
   }
@@ -258,9 +256,10 @@ export function activateCamera(ui, id) {
   ui.state.active_camera_id = camera.id;
   ui.state.keyframes = camera.keyframes;
   ui.state.camera = cloneCamera(camera.camera);
-  ui.camera = sampleCamera(camera, ui.frame);
+  ui.camera = sampleCamera(camera, ui.frame, ui.state.objects);
   ui.selectedEntity = "camera";
   ui.selectedObjectId = null;
+  ui.selectedObjectIds = new Set();
   ui.selectedKeyFrame = camera.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
   ui.editingKeyFrame = null;
   ui.serialize();
@@ -377,15 +376,15 @@ export const CINEMA_LENSES = [
   { mm: 135, name: "135mm Telephoto" },
 ];
 
-export function fovToFocalLength(fovDegrees, sensorWidth = 36) {
+export function fovToFocalLength(fovDegrees, sensorHeight = 24) {
   const fovClamped = Math.max(1, Math.min(179, Number(fovDegrees) || 35));
   const rad = (fovClamped * Math.PI) / 360;
-  return (sensorWidth / 2) / Math.max(1e-9, Math.tan(rad));
+  return (sensorHeight / 2) / Math.max(1e-9, Math.tan(rad));
 }
 
-export function focalLengthToFov(focalLengthMm, sensorWidth = 36) {
+export function focalLengthToFov(focalLengthMm, sensorHeight = 24) {
   const flClamped = Math.max(1, Number(focalLengthMm) || 50);
-  return (2 * Math.atan((sensorWidth / 2) / flClamped) * 180) / Math.PI;
+  return (2 * Math.atan((sensorHeight / 2) / flClamped) * 180) / Math.PI;
 }
 
 export function applyCinemaLens(ui, focalLengthMm) {

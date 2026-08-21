@@ -14,7 +14,7 @@ reference video for compatible video models.
 - image, video, and 3D model imports;
 - camera previews and playblast recording;
 - outputs for MiniMax H3, Wan, ATI, and LTX workflows;
-- camera export for Blender and Unreal.
+- internal/experimental camera transfer helpers for Blender and Unreal.
 
 ## Installation
 
@@ -34,7 +34,7 @@ Restart ComfyUI. OmniCam nodes will appear under `Majoor / OmniCam`.
 
 ## Quick start
 
-1. Add the **Majoor OmniCam Director** node.
+1. Add the **OmniCam Director** node.
 2. Position the camera in the viewport.
 3. Press `I` to create a keyframe.
 4. Move to another frame and reposition the camera.

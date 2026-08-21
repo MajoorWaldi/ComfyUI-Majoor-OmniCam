@@ -6,6 +6,8 @@ from dataclasses import asdict
 from itertools import pairwise
 from typing import Any
 
+from .camera_math import camera_basis, focal_length_to_fov as _focal_to_fov
+from .camera_math import fov_to_focal_length as _fov_to_focal
 from .track import CameraKeyframe, CameraState, OmniCamTrack
 
 CAMERA_PRESETS = ("orbit_left", "orbit_right", "dolly_in", "dolly_out", "crane_up", "crane_down", "truck_left", "truck_right", "pedestal_up", "pedestal_down", "pan_left", "pan_right", "tilt_up", "tilt_down", "product_360")
@@ -14,7 +16,11 @@ CAMERA_PRESETS = ("orbit_left", "orbit_right", "dolly_in", "dolly_out", "crane_u
 def _copy_track(track: OmniCamTrack, keyframes: list[CameraKeyframe]) -> OmniCamTrack:
     payload = track.to_dict()
     payload["keyframes"] = [
-        {"frame": key.frame, "camera": asdict(key.camera), "interpolation": key.interpolation}
+        {
+            "frame": key.frame, "camera": asdict(key.camera), "interpolation": key.interpolation,
+            **({"tangents": key.tangents} if key.tangents else {}),
+            **({"references": key.references} if key.references else {}),
+        }
         for key in keyframes
     ]
     return OmniCamTrack.from_dict(payload)
@@ -26,15 +32,7 @@ def _normalize(vector: list[float]) -> list[float]:
 
 
 def _basis(camera: CameraState) -> tuple[list[float], list[float], list[float]]:
-    forward = _normalize([camera.target[i] - camera.position[i] for i in range(3)])
-    horizontal = [forward[2], 0.0, -forward[0]]
-    right = _normalize(horizontal) if any(abs(value) > 1e-9 for value in horizontal) else [1.0, 0.0, 0.0]
-    up = [
-        right[1] * forward[2] - right[2] * forward[1],
-        right[2] * forward[0] - right[0] * forward[2],
-        right[0] * forward[1] - right[1] * forward[0],
-    ]
-    return right, _normalize(up), forward
+    return camera_basis(camera.position, camera.target, camera.roll)
 
 
 def _offset(camera: CameraState, delta: list[float], move_target: bool = True) -> CameraState:
@@ -118,7 +116,7 @@ def constrain_look_at(track: OmniCamTrack, target: list[float]) -> OmniCamTrack:
     for key in track.keyframes:
         camera = CameraState.from_dict(asdict(key.camera))
         camera.target = [float(value) for value in target]
-        keys.append(CameraKeyframe(key.frame, camera, key.interpolation))
+        keys.append(CameraKeyframe(key.frame, camera, key.interpolation, key.tangents, key.references))
     return _copy_track(track, keys)
 
 
@@ -129,7 +127,7 @@ def follow_track_target(track: OmniCamTrack) -> OmniCamTrack:
     for key in track.keyframes:
         camera = CameraState.from_dict(asdict(key.camera))
         camera.position = [camera.target[i] + offset[i] for i in range(3)]
-        keys.append(CameraKeyframe(key.frame, camera, key.interpolation))
+        keys.append(CameraKeyframe(key.frame, camera, key.interpolation, key.tangents, key.references))
     return _copy_track(track, keys)
 
 
@@ -142,7 +140,7 @@ def constrain_arc(track: OmniCamTrack, target: list[float] | None = None) -> Omn
         direction = _normalize([camera.position[i] - center[i] for i in range(3)])
         camera.position = [center[i] + direction[i] * radius for i in range(3)]
         camera.target = list(center)
-        keys.append(CameraKeyframe(key.frame, camera, key.interpolation))
+        keys.append(CameraKeyframe(key.frame, camera, key.interpolation, key.tangents, key.references))
     return _copy_track(track, keys)
 
 
@@ -186,7 +184,7 @@ def apply_dolly_zoom(track: OmniCamTrack) -> OmniCamTrack:
         camera = CameraState.from_dict(asdict(key.camera))
         distance = math.sqrt(sum((camera.position[i] - camera.target[i]) ** 2 for i in range(3)))
         camera.fov = math.degrees(2.0 * math.atan(base_tangent * base_distance / max(distance, 1e-6)))
-        keys.append(CameraKeyframe(key.frame, camera, key.interpolation))
+        keys.append(CameraKeyframe(key.frame, camera, key.interpolation, key.tangents, key.references))
     return _copy_track(track, keys)
 
 
@@ -292,22 +290,23 @@ def retime_to_speed(track: OmniCamTrack, target_speed: float) -> OmniCamTrack:
         while frame in used and frame < payload["duration_frames"] - 1:
             frame += 1
         used.add(frame)
-        keys.append({"frame": frame, "camera": asdict(key.camera), "interpolation": key.interpolation})
+        keys.append({
+            "frame": frame, "camera": asdict(key.camera), "interpolation": key.interpolation,
+            **({"tangents": key.tangents} if key.tangents else {}),
+            **({"references": key.references} if key.references else {}),
+        })
     payload["keyframes"] = keys
     return OmniCamTrack.from_dict(payload)
 
 
-def fov_to_focal_length(fov_degrees: float, sensor_width_mm: float = 36.0) -> float:
-    """Convert horizontal FOV in degrees to 35mm equivalent focal length in mm."""
-    fov_clamped = max(1.0, min(179.0, float(fov_degrees)))
-    rad = math.radians(fov_clamped) / 2.0
-    return (sensor_width_mm / 2.0) / max(1e-9, math.tan(rad))
+def fov_to_focal_length(fov_degrees: float, sensor_height_mm: float = 24.0) -> float:
+    """Convert canonical vertical FOV to focal length using sensor height."""
+    return _fov_to_focal(fov_degrees, sensor_height_mm)
 
 
-def focal_length_to_fov(focal_length_mm: float, sensor_width_mm: float = 36.0) -> float:
-    """Convert focal length in mm to horizontal FOV in degrees for a given sensor width."""
-    fl_clamped = max(1.0, float(focal_length_mm))
-    return math.degrees(2.0 * math.atan((sensor_width_mm / 2.0) / fl_clamped))
+def focal_length_to_fov(focal_length_mm: float, sensor_height_mm: float = 24.0) -> float:
+    """Convert focal length to canonical vertical FOV using sensor height."""
+    return _focal_to_fov(focal_length_mm, sensor_height_mm)
 
 
 def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
@@ -317,30 +316,31 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
     orbital arcs, optical dynamics (dolly zoom / vertigo), and lens classification.
     """
     duration = max(1, track.duration_frames)
-    start_cam = track.sample(0)
-    end_cam = track.sample(duration - 1)
-    # Basis at start
-    right, up, forward = _basis(start_cam)
-
-    # Translation vector from start to end
-    delta_p = [end_cam.position[i] - start_cam.position[i] for i in range(3)]
-    # Projections onto start camera local axes
-    dolly_amount = sum(delta_p[i] * forward[i] for i in range(3))
-    truck_amount = sum(delta_p[i] * right[i] for i in range(3))
-    crane_amount = sum(delta_p[i] * up[i] for i in range(3))
+    cameras = [track.sample(frame) for frame in range(duration)]
+    start_cam, end_cam = cameras[0], cameras[-1]
+    path_length = dolly_amount = truck_amount = crane_amount = 0.0
+    angular_distance = 0.0
+    for previous, current in pairwise(cameras):
+        delta = [current.position[i] - previous.position[i] for i in range(3)]
+        path_length += math.sqrt(sum(value * value for value in delta))
+        right, up, forward = _basis(previous)
+        dolly_amount += sum(delta[i] * forward[i] for i in range(3))
+        truck_amount += sum(delta[i] * right[i] for i in range(3))
+        crane_amount += sum(delta[i] * up[i] for i in range(3))
+        forward_a = _normalize([previous.target[i] - previous.position[i] for i in range(3)])
+        forward_b = _normalize([current.target[i] - current.position[i] for i in range(3)])
+        angular_distance += math.degrees(math.acos(max(-1.0, min(1.0, sum(forward_a[i] * forward_b[i] for i in range(3))))))
 
     # Distance to target
     start_dist_to_target = math.sqrt(sum((start_cam.position[i] - start_cam.target[i]) ** 2 for i in range(3)))
     end_dist_to_target = math.sqrt(sum((end_cam.position[i] - end_cam.target[i]) ** 2 for i in range(3)))
     dist_to_target_delta = end_dist_to_target - start_dist_to_target
 
-    # Orbital analysis (azimuth angle change around target in XZ plane)
-    v_start_xz = (start_cam.position[0] - start_cam.target[0], start_cam.position[2] - start_cam.target[2])
-    v_end_xz = (end_cam.position[0] - end_cam.target[0], end_cam.position[2] - end_cam.target[2])
-    ang_start = math.atan2(v_start_xz[0], v_start_xz[1])
-    ang_end = math.atan2(v_end_xz[0], v_end_xz[1])
-    delta_angle = (ang_end - ang_start + math.pi) % (2.0 * math.pi) - math.pi
-    orbit_degrees = math.degrees(delta_angle)
+    # Integrate signed per-frame azimuth deltas: a closed 360° orbit must not
+    # collapse to zero merely because its first and last positions coincide.
+    azimuths = [math.atan2(cam.position[0] - cam.target[0], cam.position[2] - cam.target[2]) for cam in cameras]
+    orbit_radians = sum((b - a + math.pi) % (2.0 * math.pi) - math.pi for a, b in pairwise(azimuths))
+    orbit_degrees = math.degrees(orbit_radians)
 
     # Optical analysis
     start_focal_mm = fov_to_focal_length(start_cam.fov)
@@ -369,6 +369,26 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
 
     # Speed metrics
     speeds = motion_speed_profile(track)
+    accelerations = [0.0, *[(b - a) * track.fps for a, b in pairwise(speeds)]]
+    jerks = [0.0, *[(b - a) * track.fps for a, b in pairwise(accelerations)]]
+    distances = [math.sqrt(sum((cam.position[i] - cam.target[i]) ** 2 for i in range(3))) for cam in cameras]
+    fovs = [cam.fov for cam in cameras]
+
+    def correlation(left: list[float], right: list[float]) -> float:
+        mean_left, mean_right = sum(left) / len(left), sum(right) / len(right)
+        centered_left = [value - mean_left for value in left]
+        centered_right = [value - mean_right for value in right]
+        denominator = math.sqrt(sum(v * v for v in centered_left) * sum(v * v for v in centered_right))
+        return 0.0 if denominator < 1e-12 else sum(a * b for a, b in zip(centered_left, centered_right)) / denominator
+
+    path_curvature = 0.0
+    segments = [[b.position[i] - a.position[i] for i in range(3)] for a, b in pairwise(cameras)]
+    for previous, current in pairwise(segments):
+        len_a = math.sqrt(sum(v * v for v in previous))
+        len_b = math.sqrt(sum(v * v for v in current))
+        if len_a > 1e-9 and len_b > 1e-9:
+            cosine = sum(previous[i] * current[i] for i in range(3)) / (len_a * len_b)
+            path_curvature += math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
     peak_speed = max(speeds, default=0.0)
     avg_speed = sum(speeds) / max(1, len(speeds))
     pacing = "slow and steady" if peak_speed < 1.0 else ("moderate speed" if peak_speed < 3.0 else "fast dynamic")
@@ -409,8 +429,16 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
         "dolly_amount": round(dolly_amount, 2),
         "truck_amount": round(truck_amount, 2),
         "crane_amount": round(crane_amount, 2),
+        "roll_degrees": round(roll_delta, 2),
         "peak_speed": round(peak_speed, 2),
         "avg_speed": round(avg_speed, 2),
+        "path_length": round(path_length, 3),
+        "angular_distance_degrees": round(angular_distance, 2),
+        "peak_acceleration": round(max((abs(v) for v in accelerations), default=0.0), 2),
+        "peak_jerk": round(max((abs(v) for v in jerks), default=0.0), 2),
+        "integrated_curvature_degrees": round(path_curvature, 2),
+        "fov_distance_correlation": round(correlation(fovs, distances), 4),
+        "fov_speed_correlation": round(correlation(fovs, speeds), 4),
         "duration_seconds": round(duration / max(1, track.fps), 2),
     }
 
@@ -450,9 +478,9 @@ def build_cinematic_motion_prompt(
             if abs(analysis["dolly_amount"]) > 0.5:
                 kling_moves.append("Push in" if analysis["dolly_amount"] > 0 else "Pull out")
             if abs(analysis["truck_amount"]) > 0.5:
-                kling_moves.append("Pan right" if analysis["truck_amount"] > 0 else "Pan left")
+                kling_moves.append("Truck right" if analysis["truck_amount"] > 0 else "Truck left")
             if abs(analysis["crane_amount"]) > 0.5:
-                kling_moves.append("Tilt up" if analysis["crane_amount"] > 0 else "Tilt down")
+                kling_moves.append("Crane up" if analysis["crane_amount"] > 0 else "Crane down")
         if not kling_moves:
             kling_moves.append("Static shot")
         camera_prompt = f"Camera Movement: {', '.join(kling_moves)}. Lens: {analysis['start_focal_mm']}mm. Pace: {analysis['pacing']}."

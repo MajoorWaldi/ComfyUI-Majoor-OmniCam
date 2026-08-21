@@ -2,21 +2,75 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-import { EditorHistory } from "../../web/omnicam-history.js";
-import { applyCameraShake, cameraBasis, bezierEaseWithHandles, cloneCamera, defaultState, generateCameraPreset, lerpAngle, project, resolveChannelHandles, resolveHandles, sampleCamera, sanitizeState, worldTransform } from "../../web/omnicam-core.js";
-import { uploadPlayblast } from "../../web/omnicam-playblast.js";
-import { ObjectUrlRegistry, uploadManagedFile } from "../../web/omnicam-media.js";
-import { getLocale, registerLocale, setLocale, t } from "../../web/omnicam-i18n.js";
-import { activeCameraTrack, playblastCameraTrack, serializeEditorState } from "../../web/omnicam-state-sync.js";
-import { captureRealtimePlayblast } from "../../web/omnicam-playblast.js";
-import { onPointerDown } from "../../web/omnicam-viewport-controls.js";
+import { EditorHistory } from "../../web-src/director/history.js";
+import { applyCameraShake, cameraBasis, bezierEaseWithHandles, cloneCamera, defaultEditorViews, defaultState, generateCameraPreset, lerpAngle, project, resolveChannelHandles, resolveHandles, sampleCamera, sanitizeState, worldTransform } from "../../web-src/director/core.js";
+import { uploadPlayblast, captureRealtimePlayblast } from "../../web-src/director/playblast.js";
+import { ObjectUrlRegistry, uploadManagedFile } from "../../web-src/director/media.js";
+import { getLocale, registerLocale, setLocale, t } from "../../web-src/i18n.js";
+import { activeCameraTrack, playblastCameraTrack, serializeEditorState } from "../../web-src/state-sync.js";
+import { onPointerDown } from "../../web-src/viewport-controls.js";
+import { dispatchDirectorKey } from "../../web-src/commands.js";
 import { findEditableKey } from "../../web-src/scene/edit-target.js";
+import { registerOmniCamNodeBranding } from "../../web-src/node-branding.js";
+import { migrateDirectorOutputs } from "../../web-src/director-output-migration.js";
+import { resetCameraAnimation, resetObjectAnimation } from "../../web-src/animation-reset.js";
+import { beginModalTransform, handleModalTransformKey } from "../../web-src/viewport-controls/modal-transform.js";
 
 test("director state sanitization preserves the canonical default camera", () => {
   const state = sanitizeState({});
   assert.equal(state.cameras.length, 1);
   assert.equal(state.active_camera_id, "camera_1");
   assert.deepEqual(sampleCamera(state, 0), cloneCamera(defaultState().camera));
+});
+
+test("editor views expose opposing front and back orthographic cameras", () => {
+  const views = defaultEditorViews();
+  assert.equal(views.front.camera_type, "orthographic");
+  assert.equal(views.back.camera_type, "orthographic");
+  assert.deepEqual(views.front.position, [0, 1, 14]);
+  assert.deepEqual(views.back.position, [0, 1, -14]);
+  assert.equal(sanitizeState({ view_mode: "front" }).view_mode, "front");
+  assert.equal(sanitizeState({ view_mode: "back" }).view_mode, "back");
+});
+
+test("node branding applies only to OmniCam node definitions", () => {
+  let extension;
+  registerOmniCamNodeBranding({ registerExtension(value) { extension = value; } });
+  class OmniNode {}
+  class ForeignNode {}
+  extension.beforeRegisterNodeDef(OmniNode, { name: "MajoorOmniCamSequencer" });
+  extension.beforeRegisterNodeDef(ForeignNode, { name: "ForeignNode" });
+  assert.equal(typeof OmniNode.prototype.onDrawForeground, "function");
+  assert.equal(ForeignNode.prototype.onDrawForeground, undefined);
+});
+
+test("legacy Director outputs migrate by name and removed outputs disconnect", () => {
+  const graph = {
+    nodes: [
+      { id: 1, type: "MajoorOmniCamDirector", inputs: [{ name: "scene_3d", link: null }], outputs: [
+        { name: "camera_track" }, { name: "proxy_video" }, { name: "camera_info" },
+        { name: "track_json" }, { name: "audio" }, { name: "sequence" },
+        { name: "shots_json" }, { name: "director_shot" }, { name: "shot_collection" },
+      ] },
+      { id: 2, type: "Consumer", inputs: [{ name: "audio", link: 10 }, { name: "removed", link: 11 }] },
+    ],
+    links: [[10, 1, 4, 2, 0, "AUDIO"], [11, 1, 5, 2, 1, "MAJOOR_OMNICAM_SEQUENCE"]],
+  };
+  migrateDirectorOutputs(graph);
+  assert.equal(graph.nodes[0].outputs.length, 4);
+  assert.equal(graph.links.length, 1);
+  assert.equal(graph.links[0][2], 2);
+  assert.equal(graph.nodes[1].inputs[1].link, null);
+  assert.equal(graph.nodes[0].inputs.length, 1);
+});
+
+test("director state keeps an independent playblast path per camera", () => {
+  const state = sanitizeState({ cameras: [
+    { id: "wide", name: "Wide", recording_path: "omnicam/playblasts/wide.webm [input]" },
+    { id: "close", name: "Close", recording_path: "omnicam/playblasts/close.webm [input]" },
+  ] });
+  assert.equal(state.cameras[0].recording_path, "omnicam/playblasts/wide.webm [input]");
+  assert.equal(state.cameras[1].recording_path, "omnicam/playblasts/close.webm [input]");
 });
 
 test("orthographic editor projection does not depend on depth scale", () => {
@@ -33,6 +87,182 @@ test("editor history restores undo and redo snapshots", () => {
   assert.equal(history.undo(), "Rename"); assert.equal(value, "initial");
   assert.equal(history.redo(), "Rename"); assert.equal(value, "renamed");
 });
+
+test("viewport undo and redo shortcuts support Windows, Linux and macOS modifiers", () => {
+  const PreviousHTMLElement = globalThis.HTMLElement;
+  globalThis.HTMLElement = class MockHTMLElement {
+    constructor() { this.tagName = "CANVAS"; this.isContentEditable = false; }
+    closest() { return null; }
+  };
+  const calls = [];
+  const ui = {
+    contextMenu: { onKey: () => false },
+    undo: () => calls.push("undo"),
+    redo: () => calls.push("redo"),
+  };
+  const send = (overrides) => dispatchDirectorKey(ui, {
+    key: "z", code: "KeyZ", ctrlKey: false, metaKey: false, shiftKey: false,
+    altKey: false, repeat: false, target: new globalThis.HTMLElement(),
+    preventDefault() {}, stopPropagation() {}, ...overrides,
+  });
+  try {
+    assert.equal(send({ ctrlKey: true }), true);
+    assert.equal(send({ ctrlKey: true, shiftKey: true }), true);
+    assert.equal(send({ metaKey: true }), true);
+    assert.equal(send({ metaKey: true, shiftKey: true }), true);
+    assert.deepEqual(calls, ["undo", "redo", "undo", "redo"]);
+  } finally {
+    globalThis.HTMLElement = PreviousHTMLElement;
+  }
+});
+
+test("viewport undo is isolated from ComfyUI graph undo and avoids redundant asset reloads", async () => {
+  const commands = await readFile(new URL("../../web-src/commands.js", import.meta.url), "utf8");
+  const editor = await readFile(new URL("../../web-src/director/methods/editor.js", import.meta.url), "utf8");
+  assert.match(commands, /stopImmediatePropagation/);
+  assert.match(editor, /previousAssets !== assetSignature\(this\.state\)/);
+  assert.match(editor, /if \(!nextIds\.has\(id\)\) this\.removeObjectResources\(id\)/);
+});
+
+test("DCC viewport commands use contextual delete, duplicate and opposing numpad views", () => {
+  const PreviousHTMLElement = globalThis.HTMLElement;
+  globalThis.HTMLElement = class MockHTMLElement {
+    constructor() { this.tagName = "CANVAS"; this.isContentEditable = false; }
+    closest() { return null; }
+  };
+  const calls = [];
+  const ui = {
+    contextMenu: { onKey: () => false }, state: { active_camera_id: "cam", view_mode: "perspective" },
+    selectedEntity: "object", selectedObjectId: "cube", selectedKeyframe: () => null,
+    duplicateObject: (id) => calls.push(`duplicate:${id}`), deleteObject: (id) => calls.push(`delete:${id}`),
+    setViewMode: (mode) => calls.push(`view:${mode}`), showAllObjects: () => calls.push("show-all"),
+  };
+  const send = (key, code, overrides = {}) => dispatchDirectorKey(ui, {
+    key, code, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, repeat: false,
+    target: new globalThis.HTMLElement(), preventDefault() {}, stopPropagation() {}, ...overrides,
+  });
+  try {
+    send("d", "KeyD", { metaKey: true });
+    send("Delete", "Delete");
+    send("1", "Numpad1", { ctrlKey: true });
+    send("h", "KeyH", { altKey: true });
+    assert.deepEqual(calls, ["duplicate:cube", "delete:cube", "view:back", "show-all"]);
+  } finally {
+    globalThis.HTMLElement = PreviousHTMLElement;
+  }
+});
+
+test("viewport transforms create undo checkpoints before their first mutation", async () => {
+  const source = await readFile(new URL("../../web-src/viewport-controls/interactions.js", import.meta.url), "utf8");
+  assert.match(source, /checkpointDrag\(ui, ui\.gizmoDrag/);
+  assert.match(source, /checkpointDrag\(ui, ui\.drag/);
+  assert.match(source, /checkpointWheelGesture\(ui\)/);
+  assert.match(source, /e\.shiftKey \? 0\.1 : 1/);
+  assert.match(source, /e\.ctrlKey \|\| e\.metaKey/);
+  assert.match(source, /snapValue\(value, 15\)/);
+  assert.match(source, /Fly speed:/);
+});
+
+test("transform and fly shortcuts use non-conflicting keymaps", async () => {
+  const source = await readFile(new URL("../../web-src/commands.js", import.meta.url), "utf8");
+  assert.match(source, /t:\s*"translate"/);
+  assert.doesNotMatch(source, /g:\s*"translate"/);
+  assert.match(source, /r:\s*"rotate"/);
+  assert.match(source, /s:\s*"scale"/);
+  assert.doesNotMatch(source, /w:\s*"translate"/);
+  assert.doesNotMatch(source, /e:\s*"rotate"/);
+  assert.doesNotMatch(source, /Select Tool: Q/);
+  assert.match(source, /\["w", "a", "s", "d", "q", "e"\].*ui\.isNavigatingFly/);
+});
+
+test("reset animation clears object keys and restores its zero transform", () => {
+  const object = { id: "cube", type: "cube", name: "Cube", position: [4, 2, -3], rotation: [10, 20, 30], size: [2, 3, 4], keyframes: [{ frame: 8, transform: {} }] };
+  const ui = resetUi({ objects: [object], cameras: [] });
+  resetObjectAnimation(ui, object.id);
+  assert.deepEqual(object.keyframes, []);
+  assert.deepEqual(object.position, [0, 0, 0]);
+  assert.deepEqual(object.rotation, [0, 0, 0]);
+  assert.deepEqual(object.size, [2, 3, 4]);
+  assert.equal(ui.frame, 0);
+  assert.equal(ui.checkpoints[0], "Reset object animation");
+});
+
+test("reset animation leaves a camera static and usable at frame zero", () => {
+  const track = { id: "cam", name: "Camera", camera: defaultState().camera, keyframes: [{ frame: 0 }, { frame: 12 }] };
+  const ui = resetUi({ objects: [], cameras: [track] });
+  resetCameraAnimation(ui, track.id);
+  assert.equal(track.keyframes.length, 1);
+  assert.equal(track.keyframes[0].frame, 0);
+  assert.deepEqual(track.camera.position, [0, 0, 0]);
+  assert.deepEqual(track.camera.target, [0, 0, -1]);
+  assert.equal(ui.state.keyframes, track.keyframes);
+  assert.equal(ui.checkpoints[0], "Reset camera animation");
+});
+
+test("modal T transform applies numeric axis input to a multi-selection", () => {
+  const first = { id: "a", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
+  const second = { id: "b", position: [2, 1, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
+  const ui = modalUi([first, second]);
+  assert.equal(beginModalTransform(ui, "translate"), true);
+  handleModalTransformKey(ui, { key: "x" });
+  handleModalTransformKey(ui, { key: "2" });
+  assert.deepEqual(first.position, [2, 0, 0]);
+  assert.deepEqual(second.position, [4, 1, 0]);
+  handleModalTransformKey(ui, { key: "Enter" });
+  assert.equal(ui.modalTransform, null);
+  assert.equal(ui.checkpoints[0], "Translate selection");
+});
+
+test("editor state preserves independent navigation and spatial snap preferences", () => {
+  const state = sanitizeState({ navigation_profile: "blender", spatial_snap_mode: "vertex", spatial_grid_size: 0.25 });
+  assert.equal(state.navigation_profile, "blender");
+  assert.equal(state.spatial_snap_mode, "vertex");
+  assert.equal(state.spatial_grid_size, 0.25);
+});
+
+test("viewport look-at resolves animated parent space, offset and disabled fallback", () => {
+  const camera = { keyframes: [{ frame: 0, camera: { position: [0, 5, 10], target: [9, 9, 9] } }], target_object_id: "actor", target_offset: [0, 1.5, 0] };
+  const objects = [
+    { id: "rig", position: [10, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [
+      { frame: 0, transform: { position: [10, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1] }, interpolation: "linear" },
+      { frame: 10, transform: { position: [20, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1] }, interpolation: "linear" },
+    ] },
+    { id: "actor", parent_id: "rig", position: [2, 1, 0], rotation: [0, 0, 0], size: [1, 1, 1] },
+  ];
+  assert.deepEqual(sampleCamera(camera, 5, objects).target, [17, 2.5, 0]);
+  objects[1].enabled = false;
+  assert.deepEqual(sampleCamera(camera, 5, objects).target, [9, 9, 9]);
+});
+
+test("viewport sources expose marquee, hierarchy and group transform behavior", async () => {
+  const interactions = await readFile(new URL("../../web-src/viewport-controls/interactions.js", import.meta.url), "utf8");
+  const sceneMethods = await readFile(new URL("../../web-src/director/methods/scene.js", import.meta.url), "utf8");
+  assert.match(interactions, /ui\.boxSelection/);
+  assert.match(interactions, /groupPivot/);
+  assert.match(sceneMethods, /selectHierarchy/);
+});
+
+function modalUi(objects) {
+  const checkpoints = [];
+  return {
+    state: { objects, view_mode: "camera", editor_views: {}, spatial_snap_mode: "none", spatial_grid_size: 0.5 },
+    camera: { position: [6, 4, 6], target: [0, 0, 0], up: [0, 1, 0], fov: 35, camera_type: "perspective", zoom: 1 },
+    canvas: { width: 800, height: 450 }, interactionElement: { getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }) },
+    selectedObjectId: objects[0].id, selectedObjectIds: new Set(objects.map((object) => object.id)), checkpoints,
+    checkpoint(label) { checkpoints.push(label); }, beginObjectEdit() {}, commitObjectEdit() {}, setTransformMode(mode) { this.state.gizmo_mode = mode; },
+    setStatus() {}, render() {}, refreshInspector() {}, scheduleSerialize() {}, refreshKeys() {}, drawCurveEditor() {},
+  };
+}
+
+function resetUi(state) {
+  const checkpoints = [];
+  return {
+    state, frame: 17, checkpoints,
+    checkpoint(label) { checkpoints.push(label); }, finishCameraEdit() {}, serialize() {}, refreshObjects() {},
+    refreshKeys() {}, refreshKeyEditor() {}, refreshInspector() {}, drawCurveEditor() {}, render() {},
+    refreshCameraSelectors() {}, setStatus() {},
+  };
+}
 
 test("playblast upload uses the managed OmniCam route", async () => {
   let request;
@@ -72,7 +302,9 @@ test("viewport background textures are bounded and stale loads are disposed", as
 
 test("fly navigation keeps Q for vertical movement", async () => {
   const source = await readFile(new URL("../../web-src/commands.js", import.meta.url), "utf8");
-  assert.match(source, /key === "q" && !ui\.isNavigatingFly/);
+  assert.match(source, /\["w", "a", "s", "d", "q", "e"\].*ui\.isNavigatingFly/);
+  assert.match(source, /if \(key === "q"\) delta = mul\(up, -speed\)/);
+  assert.doesNotMatch(source, /key === "q" && !ui\.isNavigatingFly/);
 });
 
 test("upstream media preserves managed annotations and cancels stale work", async () => {
@@ -121,6 +353,7 @@ test("selecting a viewport object keeps camera navigation active", () => {
     selectedObjectId: null,
     selectedKeyFrame: null,
     closeMenus() {},
+    checkpoint() {},
     finishCameraEdit() {},
     refreshObjects() {},
     refreshKeys() {},
@@ -146,9 +379,9 @@ test("selecting a viewport object keeps camera navigation active", () => {
   assert.ok(ui.drag, "the same pointer gesture should initialize camera navigation");
 });
 
-test("a selected object cannot capture a plain left-drag through its gizmo", async () => {
+test("a selected object directly captures a plain left-drag on its gizmo", async () => {
   const source = await readFile(new URL("../../web-src/viewport-controls/interactions.js", import.meta.url), "utf8");
-  assert.match(source, /canEditGizmo = canPick && \(e\.ctrlKey \|\| e\.metaKey\)/);
+  assert.match(source, /canEditGizmo = canPick && !e\.altKey && !e\.shiftKey/);
   assert.match(source, /const picked = canEditGizmo \? pickGizmo/);
 });
 
@@ -187,7 +420,7 @@ test("middle-button navigation bypasses picking on a selected object", () => {
       getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }),
     },
     webgl: { pick() { pickCalls += 1; return { type: "object", id: "subject" }; } },
-    closeMenus() {}, beginCameraEdit() {}, selectedObject() { return null; },
+    closeMenus() {}, checkpoint() {}, beginCameraEdit() {}, selectedObject() { return null; },
   };
   onPointerDown(ui, {
     button: 1, pointerId: 2, clientX: 400, clientY: 225,
@@ -389,10 +622,17 @@ test("track flags sanitize locked/muted/solo and parent ids", () => {
 
 test("camera presets generate valid trajectory keyframes", () => {
   const orbit = generateCameraPreset("orbit_360", { duration_frames: 120, target: [0, 1, 0] });
-  assert.equal(orbit.length, 5);
+  assert.ok(orbit.length >= 17);
   assert.equal(orbit[0].frame, 0);
-  assert.equal(orbit[4].frame, 119);
+  assert.equal(orbit.at(-1).frame, 119);
   assert.deepEqual(orbit[0].camera.target, [0, 1, 0]);
+  assert.deepEqual(orbit.at(-1).camera.position, orbit[0].camera.position);
+  const orbitState = { keyframes: orbit };
+  for (let frame = 0; frame < 120; frame++) {
+    const camera = sampleCamera(orbitState, frame);
+    const radius = Math.hypot(camera.position[0], camera.position[2]);
+    assert.ok(Math.abs(radius - 6) < 0.035, `orbit radius drifted at frame ${frame}: ${radius}`);
+  }
 
   const vertigo = generateCameraPreset("dolly_zoom", { duration_frames: 90, target: [0, 1.5, 0] });
   assert.equal(vertigo.length, 2);
@@ -422,17 +662,17 @@ test("camera dynamic target tracking constraint follows moving target object alo
   assert.deepEqual(at100.target, [50, 1, 100]);
 });
 
-test("cinema lens conversion matches 35mm full frame standard", async () => {
-  const { focalLengthToFov, fovToFocalLength, CINEMA_LENSES } = await import("../../web/omnicam-cameras.js");
+test("cinema lens conversion matches canonical vertical FOV", async () => {
+  const { focalLengthToFov, fovToFocalLength, CINEMA_LENSES } = await import("../../web-src/cameras.js");
   assert.equal(CINEMA_LENSES.length, 8);
   const fov50 = focalLengthToFov(50);
-  assert.ok(fov50 > 38 && fov50 < 41);
+  assert.ok(fov50 > 26 && fov50 < 28);
   const fl50 = fovToFocalLength(fov50);
   assert.ok(Math.abs(fl50 - 50) < 0.1);
 });
 
 test("blocking scene sets generate spatial parallax objects and camera paths", async () => {
-  const { applyBlockingScenePreset } = await import("../../web/omnicam-motion-presets.js");
+  const { applyBlockingScenePreset } = await import("../../web-src/motion-presets.js");
   const ui = {
     checkpoint: () => {},
     state: { duration_frames: 100, active_camera_id: "c1", objects: [] },

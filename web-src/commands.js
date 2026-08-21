@@ -3,14 +3,13 @@
 // into inputs, selects, textareas, buttons (Space/Enter), or editable content.
 
 import { add, cameraBasis, cloneCamera, length, mul, sub } from "./omnicam-core.js";
+import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
+import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
 
 const TRANSFORM_KEYS = {
-  w: "translate",
-  g: "translate",
-  e: "rotate",
+  t: "translate",
   r: "rotate",
   s: "scale",
-  t: "translate",
 };
 
 export function isEditableTarget(target) {
@@ -36,8 +35,20 @@ export function dispatchDirectorKey(ui, event) {
   const code = event.code;
   const capture = () => {
     event.preventDefault();
+    event.stopImmediatePropagation?.();
     event.stopPropagation();
   };
+
+  if (ui.modalTransform) {
+    capture();
+    handleModalTransformKey(ui, event);
+    return true;
+  }
+
+  if (key === "escape" && cancelViewportInteraction(ui)) {
+    capture();
+    return true;
+  }
 
   if ((event.ctrlKey || event.metaKey) && key === "z") {
     capture();
@@ -59,26 +70,40 @@ export function dispatchDirectorKey(ui, event) {
     ui.pasteKeyframe();
     return true;
   }
-  if (event.ctrlKey || event.metaKey || event.altKey) return false;
-
-  // Standard 3D Software Viewport hotkeys: W = Translate, E = Rotate, R = Scale, G = Grab
-  if (TRANSFORM_KEYS[key] && !ui.isNavigatingFly) {
+  if ((event.ctrlKey || event.metaKey) && key === "d") {
     capture();
-    if (!event.repeat) ui.setTransformMode(TRANSFORM_KEYS[key]);
+    if (!event.repeat) {
+      if (ui.selectedEntity === "object" && ui.selectedObjectId) ui.duplicateObject(ui.selectedObjectId);
+      else if (ui.selectedEntity === "camera") ui.duplicateCamera(ui.state.active_camera_id);
+    }
     return true;
   }
-  if (key === "q" && !ui.isNavigatingFly) {
+  if (event.altKey && key === "h") {
     capture();
-    ui.setSelectMode("object");
-    ui.selectedEntity = "camera";
-    ui.selectedObjectId = null;
-    ui.selectedKeyFrame = null;
-    ui.subSelection = null;
-    ui.refreshObjects();
-    ui.refreshKeys();
-    ui.refreshInspector();
-    ui.render();
-    ui.setStatus(`Object Mode · ${ui.activeCameraTrack().name}`);
+    if (!event.repeat) ui.showAllObjects();
+    return true;
+  }
+  if (((event.ctrlKey || event.metaKey) && !code.startsWith("Numpad")) || event.altKey) return false;
+
+  // OmniCam modal keymap: T/R/S. W/E/Q remain available to Fly
+  // navigation and gizmo modes are selected explicitly from the toolbar.
+  if (event.shiftKey && key === "g" && !ui.isNavigatingFly) {
+    capture();
+    ui.selectHierarchy();
+    return true;
+  }
+  if (TRANSFORM_KEYS[key] && !ui.isNavigatingFly) {
+    capture();
+    if (!event.repeat) {
+      beginModalTransform(ui, TRANSFORM_KEYS[key]);
+    }
+    return true;
+  }
+  if (key === "tab") {
+    capture();
+    const nextMode = ui.state.select_mode === "object" ? "vertex" : "object";
+    ui.setSelectMode(nextMode);
+    ui.setStatus(nextMode === "object" ? "Object Mode" : "Component Mode: Vertex");
     return true;
   }
   if (key === "i" || key === "k") {
@@ -142,9 +167,9 @@ export function dispatchDirectorKey(ui, event) {
 
   // Standard 3D Software Numpad View Switching:
   // Numpad 0: Active Camera view
-  // Numpad 1: Perspective / Front view
-  // Numpad 3: Right Side view
-  // Numpad 7: Top view
+  // Numpad 1: Front view (Ctrl/Cmd: Back)
+  // Numpad 3: Right Side view (Ctrl/Cmd: Left)
+  // Numpad 7: Top view (Ctrl/Cmd: Bottom)
   // Numpad 9: Bottom view
   // Numpad 5: Toggle Camera / Perspective
   if (code === "Numpad0") {
@@ -154,17 +179,17 @@ export function dispatchDirectorKey(ui, event) {
   }
   if (code === "Numpad1") {
     capture();
-    ui.setViewMode("perspective");
+    ui.setViewMode(event.ctrlKey || event.metaKey ? "back" : "front");
     return true;
   }
   if (code === "Numpad3") {
     capture();
-    ui.setViewMode("right");
+    ui.setViewMode(event.ctrlKey || event.metaKey ? "left" : "right");
     return true;
   }
   if (code === "Numpad7") {
     capture();
-    ui.setViewMode("top");
+    ui.setViewMode(event.ctrlKey || event.metaKey ? "bottom" : "top");
     return true;
   }
   if (code === "Numpad9") {
@@ -177,13 +202,27 @@ export function dispatchDirectorKey(ui, event) {
     ui.setViewMode(ui.state.view_mode === "camera" ? "perspective" : "camera");
     return true;
   }
-
-  if (event.key === "Delete" || event.key === "Backspace") {
+  if (code === "NumpadDecimal") {
     capture();
-    if (!event.repeat) ui.deleteKeyframe();
+    if (!event.repeat) ui.frameTarget();
     return true;
   }
-  if (event.key === "ArrowUp" || (event.shiftKey && event.key === "ArrowRight") || key === ".") {
+
+  if (key === "h" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    capture();
+    if (!event.repeat && ui.selectedEntity === "object" && ui.selectedObjectId) ui.toggleObject(ui.selectedObjectId);
+    return true;
+  }
+  if (event.key === "Delete" || event.key === "Backspace") {
+    capture();
+    if (!event.repeat) {
+      if (ui.selectedKeyframe()) ui.deleteKeyframe();
+      else if (ui.selectedEntity === "object" && ui.selectedObjectId) ui.deleteObject(ui.selectedObjectId);
+      else if (ui.selectedEntity === "camera") ui.deleteCamera(ui.state.active_camera_id);
+    }
+    return true;
+  }
+  if (event.key === "ArrowUp" || (event.shiftKey && event.key === "ArrowRight") || (key === "." && code !== "NumpadDecimal")) {
     capture();
     ui.goToAdjacentKey(1);
     return true;

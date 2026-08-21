@@ -120,23 +120,42 @@ export function createResourceMethods(dependencies) {
       const isActive = camera.id === state.active_camera_id;
 
       if (keys.length >= 2) {
-        const points = keys.map((key) => new THREE.Vector3().fromArray(key.camera.position));
-        const curve = new THREE.CatmullRomCurve3(points);
-        const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(Math.max(24, keys.length * 16)));
-        this.path.add(new THREE.Line(geometry, new THREE.LineBasicMaterial({
+        const firstFrame = keys[0].frame;
+        const lastFrame = keys[keys.length - 1].frame;
+        const samples = Math.max(32, Math.min(256, lastFrame - firstFrame + 1));
+        const trackState = { ...camera, keyframes: keys, objects: state.objects };
+        const points = Array.from({ length: samples }, (_, index) => {
+          const frame = firstFrame + ((lastFrame - firstFrame) * index) / Math.max(1, samples - 1);
+          return new THREE.Vector3().fromArray(sampleCamera(trackState, frame, state.objects).position);
+        });
+        const curve = new THREE.CatmullRomCurve3(points, false, "centripetal");
+        const radius = isActive ? 0.045 : 0.025;
+        const material = new THREE.MeshBasicMaterial({
           color: palette.line,
           transparent: true,
           opacity: isActive ? 1.0 : 0.55,
-          linewidth: isActive ? 2 : 1,
-        })));
+          depthTest: false,
+        });
+        const pathMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(48, samples), radius, 8, false), material);
+        pathMesh.renderOrder = 900;
+        this.path.add(pathMesh);
+        if (isActive) {
+          const glow = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, Math.max(48, samples), radius * 2.4, 8, false),
+            new THREE.MeshBasicMaterial({ color: palette.line, transparent: true, opacity: 0.18, depthTest: false }),
+          );
+          glow.renderOrder = 899;
+          this.path.add(glow);
+        }
       }
 
       for (const key of keys) {
         const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(isActive ? 0.07 : 0.05, 10, 8),
-          new THREE.MeshBasicMaterial({ color: palette.marker })
+          new THREE.SphereGeometry(isActive ? 0.13 : 0.085, 16, 12),
+          new THREE.MeshBasicMaterial({ color: palette.marker, depthTest: false })
         );
         marker.position.fromArray(key.camera.position);
+        marker.renderOrder = 910;
         this.path.add(marker);
 
         const position = new THREE.Vector3().fromArray(key.camera.position);
@@ -163,6 +182,7 @@ export function createResourceMethods(dependencies) {
           color: palette.frustum,
           transparent: true,
           opacity: isActive ? 0.9 : 0.45,
+          depthTest: false,
         })));
       }
     });
@@ -174,20 +194,21 @@ export function createResourceMethods(dependencies) {
       if (keys.length < 2) return;
       const color = object.color ? new THREE.Color(object.color) : objectColors[objIdx % objectColors.length];
       const points = keys.map((k) => new THREE.Vector3().fromArray(k.transform?.position || [0, 0, 0]));
-      const curve = new THREE.CatmullRomCurve3(points);
-      const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(Math.max(16, keys.length * 12)));
-      this.path.add(new THREE.Line(geometry, new THREE.LineDashedMaterial({
-        color,
-        dashSize: 0.15,
-        gapSize: 0.08,
-      })));
+      const curve = new THREE.CatmullRomCurve3(points, false, "centripetal");
+      const objectPath = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, Math.max(32, keys.length * 16), 0.035, 8, false),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthTest: false }),
+      );
+      objectPath.renderOrder = 900;
+      this.path.add(objectPath);
 
       for (const key of keys) {
         const objMarker = new THREE.Mesh(
-          new THREE.BoxGeometry(0.06, 0.06, 0.06),
-          new THREE.MeshBasicMaterial({ color })
+          new THREE.BoxGeometry(0.14, 0.14, 0.14),
+          new THREE.MeshBasicMaterial({ color, depthTest: false })
         );
         objMarker.position.fromArray(key.transform?.position || [0, 0, 0]);
+        objMarker.renderOrder = 910;
         this.path.add(objMarker);
       }
     });

@@ -193,7 +193,7 @@ export function drawCameraPath(ui) {
       }
     }
     if (ui.state.view_mode !== "camera") {
-      const live = sampleCamera(camera, ui.frame);
+      const live = sampleCamera(camera, ui.frame, ui.state.objects);
       const p = project(live.position, ui.viewportCamera(), ui.canvas.width, ui.canvas.height);
       if (p) {
         ui.ctx.fillStyle = isActive ? "#f2d06b" : color;
@@ -284,6 +284,12 @@ export function drawOverlays(ui) {
   }
   if (!ui.recording) {
     try { ui.drawTransformGizmo(); } catch (err) { console.warn("[OmniCam Gizmo Error]", err); }
+  }
+  if (!ui.recording && ui.boxSelection) {
+    const { start, current } = ui.boxSelection;
+    c.save(); c.fillStyle = "rgba(74,163,239,.14)"; c.strokeStyle = "#4aa3ef"; c.lineWidth = 1.5; c.setLineDash([6, 4]);
+    c.fillRect(start[0], start[1], current[0] - start[0], current[1] - start[1]);
+    c.strokeRect(start[0], start[1], current[0] - start[0], current[1] - start[1]); c.restore();
   }
   if (!ui.recording && ui.state.show_radar) {
     try { drawTopDownRadar(ui, c, w, h); } catch (err) { console.warn("[OmniCam Radar Error]", err); }

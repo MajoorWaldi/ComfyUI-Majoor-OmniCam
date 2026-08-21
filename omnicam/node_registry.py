@@ -1,4 +1,4 @@
-"""Single source of truth for OmniCam's five public ComfyUI nodes."""
+"""Single source of truth for OmniCam's currently enabled public nodes."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ PUBLIC_NODES = (
 )
 
 LEGACY_NODE_IDS = frozenset({
+    "MajoorOmniCamSequencer",
     "MajoorOmniCamTrackSampler", "MajoorOmniCamWanATIAdapter", "MajoorOmniCamATIPreview",
     "MajoorOmniCamLTXAdapter", "MajoorOmniCamControlPasses", "MajoorOmniCamCameraTools",
     "MajoorOmniCamSequence", "MajoorOmniCamSequenceBuilder", "MajoorOmniCamSequenceShot",
@@ -18,7 +19,7 @@ LEGACY_NODE_IDS = frozenset({
     "MajoorOmniCamDCCExport", "MajoorOmniCamBlenderExport", "MajoorOmniCamUnrealExport",
 })
 
-INTERNAL_COMPONENTS = ("track_sampler", "camera_tools", "scene_motion_analysis", "sequence", "dcc_export")
+INTERNAL_COMPONENTS = ("track_sampler", "camera_tools", "scene_motion_analysis", "sequence", "dcc_export", "retime", "audio")
 
 
 def get_registered_nodes():
@@ -26,5 +27,11 @@ def get_registered_nodes():
     from .nodes.director import MajoorOmniCamDirector
 
     if len(PUBLIC_NODES) != 5 or len(set(PUBLIC_NODES)) != 5:
-        raise RuntimeError("OmniCam public registry must contain exactly five unique nodes")
-    return [MajoorOmniCamDirector, MajoorOmniCamH3Adapter, MajoorOmniCamWanNativeCamera, MajoorOmniCamLTXCameraGuide, MajoorOmniCamWanVideoWrapperATI]
+        raise RuntimeError("OmniCam public registry must contain exactly five unique enabled nodes")
+    return [
+        MajoorOmniCamDirector,
+        MajoorOmniCamH3Adapter,
+        MajoorOmniCamWanNativeCamera,
+        MajoorOmniCamLTXCameraGuide,
+        MajoorOmniCamWanVideoWrapperATI,
+    ]

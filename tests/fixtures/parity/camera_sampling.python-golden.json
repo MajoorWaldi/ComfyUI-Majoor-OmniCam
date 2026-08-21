@@ -1,0 +1,870 @@
+{
+  "generator": "scripts/generate_parity_fixture.py",
+  "epsilon": 1e-05,
+  "cases": [
+    {
+      "name": "bezier_all_channels",
+      "frames": [
+        0,
+        1,
+        5,
+        10,
+        17,
+        23,
+        31
+      ],
+      "track": {
+        "schema_version": 1,
+        "fps": 24,
+        "duration_frames": 32,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "keyframes": [
+          {
+            "frame": 0,
+            "interpolation": "bezier",
+            "camera": {
+              "position": [
+                -3,
+                2,
+                8
+              ],
+              "target": [
+                1,
+                0.5,
+                -2
+              ],
+              "fov": 52,
+              "roll": 170,
+              "camera_type": "perspective",
+              "zoom": 0.8,
+              "near": 0.02,
+              "far": 800
+            },
+            "tangents": {
+              "channels": {
+                "pos_x": {
+                  "mode": "free",
+                  "out_x": 0.18,
+                  "out_y": 7.2
+                },
+                "target_y": {
+                  "mode": "aligned",
+                  "out_x": 0.42,
+                  "out_y": 2.4
+                },
+                "fov": {
+                  "mode": "free",
+                  "out_x": 0.3,
+                  "out_y": -12
+                },
+                "roll": {
+                  "mode": "free",
+                  "out_x": 0.25,
+                  "out_y": 15
+                },
+                "zoom": {
+                  "mode": "flat"
+                },
+                "near": {
+                  "mode": "vector"
+                },
+                "far": {
+                  "mode": "auto"
+                }
+              }
+            }
+          },
+          {
+            "frame": 17,
+            "interpolation": "bezier",
+            "camera": {
+              "position": [
+                4,
+                7,
+                1
+              ],
+              "target": [
+                -2,
+                3,
+                5
+              ],
+              "fov": 28,
+              "roll": -175,
+              "camera_type": "orthographic",
+              "zoom": 2.2,
+              "near": 0.2,
+              "far": 1400
+            },
+            "tangents": {
+              "channels": {
+                "pos_x": {
+                  "mode": "free",
+                  "in_x": -0.35,
+                  "in_y": -1.1,
+                  "out_x": 0.2,
+                  "out_y": 3.5
+                },
+                "target_y": {
+                  "mode": "aligned",
+                  "in_x": -0.3,
+                  "in_y": -1.1,
+                  "out_x": 0.3,
+                  "out_y": 1.1
+                }
+              }
+            }
+          },
+          {
+            "frame": 31,
+            "interpolation": "ease_out",
+            "camera": {
+              "position": [
+                9,
+                -1,
+                -6
+              ],
+              "target": [
+                3,
+                2,
+                0
+              ],
+              "fov": 67,
+              "roll": -130,
+              "camera_type": "perspective",
+              "zoom": 1.1,
+              "near": 0.05,
+              "far": 3000
+            }
+          }
+        ],
+        "objects": [],
+        "metadata": {}
+      },
+      "python_samples": [
+        {
+          "frame": 0,
+          "position": [
+            -3.0,
+            2.0,
+            8.0
+          ],
+          "target": [
+            1.0,
+            0.5,
+            -2.0
+          ],
+          "fov": 52.0,
+          "roll": 170.0,
+          "camera_type": "perspective",
+          "zoom": 0.8,
+          "near": 0.02,
+          "far": 800.0
+        },
+        {
+          "frame": 1,
+          "position": [
+            -1.1682198116231575,
+            2.3104009775684853,
+            7.5906777928980205
+          ],
+          "target": [
+            0.8137594134589089,
+            0.8190829257497216,
+            -1.5654386314041207
+          ],
+          "fov": 49.68244872850519,
+          "roll": 173.12193886029854,
+          "camera_type": "perspective",
+          "zoom": 0.8139629554721541,
+          "near": 0.031174435192465468,
+          "far": 833.1074991092189
+        },
+        {
+          "frame": 5,
+          "position": [
+            2.0243960805001966,
+            3.7759006720058257,
+            5.98697333572349
+          ],
+          "target": [
+            -0.06554040320349547,
+            1.756715027468583,
+            0.4862609408081559
+          ],
+          "fov": 41.234239164775204,
+          "roll": 180.51181605228754,
+          "camera_type": "perspective",
+          "zoom": 1.0920822308997993,
+          "near": 0.08393242419220974,
+          "far": 935.4714896520974
+        },
+        {
+          "frame": 10,
+          "position": [
+            3.2236579569879353,
+            5.653572155388865,
+            3.9892122940557804
+          ],
+          "target": [
+            -1.1921432932333187,
+            2.285078029805741,
+            3.11500101754441
+          ],
+          "fov": 33.040425234901846,
+          "roll": 184.1192421465344,
+          "camera_type": "perspective",
+          "zoom": 1.6833706492559828,
+          "near": 0.15152859759399914,
+          "far": 1057.2766130569553
+        },
+        {
+          "frame": 17,
+          "position": [
+            4.000000001222361,
+            7.0,
+            0.9999999992569963
+          ],
+          "target": [
+            -2.0,
+            3.0000000003841705,
+            5.0
+          ],
+          "fov": 28.0,
+          "roll": -175.0,
+          "camera_type": "orthographic",
+          "zoom": 2.2,
+          "near": 0.2,
+          "far": 1400.0000001218937
+        },
+        {
+          "frame": 23,
+          "position": [
+            7.115528820473299,
+            4.690962099589669,
+            -1.913565425816191
+          ],
+          "target": [
+            -0.5568513122435423,
+            3.1491939930008157,
+            3.5568513122435426
+          ],
+          "fov": 39.256559764500366,
+          "roll": -162.0116618101919,
+          "camera_type": "orthographic",
+          "zoom": 1.8825072886935794,
+          "near": 0.15670553936730627,
+          "far": 2008.3347623920872
+        },
+        {
+          "frame": 31,
+          "position": [
+            9.0,
+            -1.0,
+            -6.0
+          ],
+          "target": [
+            3.0,
+            2.0,
+            0.0
+          ],
+          "fov": 67.0,
+          "roll": -130.0,
+          "camera_type": "perspective",
+          "zoom": 1.1,
+          "near": 0.05,
+          "far": 3000.0
+        }
+      ]
+    },
+    {
+      "name": "look_at_animated_parent_hierarchy",
+      "frames": [
+        0,
+        3,
+        9,
+        17,
+        24,
+        30
+      ],
+      "track": {
+        "schema_version": 1,
+        "fps": 30,
+        "duration_frames": 31,
+        "width": 1920,
+        "height": 1080,
+        "render_mode": "grid",
+        "constraints": {
+          "look_at": {
+            "object_id": "actor",
+            "offset": [
+              0.25,
+              1.5,
+              -0.75
+            ],
+            "space": "world",
+            "status": "active"
+          }
+        },
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                0,
+                6,
+                14
+              ],
+              "target": [
+                99,
+                99,
+                99
+              ],
+              "fov": 40,
+              "roll": 5,
+              "camera_type": "perspective",
+              "zoom": 1,
+              "near": 0.01,
+              "far": 5000
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 30,
+            "camera": {
+              "position": [
+                8,
+                9,
+                4
+              ],
+              "target": [
+                -99,
+                -99,
+                -99
+              ],
+              "fov": 32,
+              "roll": 25,
+              "camera_type": "perspective",
+              "zoom": 1,
+              "near": 0.01,
+              "far": 5000
+            },
+            "interpolation": "ease"
+          }
+        ],
+        "objects": [
+          {
+            "id": "root",
+            "type": "null",
+            "position": [
+              2,
+              0,
+              -1
+            ],
+            "rotation": [
+              0,
+              20,
+              0
+            ],
+            "size": [
+              1,
+              1,
+              1
+            ],
+            "keyframes": [
+              {
+                "frame": 0,
+                "transform": {
+                  "position": [
+                    2,
+                    0,
+                    -1
+                  ],
+                  "rotation": [
+                    0,
+                    20,
+                    0
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "linear"
+              },
+              {
+                "frame": 30,
+                "transform": {
+                  "position": [
+                    10,
+                    2,
+                    6
+                  ],
+                  "rotation": [
+                    15,
+                    110,
+                    -20
+                  ],
+                  "size": [
+                    1.5,
+                    0.8,
+                    2
+                  ]
+                },
+                "interpolation": "ease"
+              }
+            ]
+          },
+          {
+            "id": "rig",
+            "type": "null",
+            "parent_id": "root",
+            "position": [
+              3,
+              1,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              25
+            ],
+            "size": [
+              0.75,
+              1.2,
+              1
+            ]
+          },
+          {
+            "id": "actor",
+            "type": "human",
+            "parent_id": "rig",
+            "position": [
+              1,
+              2,
+              -2
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "size": [
+              1,
+              1,
+              1
+            ],
+            "keyframes": [
+              {
+                "frame": 0,
+                "transform": {
+                  "position": [
+                    1,
+                    2,
+                    -2
+                  ],
+                  "rotation": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "bezier"
+              },
+              {
+                "frame": 30,
+                "transform": {
+                  "position": [
+                    -2,
+                    4,
+                    3
+                  ],
+                  "rotation": [
+                    0,
+                    180,
+                    0
+                  ],
+                  "size": [
+                    1,
+                    1,
+                    1
+                  ]
+                },
+                "interpolation": "bezier"
+              }
+            ]
+          }
+        ],
+        "metadata": {}
+      },
+      "python_samples": [
+        {
+          "frame": 0,
+          "position": [
+            0.0,
+            6.0,
+            14.0
+          ],
+          "target": [
+            4.0706606017147005,
+            4.992102385193485,
+            -4.541021810677169
+          ],
+          "fov": 40.0,
+          "roll": 5.0,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 5000.0
+        },
+        {
+          "frame": 3,
+          "position": [
+            0.8,
+            6.3,
+            13.0
+          ],
+          "target": [
+            4.593005313395411,
+            5.23697534175584,
+            -3.7001569457009653
+          ],
+          "fov": 39.2,
+          "roll": 7.0,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 5000.0
+        },
+        {
+          "frame": 9,
+          "position": [
+            2.4,
+            6.9,
+            11.0
+          ],
+          "target": [
+            5.986063653942083,
+            5.652109920064012,
+            -1.7636546881731296
+          ],
+          "fov": 37.6,
+          "roll": 11.0,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 5000.0
+        },
+        {
+          "frame": 17,
+          "position": [
+            4.533333333333333,
+            7.7,
+            8.333333333333334
+          ],
+          "target": [
+            8.833893118039118,
+            6.07884859548671,
+            0.7648247073277261
+          ],
+          "fov": 35.46666666666667,
+          "roll": 16.333333333333332,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 5000.0
+        },
+        {
+          "frame": 24,
+          "position": [
+            6.4,
+            8.4,
+            6.0
+          ],
+          "target": [
+            12.169308821101641,
+            6.531789147799232,
+            2.1528919491651513
+          ],
+          "fov": 33.6,
+          "roll": 21.0,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 5000.0
+        },
+        {
+          "frame": 30,
+          "position": [
+            8.0,
+            9.0,
+            4.0
+          ],
+          "target": [
+            15.229384985731594,
+            7.2446930430578025,
+            2.2550695057846193
+          ],
+          "fov": 32.0,
+          "roll": 25.0,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 5000.0
+        }
+      ]
+    },
+    {
+      "name": "projection_switch_and_angle_wrap",
+      "frames": [
+        0,
+        7,
+        14,
+        15,
+        16,
+        22,
+        29,
+        30
+      ],
+      "track": {
+        "schema_version": 1,
+        "fps": 24,
+        "duration_frames": 31,
+        "width": 1024,
+        "height": 1024,
+        "render_mode": "wireframe",
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                0,
+                2,
+                9
+              ],
+              "target": [
+                0,
+                1,
+                0
+              ],
+              "fov": 35,
+              "roll": 179,
+              "camera_type": "perspective",
+              "zoom": 1,
+              "near": 0.01,
+              "far": 1000
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 15,
+            "camera": {
+              "position": [
+                2,
+                3,
+                7
+              ],
+              "target": [
+                1,
+                2,
+                0
+              ],
+              "fov": 45,
+              "roll": -179,
+              "camera_type": "orthographic",
+              "zoom": 3,
+              "near": 0.1,
+              "far": 2000
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 30,
+            "camera": {
+              "position": [
+                -4,
+                8,
+                2
+              ],
+              "target": [
+                0,
+                0,
+                0
+              ],
+              "fov": 25,
+              "roll": 170,
+              "camera_type": "perspective",
+              "zoom": 0.5,
+              "near": 0.5,
+              "far": 4000
+            },
+            "interpolation": "ease_in"
+          }
+        ],
+        "objects": [],
+        "metadata": {}
+      },
+      "python_samples": [
+        {
+          "frame": 0,
+          "position": [
+            0.0,
+            2.0,
+            9.0
+          ],
+          "target": [
+            0.0,
+            1.0,
+            0.0
+          ],
+          "fov": 35.0,
+          "roll": 179.0,
+          "camera_type": "perspective",
+          "zoom": 1.0,
+          "near": 0.01,
+          "far": 1000.0
+        },
+        {
+          "frame": 7,
+          "position": [
+            0.9333333333333333,
+            2.466666666666667,
+            8.066666666666666
+          ],
+          "target": [
+            0.4666666666666667,
+            1.4666666666666668,
+            0.0
+          ],
+          "fov": 39.666666666666664,
+          "roll": 179.93333333333334,
+          "camera_type": "perspective",
+          "zoom": 1.9333333333333333,
+          "near": 0.052000000000000005,
+          "far": 1466.6666666666667
+        },
+        {
+          "frame": 14,
+          "position": [
+            1.8666666666666667,
+            2.9333333333333336,
+            7.133333333333333
+          ],
+          "target": [
+            0.9333333333333333,
+            1.9333333333333333,
+            0.0
+          ],
+          "fov": 44.333333333333336,
+          "roll": 180.86666666666667,
+          "camera_type": "perspective",
+          "zoom": 2.8666666666666667,
+          "near": 0.094,
+          "far": 1933.3333333333335
+        },
+        {
+          "frame": 15,
+          "position": [
+            2.0,
+            3.0,
+            7.0
+          ],
+          "target": [
+            1.0,
+            2.0,
+            0.0
+          ],
+          "fov": 45.0,
+          "roll": -179.0,
+          "camera_type": "orthographic",
+          "zoom": 3.0,
+          "near": 0.1,
+          "far": 2000.0
+        },
+        {
+          "frame": 16,
+          "position": [
+            1.6,
+            3.3333333333333335,
+            6.666666666666667
+          ],
+          "target": [
+            0.9333333333333333,
+            1.8666666666666667,
+            0.0
+          ],
+          "fov": 43.666666666666664,
+          "roll": -179.73333333333332,
+          "camera_type": "orthographic",
+          "zoom": 2.8333333333333335,
+          "near": 0.12666666666666668,
+          "far": 2133.3333333333335
+        },
+        {
+          "frame": 22,
+          "position": [
+            -0.7999999999999998,
+            5.333333333333334,
+            4.666666666666666
+          ],
+          "target": [
+            0.5333333333333333,
+            1.0666666666666667,
+            0.0
+          ],
+          "fov": 35.666666666666664,
+          "roll": -184.13333333333333,
+          "camera_type": "orthographic",
+          "zoom": 1.8333333333333333,
+          "near": 0.2866666666666667,
+          "far": 2933.3333333333335
+        },
+        {
+          "frame": 29,
+          "position": [
+            -3.5999999999999996,
+            7.666666666666667,
+            2.333333333333333
+          ],
+          "target": [
+            0.06666666666666665,
+            0.1333333333333333,
+            0.0
+          ],
+          "fov": 26.333333333333332,
+          "roll": -189.26666666666668,
+          "camera_type": "orthographic",
+          "zoom": 0.6666666666666665,
+          "near": 0.4733333333333334,
+          "far": 3866.666666666667
+        },
+        {
+          "frame": 30,
+          "position": [
+            -4.0,
+            8.0,
+            2.0
+          ],
+          "target": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "fov": 25.0,
+          "roll": 170.0,
+          "camera_type": "perspective",
+          "zoom": 0.5,
+          "near": 0.5,
+          "far": 4000.0
+        }
+      ]
+    }
+  ]
+}

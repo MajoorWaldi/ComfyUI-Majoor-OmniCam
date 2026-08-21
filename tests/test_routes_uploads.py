@@ -106,6 +106,8 @@ def test_signature_checks():
     assert routes._signature_ok(".webm", b"\x1a\x45\xdf\xa3....")
     assert routes._signature_ok(".mp4", b"\x00\x00\x00\x18ftypisom")
     assert not routes._signature_ok(".mp4", b"\x1a\x45\xdf\xa3")
+    assert routes._signature_ok(".webp", b"RIFF\x00\x00\x00\x00WEBP")
+    assert not routes._signature_ok(".webp", b"RIFF\x00\x00\x00\x00FAIL")
     assert routes._signature_ok(".obj", b"v 0 0 0")  # no signature → deferred to content checks
 
 

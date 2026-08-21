@@ -14,9 +14,8 @@
       "outputs": [
         {"name": "camera_track", "type": "MAJOOR_OMNICAM_TRACK", "links": [1], "slot_index": 0},
         {"name": "proxy_video", "type": "VIDEO", "links": [2], "slot_index": 1},
-        {"name": "camera_info", "type": "LOAD3D_CAMERA", "links": null, "slot_index": 2},
-        {"name": "track_json", "type": "STRING", "links": null, "slot_index": 3},
-        {"name": "audio", "type": "AUDIO", "links": null, "slot_index": 4}
+        {"name": "audio", "type": "AUDIO", "links": null, "slot_index": 2},
+        {"name": "shot_collection", "type": "MAJOOR_OMNICAM_SHOT_COLLECTION", "links": null, "slot_index": 3}
       ],
       "properties": {"Node name for S&R": "MajoorOmniCamDirector"},
       "widgets_values": ["{}", "", "", 768, 512, 24, 4.0, "omni_ref"]

@@ -1,5 +1,7 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
+import { registerOmniCamNodeBranding } from "./node-branding.js";
+import { migrateDirectorOutputs } from "./director-output-migration.js";
 import { OmniWebGLViewport } from "./omnicam-webgl.js";
 import { EditorHistory } from "./omnicam-history.js";
 import { ContextMenuController, initializeTooltips, promptText } from "./omnicam-ui.js";
@@ -248,8 +250,12 @@ function attachDirector(node) {
     ui.syncUpstreamInputs();
   };
 }
+registerOmniCamNodeBranding(app);
 app.registerExtension({
   name: EXTENSION_NAME,
+  beforeConfigureGraph(graphData) {
+    migrateDirectorOutputs(graphData);
+  },
   async nodeCreated(node) {
     (node.comfyClass === NODE_CLASS || node.constructor?.type === NODE_CLASS) && attachDirector(node);
   }

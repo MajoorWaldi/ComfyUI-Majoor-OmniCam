@@ -37,6 +37,17 @@ def test_camera_tools_are_deterministic_and_keep_dimensions():
     assert follow_track_target(track).schema_version == 1
 
 
+def test_retime_preserves_fcurve_payloads():
+    from omnicam.core.camera_tools import retime_to_speed
+    track = OmniCamTrack.from_dict({"duration_frames": 2, "fps": 24, "keyframes": [
+        {"frame": 0, "camera": {"position": [0, 0, 0], "target": [0, 0, -1]}, "tangents": {"mode": "free"}, "references": [{"id": "a"}]},
+        {"frame": 1, "camera": {"position": [100, 0, 0], "target": [0, 0, -1]}},
+    ]})
+    result = retime_to_speed(track, 1.0)
+    assert result.keyframes[0].tangents == {"mode": "free"}
+    assert result.keyframes[0].references == [{"id": "a"}]
+
+
 def test_focal_length_conversion_and_trajectory_analysis():
     from omnicam.core.camera_tools import (
         analyze_camera_trajectory,
@@ -46,13 +57,13 @@ def test_focal_length_conversion_and_trajectory_analysis():
     )
 
     # 50mm on 36mm sensor gives ~39.6° horizontal FOV
-    fov_50 = focal_length_to_fov(50.0, 36.0)
-    assert 38.0 < fov_50 < 42.0
-    assert abs(fov_to_focal_length(fov_50, 36.0) - 50.0) < 0.1
+    fov_50 = focal_length_to_fov(50.0)
+    assert 26.0 < fov_50 < 28.0
+    assert abs(fov_to_focal_length(fov_50) - 50.0) < 0.1
 
     # 24mm wide lens
-    fov_24 = focal_length_to_fov(24.0, 36.0)
-    assert 70.0 < fov_24 < 76.0
+    fov_24 = focal_length_to_fov(24.0)
+    assert 52.0 < fov_24 < 54.0
 
     track = OmniCamTrack.from_dict({"duration_frames": 24, "fps": 24})
     orbit_track = apply_camera_preset(track, "orbit_left", 1.0)
@@ -60,6 +71,11 @@ def test_focal_length_conversion_and_trajectory_analysis():
     assert len(analysis["movements"]) > 0
     assert "orbit" in analysis["primary_movement"] or "orbit" in str(analysis["movements"])
     assert analysis["start_focal_mm"] > 0
+
+    full_orbit = analyze_camera_trajectory(apply_camera_preset(track, "product_360"))
+    assert abs(full_orbit["orbit_degrees"]) > 350
+    assert full_orbit["path_length"] > 0
+    assert "fov_distance_correlation" in full_orbit
 
     prompt = build_cinematic_motion_prompt(orbit_track, base_prompt="A futuristic neon city")
     assert "A futuristic neon city" in prompt

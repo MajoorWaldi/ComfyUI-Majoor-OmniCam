@@ -25,6 +25,7 @@ export function createRenderMethods(dependencies) {
       objects: worldObjects,
       viewport_bg_image: backgroundImage,
       viewport_bg_sequence: backgroundSequence,
+      __selectedObjectIds: [...(this.selectedObjectIds || [])],
       __omnicamRevision: this.renderRevision || 0,
     };
     let webglRendered = false;
@@ -85,7 +86,7 @@ export function createRenderMethods(dependencies) {
       for (const cameraTrack of this.state.cameras) {
         const canvas = this.cameraPreviewCanvases.get(cameraTrack.id), context = this.cameraPreviewContexts.get(cameraTrack.id);
         if (!canvas?.width || !context) continue;
-        const width = canvas.width, height = canvas.height, camera = sampleCamera(cameraTrack, this.frame);
+        const width = canvas.width, height = canvas.height, camera = sampleCamera(cameraTrack, this.frame, this.state.objects);
         context.fillStyle = "#111";
         context.fillRect(0, 0, width, height);
         if (this.cameraWebgl) {

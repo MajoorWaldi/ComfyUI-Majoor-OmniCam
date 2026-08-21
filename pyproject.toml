@@ -5,7 +5,7 @@ description = "Interactive camera authoring and proxy-reference playblasts for C
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
-dependencies = []
+dependencies = ["comfyui-frontend-package>=1.48.7"]
 classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
@@ -20,7 +20,7 @@ Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main
 PublisherId = "majoorwaldi"
 DisplayName = "Majoor OmniCam"
 Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.svg"
-requires-comfyui = ">=0.3.0"
+requires-comfyui = ">=0.31.0"
 
 [tool.ruff]
 line-length = 110

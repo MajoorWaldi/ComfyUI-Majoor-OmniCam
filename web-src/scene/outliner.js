@@ -116,7 +116,7 @@ export function refreshObjects(ui) {
     element.role = "button";
     element.tabIndex = 0;
     element.dataset.objectId = object.id;
-    const isSelected = ui.selectedEntity === "object" && object.id === ui.selectedObjectId;
+    const isSelected = ui.selectedEntity === "object" && (object.id === ui.selectedObjectId || ui.selectedObjectIds?.has?.(object.id));
     element.setAttribute("aria-selected", String(isSelected));
     element.className = `scene-item${isSelected ? " selected" : ""}`;
     const typeIcon = object.type === "card" ? "pi-image"
@@ -163,11 +163,16 @@ export function refreshObjects(ui) {
       if (event.altKey && object.id !== "subject") return void ui.deleteObject(object.id);
       ui.finishCameraEdit();
       ui.selectedEntity = "object";
-      ui.selectedObjectId = object.id;
+      ui.selectedObjectIds ||= new Set();
+      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        if (ui.selectedObjectIds.has(object.id)) ui.selectedObjectIds.delete(object.id);
+        else ui.selectedObjectIds.add(object.id);
+      } else ui.selectedObjectIds = new Set([object.id]);
+      ui.selectedObjectId = ui.selectedObjectIds.has(object.id) ? object.id : [...ui.selectedObjectIds].at(-1) || null;
       ui.selectedKeyFrame = object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null;
       ui.editingKeyFrame = null;
       for (const row of box.querySelectorAll(".scene-item")) {
-        const selected = row.dataset.objectId === object.id;
+        const selected = Boolean(row.dataset.objectId && ui.selectedObjectIds.has(row.dataset.objectId));
         row.classList.toggle("selected", selected);
         if (row.dataset.objectId) row.setAttribute("aria-selected", String(selected));
       }

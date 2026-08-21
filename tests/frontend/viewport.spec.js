@@ -51,3 +51,20 @@ test("renders perspective and orthographic scenes and releases WebGL", async ({ 
   expect(result.disposed).toBe(true);
   expect([result.width, result.height]).toEqual([1, 1]);
 });
+
+test("sequencer extension mounts its editorial UI instead of raw V3 widgets", async ({ page }) => {
+  await page.goto("/tests/frontend/sequencer-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading");
+  const result = await page.evaluate(() => window.omnicamSequencerMount);
+  expect(await page.locator("#status").textContent(), result?.error ?? "no error").toBe("ready");
+  expect(result.mounted).toBe(true);
+  expect(result.hasToolbar).toBe(true);
+  expect(result.hasCanvas).toBe(true);
+  expect(result.hasSpeedGraph).toBe(true);
+  expect(result.buttonCount).toBeGreaterThanOrEqual(12);
+  expect(result.hiddenState).toBe(true);
+  expect(result.collectionShotCount).toBe(2);
+  expect(result.connectedVideoCount).toBe(1);
+  expect(result.selectedGraphShot).toBe("shot_000");
+  expect(result.disconnectedVideoCount).toBe(0);
+});

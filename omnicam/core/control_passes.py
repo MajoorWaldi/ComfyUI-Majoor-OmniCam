@@ -1,4 +1,4 @@
-"""Control-pass payloads: depth, normals, object IDs, masks, optical flow.
+"""Internal scene-motion analysis over projected object samples.
 
 These are computed from the canonical track geometry (object bounds projected
 through the camera), not from rendered pixels — the WebGL viewport already
@@ -11,14 +11,11 @@ import math
 from typing import Any
 
 from .projection import basis, project_point
-from .track import OmniCamTrack
+from .track import OmniCamTrack, sample_object_world_transform
 
 
-def _object_center(object_payload: dict[str, Any]) -> list[float]:
-    position = object_payload.get("position")
-    if isinstance(position, (list, tuple)) and len(position) == 3:
-        return [float(v) for v in position]
-    return [0.0, 0.0, 0.0]
+def _object_center(objects: list[dict[str, Any]], object_payload: dict[str, Any], frame: int) -> list[float]:
+    return sample_object_world_transform(objects, object_payload, frame)["position"]
 
 
 def object_id_pass(track: OmniCamTrack, *, step: int = 1) -> dict[str, Any]:
@@ -29,7 +26,7 @@ def object_id_pass(track: OmniCamTrack, *, step: int = 1) -> dict[str, Any]:
     for frame, camera in track.samples(step):
         footprints = []
         for obj in objects:
-            projected = project_point(_object_center(obj), camera, track.width, track.height)
+            projected = project_point(_object_center(objects, obj, frame), camera, track.width, track.height)
             footprints.append(
                 {
                     "id": ids[obj.get("id", "")],
@@ -58,7 +55,7 @@ def depth_pass(track: OmniCamTrack, *, step: int = 1, near: float | None = None,
         far_plane = far if far is not None else camera.far
         entries = []
         for obj in objects:
-            projected = project_point(_object_center(obj), camera, track.width, track.height)
+            projected = project_point(_object_center(objects, obj, frame), camera, track.width, track.height)
             if projected is None:
                 entries.append({"name": obj.get("id"), "depth": None})
                 continue
@@ -77,7 +74,7 @@ def normals_pass(track: OmniCamTrack, *, step: int = 1) -> dict[str, Any]:
         for obj in track.objects:
             if not isinstance(obj, dict):
                 continue
-            rotation = obj.get("rotation") or [0.0, 0.0, 0.0]
+            rotation = sample_object_world_transform(track.objects, obj, frame)["rotation"]
             rx, ry, rz = (math.radians(float(rotation[i])) for i in range(3))
             # Object's local +Z (card normal) in world space.
             nx, ny, nz = 0.0, 0.0, 1.0
@@ -109,7 +106,7 @@ def optical_flow_pass(track: OmniCamTrack, *, step: int = 1) -> dict[str, Any]:
         vectors = []
         for obj in objects:
             name = obj.get("id")
-            projected = project_point(_object_center(obj), camera, track.width, track.height)
+            projected = project_point(_object_center(objects, obj, frame), camera, track.width, track.height)
             current = projected[:2] if projected else None
             last = previous.get(name)
             vectors.append(

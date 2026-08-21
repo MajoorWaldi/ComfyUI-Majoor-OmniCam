@@ -1,5 +1,5 @@
-import { add, clamp, cross, dot, mul, norm, sampleChannel, sub } from "../core.js";
-import { cloneCamera, defaultCamera, sampleObjectTransform } from "../core.js";
+import { add, clamp, cross, dot, mul, norm, resolveSampleSegment, sampleChannel, sub } from "../core.js";
+import { cloneCamera, defaultCamera, sampleObjectWorldTransform } from "../core.js";
 
 export function annotatedAssetUrl(value) {
   if (!value) return ""; const match = String(value).match(/^(.*?)(?:\s+\[(input|output|temp)\])?$/); const filename = match?.[1] || String(value); const type = match?.[2] || "input"; const slash = filename.lastIndexOf("/"); const subfolder = slash >= 0 ? filename.slice(0, slash) : ""; const name = slash >= 0 ? filename.slice(slash + 1) : filename;
@@ -7,7 +7,24 @@ export function annotatedAssetUrl(value) {
 }
 
 let apiUrl = (path) => path;
+const playbackSegmentCache = new WeakMap();
 export function configureCore({ api }) { apiUrl = (path) => api.apiURL ? api.apiURL(path) : path; }
+
+function cachedCameraSegment(state, keys, frame) {
+  const source = state.keyframes;
+  const cached = playbackSegmentCache.get(state);
+  if (cached?.source === source && frame >= cached.frame && cached.index < keys.length - 1) {
+    let index = cached.index;
+    while (index + 1 < keys.length - 1 && frame >= keys[index + 1].frame) index += 1;
+    if (keys[index].frame < frame && frame < keys[index + 1].frame) {
+      playbackSegmentCache.set(state, { source, frame, index });
+      return { leftIndex: index, left: keys[index], right: keys[index + 1] };
+    }
+  }
+  const segment = resolveSampleSegment(keys, frame);
+  playbackSegmentCache.set(state, { source, frame, index: segment?.leftIndex ?? 0 });
+  return segment;
+}
 
 export function cameraBasis(camera) {
   const offset = sub(camera.target, camera.position);
@@ -42,33 +59,38 @@ export function sampleCamera(state, frame, objects = null) {
     camera: cloneCamera(key.camera || key || state.camera || defaultCamera()),
   }));
   if (!keys.length) return cloneCamera(state.camera || defaultCamera());
-  const px = sampleChannel(keys, frame, "pos_x", (k) => (k.camera || k).position[0]);
-  const py = sampleChannel(keys, frame, "pos_y", (k) => (k.camera || k).position[1]);
-  const pz = sampleChannel(keys, frame, "pos_z", (k) => (k.camera || k).position[2]);
-  let tx = sampleChannel(keys, frame, "target_x", (k) => (k.camera || k).target[0]);
-  let ty = sampleChannel(keys, frame, "target_y", (k) => (k.camera || k).target[1]);
-  let tz = sampleChannel(keys, frame, "target_z", (k) => (k.camera || k).target[2]);
+  const segment = cachedCameraSegment(state, keys, frame);
+  const px = sampleChannel(keys, frame, "pos_x", (k) => (k.camera || k).position[0], false, segment);
+  const py = sampleChannel(keys, frame, "pos_y", (k) => (k.camera || k).position[1], false, segment);
+  const pz = sampleChannel(keys, frame, "pos_z", (k) => (k.camera || k).position[2], false, segment);
+  let tx = sampleChannel(keys, frame, "target_x", (k) => (k.camera || k).target[0], false, segment);
+  let ty = sampleChannel(keys, frame, "target_y", (k) => (k.camera || k).target[1], false, segment);
+  let tz = sampleChannel(keys, frame, "target_z", (k) => (k.camera || k).target[2], false, segment);
 
   // Live Look-At Target Tracking Constraint:
   // If target_object_id is set and the target object exists, follow its animated 3D position in real time!
-  const targetObjId = state.target_object_id || state.camera?.target_object_id;
+  const lookAt = state.constraints?.look_at;
+  const constraintActive = lookAt?.status === undefined || lookAt?.status === "active";
+  const targetObjId = constraintActive
+    ? (lookAt?.object_id || state.target_object_id || state.camera?.target_object_id)
+    : null;
   const allObjects = objects || state.objects;
   if (targetObjId && Array.isArray(allObjects)) {
     const targetObj = allObjects.find((o) => o.id === targetObjId);
-    if (targetObj) {
-      const objTransform = targetObj.keyframes?.length ? sampleObjectTransform(targetObj, frame) : targetObj;
-      const offset = state.target_offset || state.camera?.target_offset || [0, 0, 0];
+    if (targetObj && targetObj.enabled !== false) {
+      const objTransform = sampleObjectWorldTransform(allObjects, targetObj, frame);
+      const offset = lookAt?.offset || state.target_offset || state.camera?.target_offset || [0, 0, 0];
       tx = (objTransform.position?.[0] ?? 0) + (offset[0] || 0);
       ty = (objTransform.position?.[1] ?? 1.5) + (offset[1] || 0);
       tz = (objTransform.position?.[2] ?? 0) + (offset[2] || 0);
     }
   }
 
-  const fov = sampleChannel(keys, frame, "fov", (k) => Number((k.camera || k).fov ?? 35));
-  const roll = sampleChannel(keys, frame, "roll", (k) => Number((k.camera || k).roll ?? 0), true);
-  const zoom = sampleChannel(keys, frame, "zoom", (k) => Number((k.camera || k).zoom ?? 1));
-  const near = sampleChannel(keys, frame, "near", (k) => Number((k.camera || k).near ?? 0.01));
-  const far = sampleChannel(keys, frame, "far", (k) => Number((k.camera || k).far ?? 10000));
+  const fov = sampleChannel(keys, frame, "fov", (k) => Number((k.camera || k).fov ?? 35), false, segment);
+  const roll = sampleChannel(keys, frame, "roll", (k) => Number((k.camera || k).roll ?? 0), true, segment);
+  const zoom = sampleChannel(keys, frame, "zoom", (k) => Number((k.camera || k).zoom ?? 1), false, segment);
+  const near = sampleChannel(keys, frame, "near", (k) => Number((k.camera || k).near ?? 0.01), false, segment);
+  const far = sampleChannel(keys, frame, "far", (k) => Number((k.camera || k).far ?? 10000), false, segment);
   const firstKey = keys[0]?.camera || keys[0] || defaultCamera();
   let discreteKey = keys[0];
   for (const key of keys) { if ((key.frame ?? 0) <= frame) discreteKey = key; else break; }

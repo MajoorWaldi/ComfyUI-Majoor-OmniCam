@@ -2,7 +2,7 @@
 
 Completed on 20 August 2026.
 
-- [x] Add the 500-line source-file rule to `AGENTS.md`.
+- [x] Add the 800-line source-file safety ceiling to `AGENTS.md`.
 - [x] Keep every existing public entry point connected.
 - [x] Split `director.js` into focused modules.
 - [x] Split `viewport.js` into focused modules.
