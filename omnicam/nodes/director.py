@@ -72,14 +72,17 @@ class MajoorOmniCamDirector(IO.ComfyNode):
             raw_state = parsed if isinstance(parsed, dict) else {}
         except json.JSONDecodeError as exc:
             raise ValueError(f"Invalid OmniCam state JSON: {exc}") from exc
-        # Explicit editor-state → primary-track conversion with strict boundary validation.
-        track = OmniCamTrack.from_dict(editor_state_to_track(raw_state, validate=True))
-        # Backend values are authoritative when a workflow is queued.
-        track.width = int(width)
-        track.height = int(height)
-        track.fps = int(fps)
-        track.duration_frames = max(1, round(float(duration_seconds) * track.fps))
-        track.render_mode = str(render_mode)
+        # Queue widgets are authoritative. Merge them before compilation so the
+        # validator clamps keys against the exact duration that will execute.
+        authoritative_state = {
+            **raw_state,
+            "width": int(width),
+            "height": int(height),
+            "fps": int(fps),
+            "duration_frames": max(1, round(float(duration_seconds) * int(fps))),
+            "render_mode": str(render_mode),
+        }
+        track = OmniCamTrack.from_dict(editor_state_to_track(authoritative_state, validate=True))
         cameras = raw_state.get("cameras")
         selected_camera_id = track.metadata.get("camera_id")
         selected_camera = next(
@@ -98,13 +101,8 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 if not isinstance(cam, dict):
                     continue
                 cam_id = cam.get("id")
-                cam_track_dict = editor_state_to_track(raw_state, camera_id=cam_id, validate=True)
+                cam_track_dict = editor_state_to_track(authoritative_state, camera_id=cam_id, validate=True)
                 cam_track = OmniCamTrack.from_dict(cam_track_dict)
-                cam_track.width = track.width
-                cam_track.height = track.height
-                cam_track.fps = track.fps
-                cam_track.duration_frames = track.duration_frames
-                cam_track.render_mode = track.render_mode
                 cam_track.metadata = dict(cam_track.metadata)
                 camera_recording_path = str(cam.get("recording_path") or "")
                 if cam_id == raw_state.get("playblast_camera_id") and not camera_recording_path:

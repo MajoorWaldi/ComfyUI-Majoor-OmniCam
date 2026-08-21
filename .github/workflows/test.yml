@@ -20,13 +20,16 @@ jobs:
       - run: ruff check omnicam tests
 
   comfyui-integration:
+    strategy:
+      matrix:
+        comfy-ref: ["v0.31.0", "master"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: git clone --depth 1 --branch v0.31.0 https://github.com/Comfy-Org/ComfyUI.git .comfyui
+      - run: git clone --depth 1 --branch ${{ matrix.comfy-ref }} https://github.com/Comfy-Org/ComfyUI.git .comfyui
       - run: pip install -r .comfyui/requirements.txt
       - run: PYTHONPATH=.comfyui:. python scripts/comfy_integration_smoke.py
 

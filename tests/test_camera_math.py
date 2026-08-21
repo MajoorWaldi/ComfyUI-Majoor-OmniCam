@@ -3,7 +3,7 @@ import math
 import pytest
 
 from omnicam.core.projection import basis, project_point
-from omnicam.core.track import CameraState, OmniCamTrack
+from omnicam.core.track import CameraState, OmniCamTrack, camera_to_load3d
 
 
 def test_vertical_camera_basis_is_not_degenerate():
@@ -94,3 +94,22 @@ def test_projection_change_is_cut_at_key_boundary():
     )
     assert track.sample(9).camera_type == "perspective"
     assert track.sample(10).camera_type == "orthographic"
+
+
+@pytest.mark.parametrize(
+    ("position", "target", "roll"),
+    [
+        ([0, 0, 5], [0, 0, 0], 0),
+        ([0, 0, 5], [0, 0, 0], 90),
+        ([0, 0, 5], [0, 0, 0], 180),
+        ([0, 5, 0], [0, 0, 0], 0),
+        ([0, -5, 0], [0, 0, 0], 0),
+        ([1, 2, 3], [1, 2, 3], 90),
+    ],
+)
+def test_load3d_quaternion_conventions_are_finite_and_normalized(position, target, roll):
+    payload = camera_to_load3d(CameraState(position=position, target=target, roll=roll))
+    quaternion = payload["quaternion"]
+    values = list(quaternion.values()) if isinstance(quaternion, dict) else list(quaternion)
+    assert all(math.isfinite(value) for value in values)
+    assert math.sqrt(sum(value * value for value in values)) == pytest.approx(1.0, abs=1e-6)

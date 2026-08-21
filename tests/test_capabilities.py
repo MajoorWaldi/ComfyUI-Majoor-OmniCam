@@ -27,6 +27,26 @@ def test_detect_capabilities_verifies_real_input_contract():
     assert entry["state"] == "verified"
 
 
+def test_detect_capabilities_verifies_v3_schema_before_legacy():
+    class Input:
+        id = "camera_conditions"
+
+    class Schema:
+        inputs = [Input()]
+
+    class WanV3Node:
+        @classmethod
+        def define_schema(cls):
+            return Schema()
+
+    entry = next(
+        item
+        for item in detect_capabilities({"WanCameraImageToVideo": WanV3Node})["capabilities"]
+        if item["adapter"] == "wan_native"
+    )
+    assert entry["state"] == "verified"
+
+
 def test_diagnostic_is_actionable():
     diagnostic = diagnose_setup(detect_capabilities(set()))
     assert diagnostic["ok"] is False

@@ -49,6 +49,9 @@ L’analyse utilise tout le trajet : translations locales dolly/truck/crane,
 orbite signée, distance parcourue, rotation, vitesse, accélération, jerk,
 courbure et variations optiques. Truck reste une translation latérale et crane
 une translation verticale ; ces termes ne sont jamais remplacés par pan/tilt.
+L'analyse reste indépendante des templates de prompt et expose une classification
+multi-tag (`primary`, `secondary`, `optical`, `compound`) pour les mouvements
+composés, le pan, le tilt, le roll, le zoom optique et les plans verrouillés.
 
 ## Wan Native Camera
 
@@ -71,6 +74,8 @@ Le node calcule la plage et le budget mémoire avant décodage, puis utilise
 `VIDEO.as_trimmed()`. Il reconnaît les classes LTX actuelles
 `LTXAddVideoICLoRAGuide` et `LTXAddVideoICLoRAGuideAdvanced`, ainsi que les
 anciens alias à des fins de diagnostic.
+`camera_profile_json.guide_diagnostics` indique le type IMAGE, le nombre de
+frames, la résolution et l'estimation mémoire du guide décodé.
 
 ## WanVideoWrapper ATI
 
@@ -112,4 +117,5 @@ OmniCam utilise actuellement `comfy_api.latest` car le contrat V3 nécessaire
 entièrement fourni par l’adapter stable `v0_0_2`. La version minimale déclarée
 et testée est donc ComfyUI `0.31.0`, avec
 `comfyui-frontend-package>=1.48.7`. La CI exécute également un import réel de
-l’extension et `define_schema()` sur chacun des cinq nodes.
+l’extension, son hook `on_load()` et `define_schema()` sur chacun des cinq nodes,
+sur la version minimale ainsi que sur la branche courante de ComfyUI.

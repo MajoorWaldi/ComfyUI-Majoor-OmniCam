@@ -16,6 +16,21 @@ def _available_node_mappings() -> dict[str, Any]:
 
 
 def _declared_inputs(node_class: Any) -> set[str] | None:
+    define_schema = getattr(node_class, "define_schema", None)
+    if callable(define_schema):
+        try:
+            schema = define_schema()
+            inputs = getattr(schema, "inputs", None)
+            if inputs is not None:
+                names = {
+                    str(name)
+                    for item in inputs
+                    if (name := getattr(item, "id", None) or getattr(item, "name", None))
+                }
+                if names:
+                    return names
+        except Exception:
+            pass
     try:
         spec = node_class.INPUT_TYPES()
     except Exception:

@@ -12,7 +12,9 @@ Last updated: 20 August 2026
 - [x] Source text passes the UTF-8 and mojibake guard.
 - [x] Production exposes one JavaScript extension bundle (`web/omnicam.js`).
 - [x] Python core matrix covers 3.10 and 3.12 in CI.
-- [x] ComfyUI 0.31.0 integration smoke imports all five public nodes and evaluates every schema.
+- [x] ComfyUI 0.31.0 and current `master` integration lanes import all five public nodes, call `extension.on_load()`, and evaluate every schema.
+- [x] Capability discovery tests V3 `define_schema()` before legacy `INPUT_TYPES()`.
+- [x] LOAD3D quaternion edge cases cover roll 90/180 degrees, vertical up/down and coincident position/target.
 
 ## Manual checks still required before a public release
 

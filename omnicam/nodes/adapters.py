@@ -303,7 +303,15 @@ class MajoorOmniCamLTXCameraGuide(IO.ComfyNode):
                 frames.permute(0, 3, 1, 2), size=(target_height, target_width), mode="bilinear", align_corners=False
             ).permute(0, 2, 3, 1)
         cinematic = build_cinematic_motion_prompt(track, base_prompt=base_prompt, style="universal")
-        return IO.NodeOutput(frames, cinematic, json.dumps(ltx_camera_control_profile(track), indent=2))
+        profile = ltx_camera_control_profile(track)
+        profile["guide_diagnostics"] = {
+            "guide_type": "IMAGE",
+            "frames": int(frames.shape[0]),
+            "resolution": [int(frames.shape[2]), int(frames.shape[1])],
+            "estimated_memory_bytes": int(estimated),
+            "estimated_memory_mb": round(estimated / 1024**2, 1),
+        }
+        return IO.NodeOutput(frames, cinematic, json.dumps(profile, indent=2))
 
 
 class MajoorOmniCamControlPasses(IO.ComfyNode):

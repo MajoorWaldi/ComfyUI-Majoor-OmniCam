@@ -69,6 +69,24 @@ def test_director_exposes_four_focused_outputs():
     ]
 
 
+def test_director_validates_authoritative_widget_duration():
+    state = {
+        "duration_frames": 120,
+        "keyframes": [
+            {"frame": 0, "camera": {}},
+            {"frame": 119, "camera": {"position": [1, 2, 3]}},
+        ],
+    }
+    out = MajoorOmniCamDirector.execute(
+        state_json=json.dumps(state), recording_path="", card_asset="",
+        width=640, height=360, fps=10, duration_seconds=1, render_mode="grid",
+    )
+    track = (out.outputs if hasattr(out, "outputs") else tuple(out))[0]
+    assert track["duration_frames"] == 10
+    assert track["keyframes"][-1]["frame"] == 9
+    assert (track["width"], track["height"], track["fps"], track["render_mode"]) == (640, 360, 10, "grid")
+
+
 def test_director_proxy_matches_selected_playblast_camera(monkeypatch):
     from omnicam.nodes import director as director_module
 

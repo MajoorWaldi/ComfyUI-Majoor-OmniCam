@@ -25,21 +25,7 @@ def classify_camera_motion(track: OmniCamTrack) -> str:
     from ..core.camera_tools import analyze_camera_trajectory
 
     analysis = analyze_camera_trajectory(track)
-    if abs(analysis["roll_degrees"]) > 5:
-        return "roll"
-    if abs(analysis["orbit_degrees"]) > 20:
-        return "orbit_left" if analysis["orbit_degrees"] > 0 else "orbit_right"
-    translations = {
-        "dolly_in" if analysis["dolly_amount"] > 0 else "dolly_out": abs(analysis["dolly_amount"]),
-        "truck_right" if analysis["truck_amount"] > 0 else "truck_left": abs(analysis["truck_amount"]),
-        "crane_up" if analysis["crane_amount"] > 0 else "crane_down": abs(analysis["crane_amount"]),
-    }
-    movement, amount = max(translations.items(), key=lambda item: item[1])
-    if amount > 0.5:
-        return movement
-    if analysis["angular_distance_degrees"] > 5:
-        return "pan_or_tilt"
-    return "static"
+    return str(analysis["classification"]["primary"])
 
 
 def build_h3_prompt(track: OmniCamTrack, video_ref_token: str = "<Video 1>", template: str = "auto") -> str:

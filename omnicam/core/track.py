@@ -227,6 +227,7 @@ def _sample_channel(
     channel_id: str,
     channel_getter: Any,
     is_angle: bool = False,
+    segment: tuple[int, Any, Any, Any, Any] | None = None,
 ) -> float:
     if not keyframes:
         return 0.0
@@ -245,13 +246,9 @@ def _sample_channel(
     if frame_f >= last_frame:
         return float(channel_getter(keyframes[-1]))
 
-    frames = [_kf_frame(k) for k in keyframes]
-    idx = bisect.bisect_right(frames, frame_f) - 1
-    idx = max(0, min(len(keyframes) - 2, idx))
-    left = keyframes[idx]
-    right = keyframes[idx + 1]
-    prev = keyframes[idx - 1] if idx > 0 else None
-    next_key = keyframes[idx + 2] if idx + 2 < len(keyframes) else None
+    if segment is None:
+        segment = _resolve_sample_segment(keyframes, frame_f)
+    _, left, right, prev, next_key = segment
 
     left_frame = _kf_frame(left)
     right_frame = _kf_frame(right)
@@ -291,6 +288,30 @@ def _sample_channel(
 
     t = _ease(u, _kf_interp(left))
     return y0 + (y1 - y0) * t
+
+
+def _resolve_sample_segment(keyframes: list[Any], frame_f: float, hint: int | None = None) -> tuple[int, Any, Any, Any, Any]:
+    """Resolve neighboring keys once so every camera channel shares one lookup."""
+    if len(keyframes) < 2:
+        key = keyframes[0]
+        return 0, key, key, None, None
+
+    def key_frame(key: Any) -> float:
+        return float(getattr(key, "frame", key.get("frame", 0.0) if isinstance(key, dict) else 0.0))
+
+    idx = hint
+    if idx is None or idx < 0 or idx >= len(keyframes) - 1 or not (
+        key_frame(keyframes[idx]) <= frame_f < key_frame(keyframes[idx + 1])
+    ):
+        idx = bisect.bisect_right([key_frame(key) for key in keyframes], frame_f) - 1
+    idx = max(0, min(len(keyframes) - 2, idx))
+    return (
+        idx,
+        keyframes[idx],
+        keyframes[idx + 1],
+        keyframes[idx - 1] if idx else None,
+        keyframes[idx + 2] if idx + 2 < len(keyframes) else None,
+    )
 
 
 def _ease(t: float, mode: str) -> float:
@@ -454,17 +475,18 @@ class OmniCamTrack:
     def to_json(self, *, indent: int | None = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, sort_keys=False)
 
-    def sample(self, frame: float) -> CameraState:
+    def sample(self, frame: float, *, _segment_hint: int | None = None) -> CameraState:
         frame_f = _clamp(float(frame), 0.0, float(max(0, self.duration_frames - 1)))
         if not self.keyframes:
             return CameraState(position=[6.0, 4.0, 6.0], target=[0.0, 1.5, 0.0])
 
-        px = _sample_channel(self.keyframes, frame_f, "pos_x", lambda k: k.camera.position[0])
-        py = _sample_channel(self.keyframes, frame_f, "pos_y", lambda k: k.camera.position[1])
-        pz = _sample_channel(self.keyframes, frame_f, "pos_z", lambda k: k.camera.position[2])
-        tx = _sample_channel(self.keyframes, frame_f, "target_x", lambda k: k.camera.target[0])
-        ty = _sample_channel(self.keyframes, frame_f, "target_y", lambda k: k.camera.target[1])
-        tz = _sample_channel(self.keyframes, frame_f, "target_z", lambda k: k.camera.target[2])
+        segment = _resolve_sample_segment(self.keyframes, frame_f, _segment_hint)
+        px = _sample_channel(self.keyframes, frame_f, "pos_x", lambda k: k.camera.position[0], segment=segment)
+        py = _sample_channel(self.keyframes, frame_f, "pos_y", lambda k: k.camera.position[1], segment=segment)
+        pz = _sample_channel(self.keyframes, frame_f, "pos_z", lambda k: k.camera.position[2], segment=segment)
+        tx = _sample_channel(self.keyframes, frame_f, "target_x", lambda k: k.camera.target[0], segment=segment)
+        ty = _sample_channel(self.keyframes, frame_f, "target_y", lambda k: k.camera.target[1], segment=segment)
+        tz = _sample_channel(self.keyframes, frame_f, "target_z", lambda k: k.camera.target[2], segment=segment)
 
         # Resolve Look-At in world space. Invalid/disabled targets deliberately
         # fall back to the authored camera target instead of silently aiming at zero.
@@ -479,14 +501,12 @@ class OmniCamTrack:
                 offset = _vec3(look_at.get("offset"), (0.0, 0.0, 0.0))
                 tx, ty, tz = (world["position"][i] + offset[i] for i in range(3))
 
-        fov = _sample_channel(self.keyframes, frame_f, "fov", lambda k: k.camera.fov)
-        roll = _sample_channel(self.keyframes, frame_f, "roll", lambda k: k.camera.roll, is_angle=True)
-        zoom = _sample_channel(self.keyframes, frame_f, "zoom", lambda k: k.camera.zoom)
-        near = _sample_channel(self.keyframes, frame_f, "near", lambda k: k.camera.near)
-        far = _sample_channel(self.keyframes, frame_f, "far", lambda k: k.camera.far)
-
-        frames = [key.frame for key in self.keyframes]
-        camera_type = self.keyframes[max(0, bisect.bisect_right(frames, frame_f) - 1)].camera.camera_type
+        fov = _sample_channel(self.keyframes, frame_f, "fov", lambda k: k.camera.fov, segment=segment)
+        roll = _sample_channel(self.keyframes, frame_f, "roll", lambda k: k.camera.roll, is_angle=True, segment=segment)
+        zoom = _sample_channel(self.keyframes, frame_f, "zoom", lambda k: k.camera.zoom, segment=segment)
+        near = _sample_channel(self.keyframes, frame_f, "near", lambda k: k.camera.near, segment=segment)
+        far = _sample_channel(self.keyframes, frame_f, "far", lambda k: k.camera.far, segment=segment)
+        camera_type = (segment[2] if frame_f >= segment[2].frame else segment[1]).camera.camera_type
 
         return CameraState(
             position=[px, py, pz],
@@ -501,8 +521,11 @@ class OmniCamTrack:
 
     def samples(self, step: int = 1) -> Iterable[tuple[int, CameraState]]:
         step = max(1, int(step))
+        segment_index = 0
         for frame in range(0, self.duration_frames, step):
-            yield frame, self.sample(frame)
+            while segment_index + 1 < len(self.keyframes) - 1 and frame >= self.keyframes[segment_index + 1].frame:
+                segment_index += 1
+            yield frame, self.sample(frame, _segment_hint=segment_index)
 
 
 def camera_to_load3d(camera: CameraState, aspect: float = 16 / 9) -> dict[str, Any]:

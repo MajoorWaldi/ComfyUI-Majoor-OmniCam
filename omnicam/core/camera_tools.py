@@ -320,6 +320,7 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
     start_cam, end_cam = cameras[0], cameras[-1]
     path_length = dolly_amount = truck_amount = crane_amount = 0.0
     angular_distance = 0.0
+    pan_degrees = tilt_degrees = 0.0
     for previous, current in pairwise(cameras):
         delta = [current.position[i] - previous.position[i] for i in range(3)]
         path_length += math.sqrt(sum(value * value for value in delta))
@@ -330,6 +331,11 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
         forward_a = _normalize([previous.target[i] - previous.position[i] for i in range(3)])
         forward_b = _normalize([current.target[i] - current.position[i] for i in range(3)])
         angular_distance += math.degrees(math.acos(max(-1.0, min(1.0, sum(forward_a[i] * forward_b[i] for i in range(3))))))
+        yaw_a, yaw_b = math.atan2(forward_a[0], -forward_a[2]), math.atan2(forward_b[0], -forward_b[2])
+        pan_degrees += math.degrees((yaw_b - yaw_a + math.pi) % (2.0 * math.pi) - math.pi)
+        pitch_a = math.asin(max(-1.0, min(1.0, forward_a[1])))
+        pitch_b = math.asin(max(-1.0, min(1.0, forward_b[1])))
+        tilt_degrees += math.degrees(pitch_b - pitch_a)
 
     # Distance to target
     start_dist_to_target = math.sqrt(sum((start_cam.position[i] - start_cam.target[i]) ** 2 for i in range(3)))
@@ -412,12 +418,45 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
     if abs(roll_delta) > 5.0:
         movements.append(f"{round(roll_delta)}° Dutch roll tilt")
 
+    if abs(pan_degrees) > 5.0:
+        movements.append("pan right" if pan_degrees > 0 else "pan left")
+    if abs(tilt_degrees) > 5.0:
+        movements.append("tilt up" if tilt_degrees > 0 else "tilt down")
+    if abs(fov_delta) > 2.0 and path_length < 0.05:
+        movements.append("optical zoom out" if fov_delta > 0 else "optical zoom in")
+
     if not movements:
         movements.append("static framing with subtle floating motion")
+
+    motion_tags = []
+    if abs(orbit_degrees) > 20.0:
+        motion_tags.append("orbit_left" if orbit_degrees > 0 else "orbit_right")
+    if abs(dolly_amount) > 0.5:
+        motion_tags.append("dolly_in" if dolly_amount > 0 else "dolly_out")
+    if abs(truck_amount) > 0.5:
+        motion_tags.append("truck_right" if truck_amount > 0 else "truck_left")
+    if abs(crane_amount) > 0.5:
+        motion_tags.append("pedestal_up" if crane_amount > 0 else "pedestal_down")
+    if abs(pan_degrees) > 5.0:
+        motion_tags.append("pan_right" if pan_degrees > 0 else "pan_left")
+    if abs(tilt_degrees) > 5.0:
+        motion_tags.append("tilt_up" if tilt_degrees > 0 else "tilt_down")
+    if abs(roll_delta) > 5.0:
+        motion_tags.append("roll")
+    optical = "zoom_out" if fov_delta > 2.0 else ("zoom_in" if fov_delta < -2.0 else "locked")
+    if not motion_tags:
+        motion_tags.append("zoom_only" if optical != "locked" else ("locked_shot" if path_length < 0.01 and angular_distance < 1.0 else "floating"))
+    classification = {
+        "primary": motion_tags[0],
+        "secondary": motion_tags[1:],
+        "optical": optical,
+        "compound": len(motion_tags) > 1,
+    }
 
     return {
         "movements": movements,
         "primary_movement": movements[0],
+        "classification": classification,
         "pacing": pacing,
         "lens_type": lens_type,
         "start_focal_mm": round(start_focal_mm, 1),
@@ -434,6 +473,8 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
         "avg_speed": round(avg_speed, 2),
         "path_length": round(path_length, 3),
         "angular_distance_degrees": round(angular_distance, 2),
+        "pan_degrees": round(pan_degrees, 2),
+        "tilt_degrees": round(tilt_degrees, 2),
         "peak_acceleration": round(max((abs(v) for v in accelerations), default=0.0), 2),
         "peak_jerk": round(max((abs(v) for v in jerks), default=0.0), 2),
         "integrated_curvature_degrees": round(path_curvature, 2),

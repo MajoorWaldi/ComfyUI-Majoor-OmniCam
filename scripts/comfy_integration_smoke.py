@@ -14,6 +14,7 @@ async def main() -> None:
     from omnicam.extension import comfy_entrypoint
 
     extension = await comfy_entrypoint()
+    await extension.on_load()
     nodes = await extension.get_node_list()
     assert len(nodes) == 5, [node.__name__ for node in nodes]
     for node in nodes:
