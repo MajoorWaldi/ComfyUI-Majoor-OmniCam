@@ -48,18 +48,6 @@ export function serializeEditorState(ui) {
   if (ui.modeWidget) ui.modeWidget.value = ui.state.render_mode;
   if (ui.cardWidget) ui.cardWidget.value = ui.state.card_asset || "";
   ui.node.graph?.setDirtyCanvas?.(true, true);
-  for (const output of ui.node.outputs || []) {
-    for (const linkId of output?.links || []) {
-      const graph = ui.node.graph;
-      const link = graph?.links?.get?.(linkId) || graph?.links?.[linkId]
-        || graph?._links?.get?.(linkId) || graph?._links?.[linkId];
-      const targetId = link?.target_id ?? link?.targetId ?? (Array.isArray(link) ? link[3] : null);
-      const target = graph?.getNodeById?.(targetId) || graph?._nodes_by_id?.get?.(targetId)
-        || graph?._nodes_by_id?.[targetId];
-      const sequencer = target?.__majoorOmniCamSequencer;
-      if (sequencer) queueMicrotask(() => sequencer.syncConnectedSlots());
-    }
-  }
 }
 
 export function bindWidgetCallbacks(ui) {

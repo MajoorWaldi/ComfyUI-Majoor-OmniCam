@@ -1,11 +1,13 @@
 // Extracted DOM bindings.
 
 import { clamp } from "../director/core.js";
+import { DEFAULT_BG_COLOR } from "../viewport/studio.js";
 import { applyCinemaLens } from "../cameras.js";
 import { applyBlockingScenePreset } from "../motion-presets.js";
 import { onCurveWheel } from "../curve-editor.js";
 import { onTimelineWheel } from "../timeline-interaction.js";
 import { syncMirroredControl } from "../event-bindings.js";
+import { t } from "../i18n.js";
 
 export function bindViewportSettings(ui, q, signal) {
   for (const el of ui.root.querySelectorAll('[data-role="mode"]')) {
@@ -23,11 +25,11 @@ export function bindViewportSettings(ui, q, signal) {
   for (const el of ui.root.querySelectorAll('[data-role="scrub"]')) {
     el.addEventListener("input", (e) => ui.setFrame(Number(e.target.value)), { signal });
   }
-  for (const el of ui.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) {
+  for (const el of ui.root.querySelectorAll('[data-role="camera-fov"]')) {
     const handler = (e) => {
       const val = clamp(Number(e.target.value), 5, 150);
       ui.activeCameraTrack().keyframes.length && ui.activeKeyframe() ? (ui.activeKeyframe().camera.fov = val, ui.scheduleSerialize(), ui.render(), ui.refreshKeyEditor()) : (ui.camera.fov = val, ui.render());
-      for (const o of ui.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) o.value = String(val);
+      for (const o of ui.root.querySelectorAll('[data-role="camera-fov"]')) o.value = String(val);
     };
     el.addEventListener("input", handler, { signal });
     el.addEventListener("change", handler, { signal });
@@ -155,6 +157,24 @@ export function bindViewportSettings(ui, q, signal) {
     box.addEventListener("change", (e) => {
       ui.state.playblast_grid = e.target.checked;
       syncMirroredControl(ui.root, "playblast-grid", e.target, "checked");
+      ui.scheduleSerialize();
+      ui.render();
+    }, { signal });
+  }
+  for (const button of ui.root.querySelectorAll('[data-act="reset-bg-color"]')) {
+    button.addEventListener("click", () => {
+      // Back to the default colour, which is what lets the studio sky show again.
+      ui.state.viewport_bg_color = DEFAULT_BG_COLOR;
+      for (const input of ui.root.querySelectorAll('[data-role="viewport-bg-color"]')) input.value = DEFAULT_BG_COLOR;
+      ui.scheduleSerialize();
+      ui.render();
+      ui.setStatus(t("Background colour reset"));
+    }, { signal });
+  }
+  for (const box of ui.root.querySelectorAll('[data-role="show-grid"]')) {
+    box.addEventListener("change", (e) => {
+      ui.state.show_grid = e.target.checked;
+      syncMirroredControl(ui.root, "show-grid", e.target, "checked");
       ui.scheduleSerialize();
       ui.render();
     }, { signal });

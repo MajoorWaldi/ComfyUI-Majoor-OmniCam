@@ -26,7 +26,9 @@ export async function refreshSetupDiagnostic(ui) {
   }
   const hasError = issues.some((issue) => issue.severity === "error");
   badge.className = `setup-badge ${hasError ? "error" : "warn"}`;
-  badge.textContent = t(`${issues.length} adapter${issues.length === 1 ? "" : "s"} missing`);
+  badge.textContent = issues.length === 1
+    ? t("1 adapter missing")
+    : t("{count} adapters missing").replace("{count}", String(issues.length));
   issuesBox.innerHTML = "";
   for (const issue of issues) {
     const line = document.createElement("div");

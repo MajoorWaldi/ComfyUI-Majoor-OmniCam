@@ -41,7 +41,7 @@ def test_cross_language_camera_parity(fixture_path: Path):
 
     js_samples = get_js_samples(track_data, test_frames)
 
-    for frame, js_sample in zip(test_frames, js_samples):
+    for frame, js_sample in zip(test_frames, js_samples, strict=True):
         py_sample = track.sample(frame)
 
         # Position parity

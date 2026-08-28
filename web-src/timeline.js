@@ -3,6 +3,10 @@
 import { clamp, cloneCamera, cloneTransform } from "./omnicam-core.js";
 import { t } from "./omnicam-i18n.js";
 import { timelinePercentForFrame } from "./timeline-interaction.js";
+import { renderDopeRows } from "./dope-sheet-view.js";
+import { renderRuler } from "./timeline/ruler.js";
+import { renderChannelList } from "./curve-editor/channel-list.js";
+import { renderGraphDopeSheet } from "./curve-editor/dope-view.js";
 
 export * from "./timeline-interaction.js";
 export * from "./curve-editor.js";
@@ -18,7 +22,6 @@ export function refreshKeys(ui) {
   const pan = Number(ui.timelinePan) || 0;
   const timeSpan = lastFrame / zoom;
   const timeMin = pan;
-  const tickCount = Math.min(16, Math.max(3, Math.floor(box.clientWidth / 65) || 8));
 
   if (ui.audioWaveformPeaks && ui.audioWaveformPeaks.length) {
     const canvas = document.createElement("canvas");
@@ -53,18 +56,6 @@ export function refreshKeys(ui) {
     box.appendChild(range);
   }
 
-  for (let index = 0; index <= tickCount; index++) {
-    const frame = Math.round(timeMin + (index * timeSpan) / tickCount);
-    if (frame < 0 || frame > lastFrame) continue;
-    const pct = timelinePercentForFrame(ui, frame);
-    if (pct < -2 || pct > 102) continue;
-    const tick = document.createElement("span");
-    tick.className = "timeline-tick";
-    tick.textContent = String(frame);
-    tick.style.left = `${pct}%`;
-    box.appendChild(tick);
-  }
-
   for (const marker of ui.state.markers || []) {
     const pct = timelinePercentForFrame(ui, marker.frame);
     if (pct < -5 || pct > 105) continue;
@@ -76,12 +67,16 @@ export function refreshKeys(ui) {
     box.appendChild(element);
   }
 
-  const playheadPct = timelinePercentForFrame(ui, ui.frame);
-  if (playheadPct >= -2 && playheadPct <= 102) {
-    const playhead = document.createElement("span");
-    playhead.className = "playhead";
-    playhead.style.left = `${playheadPct}%`;
-    box.appendChild(playhead);
+  // Same rail as the derived channel lanes, so all four read alike.
+  if (keys.length > 1) {
+    const first = timelinePercentForFrame(ui, keys[0].frame);
+    const last = timelinePercentForFrame(ui, keys[keys.length - 1].frame);
+    const rail = document.createElement("span");
+    rail.className = "oc-dope-rail";
+    rail.style.left = `${Math.min(first, last)}%`;
+    rail.style.width = `${Math.abs(last - first)}%`;
+    rail.style.setProperty("--channel-color", "#a78bfa");
+    box.appendChild(rail);
   }
 
   const selected = ui.selectedKeyFrames || (ui.selectedKeyFrame === null ? new Set() : new Set([ui.selectedKeyFrame]));
@@ -115,7 +110,7 @@ export function refreshKeys(ui) {
         keysList.sort((a, b) => a.frame - b.frame);
         ui.selectedKeyFrame = cloned.frame;
         ui.selectedKeyFrames = new Set([cloned.frame]);
-        ui.keyDrag = { key: cloned, box, isDuplicate: true, moving: [{ key: cloned, startFrame: cloned.frame }], startPointerFrame: key.frame };
+        ui.keyDrag = { key: cloned, box, isDuplicate: true, moving: [{ key: cloned, startFrame: cloned.frame }], startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
         ui.setFrame(cloned.frame, false, false);
         ui.setStatus(t(`Duplicating key from ${key.frame}...`));
         return;
@@ -131,7 +126,7 @@ export function refreshKeys(ui) {
       if (!ui.selectedKeyFrames?.has(key.frame)) ui.selectedKeyFrames = new Set([key.frame]);
       ui.selectedKeyFrame = key.frame;
       const moving = ui.timelineKeyframes().filter((item) => ui.selectedKeyFrames.has(item.frame));
-      ui.keyDrag = { key, box, moving: moving.map((item) => ({ key: item, startFrame: item.frame })), startPointerFrame: key.frame };
+      ui.keyDrag = { key, box, moving: moving.map((item) => ({ key: item, startFrame: item.frame })), startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
       ui.setFrame(key.frame, false, false);
     });
     element.addEventListener("click", (event) => {
@@ -180,6 +175,17 @@ export function refreshKeys(ui) {
       cameraList.appendChild(button);
     }
   }
+  const totalEl = ui.root.querySelector('[data-role="frame-total"]');
+  if (totalEl) totalEl.textContent = `/ ${Math.max(1, ui.state.duration_frames)}`;
+  const previewTitle = ui.root.querySelector('[data-role="preview-title"]');
+  if (previewTitle) previewTitle.textContent = `${activeCamera.name} · ${t("Frame")} ${ui.frame}`;
+  const inspectorName = ui.root.querySelector('[data-role="inspector-camera-name"]');
+  if (inspectorName) inspectorName.textContent = activeCamera.name;
+
+  renderRuler(ui);
+  renderDopeRows(ui);
+  renderChannelList(ui);
+  renderGraphDopeSheet(ui);
   ui.refreshCameraSelectors();
   ui.refreshKeyEditor();
   ui.updateEditState();

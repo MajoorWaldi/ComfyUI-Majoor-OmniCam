@@ -1,5 +1,8 @@
 // OmniCam Director methods extracted from the UI facade.
 
+// Smallest horizontal resolution a camera preview is rendered at.
+const MIN_PREVIEW_WIDTH = 220;
+
 function assetSignature(state) {
   return JSON.stringify({
     background: state.viewport_bg_image || "",
@@ -353,9 +356,14 @@ export function createEditorMethods(dependencies) {
     }
     for (const canvas of this.cameraPreviewCanvases.values()) {
       const cw = canvas.clientWidth || 220;
-      const ch = canvas.clientHeight || 140;
-      const previewWidth = Math.max(220, Math.round(cw * dpr));
-      const previewHeight = Math.max(140, Math.round(ch * dpr));
+      const ch = canvas.clientHeight || 124;
+      // The floor used to be applied per axis -- max(220, w) by max(140, h) --
+      // which changed the aspect ratio whenever one axis hit it: a 216x122
+      // tile became a 220x140 buffer, so the preview showed a framing the
+      // render would never produce. One scale factor for both axes instead.
+      const scale = Math.max(dpr, MIN_PREVIEW_WIDTH / Math.max(1, cw));
+      const previewWidth = Math.max(1, Math.round(cw * scale));
+      const previewHeight = Math.max(1, Math.round(ch * scale));
       if (canvas.width !== previewWidth || canvas.height !== previewHeight) {
         canvas.width = previewWidth;
         canvas.height = previewHeight;

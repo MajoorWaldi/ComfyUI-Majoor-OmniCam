@@ -16,6 +16,7 @@ export async function captureRealtime(ui) {
     fps: ui.state.fps,
     frameCount: ui.state.duration_frames,
     renderFrame: (frame) => ui.setFrame(frame, true),
+    signal: ui.abortController?.signal,
   });
 }
 
@@ -44,7 +45,7 @@ export async function makePlayblast(ui) {
         ui.setStatus(t(`Encoding frame ${frame + 1}/${ui.state.duration_frames}…`));
         await waitForMediaFrame(ui);
         await new Promise((resolve) => requestAnimationFrame(resolve));
-      });
+      }, ui.abortController?.signal);
     }
     if (!blob) {
       ui.setStatus(t("WebCodecs unavailable; recording realtime fallback…"));

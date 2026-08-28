@@ -1,2 +1,5 @@
 pytest>=8
 ruff>=0.6
+mypy>=1.11
+# Validates the published contracts in schemas/ against real payloads.
+jsonschema>=4.20

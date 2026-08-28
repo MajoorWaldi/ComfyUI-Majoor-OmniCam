@@ -42,7 +42,11 @@ def migrate_payload(payload: dict[str, Any], schema: str = TRACK_SCHEMA, target_
         raise TypeError(f"{schema} payload must be a JSON object")
     target = target_version if target_version is not None else CURRENT_VERSIONS[schema]
     migrated = copy.deepcopy(payload)
-    version = int(migrated.get("schema_version", 0) or 0)
+    snake_version = migrated.get("schema_version")
+    camel_version = migrated.get("schemaVersion")
+    if snake_version is not None and camel_version is not None and int(snake_version or 0) != int(camel_version or 0):
+        raise ValueError(f"{schema} payload has conflicting schema versions")
+    version = int(snake_version if snake_version is not None else (camel_version or 0) or 0)
     if version > target:
         raise ValueError(f"{schema} schema v{version} is newer than supported v{target}")
     while version < target:

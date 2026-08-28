@@ -1,9 +1,11 @@
 # OmniCam security and managed assets
 
-Sequencer state is bounded to 32 video shots, 16 audio tracks, 14,400 frames,
-256 retime keys per curve, 4,096 characters per text field, and 16,777,216
-pixels per output frame. Non-finite values and unsupported slots or modes are
-replaced with safe defaults before execution.
+Track state is bounded to 14,400 frames, 16 cameras, 256 objects, 10,000 keys
+per track, 4,096 characters per text field (metadata included, truncated rather
+than rejected) and 16,777,216 pixels per output frame. The editor applies the
+same ceilings in `sanitizeState()` before rendering, so a hostile workflow is
+bounded before it reaches the browser as well as before it reaches Python. Non-finite values and unsupported slots or
+modes are replaced with safe defaults before execution.
 
 OmniCam does not accept arbitrary filesystem paths. Browser uploads are stored
 below ComfyUI's managed `input/omnicam/` directory and API responses expose only
@@ -20,8 +22,15 @@ both the `RIFF` prefix and the `WEBP` marker at byte offset 8; signature and
 byte limits always remain active.
 
 Folder quota reservations are serialized so concurrent uploads cannot jointly
-exceed the configured quota. Cleanup validates every requested relative path
-before deleting any file.
+exceed the configured quota. A reservation starts from the client-declared
+`Content-Length` rather than the per-file ceiling, so several small concurrent
+uploads no longer reject one another; if a client streams past what it declared,
+the reservation is grown incrementally and still refuses to cross the quota.
+The cached folder size is re-scanned when it is older than
+`OMNICAM_QUOTA_CACHE_TTL_SECONDS`, so files deleted outside the cleanup route no
+longer keep the quota artificially full. Cleanup validates every requested
+relative path before deleting any file, and ignores duplicates within one
+request.
 
 Viewport backgrounds use the same managed upload path as cards. Workflows store
 ComfyUI input annotations rather than browser-local `blob:` URLs, so backgrounds
@@ -46,6 +55,7 @@ the defaults instead of preventing the extension from loading.
 | `OMNICAM_MAX_IMAGE_FRAMES` | 2,000 | Maximum animated-image frame count |
 | `OMNICAM_MAX_VIDEO_PIXELS` | 16,777,216 | Maximum video frame pixel count |
 | `OMNICAM_MAX_VIDEO_DURATION_SECONDS` | 3,600 | Maximum video duration |
+| `OMNICAM_QUOTA_CACHE_TTL_SECONDS` | 300 | Managed-folder size cache lifetime |
 
 Les previews VIDEO et les guides LTX ne materialisent pas le clip complet:
 l'echantillonnage est planifie depuis les metadonnees, puis decode par plages

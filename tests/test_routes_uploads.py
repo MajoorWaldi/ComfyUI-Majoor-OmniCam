@@ -3,13 +3,20 @@ route module stays importable outside a running ComfyUI instance."""
 
 from __future__ import annotations
 
+import asyncio
+import json
+import os
 import sys
 import types
-import asyncio
-import os
 from io import BytesIO
 
 import pytest
+
+# aiohttp and Pillow ship with ComfyUI, not with the model-agnostic core, so a
+# bare `pytest -q` skips the route suite instead of erroring during collection.
+pytest.importorskip("aiohttp")
+pytest.importorskip("PIL")
+
 from aiohttp import web
 from PIL import Image
 
@@ -29,14 +36,19 @@ server_stub.PromptServer = _PromptServer
 sys.modules.setdefault("folder_paths", folder_paths_stub)
 sys.modules.setdefault("server", server_stub)
 
+import folder_paths as folder_paths_module  # noqa: E402 - stub or the real ComfyUI module
+
 from omnicam import routes  # noqa: E402
 
 
 @pytest.fixture()
 def input_dir(tmp_path, monkeypatch):
+    # Another test module may already have imported the real ``folder_paths``,
+    # in which case the setdefault above is a no-op. Patch whichever module
+    # actually got loaded so these tests never touch a real ComfyUI input dir.
     _INPUT_DIR[0] = str(tmp_path)
-    routes._quota_usage = None
-    routes._quota_reserved = 0
+    monkeypatch.setattr(folder_paths_module, "get_input_directory", lambda: str(tmp_path))
+    routes.reset_quota_cache()
     monkeypatch.setattr(routes, "MAX_FOLDER_BYTES", 4 * 1024 * 1024 * 1024)
     monkeypatch.setattr(routes, "MIN_FREE_BYTES", 0)
     return tmp_path
@@ -260,3 +272,179 @@ def test_managed_root_rejects_symlink_escape(input_dir):
         pytest.skip("directory symlinks are unavailable for this test user")
     with pytest.raises(web.HTTPInternalServerError):
         routes._managed_root()
+
+
+@pytest.mark.asyncio
+async def test_declared_content_length_sizes_the_reservation(input_dir, monkeypatch):
+    """Two small concurrent uploads must not reject each other on a large ceiling."""
+    monkeypatch.setattr(routes, "MAX_FOLDER_BYTES", 1024 * 1024)
+    request = FakeRequest(FakeField("file", "card.png", [png_bytes()]))
+    request.content_length = 512
+    assert routes._declared_upload_size(request, 128 * 1024 * 1024) == 512
+
+    small = png_bytes()
+    for index in range(2):
+        upload = FakeRequest(FakeField("file", f"card{index}.png", [small]))
+        upload.content_length = len(small)
+        payload = await routes._save_multipart_file(upload, "cards", {".png"}, 128 * 1024 * 1024)
+        assert payload["size"] == len(small)
+    assert routes._quota_reserved == 0
+
+
+def test_declared_upload_size_clamps_missing_and_bogus_values(input_dir):
+    request = FakeRequest()
+    assert routes._declared_upload_size(request, 4) == 4
+    request.content_length = "nonsense"
+    assert routes._declared_upload_size(request, 1024) == 1024
+    request.content_length = -5
+    assert routes._declared_upload_size(request, 1024) == 1024
+    request.content_length = 0
+    assert routes._declared_upload_size(request, 64 * 1024 * 1024) == routes._QUOTA_RESERVATION_STEP
+    request.content_length = 10**12
+    assert routes._declared_upload_size(request, 1024) == 1024
+
+
+@pytest.mark.asyncio
+async def test_streaming_past_the_declared_size_extends_the_reservation(input_dir, monkeypatch):
+    monkeypatch.setattr(routes, "MAX_FOLDER_BYTES", 8 * 1024 * 1024)
+    data = png_bytes(64, 64)
+    request = FakeRequest(FakeField("file", "card.png", [data]))
+    request.content_length = 1  # lie: announce far less than what is streamed
+    payload = await routes._save_multipart_file(request, "cards", {".png"}, 4 * 1024 * 1024)
+    assert payload["size"] == len(data)
+    assert routes._quota_reserved == 0
+    assert routes._quota_usage == len(data)
+
+
+@pytest.mark.asyncio
+async def test_quota_cache_resyncs_after_external_deletion(input_dir, monkeypatch):
+    managed = input_dir / "omnicam" / "cards"
+    managed.mkdir(parents=True)
+    orphan = managed / "orphan.png"
+    orphan.write_bytes(b"x" * 4096)
+
+    await routes._reserve_quota(input_dir, 1)
+    await routes._finish_quota_reservation(1)
+    assert routes._quota_usage == 4096
+
+    # Something outside /cleanup removes the file; the cache must not stay stale.
+    orphan.unlink()
+    monkeypatch.setattr(routes, "QUOTA_CACHE_TTL_SECONDS", 0)
+    await routes._reserve_quota(input_dir, 1)
+    await routes._finish_quota_reservation(1)
+    assert routes._quota_usage == 0
+
+
+def test_reset_quota_cache_clears_usage_and_reservations():
+    routes._quota_usage = 123
+    routes._quota_reserved = 45
+    routes.reset_quota_cache()
+    assert routes._quota_usage is None
+    assert routes._quota_reserved == 0
+
+
+# --------------------------------------------------------------------------
+# Camera interchange routes
+# --------------------------------------------------------------------------
+
+@pytest.fixture()
+def output_dir(tmp_path, monkeypatch):
+    target = tmp_path / "out"
+    target.mkdir()
+    monkeypatch.setattr(folder_paths_module, "get_output_directory", lambda: str(target), raising=False)
+    return target
+
+
+def _track_payload():
+    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
+    return {
+        "schema_version": 1, "fps": 24, "duration_frames": 12,
+        "width": 1280, "height": 720, "render_mode": "omni_ref",
+        "keyframes": [
+            {"frame": 0, "camera": {"position": [-2, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base},
+             "interpolation": "smooth"},
+            {"frame": 11, "camera": {"position": [2, 1, 4], "target": [0, 1, 0], "fov": 40, "roll": 6, **base},
+             "interpolation": "smooth"},
+        ],
+        "objects": [],
+    }
+
+
+@pytest.mark.asyncio
+async def test_exchange_formats_lists_only_writable_formats():
+    payload = json.loads((await routes.exchange_formats(FakeRequest())).text)
+    assert set(payload["export"]) == {"glb", "gltf", "usda", "chan"}
+    assert "obj" not in payload["export"], "OBJ cannot carry a camera at all"
+    assert "fbx" not in payload["export"]
+    assert ".fbx" not in payload["import"], "FBX is decoded in the viewport, not here"
+    assert "camera" in payload["notes"]["obj"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fmt", ["glb", "gltf", "usda", "chan"])
+async def test_export_writes_below_the_managed_output_folder(output_dir, fmt):
+    response = await routes.export_camera_route(
+        FakeRequest(json_body={"format": fmt, "name": "shot_a", "track": _track_payload()}))
+    payload = json.loads(response.text)
+    written = output_dir / "omnicam" / "exports" / payload["name"]
+    assert written.is_file()
+    assert written.stat().st_size == payload["size"] > 0
+    assert payload["relative"].startswith("omnicam/exports/")
+    # The filename is sanitised and stays inside the export folder.
+    assert written.resolve().parent == (output_dir / "omnicam" / "exports").resolve()
+
+
+@pytest.mark.asyncio
+async def test_export_refuses_bad_input(output_dir):
+    async def refused(body):
+        with pytest.raises(web.HTTPBadRequest) as info:
+            await routes.export_camera_route(FakeRequest(json_body=body))
+        return info.value.text
+
+    assert "Unsupported export format" in await refused({"format": "obj", "track": _track_payload()})
+    assert "track object" in await refused({"format": "glb"})
+    assert "Invalid camera track" in await refused({"format": "glb", "track": {"render_mode": "not_a_mode"}})
+    assert "JSON body" in await refused(ValueError("bad json"))
+
+
+@pytest.mark.asyncio
+async def test_export_name_cannot_escape_the_export_folder(output_dir):
+    response = await routes.export_camera_route(
+        FakeRequest(json_body={"format": "chan", "name": "../../escape", "track": _track_payload()}))
+    payload = json.loads(response.text)
+    assert "/" not in payload["name"] and "\\" not in payload["name"]
+    assert (output_dir / "omnicam" / "exports" / payload["name"]).is_file()
+    assert not (output_dir.parent / "escape.chan").exists()
+
+
+@pytest.mark.asyncio
+async def test_import_round_trips_an_exported_camera(output_dir):
+    exported = json.loads((await routes.export_camera_route(
+        FakeRequest(json_body={"format": "glb", "name": "shot_b", "track": _track_payload()}))).text)
+    data = (output_dir / "omnicam" / "exports" / exported["name"]).read_bytes()
+
+    response = await routes.import_camera_route(FakeRequest(FakeField("file", "shot_b.glb", [data])))
+    track = json.loads(response.text)["track"]
+    assert track["fps"] == 24
+    assert track["duration_frames"] == 12
+    assert len(track["keyframes"]) == 2, "the lossless sidecar restores the authored keys, not the bake"
+
+
+@pytest.mark.asyncio
+async def test_import_refuses_unsupported_and_empty_files():
+    async def refused(filename, chunks):
+        # aiohttp puts the explanation in `.text`; str(exc) is only the status.
+        with pytest.raises(web.HTTPBadRequest) as info:
+            await routes.import_camera_route(FakeRequest(FakeField("file", filename, chunks)))
+        return info.value.text
+
+    assert "Unsupported camera file" in await refused("mesh.obj", [b"v 0 0 0"])
+    assert "Empty uploads" in await refused("empty.chan", [])
+    assert "Could not read a camera" in await refused("junk.chan", [b"# nothing here\n"])
+
+
+@pytest.mark.asyncio
+async def test_import_enforces_a_size_limit(monkeypatch):
+    monkeypatch.setattr(routes, "MAX_IMPORT_BYTES", 16)
+    with pytest.raises(web.HTTPRequestEntityTooLarge):
+        await routes.import_camera_route(FakeRequest(FakeField("file", "big.chan", [b"0 " * 64])))

@@ -2,17 +2,46 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 from typing import Any
 
 from .adapters.registry import ADAPTER_INFO, CAPABILITY_STATES
+
+logger = logging.getLogger(__name__)
 
 
 def _available_node_mappings() -> dict[str, Any]:
     try:
         import nodes as comfy_nodes
         return dict(comfy_nodes.NODE_CLASS_MAPPINGS)
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 - running outside ComfyUI is a supported mode
+        logger.debug("ComfyUI node mappings are unavailable: %s", exc)
         return {}
+
+
+def _socket_names(inputs: Any, depth: int = 0) -> set[str]:
+    """Collect socket ids, descending into template inputs.
+
+    V3 wrappers such as Autogrow and DynamicCombo hold their real sockets in a
+    nested template. A flat walk misses them, which is why an installed node
+    could look like it was missing the very input it exposes.
+    """
+    names: set[str] = set()
+    if depth > 4 or inputs is None:
+        return names
+    for item in inputs:
+        name = getattr(item, "id", None) or getattr(item, "name", None)
+        if name:
+            names.add(str(name))
+        for attribute in ("template", "inputs", "options", "entries"):
+            nested = getattr(item, attribute, None)
+            if isinstance(nested, (list, tuple)):
+                names |= _socket_names(nested, depth + 1)
+            elif nested is not None and hasattr(nested, "__iter__") and not isinstance(nested, (str, bytes, dict)):
+                with contextlib.suppress(TypeError):
+                    names |= _socket_names(list(nested), depth + 1)
+    return names
 
 
 def _declared_inputs(node_class: Any) -> set[str] | None:
@@ -22,18 +51,15 @@ def _declared_inputs(node_class: Any) -> set[str] | None:
             schema = define_schema()
             inputs = getattr(schema, "inputs", None)
             if inputs is not None:
-                names = {
-                    str(name)
-                    for item in inputs
-                    if (name := getattr(item, "id", None) or getattr(item, "name", None))
-                }
+                names = _socket_names(inputs)
                 if names:
                     return names
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001 - third-party schemas may raise anything
+            logger.debug("Could not read the V3 schema of %r: %s", node_class, exc)
     try:
         spec = node_class.INPUT_TYPES()
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 - third-party INPUT_TYPES may raise anything
+        logger.debug("Could not read INPUT_TYPES of %r: %s", node_class, exc)
         return None
     if not isinstance(spec, dict):
         return None
@@ -54,7 +80,10 @@ def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -
     for adapter, info in ADAPTER_INFO.items():
         candidates = list(info.get("required_node_classes", []))
         detected = [name for name in candidates if name in mappings]
-        expected = set(info.get("expected_inputs", []))
+        # expected_widgets are inputs too: the ATI node normalises trajectories
+        # with its own width/height, so a build exposing only `tracks` is not a
+        # usable contract even though the socket name matches.
+        expected = set(info.get("expected_inputs", [])) | set(info.get("expected_widgets", []))
         contracts = [_declared_inputs(mappings[name]) for name in detected if mappings[name] is not None]
         known = [inputs for inputs in contracts if inputs is not None]
         if not detected:

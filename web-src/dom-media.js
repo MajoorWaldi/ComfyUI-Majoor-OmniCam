@@ -62,7 +62,15 @@ export function restoreAssets(ui) {
     return image;
   });
   for (const object of ui.state.objects) {
-    if (!object.asset) continue;
+    if (!object.asset) {
+      // A model with no managed asset was never uploaded successfully. Its blob
+      // URL died with the previous page, so say so instead of leaving an empty
+      // row the user cannot explain.
+      if (object.type === "model" || object.type === "glb") {
+        object.load_error = t("Not saved to the ComfyUI input folder: this model will be missing after a reload.");
+      }
+      continue;
+    }
     const url = annotatedAssetUrl(object.asset);
     if (object.type === "glb" || object.type === "model") ui.modelUrlsById.set(object.id, url);
     else if (object.type === "card" && !ui.cardMediaById.has(object.id)) ui.loadMediaUrl(object, url);
@@ -115,17 +123,27 @@ export async function loadModelFile(ui, file) {
   ui.refreshObjects();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(t(`Uploading ${format.toUpperCase()}...`));
+  ui.setStatus(t("Uploading {format}…").replace("{format}", format.toUpperCase()));
   try {
     const data = await uploadManagedFile(comfyApi, { route: "/majoor/omnicam/upload_model", field: "asset", file });
+    // Without a managed path the object cannot be restored: the blob URL dies
+    // with the page, and restoreAssets() only revives objects that have an
+    // asset. Treat a pathless response as a failed upload rather than leaving
+    // a model that silently disappears on the next workflow load.
+    if (!data?.path) throw new Error("upload returned no managed path");
     object.asset = data.path;
+    object.load_error = null;
     ui.serialize();
     const modelInfo = ui.modelInfoById.get(id);
     if (modelInfo) ui.onModelLoaded(modelInfo);
-    else ui.setStatus(t(`${format.toUpperCase()}: ${data.name}`));
+    else ui.setStatus(t("{format} imported: {name}").replace("{format}", format.toUpperCase()).replace("{name}", data.name || object.name));
   } catch (error) {
-    console.error(error);
-    ui.setStatus(t(`${format.toUpperCase()} loaded locally; backend upload failed`));
+    console.error("[OmniCam] model upload failed", error);
+    object.load_error = t("Not saved to the ComfyUI input folder: this model will be missing after a reload.");
+    ui.serialize();
+    ui.refreshObjects();
+    ui.setStatus(t("{format} shown locally, but the upload failed — it will not survive a reload.")
+      .replace("{format}", format.toUpperCase()));
   }
 }
 

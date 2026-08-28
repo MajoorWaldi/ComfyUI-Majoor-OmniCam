@@ -19,8 +19,13 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
-INTERPOLATION_MODES = frozenset({"ease", "smooth", "bezier", "linear", "ease_in", "ease_out"})
-RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "grid", "point_field", "wireframe"})
+from .migrations import CURRENT_VERSIONS, TRACK_SCHEMA
+
+INTERPOLATION_MODES = frozenset({"ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"})
+# "beauty" is the only mode that records the lit studio viewport instead of a
+# flat proxy. It is opt-in because a conditioning model can copy appearance
+# from a pretty reference, which is exactly what the proxy exists to avoid.
+RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "grid", "point_field", "wireframe", "beauty"})
 CAMERA_TYPES = frozenset({"perspective", "orthographic"})
 OBJECT_TYPES = frozenset({"card", "cube", "sphere", "human", "null", "ground", "model", "glb"})
 MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe"})
@@ -31,6 +36,10 @@ FOV_RANGE = (5.0, 150.0)
 ROLL_RANGE = (-180.0, 180.0)
 FPS_RANGE = (1, 120)
 DIMENSION_RANGE = (64, 4096)
+MAX_TEXT_LENGTH = 4096
+"""Documented in docs/SECURITY.md. Metadata rides in every workflow and every
+adapter payload, so an unbounded string there is unbounded everywhere."""
+MAX_METADATA_ENTRIES = 64
 MIN_NEAR = 1e-4
 
 
@@ -72,6 +81,9 @@ def validate_vec3(value: Any, path: str) -> list[float]:
     if not isinstance(value, (list, tuple)) or len(value) != 3:
         raise ValidationError(f"{path} must be a [x, y, z] vector")
     return [require_finite(component, f"{path}[{index}]") for index, component in enumerate(value)]
+
+
+LOOK_AT_STATUSES = frozenset({"active", "missing_target", "disabled_target"})
 
 
 def whitelist(value: Any, allowed: frozenset[str], path: str) -> str:
@@ -154,7 +166,7 @@ def validate_camera_keyframes(keyframes: Any, duration_frames: int, path: str, l
         raise ValidationError(f"{path} must be a list")
     if len(keyframes) > limits.max_keys_per_track:
         raise ValidationError(f"{path} has {len(keyframes)} keys, above the {limits.max_keys_per_track} limit")
-    validated = []
+    validated: list[dict[str, Any]] = []
     for index, key in enumerate(keyframes):
         if not isinstance(key, dict):
             raise ValidationError(f"{path}[{index}] must be an object")
@@ -163,7 +175,7 @@ def validate_camera_keyframes(keyframes: Any, duration_frames: int, path: str, l
         validated.append(
             {
                 "frame": frame,
-                "camera": validate_camera(key.get("camera") if isinstance(key.get("camera"), dict) else key, f"{path}[{index}].camera"),
+                "camera": validate_camera(key_camera if isinstance(key_camera := key.get("camera"), dict) else key, f"{path}[{index}].camera"),
                 "interpolation": whitelist(key.get("interpolation", "ease"), INTERPOLATION_MODES, f"{path}[{index}].interpolation"),
                 **({"tangents": tangents} if (tangents := validate_tangents(key.get("tangents"), f"{path}[{index}].tangents")) else {}),
                 **({"references": [validate_reference(ref, f"{path}[{index}].references[{r}]") for r, ref in enumerate(references)]} if isinstance(references, list) else {}),
@@ -205,7 +217,7 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
         raise ValidationError(f"{path}.keyframes must be a list")
     if len(keys) > limits.max_keys_per_track:
         raise ValidationError(f"{path}.keyframes exceeds the {limits.max_keys_per_track} key limit")
-    validated_keys = []
+    validated_keys: list[dict[str, Any]] = []
     for index, key in enumerate(keys):
         if not isinstance(key, dict):
             raise ValidationError(f"{path}.keyframes[{index}] must be an object")
@@ -291,11 +303,45 @@ def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None =
             object_id = str(look_at.get("object_id") or "")
             if not object_id or len(object_id) > 80:
                 raise ValidationError("constraints.look_at.object_id must be a non-empty id of at most 80 characters")
-            status = whitelist(look_at.get("status", "active"), {"active", "missing_target", "disabled_target"}, "constraints.look_at.status")
+            status = whitelist(look_at.get("status", "active"), LOOK_AT_STATUSES, "constraints.look_at.status")
             track["constraints"] = {**constraints, "look_at": {**look_at, "object_id": object_id, "offset": validate_vec3(look_at.get("offset", [0, 0, 0]), "constraints.look_at.offset"), "space": "world", "status": status}}
     if "camera" in track and isinstance(track["camera"], dict):
         track["camera"] = validate_camera(track["camera"], "camera")
+    track["metadata"] = validate_metadata(track.get("metadata"))
+    # Stamp the contract version. Without it a validated payload is
+    # indistinguishable from a version-0 document, so migrate_payload() would
+    # run the v0 -> v1 migration over data that is already current.
+    track["schema_version"] = CURRENT_VERSIONS[TRACK_SCHEMA]
     return track
+
+
+def validate_metadata(metadata: Any) -> dict[str, Any]:
+    """Bound free-form metadata to the limits SECURITY.md advertises.
+
+    Values are truncated rather than rejected: metadata is descriptive, and
+    losing the tail of an over-long note is friendlier than refusing to queue.
+    """
+    if not isinstance(metadata, dict):
+        return {}
+    bounded: dict[str, Any] = {}
+    for key, value in list(metadata.items())[:MAX_METADATA_ENTRIES]:
+        name = str(key)[:MAX_TEXT_LENGTH]
+        if isinstance(value, str):
+            bounded[name] = value[:MAX_TEXT_LENGTH]
+        elif isinstance(value, bool) or value is None:
+            bounded[name] = value
+        elif isinstance(value, (int, float)):
+            bounded[name] = value if math.isfinite(value) else 0.0
+        elif isinstance(value, dict):
+            bounded[name] = validate_metadata(value)
+        elif isinstance(value, (list, tuple)):
+            bounded[name] = [
+                item[:MAX_TEXT_LENGTH] if isinstance(item, str) else item
+                for item in list(value)[:MAX_METADATA_ENTRIES]
+            ]
+        else:
+            bounded[name] = str(value)[:MAX_TEXT_LENGTH]
+    return bounded
 
 
 def validate_editor_state(payload: dict[str, Any], limits: TrackLimits | None = None) -> dict[str, Any]:

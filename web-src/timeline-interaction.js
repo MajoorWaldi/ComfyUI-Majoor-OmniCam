@@ -161,9 +161,21 @@ export function onTimelinePointerUp(ui, event) {
   ui.timelineDrag = null;
 }
 
+// Pixels the pointer must travel before a key-drag actually retimes anything.
+// Below it, a click that lands on a key -- to select it, or just because keys
+// are close together on the timeline -- must not nudge the key on its own.
+// This is the same dead zone used to distinguish "clicked" from "dragged" in
+// the viewport (see the `moved < 5` check in onPointerUp).
+const KEY_DRAG_THRESHOLD = 4;
+
 export function onKeyDragMove(ui, event) {
   const drag = ui.keyDrag;
   if (!drag) return;
+  if (!drag.engaged) {
+    const moved = Math.hypot(event.clientX - (drag.startClientX ?? event.clientX), event.clientY - (drag.startClientY ?? event.clientY));
+    if (moved < KEY_DRAG_THRESHOLD) return;
+    drag.engaged = true;
+  }
   const rect = drag.box.getBoundingClientRect();
   const lastFrame = Math.max(1, ui.state.duration_frames - 1);
   const zoom = clamp(Number(ui.timelineZoom) || 1.0, 0.1, 50.0);

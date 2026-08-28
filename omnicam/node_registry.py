@@ -19,11 +19,16 @@ LEGACY_NODE_IDS = frozenset({
     "MajoorOmniCamDCCExport", "MajoorOmniCamBlenderExport", "MajoorOmniCamUnrealExport",
 })
 
-INTERNAL_COMPONENTS = ("track_sampler", "camera_tools", "scene_motion_analysis", "sequence", "dcc_export", "retime", "audio")
+INTERNAL_COMPONENTS = ("camera_tools", "scene_motion_analysis")
 
 
 def get_registered_nodes():
-    from .nodes.adapters import MajoorOmniCamH3Adapter, MajoorOmniCamLTXCameraGuide, MajoorOmniCamWanNativeCamera, MajoorOmniCamWanVideoWrapperATI
+    from .nodes.adapters import (
+        MajoorOmniCamH3Adapter,
+        MajoorOmniCamLTXCameraGuide,
+        MajoorOmniCamWanNativeCamera,
+        MajoorOmniCamWanVideoWrapperATI,
+    )
     from .nodes.director import MajoorOmniCamDirector
 
     if len(PUBLIC_NODES) != 5 or len(set(PUBLIC_NODES)) != 5:

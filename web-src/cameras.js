@@ -3,6 +3,8 @@
 import { cloneCamera, sampleCamera } from "./omnicam-core.js";
 import { confirmAction, promptText } from "./omnicam-ui.js";
 import { t } from "./omnicam-i18n.js";
+import { focalLengthToFov, formatFocalLength } from "./lens.js";
+import { drawResolutionGate } from "./viewport/resolution-gate.js";
 
 export const CAMERA_PALETTE = [
   "#4aa3ef", // Camera 1 - Blue/Cyan
@@ -59,6 +61,11 @@ export function refreshCameraPreviews(ui) {
   if (!strip) return;
   const layout = ui.state.preview_layout || "auto";
   if (strip.dataset.layout !== (layout === "auto" ? "" : layout)) strip.dataset.layout = layout === "auto" ? "" : layout;
+  // The tiles take the shot's aspect, so a preview shows the framing the
+  // render will actually produce rather than the shape of its own box.
+  const shotAspect = `${Math.max(1, ui.state.width || 16)} / ${Math.max(1, ui.state.height || 9)}`;
+  const aspectChanged = strip.style.getPropertyValue("--shot-aspect") !== shotAspect;
+  if (aspectChanged) strip.style.setProperty("--shot-aspect", shotAspect);
   const row = ui.root.querySelector('[data-role="camera-view-row"]');
   if (row) row.classList.toggle("maximized", Boolean(ui.state.maximized_camera_id));
   const visible = visibleCameraTracks(ui);
@@ -122,7 +129,10 @@ export function refreshCameraPreviews(ui) {
     tile.classList.toggle("maximized", tile.dataset.cameraId === ui.state.maximized_camera_id);
   }
   for (const marker of strip.querySelectorAll(".output-mark")) marker.hidden = marker.closest(".camera-preview-tile")?.dataset.cameraId !== ui.state.playblast_camera_id;
-  if (rebuilt)
+  // A resolution change reshapes the tile in CSS but leaves the canvas backing
+  // store at its old size, so the render would be stretched until the next
+  // rebuild. The aspect is as good a reason to re-measure as a new camera is.
+  if (rebuilt || aspectChanged)
     requestAnimationFrame(() => {
       if (ui.root.isConnected) {
         ui.resizeCanvas();
@@ -309,8 +319,6 @@ export function maximizeCameraPreview(ui, id) {
   ui.setStatus(ui.state.maximized_camera_id ? t("Preview maximized") : t("Preview restored"));
 }
 
-const ASPECT_RATIOS = { "16:9": 16 / 9, "4:3": 4 / 3, "1:1": 1, "9:16": 9 / 16, "2.39:1": 2.39 };
-
 export function drawPreviewOverlays(ui, context, width, height) {
   if (ui.state.guides !== false) {
     context.save();
@@ -337,32 +345,7 @@ export function drawPreviewOverlays(ui, context, width, height) {
     }
     context.restore();
   }
-  if (ui.state.resolution_gate || ui.state.aspect_ratio !== "auto") {
-    const targetAspect = ASPECT_RATIOS[ui.state.aspect_ratio] || ui.state.width / Math.max(1, ui.state.height);
-    const currentAspect = width / Math.max(1, height);
-    context.save();
-    context.fillStyle = "#00000088";
-    if (currentAspect > targetAspect) {
-      const visible = height * targetAspect;
-      const bar = (width - visible) / 2;
-      context.fillRect(0, 0, bar, height);
-      context.fillRect(width - bar, 0, bar, height);
-      if (ui.state.resolution_gate) {
-        context.strokeStyle = "#ffffff88";
-        context.strokeRect(bar, 0, visible, height);
-      }
-    } else if (currentAspect < targetAspect) {
-      const visible = width / targetAspect;
-      const bar = (height - visible) / 2;
-      context.fillRect(0, 0, width, bar);
-      context.fillRect(0, height - bar, width, bar);
-      if (ui.state.resolution_gate) {
-        context.strokeStyle = "#ffffff88";
-        context.strokeRect(0, bar, width, visible);
-      }
-    }
-    context.restore();
-  }
+  drawResolutionGate(context, ui.state, width, height);
 }
 
 export const CINEMA_LENSES = [
@@ -382,10 +365,7 @@ export function fovToFocalLength(fovDegrees, sensorHeight = 24) {
   return (sensorHeight / 2) / Math.max(1e-9, Math.tan(rad));
 }
 
-export function focalLengthToFov(focalLengthMm, sensorHeight = 24) {
-  const flClamped = Math.max(1, Number(focalLengthMm) || 50);
-  return (2 * Math.atan((sensorHeight / 2) / flClamped) * 180) / Math.PI;
-}
+export { focalLengthToFov };
 
 export function applyCinemaLens(ui, focalLengthMm) {
   const fov = focalLengthToFov(focalLengthMm);
@@ -399,8 +379,7 @@ export function applyCinemaLens(ui, focalLengthMm) {
     ui.camera.fov = fov;
     ui.render();
   }
-  for (const el of ui.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) {
-    el.value = String(fov.toFixed(1));
-  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-fov"]')) el.value = String(fov.toFixed(1));
+  for (const el of ui.root.querySelectorAll('[data-role="camera-focal"]')) el.value = formatFocalLength(fov);
   ui.setStatus(`Lens: ${focalLengthMm}mm (FOV ${fov.toFixed(1)}°)`);
 }

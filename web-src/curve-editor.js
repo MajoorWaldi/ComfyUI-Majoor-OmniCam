@@ -2,9 +2,10 @@
 
 import { clamp, cloneCamera, cloneTransform, resolveChannelHandles, sampleCamera, sampleObjectTransform } from "./omnicam-core.js";
 import { t } from "./omnicam-i18n.js";
+import { drawTimeAxis, drawValueAxis } from "./curve-editor/axes.js";
 
 export function curveChannels(ui) {
-  const group = ui.root.querySelector('[data-role="curve-group"]')?.value || "position";
+  const group = ui.root.querySelector('[data-role="curve-group"]')?.value || "camera";
   let allChannels = [];
   if (ui.timelineObject()) {
     const field = group === "target" ? "rotation" : group === "lens" ? "size" : "position";
@@ -31,6 +32,23 @@ export function curveChannels(ui) {
         camera.target[index] = value;
       },
     }));
+  } else if (group === "camera") {
+    // The default view: the five channels an animator actually watches while
+    // blocking a shot, drawn together rather than split across three groups.
+    allChannels = [
+      ...[0, 1, 2].map((index) => ({
+        id: `pos_${"xyz"[index]}`,
+        name: `Position ${"XYZ"[index]}`,
+        color: ["#ef5350", "#53d86a", "#4aa3ef"][index],
+        get: (camera) => (camera.position || [0, 0, 0])[index],
+        set: (camera, value) => {
+          if (!camera.position) camera.position = [0, 0, 0];
+          camera.position[index] = value;
+        },
+      })),
+      { id: "fov", name: "Focal Length", color: "#43c7db", get: (camera) => camera.fov ?? 35, set: (camera, value) => { camera.fov = clamp(value, 5, 150); } },
+      { id: "roll", name: "Roll", color: "#ec4899", get: (camera) => camera.roll || 0, set: (camera, value) => { camera.roll = clamp(value, -180, 180); } },
+    ];
   } else if (group === "lens") {
     allChannels = [
       { id: "fov", name: "FOV", color: "#ef8b3e", get: (camera) => camera.fov ?? 35, set: (camera, value) => { camera.fov = clamp(value, 5, 150); } },
@@ -129,30 +147,13 @@ export function drawCurveEditor(ui) {
   ctx.lineWidth = 1;
   ctx.font = "9px system-ui, -apple-system, sans-serif";
   ctx.fillStyle = "#6e727a";
-  const tickCount = Math.min(16, Math.max(3, Math.floor(graphWidth / 65)));
-  for (let index = 0; index <= tickCount; index++) {
-    const frame = Math.round(timeMin + ((timeMax - timeMin) * index) / tickCount);
-    if (frame < 0 || frame > totalDuration) continue;
-    const x = xFor(frame);
-    if (x < left || x > width - right) continue;
-    ctx.beginPath();
-    ctx.moveTo(x, top);
-    ctx.lineTo(x, top + graphHeight);
-    ctx.stroke();
-    ctx.fillText(String(frame), x + 2, height - 6);
-  }
+  drawTimeAxis(ctx, {
+    left, right, top, width, graphWidth, graphHeight, height,
+    timeMin, timeMax, totalDuration, xFor, frame: ui.frame,
+  });
 
   // Value Grid (Y axis)
-  for (let index = 0; index <= 4; index++) {
-    const y = top + (graphHeight * index) / 4;
-    ctx.beginPath();
-    ctx.moveTo(left, y);
-    ctx.lineTo(width - right, y);
-    ctx.stroke();
-    const value = maximum - ((maximum - minimum) * index) / 4;
-    const valStr = Math.abs(value) < 10 ? value.toFixed(2) : value.toFixed(1);
-    ctx.fillText(valStr, 4, y + 3);
-  }
+  drawValueAxis(ctx, { left, right, top, width, graphHeight, minimum, maximum, yFor });
 
   // Zero axis line if visible
   if (minimum <= 0 && maximum >= 0) {
@@ -325,7 +326,8 @@ export function drawCurveEditor(ui) {
   // Playhead Line
   const playheadX = xFor(ui.frame);
   if (playheadX >= left && playheadX <= width - right) {
-    ctx.strokeStyle = "#f2d06b";
+    // Same accent as the dope-sheet playhead above: one playhead, one colour.
+    ctx.strokeStyle = "#a78bfa";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(playheadX, top);
@@ -333,7 +335,7 @@ export function drawCurveEditor(ui) {
     ctx.stroke();
 
     // Playhead Header Tag
-    ctx.fillStyle = "#f2d06b";
+    ctx.fillStyle = "#a78bfa";
     ctx.beginPath();
     ctx.moveTo(playheadX - 4, top);
     ctx.lineTo(playheadX + 4, top);

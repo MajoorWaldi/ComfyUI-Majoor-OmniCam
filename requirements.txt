@@ -1,2 +1,8 @@
-# Runtime dependencies intentionally empty.
-# OmniCam uses ComfyUI's bundled aiohttp/Python APIs; frontend dependencies are bundled at build time.
+# Intentionally empty.
+#
+# The single runtime requirement, comfyui-frontend-package, is declared in
+# pyproject.toml because that is what the ComfyUI Registry reads. The backend
+# otherwise uses ComfyUI's bundled aiohttp/Python APIs, and the frontend ships
+# as a prebuilt bundle in web/.
+#
+# Development and CI tooling lives in requirements-dev.txt.

@@ -1,5 +1,7 @@
 // OmniCam Director methods extracted from the UI facade.
 
+import { drawAxisGizmo } from "../../axis-gizmo-view.js";
+import { unregisterDirector } from "../../settings.js";
 export function createRenderMethods(dependencies) {
   const { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
   return {
@@ -52,32 +54,9 @@ export function createRenderMethods(dependencies) {
       if (!this.recording) this.drawCameraPath();
     }
     !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays();
-    const p = viewCamera.position, t = viewCamera.target;
-    const hud = this.root.querySelector('[data-role="hud"]');
-    if (hud) {
-      const activeCam = this.activeCameraTrack();
-      const isCamView = this.state.view_mode === "camera";
-      const trackingObjId = activeCam.target_object_id || this.state.target_object_id;
-      const trackingObj = trackingObjId ? this.state.objects.find((o) => o.id === trackingObjId) : null;
-      const fovRad = (viewCamera.fov * Math.PI) / 360;
-      const fovMm = Math.round(18 / Math.tan(fovRad));
-      hud.replaceChildren();
-      const heading = document.createElement("div");
-      const badge = document.createElement("span");
-      badge.className = `hud-badge ${isCamView ? "active" : ""}`;
-      badge.textContent = isCamView ? `📷 ${activeCam.name}` : `🌐 ${this.state.view_mode.toUpperCase()}`;
-      const modeLabel = document.createElement("span");
-      modeLabel.style.color = "#aaa";
-      modeLabel.textContent = ` ${mode}`;
-      heading.append(badge, modeLabel);
-      const lens = document.createElement("div");
-      lens.textContent = `F ${this.frame}/${this.state.duration_frames - 1} · ${this.state.fps}fps · FOV ${viewCamera.fov.toFixed(1)}° (≈${fovMm}mm)`;
-      const tracking = document.createElement("div");
-      tracking.textContent = trackingObj
-        ? `🎯 Track: ${trackingObj.name || trackingObj.type}`
-        : `P: [${p.map((v) => v.toFixed(1)).join(", ")}] · T: [${t.map((v) => v.toFixed(1)).join(", ")}]`;
-      hud.append(heading, lens, tracking);
-    }
+    // The gizmo is DOM, so it repaints with the view and never reaches the
+    // canvas the playblast records.
+    drawAxisGizmo(this);
     this.renderCameraView();
   },
   renderCameraView() {
@@ -130,6 +109,7 @@ export function createRenderMethods(dependencies) {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    unregisterDirector(this);
     this.backgroundRequestId = (this.backgroundRequestId || 0) + 1;
     this.upstreamSyncId = (this.upstreamSyncId || 0) + 1;
     this.stopPlay(), clearTimeout(this.previewClickTimer), clearTimeout(this.connectionTimer), cancelAnimationFrame(this.restoreFrame), cancelAnimationFrame(this.serializeFrame), cancelAnimationFrame(this.resizeFrame), this.abortController?.abort(), this.upstreamFetchController?.abort(), this.resizeObserver?.disconnect(), this.contextMenu?.dispose(), this.webgl?.dispose(), this.cameraWebgl?.dispose();

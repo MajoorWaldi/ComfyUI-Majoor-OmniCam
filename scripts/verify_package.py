@@ -38,20 +38,14 @@ def main() -> None:
     required = [
         "AGENTS.md",
         "README.md",
+        "THIRD_PARTY_NOTICES.md",
         "docs/NODES.md",
         "docs/SHORTCUTS.md",
         "docs/SECURITY.md",
         "web/omnicam.js",
-        "web/omnicam-webgl.js",
-        "web/omnicam-core.js",
-        "web/omnicam-history.js",
-        "web/omnicam-ui.js",
-        "web/omnicam-playblast.js",
-        "web/omnicam-media.js",
         "web/assets/omnicam-icon.svg",
         "web/assets/omnicam-banner.svg",
         "package-lock.json",
-        "omnicam/nodes.py",
         "omnicam/nodes/__init__.py",
     ]
     missing = [p for p in required if not (ROOT / p).exists()]

@@ -12,7 +12,6 @@ sys.path.insert(0, str(ROOT))
 
 from omnicam.core.track import OmniCamTrack  # noqa: E402
 
-
 OUTPUT = ROOT / "tests" / "fixtures" / "parity" / "camera_sampling.python-golden.json"
 
 

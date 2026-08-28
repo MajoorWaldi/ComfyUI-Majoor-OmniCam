@@ -24,7 +24,7 @@ const serveComfyStubs = {
 
 export default defineConfig({
   testDir: "tests/frontend",
-  testIgnore: "**/live-director.spec.js",
+  testIgnore: "**/live-*.spec.js",
   timeout: 30_000,
   use: {
     baseURL: "http://127.0.0.1:4173",
@@ -35,5 +35,11 @@ export default defineConfig({
     command: "node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 4173 --config vite.test.config.mjs",
     url: "http://127.0.0.1:4173/tests/frontend/harness.html",
     reuseExistingServer: false,
+    timeout: 60_000,
+    // Without a bounded shutdown the runner can sit waiting on the dev server
+    // after every test has already reported: on Windows a SIGTERM does not
+    // always reach the child of the spawned shell. Ask politely, then stop
+    // waiting. (Not reproduced locally -- this bounds the failure either way.)
+    gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
   },
 });

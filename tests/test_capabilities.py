@@ -32,7 +32,7 @@ def test_detect_capabilities_verifies_v3_schema_before_legacy():
         id = "camera_conditions"
 
     class Schema:
-        inputs = [Input()]
+        inputs = (Input(),)
 
     class WanV3Node:
         @classmethod
@@ -61,7 +61,8 @@ def test_workflow_compatibility_flags_missing_downstream():
     class H3Node:
         @classmethod
         def INPUT_TYPES(cls):
-            return {"required": {"video": ("VIDEO",), "prompt": ("STRING",)}}
+            # The socket MinimaxHailuo03ReferenceNode actually exposes.
+            return {"required": {"reference_video": ("VIDEO",), "prompt": ("STRING",)}}
     ok = check_workflow_compatibility(["MajoorOmniCamH3Adapter"], detect_capabilities({"MinimaxHailuo03ReferenceNode": H3Node}))
     assert ok["ok"] is True
 
@@ -102,3 +103,58 @@ def test_motion_fidelity_report_per_frame():
     assert len(report["per_frame_error"]) == 5
     assert report["summary"]["max_error_frame"] == 4
     assert report["summary"]["max_error"] == pytest.approx(0.4)
+
+
+def test_expected_inputs_match_the_installed_node_sockets():
+    """These names are the contract with third-party nodes, and two were wrong.
+
+    `images` (LTX) and `video` (MiniMax H3) do not exist on the real nodes -- the
+    guide takes `image` and the reference node takes `reference_video` -- so a
+    perfectly healthy install was reported as "incompatible".
+    """
+    from omnicam.adapters.registry import ADAPTER_INFO
+
+    assert ADAPTER_INFO["ltx"]["expected_inputs"] == ["image"]
+    assert ADAPTER_INFO["h3"]["expected_inputs"] == ["reference_video"]
+    for adapter, info in ADAPTER_INFO.items():
+        assert info["required_node_classes"], f"{adapter} must name at least one node class"
+        assert info["docs"].startswith("https://"), f"{adapter} needs a docs link"
+
+
+def test_nested_template_sockets_are_discovered():
+    """Autogrow / DynamicCombo hide real sockets one level down.
+
+    A flat walk over schema.inputs missed them, so the node looked like it was
+    missing the very input it exposes.
+    """
+    from omnicam.capabilities import _socket_names
+
+    class Socket:
+        def __init__(self, name):
+            self.id = name
+
+    class Autogrow:
+        id = "reference_group"
+
+        def __init__(self):
+            self.template = [Socket("reference_video"), Socket("reference_image")]
+
+    assert _socket_names([Socket("positive"), Autogrow()]) == {
+        "positive", "reference_group", "reference_video", "reference_image",
+    }
+
+
+def test_socket_discovery_survives_hostile_shapes():
+    """Third-party schemas are arbitrary objects; introspection must not explode."""
+    from omnicam.capabilities import _socket_names
+
+    class Cyclic:
+        id = "loop"
+
+        @property
+        def template(self):
+            return [self]
+
+    assert "loop" in _socket_names([Cyclic()]), "recursion is depth-capped, not fatal"
+    assert _socket_names(None) == set()
+    assert _socket_names([object()]) == set()

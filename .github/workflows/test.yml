@@ -6,6 +6,9 @@ on:
 
 jobs:
   python-core:
+    # Deliberately installs only requirements-dev.txt: the model-agnostic core
+    # must stay testable without ComfyUI or torch. Suites that genuinely need an
+    # optional dependency skip themselves via pytest.importorskip.
     strategy:
       matrix:
         python-version: ["3.10", "3.12"]
@@ -17,7 +20,21 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
-      - run: ruff check omnicam tests
+      - run: ruff check .
+      - run: mypy
+
+  python-full:
+    # Same suite with the ComfyUI runtime dependencies present, so the route and
+    # video-sampling tests that python-core skips are actually exercised.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt aiohttp pillow av
+      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pytest -q
 
   comfyui-integration:
     strategy:

@@ -36,10 +36,8 @@ export function setTransformMode(ui, mode) {
 export function resetCamera(ui, defaultCameraFn) {
   ui.checkpoint("Reset camera");
   ui.camera = defaultCameraFn();
-  const fovEl = ui.root.querySelector('[data-role="fov"]');
-  if (fovEl) fovEl.value = String(ui.camera.fov);
-  const rollEl = ui.root.querySelector('[data-role="roll"]');
-  if (rollEl) rollEl.value = String(ui.camera.roll);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-fov"]')) el.value = String(ui.camera.fov);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-roll"]')) el.value = String(ui.camera.roll);
   const camTypeEl = ui.root.querySelector('[data-role="camera-type"]');
   if (camTypeEl) camTypeEl.value = ui.camera.camera_type;
   ui.beginCameraEdit();

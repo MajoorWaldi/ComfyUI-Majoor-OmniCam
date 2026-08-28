@@ -1,4 +1,4 @@
-﻿import * as THREE from "three";
+﻿import * as THREE from "./three-runtime.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
@@ -11,6 +11,7 @@ import { createResourceMethods } from "./viewport/resources.js";
 import { createSceneMethods } from "./viewport/scene.js";
 import { createCameraPickingMethods } from "./viewport/camera-picking.js";
 import { createRenderMethods } from "./viewport/render.js";
+import { DEFAULT_QUALITY, applyQuality, createStudio, setStudioEnabled } from "./viewport/studio.js";
 
 const neutral = new THREE.MeshStandardMaterial({ color: 0x8c929b, roughness: 0.9, metalness: 0 });
 const wire = new THREE.MeshBasicMaterial({ color: 0xaeb5c0, wireframe: true });
@@ -124,15 +125,29 @@ export class OmniWebGLViewport {
       antialias: true,
       alpha: false,
       preserveDrawingBuffer: true,
-      logarithmicDepthBuffer: true,
+      // Off on purpose: three.js shadow mapping does not account for the
+      // logarithmic depth encoding, so leaving this on silently produced no
+      // shadows at all. A shot-layout scene spans a few units to a few hundred,
+      // which the standard 24-bit depth buffer handles; the canonical near/far
+      // stay exactly as authored so the viewport and the adapters still agree.
+      logarithmicDepthBuffer: false,
     });
     // render() receives backing-store pixels from the host canvas, so Three.js must not apply DPR again.
     this.renderer.setPixelRatio(1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x121212);
+    // Flat rig kept for the neutral proxy render; the studio group below is what
+    // the editor actually looks at.
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x30343b, 2.2));
     const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(5, 8, 4); this.scene.add(key);
+    this.flatLights = [this.scene.children.at(-2), key];
+    this.studio = createStudio(THREE, this.renderer, DEFAULT_QUALITY);
+    this.scene.add(this.studio.group);
+    this.studioEnabled = true;
+    setStudioEnabled(THREE, this.scene, this.renderer, this.studio, true);
     this.content = new THREE.Group(); this.scene.add(this.content);
     this.path = new THREE.Group(); this.scene.add(this.path);
     this.liveCameras = new THREE.Group(); this.scene.add(this.liveCameras);
@@ -285,7 +300,7 @@ function withTimeout(promise, timeoutMs, operation) {
   ]).finally(() => clearTimeout(timer));
 }
 
-export async function encodeDeterministicPlayblast(canvas, frameCount, fps, renderFrame) {
+export async function encodeDeterministicPlayblast(canvas, frameCount, fps, renderFrame, signal) {
   const codec = await supportsDeterministicEncoding(canvas.width, canvas.height);
   if (!codec) throw new Error("No supported WebCodecs WebM encoder");
   const output = new Output({ format: new WebMOutputFormat(), target: new BufferTarget() });
@@ -295,6 +310,7 @@ export async function encodeDeterministicPlayblast(canvas, frameCount, fps, rend
   try {
     const duration = 1 / fps;
     for (let frame = 0; frame < frameCount; frame++) {
+      if (signal?.aborted) throw new DOMException("Playblast cancelled", "AbortError");
       await renderFrame(frame);
       await withTimeout(source.add(frame * duration, duration, { keyFrame: frame % fps === 0 }), 10_000, `Encoding frame ${frame + 1}`);
     }

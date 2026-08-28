@@ -22,7 +22,7 @@ const webServer =
 
 export default defineConfig({
   testDir: "tests/frontend",
-  testMatch: "live-director.spec.js",
+  testMatch: process.env.OMNICAM_LIVE_MATCH || "live-director.spec.js",
   timeout: 60_000,
   use: {
     baseURL: process.env.OMNICAM_LIVE_URL || `http://127.0.0.1:${port}`,

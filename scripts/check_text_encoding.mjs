@@ -1,7 +1,11 @@
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 
+import { looksLikeMojibake } from "./mojibake.mjs";
+
 const roots = ["omnicam", "scripts", "tests", "web-src", "docs", "examples"];
+// The module that defines the mojibake character set necessarily contains it.
+const selfReferential = new Set(["mojibake.mjs", "check_text_encoding.mjs"]);
 const extensions = new Set([".css", ".html", ".js", ".json", ".md", ".mjs", ".py", ".toml", ".ts", ".vue"]);
 const replacements = new Map([
   ["B\u00c3\u00a9zier", "Bézier"],
@@ -22,7 +26,6 @@ const replacements = new Map([
   ["\u00f0\u0178\u0152\u0090", "🌐"],
   ["\u00f0\u0178\u017d\u00af", "🎯"],
 ]);
-const suspicious = /[\u00c2\u00c3\u00e2\u00f0\ufffd]|[\u0080-\u009f]/u;
 const fix = process.argv.includes("--fix");
 
 async function filesBelow(directory) {
@@ -30,6 +33,7 @@ async function filesBelow(directory) {
   const children = await Promise.all(entries.map(async (entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) return filesBelow(path);
+    if (selfReferential.has(entry.name)) return [];
     return extensions.has(extname(entry.name)) ? [path] : [];
   }));
   return children.flat();
@@ -50,7 +54,7 @@ for (const file of files) {
   }
   const lines = text.split(/\r?\n/);
   lines.forEach((line, index) => {
-    if (suspicious.test(line)) failures.push(`${file}:${index + 1}: ${line.trim()}`);
+    if (looksLikeMojibake(line)) failures.push(`${file}:${index + 1}: ${line.trim()}`);
   });
 }
 

@@ -127,6 +127,25 @@ export function selectedObject(ui) {
   return (ui.selectedEntity === "object" && ui.state.objects.find((object) => object.id === ui.selectedObjectId)) || null;
 }
 
+/**
+ * Renames the curve-group options for the current subject.
+ *
+ * Keyed by option value, never by index: the previous version assigned
+ * options[0..2] positionally, so adding a fourth group silently shifted every
+ * label by one and the select claimed to show a group it was not showing.
+ *
+ * @param {Function} q root querySelector
+ * @param {Record<string,string>} labels option value -> label
+ */
+function relabelCurveGroups(q, labels) {
+  const select = q('[data-role="curve-group"]');
+  if (!select) return;
+  for (const option of select.options) {
+    const label = labels[option.value];
+    if (label) option.textContent = label;
+  }
+}
+
 export function refreshInspector(ui) {
   const object = selectedObject(ui);
   const objectPanel = ui.root.querySelector('[data-role="object-panel"]');
@@ -174,27 +193,24 @@ export function refreshInspector(ui) {
   if (!object) {
     const selName = q('[data-role="selected-name"]');
     if (selName) selName.textContent = `${activeCamera.name} · F${ui.frame}`;
-    const curveTitle = q('[data-role="curve-title"]');
-    if (curveTitle) curveTitle.textContent = t(`${activeCamera.name} Curve Editor`);
-    const curveGroup = q('[data-role="curve-group"]');
-    if (curveGroup && curveGroup.options.length >= 3) {
-      curveGroup.options[0].textContent = t("Position XYZ");
-      curveGroup.options[1].textContent = t("Target XYZ");
-      curveGroup.options[2].textContent = t("FOV / Roll / Zoom");
-    }
+    relabelCurveGroups(q, {
+      camera: t("Camera (Position, Focal, Roll)"),
+      position: t("Position XYZ"),
+      target: t("Target XYZ"),
+      lens: t("FOV / Roll / Zoom"),
+    });
     return;
   }
   const position = object.position || [0, 0, 0];
   const selName = q('[data-role="selected-name"]');
   if (selName) selName.textContent = object.name || object.type;
-  const curveTitle = q('[data-role="curve-title"]');
-  if (curveTitle) curveTitle.textContent = t(`${object.name || object.type} Curve Editor`);
-  const curveGroup = q('[data-role="curve-group"]');
-  if (curveGroup && curveGroup.options.length >= 3) {
-    curveGroup.options[0].textContent = t("Position XYZ");
-    curveGroup.options[1].textContent = t("Rotation XYZ");
-    curveGroup.options[2].textContent = t("Scale XYZ");
-  }
+  // An object has no lens, so the combined camera group falls back to position.
+  relabelCurveGroups(q, {
+    camera: t("Position XYZ"),
+    position: t("Position XYZ"),
+    target: t("Rotation XYZ"),
+    lens: t("Scale XYZ"),
+  });
   const rotation = object.rotation || [0, 0, 0];
   const size = object.size || [1, 1, 1];
   const objValues = {

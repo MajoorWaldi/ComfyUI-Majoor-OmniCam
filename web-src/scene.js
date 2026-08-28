@@ -214,6 +214,9 @@ export function toggleAutoKey(ui) {
   ui.setStatus(t(`Auto Key ${ui.state.auto_key ? "on" : "off"}`));
 }
 
+// Overlays drawn only in Camera View (see viewport-overlays.js).
+const FRAMING_AIDS = ["guides", "safe-areas", "resolution-gate", "aspect-ratio"];
+
 export function updateEditState(ui) {
   const wrap = ui.root.querySelector(".viewport-wrap");
   const editing = ui.editingKeyFrame !== null;
@@ -227,6 +230,19 @@ export function updateEditState(ui) {
     button.setAttribute("aria-pressed", String(isAutoKey));
     button.title = t(`Auto Key ${isAutoKey ? "on" : "off"}`);
   }
+  // Framing aids only mean something when you are looking through the camera.
+  // They used to stay clickable in the orbit views, where toggling them did
+  // nothing at all and gave no hint why.
+  const throughCamera = ui.state.view_mode === "camera";
+  for (const role of FRAMING_AIDS) {
+    for (const element of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      element.disabled = !throughCamera;
+      const label = element.closest("label");
+      if (label) label.classList.toggle("oc-disabled", !throughCamera);
+      element.title = throughCamera ? "" : t("Available in Camera View only");
+    }
+  }
+
   const activeCamera = ui.activeCameraTrack();
   const selectedObj = ui.selectedObject();
 

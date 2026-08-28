@@ -64,7 +64,8 @@ def _sample_object_transform(obj: dict[str, Any], frame: float) -> dict[str, lis
         return {"position": base_position, "rotation": base_rotation, "size": base_size}
 
     def component(key: dict[str, Any], field: str, index: int, fallback: list[float]) -> float:
-        transform = key.get("transform") if isinstance(key.get("transform"), dict) else {}
+        raw_transform = key.get("transform")
+        transform = raw_transform if isinstance(raw_transform, dict) else {}
         value = transform.get(field, fallback)
         return _finite(value[index] if isinstance(value, (list, tuple)) and len(value) > index else fallback[index], fallback[index])
 
@@ -316,6 +317,9 @@ def _resolve_sample_segment(keyframes: list[Any], frame_f: float, hint: int | No
 
 def _ease(t: float, mode: str) -> float:
     t = _clamp(t, 0.0, 1.0)
+    if mode == "hold":
+        # Step: the value stays on the left key until the next one.
+        return 0.0
     if mode == "linear":
         return t
     if mode == "ease_in":
@@ -400,7 +404,7 @@ class OmniCamTrack:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> OmniCamTrack:
-        from .migrations import TRACK_SCHEMA, CURRENT_VERSIONS, migrate_payload
+        from .migrations import CURRENT_VERSIONS, TRACK_SCHEMA, migrate_payload
 
         raw_version = int(data.get("schema_version", data.get("schemaVersion", 0)) or 0)
         if raw_version > CURRENT_VERSIONS[TRACK_SCHEMA]:

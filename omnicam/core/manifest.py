@@ -71,7 +71,7 @@ def motion_fidelity_report(track: OmniCamTrack, observed_positions: list[list[fl
     if observed_positions is None:
         return report
     errors = []
-    for (frame, expected_position), observed in zip(expected, observed_positions):
+    for (frame, expected_position), observed in zip(expected, observed_positions, strict=False):
         error = sum((float(observed[i]) - expected_position[i]) ** 2 for i in range(3)) ** 0.5
         errors.append(error)
         report["per_frame_error"].append({"frame": frame, "error": error})

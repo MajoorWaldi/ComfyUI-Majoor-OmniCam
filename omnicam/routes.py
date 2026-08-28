@@ -5,6 +5,7 @@ import mimetypes
 import os
 import re
 import shutil
+import time
 import uuid
 from pathlib import Path
 
@@ -37,10 +38,14 @@ MAX_IMAGE_PIXELS = _env_limit("OMNICAM_MAX_IMAGE_PIXELS", 80_000_000)
 MAX_IMAGE_FRAMES = _env_limit("OMNICAM_MAX_IMAGE_FRAMES", 2_000)
 MAX_VIDEO_PIXELS = _env_limit("OMNICAM_MAX_VIDEO_PIXELS", 16_777_216)
 MAX_VIDEO_DURATION_SECONDS = _env_limit("OMNICAM_MAX_VIDEO_DURATION_SECONDS", 3_600)
+# The cached folder size goes stale as soon as anything deletes managed files
+# without going through /cleanup. Re-scan at most this often.
+QUOTA_CACHE_TTL_SECONDS = _env_limit("OMNICAM_QUOTA_CACHE_TTL_SECONDS", 300)
 
 _quota_lock = asyncio.Lock()
 _quota_usage: int | None = None
 _quota_reserved = 0
+_quota_synced_at = 0.0
 
 # Magic-byte signatures per extension: accepted (offset, prefix) pairs.
 _SIGNATURES = {
@@ -53,7 +58,6 @@ _SIGNATURES = {
     ".mov": [(4, b"ftyp")],
     ".webm": [(0, b"\x1a\x45\xdf\xa3")],
     ".glb": [(0, b"glTF")],
-    ".fbx": [(0, b"Kaydara FBX Binary  \x00")],
 }
 
 
@@ -74,7 +78,11 @@ def _safe_filename(name: str, allowed_extensions: set[str], fallback_ext: str = 
 def _signature_ok(extension: str, header: bytes) -> bool:
     signatures = _SIGNATURES.get(extension)
     if not signatures:
-        return True  # text formats (obj/stl/ply) are content-checked in upload_model
+        # Text formats (obj/stl/ply) and FBX are content-checked in upload_model.
+        # FBX has two encodings -- the binary "Kaydara" magic and an ASCII
+        # variant with no fixed prefix -- so gating on the binary magic here
+        # rejected every ASCII file before its own validation branch could run.
+        return True
     checks = [len(header) >= offset + len(prefix) and header[offset : offset + len(prefix)] == prefix for offset, prefix in signatures]
     # WebP has a compound signature; the other formats list alternatives.
     return all(checks) if extension == ".webp" else any(checks)
@@ -102,16 +110,45 @@ def _check_free_space(dest_dir: Path, incoming_max: int) -> None:
         raise web.HTTPInsufficientStorage(text="Not enough free disk space for this upload")
 
 
+def reset_quota_cache() -> None:
+    """Forget the cached managed-folder size so the next upload re-scans."""
+    global _quota_usage, _quota_reserved, _quota_synced_at
+    _quota_usage = None
+    _quota_reserved = 0
+    _quota_synced_at = 0.0
+
+
+async def _sync_quota_usage() -> None:
+    """Refresh the cached folder size. Callers must hold ``_quota_lock``."""
+    global _quota_usage, _quota_synced_at
+    root = _managed_root()
+    _quota_usage = await asyncio.to_thread(_folder_size, root) if root.exists() else 0
+    _quota_synced_at = time.monotonic()
+
+
 async def _reserve_quota(dest_dir: Path, incoming_max: int) -> None:
-    global _quota_usage, _quota_reserved
+    global _quota_reserved
     async with _quota_lock:
-        if _quota_usage is None:
-            root = _managed_root()
-            _quota_usage = await asyncio.to_thread(_folder_size, root) if root.exists() else 0
+        stale = (
+            _quota_usage is None
+            or QUOTA_CACHE_TTL_SECONDS <= 0
+            or (time.monotonic() - _quota_synced_at) > QUOTA_CACHE_TTL_SECONDS
+        )
+        if stale:
+            await _sync_quota_usage()
         if _quota_usage + _quota_reserved + incoming_max > MAX_FOLDER_BYTES:
             raise web.HTTPInsufficientStorage(text=f"OmniCam folder quota exceeded ({MAX_FOLDER_BYTES} bytes)")
         await asyncio.to_thread(_check_free_space, dest_dir, incoming_max)
         _quota_reserved += incoming_max
+
+
+async def _extend_quota_reservation(extra: int) -> None:
+    """Grow an in-flight reservation when a client streams past its declared size."""
+    global _quota_reserved
+    async with _quota_lock:
+        if _quota_usage is not None and _quota_usage + _quota_reserved + extra > MAX_FOLDER_BYTES:
+            raise web.HTTPInsufficientStorage(text=f"OmniCam folder quota exceeded ({MAX_FOLDER_BYTES} bytes)")
+        _quota_reserved += extra
 
 
 async def _finish_quota_reservation(reserved: int, actual: int = 0) -> None:
@@ -166,6 +203,21 @@ def _validate_media_metadata(path: Path) -> None:
             container.close()
 
 
+_QUOTA_RESERVATION_STEP = 8 * 1024 * 1024
+
+
+def _declared_upload_size(request: web.Request, max_bytes: int) -> int:
+    """Clamp the client-declared body size into a usable initial reservation."""
+    declared = getattr(request, "content_length", None)
+    try:
+        declared = int(declared) if declared is not None else 0
+    except (TypeError, ValueError):
+        declared = 0
+    if declared <= 0:
+        return min(max_bytes, _QUOTA_RESERVATION_STEP)
+    return max(1, min(max_bytes, declared))
+
+
 async def _save_multipart_file(request: web.Request, subfolder: str, allowed_extensions: set[str], max_bytes: int) -> dict:
     reader = await request.multipart()
     field = await reader.next()
@@ -181,7 +233,11 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
     dest = (dest_dir / filename).resolve()
     if dest.parent != dest_dir:
         raise web.HTTPBadRequest(text="Invalid upload destination")
-    await _reserve_quota(dest_dir, max_bytes)
+    # Reserving the full per-file ceiling up front makes concurrent uploads
+    # reject each other long before the folder is actually full. Start from what
+    # the client announced and grow the reservation only if it streams past it.
+    reserved = _declared_upload_size(request, max_bytes)
+    await _reserve_quota(dest_dir, reserved)
 
     size = 0
     header = b""
@@ -199,6 +255,10 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
                 size += len(chunk)
                 if size > max_bytes:
                     raise web.HTTPRequestEntityTooLarge(max_size=max_bytes, actual_size=size)
+                if size > reserved:
+                    extra = min(max_bytes, size + _QUOTA_RESERVATION_STEP) - reserved
+                    await _extend_quota_reservation(extra)
+                    reserved += extra
                 # Keep blocking file I/O off the async server event loop.
                 await asyncio.to_thread(handle.write, chunk)
         if size == 0:
@@ -209,9 +269,9 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
             await asyncio.to_thread(_validate_media_metadata, dest)
     except Exception:
         dest.unlink(missing_ok=True)
-        await _finish_quota_reservation(max_bytes)
+        await _finish_quota_reservation(reserved)
         raise
-    await _finish_quota_reservation(max_bytes, size)
+    await _finish_quota_reservation(reserved, size)
 
     relative = f"omnicam/{subfolder}/{filename}".replace("\\", "/")
     return {
@@ -310,6 +370,7 @@ async def cleanup_assets(request: web.Request):
         raise web.HTTPBadRequest(text="Expected a non-empty files list")
     root = _managed_root()
     targets = []
+    seen = set()
     for relative in files:
         if not isinstance(relative, str):
             raise web.HTTPBadRequest(text="Asset paths must be strings")
@@ -318,6 +379,9 @@ async def cleanup_assets(request: web.Request):
             raise web.HTTPBadRequest(text=f"Invalid managed asset path: {relative}")
         if not candidate.is_file():
             raise web.HTTPNotFound(text=f"Unknown managed asset: {relative}")
+        if candidate in seen:
+            continue
+        seen.add(candidate)
         targets.append((relative, candidate, candidate.stat().st_size))
     removed = []
     for relative, candidate, size in targets:
@@ -328,3 +392,111 @@ async def cleanup_assets(request: web.Request):
         if _quota_usage is not None:
             _quota_usage = max(0, _quota_usage - sum(item["size"] for item in removed))
     return web.json_response({"removed": removed, "freed_bytes": sum(item["size"] for item in removed)})
+
+
+_EXPORT_ROOT_NAME = "omnicam/exports"
+MAX_IMPORT_BYTES = _env_limit("OMNICAM_MAX_IMPORT_BYTES", 64 * 1024 * 1024)
+
+
+def _export_root() -> Path:
+    """Exports live below ComfyUI's managed output directory, never elsewhere."""
+    output_root = Path(folder_paths.get_output_directory()).resolve()
+    root = (output_root / "omnicam" / "exports").resolve()
+    if output_root not in root.parents:
+        raise web.HTTPInternalServerError(text="OmniCam export folder resolves outside ComfyUI output")
+    return root
+
+
+@PromptServer.instance.routes.get("/majoor/omnicam/exchange_formats")
+async def exchange_formats(_request: web.Request):
+    """What this build can write and read, so the UI never offers a dead option."""
+    from .exchange import EXPORT_FORMATS, IMPORT_EXTENSIONS
+
+    return web.json_response({
+        "export": EXPORT_FORMATS,
+        "import": list(IMPORT_EXTENSIONS),
+        "notes": {
+            "obj": "OBJ has no camera, no animation and no field of view; a camera cannot be stored in it.",
+            "fbx": "FBX import is handled in the viewport. Export uses glTF or USD, which every DCC reads.",
+        },
+    })
+
+
+@PromptServer.instance.routes.post("/majoor/omnicam/export_camera")
+async def export_camera_route(request: web.Request):
+    """Write the posted track to <output>/omnicam/exports and return its path."""
+    from .core.track import OmniCamTrack
+    from .core.validation import validate_track_payload
+    from .exchange import EXPORT_FORMATS, export_camera
+
+    try:
+        body = await request.json()
+    except Exception as exc:
+        raise web.HTTPBadRequest(text="Expected a JSON body") from exc
+    if not isinstance(body, dict):
+        raise web.HTTPBadRequest(text="Expected a JSON object")
+
+    fmt = str(body.get("format", "glb"))
+    if fmt not in EXPORT_FORMATS:
+        raise web.HTTPBadRequest(text=f"Unsupported export format: {fmt}")
+    track_payload = body.get("track")
+    if not isinstance(track_payload, dict):
+        raise web.HTTPBadRequest(text="Expected a track object")
+
+    try:
+        track = OmniCamTrack.from_dict(validate_track_payload(track_payload))
+    except Exception as exc:
+        raise web.HTTPBadRequest(text=f"Invalid camera track: {exc}") from exc
+
+    name = _safe_filename(str(body.get("name") or "omnicam_camera"), {EXPORT_FORMATS[fmt]["extension"]},
+                          fallback_ext=EXPORT_FORMATS[fmt]["extension"])
+    root = _export_root()
+    root.mkdir(parents=True, exist_ok=True)
+    destination = (root / name).resolve()
+    if destination.parent != root:
+        raise web.HTTPBadRequest(text="Invalid export destination")
+
+    data = await asyncio.to_thread(export_camera, track, fmt, destination.stem)
+    await asyncio.to_thread(destination.write_bytes, data)
+    return web.json_response({
+        "name": destination.name,
+        "subfolder": _EXPORT_ROOT_NAME,
+        "type": "output",
+        "relative": f"{_EXPORT_ROOT_NAME}/{destination.name}",
+        "size": len(data),
+        "format": fmt,
+    })
+
+
+@PromptServer.instance.routes.post("/majoor/omnicam/import_camera")
+async def import_camera_route(request: web.Request):
+    """Read a camera file into a canonical track. Nothing is written to disk."""
+    from .exchange import IMPORT_EXTENSIONS, import_camera
+
+    reader = await request.multipart()
+    field = await reader.next()
+    if field is None or field.name not in {"file", "asset"}:
+        raise web.HTTPBadRequest(text="Expected a multipart field named file/asset")
+
+    extension = os.path.splitext(field.filename or "")[1].lower()
+    if extension not in IMPORT_EXTENSIONS:
+        raise web.HTTPBadRequest(text=f"Unsupported camera file: {extension or 'no extension'}")
+
+    chunks: list[bytes] = []
+    size = 0
+    while True:
+        chunk = await field.read_chunk(size=1024 * 1024)
+        if not chunk:
+            break
+        size += len(chunk)
+        if size > MAX_IMPORT_BYTES:
+            raise web.HTTPRequestEntityTooLarge(max_size=MAX_IMPORT_BYTES, actual_size=size)
+        chunks.append(chunk)
+    if not size:
+        raise web.HTTPBadRequest(text="Empty uploads are rejected")
+
+    try:
+        payload = await asyncio.to_thread(import_camera, b"".join(chunks), extension)
+    except Exception as exc:
+        raise web.HTTPBadRequest(text=f"Could not read a camera from this file: {exc}") from exc
+    return web.json_response({"track": payload, "source": extension})

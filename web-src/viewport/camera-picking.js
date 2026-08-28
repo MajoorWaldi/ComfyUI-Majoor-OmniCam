@@ -1,8 +1,21 @@
 // WebGL viewport methods extracted from the public facade.
 
+import { pathKeyFromHit } from "./path-editing.js";
+
 export function createCameraPickingMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
   return {
+    /** The camera-path handle under the pointer, with its world position. */
+    pickPathKey(pointer) {
+      if (!this.path.visible || !this.activeCamera) return null;
+      this.pointer.set((pointer[0] / this.canvas.width) * 2 - 1, -(pointer[1] / this.canvas.height) * 2 + 1);
+      this.raycaster.setFromCamera(this.pointer, this.activeCamera);
+      for (const hit of this.raycaster.intersectObjects(this.path.children, true)) {
+        const key = pathKeyFromHit(hit);
+        if (key) return { ...key, position: hit.object.position.toArray() };
+      }
+      return null;
+    },
   configureCamera(cameraState, aspect) {
     const cam = cameraState || defaultCamera();
     const safeNear = Math.max(0.005, Number(cam.near) || 0.01);

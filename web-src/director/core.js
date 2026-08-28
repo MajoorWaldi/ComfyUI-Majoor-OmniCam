@@ -20,6 +20,8 @@ export function distanceToSegment(point, a, b) {
 
 export function ease(t, mode = "ease") {
   t = clamp(t, 0, 1);
+  // Step: the value stays on the left key until the next one.
+  if (mode === "hold") return 0;
   if (mode === "linear") return t;
   if (mode === "ease_in") return t * t;
   if (mode === "ease_out") return 1 - (1 - t) * (1 - t);
@@ -362,7 +364,7 @@ export function defaultState() {
     objects: [{ id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" }],
     metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, card_fit: "contain", card_asset: "", reference_index: 0,
     point_density: "balanced", point_spread: "all_views", point_color: "#cbd5e1", viewport_bg_color: "#121212", viewport_bg_image: "", viewport_bg_sequence: [],
-    show_wireframe: false, show_vertices: false, select_mode: "object",
+    show_grid: true, show_wireframe: false, show_vertices: false, select_mode: "object",
     gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "maya", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
@@ -389,15 +391,46 @@ export function cloneCamera(camera) {
   };
 }
 
+// Mirrors omnicam/core/validation.py TrackLimits. The editor renders a state
+// before Python ever validates it, so a hostile or corrupt workflow has to be
+// bounded here too -- otherwise a pasted duration of 1e12 frames or a NaN fps
+// reaches the render loop. tests/test_validation.py keeps the two in step.
+export const STATE_LIMITS = {
+  maxCameras: 16,
+  maxObjects: 256,
+  maxKeysPerTrack: 10000,
+  maxDurationFrames: 120 * 120,
+  maxNameLength: 120,
+};
+
+/** Coerce to a finite number inside [min, max], falling back when unusable.
+ *
+ * An absent field (null, undefined, "") takes the default rather than being
+ * coerced to 0 and then clamped up to the minimum -- a missing height should
+ * read 720, not 64.
+ */
+function boundedNumber(value, fallback, min, max) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? clamp(number, min, max) : fallback;
+}
+
 export function sanitizeState(raw) {
   const base = defaultState();
   if (!raw || typeof raw !== "object") return base;
   const out = { ...base, ...raw };
-  out.fps = clamp(Number(out.fps || 24), 1, 120); out.duration_frames = Math.max(1, Number(out.duration_frames || 120)); out.width = clamp(Number(out.width || 1280), 64, 4096); out.height = clamp(Number(out.height || 720), 64, 4096);
-  const sanitizeKeyframes = (items, fallbackCamera) => (Array.isArray(items) ? items : []).map((key) => ({
+  // Number("bad") is NaN, and NaN survives clamp(): every one of these used to
+  // reach the render loop unchecked.
+  out.fps = Math.round(boundedNumber(out.fps, 24, 1, 120));
+  out.duration_frames = Math.round(boundedNumber(out.duration_frames, 120, 1, STATE_LIMITS.maxDurationFrames));
+  out.width = Math.round(boundedNumber(out.width, 1280, 64, 4096));
+  out.height = Math.round(boundedNumber(out.height, 720, 64, 4096));
+  const sanitizeKeyframes = (items, fallbackCamera) => (Array.isArray(items) ? items : [])
+    .slice(0, STATE_LIMITS.maxKeysPerTrack)
+    .map((key) => ({
     frame: clamp(Math.round(Number(key.frame || 0)), 0, out.duration_frames - 1),
     camera: cloneCamera(key.camera || key || fallbackCamera),
-    interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out"].includes(key.interpolation) ? key.interpolation : "ease",
+    interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(key.interpolation) ? key.interpolation : "ease",
     ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     ...(Array.isArray(key.references) ? { references: key.references.map((r) => ({ ...r })) } : {}),
   }));
@@ -406,7 +439,7 @@ export function sanitizeState(raw) {
   if (!legacyKeys.length) legacyKeys = [{ frame: 0, camera: cloneCamera(legacyCamera), interpolation: "ease" }];
   const sourceCameras = Array.isArray(out.cameras) && out.cameras.length ? out.cameras : [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: legacyCamera, keyframes: legacyKeys }];
   const usedCameraIds = new Set();
-  out.cameras = sourceCameras.map((item, index) => {
+  out.cameras = sourceCameras.slice(0, STATE_LIMITS.maxCameras).map((item, index) => {
     let id = String(item?.id || `camera_${index + 1}`); if (usedCameraIds.has(id)) id = `camera_${index + 1}`; usedCameraIds.add(id);
     const camera = cloneCamera(item?.camera || item?.keyframes?.[0]?.camera || legacyCamera); let keyframes = sanitizeKeyframes(item?.keyframes, camera); keyframes = [...new Map(keyframes.map((key) => [key.frame, key])).values()].sort((a, b) => a.frame - b.frame);
     if (!keyframes.length) keyframes = [{ frame: 0, camera: cloneCamera(camera), interpolation: "ease" }];
@@ -429,7 +462,9 @@ export function sanitizeState(raw) {
   const activeCamera = out.cameras.find((item) => item.id === out.active_camera_id); out.camera = activeCamera.camera; out.keyframes = activeCamera.keyframes;
   out.target_object_id = activeCamera.target_object_id || null;
   out.target_offset = activeCamera.target_offset || [0, 0, 0];
-  out.objects = (Array.isArray(out.objects) ? out.objects : base.objects).map((object) => ({
+  out.objects = (Array.isArray(out.objects) ? out.objects : base.objects)
+    .slice(0, STATE_LIMITS.maxObjects)
+    .map((object) => ({
     ...object,
     color: typeof object?.color === "string" ? object.color : null,
     locked: Boolean(object.locked),
@@ -441,12 +476,13 @@ export function sanitizeState(raw) {
     keyframes: (Array.isArray(object.keyframes) ? object.keyframes : []).map((key) => ({
       frame: clamp(Math.round(Number(key.frame || 0)), 0, out.duration_frames - 1),
       transform: cloneTransform(key.transform || object),
-      interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out"].includes(key.interpolation) ? key.interpolation : "ease",
+      interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(key.interpolation) ? key.interpolation : "ease",
       ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     })).sort((a, b) => a.frame - b.frame)
   }));
   out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = out.navigation_profile === "blender" ? "blender" : "maya"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
   out.select_mode = ["object", "vertex", "edge", "face"].includes(out.select_mode) ? out.select_mode : "object";
+  out.show_grid = out.show_grid !== false;
   out.show_wireframe = Boolean(out.show_wireframe);
   out.show_vertices = Boolean(out.show_vertices);
   out.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(out.point_density) ? out.point_density : "balanced";
@@ -488,10 +524,22 @@ export function rotateQuaternion(vector, [x, y, z, w]) {
   return [ix * w - iw * x - iy * z + iz * y, iy * w - iw * y - iz * x + ix * z, iz * w - iw * z - ix * y + iy * x];
 }
 
+// Inverse of quaternionFromEuler, in the same XYZ order. The previous version
+// extracted a ZYX sequence, so the pair was not invertible and every parented
+// object rotation -- which round-trips through both -- came out wrong.
 export function eulerFromQuaternion([x, y, z, w]) {
-  const rx = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
-  const ry = Math.asin(Math.max(-1, Math.min(1, 2 * (w * y - z * x))));
-  const rz = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+  const m11 = 1 - 2 * (y * y + z * z);
+  const m12 = 2 * (x * y - z * w);
+  const m13 = 2 * (x * z + y * w);
+  const m22 = 1 - 2 * (x * x + z * z);
+  const m23 = 2 * (y * z - x * w);
+  const m32 = 2 * (y * z + x * w);
+  const m33 = 1 - 2 * (x * x + y * y);
+  const ry = Math.asin(Math.max(-1, Math.min(1, m13)));
+  const [rx, rz] = Math.abs(m13) < 0.9999999
+    ? [Math.atan2(-m23, m33), Math.atan2(-m12, m11)]
+    // Gimbal lock: pitch is +/-90 degrees, so roll and yaw are one freedom.
+    : [Math.atan2(m32, m22), 0];
   return [rx, ry, rz].map((value) => value * 180 / Math.PI);
 }
 

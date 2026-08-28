@@ -689,3 +689,27 @@ test("blocking scene sets generate spatial parallax objects and camera paths", a
   assert.equal(ui.state.keyframes.length, 2);
   assert.equal(ui.state.objects[0].id, "fg_pillar");
 });
+
+test("hold interpolation freezes until the next key, matching Python", () => {
+  // The UI offered "Hold / Step" while sanitizeState quietly rewrote it to
+  // "ease". These are the exact values tests/test_track.py asserts.
+  const state = {
+    fps: 24, duration_frames: 11, width: 640, height: 360,
+    keyframes: [
+      { frame: 0, camera: { position: [0, 0, 0], target: [0, 0, 0], fov: 30 }, interpolation: "hold" },
+      { frame: 10, camera: { position: [10, 0, 0], target: [0, 0, 0], fov: 60 }, interpolation: "linear" },
+    ],
+  };
+  for (let frame = 0; frame < 10; frame++) {
+    const camera = sampleCamera(state, frame);
+    assert.equal(camera.position[0], 0, `frame ${frame} must still hold the first key`);
+    assert.equal(camera.fov, 30);
+  }
+  assert.equal(sampleCamera(state, 10).position[0], 10);
+  assert.equal(sampleCamera(state, 10).fov, 60);
+});
+
+test("sanitizeState keeps hold instead of rewriting it", () => {
+  const state = sanitizeState({ cameras: [{ id: "c", keyframes: [{ frame: 0, camera: {}, interpolation: "hold" }] }] });
+  assert.equal(state.cameras[0].keyframes[0].interpolation, "hold");
+});

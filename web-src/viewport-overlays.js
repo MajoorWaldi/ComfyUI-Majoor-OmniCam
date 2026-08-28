@@ -1,6 +1,7 @@
 // 2D Canvas fallback renderer and composition overlays (Grid, Safe Areas, Rule of Thirds, Burn-In, Speed Map, Camera Paths) for OmniCam Director.
 
-import { add, clamp, generatePointField, length, project, sampleCamera, sub } from "./omnicam-core.js";
+import { add, clamp, generatePointField, length, project, sampleCamera, sub, worldTransform } from "./omnicam-core.js";
+import { drawResolutionGate } from "./viewport/resolution-gate.js";
 
 export function drawLine3D(ui, a, b, color = "#5a5a5a", width = 1) {
   const camera = ui.viewportCamera();
@@ -260,28 +261,9 @@ export function drawOverlays(ui) {
     c.strokeRect(w * 0.1, h * 0.1, w * 0.8, h * 0.8);
     c.restore();
   }
-  // Aspect Ratio / Resolution Gate letterbox mask
-  if (!ui.recording && ui.state.view_mode === "camera" && ui.state.aspect_ratio && ui.state.aspect_ratio !== "auto") {
-    const ratioParts = ui.state.aspect_ratio.split(":").map(Number);
-    if (ratioParts.length === 2 && ratioParts[0] > 0 && ratioParts[1] > 0) {
-      const targetAspect = ratioParts[0] / ratioParts[1];
-      const currentAspect = w / h;
-      c.save();
-      c.fillStyle = "rgba(0, 0, 0, 0.7)";
-      if (targetAspect < currentAspect) {
-        const activeW = h * targetAspect;
-        const barW = (w - activeW) / 2;
-        c.fillRect(0, 0, barW, h);
-        c.fillRect(w - barW, 0, barW, h);
-      } else if (targetAspect > currentAspect) {
-        const activeH = w / targetAspect;
-        const barH = (h - activeH) / 2;
-        c.fillRect(0, 0, w, barH);
-        c.fillRect(0, h - barH, w, barH);
-      }
-      c.restore();
-    }
-  }
+  // The render-area mask, shared with the camera preview tiles so the two
+  // can never disagree about what will actually be rendered.
+  if (!ui.recording && ui.state.view_mode === "camera") drawResolutionGate(c, ui.state, w, h);
   if (!ui.recording) {
     try { ui.drawTransformGizmo(); } catch (err) { console.warn("[OmniCam Gizmo Error]", err); }
   }
@@ -292,7 +274,14 @@ export function drawOverlays(ui) {
     c.strokeRect(start[0], start[1], current[0] - start[0], current[1] - start[1]); c.restore();
   }
   if (!ui.recording && ui.state.show_radar) {
-    try { drawTopDownRadar(ui, c, w, h); } catch (err) { console.warn("[OmniCam Radar Error]", err); }
+    try {
+      drawTopDownRadar(ui, c, w, h);
+    } catch (err) {
+      // Never break the editor over an overlay, but do not leave a convincing
+      // half-drawn map either: a partial radar reads as real data.
+      console.error("[OmniCam] radar overlay failed", err);
+      ui.radarError = String(err?.message || err);
+    }
   }
   if (ui.state.burn_in) {
     const camera = ui.viewportCamera();
@@ -407,7 +396,9 @@ export function drawTopDownRadar(ui, c, w, h) {
   // Draw scene objects
   for (const obj of ui.state.objects || []) {
     if (obj.enabled === false) continue;
-    const pos = obj.transform?.position || obj.position || [0, 0, 0];
+    // worldTransform folds in the parent chain; obj.position is only local,
+    // so a parented prop used to be plotted at the wrong spot on the map.
+    const pos = worldTransform(ui.state.objects, obj).position || [0, 0, 0];
     const [ox, oz] = toRadar(pos[0], pos[2]);
     if (ox < rx + 2 || ox > rx + radarSize - 2 || oz < ry + 2 || oz > ry + radarSize - 2) continue;
 
@@ -417,8 +408,10 @@ export function drawTopDownRadar(ui, c, w, h) {
     c.fill();
   }
 
-  // Draw camera keyframe path points on radar
-  for (const k of ui.state.keyframes || []) {
+  // Read the keys from the active track rather than the state.keyframes alias:
+  // the alias goes stale whenever something replaces the array wholesale.
+  const activeKeys = ui.activeCameraTrack?.()?.keyframes || ui.state.keyframes || [];
+  for (const k of activeKeys) {
     const kPos = k.camera?.position;
     if (kPos) {
       const [kx, kz] = toRadar(kPos[0], kPos[2]);

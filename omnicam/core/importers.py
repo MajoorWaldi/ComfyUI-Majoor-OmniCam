@@ -36,7 +36,7 @@ def import_blender_camera(payload: dict[str, Any], fps: int = 24) -> OmniCamTrac
     """Import a Blender-style export: {"frames": [{"frame", "location", "track_to" | "rotation_euler"}]}.
 
     Blender is Z-up right-handed; we convert to OmniCam's Y-up look-at by
-    swapping Y/Z and negating the new Y, matching build_blender_script's export.
+    swapping Y/Z and negating the new Y.
     """
     frames = payload.get("frames")
     if not isinstance(frames, list) or not frames:
@@ -50,7 +50,7 @@ def import_blender_camera(payload: dict[str, Any], fps: int = 24) -> OmniCamTrac
         if target is None:
             rotation = entry.get("rotation_euler", [0, 0, 0])
             # Derive the look target from the Euler rotation (camera looks down -Z in Blender).
-            rx, ry, rz = (math.radians(float(rotation[i])) for i in range(3))
+            rx, ry, _rz = (math.radians(float(rotation[i])) for i in range(3))
             forward = [math.sin(ry) * math.cos(rx), -math.sin(rx), -math.cos(ry) * math.cos(rx)]
             target = [location[i] + forward[i] * 5.0 for i in range(3)]
         keyframes.append(
@@ -89,7 +89,7 @@ def stabilize_track(track: OmniCamTrack, strength: float = 0.5) -> OmniCamTrack:
         return track
     smoothed = smooth_camera_path(track, radius=2)
     keyframes = []
-    for original, smooth in zip(track.keyframes, smoothed.keyframes):
+    for original, smooth in zip(track.keyframes, smoothed.keyframes, strict=True):
         camera = CameraState.from_dict(
             {
                 "position": [original.camera.position[i] + (smooth.camera.position[i] - original.camera.position[i]) * strength for i in range(3)],

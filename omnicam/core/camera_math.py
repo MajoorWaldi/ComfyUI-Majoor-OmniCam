@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Sequence
+from collections.abc import Sequence
 
 Vec3 = list[float]
 
@@ -123,8 +123,25 @@ def rotate_quaternion(vector: Sequence[float], quaternion: Sequence[float]) -> l
 
 
 def euler_from_quaternion(quaternion: Sequence[float]) -> list[float]:
+    """Inverse of :func:`quaternion_from_euler`, in the same XYZ order.
+
+    The previous implementation extracted a ZYX (roll-pitch-yaw) sequence while
+    quaternion_from_euler composed an XYZ one, so the two were not inverses:
+    a child object under an identity parent came back rotated. Object parenting
+    goes through exactly this round trip, so every parented rotation was wrong.
+    """
     x, y, z, w = quaternion
-    rx = math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y))
-    ry = math.asin(max(-1.0, min(1.0, 2 * (w * y - z * x))))
-    rz = math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z))
+    m11 = 1 - 2 * (y * y + z * z)
+    m12 = 2 * (x * y - z * w)
+    m13 = 2 * (x * z + y * w)
+    m22 = 1 - 2 * (x * x + z * z)
+    m23 = 2 * (y * z - x * w)
+    m32 = 2 * (y * z + x * w)
+    m33 = 1 - 2 * (x * x + y * y)
+    ry = math.asin(max(-1.0, min(1.0, m13)))
+    if abs(m13) < 0.9999999:
+        rx, rz = math.atan2(-m23, m33), math.atan2(-m12, m11)
+    else:
+        # Gimbal lock: pitch is +/-90 degrees, so roll and yaw are one freedom.
+        rx, rz = math.atan2(m32, m22), 0.0
     return [math.degrees(value) for value in (rx, ry, rz)]

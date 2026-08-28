@@ -30,7 +30,9 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
   expect(mounted.graphScale).toBeCloseTo(0.65, 2);
   expect(await page.locator('.majoor-omnicam .top .toolbar-menu').count()).toBe(4);
   expect(await page.locator('.majoor-omnicam .top [data-act="play"]').count()).toBe(0);
-  expect(await page.locator('.majoor-omnicam .timeline-toolbar .icon-button').count()).toBe(10);
+  // 8 transport controls (first/prev-key/prev-frame/play/next-frame/next-key/
+  // last/loop) + Key + Auto-Key + the Graph Editor toggle.
+  expect(await page.locator('.majoor-omnicam .timeline-toolbar .icon-button').count()).toBe(11);
   await expect(page.locator('.majoor-omnicam [data-role="curve-canvas"]')).toBeVisible();
   await expect(page.locator('.majoor-omnicam .viewport-inspector')).toBeVisible();
   await expect(page.locator('.majoor-omnicam .viewport-actions [data-act="record"]')).toBeVisible();

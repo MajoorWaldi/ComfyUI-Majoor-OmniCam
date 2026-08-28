@@ -81,7 +81,7 @@ def editor_state_to_track(payload: dict[str, Any], camera_id: str | None = None,
         "objects": objects,
         **({"constraints": constraints} if constraints else {}),
         "metadata": {
-            **(state.get("metadata") if isinstance(state.get("metadata"), dict) else {}),
+            **(state_metadata if isinstance(state_metadata := state.get("metadata"), dict) else {}),
             "source_schema": EDITOR_STATE_SCHEMA,
             "camera_id": camera.get("id"),
             "camera_name": camera.get("name"),

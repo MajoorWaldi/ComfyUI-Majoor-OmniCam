@@ -6,7 +6,8 @@ from dataclasses import asdict
 from itertools import pairwise
 from typing import Any
 
-from .camera_math import camera_basis, focal_length_to_fov as _focal_to_fov
+from .camera_math import camera_basis
+from .camera_math import focal_length_to_fov as _focal_to_fov
 from .camera_math import fov_to_focal_length as _fov_to_focal
 from .track import CameraKeyframe, CameraState, OmniCamTrack
 
@@ -367,11 +368,12 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
         lens_type = "telephoto lens"
 
     # Dolly zoom (vertigo effect) detection
-    is_dolly_zoom = False
-    if abs(fov_delta) > 5.0 and abs(dist_to_target_delta) > 0.5:
-        # Distance decreases while FOV increases (push-in + zoom-out), or vice-versa
-        if (dist_to_target_delta < 0 and fov_delta > 0) or (dist_to_target_delta > 0 and fov_delta < 0):
-            is_dolly_zoom = True
+    # Distance decreases while FOV increases (push-in + zoom-out), or vice-versa
+    is_dolly_zoom = (
+        abs(fov_delta) > 5.0
+        and abs(dist_to_target_delta) > 0.5
+        and ((dist_to_target_delta < 0 and fov_delta > 0) or (dist_to_target_delta > 0 and fov_delta < 0))
+    )
 
     # Speed metrics
     speeds = motion_speed_profile(track)
@@ -385,7 +387,7 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
         centered_left = [value - mean_left for value in left]
         centered_right = [value - mean_right for value in right]
         denominator = math.sqrt(sum(v * v for v in centered_left) * sum(v * v for v in centered_right))
-        return 0.0 if denominator < 1e-12 else sum(a * b for a, b in zip(centered_left, centered_right)) / denominator
+        return 0.0 if denominator < 1e-12 else sum(a * b for a, b in zip(centered_left, centered_right, strict=True)) / denominator
 
     path_curvature = 0.0
     segments = [[b.position[i] - a.position[i] for i in range(3)] for a, b in pairwise(cameras)]

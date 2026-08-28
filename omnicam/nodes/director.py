@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from comfy_api.latest import IO, UI
 
-from ..core.editor_state import editor_state_to_track
 from ..core.director_shot import build_director_shot, build_shot_collection
+from ..core.editor_state import editor_state_to_track
 from ..core.track import OmniCamTrack
 from ..core.video_sampling import sample_video_frames
 from .base import OMNICAM_SHOT_COLLECTION, OMNICAM_TRACK, resolve_video
+
+logger = logging.getLogger(__name__)
 
 
 class MajoorOmniCamDirector(IO.ComfyNode):
@@ -35,7 +38,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 IO.Float.Input("duration_seconds", default=5.0, min=0.25, max=120.0, step=0.25),
                 IO.Combo.Input(
                     "render_mode",
-                    options=["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid"],
+                    options=["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"],
                 ),
                 IO.Image.Input("image", optional=True),
                 IO.Video.Input("video", optional=True),
@@ -153,7 +156,13 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         })
         preview = image[:32] if image is not None else None
         if preview is None and proxy_video is not None:
-            sampled = sample_video_frames(proxy_video, max_frames=32, mode="uniform")
-            preview = sampled if sampled.shape[0] else None
+            # The proxy thumbnail is cosmetic: an unreadable or non-decodable
+            # playblast must never abort the graph execution that produced it.
+            try:
+                sampled = sample_video_frames(proxy_video, max_frames=32, mode="uniform")
+                preview = sampled if sampled.shape[0] else None
+            except Exception as exc:  # noqa: BLE001 - any decode failure degrades to no preview
+                logger.warning("OmniCam Director could not sample the proxy video for preview: %s", exc)
+                preview = None
         ui = UI.PreviewImage(preview, cls=cls) if preview is not None else None
         return IO.NodeOutput(track.to_dict(), proxy_video, audio, shot_collection, ui=ui)

@@ -1,5 +1,9 @@
 from omnicam.adapters.h3 import classify_camera_motion
-from omnicam.core.camera_tools import analyze_camera_trajectory, apply_camera_preset, build_cinematic_motion_prompt
+from omnicam.core.camera_tools import (
+    analyze_camera_trajectory,
+    apply_camera_preset,
+    build_cinematic_motion_prompt,
+)
 from omnicam.core.track import OmniCamTrack
 
 

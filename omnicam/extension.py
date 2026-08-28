@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from comfy_api.latest import ComfyAPI, ComfyExtension, IO
+from comfy_api.latest import IO, ComfyAPI, ComfyExtension
 from typing_extensions import override
 
 from .node_registry import get_registered_nodes

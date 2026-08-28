@@ -54,7 +54,7 @@ def validate_director_shot(payload: Any) -> dict[str, Any]:
         "name": name,
         "video": payload.get("video"),
         "audio": payload.get("audio"),
-        "camera_track": validate_track_payload(payload.get("camera_track")),
+        "camera_track": validate_track_payload(raw_track if isinstance(raw_track := payload.get("camera_track"), dict) else {}),
         "metadata": copy.deepcopy(metadata) if isinstance(metadata, dict) else {},
     }
 

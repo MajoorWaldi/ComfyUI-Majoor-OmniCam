@@ -1,6 +1,7 @@
 // Pointer, drag and wheel interaction handlers.
 
 import { add, cameraBasis, clamp, cloneCamera, cloneTransform, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
+import { interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
@@ -74,6 +75,23 @@ export function onPointerDown(ui, e) {
   // A visible gizmo handle owns an unmodified primary drag, as in standard 3D
   // editors. Navigation still starts normally everywhere outside the handles.
   const canEditGizmo = canPick && !e.altKey && !e.shiftKey;
+  // A camera-path handle behaves like a gizmo: an unmodified primary drag on it
+  // reshapes the move instead of orbiting the view.
+  if (canEditGizmo && ui.webgl?.pickPathKey) {
+    const handle = ui.webgl.pickPathKey([pointerX, pointerY]);
+    if (handle) {
+      const track = (ui.state.cameras || []).find((camera) => camera.id === handle.cameraId);
+      const key = (track?.keyframes || []).find((item) => item.frame === handle.frame);
+      if (key) {
+        ui.checkpoint("Move path key");
+        ui.pathDrag = { cameraId: handle.cameraId, frame: handle.frame, anchor: [...key.camera.position] };
+        if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
+        ui.selectKeyframe?.(key);
+        return;
+      }
+    }
+  }
+
   const picked = canEditGizmo ? pickGizmo(ui, [pointerX, pointerY]) : null;
   if (picked) {
     const [a, b] = picked.segment;
@@ -305,6 +323,23 @@ export function onPointerMove(ui, e) {
     updateModalTransform(ui, e);
     return;
   }
+  if (ui.pathDrag) {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const pointerX = ((e.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const pointerY = ((e.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    const track = (ui.state.cameras || []).find((camera) => camera.id === ui.pathDrag.cameraId);
+    const key = (track?.keyframes || []).find((item) => item.frame === ui.pathDrag.frame);
+    if (key) {
+      key.camera.position = screenToPlane(
+        [pointerX, pointerY], viewportCamera(ui), ui.pathDrag.anchor, ui.canvas.width, ui.canvas.height);
+      // A hand-placed waypoint should join the move as a curve, not a corner.
+      key.interpolation = interpolationAfterDrag(key.interpolation);
+      if (ui.webgl) ui.webgl.pathKey = "";
+      ui.setFrame(ui.frame, false, false);
+      ui.render();
+    }
+    return;
+  }
   if (ui.boxSelection) {
     const rect = ui.interactionElement.getBoundingClientRect();
     ui.boxSelection.current = [
@@ -513,6 +548,17 @@ export function cancelViewportInteraction(ui) {
 }
 
 export function onPointerUp(ui, event) {
+  if (ui.pathDrag) {
+    ui.pathDrag = null;
+    if (ui.interactionElement.style) ui.interactionElement.style.cursor = "";
+    ui.interactionElement.releasePointerCapture?.(event.pointerId);
+    ui.activePointerId = null;
+    ui.canvas.classList.remove("dragging");
+    ui.scheduleSerialize();
+    ui.refreshKeys();
+    ui.setStatus(t("Path key moved"));
+    return;
+  }
   if (ui.boxSelection) {
     const selection = ui.boxSelection;
     const camera = viewportCamera(ui);

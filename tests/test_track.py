@@ -216,3 +216,36 @@ def test_projection_switches_use_last_key_at_or_before_frame():
         for frame, kind in [(0, "perspective"), (20, "orthographic"), (40, "perspective"), (60, "orthographic")]
     ]})
     assert [track.sample(frame).camera_type for frame in (19, 20, 39, 40, 59, 60)] == ["perspective", "orthographic", "orthographic", "perspective", "perspective", "orthographic"]
+
+
+def test_hold_interpolation_freezes_until_the_next_key():
+    """The UI has always offered "Hold / Step".
+
+    It was silently coerced to ease in the browser and rejected outright by the
+    validator, so picking it did nothing. The segment is driven by the left key,
+    so holding means never advancing toward the right one.
+    """
+    track = OmniCamTrack.from_dict({
+        "fps": 24, "duration_frames": 11, "width": 640, "height": 360,
+        "keyframes": [
+            {"frame": 0, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30},
+             "interpolation": "hold"},
+            {"frame": 10, "camera": {"position": [10, 0, 0], "target": [0, 0, 0], "fov": 60},
+             "interpolation": "linear"},
+        ],
+    })
+    for frame in range(10):
+        camera = track.sample(frame)
+        assert camera.position[0] == 0.0, f"frame {frame} must still hold the first key"
+        assert camera.fov == 30.0
+    landed = track.sample(10)
+    assert landed.position[0] == 10.0
+    assert landed.fov == 60.0
+
+
+def test_hold_is_an_accepted_interpolation_end_to_end():
+    from omnicam.core.validation import INTERPOLATION_MODES, validate_track_payload
+
+    assert "hold" in INTERPOLATION_MODES
+    payload = validate_track_payload({"keyframes": [{"frame": 0, "camera": {}, "interpolation": "hold"}]})
+    assert payload["keyframes"][0]["interpolation"] == "hold"

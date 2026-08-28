@@ -77,7 +77,10 @@ une sélection rectangulaire additive, maintenir `Shift` au démarrage.
 
 | Contrôle | Action |
 |---|---|
+| Cliquer/glisser la règle | Scrubber les images |
 | Cliquer/glisser la timeline | Scrubber les images |
+| Clic sur un losange de canal | Aller à cette clé et la sélectionner |
+| Onglets Graph Editor / Dope Sheet | Basculer la vue du panneau bas |
 | Glisser une clé | Déplacer la clé dans le temps |
 | `Shift + clic` | Ajouter une clé à la sélection |
 | `Shift + glisser` dans le vide | Sélection rectangulaire de clés |
@@ -85,6 +88,27 @@ une sélection rectangulaire additive, maintenir `Shift` au démarrage.
 | Molette | Zoom temporel |
 | Bouton milieu ou `Alt/Option + glisser` | Pan |
 | Glisser un point/une tangente | Modifier la valeur ou l'interpolation |
+
+## Chrome du viewport
+
+Le rail vertical à gauche du viewport regroupe l'outil de sélection, les gizmos
+translation / rotation / échelle, les quatre modes de sélection, le cadrage de
+la cible et la bascule du panneau latéral. Les pastilles en haut à gauche
+choisissent la vue et la caméra active ; le coin haut droit affiche le zoom et
+la bascule plein écran, qui masque les panneaux pour ne garder que l'image.
+
+Sous ce coin, le gizmo d'axes indique l'orientation du monde : X en rouge, Y en
+vert, Z en bleu. L'axe qui pointe vers vous porte sa lettre, celui qui s'éloigne
+reste un point atténué. C'est un calque SVG, pas un rendu WebGL : il n'apparaît
+donc jamais dans le playblast, qui doit rester une référence de mouvement neutre.
+
+## Mini-radar
+
+La case *Display → 2D Radar Mini-Map* affiche une carte vue de dessus en bas à
+droite du viewport : position et cône de visée de la caméra active, cible,
+objets de la scène, clés de trajectoire, et une pastille d'altitude colorée par
+tranche de hauteur. L'échelle s'adapte pour garder caméra et cible dans le
+cadre. Le radar n'est jamais dessiné pendant un playblast.
 
 ## Vérification manuelle du viewport
 

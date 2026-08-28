@@ -463,6 +463,134 @@ See the full control reference:
 
 ---
 
+# Director Layout
+
+The Director is a panelled shot-layout tool rather than a form node:
+
+```text
+header      OmniCam Director · overflow menu · live status
+toolbar     Viewport · Cameras · View · Display        Playblast · proxy mode
+body        viewport (tool rail, view pills, zoom, axis gizmo, radar, hints) | Outliner / Inspector / Shot
+lower       camera preview | transport · frame ruler · multi-channel dope sheet
+graph       Graph Editor / Dope Sheet tabs (channel list, interpolation, tangents)
+footer      help                                              Playblast
+```
+
+The **Inspector** groups the camera into Lens (focal length in millimetres and
+FOV, two readouts of the same value), Transform, and Motion. Advanced controls
+that the panel does not surface directly -- lens presets, blocking scene sets,
+motion presets, camera shakes, projection and clipping -- live in the toolbar
+tabs and in the collapsed sections beneath each card. Nothing was removed.
+
+The **dope sheet** shows one row per animated channel under a shared frame
+ruler. OmniCam keys are whole-camera, so a channel row marks the keys where
+*that channel actually changes*; the master Camera row still owns all drag,
+retime and selection. Every lane is the same height and the ruler is a lane of
+its own, so the ticks and the diamonds line up by construction. Dragging the
+ruler scrubs; the range input behind it is kept off-screen so keyboard and
+assistive users still have a focusable scrubber.
+
+The lower panel has two views of the same keys. **Graph Editor** draws the
+curves; **Dope Sheet** breaks the graphed group into its individual components
+(Position X, Y and Z as three rows) so it lines up with the channel list beside
+it. Both axes of the graph snap to round numbers, and the X axis uses the same
+step function as the ruler above, so a frame sits at the same place in both.
+
+**Path Smoothing** blends interior keys toward their neighbours from an
+untouched baseline, so dragging the slider back to 0% restores the authored keys
+exactly. It never bakes a key per frame.
+
+---
+
+# Camera Interchange
+
+OmniCam exports to *formats*, not to applications, so nothing depends on a
+vendor plugin staying current. **Viewport → Camera Interchange** holds both
+directions.
+
+| Export | Read by | Fidelity |
+|---|---|---|
+| `.glb` / `.gltf` | Blender, Maya, Unreal, Unity, Houdini, web viewers | lossless back into OmniCam |
+| `.usda` | Maya, Houdini, Unreal, Blender, usdview | position, orientation and animated focal length |
+| `.chan` | Maya, Nuke, Houdini, 3DEqualizer, SynthEyes, PFTrack | position, aim direction, roll and FOV |
+
+Import accepts `.gltf`, `.glb`, `.fbx`, `.chan` and OmniCam or Blender JSON.
+FBX is decoded in the viewport with the loader it already bundles; everything
+else is read by the backend, which owns the track contract.
+
+Two properties worth knowing:
+
+- **Everything is baked, one sample per frame.** OmniCam interpolates with
+  ease / smooth / bezier / hold, and none of those exist in glTF, USD or
+  `.chan`. Writing only the keys would hand the receiving application a
+  different curve than the one the playblast recorded.
+- **glTF round-trips losslessly** because the canonical track rides along in
+  `extras.omnicam`. A glTF camera node cannot express the look-at *distance*,
+  an animated field of view, or the authored interpolation; other applications
+  read the standard node and animation, while OmniCam reads the sidecar.
+
+**Not offered:** OBJ has no camera, no animation and no field of view, so a
+camera cannot be stored in it at all. FBX has no usable pure-Python writer and
+its readers are strict about version and structure, so export goes through
+glTF or USD, which reach the same applications.
+
+---
+
+# Studio Viewport
+
+The editing viewport is lit like a modern 3D web tool: image-based lighting from
+a graded sky, a key/fill/rim rig, a soft contact shadow and ACES tone mapping.
+
+This is a *presentation* layer, and it stops at the capture boundary. The proxy
+playblast still records the flat neutral reference the conditioning models
+expect (AGENTS.md §7), because a pretty reference invites the model to copy
+appearance as well as motion. One render mode opts out of that rule:
+
+| Render mode | Viewport | Playblast |
+|---|---|---|
+| `omni_ref`, `graybox`, `grid`, `point_field`, `wireframe`, `card_grid` | lit studio | flat neutral proxy |
+| `beauty` | lit studio | lit studio |
+
+**Quality** lives in ComfyUI settings under *OmniCam → Viewport*: Low, Balanced
+(default) or High, changing shadow resolution and exposure. With *Drop quality
+when the viewport stutters* enabled, a sustained run below ~40fps steps the
+level down once and leaves it there; it never climbs back on its own, because
+oscillating quality mid-drag is worse than being one level conservative.
+
+Two implementation constraints worth knowing before editing the rig:
+
+- The key light is **always** a shadow caster and `shadowMap.enabled` is always
+  true. Toggling either after the first frame changes shader defines that
+  three.js will not recompile, and the shadows silently vanish. Quality only
+  moves the shadow map resolution.
+- `logarithmicDepthBuffer` is **off**. It is incompatible with shadow mapping,
+  which is why the viewport had no shadows at all while it was enabled.
+
+---
+
+# Settings and Language
+
+OmniCam registers its preferences in ComfyUI's own settings dialog, under
+**OmniCam → Director**. They seed *newly created* Director nodes only; values
+already saved in a workflow always win when that workflow is loaded.
+
+| Setting | Default | Effect |
+|---|---|---|
+| `Viewport language` | Follow ComfyUI | Language of the Director viewport |
+| `Default FPS` | 24 | Frame rate of a new Director node |
+| `Default proxy render mode` | `omni_ref` | Render mode of a new Director node |
+| `Default playblast encoder` | WebCodecs | Deterministic encoder, or the realtime fallback |
+
+The viewport ships English and French. `Follow ComfyUI` mirrors the `Comfy.Locale`
+setting, so switching ComfyUI to French switches OmniCam too.
+
+Adding another language means dropping a catalogue in `web-src/locales/` and
+registering it: every user-facing string already resolves through `t()`.
+`npm run check:locales` reports coverage and fails on keys that no longer exist
+in the source.
+
+---
+
 # Workflow Examples
 
 Screenshots and example workflows will be added progressively.
@@ -681,8 +809,13 @@ Current package requirements include:
 ```text
 ComfyUI >= 0.31.0
 Python >= 3.10
-comfyui-frontend-package >= 1.48.7
+comfyui-frontend-package >= 1.48.7  (shipped with ComfyUI)
 ```
+
+`comfyui-frontend-package` is declared in `pyproject.toml`, which is the
+mechanism the [Registry specification](https://docs.comfy.org/registry/specifications)
+defines for frontend compatibility. It is a lower bound: it only pulls an
+upgrade when your ComfyUI frontend is actually older than OmniCam needs.
 
 OmniCam is tested against supported ComfyUI versions in CI.
 
@@ -825,6 +958,21 @@ web/
 ```
 
 The production frontend is bundled into a single public JavaScript entrypoint.
+ComfyUI eagerly imports every `.js` found recursively under a node's web
+directory, so code-splitting the bundle would not defer anything; instead the
+three.js surface is narrowed to what the viewport actually uses, in
+`web-src/three-runtime.js`.
+
+Local checks:
+
+```text
+npm run check          # line limits, encoding, three.js surface, locales, DOM contract, licences, bundle syntax
+npm run test:unit      # frontend unit tests
+npm run test:browser   # Playwright viewport tests
+pytest -q              # Python suite (skips ComfyUI-only suites when absent)
+ruff check .
+mypy                   # scoped to the pure camera math, see pyproject.toml
+```
 
 ---
 
@@ -849,14 +997,19 @@ The project includes tests for areas such as:
 CI currently covers:
 
 ```text
-Python 3.10
-Python 3.12
+Python 3.10 / 3.12, core only (no ComfyUI, no torch)
+Python 3.12 with the ComfyUI runtime dependencies present
+Lint (ruff) and type-check (mypy)
 ComfyUI minimum supported version
 Current ComfyUI
 Frontend unit tests
 Browser tests
 Production bundle validation
 ```
+
+The core suite deliberately runs without ComfyUI or torch installed: suites that
+genuinely need them skip themselves via `pytest.importorskip`, and a second job
+installs those dependencies so nothing is silently never exercised.
 
 ---
 
@@ -867,13 +1020,15 @@ OmniCam is currently focused on **camera authoring and camera-conditioning workf
 The following systems may exist internally or experimentally but are not currently part of the main public node surface:
 
 ```text
-Sequencer
-Blender transfer
-Unreal transfer
-Internal camera tools
+Internal camera-math helpers
 Scene-motion analysis helpers
 Development utilities
 ```
+
+The sequencer, the Sequence/EDL nodes, the sequence data model, the Track
+Sampler and Camera Tools nodes, the audio/video assembly stack and the
+Blender/Unreal DCC exporters were removed from the shipped package: none of them
+were reachable from the five public nodes. Their history remains in git.
 
 The public interface intentionally remains small.
 

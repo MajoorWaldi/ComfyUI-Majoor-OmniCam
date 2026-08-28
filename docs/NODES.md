@@ -102,20 +102,69 @@ La vérification inspecte les sockets exposées par les classes installées. Une
 simple présence de classe ne suffit pas à annoncer une version épinglée ou une
 compatibilité vérifiée.
 
+## Adaptateur ATI : résolution et visibilité
+
+`WanVideoATITracks` normalise les coordonnées avec **ses propres** widgets
+`width`/`height` (`process_tracks` fait `(xy - taille/2) / min(taille) * 2`).
+Écrire des pixels 1280×720 dans un node resté à 832×480 décale et rééchelonne
+silencieusement toutes les trajectoires. Le node OmniCam expose donc `width` et
+`height` en entrée **et en sortie** : câblez-les vers `WanVideoATITracks`.
+
+`pad_pts` force la visibilité à 1 pour chaque point fourni et complète à 121
+avec des zéros (visibilité 0). La seule façon de dire « ce point est sorti du
+champ » est donc d'arrêter la liste : OmniCam tronque la trajectoire à la
+première image invisible au lieu de la plaquer sur le bord, ce qui aurait
+demandé au modèle de suivre un point glissant le long du cadre. Un point non
+visible dès l'image 0 n'ouvre pas de trajectoire, faute de pouvoir exprimer une
+apparition différée.
+
+L'aperçu ATI dessine désormais les trajectoires **réellement exportées**, avec
+un rayon croissant de l'ancien vers le récent, comme le visualiseur de
+WanVideoWrapper.
+
+## Échange de caméra
+
+Export vers `.glb`/`.gltf`, `.usda` et `.chan` ; import depuis `.gltf`, `.glb`,
+`.fbx`, `.chan` et JSON OmniCam/Blender. Les fichiers écrits atterrissent sous
+`output/omnicam/exports/`. Tout est baké image par image : les interpolations
+d'OmniCam (ease, smooth, bezier, hold) n'ont aucun équivalent dans ces formats,
+donc n'écrire que les clés changerait la courbe reçue. Le glTF embarque en plus
+la piste canonique dans `extras.omnicam`, ce qui rend le retour dans OmniCam
+strictement sans perte.
+
+OBJ n'est pas proposé : le format ne connaît ni caméra, ni temps, ni champ de
+vision. FBX est lu mais pas écrit — l'export passe par glTF ou USD, qui
+atteignent les mêmes logiciels.
+
+## Mode de rendu `beauty`
+
+Le viewport d'édition est éclairé (IBL, rig trois points, ombre de contact,
+tone mapping ACES). Ce look s'arrête au playblast : tous les modes proxy
+enregistrent le rendu neutre. Seul `beauty` conserve l'éclairage dans la vidéo
+enregistrée — à réserver aux cas où l'on veut une référence jolie, en sachant
+qu'un modèle de conditionnement peut alors copier l'apparence en plus du
+mouvement.
+
 ## Composants non publics
 
-- OmniCam Sequencer : désactivé pendant sa refonte éditoriale v2 ;
 - Scene Motion Analysis : données géométriques de centres projetés, pas de
   véritables passes pixels ;
-- Blender/Unreal Camera Transfer : expérimental, non lossless ;
-- Track Sampler, Camera Tools, DCC Export et anciens nodes Sequence : internes.
+- `core/camera_tools.py` : bibliothèque interne utilisée par les adaptateurs,
+  exposée par aucun node.
+
+Le Sequencer, les nodes Sequence/EDL et Track Sampler/Camera Tools, le modèle de
+données de séquence, le montage audio/vidéo et les exports DCC (Blender/Unreal)
+ont été retirés du paquet livré : ils n'étaient atteignables depuis aucun des
+cinq nodes publics. Leur historique reste dans git.
 
 ## Compatibilité minimale
 
 OmniCam utilise actuellement `comfy_api.latest` car le contrat V3 nécessaire
 (`IO.Schema`, `IO.Video`, `IO.WanCameraEmbedding`, Node Replacement) n’est pas
 entièrement fourni par l’adapter stable `v0_0_2`. La version minimale déclarée
-et testée est donc ComfyUI `0.31.0`, avec
-`comfyui-frontend-package>=1.48.7`. La CI exécute également un import réel de
+et testée est donc ComfyUI `0.31.0`, qui embarque
+`comfyui-frontend-package>=1.48.7`. Cette dernière n'est volontairement **pas**
+déclarée dans `dependencies` : installer OmniCam ne doit pas pouvoir mettre à
+jour le frontend de l'installation hôte. La CI exécute également un import réel de
 l’extension, son hook `on_load()` et `define_schema()` sur chacun des cinq nodes,
 sur la version minimale ainsi que sur la branche courante de ComfyUI.

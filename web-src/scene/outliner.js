@@ -21,7 +21,12 @@ export function refreshObjects(ui) {
     return button;
   };
 
+  // The search box filters by name; an empty box shows everything.
+  const filter = (ui.outlinerFilter || "").trim().toLowerCase();
+  const matches = (name) => !filter || String(name || "").toLowerCase().includes(filter);
+
   for (const camera of ui.state.cameras) {
+    if (!matches(camera.name)) continue;
     const element = document.createElement("div");
     element.role = "button";
     element.tabIndex = 0;
@@ -112,6 +117,7 @@ export function refreshObjects(ui) {
   }
 
   for (const object of ui.state.objects) {
+    if (!matches(object.name || object.type)) continue;
     const element = document.createElement("div");
     element.role = "button";
     element.tabIndex = 0;

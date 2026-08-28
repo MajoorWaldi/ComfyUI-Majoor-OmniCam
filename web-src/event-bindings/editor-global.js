@@ -5,6 +5,10 @@ import { applyCinemaLens } from "../cameras.js";
 import { applyBlockingScenePreset } from "../motion-presets.js";
 import { onCurveWheel } from "../curve-editor.js";
 import { onTimelineWheel } from "../timeline-interaction.js";
+import { bindRulerScrub } from "../timeline/ruler.js";
+import { bindGraphTabs } from "../curve-editor/tabs.js";
+import { renderChannelList } from "../curve-editor/channel-list.js";
+import { renderGraphDopeSheet } from "../curve-editor/dope-view.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { t } from "../i18n.js";
 
@@ -31,7 +35,16 @@ export function bindEditorAndGlobal(ui, q, signal) {
     if (ui.fpsWidget) ui.fpsWidget.value = Number(event.target.value);
     ui.syncFromWidgets();
   }, { signal });
-  q('[data-role="curve-group"]')?.addEventListener("change", () => ui.drawCurveEditor(), { signal });
+  bindRulerScrub(ui, signal);
+  bindGraphTabs(ui, signal);
+  q('[data-role="curve-group"]')?.addEventListener("change", () => {
+    // A new group means new channels, so the solo filter no longer refers to
+    // anything: reset it before the list is rebuilt from the new channels.
+    ui.setChannelFilter("all");
+    renderChannelList(ui);
+    ui.drawCurveEditor();
+    renderGraphDopeSheet(ui);
+  }, { signal });
   q('[data-act="curve-handles"]')?.addEventListener("click", () => ui.toggleCurveHandles(), { signal });
   for (const button of ui.root.querySelectorAll("[data-curve-mode]")) {
     button.addEventListener("click", () => ui.setCurveInterpolation(button.dataset.curveMode), { signal });

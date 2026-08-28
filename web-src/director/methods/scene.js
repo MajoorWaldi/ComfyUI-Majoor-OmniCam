@@ -1,6 +1,8 @@
 // OmniCam Director methods extracted from the UI facade.
 
 import { resetCameraAnimation, resetObjectAnimation } from "../../animation-reset.js";
+import { formatFocalLength } from "../../lens.js";
+import { updatePlayhead } from "../../timeline/playhead.js";
 
 export function createSceneMethods(dependencies) {
   const { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
@@ -15,8 +17,11 @@ export function createSceneMethods(dependencies) {
     this.applyObjectAnimationFrame();
     for (const el of this.root.querySelectorAll('[data-role="frame"]')) if (document.activeElement !== el) el.value = String(this.frame);
     for (const el of this.root.querySelectorAll('[data-role="scrub"]')) el.value = String(this.frame);
-    for (const el of this.root.querySelectorAll('[data-role="fov"], [data-role="camera-fov"]')) if (document.activeElement !== el) el.value = String(Math.round(this.camera.fov * 100) / 100);
-    for (const el of this.root.querySelectorAll('[data-role="roll"], [data-role="camera-roll"]')) if (document.activeElement !== el) el.value = String(Math.round((this.camera.roll || 0) * 100) / 100);
+    for (const el of this.root.querySelectorAll('[data-role="camera-fov"]')) if (document.activeElement !== el) el.value = String(Math.round(this.camera.fov * 100) / 100);
+    for (const el of this.root.querySelectorAll('[data-role="camera-roll"]')) if (document.activeElement !== el) el.value = String(Math.round((this.camera.roll || 0) * 100) / 100);
+    // The Lens card shows the same value in millimetres alongside the FOV.
+    for (const el of this.root.querySelectorAll('[data-role="camera-focal"]')) if (document.activeElement !== el) el.value = formatFocalLength(this.camera.fov);
+    for (const el of this.root.querySelectorAll('[data-role="viewport-zoom"]')) el.textContent = `${(Number(this.camera.zoom) || 1).toFixed(2)}x`;
     for (const el of this.root.querySelectorAll('[data-role="camera-type"]')) if (document.activeElement !== el) el.value = this.camera.camera_type || "perspective";
     const sec = this.frame / this.state.fps;
     for (const media of this.cardMediaById.values()) media instanceof HTMLVideoElement && Number.isFinite(media.duration) && media.duration > 0 && (media.currentTime = sec % media.duration);
@@ -26,8 +31,7 @@ export function createSceneMethods(dependencies) {
       : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
     if (refreshTimeline) this.refreshKeys();
     else {
-      const lastFrame = Math.max(1, this.state.duration_frames - 1), playhead = this.root.querySelector('[data-role="keys"] .playhead');
-      playhead && (playhead.style.left = `${100 * this.frame / lastFrame}%`);
+      updatePlayhead(this);
       for (const element of this.root.querySelectorAll("[data-key-frame]")) {
         const keyFrame = Number(element.dataset.keyFrame);
         element.classList.toggle("at-playhead", keyFrame === this.frame), element.classList.toggle("selected", keyFrame === this.selectedKeyFrame), element.classList.toggle("editing", keyFrame === this.editingKeyFrame);
@@ -41,6 +45,15 @@ export function createSceneMethods(dependencies) {
   },
   timelineKeyframes() {
     return timelineKeyframes(this);
+  },
+  // The camera key the playhead is parked on, or null when between keys.
+  //
+  // The Lens presets, the FOV field, the Roll field and the new-key
+  // interpolation select all branch on this: sitting on a key edits that key,
+  // otherwise the edit lands on the live camera as a transient preview.
+  activeKeyframe() {
+    const camera = this.activeCameraTrack();
+    return (camera?.keyframes || []).find((key) => key.frame === this.frame) || null;
   },
   applyObjectAnimationFrame() {
     applyObjectAnimationFrame(this, sampleObjectTransform);

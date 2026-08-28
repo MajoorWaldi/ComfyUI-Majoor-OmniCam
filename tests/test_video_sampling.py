@@ -1,8 +1,11 @@
 from types import SimpleNamespace
 
-import torch
+import pytest
 
-from omnicam.core.video_sampling import sample_video_frames, sampling_indices
+# torch is a ComfyUI runtime dependency, not a core one.
+torch = pytest.importorskip("torch")
+
+from omnicam.core.video_sampling import sample_video_frames, sampling_indices  # noqa: E402
 
 
 class _TrimmedVideo:

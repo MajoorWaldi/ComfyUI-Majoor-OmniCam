@@ -11,6 +11,7 @@ from ..adapters import (
     build_h3_prompt,
     track_to_ati_bridge,
     track_to_ati_json,
+    track_to_ati_tracks,
     track_to_ltx_camera_bridge,
     track_to_wan_camera_params,
 )
@@ -160,13 +161,26 @@ class MajoorOmniCamWanVideoWrapperATI(IO.ComfyNode):
             node_id="MajoorOmniCamWanVideoWrapperATI",
             display_name="OmniCam → WanVideoWrapper ATI",
             category="Majoor/OmniCam/Adapters",
-            description="Produces the exact tracks STRING consumed by WanVideoATITracks at the pinned supported commit.",
+            description=(
+                "Produces the exact tracks STRING consumed by WanVideoATITracks. "
+                "WanVideoATITracks normalises the coordinates with its own width/height, "
+                "so wire the width and height outputs to it as well: leaving them "
+                "mismatched silently offsets and rescales every trajectory."
+            ),
             inputs=[
                 OMNICAM_TRACK.Input("camera_track"),
                 IO.Int.Input("point_count", default=16, min=4, max=128, step=1),
                 IO.Combo.Input("distribution", options=["balanced", "subject_focus", "ground_parallax"]),
+                IO.Int.Input("width", default=832, min=64, max=4096, step=8,
+                             tooltip="Must equal the width set on WanVideoATITracks."),
+                IO.Int.Input("height", default=480, min=64, max=4096, step=8,
+                             tooltip="Must equal the height set on WanVideoATITracks."),
             ],
-            outputs=[IO.String.Output(display_name="tracks")],
+            outputs=[
+                IO.String.Output(display_name="tracks"),
+                IO.Int.Output(display_name="width"),
+                IO.Int.Output(display_name="height"),
+            ],
         )
 
     @classmethod
@@ -175,14 +189,24 @@ class MajoorOmniCamWanVideoWrapperATI(IO.ComfyNode):
         camera_track: dict[str, Any],
         point_count: int = 16,
         distribution: str = "balanced",
+        width: int = 832,
+        height: int = 480,
     ) -> IO.NodeOutput:
-        return IO.NodeOutput(
-            track_to_ati_json(
-                validated_track(camera_track),
-                point_count=point_count,
-                distribution=distribution,
-            )
+        tracks = track_to_ati_json(
+            validated_track(camera_track),
+            point_count=point_count,
+            distribution=distribution,
+            width=width,
+            height=height,
         )
+        return IO.NodeOutput(tracks, width, height)
+
+
+def _trajectory_color(hue: float) -> list[float]:
+    """A distinct colour per trajectory; 3 hard-coded colours were unreadable at 128 points."""
+    import colorsys
+
+    return list(colorsys.hsv_to_rgb((hue / 6.0) % 1.0, 0.85, 1.0))
 
 
 class MajoorOmniCamATIPreview(IO.ComfyNode):
@@ -209,19 +233,34 @@ class MajoorOmniCamATIPreview(IO.ComfyNode):
         point_count: int = 16,
         distribution: str = "balanced",
     ) -> IO.NodeOutput:
+        """Draw exactly the tracks the ATI node will receive.
+
+        This used to draw the intermediate bridge, which contains samples the
+        exporter drops, so the picture disagreed with what was actually sent.
+        Age is encoded the way WanVideoWrapper's own visualiser does it: the dot
+        grows from oldest to newest, so direction and dwell are readable rather
+        than being an undifferentiated cloud of squares.
+        """
         track = validated_track(camera_track)
-        bridge = track_to_ati_bridge(track, point_count=point_count, distribution=distribution)
         preview = image[:1].clone()
         height, width = preview.shape[1:3]
-        colors = ([1.0, 0.25, 0.1], [0.1, 0.8, 1.0], [0.2, 1.0, 0.35])
-        for index, trajectory in enumerate(bridge["trajectories"]):
-            color = torch.tensor(colors[index % len(colors)], device=preview.device, dtype=preview.dtype)
-            for sample in trajectory["samples"]:
-                if not sample.get("visible"):
-                    continue
-                x = max(0, min(width - 1, round(sample["x_norm"] * (width - 1))))
-                y = max(0, min(height - 1, round(sample["y_norm"] * (height - 1))))
-                preview[0, max(0, y - 2):min(height, y + 3), max(0, x - 2):min(width, x + 3), :3] = color
+        tracks = track_to_ati_tracks(
+            track, point_count=point_count, distribution=distribution, width=width, height=height)
+
+        for index, points in enumerate(tracks):
+            hue = (index / max(1, len(tracks))) * 6.0
+            base = _trajectory_color(hue)
+            last = max(1, len(points) - 1)
+            for order, point in enumerate(points):
+                age = order / last
+                radius = 1 + round(age * 3)
+                # Older samples are dimmed so the head of the track stands out.
+                shade = [channel * (0.35 + 0.65 * age) for channel in base]
+                color = torch.tensor(shade, device=preview.device, dtype=preview.dtype)
+                x = max(0, min(width - 1, round(point["x"])))
+                y = max(0, min(height - 1, round(point["y"])))
+                preview[0, max(0, y - radius):min(height, y + radius + 1),
+                        max(0, x - radius):min(width, x + radius + 1), :3] = color
         return IO.NodeOutput(preview)
 
 

@@ -227,3 +227,69 @@ def test_unversioned_sequence_has_a_registered_migration():
 def test_object_hierarchy_rejects_missing_parents_and_cycles(objects):
     with pytest.raises(ValidationError):
         validate_track_payload({"objects": objects})
+
+
+def test_beauty_render_mode_is_accepted_and_unknown_modes_are_not():
+    """The lit "beauty" mode records the studio viewport instead of a flat proxy."""
+    assert validate_track_payload({"render_mode": "beauty"})["render_mode"] == "beauty"
+    with pytest.raises(ValidationError, match="render_mode"):
+        validate_track_payload({"render_mode": "cinematic"})
+
+
+def test_frontend_state_limits_match_the_python_validator():
+    """The editor renders a workflow before Python ever sees it.
+
+    sanitizeState() therefore has to enforce the same ceilings; if the two drift,
+    a workflow the browser happily renders gets rejected at queue time (or, worse,
+    a hostile one is rendered before being rejected).
+    """
+    import re
+    from pathlib import Path
+
+    from omnicam.core.validation import DEFAULT_LIMITS
+
+    source = (Path(__file__).resolve().parents[1] / "web-src" / "director" / "core.js").read_text(encoding="utf-8")
+    block = re.search(r"export const STATE_LIMITS = \{(.*?)\};", source, re.S)
+    assert block, "STATE_LIMITS must stay declared in web-src/director/core.js"
+    values = dict(re.findall(r"(\w+):\s*([0-9*\s]+),", block.group(1)))
+
+    def number(key: str) -> int:
+        # The values are plain integers or a digits-only product such as 120 * 120.
+        return math.prod(int(part) for part in values[key].split("*"))
+
+    assert number("maxCameras") == DEFAULT_LIMITS.max_cameras
+    assert number("maxObjects") == DEFAULT_LIMITS.max_objects
+    assert number("maxKeysPerTrack") == DEFAULT_LIMITS.max_keys_per_track
+    assert number("maxDurationFrames") == DEFAULT_LIMITS.max_duration_frames
+
+
+def test_metadata_is_bounded_to_the_documented_limits():
+    """docs/SECURITY.md advertises 4096 characters per text field.
+
+    Metadata was exempt, so an arbitrarily large string rode along in every
+    workflow and every adapter payload.
+    """
+    from omnicam.core.validation import MAX_METADATA_ENTRIES, MAX_TEXT_LENGTH
+
+    payload = validate_track_payload({"metadata": {
+        "note": "x" * 100_000,
+        "nested": {"deep": "y" * 100_000},
+        "listed": ["z" * 100_000],
+        "not_a_number": float("nan"),
+        **{f"k{i}": i for i in range(200)},
+    }})
+    metadata = payload["metadata"]
+    assert len(metadata["note"]) == MAX_TEXT_LENGTH
+    assert len(metadata["nested"]["deep"]) == MAX_TEXT_LENGTH
+    assert len(metadata["listed"][0]) == MAX_TEXT_LENGTH
+    assert metadata["not_a_number"] == 0.0, "non-finite metadata must not survive"
+    assert len(metadata) <= MAX_METADATA_ENTRIES
+
+
+def test_metadata_keeps_ordinary_values_intact():
+    payload = validate_track_payload({"metadata": {
+        "camera_id": "cam_1", "count": 3, "ratio": 1.5, "flag": True, "empty": None,
+    }})
+    assert payload["metadata"] == {
+        "camera_id": "cam_1", "count": 3, "ratio": 1.5, "flag": True, "empty": None,
+    }

@@ -1,5 +1,7 @@
 // WebGL viewport methods extracted from the public facade.
 
+import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
+
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
   return {
@@ -20,6 +22,13 @@ export function createResourceMethods(dependencies) {
   },
 
   rebuild(state, mediaById, modelUrlsById) {
+    this.content.traverse((parent) => {
+      for (const child of [...parent.children]) {
+        if (!child.userData.omnicamHelper) continue;
+        parent.remove(child);
+        disposeObject(child, true);
+      }
+    });
     disposeObject(this.content); this.content.clear();
     this.objectNodes.clear();
     this.selectionKey = "";
@@ -156,6 +165,8 @@ export function createResourceMethods(dependencies) {
         );
         marker.position.fromArray(key.camera.position);
         marker.renderOrder = 910;
+        // Identifies the marker as a draggable handle for this exact keyframe.
+        marker.userData.omnicamPathKey = { cameraId: camera.id, frame: key.frame };
         this.path.add(marker);
 
         const position = new THREE.Vector3().fromArray(key.camera.position);
@@ -184,6 +195,22 @@ export function createResourceMethods(dependencies) {
           opacity: isActive ? 0.9 : 0.45,
           depthTest: false,
         })));
+
+        // A shaded body with a lens cone reads as a camera at a glance, where
+        // the frustum lines alone read as an abstract shape.
+        this.path.add(cameraBodyGizmo(THREE, {
+          position, forward, up,
+          color: palette.marker,
+          scale: THREE.MathUtils.clamp(distance * 1.15, 0.35, 1.6),
+          active: isActive,
+        }));
+
+        if (isActive) {
+          this.path.add(targetCrosshair(THREE, {
+            position: target,
+            radius: THREE.MathUtils.clamp(position.distanceTo(target) * 0.05, 0.16, 0.5),
+          }));
+        }
       }
     });
 

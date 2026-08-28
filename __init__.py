@@ -10,6 +10,6 @@ if __package__:
     from .omnicam import routes as _routes  # noqa: F401
     from .omnicam.extension import comfy_entrypoint
 
-    __all__ = ["comfy_entrypoint", "WEB_DIRECTORY"]
+    __all__ = ["WEB_DIRECTORY", "comfy_entrypoint"]
 else:
     __all__ = ["WEB_DIRECTORY"]

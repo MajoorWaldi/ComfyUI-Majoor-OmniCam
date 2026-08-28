@@ -2,6 +2,7 @@
 
 import { bindEditorAndGlobal } from "./event-bindings/editor-global.js";
 import { bindTransportAndMedia } from "./event-bindings/transport-media.js";
+import { bindDirectorChrome } from "./event-bindings/director-chrome.js";
 import { bindViewportSettings } from "./event-bindings/viewport-settings.js";
 
 export function syncMirroredControl(root, role, source, property = "value") {
@@ -17,4 +18,5 @@ export function bind(ui) {
   bindTransportAndMedia(ui, q, signal);
   bindViewportSettings(ui, q, signal);
   bindEditorAndGlobal(ui, q, signal);
+  bindDirectorChrome(ui, signal);
 }

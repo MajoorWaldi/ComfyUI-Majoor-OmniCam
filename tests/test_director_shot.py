@@ -1,6 +1,11 @@
 import pytest
 
-from omnicam.core.director_shot import build_director_shot, build_shot_collection, validate_director_shot, validate_shot_collection
+from omnicam.core.director_shot import (
+    build_director_shot,
+    build_shot_collection,
+    validate_director_shot,
+    validate_shot_collection,
+)
 from omnicam.core.track import OmniCamTrack
 
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import folder_paths
 from comfy_api.latest import IO, InputImpl
@@ -36,14 +35,5 @@ def validated_track(payload: dict) -> OmniCamTrack:
     return OmniCamTrack.from_dict(validate_track_payload(payload))
 
 
-def write_output(filename: str, content: str) -> str:
-    output = Path(folder_paths.get_output_directory()) / "omnicam"
-    output.mkdir(parents=True, exist_ok=True)
-    path = output / filename
-    path.write_text(content, encoding="utf-8")
-    return str(path)
-
-
 # Backward compatibility aliases
 _resolve_video = resolve_video
-_write_output = write_output
