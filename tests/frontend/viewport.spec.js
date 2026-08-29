@@ -176,3 +176,126 @@ test("the radar reads live keys and stays out of the playblast", async ({ page }
   expect(probe.staleAlias).toBe(probe.on);
   expect(probe.recording).toBe(probe.off);
 });
+
+test("outliner modifier clicks preserve and remove object group selection", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.state.objects.push({
+      id: "qa_sphere", name: "QA Sphere", type: "sphere", position: [2, 1, 0],
+      rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [], enabled: true,
+    });
+    ui.refreshObjects();
+  });
+  const cube = page.locator('[data-object-id="qa_cube"]');
+  const sphere = page.locator('[data-object-id="qa_sphere"]');
+  await cube.click();
+  await sphere.click({ modifiers: ["Control"] });
+  expect(await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { entity: ui.selectedEntity, ids: [...ui.selectedObjectIds].sort(), active: ui.selectedObjectId };
+  })).toEqual({ entity: "object", ids: ["qa_cube", "qa_sphere"], active: "qa_sphere" });
+  await sphere.click({ modifiers: ["Control"] });
+  expect(await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { entity: ui.selectedEntity, ids: [...ui.selectedObjectIds].sort(), active: ui.selectedObjectId };
+  })).toEqual({ entity: "object", ids: ["qa_cube"], active: "qa_cube" });
+  await cube.click({ modifiers: ["Control"] });
+  expect(await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { entity: ui.selectedEntity, ids: [...ui.selectedObjectIds], active: ui.selectedObjectId };
+  })).toEqual({ entity: "camera", ids: [], active: null });
+});
+
+test("undo restores complete object and key selections", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  const selection = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.state.objects.push({
+      id: "qa_sphere", name: "QA Sphere", type: "sphere", position: [2, 1, 0],
+      rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [], enabled: true,
+    });
+    ui.selectedEntity = "object";
+    ui.selectedObjectIds = new Set(["qa_cube", "qa_sphere"]);
+    ui.selectedObjectId = "qa_sphere";
+    ui.selectedKeyFrames = null;
+    ui.selectedKeyFrame = null;
+    ui.history.clear();
+    ui.checkpoint("Keep group selection");
+    ui.state.objects[0].position[0] = 99;
+    ui.selectedObjectIds = new Set(["qa_cube"]);
+    ui.selectedObjectId = "qa_cube";
+    ui.selectedKeyFrames = null;
+    ui.selectedKeyFrame = null;
+    ui.undo();
+    const objects = {
+      objects: [...ui.selectedObjectIds].sort(), activeObject: ui.selectedObjectId,
+    };
+    ui.selectedEntity = "camera";
+    ui.selectedObjectIds = new Set();
+    ui.selectedObjectId = null;
+    ui.setFrame(10);
+    ui.insertKeyframe();
+    ui.selectedKeyFrames = new Set([0, 10]);
+    ui.selectedKeyFrame = 10;
+    ui.history.clear();
+    ui.checkpoint("Keep key group selection");
+    ui.selectedKeyFrames = new Set([0]);
+    ui.selectedKeyFrame = 0;
+    ui.undo();
+    return {
+      ...objects,
+      keys: [...ui.selectedKeyFrames].sort((a, b) => a - b), activeKey: ui.selectedKeyFrame,
+    };
+  });
+  expect(selection).toEqual({ objects: ["qa_cube", "qa_sphere"], activeObject: "qa_sphere", keys: [0, 10], activeKey: 10 });
+});
+
+test("leaving key edit clears every selected key", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  const selection = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.selectedKeyFrame = 10;
+    ui.selectedKeyFrames = new Set([0, 10]);
+    ui.exitKeyEdit(true);
+    return { active: ui.selectedKeyFrame, keys: ui.selectedKeyFrames };
+  });
+  expect(selection).toEqual({ active: null, keys: null });
+});
+
+test("the radar draws a continuous path for the active camera keys", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+
+  const segments = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const context = ui.canvas.getContext("2d");
+    const track = ui.activeCameraTrack();
+    const base = { fov: 35, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
+    ui.state.show_radar = true;
+    ui.state.guides = false;
+    ui.state.safe_areas = false;
+    ui.drawTransformGizmo = () => {};
+    const countLineSegments = (keyframes) => {
+      track.keyframes = keyframes;
+      ui.state.keyframes = keyframes;
+      let lines = 0;
+      const real = context.lineTo.bind(context);
+      context.lineTo = (...args) => { lines++; return real(...args); };
+      try { ui.drawOverlays(); } finally { context.lineTo = real; }
+      return lines;
+    };
+    const key = (frame, position) => ({ frame, interpolation: "linear", camera: { ...base, position, target: [0, 0, 0] } });
+    return {
+      oneKey: countLineSegments([key(0, [0, 1.5, 5])]),
+      threeKeys: countLineSegments([key(0, [0, 1.5, 5]), key(10, [4, 2, 3]), key(20, [7, 2.5, 0])]),
+    };
+  });
+
+  // A sampled path has one segment per frame, so it must contain more than
+  // the two straight key-to-key segments used by the old radar renderer.
+  expect(segments.threeKeys - segments.oneKey).toBeGreaterThan(2);
+});

@@ -7,6 +7,7 @@ import { renderDopeRows } from "./dope-sheet-view.js";
 import { renderRuler } from "./timeline/ruler.js";
 import { renderChannelList } from "./curve-editor/channel-list.js";
 import { renderGraphDopeSheet } from "./curve-editor/dope-view.js";
+import { refreshGraphTab } from "./curve-editor/tabs.js";
 
 export * from "./timeline-interaction.js";
 export * from "./curve-editor.js";
@@ -118,7 +119,8 @@ export function refreshKeys(ui) {
       if (event.shiftKey) {
         ui.selectedKeyFrames = new Set(ui.selectedKeyFrames || [ui.selectedKeyFrame].filter((f) => f !== null));
         ui.selectedKeyFrames.has(key.frame) ? ui.selectedKeyFrames.delete(key.frame) : ui.selectedKeyFrames.add(key.frame);
-        ui.selectedKeyFrame = key.frame;
+        ui.selectedKeyFrame = ui.selectedKeyFrames.has(key.frame) ? key.frame : [...ui.selectedKeyFrames].at(-1) ?? null;
+        ui.setFrame(key.frame, false, false);
         ui.updateKeyVisualState();
         ui.refreshKeyEditor();
         return;
@@ -132,6 +134,7 @@ export function refreshKeys(ui) {
     element.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (event.shiftKey) return;
       if (!event.shiftKey) ui.selectedKeyFrames = new Set([key.frame]);
       ui.selectKeyframe(key);
     });
@@ -153,6 +156,16 @@ export function refreshKeys(ui) {
       summaryEl.title = t(`Currently animating camera: ${activeCamera.name}`);
     }
     summaryEl.append(subject, document.createTextNode(` · ${keys.length} key${keys.length === 1 ? "" : "s"}`));
+    // Keys past the end are kept but not drawn, so say so: otherwise shortening
+    // the timeline looks like it deleted them, which is what it used to do.
+    const dormant = keys.filter((key) => key.frame > ui.state.duration_frames - 1).length;
+    if (dormant) {
+      const badge = document.createElement("span");
+      badge.className = "oc-dormant-keys";
+      badge.textContent = ` · ${dormant} beyond end`;
+      badge.title = t("Keys past the end of the timeline are kept. Lengthen the shot to reach them again.");
+      summaryEl.append(badge);
+    }
   }
   const camSummaryEl = ui.root.querySelector('[data-role="camera-summary"]');
   if (camSummaryEl) camSummaryEl.textContent = `${activeCamera.name} · Key F${ui.selectedKeyFrame ?? ui.frame}`;
@@ -186,6 +199,7 @@ export function refreshKeys(ui) {
   renderDopeRows(ui);
   renderChannelList(ui);
   renderGraphDopeSheet(ui);
+  refreshGraphTab(ui);
   ui.refreshCameraSelectors();
   ui.refreshKeyEditor();
   ui.updateEditState();

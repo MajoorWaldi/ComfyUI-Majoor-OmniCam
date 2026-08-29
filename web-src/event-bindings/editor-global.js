@@ -1,6 +1,7 @@
 // Extracted DOM bindings.
 
 import { clamp } from "../director/core.js";
+import { resolveZone } from "../commands.js";
 import { applyCinemaLens } from "../cameras.js";
 import { applyBlockingScenePreset } from "../motion-presets.js";
 import { onCurveWheel } from "../curve-editor.js";
@@ -88,15 +89,28 @@ export function bindEditorAndGlobal(ui, q, signal) {
       ui.closeMenus();
     }, { signal });
   }
+  // Both bake buttons go through the aim module, which falls back to the plain
+  // object bake when no bone is chosen.
   for (const btn of ui.root.querySelectorAll('[data-act="bake-aim-keys"]')) {
     btn.addEventListener("click", () => {
-      ui.bakeAimToKeyframes();
+      ui.bakeAimConstraint({ perFrame: false });
+      ui.closeMenus();
+    }, { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="bake-aim-per-frame"]')) {
+    btn.addEventListener("click", () => {
+      ui.bakeAimConstraint({ perFrame: true });
       ui.closeMenus();
     }, { signal });
   }
   for (const el of ui.root.querySelectorAll('[data-role="camera-target-object"]')) {
     el.addEventListener("change", (e) => {
       ui.setCameraTrackingTarget(e.target.value);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="camera-aim-bone"]')) {
+    el.addEventListener("change", (e) => {
+      ui.setAimBone(e.target.value);
     }, { signal });
   }
   for (const focusBtn of ui.root.querySelectorAll('[data-act="focus-target"]')) {
@@ -173,12 +187,19 @@ export function bindEditorAndGlobal(ui, q, signal) {
       const object = ui.state.objects.find((item) => item.id === sceneItem.dataset.objectId);
       if (!object) return;
       ui.finishCameraEdit();
-      ui.selectedEntity = "object";
-      ui.selectedObjectId = object.id;
-      ui.selectedKeyFrame = object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null;
+      ui.selectedObjectIds ||= new Set();
+      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        if (ui.selectedObjectIds.has(object.id)) ui.selectedObjectIds.delete(object.id);
+        else ui.selectedObjectIds.add(object.id);
+      } else ui.selectedObjectIds = new Set([object.id]);
+      ui.selectedObjectId = ui.selectedObjectIds.has(object.id) ? object.id : [...ui.selectedObjectIds].at(-1) || null;
+      ui.selectedEntity = ui.selectedObjectIds.size ? "object" : "camera";
+      ui.selectedKeyFrame = ui.selectedObjectId
+        ? object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null
+        : null;
       ui.editingKeyFrame = null;
       for (const row of ui.root.querySelectorAll(".scene-item")) {
-        const selected = row.dataset.objectId === object.id;
+        const selected = Boolean(row.dataset.objectId && ui.selectedObjectIds.has(row.dataset.objectId));
         row.classList.toggle("selected", selected);
         row.setAttribute("aria-selected", String(selected));
       }
@@ -229,7 +250,7 @@ export function bindEditorAndGlobal(ui, q, signal) {
   window.addEventListener("pointerup", (event) => {
     if (ui.keyDrag) ui.onPointerUp(event);
   }, { capture: true, signal });
-  const timeline = q('[data-role="keys"]');
+  const timeline = q('[data-role="dope-tracks"]');
   if (timeline) {
     timeline.addEventListener("pointerdown", (event) => ui.onTimelinePointerDown(event), { signal });
     timeline.addEventListener("pointermove", (event) => ui.onTimelinePointerMove(event), { signal });
@@ -237,7 +258,15 @@ export function bindEditorAndGlobal(ui, q, signal) {
     timeline.addEventListener("pointercancel", (event) => ui.onTimelinePointerUp(event), { signal });
     timeline.addEventListener("wheel", (event) => onTimelineWheel(ui, event), { passive: false, signal });
   }
-  ui.root.addEventListener("keydown", (event) => ui.onKey(event), { signal });
+  // Keydown is claimed by the page-wide capture interceptor (commands.js), which
+  // routes it here via ui.onKey. Track the zone the user last touched so a key
+  // pressed while focus sits on the document body still lands in the right map.
+  const rememberZone = (event) => {
+    const zone = resolveZone(event.composedPath?.()[0] || event.target);
+    if (zone) ui.lastKeyZone = zone;
+  };
+  ui.root.addEventListener("focusin", rememberZone, { signal });
+  ui.root.addEventListener("pointerdown", rememberZone, { capture: true, signal });
   const ro = new ResizeObserver(() => {
     ui.scheduleResizeAndRender();
   });

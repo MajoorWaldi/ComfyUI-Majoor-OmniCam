@@ -1,5 +1,6 @@
 // Scene object creation, selection and inspector operations.
 
+import { refreshAimBoneOptions } from "../aim-constraint.js";
 import { add, clamp, cloneTransform } from "../director/core.js";
 import { confirmAction, promptText } from "../director/ui-services.js";
 import { t } from "../i18n.js";
@@ -170,6 +171,7 @@ export function refreshInspector(ui) {
     }
     targetSelect.value = currentTarget;
   }
+  refreshAimBoneOptions(ui);
 
   const values = [...ui.camera.position, ...ui.camera.target, ui.camera.fov, ui.camera.roll || 0, ui.camera.near, ui.camera.far];
   ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far"].forEach((role, index) => {

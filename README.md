@@ -2,8 +2,7 @@
 
 
 <p align="center">
-  <!-- Replace with your final icon -->
-  <!-- <img src="docs/assets/omnicam-icon.png" width="120" alt="Majoor OmniCam"> -->
+  <img src="web/assets/omnicam-icon.svg" width="112" alt="Majoor OmniCam">
 </p>
 
 <h1 align="center">Majoor OmniCam</h1>
@@ -237,6 +236,14 @@ camera_track
 proxy_video
 audio
 ```
+
+### Node mark
+
+Every OmniCam node carries the same mark in its title bar — a red centre inside a
+sober ring (`◉`). When the node is selected on the graph it gains a slow, discreet
+red halo, so the node you are steering from the viewport stays easy to pick out on
+a busy canvas. The mark is defined once in [`web/assets/omnicam-icon.svg`](web/assets/omnicam-icon.svg)
+and reused for the ComfyUI Registry icon and this document's header.
 
 ---
 
@@ -578,8 +585,13 @@ already saved in a workflow always win when that workflow is loaded.
 |---|---|---|
 | `Viewport language` | Follow ComfyUI | Language of the Director viewport |
 | `Default FPS` | 24 | Frame rate of a new Director node |
+| `Default duration / width / height` | 5 s / 1280 / 720 | Timeline and output size of a new Director node |
 | `Default proxy render mode` | `omni_ref` | Render mode of a new Director node |
 | `Default playblast encoder` | WebCodecs | Deterministic encoder, or the realtime fallback |
+| `Navigation` | Maya / 1× | Default navigation profile and fly speed |
+| `Timeline` | 1 frame / Auto Key off | Default snapping increment and Auto Key state |
+| `Display` | grid and paths on | Default grid, mini-map, camera paths, safe areas and gizmos |
+| `Undo history limit` | 100 | Maximum Undo steps retained by a Director editor |
 
 The viewport ships English and French. `Follow ComfyUI` mirrors the `Comfy.Locale`
 setting, so switching ComfyUI to French switches OmniCam too.

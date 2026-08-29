@@ -48,6 +48,16 @@ test("every dope channel gets a lane, and its keys line up with the ruler", asyn
   expect(Math.abs(keyX - tickX)).toBeLessThan(8);
 });
 
+test("shift-click keeps the selected key group", async ({ page }) => {
+  await mount(page);
+  const first = page.locator('[data-role="keys"] .key[data-key-frame="17"]');
+  const second = page.locator('[data-role="keys"] .key[data-key-frame="50"]');
+  await first.click();
+  await second.click({ modifiers: ["Shift"] });
+  expect(await page.evaluate(() => [...window.omnicamNode.__majoorOmniCam.selectedKeyFrames].sort((a, b) => a - b)))
+    .toEqual([17, 50]);
+});
+
 test("unticking a channel removes its lane and only its lane", async ({ page }) => {
   await mount(page);
   await page.locator('[data-dope-channel="roll"]').uncheck();
@@ -87,6 +97,28 @@ test("dragging the ruler scrubs the timeline", async ({ page }) => {
   const frame = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.frame);
   expect(frame).toBeGreaterThan(80);
   expect(frame).toBeLessThanOrEqual(120);
+});
+
+test("the full camera timeline scrubs from any channel lane", async ({ page }) => {
+  await mount(page);
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setFrame(0, false, false));
+  const row = page.locator('.oc-dope-row[data-channel="roll"]');
+  const box = await row.boundingBox();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height / 2);
+  await page.mouse.up();
+  const frame = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.frame);
+  expect(frame).toBeGreaterThanOrEqual(20);
+  expect(frame).toBeLessThan(60);
+});
+
+test("the camera timeline exposes a full ruler and four aligned channel labels", async ({ page }) => {
+  await mount(page);
+  expect(await page.locator('[data-role="ruler"] .timeline-tick').count()).toBeGreaterThan(1);
+  expect((await page.locator('.oc-dope-label').allTextContents()).map((text) => text.trim())).toEqual(["Camera", "Look At", "Focal Length", "Roll"]);
+  const height = await page.locator('[data-role="dope-tracks"]').evaluate((element) => element.getBoundingClientRect().height);
+  expect(height).toBeGreaterThanOrEqual(160);
 });
 
 test("the graph tabs swap the stage and disable the controls that do not apply", async ({ page }) => {
@@ -191,4 +223,185 @@ test("a deliberate drag on a key still retimes it", async ({ page }) => {
   await page.mouse.up();
   const frames = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.timelineKeyframes().map((k) => k.frame));
   expect(frames).not.toContain(50);
+});
+
+// The multi-camera edit. It lives in its own tab of the lower deck, next to the
+// Graph Editor and the Dope Sheet -- as a strip above the dope rows it was too
+// small to read and hidden behind a checkbox in a menu, so nobody found it.
+async function openEditTab(page, { withCuts = true } = {}) {
+  await mount(page);
+  await page.evaluate((withCuts) => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.addCamera();
+    ui.addCamera();
+    ui.state.sequence = withCuts
+      ? {
+          enabled: true,
+          cuts: [
+            { camera_id: ui.state.cameras[0].id, start: 0 },
+            { camera_id: ui.state.cameras[1].id, start: 40 },
+            { camera_id: ui.state.cameras[2].id, start: 80 },
+          ],
+          recording_path: "",
+        }
+      : { enabled: false, cuts: [], recording_path: "" };
+  }, withCuts);
+  await page.locator('[data-graph-tab="sequence"]').click();
+  await page.waitForTimeout(150);
+}
+
+test("the edit stage only exists while its tab is showing", async ({ page }) => {
+  await mount(page);
+  // The other two tabs must not pay for a view they are not showing.
+  expect(await page.locator('[data-role="sequence-lane"]').count()).toBe(0);
+
+  await openEditTab(page);
+  expect(await page.locator('[data-role="sequence-lane"]').count()).toBe(1);
+  expect(await page.locator(".oc-sequence-shot").count()).toBe(3);
+  await expect(page.locator('[data-role="graph-sequence"]')).toBeVisible();
+
+  await page.locator('[data-graph-tab="curves"]').click();
+  await expect(page.locator('[data-role="graph-sequence"]')).toBeHidden();
+});
+
+test("the empty edit offers auto-split instead of a blank strip", async ({ page }) => {
+  await openEditTab(page, { withCuts: false });
+  await expect(page.locator(".oc-sequence-lane .oc-sequence-empty")).toBeVisible();
+  expect(await page.locator(".oc-sequence-shot").count()).toBe(0);
+
+  await page.locator('.oc-sequence-toolbar button', { hasText: "Auto-split" }).click();
+  await page.waitForTimeout(150);
+  expect(await page.locator(".oc-sequence-shot").count()).toBe(3);
+});
+
+test("dragging a shot boundary trims the cut", async ({ page }) => {
+  await openEditTab(page);
+  const handle = page.locator(".oc-sequence-shot").nth(1).locator(".oc-sequence-handle");
+  const box = await handle.boundingBox();
+  const lane = await page.locator('[data-role="sequence-lane"]').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  // Drag to roughly halfway along the lane, i.e. about frame 60 of 120.
+  await page.mouse.move(lane.x + lane.width * 0.5, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+
+  const cuts = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.sequence.cuts.map((cut) => cut.start));
+  expect(cuts[0]).toBe(0);
+  expect(cuts[1]).toBeGreaterThan(45);
+  expect(cuts[1]).toBeLessThan(80);
+  expect(cuts[2]).toBe(80);
+});
+
+test("the playblast selector offers the edit as a target", async ({ page }) => {
+  await openEditTab(page);
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.refreshCameraSelectors());
+  const values = await page.locator('[data-role="playblast-camera"] option').evaluateAll(
+    (options) => options.map((option) => option.value));
+  expect(values).toContain("__sequence__");
+
+  // Selecting it makes the recorded camera follow the cuts frame by frame.
+  const followed = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.setPlayblastCamera("__sequence__");
+    return [0, 39, 40, 79, 80, 119].map((frame) => {
+      ui.frame = frame;
+      return ui.playblastCameraAtFrame().position.join(",");
+    });
+  });
+  expect(new Set(followed).size).toBeGreaterThan(1);
+});
+
+// The trim drag used to attach window-level pointermove listeners with no
+// pointer capture, so a lost pointerup left them alive and every mouse move
+// anywhere on the page kept retiming the cut -- "le pointeur déplace tout seul
+// même si on n'est plus dans le node".
+test("a finished trim does not keep following the pointer", async ({ page }) => {
+  await openEditTab(page);
+  const handle = page.locator(".oc-sequence-shot").nth(1).locator(".oc-sequence-handle");
+  const box = await handle.boundingBox();
+  const lane = await page.locator('[data-role="sequence-lane"]').boundingBox();
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(lane.x + lane.width * 0.45, box.y + box.height / 2, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+
+  const settled = await page.evaluate(() => ({
+    dragging: window.omnicamNode.__majoorOmniCam.sequenceDrag,
+    start: window.omnicamNode.__majoorOmniCam.state.sequence.cuts[1].start,
+  }));
+  expect(settled.dragging).toBeFalsy();
+
+  // Sweep the pointer clear across the page; the cut must not move.
+  await page.mouse.move(lane.x + lane.width * 0.9, box.y + 400, { steps: 10 });
+  await page.mouse.move(10, 10, { steps: 10 });
+  await page.waitForTimeout(100);
+  const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.sequence.cuts[1].start);
+  expect(after).toBe(settled.start);
+});
+
+test("split at the playhead hands the new shot the next camera", async ({ page }) => {
+  await openEditTab(page, { withCuts: false });
+  await page.locator('.oc-sequence-toolbar button', { hasText: "Auto-split" }).click();
+  await page.waitForTimeout(120);
+
+  await page.evaluate(() => { window.omnicamNode.__majoorOmniCam.setFrame(20); });
+  await page.locator('.oc-sequence-toolbar button', { hasText: "Split at playhead" }).click();
+  await page.waitForTimeout(120);
+
+  const cams = await page.evaluate(() =>
+    window.omnicamNode.__majoorOmniCam.state.sequence.cuts.map((cut) => cut.camera_id));
+  // The first shot was split; its new right half must differ from its left half.
+  expect(cams.length).toBe(4);
+  expect(cams[0]).not.toBe(cams[1]);
+});
+
+// Keyboard shortcuts are scoped by zone now. Ctrl+Z must reach OmniCam (not
+// ComfyUI's graph undo), Delete in the sequence editor removes a shot, and the
+// viewport-only keys must not fire from the sequence stage.
+test("shortcuts are scoped to the panel that has focus", async ({ page }) => {
+  await openEditTab(page);
+  const stage = page.locator('[data-role="graph-sequence"]');
+  await stage.evaluate((element) => element.focus());
+
+  // A bare digit is a viewport select-mode key; it must do nothing here.
+  const modeBefore = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.select_mode);
+  await page.keyboard.press("Digit1");
+  await page.waitForTimeout(60);
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.select_mode)).toBe(modeBefore);
+
+  // Delete removes the shot under the playhead, not a keyframe.
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setFrame(60));
+  const shotsBefore = await page.locator(".oc-sequence-shot").count();
+  await page.keyboard.press("Delete");
+  await page.waitForTimeout(120);
+  expect(await page.locator(".oc-sequence-shot").count()).toBe(shotsBefore - 1);
+
+  // Ctrl+Z is consumed by OmniCam and brings the shot back.
+  await page.keyboard.press("Control+z");
+  await page.waitForTimeout(150);
+  expect(await page.locator(".oc-sequence-shot").count()).toBe(shotsBefore);
+});
+
+test("the same key does different things in the viewport and the sequence editor", async ({ page }) => {
+  await openEditTab(page, { withCuts: false });
+  await page.locator('.oc-sequence-toolbar button', { hasText: "Auto-split" }).click();
+  await page.waitForTimeout(120);
+
+  // S in the sequence stage splits; S in the viewport starts a scale transform.
+  await page.locator('[data-role="graph-sequence"]').evaluate((el) => el.focus());
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setFrame(20));
+  const before = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.sequence.cuts.length);
+  await page.keyboard.press("s");
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.sequence.cuts.length)).toBe(before + 1);
+
+  // A modal transform needs a selected object.
+  await page.locator('[data-object-id="qa_cube"]').click({ position: { x: 30, y: 13 } });
+  await page.locator(".viewport-wrap > canvas").focus();
+  await page.keyboard.press("s");
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => Boolean(window.omnicamNode.__majoorOmniCam.modalTransform))).toBeTruthy();
 });

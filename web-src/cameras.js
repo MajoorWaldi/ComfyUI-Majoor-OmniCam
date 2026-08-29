@@ -1,6 +1,7 @@
 // Camera manager and camera-preview strip for the OmniCam Director.
 
 import { cloneCamera, sampleCamera } from "./omnicam-core.js";
+import { SEQUENCE_TARGET, sequenceCuts } from "./director/sequence.js";
 import { confirmAction, promptText } from "./omnicam-ui.js";
 import { t } from "./omnicam-i18n.js";
 import { focalLengthToFov, formatFocalLength } from "./lens.js";
@@ -26,6 +27,7 @@ function nextCameraId(state) {
 }
 
 export function refreshCameraSelectors(ui) {
+  const cuts = sequenceCuts(ui.state);
   for (const select of ui.root.querySelectorAll('[data-role="playblast-camera"]')) {
     select.innerHTML = "";
     for (const camera of ui.state.cameras) {
@@ -34,6 +36,15 @@ export function refreshCameraSelectors(ui) {
       option.textContent = camera.name;
       select.appendChild(option);
     }
+    // Recording the edit is just another target: the playblast follows the cuts
+    // and lands as one video. Offered only once there is an edit to record.
+    const sequenceOption = document.createElement("option");
+    sequenceOption.value = SEQUENCE_TARGET;
+    sequenceOption.textContent = cuts.length
+      ? t("Sequence ({count} shots)").replace("{count}", String(cuts.length))
+      : t("Sequence (no shots yet)");
+    sequenceOption.disabled = cuts.length === 0;
+    select.appendChild(sequenceOption);
     select.value = ui.state.playblast_camera_id;
   }
   for (const select of ui.root.querySelectorAll('[data-role="active-camera-select"]')) {
@@ -282,14 +293,18 @@ export function activateCamera(ui, id) {
 }
 
 export function setPlayblastCamera(ui, id) {
-  const camera = ui.state.cameras.find((item) => item.id === id);
-  if (!camera) return;
-  ui.state.playblast_camera_id = camera.id;
+  const cuts = sequenceCuts(ui.state);
+  const toSequence = id === SEQUENCE_TARGET && cuts.length > 0;
+  const camera = toSequence ? null : ui.state.cameras.find((item) => item.id === id);
+  if (!toSequence && !camera) return;
+  ui.state.playblast_camera_id = toSequence ? SEQUENCE_TARGET : camera.id;
   ui.refreshCameraSelectors();
   ui.serialize();
   ui.refreshObjects();
   ui.renderCameraView();
-  ui.setStatus(t(`Playblast: ${camera.name}`));
+  ui.setStatus(toSequence
+    ? t("Playblast: sequence ({count} shots)").replace("{count}", String(cuts.length))
+    : t(`Playblast: ${camera.name}`));
 }
 
 export function toggleCameraView(ui) {

@@ -94,6 +94,7 @@ function graphEditor() {
         <span class="oc-graph-tabs" data-role="graph-tabs">
           <button class="oc-graph-tab active" data-graph-tab="curves" aria-pressed="true" title="${t("Edit animation curves")}"><strong>${t("Graph Editor")}</strong></button>
           <button class="oc-graph-tab" data-graph-tab="dope" aria-pressed="false" title="${t("Per-channel keyframe sheet")}">${t("Dope Sheet")}</button>
+          <button class="oc-graph-tab" data-graph-tab="sequence" aria-pressed="false" title="${t("Cut the timeline into shots, one camera per range")}">${t("Sequence")}</button>
         </span>
         <span class="hint">${t("MMB/Alt-drag: Pan · Scroll: Zoom · Box Select: Drag · Drag Point: Retime/Value · Right-click: Menu")}</span>
       </summary>
@@ -140,6 +141,7 @@ function graphEditor() {
         <div class="oc-graph-stage">
           <canvas class="curve-canvas" data-role="curve-canvas" title="${t("Drag a key point vertically or drag tangent handles on either side. Scroll to zoom. Right-click for curve actions.")}"></canvas>
           <div class="oc-gdope" data-role="graph-dope" hidden></div>
+          <div class="oc-gsequence" data-role="graph-sequence" tabindex="0" hidden></div>
         </div>
       </div>
     </details>`;

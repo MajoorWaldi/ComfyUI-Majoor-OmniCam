@@ -18,7 +18,8 @@ function toolRail() {
       <button class="vp-tool" data-select-mode="face" title="${t("Face / Polygon Selection Mode (3)")}"><i class="pi pi-table"></i></button>
       <button class="vp-tool active" data-select-mode="object" title="${t("Object Selection Mode (4)")}"><i class="pi pi-box"></i></button>
       <span class="vp-rail-divider"></span>
-      <button class="vp-tool" data-act="frame-target" title="${t("Frame Subject Target (F)")}"><i class="pi pi-crosshairs"></i></button>
+      <button class="vp-tool" data-act="frame-target" title="${t("Frame Subject Target (F)")}"><i class="pi pi-expand"></i></button>
+      <button class="vp-tool" data-act="select-look-at" title="${t("Select camera Look-At target")}"><i class="pi pi-bullseye"></i></button>
       <button class="vp-tool" data-act="toggle-inspector" title="${t("Toggle Inspector Panel (N)")}"><i class="pi pi-ellipsis-h"></i></button>
     </div>`;
 }

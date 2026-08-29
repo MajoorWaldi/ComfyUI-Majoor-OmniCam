@@ -1,3 +1,5 @@
+import { SEQUENCE_TARGET, defaultSequence, sanitizeSequence } from "./sequence.js";
+
 export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const v3 = (x = 0, y = 0, z = 0) => [x, y, z];
@@ -362,12 +364,13 @@ export function defaultState() {
     schema_version: 1, fps: 24, duration_frames: 120, width: 1280, height: 720, render_mode: "omni_ref", camera, keyframes,
     cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(camera), keyframes }], active_camera_id: "camera_1", playblast_camera_id: "camera_1",
     objects: [{ id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" }],
-    metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, card_fit: "contain", card_asset: "", reference_index: 0,
+    metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_resolution: "viewport", card_fit: "contain", card_asset: "", reference_index: 0,
     point_density: "balanced", point_spread: "all_views", point_color: "#cbd5e1", viewport_bg_color: "#121212", viewport_bg_image: "", viewport_bg_sequence: [],
-    show_grid: true, show_wireframe: false, show_vertices: false, select_mode: "object",
+    show_grid: true, show_camera_paths: true, show_camera_gizmos: true, show_look_at: true, show_helper_axes: true, show_gizmo: true, show_wireframe: false, show_vertices: false, select_mode: "object",
     gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "maya", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
+    sequence: defaultSequence(),
   };
 }
 
@@ -425,10 +428,12 @@ export function sanitizeState(raw) {
   out.duration_frames = Math.round(boundedNumber(out.duration_frames, 120, 1, STATE_LIMITS.maxDurationFrames));
   out.width = Math.round(boundedNumber(out.width, 1280, 64, 4096));
   out.height = Math.round(boundedNumber(out.height, 720, 64, 4096));
+  // Keys beyond duration_frames are kept, not clamped: see syncFromWidgets.
+  // A shot that is shortened and later lengthened must find its keys again.
   const sanitizeKeyframes = (items, fallbackCamera) => (Array.isArray(items) ? items : [])
     .slice(0, STATE_LIMITS.maxKeysPerTrack)
     .map((key) => ({
-    frame: clamp(Math.round(Number(key.frame || 0)), 0, out.duration_frames - 1),
+    frame: Math.max(0, Math.round(Number(key.frame || 0))),
     camera: cloneCamera(key.camera || key || fallbackCamera),
     interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(key.interpolation) ? key.interpolation : "ease",
     ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
@@ -451,6 +456,8 @@ export function sanitizeState(raw) {
       keyframes,
       target_object_id: typeof item?.target_object_id === "string" ? item.target_object_id : (typeof out.target_object_id === "string" ? out.target_object_id : null),
       target_offset: Array.isArray(item?.target_offset) ? item.target_offset.map(Number) : [0, 0, 0],
+      // Bone the camera aims at inside the tracked model; null tracks it whole.
+      aim_bone: typeof item?.aim_bone === "string" && item.aim_bone ? item.aim_bone : null,
       locked: Boolean(item?.locked),
       muted: Boolean(item?.muted),
       solo: Boolean(item?.solo),
@@ -458,10 +465,16 @@ export function sanitizeState(raw) {
     };
   });
   out.active_camera_id = out.cameras.some((item) => item.id === out.active_camera_id) ? out.active_camera_id : out.cameras[0].id;
-  out.playblast_camera_id = out.cameras.some((item) => item.id === out.playblast_camera_id) ? out.playblast_camera_id : out.active_camera_id;
+  out.sequence = sanitizeSequence(out.sequence, out.cameras.map((item) => item.id));
+  // The edit is a legitimate playblast target, but only once it has cuts.
+  out.playblast_camera_id = (out.playblast_camera_id === SEQUENCE_TARGET && out.sequence.cuts.length)
+    || out.cameras.some((item) => item.id === out.playblast_camera_id)
+    ? out.playblast_camera_id
+    : out.active_camera_id;
   const activeCamera = out.cameras.find((item) => item.id === out.active_camera_id); out.camera = activeCamera.camera; out.keyframes = activeCamera.keyframes;
   out.target_object_id = activeCamera.target_object_id || null;
   out.target_offset = activeCamera.target_offset || [0, 0, 0];
+  out.aim_bone = activeCamera.aim_bone || null;
   out.objects = (Array.isArray(out.objects) ? out.objects : base.objects)
     .slice(0, STATE_LIMITS.maxObjects)
     .map((object) => ({
@@ -474,7 +487,7 @@ export function sanitizeState(raw) {
     size: Array.isArray(object.size) ? (object.size.length === 2 ? [...object.size.map(Number), 0.01] : object.size.map(Number)) : [1, 1, 1],
     material_mode: ["textured", "checker", "neutral", "wireframe"].includes(object.material_mode) ? object.material_mode : "textured",
     keyframes: (Array.isArray(object.keyframes) ? object.keyframes : []).map((key) => ({
-      frame: clamp(Math.round(Number(key.frame || 0)), 0, out.duration_frames - 1),
+      frame: Math.max(0, Math.round(Number(key.frame || 0))),
       transform: cloneTransform(key.transform || object),
       interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(key.interpolation) ? key.interpolation : "ease",
       ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
@@ -483,6 +496,11 @@ export function sanitizeState(raw) {
   out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = out.navigation_profile === "blender" ? "blender" : "maya"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
   out.select_mode = ["object", "vertex", "edge", "face"].includes(out.select_mode) ? out.select_mode : "object";
   out.show_grid = out.show_grid !== false;
+  out.show_camera_paths = out.show_camera_paths !== false;
+  out.show_camera_gizmos = out.show_camera_gizmos !== false;
+  out.show_look_at = out.show_look_at !== false;
+  out.show_helper_axes = out.show_helper_axes !== false;
+  out.show_gizmo = out.show_gizmo !== false;
   out.show_wireframe = Boolean(out.show_wireframe);
   out.show_vertices = Boolean(out.show_vertices);
   out.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(out.point_density) ? out.point_density : "balanced";
@@ -493,11 +511,12 @@ export function sanitizeState(raw) {
   out.viewport_bg_sequence = Array.isArray(out.viewport_bg_sequence) ? out.viewport_bg_sequence.map(String) : [];
   out.snap_enabled = out.snap_enabled !== false; out.snap_frames = Math.max(1, Math.round(Number(out.snap_frames) || 1)); out.timecode_mode = ["time", "timecode"].includes(out.timecode_mode) ? out.timecode_mode : "time"; out.loop_playback = Boolean(out.loop_playback);
   out.playback_range = Array.isArray(out.playback_range) && out.playback_range.length === 2 ? [clamp(Math.round(Number(out.playback_range[0]) || 0), 0, out.duration_frames - 1), clamp(Math.round(Number(out.playback_range[1]) || out.duration_frames - 1), 0, out.duration_frames - 1)] : null;
-  out.markers = (Array.isArray(out.markers) ? out.markers : []).filter((m) => m && Number.isFinite(Number(m.frame))).map((m, i) => ({ frame: clamp(Math.round(Number(m.frame)), 0, out.duration_frames - 1), name: String(m.name || `Marker ${i + 1}`).slice(0, 40), color: String(m.color || "#f2d06b") }));
+  // Markers survive a shortened timeline for the same reason keyframes do.
+  out.markers = (Array.isArray(out.markers) ? out.markers : []).filter((m) => m && Number.isFinite(Number(m.frame))).map((m, i) => ({ frame: Math.max(0, Math.round(Number(m.frame))), name: String(m.name || `Marker ${i + 1}`).slice(0, 40), color: String(m.color || "#f2d06b") }));
   out.preview_layout = ["auto", "1", "2", "4"].includes(String(out.preview_layout)) ? String(out.preview_layout) : "auto";
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
-  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
+  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "viewport"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
   const editorViews = defaultEditorViews(); out.editor_views = Object.fromEntries(Object.entries(editorViews).map(([name, camera]) => [name, cloneCamera(out.editor_views?.[name] || camera)]));
   return out;
 }

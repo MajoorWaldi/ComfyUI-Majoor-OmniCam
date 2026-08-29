@@ -226,7 +226,7 @@ export function createInteractionMethods(dependencies) {
     resetCurveZoom(this);
   },
   onKey(e) {
-    dispatchDirectorKey(this, e);
+    return dispatchDirectorKey(this, e);
   },
   frameTarget() {
     frameTarget(this);

@@ -8,6 +8,14 @@ from comfy_api.latest import IO, UI
 
 from ..core.director_shot import build_director_shot, build_shot_collection
 from ..core.editor_state import editor_state_to_track
+from ..core.sequence import (
+    SEQUENCE_TARGET,
+    merge_cut_tracks,
+    resolve_cuts,
+    sequence_enabled,
+    sequence_recording_path,
+    targets_sequence,
+)
 from ..core.track import OmniCamTrack
 from ..core.video_sampling import sample_video_frames
 from .base import OMNICAM_SHOT_COLLECTION, OMNICAM_TRACK, resolve_video
@@ -92,13 +100,23 @@ class MajoorOmniCamDirector(IO.ComfyNode):
             (camera for camera in cameras if isinstance(camera, dict) and camera.get("id") == selected_camera_id),
             None,
         ) if isinstance(cameras, list) else None
-        active_recording_path = str(selected_camera.get("recording_path") or recording_path) if selected_camera else recording_path
+        # The editor records the edit itself: the playblast follows the cuts, so
+        # its proxy is already the assembled sequence and nothing is stitched here.
+        edit_cuts = resolve_cuts(authoritative_state)
+        edit_is_target = targets_sequence(authoritative_state)
+        if edit_is_target and sequence_recording_path(authoritative_state):
+            active_recording_path = sequence_recording_path(authoritative_state)
+        elif selected_camera:
+            active_recording_path = str(selected_camera.get("recording_path") or recording_path)
+        else:
+            active_recording_path = recording_path
         track.metadata = dict(track.metadata)
         track.metadata.update({"card_asset": card_asset, "recording_path": active_recording_path, "generator": "ComfyUI-Majoor-OmniCam"})
 
         # Export every authored camera as a runtime shot packet. Missing proxies
         # remain explicit so consumers can report exactly which camera is offline.
         collection_shots = []
+        tracks_by_camera: dict[str, OmniCamTrack] = {}
         if isinstance(cameras, list) and cameras:
             for cam in cameras:
                 if not isinstance(cam, dict):
@@ -106,6 +124,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 cam_id = cam.get("id")
                 cam_track_dict = editor_state_to_track(authoritative_state, camera_id=cam_id, validate=True)
                 cam_track = OmniCamTrack.from_dict(cam_track_dict)
+                tracks_by_camera[str(cam_id)] = cam_track
                 cam_track.metadata = dict(cam_track.metadata)
                 camera_recording_path = str(cam.get("recording_path") or "")
                 if cam_id == raw_state.get("playblast_camera_id") and not camera_recording_path:
@@ -147,12 +166,41 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         )
         if not collection_shots:
             collection_shots = [primary_shot]
+
+        # The edit ships as one more shot, carrying the proxy the editor recorded
+        # and a track baked frame by frame across the cuts -- a cut is a
+        # discontinuity, so an interpolated track could not describe it, and an
+        # export would otherwise follow a single camera through the whole edit.
+        if edit_cuts and sequence_enabled(authoritative_state):
+            sequence_video = resolve_video(sequence_recording_path(authoritative_state))
+            if sequence_video is None and edit_is_target:
+                sequence_video = proxy_video
+            collection_shots.append(build_director_shot(
+                shot_id=SEQUENCE_TARGET,
+                name="Sequence",
+                video=sequence_video,
+                audio=audio if edit_is_target else None,
+                camera_track=merge_cut_tracks(tracks_by_camera, edit_cuts, track),
+                metadata={
+                    "source": "MajoorOmniCamDirector",
+                    "recording_path": sequence_recording_path(authoritative_state),
+                    "card_asset": card_asset,
+                    "proxy_ready": sequence_video is not None,
+                    "cuts": edit_cuts,
+                },
+            ))
+
         missing_proxy_camera_ids = [shot["id"] for shot in collection_shots if shot.get("video") is None]
         shot_collection = build_shot_collection(collection_shots, {
             "source": "MajoorOmniCamDirector",
             "camera_count": len(collection_shots),
             "ready_count": len(collection_shots) - len(missing_proxy_camera_ids),
             "missing_proxy_camera_ids": missing_proxy_camera_ids,
+            "sequence": {
+                "enabled": sequence_enabled(authoritative_state),
+                "is_playblast_target": edit_is_target,
+                "cuts": edit_cuts,
+            },
         })
         preview = image[:32] if image is not None else None
         if preview is None and proxy_video is not None:

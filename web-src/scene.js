@@ -198,11 +198,14 @@ export function finishCameraEdit(ui) {
 }
 
 export function exitKeyEdit(ui, clearSelection = false) {
-  if (ui.editingKeyFrame === null && (!clearSelection || ui.selectedKeyFrame === null)) return;
+  if (ui.editingKeyFrame === null && (!clearSelection || (ui.selectedKeyFrame === null && !ui.selectedKeyFrames?.size))) return;
   ui.cameraEditActive = false;
   ui.cameraEditKey = null;
   ui.editingKeyFrame = null;
-  if (clearSelection) ui.selectedKeyFrame = null;
+  if (clearSelection) {
+    ui.selectedKeyFrame = null;
+    ui.selectedKeyFrames = null;
+  }
   ui.refreshKeys();
 }
 

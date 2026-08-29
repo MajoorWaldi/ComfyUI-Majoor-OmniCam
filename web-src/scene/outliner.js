@@ -175,7 +175,10 @@ export function refreshObjects(ui) {
         else ui.selectedObjectIds.add(object.id);
       } else ui.selectedObjectIds = new Set([object.id]);
       ui.selectedObjectId = ui.selectedObjectIds.has(object.id) ? object.id : [...ui.selectedObjectIds].at(-1) || null;
-      ui.selectedKeyFrame = object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null;
+      ui.selectedEntity = ui.selectedObjectIds.size ? "object" : "camera";
+      ui.selectedKeyFrame = ui.selectedObjectId
+        ? object.keyframes?.find((key) => key.frame === ui.frame)?.frame ?? null
+        : null;
       ui.editingKeyFrame = null;
       for (const row of box.querySelectorAll(".scene-item")) {
         const selected = Boolean(row.dataset.objectId && ui.selectedObjectIds.has(row.dataset.objectId));

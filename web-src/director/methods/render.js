@@ -1,5 +1,6 @@
 // OmniCam Director methods extracted from the UI facade.
 
+import { applyAimConstraint } from "../../aim-constraint.js";
 import { drawAxisGizmo } from "../../axis-gizmo-view.js";
 import { unregisterDirector } from "../../settings.js";
 export function createRenderMethods(dependencies) {
@@ -33,7 +34,7 @@ export function createRenderMethods(dependencies) {
     let webglRendered = false;
     if (this.webgl) {
       try {
-        this.webgl.render(renderState, viewCamera, this.cardMediaById, w, h, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection);
+        this.webgl.render(renderState, viewCamera, this.cardMediaById, w, h, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null);
         c.drawImage(this.webgl.canvas, 0, 0, w, h);
         webglRendered = true;
       } catch (err) {
@@ -51,12 +52,12 @@ export function createRenderMethods(dependencies) {
         else if (obj.type === "human" && mode !== "grid" && mode !== "point_field") this.drawHuman(obj);
         else if (obj.type === "null") this.drawNull(obj);
       }
-      if (!this.recording) this.drawCameraPath();
+      if (!this.recording && this.state.show_camera_paths) this.drawCameraPath();
     }
     !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays();
     // The gizmo is DOM, so it repaints with the view and never reaches the
     // canvas the playblast records.
-    drawAxisGizmo(this);
+    if (this.state.show_gizmo) drawAxisGizmo(this);
     this.renderCameraView();
   },
   renderCameraView() {
@@ -65,7 +66,8 @@ export function createRenderMethods(dependencies) {
       for (const cameraTrack of this.state.cameras) {
         const canvas = this.cameraPreviewCanvases.get(cameraTrack.id), context = this.cameraPreviewContexts.get(cameraTrack.id);
         if (!canvas?.width || !context) continue;
-        const width = canvas.width, height = canvas.height, camera = sampleCamera(cameraTrack, this.frame, this.state.objects);
+        const width = canvas.width, height = canvas.height;
+        const camera = applyAimConstraint(this, cameraTrack, sampleCamera(cameraTrack, this.frame, this.state.objects), this.frame);
         context.fillStyle = "#111";
         context.fillRect(0, 0, width, height);
         if (this.cameraWebgl) {

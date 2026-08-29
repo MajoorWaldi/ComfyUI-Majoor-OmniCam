@@ -7,7 +7,7 @@ import { applyCameraShake, cameraBasis, bezierEaseWithHandles, cloneCamera, defa
 import { uploadPlayblast, captureRealtimePlayblast } from "../../web-src/director/playblast.js";
 import { ObjectUrlRegistry, uploadManagedFile } from "../../web-src/director/media.js";
 import { getLocale, registerLocale, setLocale, t } from "../../web-src/i18n.js";
-import { activeCameraTrack, playblastCameraTrack, serializeEditorState } from "../../web-src/state-sync.js";
+import { activeCameraTrack, playblastCameraTrack, serializeEditorState, syncFromWidgets } from "../../web-src/state-sync.js";
 import { onPointerDown } from "../../web-src/viewport-controls.js";
 import { dispatchDirectorKey } from "../../web-src/commands.js";
 import { findEditableKey } from "../../web-src/scene/edit-target.js";
@@ -42,6 +42,21 @@ test("node branding applies only to OmniCam node definitions", () => {
   extension.beforeRegisterNodeDef(ForeignNode, { name: "ForeignNode" });
   assert.equal(typeof OmniNode.prototype.onDrawForeground, "function");
   assert.equal(ForeignNode.prototype.onDrawForeground, undefined);
+
+  // The overlay must never throw before the icon has loaded, and the active
+  // halo only asks for a radial gradient while the node is selected.
+  const calls = [];
+  const ctx = {
+    save() { calls.push("save"); },
+    restore() { calls.push("restore"); },
+    drawImage() { calls.push("drawImage"); },
+    createRadialGradient() { calls.push("radial"); return { addColorStop() {} }; },
+    beginPath() {}, arc() {}, fill() {},
+    set fillStyle(_v) {}, set globalAlpha(_v) {},
+  };
+  const node = { size: [200, 120], flags: {}, selected: true, onDrawForeground: OmniNode.prototype.onDrawForeground };
+  assert.doesNotThrow(() => node.onDrawForeground(ctx));
+  assert.deepEqual(calls, [], "with no Image constructor there is no icon, so nothing is painted");
 });
 
 test("legacy Director outputs migrate by name and removed outputs disconnect", () => {
@@ -303,7 +318,7 @@ test("viewport background textures are bounded and stale loads are disposed", as
 test("fly navigation keeps Q for vertical movement", async () => {
   const source = await readFile(new URL("../../web-src/commands.js", import.meta.url), "utf8");
   assert.match(source, /\["w", "a", "s", "d", "q", "e"\].*ui\.isNavigatingFly/);
-  assert.match(source, /if \(key === "q"\) delta = mul\(up, -speed\)/);
+  assert.match(source, /q: mul\(up, -speed\)/);
   assert.doesNotMatch(source, /key === "q" && !ui\.isNavigatingFly/);
 });
 
@@ -583,7 +598,9 @@ test("editable Bézier tangents: modes, 2-sided handles and independent per-chan
 
 test("editor state sanitizes markers, playback range and snapping", () => {
   const state = sanitizeState({ duration_frames: 100, markers: [{ frame: 250, name: "Late" }, { frame: 10, name: "Drop", color: "#ff0000" }, { frame: "bad" }], playback_range: [-5, 500], snap_frames: 0 });
-  assert.deepEqual(state.markers.map((m) => m.frame), [99, 10]); // clamped to duration, invalid dropped
+  // A marker past the end is kept, like a keyframe: only invalid ones are dropped.
+  // The playback range is a *view* into the current timeline, so it still clamps.
+  assert.deepEqual(state.markers.map((m) => m.frame), [250, 10]);
   assert.deepEqual(state.playback_range, [0, 99]);
   assert.equal(state.snap_frames, 1);
   assert.equal(state.timecode_mode, "time");
@@ -709,7 +726,70 @@ test("hold interpolation freezes until the next key, matching Python", () => {
   assert.equal(sampleCamera(state, 10).fov, 60);
 });
 
+test("director state keeps display defaults for camera paths and gizmos", () => {
+  const state = sanitizeState({ show_camera_paths: false, show_gizmo: false });
+  assert.equal(state.show_camera_paths, false);
+  assert.equal(state.show_gizmo, false);
+  assert.equal(sanitizeState({}).show_camera_paths, true);
+  assert.equal(sanitizeState({}).show_gizmo, true);
+});
+
 test("sanitizeState keeps hold instead of rewriting it", () => {
   const state = sanitizeState({ cameras: [{ id: "c", keyframes: [{ frame: 0, camera: {}, interpolation: "hold" }] }] });
   assert.equal(state.cameras[0].keyframes[0].interpolation, "hold");
+});
+
+// Shortening a shot used to clamp every key past the new end onto the last
+// frame, where the dedupe kept only one of them: the keys at 160, 180 and 200
+// became a single key at 149, and lengthening the shot again could not undo it.
+// Multi-shot editing trims ranges constantly, so this has to be non-destructive.
+test("shortening the timeline keeps keys beyond the end instead of eating them", () => {
+  const state = sanitizeState({
+    duration_frames: 150,
+    cameras: [{ id: "camera_1", keyframes: [0, 100, 160, 180, 200].map((frame) => ({ frame, camera: { position: [frame, 0, 0], target: [0, 0, 0] } })) }],
+  });
+  assert.deepEqual(state.cameras[0].keyframes.map((key) => key.frame), [0, 100, 160, 180, 200]);
+  // Their camera values must survive too, not just their count.
+  assert.deepEqual(state.cameras[0].keyframes.at(-1).camera.position, [200, 0, 0]);
+});
+
+test("object keys and markers survive a shortened timeline as well", () => {
+  const state = sanitizeState({
+    duration_frames: 50,
+    objects: [{ id: "subject", type: "cube", keyframes: [{ frame: 10 }, { frame: 90 }, { frame: 120 }] }],
+    markers: [{ frame: 5, name: "in" }, { frame: 300, name: "out" }],
+  });
+  assert.deepEqual(state.objects[0].keyframes.map((key) => key.frame), [10, 90, 120]);
+  assert.deepEqual(state.markers.map((marker) => marker.frame), [5, 300]);
+});
+
+test("a negative or duplicated key frame is still normalised away", () => {
+  const state = sanitizeState({
+    duration_frames: 100,
+    cameras: [{ id: "camera_1", keyframes: [{ frame: -20 }, { frame: 40 }, { frame: 40 }] }],
+  });
+  assert.deepEqual(state.cameras[0].keyframes.map((key) => key.frame), [0, 40]);
+});
+
+test("syncFromWidgets keeps dormant keys when the duration widget shrinks", () => {
+  const ui = {
+    state: sanitizeState({
+      duration_frames: 240, fps: 24,
+      cameras: [{ id: "camera_1", keyframes: [{ frame: 0 }, { frame: 120 }, { frame: 200 }] }],
+      objects: [{ id: "subject", type: "cube", keyframes: [{ frame: 0 }, { frame: 200 }] }],
+    }),
+    frame: 0,
+    durationWidget: { value: 5 }, // 5s x 24fps = 120 frames, so 200 falls off the end
+    fpsWidget: { value: 24 },
+    root: { querySelector: () => null, querySelectorAll: () => [], dataset: {} },
+    timelineKeyframes() { return this.state.keyframes; },
+    selectedKeyFrame: null,
+    refreshCameraSelectors() {},
+    setFrame(frame) { this.frame = frame; },
+    setStatus() {},
+  };
+  syncFromWidgets(ui, false);
+  assert.equal(ui.state.duration_frames, 120);
+  assert.deepEqual(ui.state.cameras[0].keyframes.map((key) => key.frame), [0, 120, 200]);
+  assert.deepEqual(ui.state.objects[0].keyframes.map((key) => key.frame), [0, 200]);
 });

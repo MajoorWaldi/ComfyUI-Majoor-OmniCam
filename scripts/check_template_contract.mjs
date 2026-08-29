@@ -20,6 +20,8 @@ const RUNTIME_ONLY = new Set([
   "camera-id",     // stamped on generated outliner rows
   "object-id",
   "context-menu",  // appended by buildRoot() as a real element
+  "sequence-lane",  // built by renderSequenceLane() only while the edit is on
+  "sequence-track", // wrapper for the shot + audio lanes, same lifetime
 ]);
 
 // data-act hooks wired with querySelector (not querySelectorAll): a second copy

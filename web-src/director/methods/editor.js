@@ -52,10 +52,24 @@ export function createEditorMethods(dependencies) {
     const nextIds = new Set(this.state.objects.map((object) => object.id));
     for (const id of previousIds) if (!nextIds.has(id)) this.removeObjectResources(id);
     this.frame = clamp(value.frame, 0, this.state.duration_frames - 1);
-    this.selectedEntity = value.selectedEntity;
-    this.selectedObjectId = value.selectedObjectId;
-    this.selectedObjectIds = new Set(value.selectedObjectId ? [value.selectedObjectId] : []);
-    this.selectedKeyFrame = value.selectedKeyFrame;
+    const validObjectIds = new Set(this.state.objects.map((object) => object.id));
+    const selectedObjectIds = Array.isArray(value.selectedObjectIds)
+      ? value.selectedObjectIds
+      : [value.selectedObjectId].filter(Boolean);
+    this.selectedObjectIds = new Set(selectedObjectIds.filter((id) => validObjectIds.has(id)));
+    this.selectedObjectId = this.selectedObjectIds.has(value.selectedObjectId)
+      ? value.selectedObjectId
+      : [...this.selectedObjectIds].at(-1) || null;
+    this.selectedEntity = this.selectedObjectIds.size ? "object" : (value.selectedEntity || "camera");
+    const validKeyFrames = new Set(this.timelineKeyframes().map((key) => key.frame));
+    const selectedKeyFrames = Array.isArray(value.selectedKeyFrames)
+      ? value.selectedKeyFrames
+      : [value.selectedKeyFrame].filter((frame) => frame !== null && frame !== undefined);
+    this.selectedKeyFrames = new Set(selectedKeyFrames.filter((frame) => validKeyFrames.has(frame)));
+    this.selectedKeyFrame = this.selectedKeyFrames.has(value.selectedKeyFrame)
+      ? value.selectedKeyFrame
+      : [...this.selectedKeyFrames].at(-1) ?? null;
+    this.subSelection = value.subSelection || null;
     this.camera = sampleCamera(this.state, this.frame);
     this.cameraPreviewSignature = "";
     this.serialize();
@@ -196,7 +210,7 @@ export function createEditorMethods(dependencies) {
     this.showContextMenu(event, "Viewport", [
       { label: object ? `Set key · ${object.name || object.type}` : `Set key · ${this.activeCameraTrack().name}`, icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
       { label: "Create camera from view", icon: "pi-video", run: () => this.addCamera() },
-      { label: "Set camera target here", icon: "pi-crosshairs", help: "Set camera Look-At target to this 3D point in the scene", run: () => this.setTargetAtCursor(event) },
+      { label: "Set camera target here", icon: "pi-bullseye", help: "Set camera Look-At target to this 3D point in the scene", run: () => this.setTargetAtCursor(event) },
       { label: "Frame subject", icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
       null,
       { label: "Create cube", icon: "pi-stop", run: () => this.addPrimitive("cube") },
@@ -226,7 +240,7 @@ export function createEditorMethods(dependencies) {
       { label: "Duplicate object", icon: "pi-copy", run: () => this.duplicateObject(id) },
       { label: object.enabled === !1 ? "Show object" : "Hide object", icon: object.enabled === !1 ? "pi-eye" : "pi-eye-slash", run: () => this.toggleObject(id) },
       null,
-      { label: "Camera tracks this object (Look-At)", icon: "pi-crosshairs", help: "Lock camera live look-at tracking to this moving object", run: () => this.aimAtSelectedObject(id) },
+      { label: "Camera tracks this object (Look-At)", icon: "pi-bullseye", help: "Lock camera live look-at tracking to this moving object", run: () => this.aimAtSelectedObject(id) },
       { label: "Bake tracking to all camera keys", icon: "pi-check-square", help: "Write this object's motion into camera target keyframes", run: () => this.bakeAimToKeyframes() },
       { label: "Select hierarchy", icon: "pi-sitemap", shortcut: "Shift+G", help: "Select this object and all descendants", run: () => this.selectHierarchy(id) },
       null,

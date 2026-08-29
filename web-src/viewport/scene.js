@@ -1,9 +1,11 @@
 // WebGL viewport methods extracted from the public facade.
 
+import { worldOverlay } from "./mesh-overlays.js";
+
 export function createSceneMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
   return {
-  updateLiveCameras(state, frame, cleanCapture, viewMode, selectedEntity = "camera") {
+  updateLiveCameras(state, frame, cleanCapture, viewMode, selectedEntity = "camera", selectedFrame = null) {
     disposeObject(this.liveCameras);
     this.liveCameras.clear();
     if (cleanCapture) return;
@@ -22,6 +24,7 @@ export function createSceneMethods(dependencies) {
         ? { line: new THREE.Color(camera.color), marker: new THREE.Color(camera.color), frustum: new THREE.Color(camera.color), body: new THREE.Color(camera.color).multiplyScalar(0.35) }
         : cameraColors[camIdx % cameraColors.length];
       const isActive = camera.id === state.active_camera_id;
+      const isSelected = isActive && selectedEntity === "camera";
       if (viewMode === "camera" && isActive) return;
 
       const camData = sampleCamera(camera, frame, state.objects);
@@ -76,6 +79,7 @@ export function createSceneMethods(dependencies) {
       const rotMatrix = new THREE.Matrix4().makeBasis(right, up, forward.clone().negate());
       bodyGroup.quaternion.setFromRotationMatrix(rotMatrix);
       bodyGroup.position.copy(pos);
+      bodyGroup.userData.omnicamWidget = "gizmo";
       this.liveCameras.add(bodyGroup);
 
       // Pickable hit sphere for camera body
@@ -109,38 +113,44 @@ export function createSceneMethods(dependencies) {
       frustumSegments.push(corners[2], topPeak, topPeak, corners[3]);
 
       const frustumGeo = new THREE.BufferGeometry().setFromPoints(frustumSegments);
-      this.liveCameras.add(new THREE.LineSegments(frustumGeo, new THREE.LineBasicMaterial({
-        color: palette.frustum,
+      const frustumLines = new THREE.LineSegments(frustumGeo, new THREE.LineBasicMaterial({
+        color: isSelected ? palette.marker : palette.frustum,
         linewidth: isActive ? 2 : 1,
         transparent: true,
         opacity: isActive ? 1.0 : 0.6,
-      })));
+      }));
+      frustumLines.userData.omnicamWidget = "gizmo";
+      this.liveCameras.add(frustumLines);
 
       // Target sightline & target picking
       if (targetDist > 0.01) {
+        const isTargetSelected = isActive && selectedEntity === "camera_target";
         const lineGeo = new THREE.BufferGeometry().setFromPoints([pos, tgt]);
-        this.liveCameras.add(new THREE.Line(lineGeo, new THREE.LineDashedMaterial({
-          color: palette.marker,
+        const sightLine = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({
+          color: isSelected || isTargetSelected ? 0x38bdf8 : palette.marker,
           dashSize: 0.15,
           gapSize: 0.1,
           transparent: true,
-          opacity: isActive ? 0.75 : 0.4,
-        })));
+          opacity: isSelected || isTargetSelected ? 1.0 : isActive ? 0.75 : 0.4,
+        }));
+        sightLine.userData.omnicamWidget = "lookat";
+        this.liveCameras.add(sightLine);
 
-        const isTargetSelected = isActive && selectedEntity === "camera_target";
-        const tgtSize = isTargetSelected ? 0.12 : 0.08;
+        const tgtSize = isTargetSelected ? 0.12 : isSelected ? 0.11 : 0.08;
         const tgtPoints = [
           tgt.clone().add(new THREE.Vector3(-tgtSize, 0, 0)), tgt.clone().add(new THREE.Vector3(tgtSize, 0, 0)),
           tgt.clone().add(new THREE.Vector3(0, -tgtSize, 0)), tgt.clone().add(new THREE.Vector3(0, tgtSize, 0)),
           tgt.clone().add(new THREE.Vector3(0, 0, -tgtSize)), tgt.clone().add(new THREE.Vector3(0, 0, tgtSize)),
         ];
         const tgtGeo = new THREE.BufferGeometry().setFromPoints(tgtPoints);
-        this.liveCameras.add(new THREE.LineSegments(tgtGeo, new THREE.LineBasicMaterial({
-          color: isTargetSelected ? 0x38bdf8 : palette.marker,
+        const tgtCross = new THREE.LineSegments(tgtGeo, new THREE.LineBasicMaterial({
+          color: isTargetSelected || isSelected ? 0x38bdf8 : palette.marker,
           linewidth: isTargetSelected ? 3 : 1,
           transparent: true,
-          opacity: isTargetSelected ? 1.0 : (isActive ? 0.9 : 0.5),
-        })));
+          opacity: isTargetSelected || isSelected ? 1.0 : (isActive ? 0.9 : 0.5),
+        }));
+        tgtCross.userData.omnicamWidget = "lookat";
+        this.liveCameras.add(tgtCross);
 
         // Pickable hit sphere for camera target point
         const tgtPickGeo = new THREE.SphereGeometry(0.28, 8, 6);
@@ -150,24 +160,33 @@ export function createSceneMethods(dependencies) {
         this.liveCameras.add(tgtPickMesh);
 
         // Highlight ring on target if target is selected
-        if (isTargetSelected && viewMode !== "camera") {
+        if ((isTargetSelected || isSelected) && viewMode !== "camera") {
           const tgtRingGeo = new THREE.RingGeometry(0.14, 0.18, 24);
           tgtRingGeo.rotateX(Math.PI / 2);
           const tgtRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
           const tgtRingMesh = new THREE.Mesh(tgtRingGeo, tgtRingMat);
           tgtRingMesh.position.copy(tgt);
+          tgtRingMesh.userData.omnicamWidget = "lookat";
           this.liveCameras.add(tgtRingMesh);
         }
       }
 
       // Selection beacon ring for active/selected camera (only when camera is selected, not when an object is selected)
       if (isActive && viewMode !== "camera" && selectedEntity === "camera") {
-        const ringGeo = new THREE.RingGeometry(0.18, 0.22, 32);
+        const ringGeo = new THREE.RingGeometry(0.19, 0.24, 32);
         ringGeo.rotateX(Math.PI / 2);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xf2d06b, side: THREE.DoubleSide, transparent: true, opacity: 0.85 });
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xf2d06b, side: THREE.DoubleSide, transparent: true, opacity: 1 });
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
         ringMesh.position.copy(pos);
+        ringMesh.userData.omnicamWidget = "gizmo";
         this.liveCameras.add(ringMesh);
+        // A fainter outer halo so the selected camera reads at a distance.
+        const haloGeo = new THREE.RingGeometry(0.28, 0.31, 32);
+        haloGeo.rotateX(Math.PI / 2);
+        const haloMesh = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: 0xf2d06b, side: THREE.DoubleSide, transparent: true, opacity: 0.35 }));
+        haloMesh.position.copy(pos);
+        haloMesh.userData.omnicamWidget = "gizmo";
+        this.liveCameras.add(haloMesh);
       }
     });
   },
@@ -215,20 +234,17 @@ export function createSceneMethods(dependencies) {
         if (state.show_wireframe) {
           let highlightedMeshes = 0;
           node.traverse((child) => {
-            if (!child.isMesh || !child.geometry || highlightedMeshes >= 64) return;
-          const overlay = new THREE.Mesh(child.geometry.clone(), new THREE.MeshBasicMaterial({
-            color: 0x38bdf8,
-            transparent: true,
-            opacity: 0.2,
-            depthTest: true,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-          }));
-            overlay.matrixAutoUpdate = false;
-            overlay.matrix.copy(child.matrixWorld);
-            overlay.frustumCulled = false;
+            if (!child.isMesh || !child.geometry || child.userData.omnicamHelper || highlightedMeshes >= 64) return;
+            const overlay = worldOverlay(THREE, child, new THREE.MeshBasicMaterial({
+              color: 0x38bdf8,
+              transparent: true,
+              opacity: 0.2,
+              depthTest: true,
+              depthWrite: false,
+              side: THREE.DoubleSide,
+              polygonOffset: true,
+              polygonOffsetFactor: -1,
+            }));
             overlay.renderOrder = 9998;
             this.selectionGroup.add(overlay);
             highlightedMeshes += 1;
@@ -304,6 +320,57 @@ export function createSceneMethods(dependencies) {
         } catch (_) {}
       }
     }
+  },
+
+  /** Bone names of a loaded model, for the aim-constraint picker. */
+  listObjectBones(objectId) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return [];
+    const names = [];
+    const seen = new Set();
+    node.traverse((child) => {
+      const name = child.isBone ? child.name : "";
+      if (!name || seen.has(name) || names.length >= 256) return;
+      seen.add(name);
+      names.push(name);
+    });
+    return names;
+  },
+
+  /**
+   * World position of `boneName` (or the model's animated centre when no bone
+   * is named) at an arbitrary frame.
+   *
+   * The mixer is the only thing that knows where a bone sits at a given time,
+   * so the model is posed at `frame`, probed, then posed back: a probe for a
+   * frame other than the playhead must not leave the viewport showing it.
+   */
+  sampleModelPoint(objectId, boneName, frame, fps = 24) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return null;
+    const model = this.models.get(objectId);
+    const animated = model?.mixer && model.duration > 0;
+    const restoreTime = animated ? model.mixer.time : null;
+    if (animated) {
+      model.mixer.setTime((Math.max(0, frame) / Math.max(1, fps)) % model.duration);
+      node.updateMatrixWorld(true);
+    }
+    let point = null;
+    if (boneName) {
+      let bone = null;
+      node.traverse((child) => { if (!bone && child.isBone && child.name === boneName) bone = child; });
+      if (bone) {
+        const world = new THREE.Vector3().setFromMatrixPosition(bone.matrixWorld);
+        point = [world.x, world.y, world.z];
+      }
+    } else {
+      point = this.getObjectWorldCenter(objectId);
+    }
+    if (animated && Number.isFinite(restoreTime)) {
+      model.mixer.setTime(restoreTime);
+      node.updateMatrixWorld(true);
+    }
+    return point;
   },
 
   getObjectWorldCenter(objectId) {

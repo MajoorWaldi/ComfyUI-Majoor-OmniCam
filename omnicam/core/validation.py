@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .migrations import CURRENT_VERSIONS, TRACK_SCHEMA
+from .sequence import SEQUENCE_TARGET
 
 INTERPOLATION_MODES = frozenset({"ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"})
 # "beauty" is the only mode that records the lit studio viewport instead of a
@@ -170,7 +171,12 @@ def validate_camera_keyframes(keyframes: Any, duration_frames: int, path: str, l
     for index, key in enumerate(keyframes):
         if not isinstance(key, dict):
             raise ValidationError(f"{path}[{index}] must be an object")
-        frame = _clamp_int(key.get("frame", 0), 0, max(0, duration_frames - 1), f"{path}[{index}].frame")
+        # Keys past the end of the timeline are kept, not folded onto the last
+        # frame. Clamping here collapsed every dormant key onto duration-1, and
+        # the dedupe below then kept only one of them: a shot shortened in the
+        # editor exported a trajectory whose final frame held the wrong camera.
+        # The key count is already capped above, so an unbounded frame is safe.
+        frame = _clamp_int(key.get("frame", 0), 0, limits.max_duration_frames, f"{path}[{index}].frame")
         references = key.get("references")
         validated.append(
             {
@@ -379,6 +385,10 @@ def validate_editor_state(payload: dict[str, Any], limits: TrackLimits | None = 
         state["cameras"] = validated_cameras
         ids = {camera["id"] for camera in validated_cameras}
         for role in ("active_camera_id", "playblast_camera_id"):
+            # The multi-camera edit is a legitimate playblast target: its proxy
+            # is one video cut across several cameras, so it names no camera.
+            if role == "playblast_camera_id" and state.get(role) == SEQUENCE_TARGET:
+                continue
             if role in state and state[role] not in ids:
                 raise ValidationError(f"{role} references an unknown camera {state[role]!r}")
     encoded = json.dumps(state, default=str).encode("utf-8")

@@ -8,7 +8,7 @@ import { EditorHistory } from "./omnicam-history.js";
 import { ContextMenuController, initializeTooltips, promptText } from "./omnicam-ui.js";
 import { ObjectUrlRegistry } from "./omnicam-media.js";
 import { buildRoot } from "./omnicam-template.js";
-import { dispatchDirectorKey } from "./omnicam-commands.js";
+import { dispatchDirectorKey, installGlobalKeyInterceptor } from "./omnicam-commands.js";
 import {
   activeCameraTrack,
   bindWidgetCallbacks,
@@ -178,7 +178,7 @@ class OmniCamDirectorUI {
       parsed = JSON.parse(this.stateWidget?.value || "{}");
     } catch {
     }
-    this.state = sanitizeState(parsed), this.frame = 0, this.camera = sampleCamera(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.objectUrls = new ObjectUrlRegistry(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.contextMenu = new ContextMenuController(this.root), this.history = new EditorHistory({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedKeyFrame: this.selectedKeyFrame }), restore: (snapshot) => this.restoreHistorySnapshot(snapshot) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bind(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic(),
+    this.state = sanitizeState(parsed), this.frame = 0, this.camera = sampleCamera(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.objectUrls = new ObjectUrlRegistry(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.contextMenu = new ContextMenuController(this.root), this.history = new EditorHistory({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedObjectIds: [...(this.selectedObjectIds || [])], selectedKeyFrame: this.selectedKeyFrame, selectedKeyFrames: [...(this.selectedKeyFrames || [])], subSelection: this.subSelection }), restore: (snapshot) => this.restoreHistorySnapshot(snapshot) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bind(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic(),
       // Seed every frame-derived readout (timecode, lens millimetres, viewport
       // zoom, dope rows) instead of waiting for the first scrub.
       this.setFrame(this.frame, false, true);
@@ -254,6 +254,9 @@ function attachDirector(node) {
     ui.syncUpstreamInputs();
   };
 }
+// Claim OmniCam shortcuts on window-capture as early as possible -- ideally
+// before ComfyUI's ChangeTracker registers its own Ctrl+Z handler.
+installGlobalKeyInterceptor();
 registerOmniCamNodeBranding(app);
 // Locales must be registered before the first buildRoot() call, which resolves
 // every label through t() eagerly.

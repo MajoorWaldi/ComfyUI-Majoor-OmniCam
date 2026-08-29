@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { getLocale, registerLocale, setLocale, t } from "../../web-src/i18n.js";
-import { OMNICAM_SETTINGS, directorDefaults, registerOmniCamLocales } from "../../web-src/settings.js";
+import { OMNICAM_SETTINGS, adaptiveQualityEnabled, applyDirectorDefaults, directorDefaults, registerOmniCamLocales, unregisterDirector, viewportQuality } from "../../web-src/settings.js";
 import { FR } from "../../web-src/locales/fr.js";
 import { LENS_PRESETS, focalLengthToFov, formatFocalLength, formatFov, fovToFocalLength } from "../../web-src/lens.js";
 import { DOPE_CHANNELS, dopeSheetRows } from "../../web-src/dope-sheet.js";
@@ -30,17 +30,104 @@ test("OmniCam settings expose ComfyUI-compatible definitions", () => {
 
 test("director defaults fall back cleanly when the settings store is unavailable", () => {
   registerOmniCamLocales({});
-  assert.deepEqual(directorDefaults(), { fps: 24, renderMode: "omni_ref", encoder: "auto" });
+  assert.deepEqual(directorDefaults(), {
+    fps: 24, durationSeconds: 5, width: 1280, height: 720,
+    renderMode: "omni_ref", encoder: "auto", playblastResolution: "viewport", playblastGrid: false,
+    pointDensity: "balanced", pointSpread: "all_views", pointColor: "#cbd5e1", cardFit: "contain",
+    backgroundColor: "#121212",
+    showGrid: true, showRadar: false, showCameraPaths: true, showCameraGizmos: true,
+    showLookAt: true, showHelperAxes: true, showGizmo: true, guides: true,
+    safeAreas: false, resolutionGate: false, aspectRatio: "auto",
+    burnIn: false, speedHeatmap: false, showWireframe: false, showVertices: false,
+    selectMode: "object", gizmoMode: "translate", gizmoSpace: "world",
+    spatialSnapMode: "none", spatialGridSize: 0.5,
+    navigationProfile: "maya", flySpeed: 1, viewMode: "camera",
+    snapEnabled: true, snapFrames: 1, autoKey: false, timecodeMode: "time", loopPlayback: false,
+    uiDensity: "advanced", previewLayout: "auto", cameraViewVisible: true,
+    undoLimit: 100,
+  });
+});
+
+// A setting that shows up in the ComfyUI dialog but is never read is worse than
+// no setting: the user changes it and nothing happens. Exposing the whole state
+// surface makes that easy to do by accident, so it is checked mechanically.
+test("every catalogue setting is actually read by the runtime", () => {
+  const read = new Set();
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => { read.add(id); return undefined; } } } });
+  directorDefaults();
+  viewportQuality();
+  adaptiveQualityEnabled();
+  const unread = OMNICAM_SETTINGS.map((setting) => setting.id).filter((id) => !read.has(id));
+  assert.deepEqual(unread, [], "these settings are declared but never consumed");
 });
 
 test("director defaults read the ComfyUI settings store when present", () => {
   const values = {
     "MajoorOmniCam.Defaults.Fps": 30,
     "MajoorOmniCam.Defaults.RenderMode": "graybox",
-    "MajoorOmniCam.Defaults.Encoder": "realtime",
+    "MajoorOmniCam.Defaults.PlayblastResolution": "output",
+    "MajoorOmniCam.Proxy.PointSpread": "dome",
+    "MajoorOmniCam.Viewport.BackgroundColor": "1a2b3c",
+    "MajoorOmniCam.Display.CameraGizmos": false,
+    "MajoorOmniCam.Display.AspectRatio": "2.39:1",
+    "MajoorOmniCam.Tools.GizmoSpace": "local",
+    "MajoorOmniCam.Tools.SpatialGridSize": 0.25,
+    "MajoorOmniCam.Navigation.Profile": "blender",
+    "MajoorOmniCam.Timeline.TimecodeMode": "timecode",
+    "MajoorOmniCam.Interface.Density": "basic",
+    "MajoorOmniCam.History.Limit": 250,
   };
   registerOmniCamLocales({ extensionManager: { setting: { get: (id) => values[id] } } });
-  assert.deepEqual(directorDefaults(), { fps: 30, renderMode: "graybox", encoder: "realtime" });
+  const defaults = directorDefaults();
+  assert.equal(defaults.fps, 30);
+  assert.equal(defaults.renderMode, "graybox");
+  assert.equal(defaults.playblastResolution, "output");
+  assert.equal(defaults.pointSpread, "dome");
+  assert.equal(defaults.backgroundColor, "#1a2b3c", "bare hex from the colour picker gains its #");
+  assert.equal(defaults.showCameraGizmos, false);
+  assert.equal(defaults.aspectRatio, "2.39:1");
+  assert.equal(defaults.gizmoSpace, "local");
+  assert.equal(defaults.spatialGridSize, 0.25);
+  assert.equal(defaults.navigationProfile, "blender");
+  assert.equal(defaults.timecodeMode, "timecode");
+  assert.equal(defaults.uiDensity, "basic");
+  assert.equal(defaults.undoLimit, 250);
+  assert.equal(defaults.showGrid, true, "an unset setting keeps its default");
+});
+
+test("a stale or malformed stored value never reaches the editor state", () => {
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => ({
+    "MajoorOmniCam.Tools.SelectMode": "sculpt",
+    "MajoorOmniCam.Timeline.TimecodeMode": 7,
+    "MajoorOmniCam.Viewport.BackgroundColor": "not-a-colour",
+    "MajoorOmniCam.Display.Grid": "yes",
+    "MajoorOmniCam.Tools.SpatialGridSize": 9999,
+  }[id]) } } });
+  const defaults = directorDefaults();
+  assert.equal(defaults.selectMode, "object");
+  assert.equal(defaults.timecodeMode, "time");
+  assert.equal(defaults.backgroundColor, "#121212");
+  assert.equal(defaults.showGrid, true, "a non-boolean must not be coerced into a toggle");
+  assert.equal(defaults.spatialGridSize, 100, "out-of-range values clamp instead of passing through");
+});
+
+test("applying the defaults seeds every preference onto a fresh node state", () => {
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => ({
+    "MajoorOmniCam.Interface.PreviewLayout": "4",
+    "MajoorOmniCam.Display.BurnIn": true,
+    "MajoorOmniCam.Proxy.CardFit": "cover",
+  }[id]) } } });
+  const ui = { state: {}, root: { querySelector: () => null }, history: {}, syncFromWidgets() { this.synced = true; } };
+  applyDirectorDefaults(ui);
+  unregisterDirector(ui);
+  assert.equal(ui.state.preview_layout, "4");
+  assert.equal(ui.state.burn_in, true);
+  assert.equal(ui.state.card_fit, "cover");
+  assert.equal(ui.state.gizmo_mode, "translate");
+  assert.equal(ui.state.snap_enabled, true);
+  assert.equal(ui.state.viewport_bg_color, "#121212");
+  assert.equal(ui.history.limit, 100);
+  assert.equal(ui.synced, true);
 });
 
 test("viewport language follows ComfyUI locale unless overridden", () => {

@@ -17,7 +17,7 @@ function place(element, percent) {
 
 export function updatePlayhead(ui) {
   const percent = timelinePercentForFrame(ui, ui.frame);
-  for (const selector of [".oc-playhead-head", '[data-role="dope-playhead"]', ".oc-gdope-playhead"]) {
+  for (const selector of [".oc-playhead-head", '[data-role="dope-playhead"]', ".oc-gdope-playhead", ".oc-sequence-playhead"]) {
     for (const element of ui.root.querySelectorAll(selector)) place(element, percent);
   }
 }

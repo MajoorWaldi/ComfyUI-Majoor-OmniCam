@@ -14,7 +14,7 @@
     "check:locales": "node scripts/check_locales.mjs",
     "check:contract": "node scripts/check_template_contract.mjs",
     "check:licenses": "node scripts/generate_third_party_notices.mjs",
-    "test:unit": "node --test tests/frontend/director-modules.node.mjs tests/frontend/mojibake.node.mjs tests/frontend/chrome-modules.node.mjs tests/frontend/timeline-ui.node.mjs tests/frontend/key-drag.node.mjs tests/frontend/parity.node.mjs tests/frontend/production-bundle.node.mjs",
+    "test:unit": "node --test tests/frontend/director-modules.node.mjs tests/frontend/aim-constraint.node.mjs tests/frontend/sequence.node.mjs tests/frontend/commands.node.mjs tests/frontend/mesh-overlays.node.mjs tests/frontend/mojibake.node.mjs tests/frontend/chrome-modules.node.mjs tests/frontend/timeline-ui.node.mjs tests/frontend/key-drag.node.mjs tests/frontend/parity.node.mjs tests/frontend/production-bundle.node.mjs",
     "test:browser": "playwright test",
     "test:live": "playwright test --config playwright.live.config.mjs"
   },

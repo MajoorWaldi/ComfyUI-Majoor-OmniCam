@@ -1,6 +1,7 @@
 // WebGL viewport methods extracted from the public facade.
 
 import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
+import { attachMeshOverlays } from "./mesh-overlays.js";
 
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -83,33 +84,14 @@ export function createResourceMethods(dependencies) {
         c.userData.omnicamId = object.id;
       });
 
-      if (state.show_wireframe) {
-        mesh.traverse((child) => {
-          if (child.isMesh && child.geometry) {
-            const wireGeo = new THREE.WireframeGeometry(child.geometry);
-            const wireLine = new THREE.LineSegments(wireGeo, new THREE.LineBasicMaterial({ color: 0x38bdf8, opacity: 0.45, transparent: true }));
-            wireLine.userData.omnicamHelper = true;
-            child.add(wireLine);
-          }
-        });
-      }
-      if (state.show_vertices) {
-        mesh.traverse((child) => {
-          if (child.isMesh && child.geometry) {
-            const ptMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.05, sizeAttenuation: true });
-            const pts = new THREE.Points(child.geometry, ptMat);
-            pts.userData.omnicamHelper = true;
-            child.add(pts);
-          }
-        });
-      }
+      attachMeshOverlays(THREE, mesh, { wireframe: state.show_wireframe, vertices: state.show_vertices });
 
       this.objectNodes.set(object.id, mesh);
       this.content.add(mesh);
     }
   },
 
-  rebuildPath(state) {
+  rebuildPath(state, selectedEntity = "camera", selectedFrame = null) {
     disposeObject(this.path); this.path.clear();
     const cameraColors = [
       { line: 0x4aa3ef, marker: 0x8ab4f8, frustum: 0x3d6b9e }, // Camera 1 - Blue/Cyan
@@ -127,6 +109,9 @@ export function createResourceMethods(dependencies) {
         ? { line: new THREE.Color(camera.color), marker: new THREE.Color(camera.color), frustum: new THREE.Color(camera.color) }
         : cameraColors[camIdx % cameraColors.length];
       const isActive = camera.id === state.active_camera_id;
+      // The active camera is "selected" only while the editor selection is on the
+      // camera itself (not an object, not the look-at target).
+      const isSelected = isActive && selectedEntity === "camera";
 
       if (keys.length >= 2) {
         const firstFrame = keys[0].frame;
@@ -138,7 +123,7 @@ export function createResourceMethods(dependencies) {
           return new THREE.Vector3().fromArray(sampleCamera(trackState, frame, state.objects).position);
         });
         const curve = new THREE.CatmullRomCurve3(points, false, "centripetal");
-        const radius = isActive ? 0.045 : 0.025;
+        const radius = isSelected ? 0.06 : isActive ? 0.045 : 0.025;
         const material = new THREE.MeshBasicMaterial({
           color: palette.line,
           transparent: true,
@@ -147,13 +132,15 @@ export function createResourceMethods(dependencies) {
         });
         const pathMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(48, samples), radius, 8, false), material);
         pathMesh.renderOrder = 900;
+        pathMesh.userData.omnicamWidget = "path";
         this.path.add(pathMesh);
         if (isActive) {
           const glow = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, Math.max(48, samples), radius * 2.4, 8, false),
-            new THREE.MeshBasicMaterial({ color: palette.line, transparent: true, opacity: 0.18, depthTest: false }),
+            new THREE.TubeGeometry(curve, Math.max(48, samples), radius * (isSelected ? 3 : 2.4), 8, false),
+            new THREE.MeshBasicMaterial({ color: palette.line, transparent: true, opacity: isSelected ? 0.3 : 0.18, depthTest: false }),
           );
           glow.renderOrder = 899;
+          glow.userData.omnicamWidget = "path";
           this.path.add(glow);
         }
       }
@@ -167,6 +154,7 @@ export function createResourceMethods(dependencies) {
         marker.renderOrder = 910;
         // Identifies the marker as a draggable handle for this exact keyframe.
         marker.userData.omnicamPathKey = { cameraId: camera.id, frame: key.frame };
+        marker.userData.omnicamWidget = "path";
         this.path.add(marker);
 
         const position = new THREE.Vector3().fromArray(key.camera.position);
@@ -189,27 +177,47 @@ export function createResourceMethods(dependencies) {
         for (const corner of corners) segments.push(position, corner);
         for (let index = 0; index < 4; index++) segments.push(corners[index], corners[(index + 1) % 4]);
         const frustum = new THREE.BufferGeometry().setFromPoints(segments);
-        this.path.add(new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({
-          color: palette.frustum,
+        const frustumLines = new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({
+          color: isSelected ? palette.marker : palette.frustum,
           transparent: true,
-          opacity: isActive ? 0.9 : 0.45,
+          opacity: isSelected ? 1.0 : isActive ? 0.9 : 0.45,
           depthTest: false,
-        })));
+        }));
+        frustumLines.userData.omnicamWidget = "gizmo";
+        this.path.add(frustumLines);
 
         // A shaded body with a lens cone reads as a camera at a glance, where
         // the frustum lines alone read as an abstract shape.
-        this.path.add(cameraBodyGizmo(THREE, {
+        const body = cameraBodyGizmo(THREE, {
           position, forward, up,
           color: palette.marker,
           scale: THREE.MathUtils.clamp(distance * 1.15, 0.35, 1.6),
           active: isActive,
-        }));
+        });
+        body.userData.omnicamWidget = "gizmo";
+        this.path.add(body);
 
         if (isActive) {
-          this.path.add(targetCrosshair(THREE, {
+          const selectedKeyHere = selectedFrame != null && key.frame === selectedFrame;
+          const crosshair = targetCrosshair(THREE, {
             position: target,
-            radius: THREE.MathUtils.clamp(position.distanceTo(target) * 0.05, 0.16, 0.5),
-          }));
+            radius: THREE.MathUtils.clamp(position.distanceTo(target) * 0.05, 0.16, 0.5) * (selectedKeyHere ? 1.4 : 1),
+            bold: selectedKeyHere,
+          });
+          crosshair.userData.omnicamWidget = "lookat";
+          this.path.add(crosshair);
+
+          // Highlight the selected keyframe's line of sight so the look-at reads
+          // as a direction, not just a point in space.
+          if (selectedKeyHere) {
+            const sight = new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints([position.clone(), target.clone()]),
+              new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, depthTest: false }),
+            );
+            sight.renderOrder = 914;
+            sight.userData.omnicamWidget = "lookat";
+            this.path.add(sight);
+          }
         }
       }
     });
@@ -227,6 +235,7 @@ export function createResourceMethods(dependencies) {
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, depthTest: false }),
       );
       objectPath.renderOrder = 900;
+      objectPath.userData.omnicamWidget = "path";
       this.path.add(objectPath);
 
       for (const key of keys) {
@@ -236,6 +245,7 @@ export function createResourceMethods(dependencies) {
         );
         objMarker.position.fromArray(key.transform?.position || [0, 0, 0]);
         objMarker.renderOrder = 910;
+        objMarker.userData.omnicamWidget = "path";
         this.path.add(objMarker);
       }
     });

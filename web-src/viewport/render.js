@@ -6,7 +6,7 @@ import { createQualityMonitor, recordFrame, resetMonitor } from "./adaptive-qual
 export function createRenderMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
   return {
-  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null) {
+  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null, selectedFrame = null) {
     // The studio look stays on while editing. During a capture it survives only
     // for the explicit "beauty" mode; every other proxy mode records flat.
     const wantStudio = !cleanCapture || (state.render_mode || "") === "beauty";
@@ -101,6 +101,9 @@ export function createRenderMethods(dependencies) {
       node.position.fromArray(transform.position || [0, 0, 0]);
       node.rotation.set(...(transform.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad));
       if (object.type !== "card" && object.type !== "null") node.scale.fromArray(transform.size || [1, 1, 1]);
+      // A "null" node is just an AxesHelper, so the Show > Helper axes toggle
+      // owns its visibility outside of a clean capture.
+      if (object.type === "null") node.visible = cleanCapture ? true : state.show_helper_axes !== false;
     }
     this.path.visible = !cleanCapture;
     // The editor grid follows an explicit toggle. It used to be derived from the
@@ -110,15 +113,31 @@ export function createRenderMethods(dependencies) {
     const editorGrid = state.show_grid !== false && state.render_mode !== "point_field";
     this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
     
-    const pathKey = state.__omnicamRevision ?? JSON.stringify([
+    const pathKey = `${selectedEntity}:${selectedFrame ?? ""}:${state.__omnicamRevision ?? JSON.stringify([
       state.active_camera_id,
       (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target])]),
       (state.objects || []).map((o) => [o.id, o.keyframes?.length, o.keyframes?.map((k) => [k.frame, k.transform?.position])]),
-    ]);
-    if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state); }
+    ])}`;
+    if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state, selectedEntity, selectedFrame); }
 
-    this.updateLiveCameras(state, frame, cleanCapture, state.view_mode || "camera", selectedEntity);
+    this.updateLiveCameras(state, frame, cleanCapture, state.view_mode || "camera", selectedEntity, selectedFrame);
     this.liveCameras.visible = !cleanCapture;
+
+    // Per-widget visibility, evaluated every frame so the "Show" checkboxes react
+    // without a geometry rebuild. Tags are stamped in rebuildPath / updateLiveCameras.
+    if (!cleanCapture) {
+      const showPaths = state.show_camera_paths !== false;
+      const showGizmos = state.show_camera_gizmos !== false;
+      const showLookAt = state.show_look_at !== false;
+      for (const root of [this.path, this.liveCameras]) {
+        root.traverse((object) => {
+          const widget = object.userData.omnicamWidget;
+          if (widget === "path") object.visible = showPaths;
+          else if (widget === "gizmo") object.visible = showGizmos;
+          else if (widget === "lookat") object.visible = showLookAt;
+        });
+      }
+    }
 
     if (!cleanCapture) {
       this.updateSelection(state, selectedEntity, selectedObjectId, subSelection, `${state.__omnicamRevision ?? "legacy"}:${frame}`);

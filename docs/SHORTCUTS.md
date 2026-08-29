@@ -105,9 +105,10 @@ donc jamais dans le playblast, qui doit rester une référence de mouvement neut
 ## Mini-radar
 
 La case *Display → 2D Radar Mini-Map* affiche une carte vue de dessus en bas à
-droite du viewport : position et cône de visée de la caméra active, cible,
-objets de la scène, clés de trajectoire, et une pastille d'altitude colorée par
-tranche de hauteur. L'échelle s'adapte pour garder caméra et cible dans le
+droite du viewport : tracé de toutes les caméras (actif en surbrillance),
+positions et cône de visée de la caméra active, cible, objets de la scène, clés
+de trajectoire, et une pastille d'altitude colorée par tranche de hauteur.
+L'échelle s'adapte pour garder les trajectoires, la caméra et la cible dans le
 cadre. Le radar n'est jamais dessiné pendant un playblast.
 
 ## Vérification manuelle du viewport

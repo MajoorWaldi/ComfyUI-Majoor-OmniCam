@@ -86,7 +86,14 @@ export function frameTarget(ui) {
 
   const currentDir = norm(sub(camera.position, oldTarget));
   const dir = (Number.isFinite(currentDir[0]) && length(currentDir) > 0.1) ? currentDir : [0.707, 0.4, 0.707];
-  const targetPos = targetObj.keyframes?.length ? sampleObjectTransform(targetObj, ui.frame).position : (targetObj.position || [0, 1.5, 0]);
+  // A rigged model animates inside its node, so its transform stays at the
+  // origin while the character moves. The bone-aware centre is what the gizmo
+  // and the aim constraint already use, and it is what F should frame too.
+  const modelCentre = (targetObj.type === "model" || targetObj.type === "glb")
+    ? ui.webgl?.getObjectWorldCenter?.(targetObj.id)
+    : null;
+  const targetPos = modelCentre
+    || (targetObj.keyframes?.length ? sampleObjectTransform(targetObj, ui.frame).position : (targetObj.position || [0, 1.5, 0]));
 
   ui.checkpoint("Frame subject");
   camera.target = [...targetPos];

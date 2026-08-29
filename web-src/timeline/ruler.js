@@ -148,6 +148,7 @@ export function bindRulerScrub(ui, signal) {
   ruler.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
     event.preventDefault();
+    event.stopPropagation();
     ruler.setPointerCapture(event.pointerId);
     ruler.dataset.scrubbing = "1";
     seek(event);

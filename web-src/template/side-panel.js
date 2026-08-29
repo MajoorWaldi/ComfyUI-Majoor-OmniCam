@@ -97,6 +97,11 @@ function inspectorPanel() {
             <option value="">${t("Manual Target (No Tracking)")}</option>
           </select>
         </div>
+        <div class="oc-field-row" data-role="camera-aim-bone-row" hidden><span class="oc-field-label">${t("Aim Bone")}</span>
+          <select data-role="camera-aim-bone" title="${t("Aim at a bone inside the tracked rig instead of its origin")}">
+            <option value="">${t("Whole object")}</option>
+          </select>
+        </div>
 
         <div class="oc-section">${t("Motion")}</div>
         <div class="oc-field-row oc-slider-row"><span class="oc-field-label">${t("Path Smoothing")}</span>

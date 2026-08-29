@@ -161,6 +161,13 @@ export function bindViewportSettings(ui, q, signal) {
       ui.render();
     }, { signal });
   }
+  for (const box of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) {
+    box.addEventListener("change", (e) => {
+      ui.state.playblast_resolution = e.target.value;
+      syncMirroredControl(ui.root, "playblast-resolution", e.target);
+      ui.scheduleSerialize();
+    }, { signal });
+  }
   for (const button of ui.root.querySelectorAll('[data-act="reset-bg-color"]')) {
     button.addEventListener("click", () => {
       // Back to the default colour, which is what lets the studio sky show again.
@@ -177,6 +184,38 @@ export function bindViewportSettings(ui, q, signal) {
       syncMirroredControl(ui.root, "show-grid", e.target, "checked");
       ui.scheduleSerialize();
       ui.render();
+    }, { signal });
+  }
+  // Maya-style "Show" toggles: each hides one family of viewport helper widgets.
+  // Visibility is applied per-frame in the WebGL renderer, so no rebuild needed.
+  for (const [role, flag] of [
+    ["show-camera-paths", "show_camera_paths"],
+    ["show-camera-gizmos", "show_camera_gizmos"],
+    ["show-look-at", "show_look_at"],
+    ["show-helper-axes", "show_helper_axes"],
+  ]) {
+    for (const box of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      box.addEventListener("change", (e) => {
+        ui.state[flag] = e.target.checked;
+        syncMirroredControl(ui.root, role, e.target, "checked");
+        ui.scheduleSerialize();
+        ui.render();
+      }, { signal });
+    }
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="select-look-at"]')) {
+    btn.addEventListener("click", () => {
+      const toTarget = ui.selectedEntity !== "camera_target";
+      ui.selectedEntity = toTarget ? "camera_target" : "camera";
+      ui.selectedObjectId = null;
+      ui.selectedObjectIds?.clear?.();
+      for (const b of ui.root.querySelectorAll('[data-act="select-look-at"]')) {
+        b.classList.toggle("active", toTarget);
+        b.setAttribute("aria-pressed", String(toTarget));
+      }
+      ui.refreshInspector?.();
+      ui.render();
+      ui.setStatus?.(toTarget ? t("Look-At target selected") : t("Camera selected"));
     }, { signal });
   }
   for (const box of ui.root.querySelectorAll('[data-role="show-wireframe"]')) {

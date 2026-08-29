@@ -91,7 +91,7 @@ export function onTimelinePointerMove(ui, event) {
     event.preventDefault();
     event.stopPropagation();
     const dx = event.clientX - ui.timelinePanDrag.startX;
-    const box = ui.root.querySelector('[data-role="keys"]');
+    const box = ui.timelineDrag?.box || ui.root.querySelector('[data-role="dope-tracks"]');
     const lastFrame = Math.max(1, ui.state.duration_frames - 1);
     const timeSpan = lastFrame / (Number(ui.timelineZoom) || 1.0);
     ui.timelinePan = ui.timelinePanDrag.origPan - (dx / Math.max(1, box.clientWidth)) * timeSpan;

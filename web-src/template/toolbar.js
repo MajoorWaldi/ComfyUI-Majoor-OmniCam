@@ -47,8 +47,9 @@ function camerasTab() {
       <button data-act="add-camera"><i class="pi pi-plus"></i> ${t("Add Camera")}</button>
       <div class="menu-divider"></div><div class="menu-title">${t("Targeting")}</div>
       <button data-act="aim-at-object" class="primary"><i class="pi pi-compass"></i> ${t("Aim at Target Subject")}</button>
-      <button data-act="focus-target"><i class="pi pi-crosshairs"></i> ${t("Frame Camera Target")}</button>
+      <button data-act="focus-target"><i class="pi pi-expand"></i> ${t("Frame Camera Target")}</button>
       <button data-act="bake-aim-keys"><i class="pi pi-check-square"></i> ${t("Bake")}</button>
+      <button data-act="bake-aim-per-frame" title="${t("One camera key per frame, so an exported track matches the viewport exactly")}"><i class="pi pi-list-check"></i> ${t("Bake Per Frame")}</button>
       <div class="menu-divider"></div><div class="menu-title">${t("Motion Presets & Shake")}</div>
       <div class="menu-grid">
         <button data-preset="orbit_360">${t("Orbit 360°")}</button>
@@ -117,7 +118,17 @@ function displayTab() {
       </select></label>
       <div class="menu-divider"></div><div class="menu-title">${t("Scene Display")}</div>
       <label><span>${t("Floor Grid")}</span><input data-role="show-grid" type="checkbox" checked></label>
+      <label><span>${t("Camera Paths")}</span><input data-role="show-camera-paths" type="checkbox" checked></label>
+      <label><span>${t("Camera Gizmos (body / frustum)")}</span><input data-role="show-camera-gizmos" type="checkbox" checked></label>
+      <label><span>${t("Look-At Targets")}</span><input data-role="show-look-at" type="checkbox" checked></label>
+      <label><span>${t("Helper Axes (nulls)")}</span><input data-role="show-helper-axes" type="checkbox" checked></label>
       <label><span>${t("Keep the grid in the playblast")}</span><input data-role="playblast-grid" type="checkbox"></label>
+      <label title="${t("Resolution of the recorded playblast video")}">${t("Playblast Resolution")} <select data-role="playblast-resolution">
+        <option value="viewport">${t("Viewport (fast)")}</option>
+        <option value="half">${t("½ x node output")}</option>
+        <option value="output">${t("Match node output")}</option>
+        <option value="double">${t("2x node output (sharp)")}</option>
+      </select></label>
       <label><span>${t("Wireframe / Edges")}</span><input data-role="show-wireframe" type="checkbox"></label>
       <label><span>${t("Mesh Vertices")}</span><input data-role="show-vertices" type="checkbox"></label>
       <label><span>${t("Burn-in Data")}</span><input data-role="burn-in" type="checkbox"></label>

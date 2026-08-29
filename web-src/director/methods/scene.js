@@ -1,6 +1,7 @@
 // OmniCam Director methods extracted from the UI facade.
 
 import { resetCameraAnimation, resetObjectAnimation } from "../../animation-reset.js";
+import { applyAimConstraint, bakeAimConstraint, setAimBone } from "../../aim-constraint.js";
 import { formatFocalLength } from "../../lens.js";
 import { updatePlayhead } from "../../timeline/playhead.js";
 
@@ -14,6 +15,9 @@ export function createSceneMethods(dependencies) {
     this.frame = clamp(Math.round(frame), 0, this.state.duration_frames - 1);
     if (this.editingKeyFrame !== this.frame) this.editingKeyFrame = null;
     this.camera = sampleCamera(this.activeCameraTrack(), this.frame, this.state.objects);
+    // A bone-level aim cannot be resolved from state, so it lands here, on the
+    // one camera the playhead actually drives.
+    applyAimConstraint(this, this.activeCameraTrack(), this.camera, this.frame);
     this.applyObjectAnimationFrame();
     for (const el of this.root.querySelectorAll('[data-role="frame"]')) if (document.activeElement !== el) el.value = String(this.frame);
     for (const el of this.root.querySelectorAll('[data-role="scrub"]')) el.value = String(this.frame);
@@ -218,7 +222,9 @@ export function createSceneMethods(dependencies) {
     return selectedObject(this);
   },
   playblastCameraAtFrame() {
-    return playblastCameraAtFrame(this, sampleCamera);
+    // The recorder steps frame by frame, so the bone aim it reads here is the
+    // same one the viewport shows -- the playblast cannot drift from the edit.
+    return applyAimConstraint(this, playblastCameraTrack(this), playblastCameraAtFrame(this, sampleCamera), this.frame);
   },
   viewportCamera() {
     return viewportCamera(this);
@@ -294,9 +300,11 @@ export function createSceneMethods(dependencies) {
     const cam = this.activeCameraTrack();
     const targetObj = (targetId && this.state.objects.find((o) => o.id === targetId)) || this.selectedObject() || this.state.objects.find((o) => o.id === "subject") || this.state.objects[0];
     if (!targetObj) return;
+    if (cam.target_object_id !== targetObj.id) cam.aim_bone = null;
     cam.target_object_id = targetObj.id;
     if (cam.id === this.state.active_camera_id) {
       this.state.target_object_id = targetObj.id;
+      this.state.aim_bone = cam.aim_bone;
     }
     const modelCenter = (targetObj.type === "model" || targetObj.type === "glb") ? this.webgl?.getObjectWorldCenter?.(targetObj.id) : null;
     const targetPos = modelCenter || (targetObj.keyframes?.length
@@ -312,12 +320,22 @@ export function createSceneMethods(dependencies) {
     this.render();
     this.setStatus(`Camera tracking locked to ${targetObj.name || targetObj.id}`);
   },
+  setAimBone(boneName) {
+    setAimBone(this, boneName);
+  },
+  bakeAimConstraint(options) {
+    bakeAimConstraint(this, options);
+  },
   setCameraTrackingTarget(targetId) {
     this.checkpoint("Change camera tracking target");
     const cam = this.activeCameraTrack();
+    // A bone name only means something inside the model it came from, so
+    // retargeting drops it rather than aiming at a bone that no longer exists.
+    if (cam.target_object_id !== (targetId || null)) cam.aim_bone = null;
     cam.target_object_id = targetId || null;
     if (cam.id === this.state.active_camera_id) {
       this.state.target_object_id = targetId || null;
+      this.state.aim_bone = cam.aim_bone;
     }
     if (targetId) {
       const targetObj = this.state.objects.find((o) => o.id === targetId);

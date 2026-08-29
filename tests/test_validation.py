@@ -39,7 +39,9 @@ def test_strict_validation_clamps_ranges():
     assert track["fps"] == 120
     assert track["width"] == 4096
     key = track["keyframes"][0]
-    assert key["frame"] == 9  # clamped into the track duration
+    # A key past the end stays where it is: clamping it to the last frame folded
+    # every dormant key onto duration-1, and the dedupe kept only one of them.
+    assert key["frame"] == 999
     assert key["camera"]["fov"] == 150.0
     assert key["camera"]["roll"] == 180.0
     assert key["camera"]["zoom"] >= 0.01
@@ -293,3 +295,47 @@ def test_metadata_keeps_ordinary_values_intact():
     assert payload["metadata"] == {
         "camera_id": "cam_1", "count": 3, "ratio": 1.5, "flag": True, "empty": None,
     }
+
+
+def test_dormant_keys_survive_a_shortened_timeline():
+    """Shortening a shot must not merge the keys past its new end.
+
+    Clamping folded 160, 180 and 200 onto the last frame, where the dedupe kept
+    exactly one of them -- so re-lengthening the shot could not bring them back,
+    and the exported trajectory ended on the wrong camera.
+    """
+    track = validate_track_payload(
+        {
+            "duration_frames": 150,
+            "keyframes": [
+                {"frame": frame, "camera": {"position": [frame, 0, 0], "target": [0, 0, 0]}}
+                for frame in (0, 100, 160, 180, 200)
+            ],
+        }
+    )
+    assert [key["frame"] for key in track["keyframes"]] == [0, 100, 160, 180, 200]
+    assert track["keyframes"][-1]["camera"]["position"] == [200.0, 0.0, 0.0]
+
+
+def test_sequence_is_a_valid_playblast_target():
+    from omnicam.core.sequence import SEQUENCE_TARGET
+
+    state = validate_editor_state(
+        {
+            "duration_frames": 60,
+            "cameras": [{"id": "cam_a", "keyframes": []}, {"id": "cam_b", "keyframes": []}],
+            "active_camera_id": "cam_a",
+            "playblast_camera_id": SEQUENCE_TARGET,
+        }
+    )
+    assert state["playblast_camera_id"] == SEQUENCE_TARGET
+
+    # An actual typo is still refused.
+    with pytest.raises(ValidationError):
+        validate_editor_state(
+            {
+                "cameras": [{"id": "cam_a", "keyframes": []}],
+                "active_camera_id": "cam_a",
+                "playblast_camera_id": "cam_typo",
+            }
+        )

@@ -264,7 +264,7 @@ export function drawOverlays(ui) {
   // The render-area mask, shared with the camera preview tiles so the two
   // can never disagree about what will actually be rendered.
   if (!ui.recording && ui.state.view_mode === "camera") drawResolutionGate(c, ui.state, w, h);
-  if (!ui.recording) {
+  if (!ui.recording && ui.state.show_gizmo) {
     try { ui.drawTransformGizmo(); } catch (err) { console.warn("[OmniCam Gizmo Error]", err); }
   }
   if (!ui.recording && ui.boxSelection) {
@@ -319,6 +319,13 @@ export function drawTopDownRadar(ui, c, w, h) {
   const cam = ui.viewportCamera();
   const camPos = cam?.position || [0, 1.5, 5];
   const camTgt = cam?.target || [0, 0, 0];
+  const cameraColors = ["#4aa3ef", "#f2a93b", "#48c774", "#b565d8", "#ec4899"];
+  const activeTrack = ui.activeCameraTrack?.();
+  const cameras = ui.state.cameras?.length ? ui.state.cameras : (activeTrack ? [activeTrack] : []);
+  const activeCameraId = ui.state.active_camera_id || activeTrack?.id;
+  const trackedPositions = cameras.flatMap((camera) =>
+    (camera.keyframes || []).map((keyframe) => keyframe.camera?.position).filter(Boolean)
+  );
 
   // Dynamic adaptive scale to ensure camera and target always stay in frame
   const maxDist = Math.max(
@@ -326,6 +333,7 @@ export function drawTopDownRadar(ui, c, w, h) {
     Math.abs(camPos[2] || 0),
     Math.abs(camTgt[0] || 0),
     Math.abs(camTgt[2] || 0),
+    ...trackedPositions.flatMap((position) => [Math.abs(position[0] || 0), Math.abs(position[2] || 0)]),
     4.0
   );
   const range = Math.max(6.0, Math.ceil((maxDist + 1.5) / 4) * 4);
@@ -408,20 +416,49 @@ export function drawTopDownRadar(ui, c, w, h) {
     c.fill();
   }
 
-  // Read the keys from the active track rather than the state.keyframes alias:
-  // the alias goes stale whenever something replaces the array wholesale.
-  const activeKeys = ui.activeCameraTrack?.()?.keyframes || ui.state.keyframes || [];
-  for (const k of activeKeys) {
-    const kPos = k.camera?.position;
-    if (kPos) {
-      const [kx, kz] = toRadar(kPos[0], kPos[2]);
-      if (kx >= rx + 4 && kx <= rx + radarSize - 4 && kz >= ry + 4 && kz <= ry + radarSize - 4) {
-        c.fillStyle = k.frame === ui.frame ? heightColor : "rgba(108, 130, 176, 0.6)";
-        c.beginPath();
-        c.arc(kx, kz, 1.8, 0, Math.PI * 2);
-        c.fill();
+  // Draw every camera's top-down path. The active camera is emphasized while
+  // the other paths remain visible for multi-camera shot planning.
+  for (let cameraIndex = 0; cameraIndex < cameras.length; cameraIndex++) {
+    const cameraTrack = cameras[cameraIndex];
+    const keys = cameraTrack.keyframes || [];
+    const isActive = cameraTrack.id === activeCameraId;
+    const color = cameraTrack.color || cameraColors[cameraIndex % cameraColors.length];
+    c.save();
+    c.strokeStyle = color;
+    c.globalAlpha = isActive ? 0.95 : 0.38;
+    c.lineWidth = isActive ? 2 : 1;
+    c.setLineDash(isActive ? [] : [2, 2]);
+    c.beginPath();
+    let pathStarted = false;
+    const firstFrame = keys[0]?.frame;
+    const lastFrame = keys[keys.length - 1]?.frame;
+    for (let frame = firstFrame; Number.isFinite(frame) && frame <= lastFrame; frame++) {
+      const position = sampleCamera(cameraTrack, frame, ui.state.objects)?.position;
+      if (!Array.isArray(position)) continue;
+      const [x, z] = toRadar(position[0], position[2]);
+      if (!pathStarted) {
+        c.moveTo(x, z);
+        pathStarted = true;
+      } else {
+        c.lineTo(x, z);
       }
     }
+    if (pathStarted) c.stroke();
+    c.restore();
+
+    c.save();
+    for (const key of keys) {
+      const position = key.camera?.position;
+      if (!position) continue;
+      const [x, z] = toRadar(position[0], position[2]);
+      if (x < rx + 4 || x > rx + radarSize - 4 || z < ry + 4 || z > ry + radarSize - 4) continue;
+      c.fillStyle = key.frame === ui.frame && isActive ? heightColor : color;
+      c.globalAlpha = isActive ? 0.9 : 0.5;
+      c.beginPath();
+      c.arc(x, z, isActive ? 1.8 : 1.4, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
   }
 
   // Camera and target positions with safety clamping inside radar bounds

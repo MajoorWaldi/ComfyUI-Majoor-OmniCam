@@ -56,6 +56,7 @@ export {
   Scene,
   ShadowMaterial,
   SkeletonHelper,
+  SkinnedMesh,
   SphereGeometry,
   Texture,
   TextureLoader,

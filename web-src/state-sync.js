@@ -2,6 +2,7 @@
 // The node widgets stay authoritative on queue; the UI keeps them in sync here.
 
 import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./omnicam-core.js";
+import { SEQUENCE_TARGET, cutAtFrame, sequenceActive } from "./director/sequence.js";
 
 export function activeCameraTrack(ui) {
   if (!ui?.state?.cameras?.length) {
@@ -13,6 +14,15 @@ export function activeCameraTrack(ui) {
 export function playblastCameraTrack(ui) {
   if (!ui?.state?.cameras?.length) {
     return activeCameraTrack(ui);
+  }
+  // The whole multi-camera edit rides on this branch. Every recording path
+  // funnels through here, so resolving the cut that covers the current frame is
+  // all it takes for the playblast -- and the viewport while it records -- to
+  // follow the edit instead of a single camera.
+  if (ui.state.playblast_camera_id === SEQUENCE_TARGET) {
+    const cut = cutAtFrame(ui.state, ui.frame);
+    const cutCamera = cut && ui.state.cameras.find((item) => item.id === cut.camera_id);
+    if (cutCamera) return cutCamera;
   }
   return ui.state.cameras.find((item) => item.id === ui.state.playblast_camera_id) || activeCameraTrack(ui);
 }
@@ -30,15 +40,27 @@ export function serializeEditorState(ui) {
   if (ui.disposed) return;
   ui.renderRevision = (ui.renderRevision || 0) + 1;
   syncActiveCameraTrack(ui);
+  // In sequence mode playblastCameraTrack() answers per frame, so the recording
+  // path has to come from the edit itself rather than from whichever camera the
+  // playhead happens to sit on.
+  const recordingSequence = ui.state.playblast_camera_id === SEQUENCE_TARGET && sequenceActive(ui.state);
   const playblastCamera = playblastCameraTrack(ui);
   if (ui.recordingWidget) {
-    const hasPerCameraRecording = ui.state.cameras.some((camera) => Boolean(camera.recording_path));
-    if (!hasPerCameraRecording && !playblastCamera.recording_path && ui.recordingWidget.value) {
-      playblastCamera.recording_path = String(ui.recordingWidget.value);
+    if (recordingSequence) {
+      ui.recordingWidget.value = ui.state.sequence.recording_path || "";
+    } else {
+      const hasPerCameraRecording = ui.state.cameras.some((camera) => Boolean(camera.recording_path));
+      if (!hasPerCameraRecording && !playblastCamera.recording_path && ui.recordingWidget.value) {
+        playblastCamera.recording_path = String(ui.recordingWidget.value);
+      }
+      ui.recordingWidget.value = playblastCamera.recording_path || "";
     }
-    ui.recordingWidget.value = playblastCamera.recording_path || "";
   }
-  ui.state.metadata = { ...ui.state.metadata, playblast_camera_id: playblastCamera.id, playblast_camera_name: playblastCamera.name };
+  ui.state.metadata = {
+    ...ui.state.metadata,
+    playblast_camera_id: recordingSequence ? SEQUENCE_TARGET : playblastCamera.id,
+    playblast_camera_name: recordingSequence ? "Sequence" : playblastCamera.name,
+  };
   const payload = { ...ui.state, camera: cloneCamera(playblastCamera.camera), keyframes: playblastCamera.keyframes };
   if (ui.stateWidget) ui.stateWidget.value = JSON.stringify(payload);
   if (ui.widthWidget) ui.widthWidget.value = ui.state.width;
@@ -70,21 +92,41 @@ export function syncFromWidgets(ui, persist = true) {
   ui.state.height = Number(ui.heightWidget?.value || ui.state.height);
   ui.state.fps = Number(ui.fpsWidget?.value || ui.state.fps);
   ui.state.duration_frames = Math.max(1, Math.round(Number(ui.durationWidget?.value || 5) * ui.state.fps));
+  // Keys past the end of the timeline go dormant, they are not destroyed.
+  // Clamping them here used to fold every key beyond the new end onto the last
+  // frame, where the dedupe below then kept only one of them: shortening a shot
+  // from 200 to 150 frames silently ate the keys at 160, 180 and 200, and
+  // lengthening it again could not bring them back. Only the lower bound is
+  // enforced; the timeline already skips drawing anything out of range.
   for (const camera of ui.state.cameras) {
-    for (const key of camera.keyframes) key.frame = clamp(Math.round(key.frame), 0, ui.state.duration_frames - 1);
+    for (const key of camera.keyframes) key.frame = Math.max(0, Math.round(key.frame));
     camera.keyframes = [...new Map(camera.keyframes.map((key) => [key.frame, key])).values()].sort((a, b) => a.frame - b.frame);
   }
   ui.state.keyframes = activeCameraTrack(ui).keyframes;
   for (const object of ui.state.objects)
-    object.keyframes = [...new Map((object.keyframes || []).map((key) => [clamp(Math.round(key.frame), 0, ui.state.duration_frames - 1), { ...key, frame: clamp(Math.round(key.frame), 0, ui.state.duration_frames - 1) }])).values()].sort((a, b) => a.frame - b.frame);
+    object.keyframes = [...new Map((object.keyframes || []).map((key) => {
+      const frame = Math.max(0, Math.round(key.frame));
+      return [frame, { ...key, frame }];
+    })).values()].sort((a, b) => a.frame - b.frame);
   if (!ui.timelineKeyframes().some((key) => key.frame === ui.selectedKeyFrame)) ui.selectedKeyFrame = ui.timelineKeyframes()[0]?.frame ?? null;
   ui.state.render_mode = ui.modeWidget?.value || ui.state.render_mode;
   const q = (sel) => ui.root.querySelector(sel);
   for (const el of ui.root.querySelectorAll('[data-role="mode"]')) el.value = ui.state.render_mode;
   for (const el of ui.root.querySelectorAll('[data-role="guides"]')) el.checked = ui.state.guides !== false;
   for (const el of ui.root.querySelectorAll('[data-role="playblast-grid"]')) el.checked = Boolean(ui.state.playblast_grid);
+  for (const el of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) el.value = ui.state.playblast_resolution || "viewport";
   for (const el of ui.root.querySelectorAll('[data-role="show-wireframe"]')) el.checked = Boolean(ui.state.show_wireframe);
   for (const el of ui.root.querySelectorAll('[data-role="show-vertices"]')) el.checked = Boolean(ui.state.show_vertices);
+  for (const el of ui.root.querySelectorAll('[data-role="show-grid"]')) el.checked = ui.state.show_grid !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-camera-paths"]')) el.checked = ui.state.show_camera_paths !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-camera-gizmos"]')) el.checked = ui.state.show_camera_gizmos !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-look-at"]')) el.checked = ui.state.show_look_at !== false;
+  for (const el of ui.root.querySelectorAll('[data-role="show-helper-axes"]')) el.checked = ui.state.show_helper_axes !== false;
+  for (const btn of ui.root.querySelectorAll('[data-act="select-look-at"]')) {
+    const on = ui.selectedEntity === "camera_target";
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  }
   for (const el of ui.root.querySelectorAll('[data-role="select-mode"]')) el.value = ui.state.select_mode || "object";
   for (const el of ui.root.querySelectorAll('[data-role="burn-in"]')) el.checked = Boolean(ui.state.burn_in);
   for (const el of ui.root.querySelectorAll('[data-role="speed-heatmap"]')) el.checked = Boolean(ui.state.speed_heatmap);

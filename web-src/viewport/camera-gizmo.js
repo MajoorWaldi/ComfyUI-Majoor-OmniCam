@@ -40,19 +40,34 @@ export function cameraBodyGizmo(THREE, { position, forward, up, color, scale = 1
  * The orange look-at marker: a ring plus a cross, always facing the viewer's
  * camera so it never degenerates into a line.
  */
-export function targetCrosshair(THREE, { position, color = 0xf2a93b, radius = 0.28 }) {
+export function targetCrosshair(THREE, { position, color = 0xf2a93b, radius = 0.28, bold = false }) {
   const group = new THREE.Group();
-  const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95, depthTest: false });
+  // The selected keyframe's look-at is drawn "in bold": a brighter colour, a
+  // doubled ring and a filled centre dot, since WebGL ignores line width.
+  const drawColor = bold ? 0xfff1a8 : color;
+  const material = new THREE.LineBasicMaterial({ color: drawColor, transparent: true, opacity: bold ? 1 : 0.95, depthTest: false });
 
-  const circle = [];
-  const segments = 48;
-  for (let index = 0; index <= segments; index++) {
-    const angle = (index / segments) * Math.PI * 2;
-    circle.push(new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0));
+  const makeRing = (r) => {
+    const circle = [];
+    const segments = 48;
+    for (let index = 0; index <= segments; index++) {
+      const angle = (index / segments) * Math.PI * 2;
+      circle.push(new THREE.Vector3(Math.cos(angle) * r, Math.sin(angle) * r, 0));
+    }
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(circle), material);
+    line.renderOrder = 915;
+    return line;
+  };
+  group.add(makeRing(radius));
+  if (bold) {
+    group.add(makeRing(radius * 1.18));
+    const dot = new THREE.Mesh(
+      new THREE.RingGeometry(0, radius * 0.3, 16),
+      new THREE.MeshBasicMaterial({ color: drawColor, transparent: true, opacity: 1, depthTest: false }),
+    );
+    dot.renderOrder = 916;
+    group.add(dot);
   }
-  const ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(circle), material);
-  ring.renderOrder = 915;
-  group.add(ring);
 
   const arm = radius * 1.55;
   const cross = new THREE.LineSegments(
