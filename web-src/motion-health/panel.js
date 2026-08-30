@@ -6,7 +6,7 @@
 // serves the adapter tables. If that fetch fails the panel says so rather than
 // inventing a threshold -- a made-up limit is worse than no limit.
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 import { motionHealthReport, problemZones } from "../motion-health.js";
 import { timelinePercentForFrame } from "../timeline-interaction.js";
 import { flaggedRanges, rangesForMetric, recenterKeysInRanges, retimeConstantSpeed, smoothKeysInRanges } from "./actions.js";

@@ -6,7 +6,7 @@
 // lets every channel row -- master included -- be the same thin row, which is
 // what a dope sheet is supposed to look like.
 
-import { clamp } from "../omnicam-core.js";
+import { clamp } from "../director/core.js";
 import { onTimelineWheel, timelineFrameFromEvent, timelinePercentForFrame } from "../timeline-interaction.js";
 
 // Step sizes a human reads without counting. The ruler picks the smallest one

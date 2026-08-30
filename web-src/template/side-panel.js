@@ -4,7 +4,7 @@
 // `.inspector-tab-content` and `data-tab-panel`, because editor.js switches
 // them with the selector ".inspector-tab, [data-tab]".
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 import { LENS_PRESETS } from "../lens.js";
 
 function outlinerPanel() {

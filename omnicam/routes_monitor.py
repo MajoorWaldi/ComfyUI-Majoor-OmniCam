@@ -3,9 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from aiohttp import web
-from server import PromptServer
 
 from .capabilities import detect_capabilities
+from .comfy_compat.server import PromptServer
 from .core.track import OmniCamTrack
 from .core.validation import validate_track_payload
 from .http_json import read_bounded_json_object
@@ -38,7 +38,7 @@ def _validated_settings(value: Any) -> dict[str, Any]:
     if set(value) - allowed:
         raise web.HTTPBadRequest(text="Unknown Monitor setting")
     base_prompt = value.get("base_prompt", "")
-    token = value.get("video_ref_token", "<Video 1>")
+    token = value.get("video_ref_token", "auto")
     if not isinstance(base_prompt, str) or len(base_prompt) > MAX_MONITOR_TEXT_LENGTH:
         raise web.HTTPBadRequest(text="Invalid base prompt")
     if not isinstance(token, str) or not token.strip() or len(token) > 256:
@@ -61,6 +61,47 @@ def _validated_settings(value: Any) -> dict[str, Any]:
     }
 
 
+def _validated_proxy(value: Any, legacy_available: Any) -> dict[str, Any]:
+    """Accept the media facts the frontend can actually observe.
+
+    `proxy_available` stays supported so an older frontend bundle keeps working,
+    but a boolean alone cannot answer the FPS and duration questions the H3
+    nodes ask, which is why the facts object exists.
+    """
+    facts: dict[str, Any] = {"available": legacy_available is True}
+    if value is None:
+        return facts
+    if not isinstance(value, dict):
+        raise web.HTTPBadRequest(text="Monitor proxy must be an object")
+    if set(value) - {"available", "fps", "duration_seconds", "frame_count", "width", "height", "source"}:
+        raise web.HTTPBadRequest(text="Unknown Monitor proxy field")
+    facts["available"] = bool(value.get("available", facts["available"]))
+    for name in ("fps", "duration_seconds"):
+        if value.get(name) is not None:
+            try:
+                number = float(value[name])
+            except (TypeError, ValueError) as exc:
+                raise web.HTTPBadRequest(text=f"Invalid Monitor proxy {name}") from exc
+            if not 0 < number < 1e6:
+                raise web.HTTPBadRequest(text=f"Monitor proxy {name} out of range")
+            facts[name] = number
+    for name in ("frame_count", "width", "height"):
+        if value.get(name) is not None:
+            try:
+                number = int(value[name])
+            except (TypeError, ValueError) as exc:
+                raise web.HTTPBadRequest(text=f"Invalid Monitor proxy {name}") from exc
+            if not 0 <= number <= 1_000_000:
+                raise web.HTTPBadRequest(text=f"Monitor proxy {name} out of range")
+            facts[name] = number
+    source = value.get("source")
+    if source is not None:
+        if not isinstance(source, str) or len(source) > 64:
+            raise web.HTTPBadRequest(text="Invalid Monitor proxy source")
+        facts["source"] = source
+    return facts
+
+
 @PromptServer.instance.routes.post("/majoor/omnicam/monitor/snapshot")
 async def monitor_snapshot_route(request: web.Request):
     body = await read_bounded_json_object(request, max_bytes=MAX_MONITOR_REQUEST_BYTES)
@@ -75,8 +116,9 @@ async def monitor_snapshot_route(request: web.Request):
     except Exception as exc:
         raise web.HTTPBadRequest(text="Invalid canonical camera track") from exc
     settings = _validated_settings(body.get("settings"))
+    proxy = _validated_proxy(body.get("proxy"), body.get("proxy_available"))
     snapshot = build_monitor_snapshot(
-        track=track, adapter=adapter, proxy_available=body.get("proxy_available") is True,
-        settings=settings, capabilities=detect_capabilities(),
+        track=track, adapter=adapter, proxy=proxy, settings=settings,
+        capabilities=detect_capabilities(),
     )
     return web.json_response({"format": "majoor.omnicam.monitor.snapshot.v1", **snapshot.to_dict()})

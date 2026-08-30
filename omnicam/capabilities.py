@@ -166,10 +166,14 @@ def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]
 def check_workflow_compatibility(workflow_node_types: list[str], capabilities: dict[str, Any] | None = None) -> dict[str, Any]:
     capabilities = capabilities or detect_capabilities()
     present = set(workflow_node_types)
+    # The legacy per-adapter nodes. h3_native and ltx_motion_track never had
+    # one: they are reachable only through Monitor.
     usage = {
-        "h3": {"MajoorOmniCamH3Adapter"}, "wan_ati": {"MajoorOmniCamWanVideoWrapperATI"},
+        "h3": {"MajoorOmniCamH3Adapter"}, "h3_native": set(),
+        "wan_ati": {"MajoorOmniCamWanVideoWrapperATI"},
         "wan_native": {"MajoorOmniCamWanNativeCamera"}, "wan_tracks_native": {"MajoorOmniCamWanVideoWrapperATI"},
         "ltx": {"MajoorOmniCamLTXAdapter", "MajoorOmniCamLTXCameraGuide"},
+        "ltx_motion_track": set(),
     }
     problems = []
     for entry in capabilities["capabilities"]:

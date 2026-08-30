@@ -15,7 +15,7 @@
 //     its own (S split, Delete removes a shot). Only a small transport set
 //     (undo/redo, copy/paste, duplicate, Space, Escape) is truly global.
 
-import { add, cameraBasis, mul } from "./omnicam-core.js";
+import { add, cameraBasis, mul } from "./director/core.js";
 import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
 import { directorForTarget } from "./settings.js";

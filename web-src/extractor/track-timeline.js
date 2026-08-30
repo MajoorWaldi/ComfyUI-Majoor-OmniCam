@@ -88,7 +88,7 @@ export const COMPACT_LAYOUT = {
  * is that same band, and drawing it twice made the two disagree at a glance.
  */
 export const DOPE_LAYOUT = {
-  bands: ["motion"],
+  bands: [],
   labels: false,
   labelWidth: 0,
   bandHeight: 28,

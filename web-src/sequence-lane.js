@@ -11,7 +11,7 @@
 //   - audio: the project waveform, for cutting to the beat. It is the global
 //     track, not per-shot, so it is shown but not edited here.
 
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 import {
   autoSequenceCuts, removeCut, sequenceCuts, splitCutAtFrame, trimCutStart,
 } from "./director/sequence.js";

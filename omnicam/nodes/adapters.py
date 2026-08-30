@@ -4,7 +4,6 @@ import json
 from typing import Any
 
 import torch
-from comfy_api.latest import IO
 
 from ..adapters import (
     build_h3_prompt,
@@ -13,11 +12,10 @@ from ..adapters import (
     track_to_ati_tracks,
     track_to_ltx_camera_bridge,
 )
-from ..adapters.ltx import ltx_camera_control_profile
 from ..adapters.ltx_guide import build_ltx_guide_frames
 from ..adapters.wan_native import build_wan_camera_embedding
+from ..comfy_compat import IO
 from ..core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass
-from ..core.video_sampling import inspect_video, sample_video_frames
 from .base import OMNICAM_ATI_BRIDGE, OMNICAM_LTX_BRIDGE, OMNICAM_TRACK, validated_track
 from .media import as_image_batch, as_video, image_twin, media_input
 

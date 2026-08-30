@@ -5,7 +5,7 @@
 // setting: playblast output routing, the H3 helper, adapter diagnostics and
 // cache maintenance.
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 import { brandMarkup } from "./brand.js";
 
 export function headerMarkup() {

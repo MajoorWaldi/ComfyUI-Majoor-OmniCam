@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from ..adapters.h3 import build_h3_prompt
-from ..core.camera_tools import analyze_camera_trajectory, build_cinematic_motion_prompt
+from typing import Any
+
+from ..core.camera_tools import build_cinematic_motion_prompt
+from ..core.motion_phases import segment_motion_phases
 from ..core.track import OmniCamTrack
-from .adapter_registry import adapter_info
+from .prompts import build_camera_prompt, camera_analysis, prompt_contract
 from .types import MonitorText
 
 
@@ -14,31 +16,18 @@ def _join_prompt(base_prompt: str, camera_prompt: str) -> str:
 
 def build_monitor_text(
     track: OmniCamTrack, *, adapter: str, base_prompt: str = "",
-    video_ref_token: str = "<Video 1>",
+    video_ref_token: str = "auto", capabilities: dict[str, Any] | None = None,
 ) -> MonitorText:
-    adapter_info(adapter)
-    analysis = analyze_camera_trajectory(track)
-    cinematography = build_cinematic_motion_prompt(track, base_prompt="", style="universal")
-    if adapter == "h3":
-        camera_prompt = build_h3_prompt(track, video_ref_token=video_ref_token)
-    else:
-        primary = str(analysis.get("classification", {}).get("primary", "camera move")).replace("_", " ")
-        camera_prompt = (
-            f"Reproduce the authored {primary} camera trajectory, framing, timing, FOV, "
-            "speed, acceleration and deceleration while preserving the scene appearance."
-        )
-    camera_data = dict(analysis)
-    camera_data.update({
-        "frames": track.duration_frames,
-        "fps": track.fps,
-        "duration_seconds": track.duration_seconds,
-        "resolution": [track.width, track.height],
-        "keyframes": len(track.keyframes),
-        "adapter": adapter,
-    })
+    settings = {"video_ref_token": video_ref_token}
+    camera_prompt = build_camera_prompt(
+        track, adapter=adapter, settings=settings, capabilities=capabilities,
+    )
+    camera_data = camera_analysis(track, adapter)
+    camera_data["phases"] = segment_motion_phases(track)
     return MonitorText(
-        cinematography=cinematography,
+        cinematography=build_cinematic_motion_prompt(track, base_prompt="", style="universal"),
         camera_prompt=camera_prompt,
         final_prompt=_join_prompt(base_prompt, camera_prompt),
         camera_data=camera_data,
+        contract=prompt_contract(adapter, capabilities),
     )

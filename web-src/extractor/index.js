@@ -1,7 +1,5 @@
-import { api, app } from "../comfy-runtime.js";
-import { TrackViewer } from "../viewer/track-viewer.js";
-import { annotatedAssetUrl } from "../shared/managed-assets.js";
-import { resizeTrackingOverlay, showExtractorFrame, syncUpstreamPreviewCanvas } from "./source-stage.js";
+import { api } from "../comfy-runtime.js";
+import { showExtractorFrame } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
@@ -11,7 +9,6 @@ import {
   frameAtPosition,
 } from "./quality-timeline.js";
 import {
-  EXTRACTOR_NODE_CLASS,
   FINGERPRINT_WIDGET,
   SOURCE_WIDGET,
   TRACK_WIDGET,
@@ -22,11 +19,11 @@ import {
   readCachedResult,
   statusLine,
 } from "./result-cache.js";
-import { LiveTrackAccumulator } from "./live-track.js";
 import { FrameDiagnosticsStore } from "./diagnostics-store.js";
 import { ResultApplyError, applyRefinedTrack } from "./result-sync.js";
 import { SourceViewer } from "./source-viewer.js";
-import { describeSource, resolveInteractiveExtractorSource } from "./source-resolver.js";
+import { describeSource } from "./source-resolver.js";
+import { adoptExtractorSourceLength, describeExtractorSource, refreshExtractorSource } from "./source-lifecycle.js";
 import {
   appliedLabel,
   controlAvailability,
@@ -39,17 +36,18 @@ import {
 import { buildExtractorRoot } from "./template.js";
 import { TimelinePanelHost } from "./timeline-panel.js";
 import { TrackingOverlay } from "./tracking-overlay.js";
-import { cameraRows, renderAnomalies } from "./views.js";
+import { renderAnomalies } from "./views.js";
+import { loadTrackViewer } from "./track-viewer-host.js";
 import { renderExtractorRuler, renderFrameReadouts } from "./transport-readouts.js";
 
 const SOLVE_SETTING_WIDGETS = [
   "method", "lens_mode", "fov_degrees", "focal_length_mm", "sensor_width_mm",
   "max_dimension", "frame_step",
 ];
-
-function nodeClassOf(node) {
-  return String(node?.comfyClass || node?.type || node?.constructor?.type || "");
-}
+const REFINE_SETTING_WIDGETS = [
+  "normalize_origin", "motion_scale", "position_smoothing", "rotation_smoothing",
+  "simplify_keys", "position_tolerance", "rotation_tolerance_deg",
+];
 
 function widget(node, name) {
   return node?.widgets?.find((item) => item.name === name) || null;
@@ -91,10 +89,8 @@ class ExtractorUI {
     this.disposed = false;
     this.disposers = [];
     this.result = { raw: null, refined: null };
-    this.liveTrack = null;
     this.diagnostics = new FrameDiagnosticsStore();
     this.upstreamPreviewActive = false;
-    this.live = new LiveTrackAccumulator();
 
     this.client = new SolveJobClient(api);
     this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
@@ -108,6 +104,7 @@ class ExtractorUI {
     });
     this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
     this.viewer = null;
+    this.viewerLoad = null;
 
     this.events = new SolveEventSubscription(api, {
       job: (payload) => this.dispatch({ type: "JOB_STATE", state: payload.state }),
@@ -120,7 +117,6 @@ class ExtractorUI {
     }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
 
     this.bind();
-    void this.timeline.loadProfiles().then(() => this.disposed || this.renderTimeline());
     this.refreshSource();
     this.restoreCachedResult();
     this.render();
@@ -156,8 +152,6 @@ class ExtractorUI {
     }
 
     this.listen(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
-    this.listen(this.root.querySelector('[data-act="pause"]'), "click", () => this.control("pauseSolve"));
-    this.listen(this.root.querySelector('[data-act="resume"]'), "click", () => this.control("resumeSolve"));
     this.listen(this.root.querySelector('[data-act="stop"]'), "click", () => this.control("stopSolve"));
     this.listen(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
     this.listen(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
@@ -176,10 +170,6 @@ class ExtractorUI {
       this.root.querySelector('[data-act="toggle-loop"]')?.setAttribute("aria-pressed", String(loop.checked));
     });
 
-    this.listen(this.root.querySelector('[data-act="choose-source"]'), "click",
-      () => this.$("source-file")?.click());
-    this.listen(this.$("source-file"), "change", (event) => this.pickSource(event.target.files?.[0]));
-
     this.listen(this.$("scrubber"), "input", (event) => this.sourceViewer.scrubTo(Number(event.target.value)));
     this.listen(this.$("frame"), "change", (event) => this.sourceViewer.scrubTo(Number(event.target.value)));
     this.listen(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
@@ -187,11 +177,6 @@ class ExtractorUI {
     this.listen(this.$("quality-timeline"), "click", (event) => this.seekFromTimeline(event));
     this.timeline.bind((target, event, handler) => this.listen(target, event, handler),
       () => this.state.frameCount);
-    this.listen(this.$("limits-profile"), "change", (event) => {
-      this.timeline.setProfile(event.target.value);
-      this.renderTimeline();
-    });
-
     this.bindRefineControls();
   }
 
@@ -250,20 +235,7 @@ class ExtractorUI {
   // -- source ------------------------------------------------------------
 
   refreshSource() {
-    const resolved = resolveInteractiveExtractorSource(this.node, this.node.graph);
-    // A reload invalidates the previous failure: keeping it would leave the
-    // "cannot decode" notice over footage that now plays.
-    const reloaded = this.sourceViewer.setSource(
-      resolved.available && resolved.ref ? annotatedAssetUrl(api, resolved.ref.value) : "",
-    );
-    this.dispatch({
-      type: "SOURCE",
-      source: reloaded ? { ...resolved, playbackError: "" } : resolved,
-    });
-    if (resolved.available && resolved.ref) this.describeSource(resolved);
-    else this.adoptSourceLength(0);
-    syncUpstreamPreviewCanvas(this, resolved);
-    return resolved;
+    return refreshExtractorSource(this);
   }
 
   /**
@@ -273,46 +245,12 @@ class ExtractorUI {
    * count, so the scrubber has no range and the strip has nothing to say.
    */
   async describeSource(resolved) {
-    if (this.describing === resolved.ref?.value) return null;
-    this.describing = resolved.ref?.value;
-    try {
-      const payload = await this.client.describeSource(resolved.ref);
-      if (this.disposed) return null;
-      const info = payload?.info || null;
-      this.dispatch({ type: "SOURCE", source: { info } });
-      if (info) {
-        this.sourceViewer.fps = Number(info.fps) || this.sourceViewer.fps;
-        this.adoptSourceLength(Number(info.frame_count) || 0);
-        resizeTrackingOverlay(this, info);
-      }
-      return info;
-    } catch (error) {
-      // A source the server cannot measure is not a panel failure: the strip
-      // keeps the filename and TRACK will report the real reason.
-      console.warn("[OmniCam] could not describe the extractor source", error);
-      return null;
-    }
+    return describeExtractorSource(this, resolved);
   }
 
   /** Give the transport a real range, from the footage rather than a solve. */
   adoptSourceLength(frameCount) {
-    const total = Math.max(0, Math.round(Number(frameCount) || 0));
-    if (!total || total === this.state.frameCount) return;
-    this.sourceViewer.frameCount = total;
-    this.state.frameCount = total;
-    if (!this.disposed) this.render();
-  }
-
-  async pickSource(file) {
-    if (!file) return;
-    try {
-      const uploaded = await this.client.uploadSource(file);
-      const item = widget(this.node, SOURCE_WIDGET);
-      if (item) item.value = uploaded.relative || uploaded.path || "";
-      this.refreshSource();
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: `Source upload failed: ${error?.message || error}` });
-    }
+    return adoptExtractorSourceLength(this, frameCount);
   }
 
   solveSettings() {
@@ -323,6 +261,13 @@ class ExtractorUI {
       const numeric = ["fov_degrees", "focal_length_mm", "sensor_width_mm", "max_dimension", "frame_step"];
       settings[name] = numeric.includes(name) ? Number(item.value) : String(item.value);
     }
+    const refine = {};
+    for (const name of REFINE_SETTING_WIDGETS) {
+      const item = widget(this.node, name);
+      if (!item) continue;
+      refine[name] = typeof item.value === "boolean" ? item.value : Number(item.value);
+    }
+    settings.refine = refine;
     return settings;
   }
 
@@ -332,19 +277,12 @@ class ExtractorUI {
     const source = this.refreshSource();
     if (!source.available) return;
     try {
+      this.sourceViewer.setFollow(true);
       const status = await this.client.startSolve({
         nodeId: this.node.id, source: source.ref, settings: this.solveSettings(),
       });
       this.overlay.clear();
       this.diagnostics.clear();
-      const info = this.state.source.info || {};
-      this.live.reset({
-        fps: Number(info.fps) || this.sourceViewer.fps,
-        fov: Number(widget(this.node, "fov_degrees")?.value) || 53,
-        width: Number(info.width) || 1280,
-        height: Number(info.height) || 720,
-      });
-      this.liveTrack = null;
       this.dispatch({ type: "JOB_STARTED", status });
     } catch (error) {
       this.dispatch({ type: "FAILED", error: String(error?.message || error) });
@@ -381,13 +319,6 @@ class ExtractorUI {
 
   onPose(payload) {
     this.dispatch({ type: "POSE", pose: payload });
-    if (this.state.backend === "dpvo" || !this.live.add(payload)) return;
-    this.liveTrack = this.live.track();
-    if (this.viewer && !this.result.refined) {
-      this.viewer.setRawTrack(this.liveTrack);
-      this.viewer.setRefinedTrack(this.liveTrack);
-      this.viewer.setFrame(this.state.frame);
-    }
   }
 
   onQuality(payload) {
@@ -436,7 +367,7 @@ class ExtractorUI {
       result?.fingerprint || refined?.metadata?.extractor_fingerprint || "",
     );
     this.result = { raw: raw || refined, refined };
-    this.liveTrack = null;
+    if (origin === "queued") this.dispatch({ type: "QUEUED_RESULT" });
     this.dispatch({
       type: "STATUS",
       status: {
@@ -465,6 +396,7 @@ class ExtractorUI {
   async requestRefine(settings) {
     if (!this.state.jobId || this.state.solveState !== "COMPLETED") return null;
     try {
+      this.syncRefineWidgets(settings);
       const payload = await this.client.refineSolve(this.state.jobId, settings);
       this.result = { ...this.result, refined: payload.refined_track };
       this.dispatch({ type: "REFINED", fingerprint: payload.fingerprint });
@@ -473,6 +405,15 @@ class ExtractorUI {
     } catch (error) {
       this.dispatch({ type: "FAILED", error: String(error?.message || error) });
       return null;
+    }
+  }
+
+  /** Keep queued execution and interactive cleanup on the same widget values. */
+  syncRefineWidgets(settings) {
+    for (const name of REFINE_SETTING_WIDGETS) {
+      if (settings[name] === undefined) continue;
+      const item = widget(this.node, name);
+      if (item) item.value = settings[name];
     }
   }
 
@@ -536,31 +477,28 @@ class ExtractorUI {
   // -- viewer ------------------------------------------------------------
 
   ensureViewer() {
-    if (this.viewer || this.disposed) return this.viewer;
-    this.viewer = new TrackViewer(this.$("track-canvas"), {
-      onFrameCamera: (camera) => renderRows(this.$("extractor-camera"), cameraRows(camera, this.state.frame)),
-    });
-    this.pushTracksToViewer();
-    return this.viewer;
+    if (this.viewer || this.disposed) return Promise.resolve(this.viewer);
+    this.viewerLoad ||= loadTrackViewer(this);
+    return this.viewerLoad;
   }
 
   pushTracksToViewer() {
     if (!this.viewer) return;
-    const transient = this.liveTrack && !this.result.refined ? this.liveTrack : null;
-    this.viewer.setRawTrack(this.result.raw || transient);
-    this.viewer.setRefinedTrack(this.result.refined || transient);
+    this.viewer.setRawTrack(this.result.raw);
+    this.viewer.setRefinedTrack(this.result.refined);
     this.viewer.setMode(this.state.trackMode);
     this.viewer.setFrame(this.state.frame);
   }
 
-  setViewerMode(mode) {
+  async setViewerMode(mode) {
     this.dispatch({ type: "VIEWER_MODE", mode });
-    if (mode !== "source") {
-      this.ensureViewer();
-      if (mode === "compare") this.setTrackMode("compare");
-      this.viewer?.resize();
-      this.viewer?.fit();
-    }
+    if (mode === "source") return;
+    // The viewer must exist before resize/fit, and on the first switch that
+    // now means waiting for the three.js chunk.
+    await this.ensureViewer();
+    if (this.disposed) return;
+    this.viewer?.resize();
+    this.viewer?.fit();
   }
 
   setTrackMode(mode) {
@@ -596,8 +534,7 @@ class ExtractorUI {
 
     const available = controlAvailability(this.state);
     for (const [action, enabled] of Object.entries({
-      track: available.track, pause: available.pause, resume: available.resume,
-      stop: available.stop, apply: available.apply,
+      track: available.track, stop: available.stop, apply: available.apply,
     })) {
       const button = this.root.querySelector(`[data-act="${action}"]`);
       if (button) button.disabled = !enabled;
@@ -624,8 +561,8 @@ class ExtractorUI {
     }
     const mode = this.state.viewerMode;
     const showingSource = mode === "source";
-    const showingTrack = mode === "track3d" || mode === "compare";
-    const showingDiagnostics = mode === "compare";
+    const showingTrack = mode === "track3d";
+    const showingDiagnostics = false;
     const stage = this.$("stage");
     if (stage) stage.dataset.mode = mode;
     this.$("source-video").hidden = showingTrack && !showingDiagnostics;
@@ -665,11 +602,7 @@ class ExtractorUI {
   }
 
   /**
-   * The dope sheet plus both health bands.
-   *
-   * Graded on the track the user is *looking at*: switching RAW/REFINED has to
-   * change the MOTION band, or the panel would be grading something other than
-   * what the viewer is showing.
+   * The read-only solved camera channels, aligned to the source frame clock.
    */
   renderTimeline() {
     return this.timeline.render({
@@ -732,12 +665,15 @@ class ExtractorUI {
     this.diagnostics.dispose();
     this.viewer?.dispose();
     this.viewer = null;
+    this.viewerLoad = null;
     for (const dispose of this.disposers.splice(0)) dispose();
     this.result = { raw: null, refined: null };
   }
 }
 
-function attachExtractor(node) {
+// Called by web-src/main.js once the Extractor chunk has loaded. This module
+// has no startup side effects, which is what keeps it out of the eager chunk.
+export function attachExtractor(node) {
   if (node.__majoorOmniCamExtractor) return;
   ensureCacheWidgets(node);
   if (!widget(node, SOURCE_WIDGET)) {
@@ -786,13 +722,3 @@ function attachExtractor(node) {
   };
 }
 
-export function registerOmniCamExtractor(target = app) {
-  target.registerExtension({
-    name: "Majoor.OmniCam.Extractor",
-    async nodeCreated(node) {
-      if (nodeClassOf(node) === EXTRACTOR_NODE_CLASS) attachExtractor(node);
-    },
-  });
-}
-
-registerOmniCamExtractor();

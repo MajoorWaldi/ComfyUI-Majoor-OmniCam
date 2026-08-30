@@ -1,7 +1,7 @@
 // Timeline visual rendering (keyframe diamonds, audio waveform, markers, time ticks, playhead).
 
-import { clamp, cloneCamera, cloneTransform } from "./omnicam-core.js";
-import { t } from "./omnicam-i18n.js";
+import { clamp, cloneCamera, cloneTransform } from "./director/core.js";
+import { t } from "./i18n.js";
 import { timelinePercentForFrame } from "./timeline-interaction.js";
 import { renderDopeRows } from "./dope-sheet-view.js";
 import { renderRuler } from "./timeline/ruler.js";

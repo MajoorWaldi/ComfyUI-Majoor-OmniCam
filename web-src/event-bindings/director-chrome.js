@@ -2,11 +2,10 @@
 // the Lens card's millimetre field, the Motion card's smoothing slider, the
 // outliner filter, the dope-sheet channel toggles, and the two view toggles.
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 import { focalLengthToFov, formatFocalLength } from "../lens.js";
 import { captureBaseline, smoothKeyframes } from "../path-smoothing.js";
 import { renderDopeRows } from "../dope-sheet-view.js";
-import { exportCamera, importCameraFile, loadExchangeFormats, pickCameraFile } from "../camera-exchange.js";
 import { loadMotionProfiles, recenterSubject, renderHealthPanel, slowToLimits, smoothFlaggedZones } from "../motion-health/panel.js";
 import { commitPendingExtractorImport, dismissPendingExtractorImport } from "../extractor/director-link.js";
 
@@ -114,15 +113,26 @@ function bindViewToggles(ui, signal) {
   }, { signal });
 }
 
+// camera-exchange.js imports three.js for its quaternion/vector maths, so it
+// is loaded on use instead of at bind time. The module is cached after the
+// first call, and every entry point here is already user-triggered and async.
+const cameraExchange = () => import("../camera-exchange.js");
+
 function bindCameraExchange(ui, signal) {
-  loadExchangeFormats(ui);
-  ui.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", () => pickCameraFile(ui), { signal });
-  ui.root.querySelector('[data-act="export-camera"]')?.addEventListener("click", () => exportCamera(ui), { signal });
+  // Populates the format dropdown. Deferred like the rest, so binding a
+  // Director no longer drags three.js in on its own.
+  cameraExchange().then(({ loadExchangeFormats }) => loadExchangeFormats(ui));
+  ui.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", async () => {
+    (await cameraExchange()).pickCameraFile(ui);
+  }, { signal });
+  ui.root.querySelector('[data-act="export-camera"]')?.addEventListener("click", async () => {
+    (await cameraExchange()).exportCamera(ui);
+  }, { signal });
   const input = ui.root.querySelector('[data-role="camera-file"]');
   input?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    await importCameraFile(ui, file);
+    await (await cameraExchange()).importCameraFile(ui, file);
   }, { signal });
 }
 

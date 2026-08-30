@@ -1,14 +1,22 @@
+import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import { defineConfig } from "vite";
 
 // Test-server config: serves the repo as-is (harness + committed bundles) and
 // stubs the ComfyUI host modules at /scripts/* for Director mount tests.
+//
+// web/omnicam.js is only a stub importing "../majoor-omnicam-chunks/omnicam.js";
+// in production omnicam/routes_chunks.py mounts web-chunks/ at that URL, so the
+// resolver below stands in for that mount. Keep the three in sync.
 const serveComfyStubs = {
   name: "omnicam-comfy-stubs",
   // Resolve the bundle's "../../scripts/*" imports to our stub modules before
-  // Vite's import analysis rejects them as missing files.
+  // Vite's import analysis rejects them as missing files. The importer is
+  // either the web/ stub or one of the real chunks in web-chunks/.
   resolveId(source, importer) {
-    if (importer && /[/\\]web[/\\]omnicam.*\.js$/.test(importer) && source.startsWith("../../scripts/")) {
+    const chunk = source.match(/(?:^|\/)majoor-omnicam-chunks\/(.+)$/);
+    if (chunk) return resolve("web-chunks", chunk[1]);
+    if (importer && /[/\\](web|web-chunks)[/\\][^/\\]+\.js$/.test(importer) && source.startsWith("../../scripts/")) {
       return `\0omnicam-stub:${source.split("/").pop()}`;
     }
     return null;

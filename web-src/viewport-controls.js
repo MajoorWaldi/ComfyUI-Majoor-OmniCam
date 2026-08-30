@@ -1,7 +1,7 @@
 // Viewport navigation, object picking and transform gizmo interaction.
 
-import { add, cameraBasis, clamp, cloneCamera, cross, distanceToSegment, length, mul, norm, project, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "./omnicam-core.js";
-import { t } from "./omnicam-i18n.js";
+import { add, cameraBasis, clamp, cloneCamera, cross, distanceToSegment, length, mul, norm, project, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "./director/core.js";
+import { t } from "./i18n.js";
 
 export function viewportCamera(ui) {
   return ui.recording

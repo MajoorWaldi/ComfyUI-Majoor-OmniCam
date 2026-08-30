@@ -8,7 +8,7 @@
 
 // `t` was used by applyDirectorDefaults() without being imported, so a quality
 // downgrade threw a ReferenceError instead of showing its status message.
-import { registerLocale, setLocale, t } from "./omnicam-i18n.js";
+import { registerLocale, setLocale, t } from "./i18n.js";
 import { FR } from "./locales/fr.js";
 import {
   SETTING_ADAPTIVE, SETTING_ASPECT_RATIO, SETTING_AUTO_KEY, SETTING_BG_COLOR, SETTING_BURN_IN,
@@ -180,8 +180,15 @@ export function registerOmniCamLocales(app) {
  * Apply the preference defaults to a freshly created node. A workflow load
  * overwrites these afterwards, which is the intended precedence.
  */
-export function applyDirectorDefaults(ui) {
-  registerDirector(ui);
+/**
+ * Push the quality preferences onto a Director's WebGL viewports.
+ *
+ * The viewports are created asynchronously (three.js is loaded on demand), so
+ * they are usually still null when applyDirectorDefaults runs. The Director
+ * calls this again once they exist -- otherwise a fresh node would ignore the
+ * quality preference until the next time it changed.
+ */
+export function configureDirectorViewports(ui) {
   const quality = viewportQuality();
   const adaptive = adaptiveQualityEnabled();
   for (const viewport of [ui.webgl, ui.cameraWebgl]) {
@@ -191,6 +198,11 @@ export function applyDirectorDefaults(ui) {
       t("Studio quality lowered to {level} to keep the viewport responsive").replace("{level}", level));
     viewport.setViewportQuality?.(quality);
   }
+}
+
+export function applyDirectorDefaults(ui) {
+  registerDirector(ui);
+  configureDirectorViewports(ui);
   const defaults = directorDefaults();
   if (ui.fpsWidget) ui.fpsWidget.value = defaults.fps;
   if (ui.durationWidget) ui.durationWidget.value = defaults.durationSeconds;

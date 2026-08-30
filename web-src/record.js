@@ -2,10 +2,9 @@
 // realtime fallback, media synchronization, progress reporting, upload.
 
 import { api } from "../../scripts/api.js";
-import { encodeDeterministicPlayblast, supportsDeterministicEncoding } from "./omnicam-webgl.js";
 import { captureRealtimePlayblast, uploadPlayblast, waitForSeekingMedia } from "./omnicam-playblast.js";
 import { SEQUENCE_TARGET } from "./director/sequence.js";
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 
 export async function waitForMediaFrame(ui) {
   await waitForSeekingMedia(ui.cardMediaById.values());
@@ -69,6 +68,10 @@ export async function makePlayblast(ui) {
   try {
     let blob = null;
     const encoderChoice = ui.root.querySelector('[data-role="encoder"]').value;
+    // Imported here rather than at module scope: this module is on the
+    // Director's startup path, and omnicam-webgl.js pulls in three + mediabunny.
+    // By the time a playblast runs the chunk is normally already cached.
+    const { encodeDeterministicPlayblast, supportsDeterministicEncoding } = await import("./omnicam-webgl.js");
     if (encoderChoice !== "realtime" && (await supportsDeterministicEncoding(ui.canvas.width, ui.canvas.height))) {
       blob = await encodeDeterministicPlayblast(ui.canvas, ui.state.duration_frames, ui.state.fps, async (frame) => {
         ui.setFrame(frame, true);

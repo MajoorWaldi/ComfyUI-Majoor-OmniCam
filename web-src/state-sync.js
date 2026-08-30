@@ -1,7 +1,7 @@
 // Editor-state serialization and ComfyUI widget synchronization.
 // The node widgets stay authoritative on queue; the UI keeps them in sync here.
 
-import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./omnicam-core.js";
+import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./director/core.js";
 import { SEQUENCE_TARGET, cutAtFrame, sequenceActive } from "./director/sequence.js";
 
 export function activeCameraTrack(ui) {

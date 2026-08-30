@@ -9,7 +9,7 @@
 // surprise depth change. The component along the view direction is preserved,
 // so a key never jumps toward or away from the viewer while being slid.
 
-import { cameraBasis } from "../omnicam-core.js";
+import { cameraBasis } from "../director/core.js";
 
 function dot(a, b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];

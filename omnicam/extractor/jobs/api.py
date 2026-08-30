@@ -94,25 +94,27 @@ def validate_settings(settings: Any) -> dict[str, Any]:
         raise ApiError(400, "Solve settings must be an object")
     allowed = {
         "method", "lens_mode", "fov_degrees", "focal_length_mm", "sensor_width_mm",
-        "max_dimension", "frame_step",
+        "max_dimension", "frame_step", "refine",
     }
     unknown = set(settings) - allowed
     if unknown:
         raise ApiError(400, f"Unknown solve setting: {sorted(unknown)[0]}")
-    method = str(settings.get("method", "auto"))
+    method = str(settings.get("method", "dpvo"))
     if method not in METHODS:
         raise ApiError(400, f"Unsupported solve method: {method!r}")
     lens_mode = str(settings.get("lens_mode", "auto"))
     if lens_mode not in LENS_MODES:
         raise ApiError(400, f"Unsupported lens mode: {lens_mode!r}")
+    refine = RefinementSettings.from_dict(settings.get("refine")).to_dict()
     return {
         "method": method,
         "lens_mode": lens_mode,
         "fov_degrees": _number(settings, "fov_degrees", 53.0, 10.0, 140.0),
         "focal_length_mm": _number(settings, "focal_length_mm", 24.0, 1.0, 300.0),
         "sensor_width_mm": _number(settings, "sensor_width_mm", 36.0, 4.0, 70.0),
-        "max_dimension": _integer(settings, "max_dimension", 960, 320, 1920),
+        "max_dimension": _integer(settings, "max_dimension", 640, 320, 1920),
         "frame_step": _integer(settings, "frame_step", 1, 1, 10),
+        "refine": refine,
     }
 
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 
 import folder_paths
-from comfy_api.latest import IO, InputImpl
 
+from ..comfy_compat import IO, InputImpl
 from ..core.track import OmniCamTrack
 from ..core.validation import validate_track_payload
 

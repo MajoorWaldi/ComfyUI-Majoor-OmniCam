@@ -368,6 +368,7 @@ Two consequences are worth stating plainly:
 
 | `method` | Behaviour |
 |---|---|
+| default | `dpvo` at a 640px solver long edge |
 | `auto` | DPVO when installed, otherwise OpenCV/SIFT, otherwise an actionable error |
 | `dpvo` | DPVO only |
 | `opencv_sift` | Classical visual odometry only |
@@ -1085,7 +1086,10 @@ mechanism the [Registry specification](https://docs.comfy.org/registry/specifica
 defines for frontend compatibility. It is a lower bound: it only pulls an
 upgrade when your ComfyUI frontend is actually older than OmniCam needs.
 
-OmniCam is tested against supported ComfyUI versions in CI.
+The floors are matched: ComfyUI `v0.31.0` ships
+`comfyui-frontend-package==1.48.7`. CI treats `v0.31.0` and `v0.34.0` as
+blocking stable compatibility lanes. ComfyUI `master` is an allowed-to-fail
+canary for upstream regressions; it never redefines the stable support floor.
 
 Some adapters require additional model-specific custom nodes.
 
@@ -1111,7 +1115,11 @@ Current integration targets include:
 | WanVideoWrapper ATI | Supported adapter |
 | Generic prompt workflows | Supported |
 
-Adapter compatibility is checked at runtime where possible.
+Adapter compatibility is checked at runtime where possible. The adapter matrix
+records each upstream repository, tested commit, and a SHA-256 fingerprint of
+its expected inputs/widgets. Contract tests cover Wan Native, Wan Track, H3,
+LTX, and WanVideoWrapper, so a socket change must update an explicit pin rather
+than silently inheriting `master` behavior.
 
 ---
 
@@ -1268,8 +1276,9 @@ CI currently covers:
 Python 3.10 / 3.12, core only (no ComfyUI, no torch)
 Python 3.12 with the ComfyUI runtime dependencies present
 Lint (ruff) and type-check (mypy)
-ComfyUI minimum supported version
-Current ComfyUI
+ComfyUI v0.31.0 (minimum supported version)
+ComfyUI v0.34.0 (stable compatibility lane)
+ComfyUI master (non-blocking canary)
 Frontend unit tests
 Browser tests
 Production bundle validation

@@ -8,7 +8,7 @@
 // There are no handles, no gizmos and no mutation methods. Editing a solved
 // camera is the Director's job.
 
-import { sampleCamera } from "../omnicam-core.js";
+import { sampleCamera } from "../director/core.js";
 import {
   BufferGeometry,
   Float32BufferAttribute,

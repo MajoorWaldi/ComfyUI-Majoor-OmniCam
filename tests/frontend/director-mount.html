@@ -22,8 +22,10 @@
       try {
         const { app } = await import("/tests/frontend/stubs/app.js");
         await import("/web/omnicam.js");
-        const extension = window.__omnicamExtension;
-        if (!extension) throw new Error("Extension did not register");
+        // The bundle registers one extension per product, so pick the
+        // Director by name rather than trusting registration order.
+        const extension = (window.__omnicamExtensions || []).find((item) => item.name === "Majoor.OmniCam.Director");
+        if (!extension) throw new Error("Director extension did not register");
         const node = {
           comfyClass: "MajoorOmniCamDirector",
           widgets: [

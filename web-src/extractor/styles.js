@@ -23,10 +23,10 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-source[data-available="false"]{color:var(--oc-warn-text)}
   .oc-extractor .oc-source .oc-source-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .oc-extractor .oc-body{display:flex;flex-direction:column;gap:9px;padding:9px;min-height:0}
+  .oc-extractor .oc-solve-card{order:-1;width:100%;box-sizing:border-box}
   .oc-extractor .oc-tabs{display:flex;gap:4px}
   .oc-extractor .oc-tab[aria-selected="true"]{background:var(--oc-accent);border-color:var(--oc-accent);color:var(--oc-accent-ink)}
   .oc-extractor .oc-stage{display:grid;grid-template-columns:minmax(0,1fr);position:relative;min-height:300px;background:var(--oc-sunken);border:1px solid var(--oc-line);border-radius:8px;overflow:hidden}
-  .oc-extractor .oc-stage[data-mode="compare"]{grid-template-columns:repeat(3,minmax(0,1fr));gap:1px}
   .oc-extractor .oc-stage .oc-pane{position:relative;min-width:0;overflow:hidden;background:var(--oc-sunken)}
   .oc-extractor .oc-stage .oc-pane > *{position:absolute;inset:0;width:100%;height:100%}
   .oc-extractor .oc-stage video{object-fit:contain;background:#08080b}
@@ -37,9 +37,8 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-stage canvas[data-role="tracking-overlay"]{object-fit:contain}
   .oc-extractor .oc-stage canvas[data-role="upstream-preview"]{object-fit:contain;background:#08080b;filter:saturate(.7) brightness(.85)}
   .oc-extractor .oc-stage [hidden]{display:none}
-  .oc-extractor .oc-stage[data-mode="source"] .oc-clean-pane,.oc-extractor .oc-stage[data-mode="source"] .oc-track-pane,.oc-extractor .oc-stage[data-mode="track3d"] .oc-clean-pane,.oc-extractor .oc-stage[data-mode="track3d"] .oc-diagnostic-pane{display:none}
+  .oc-extractor .oc-stage[data-mode="source"] .oc-track-pane,.oc-extractor .oc-stage[data-mode="track3d"] .oc-diagnostic-pane{display:none}
   .oc-extractor .oc-stage[data-mode="track3d"] .oc-track-pane,.oc-extractor .oc-stage[data-mode="source"] .oc-diagnostic-pane{display:block}
-  .oc-extractor .oc-stage canvas[data-role="clean-preview"]{object-fit:contain;background:#08080b}
   .oc-extractor .oc-extractor-timeline{gap:8px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);min-width:0}
   /* Wrapping rather than nowrap: an Extractor node is often narrower than a
      Director, and a squeezed transport crushed the TRACK group against the FPS
@@ -56,8 +55,7 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-track-tools .oc-track-go{background:var(--oc-ok)!important;border-color:var(--oc-ok)!important;color:var(--oc-accent-ink)!important}
   .oc-extractor .oc-track-tools .oc-track-go:hover:not(:disabled){filter:brightness(1.12)}
   .oc-extractor .oc-track-mark{font:800 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  /* Starting a solve and steering a running one are two different jobs; the
-     rule says so, so PAUSE is never mistaken for part of the TRACK button. */
+  /* The divider keeps starting a solve distinct from cancelling one in flight. */
   .oc-extractor .oc-tool-divider{width:1px;align-self:stretch;margin:2px 2px;background:var(--oc-line)}
   .oc-extractor .oc-fps{padding:2px 10px}
   .oc-extractor .oc-fps output{min-width:20px;text-align:right;color:var(--oc-text);font-weight:600}
@@ -69,11 +67,7 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-extractor-lanes .oc-extractor-quality{height:var(--oc-dope-row-h)}
   /* The lane stack paints its own row plates, one per label in the gutter, so
      the element itself must not add a seventh box around them. */
-  .oc-extractor .oc-extractor-lanes .oc-track-timeline{height:calc(5 * var(--oc-dope-row-h) + 4 * var(--oc-dope-gap));background:none;border:0;border-radius:0}
-  .oc-extractor .oc-extractor-lane-marker{position:absolute;left:0;right:0;height:28px;pointer-events:none}
-  .oc-extractor .oc-extractor-lane-marker[data-role="extractor-solve-lane"]{top:32px}
-  .oc-extractor .oc-extractor-lane-marker[data-role="extractor-quality-lane"]{top:64px}
-  .oc-extractor .oc-extractor-lane-marker[data-role="extractor-camera-lane"]{top:96px}
+  .oc-extractor .oc-extractor-lanes .oc-track-timeline{height:calc(4 * var(--oc-dope-row-h) + 3 * var(--oc-dope-gap));background:none;border:0;border-radius:0}
   .oc-extractor .oc-extractor-timeline-meta{padding:0 2px}
   .oc-extractor .oc-extractor-frame-readout{margin-left:auto;color:var(--oc-text-dim);font:11px ui-monospace,SFMono-Regular,Menlo,monospace}
   .oc-extractor .oc-extractor-quality-details{max-height:64px;overflow:auto}
@@ -96,6 +90,8 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-sliders output{min-width:44px;text-align:right;color:var(--oc-text-dim)}
   .oc-extractor .oc-sliders input[type="range"]{width:100%}
   .oc-extractor .oc-inline{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .oc-extractor .oc-details{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .oc-extractor .oc-details summary{cursor:pointer;color:var(--oc-text-dim)}
   .oc-extractor .oc-inline input[type="number"]{width:74px;padding:4px 5px}
   .oc-extractor .oc-rows{display:flex;flex-direction:column;gap:2px}
   .oc-extractor .oc-row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--oc-line-soft)}

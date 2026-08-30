@@ -62,6 +62,11 @@ l’un ou l’autre type. `state_json`, `recording_path` et
 
 Sorties :
 
+`camera_track` est le seul contrat public recommande. Les sorties `confidence`
+et `report` restent temporairement disponibles pour les workflows existants;
+elles ne sont pas une mesure de precision et seront retirees seulement avec une
+migration ComfyUI versionnee.
+
 - `camera_track` — Track canonique de la caméra active ;
 - `proxy_video` — playblast ou vidéo connectée ;
 - `audio` — audio associé ;
@@ -91,11 +96,10 @@ plutôt que d’afficher un panneau vide.
 
 ## OmniCam Extractor
 
-Les actions TRACK, PAUSE, RESUME et STOP sont dans le transport du lecteur.
-SOURCE montre la video geree propre. COMPARE synchronise la frame propre, la
-frame avec les points live du solve et le viewport 3D. Les points sont des
-diagnostics ephemeres : ils ne sont ni serialises dans le workflow ni ajoutes
-au MAJOOR_OMNICAM_TRACK.
+Le transport expose `TRACK` et `STOP`. Le panneau utilise deux vues : `VIDEO`
+pour la source connectee et `TRACK 3D` pour la trajectoire finalisee. Les
+anomalies et la qualite du solve restent des diagnostics de l'Extractor ; les
+limites de modele et les profils adapters sont centralises dans le Monitor.
 
 Identifiant : `MajoorOmniCamExtractor`
 
@@ -107,12 +111,12 @@ Entrées :
 | Entrée | Défaut | Rôle |
 |---|---|---|
 | `video` | — | Un seul plan continu, `VIDEO` ou lot `IMAGE`. Une coupe franche est signalée, jamais recollée. |
-| `method` | `auto` | `auto`, `dpvo` ou `opencv_sift`. |
+| `method` | `dpvo` | `dpvo` par défaut ; `auto` ou `opencv_sift` restent disponibles. |
 | `lens_mode` | `auto` | `auto` (53° vertical documenté), `fov` ou `focal_mm`. |
 | `fov_degrees` | `53.0` | FOV vertical, utilisé si `lens_mode=fov`. |
 | `focal_length_mm` | `24.0` | Focale, utilisée si `lens_mode=focal_mm`. |
 | `sensor_width_mm` | `36.0` | Largeur capteur, utilisée si `lens_mode=focal_mm`. |
-| `max_dimension` | `960` | Bord long des images envoyées au solveur. Jamais d’upscale. |
+| `max_dimension` | `640` | Bord long des images envoyées au solveur. Jamais d’upscale. |
 | `frame_step` | `1` | Échantillonnage. Les clés gardent les numéros de frames **source**. |
 | `normalize_origin` | `True` | Place la frame 0 à l’origine, orientation identité. |
 | `motion_scale` | `1.0` | Met la translation à l’échelle de la scène. N’affecte jamais la rotation. |
@@ -294,8 +298,14 @@ matérialise le batch IMAGE LTX.
 
 Monitor réutilise le lecteur d’assets gérés et la timeline read-only de
 l’Extractor. La timeline montre les lanes Camera, Look At, Focal Length et Roll
-sur le même axe que le proxy. Le watcher compare directement les widgets
-`state_json` et `recording_path` ; il ne reparse la track que lorsqu’ils changent.
+sur le même axe que le proxy.
+
+Le watcher suit les **sockets**, pas la classe du node amont. Toute source de
+`MAJOOR_OMNICAM_TRACK` est acceptée : Director, Extractor ou un node tiers. Une
+source qui n’expose pas sa track dans un widget (Extractor) est signalée
+`CONNECTED` — le graphe est valide, la track n’existe qu’à l’exécution — et non
+`OFFLINE`. De même, la disponibilité du proxy suit le socket `proxy_video` ;
+`recording_path` n’est qu’un cas particulier, le playblast du Director.
 
 Entrées :
 
@@ -303,12 +313,12 @@ Entrées :
 |---|---|---|
 | `camera_track` | — | Track canonique produit par Director. |
 | `proxy_video` | optionnel | Proxy géré utilisé par H3 et LTX, `VIDEO` ou lot `IMAGE`. |
-| `adapter` | `h3` | `h3`, `wan_native`, `wan_ati`, `wan_tracks_native` ou `ltx`. |
+| `adapter` | `h3` | `h3`, `h3_native`, `wan_native`, `wan_ati`, `wan_tracks_native`, `ltx_motion_track` ou `ltx`. |
 | `base_prompt` | vide | Intention utilisateur conservée dans le prompt final. |
-| `video_ref_token` | `<Video 1>` | Jeton de référence H3. |
+| `video_ref_token` | `auto` | Déprécié. Le dialecte H3 est déduit du node installé ; masqué dans l’UI. |
 | `width`, `height`, `length` | `832`, `480`, `81` | Dimensions et longueur de l’adapter. |
 | `point_count`, `distribution` | `16`, `balanced` | Projection des trajectoires ATI. |
-| `ltx_max_frames`, `ltx_sampling_mode` | `121`, `contiguous` | Plan d’échantillonnage LTX borné. |
+| `ltx_max_frames`, `ltx_sampling_mode` | `121`, `contiguous` | Plan d’échantillonnage LTX legacy borné. |
 
 Sorties stables : `reference_video`, `camera_prompt`, `cinematic_prompt`,
 `final_prompt`, `camera_data_json`, `wan_camera`, `tracks`, `adapter_width`,
@@ -317,10 +327,40 @@ Sorties stables : `reference_video`, `camera_prompt`, `cinematic_prompt`,
 sorties de l’adapter sélectionné sont calculées ; les sorties lourdes inactives
 valent `None`.
 
-La vue H3 réutilise le proxy réel. ATI et native Wan tracks affichent les
-coordonnées exactes livrées. LTX affiche les indices exacts du plan de sampling.
-Wan Native affiche uniquement un chemin caméra marqué `DIAGNOSTIC`, car
-l’embedding final n’existe qu’après l’exécution normale du node.
+La vue H3 réutilise le proxy réel. ATI, Wan Motion Tracks et LTX Motion Track
+affichent les coordonnées exactes livrées. LTX legacy affiche les indices exacts
+du plan de sampling. Wan Camera affiche uniquement un chemin caméra marqué
+`DIAGNOSTIC`, car l’embedding final n’existe qu’après l’exécution du node.
+
+### Les cinq familles d’adapters
+
+Ce ne sont pas cinq variantes d’un même contrôle, et l’UI les nomme désormais
+pour ce qu’elles sont :
+
+| Adapter | Famille | Chemin de contrôle |
+|---|---|---|
+| `h3` | `video_reference` | Vidéo de référence + prompt, dialecte `Video 1` (`MinimaxHailuo03ReferenceNode`). |
+| `h3_native` | `video_reference` | Frames de référence + prompt, dialecte `<Video 1>` (`MiniMaxH3ReferenceToVideo`), `length` = 17n+5. |
+| `wan_native` | `camera_conditioning` | Vraie caméra numérique : extrinsics/intrinsics → `WAN_CAMERA_EMBEDDING`. Référence de fidélité. |
+| `wan_tracks_native` | `trajectory` | Trajectoires 2D projetées → `WanTrackToVideo`. Approximation d’une caméra. |
+| `wan_ati` | `trajectory` | Trajectoires 2D → `WanVideoATITracks` (Wan **2.1** ATI, WanVideoWrapper). |
+| `ltx_motion_track` | `trajectory` | Trajectoires 2D → `LTXVDrawTracks` → IC-LoRA Motion Track. Longueur = 8n+1. |
+| `ltx` | `proxy_guide` | Legacy : frames de proxy échantillonnées. Ne porte pas la caméra authorée. |
+
+### Preflight, validité de track et motion risk
+
+Trois notions distinctes, délibérément séparées :
+
+1. **Adapter contract** — les seuls faits qui décident `READY` / `WARNING` /
+   `BLOCKED`. Chaque règle est lue chez le node aval : FPS 23.976–60, durée
+   2–15 s et budget de prompt 7000 caractères pour H3 API, `length` 17n+5 pour
+   H3 natif, 4n+1 pour Wan Camera, 8n+1 pour LTX Motion Track, contrat de socket
+   détecté pour tous.
+2. **Track validity** — non-finitude (bloquant) et perte de cadrage
+   (avertissement). Propriétés objectives de la track.
+3. **Motion risk** — `LOW` / `MEDIUM` / `HIGH`, estimation empirique OmniCam
+   graduée contre des tables qu’aucun projet amont ne publie, en unités monde
+   sans signification métrique. Affiché, jamais compté dans le verdict.
 
 Les quatre anciens nodes adapters restent chargeables pour les workflows
 existants, dans `Majoor/OmniCam/Legacy` avec `is_deprecated=True`. Ils conservent
@@ -453,12 +493,14 @@ nodes publics. Leur historique reste dans git.
 OmniCam utilise actuellement `comfy_api.latest` car le contrat V3 nécessaire
 (`IO.Schema`, `IO.Video`, `IO.WanCameraEmbedding`, Node Replacement) n’est pas
 entièrement fourni par l’adapter stable `v0_0_2`. La version minimale déclarée
-et testée est donc ComfyUI `0.31.0`, qui embarque
-`comfyui-frontend-package>=1.48.7`. Cette dernière n'est volontairement **pas**
-déclarée dans `dependencies` : installer OmniCam ne doit pas pouvoir mettre à
-jour le frontend de l'installation hôte. La CI exécute également un import réel de
-l’extension, son hook `on_load()` et `define_schema()` sur chacun des six nodes,
-sur la version minimale ainsi que sur la branche courante de ComfyUI.
+et testée est donc ComfyUI `0.31.0`, qui embarque exactement
+`comfyui-frontend-package==1.48.7`; les deux bornes publiées dans
+`pyproject.toml` sont donc cohérentes. La CI valide les releases stables
+`v0.31.0` et `v0.34.0`; `master` est un canary non bloquant, jamais la définition
+du support stable. La dépendance frontend est publiée selon la spécification du
+Registry afin que l’hôte reçoive une incompatibilité explicite plutôt qu’un
+frontend incomplet. La CI exécute également un import réel de l’extension, son
+hook `on_load()` et `define_schema()` sur chacun des six nodes.
 
 ## Installation DPVO sous Windows
 

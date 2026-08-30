@@ -21,8 +21,32 @@ def test_ready_health_maps_real_motion_metrics_without_a_score():
     assert all(metric.id not in {"score", "quality_score"} for metric in health.metrics)
 
 
-def test_framing_loss_is_visible_and_blocks_the_track():
+def test_framing_loss_warns_without_blocking_the_queue():
+    """Losing the subject is a real track fact, not an unqueueable track.
+
+    Framing loss used to block. A whip-pan off the subject is a legitimate shot
+    the target model will happily generate, so it warns; only a track the
+    renderer cannot consume at all (non-finite values) blocks.
+    """
     health = build_camera_health(_track(target=(100, 1.5, 0)))
-    assert health.state == "BLOCKED"
+    assert health.state == "WARNING"
     assert any(metric.id == "framing_loss_frames" and metric.value > 0 for metric in health.metrics)
     assert any(item.get("metric") == "framing_loss_frames" for item in health.violations)
+
+
+def test_non_finite_camera_values_block_the_track():
+    track = _track()
+    track.keyframes[-1].camera.position[0] = float("nan")
+    health = build_camera_health(track)
+    assert health.state == "BLOCKED"
+    assert "non_finite_camera_values" in health.risk_reasons
+
+
+def test_adapter_selects_its_own_heuristic_limit_table():
+    """The per-adapter tables existed but were never handed to the grader."""
+    track = _track()
+    assert build_camera_health(track, "ltx").profile == "ltx"
+    assert build_camera_health(track, "h3_native").profile == "h3"
+    assert build_camera_health(track, "wan_tracks_native").profile == "wan_ati"
+    assert build_camera_health(track).profile == "generic"
+    assert build_camera_health(track, "ltx").heuristic is True

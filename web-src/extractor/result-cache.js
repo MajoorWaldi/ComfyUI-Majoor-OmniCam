@@ -9,7 +9,7 @@
 // inputs, so they never touch the node's execution cache key -- adding them
 // there would make every reload look like a changed prompt.
 
-export const EXTRACTOR_NODE_CLASS = "MajoorOmniCamExtractor";
+export { EXTRACTOR_NODE_CLASS } from "../node-classes.js";
 export const RESULT_ENVELOPE_KIND = "omnicam_extractor_result_v1";
 export const TRACK_WIDGET = "omnicam_extracted_track_json";
 export const FINGERPRINT_WIDGET = "omnicam_extracted_track_fingerprint";

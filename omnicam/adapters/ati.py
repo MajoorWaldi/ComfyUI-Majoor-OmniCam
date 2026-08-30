@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from ..core.projection import make_reference_points, project_point
@@ -109,3 +110,70 @@ def track_to_ati_bridge(
             "version-specific Wan adapter; do not make OmniCam core depend on WanVideoWrapper internals."
         ),
     }
+
+
+def _resample_trajectory(samples: list[dict], length: int) -> list[dict | None]:
+    """Resample one projected trajectory to `length` slots.
+
+    ``None`` marks a slot the point cannot be tracked through: interpolating
+    across an invisible sample would invent a position the camera never saw.
+    """
+    if not samples:
+        return [None] * length
+    resampled: list[dict | None] = []
+    last = len(samples) - 1
+    for index in range(length):
+        source = 0.0 if length == 1 else index * last / (length - 1)
+        low = math.floor(source)
+        high = min(last, low + 1)
+        a, b = samples[low], samples[high]
+        if not a.get("visible") or not b.get("visible"):
+            resampled.append(None)
+            continue
+        ratio = source - low
+        resampled.append({
+            "x": a["x_px"] + (b["x_px"] - a["x_px"]) * ratio,
+            "y": a["y_px"] + (b["y_px"] - a["y_px"]) * ratio,
+        })
+    return resampled
+
+
+def project_reference_trajectories(
+    track: OmniCamTrack,
+    *,
+    length: int,
+    point_count: int = 16,
+    distribution: str = "balanced",
+    width: int | None = None,
+    height: int | None = None,
+) -> list[list[dict[str, float]]]:
+    """Projected 2D trajectories in a downstream node's own pixel space.
+
+    Shared by every trajectory-driven adapter -- WanVideoWrapper ATI, Wan Track
+    To Video and LTXVDrawTracks all consume the same `[[{x, y}, ...], ...]`
+    shape and differ only in their length convention, so the projection is done
+    once here and the length is the caller's business.
+
+    A trajectory that is already off-screen on frame 0 is dropped: none of these
+    node families can express a delayed appearance. A trajectory that leaves
+    frame later is truncated there rather than clamped to the border, which
+    would otherwise read as a hard slide along the edge of the image.
+    """
+    target_width = int(width or track.width)
+    target_height = int(height or track.height)
+    scale_x = target_width / max(1, track.width)
+    scale_y = target_height / max(1, track.height)
+
+    bridge = track_to_ati_bridge(track, point_count, distribution=distribution)
+    trajectories: list[list[dict[str, float]]] = []
+    for trajectory in bridge["trajectories"]:
+        resampled = _resample_trajectory(trajectory["samples"], max(1, int(length)))
+        if resampled[0] is None:
+            continue
+        points = []
+        for point in resampled:
+            if point is None:
+                break
+            points.append({"x": point["x"] * scale_x, "y": point["y"] * scale_y})
+        trajectories.append(points)
+    return trajectories

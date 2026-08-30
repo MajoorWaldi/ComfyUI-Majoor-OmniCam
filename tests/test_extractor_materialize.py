@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from omnicam.extractor.materialize import materialize_video_reference
+from omnicam.extractor.materialize import cleanup_runtime_videos, materialize_video_reference
 
 
 class FakeVideo:
@@ -71,3 +71,17 @@ def test_trimmed_file_is_materialized_instead_of_previewing_the_untrimmed_source
     assert reference.endswith(" [temp]")
     assert video.saved
 
+
+def test_cleanup_runtime_videos_removes_only_omnicam_mp4_files(tmp_path):
+    roots = _roots(tmp_path)
+    runtime = roots["temp"] / "omnicam" / "extractor_runtime"
+    runtime.mkdir(parents=True)
+    (runtime / "first.mp4").write_bytes(b"video")
+    (runtime / "note.txt").write_text("keep")
+    unrelated = roots["temp"] / "other.mp4"
+    unrelated.write_bytes(b"keep")
+
+    assert cleanup_runtime_videos(roots=roots) == 1
+    assert not (runtime / "first.mp4").exists()
+    assert (runtime / "note.txt").exists()
+    assert unrelated.exists()

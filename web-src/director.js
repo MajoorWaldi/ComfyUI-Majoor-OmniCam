@@ -1,21 +1,13 @@
-import { app } from "../../scripts/app.js";
-import { api } from "../../scripts/api.js";
-import { registerOmniCamNodeBranding } from "./node-branding.js";
-import { configureMotionHealthApi } from "./motion-health/panel.js";
-// Registers the sixth public node inside this same bundle; there is no second
-// public script for ComfyUI to load.
-import "./extractor/index.js";
-import "./monitor/index.js";
-import "./help/index.js";
-configureMotionHealthApi(api);
-import { migrateDirectorOutputs } from "./director-output-migration.js";
-import { OMNICAM_SETTINGS, applyDirectorDefaults, registerOmniCamLocales } from "./settings.js";
-import { OmniWebGLViewport } from "./omnicam-webgl.js";
+// The Director UI, loaded on demand by web-src/main.js when a Director node is
+// created. Registration, preferences and locales live in main.js; this module
+// must stay free of startup side effects so it can stay out of the eager chunk.
+import { app, api } from "./comfy-runtime.js";
+import { configureDirectorViewports } from "./settings.js";
 import { EditorHistory } from "./omnicam-history.js";
-import { ContextMenuController, initializeTooltips, promptText } from "./omnicam-ui.js";
+import { ContextMenuController, initializeTooltips, promptText } from "./director/ui-services.js";
 import { ObjectUrlRegistry } from "./omnicam-media.js";
 import { buildRoot } from "./omnicam-template.js";
-import { dispatchDirectorKey, installGlobalKeyInterceptor } from "./omnicam-commands.js";
+import { dispatchDirectorKey } from "./omnicam-commands.js";
 import {
   activeCameraTrack,
   bindWidgetCallbacks,
@@ -148,7 +140,6 @@ import { createEditorMethods } from "./director/methods/editor.js";
 import { createSceneMethods } from "./director/methods/scene.js";
 import { createInteractionMethods } from "./director/methods/interaction.js";
 import { createRenderMethods } from "./director/methods/render.js";
-const EXTENSION_NAME = "Majoor.OmniCam.Director", NODE_CLASS = "MajoorOmniCamDirector";
 import {
   clamp,
   cloneCamera,
@@ -159,7 +150,7 @@ import {
   sanitizeState,
   worldTransform
 
-} from "./omnicam-core.js";
+} from "./director/core.js";
 configureCore({ api });
 configureDomMedia({ api });
 configureBackgroundManager({ api });
@@ -168,17 +159,16 @@ class OmniCamDirectorUI {
     this.app = app, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
     this.disposed = false;
     this.renderRevision = 0;
-    try {
-      this.webgl = new OmniWebGLViewport(() => this.render(), (model) => this.onModelLoaded(model));
-    } catch (error) {
-      console.warn("OmniCam WebGL unavailable; using Canvas fallback", error), this.webgl = null;
-    }
-    try {
-      this.cameraWebgl = new OmniWebGLViewport(() => this.renderCameraView(), () => {
-      });
-    } catch (error) {
-      console.warn("OmniCam Camera View unavailable", error), this.cameraWebgl = null;
-    }
+    // three.js and mediabunny total ~1.4 MB and nothing outside the viewport
+    // needs them, so they load on demand here rather than at module scope --
+    // ComfyUI would otherwise parse them at startup for every user, including
+    // those who never place a Director. Every read of these two fields is
+    // null-guarded and render() already has a Canvas 2-D fallback path, so the
+    // first frames simply draw without WebGL until loadWebGLViewports() swaps
+    // the real viewports in and repaints.
+    this.webgl = null;
+    this.cameraWebgl = null;
+    this.webglReady = this.loadWebGLViewports();
     this.stateWidget = node.widgets?.find((w) => w.name === "state_json"), this.recordingWidget = node.widgets?.find((w) => w.name === "recording_path"), this.cardWidget = node.widgets?.find((w) => w.name === "card_asset"), this.widthWidget = node.widgets?.find((w) => w.name === "width"), this.heightWidget = node.widgets?.find((w) => w.name === "height"), this.fpsWidget = node.widgets?.find((w) => w.name === "fps"), this.durationWidget = node.widgets?.find((w) => w.name === "duration_seconds"), this.modeWidget = node.widgets?.find((w) => w.name === "render_mode");
     let parsed = null;
     try {
@@ -190,8 +180,41 @@ class OmniCamDirectorUI {
       // zoom, dope rows) instead of waiting for the first scrub.
       this.setFrame(this.frame, false, true);
   }
+  /** Load the WebGL viewports, then repaint with them. Never rejects. */
+  async loadWebGLViewports() {
+    let OmniWebGLViewport;
+    try {
+      ({ OmniWebGLViewport } = await import("./omnicam-webgl.js"));
+    } catch (error) {
+      console.warn("OmniCam WebGL unavailable; using Canvas fallback", error);
+      return;
+    }
+    if (this.disposed) return;
+    try {
+      this.webgl = new OmniWebGLViewport(() => this.render(), (model) => this.onModelLoaded(model));
+    } catch (error) {
+      console.warn("OmniCam WebGL unavailable; using Canvas fallback", error), this.webgl = null;
+    }
+    try {
+      this.cameraWebgl = new OmniWebGLViewport(() => this.renderCameraView(), () => {
+      });
+    } catch (error) {
+      console.warn("OmniCam Camera View unavailable", error), this.cameraWebgl = null;
+    }
+    // dispose() may have run while the import was in flight; it saw no
+    // viewports to tear down, so release them here instead of leaking a
+    // WebGL context.
+    if (this.disposed) {
+      this.webgl?.dispose(), this.cameraWebgl?.dispose();
+      this.webgl = this.cameraWebgl = null;
+      return;
+    }
+    // applyDirectorDefaults already ran, on a node that had no viewports yet.
+    configureDirectorViewports(this);
+    this.resizeCanvas(), this.render(), this.renderCameraView();
+  }
 }
-const directorDependencies = { app, api, OmniWebGLViewport, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform };
+const directorDependencies = { app, api, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform };
 Object.assign(
   OmniCamDirectorUI.prototype,
   createEditorMethods(directorDependencies),
@@ -199,7 +222,7 @@ Object.assign(
   createInteractionMethods(directorDependencies),
   createRenderMethods(directorDependencies),
 );
-function attachDirector(node) {
+export function attachDirector(node) {
   if (node.__majoorOmniCam) return;
   const ui = new OmniCamDirectorUI(node);
   node.__majoorOmniCam = ui;
@@ -261,23 +284,3 @@ function attachDirector(node) {
     ui.syncUpstreamInputs();
   };
 }
-// Claim OmniCam shortcuts on window-capture as early as possible -- ideally
-// before ComfyUI's ChangeTracker registers its own Ctrl+Z handler.
-installGlobalKeyInterceptor();
-registerOmniCamNodeBranding(app);
-// Locales must be registered before the first buildRoot() call, which resolves
-// every label through t() eagerly.
-registerOmniCamLocales(app);
-app.registerExtension({
-  name: EXTENSION_NAME,
-  settings: OMNICAM_SETTINGS,
-  beforeConfigureGraph(graphData) {
-    migrateDirectorOutputs(graphData);
-  },
-  async nodeCreated(node) {
-    if (node.comfyClass !== NODE_CLASS && node.constructor?.type !== NODE_CLASS) return;
-    attachDirector(node);
-    // Preference defaults only seed a new node; a workflow load overwrites them.
-    applyDirectorDefaults(node.__majoorOmniCam);
-  }
-});

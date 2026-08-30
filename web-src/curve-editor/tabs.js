@@ -4,7 +4,7 @@
 
 import { renderGraphDopeSheet } from "./dope-view.js";
 import { renderSequenceLane } from "../sequence-lane.js";
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 
 // Toolbar buttons that only mean something on the curve canvas. Left enabled
 // on the dope sheet they would look wired but do nothing visible.

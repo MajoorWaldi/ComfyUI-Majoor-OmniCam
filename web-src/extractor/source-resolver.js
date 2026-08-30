@@ -11,6 +11,7 @@
 // names, and never a silent fallback to queueing the graph.
 
 import { upstreamPreviewMedia } from "../shared/upstream-preview.js";
+import { linkedOrigin } from "../graph-links.js";
 
 export const MANAGED_SUBFOLDER = "omnicam/extractor_sources";
 
@@ -48,8 +49,7 @@ function widgetValue(node, names) {
 function upstreamVideoNode(node, graph) {
   const input = (node?.inputs || []).find((item) => String(item?.name).toLowerCase() === "video");
   if (!input || input.link == null || !graph) return null;
-  const link = graph.links?.[input.link] ?? graph.links?.get?.(input.link);
-  return link ? graph.getNodeById?.(link.origin_id) || null : null;
+  return linkedOrigin(graph, input.link);
 }
 
 /** The Extractor's own picked file, stored on a frontend-only widget. */

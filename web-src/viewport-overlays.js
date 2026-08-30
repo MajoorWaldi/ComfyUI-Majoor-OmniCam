@@ -1,6 +1,6 @@
 // 2D Canvas fallback renderer and composition overlays (Grid, Safe Areas, Rule of Thirds, Burn-In, Speed Map, Camera Paths) for OmniCam Director.
 
-import { add, clamp, generatePointField, length, project, sampleCamera, sub, worldTransform } from "./omnicam-core.js";
+import { add, clamp, generatePointField, length, project, sampleCamera, sub, worldTransform } from "./director/core.js";
 import { drawResolutionGate } from "./viewport/resolution-gate.js";
 
 export function drawLine3D(ui, a, b, color = "#5a5a5a", width = 1) {

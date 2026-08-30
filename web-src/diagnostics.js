@@ -1,7 +1,7 @@
 // Setup diagnostic: fetch adapter capabilities and render the Output-menu badge.
 
 import { api } from "../../scripts/api.js";
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 import { fetchOmniCamCapabilities } from "./shared/capabilities.js";
 
 export async function refreshSetupDiagnostic(ui) {

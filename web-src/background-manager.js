@@ -1,6 +1,6 @@
 // Background image and image sequence manager for the OmniCam Director viewport.
 
-import { annotatedAssetUrl } from "./omnicam-core.js";
+import { annotatedAssetUrl } from "./director/core.js";
 import { uploadManagedFile } from "./omnicam-media.js";
 
 let comfyApi = null;

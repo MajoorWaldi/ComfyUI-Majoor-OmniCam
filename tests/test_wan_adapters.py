@@ -117,3 +117,47 @@ def test_ati_drops_points_that_start_off_screen():
     })
     for path in track_to_ati_tracks(behind, point_count=12):
         assert path, "a returned track is never empty"
+
+
+def test_wan_and_ltx_track_json_survive_the_real_upstream_parsers():
+    """P2 proof: the JSON is fed to the installed nodes' own parsing code.
+
+    Skipped when the upstream sources are not present next to this checkout --
+    the contract claim is only meaningful against a real install.
+    """
+    import json
+    import pathlib
+
+    import pytest
+
+    from omnicam.adapters.ltx_tracks import track_to_ltx_tracks_json
+    from omnicam.adapters.wanvideo_wrapper.v2026_08 import track_to_ati_json
+    from omnicam.core.track import OmniCamTrack
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    ltx_source = root / "ComfyUI-LTXVideo" / "sparse_tracks.py"
+    wan_source = root.parent / "comfy_extras" / "nodes_wan.py"
+    if not ltx_source.exists() or not wan_source.exists():
+        pytest.skip("upstream node sources are not available in this environment")
+
+    track = OmniCamTrack.from_dict({
+        "fps": 24, "duration_frames": 121, "width": 1280, "height": 720,
+        "keyframes": [
+            {"frame": 0, "camera": {"position": [0, 1.5, 6], "target": [0, 1.5, 0]}, "interpolation": "ease"},
+            {"frame": 120, "camera": {"position": [2, 1.5, 3], "target": [0, 1.5, 0]}, "interpolation": "ease"},
+        ],
+    })
+
+    ltx_text = ltx_source.read_text(encoding="utf-8")
+    namespace = {"json": json}
+    exec(ltx_text[ltx_text.index("def _parse_tracks"):ltx_text.index("def _age_color_batch")], namespace)
+    ltx_tracks = namespace["_parse_tracks"](
+        track_to_ltx_tracks_json(track, length=121, point_count=16, width=768, height=512)
+    )
+    assert ltx_tracks and max(len(points) for points in ltx_tracks) == 121
+
+    wan_text = wan_source.read_text(encoding="utf-8")
+    namespace = {"json": json}
+    exec(wan_text[wan_text.index("def parse_json_tracks"):wan_text.index("def process_tracks")], namespace)
+    wan_tracks = namespace["parse_json_tracks"](track_to_ati_json(track, point_count=16, width=832, height=480))
+    assert wan_tracks and all("x" in point and "y" in point for points in wan_tracks for point in points)

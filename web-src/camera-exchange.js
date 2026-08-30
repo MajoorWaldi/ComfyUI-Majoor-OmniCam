@@ -13,7 +13,7 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { api as comfyApi } from "../../scripts/api.js";
 import { AnimationMixer, Quaternion, Vector3 } from "./three-runtime.js";
 import { applyCanonicalTrack } from "./canonical-track-import.js";
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 import { activeCameraTrack } from "./omnicam-state-sync.js";
 
 /** The canonical payload the backend writers expect. */

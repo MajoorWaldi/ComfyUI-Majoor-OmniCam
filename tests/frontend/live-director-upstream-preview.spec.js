@@ -39,10 +39,12 @@ test("Director's Sync Upstream Inputs reads a connected LoadImage with nothing e
       upstreamImageConnected: ui.upstreamImageConnected,
       cardMediaTag: media?.tagName,
       cardMediaSize: media ? [media.naturalWidth || media.videoWidth, media.naturalHeight || media.videoHeight] : null,
+      trackSize: [ui.state.width, ui.state.height],
     };
   });
   console.log("DUMP", JSON.stringify(dump));
   expect(dump.upstreamImageConnected).toBe(true);
   expect(dump.cardMediaTag).toBe("IMG");
   expect(dump.cardMediaSize[0]).toBeGreaterThan(0);
+  expect(dump.trackSize).toEqual(dump.cardMediaSize);
 });

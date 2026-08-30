@@ -1,6 +1,6 @@
 // Motion presets, procedural camera shakes, and proxy presets for OmniCam Director.
 
-import { applyCameraShake as coreApplyCameraShake, cloneCamera, generateCameraPreset } from "./omnicam-core.js";
+import { applyCameraShake as coreApplyCameraShake, cloneCamera, generateCameraPreset } from "./director/core.js";
 
 export function applyCameraPreset(ui, presetName) {
   ui.checkpoint(`Apply preset: ${presetName}`);

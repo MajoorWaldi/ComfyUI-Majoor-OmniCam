@@ -12,8 +12,8 @@ would turn matchmoving into a batch job.
 from __future__ import annotations
 
 from aiohttp import web
-from server import PromptServer
 
+from ...comfy_compat.server import PromptServer
 from ...http_json import read_bounded_json_object
 from . import api
 from .manager import solve_manager

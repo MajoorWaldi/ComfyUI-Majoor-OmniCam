@@ -24,8 +24,8 @@ from fractions import Fraction
 from typing import Any
 
 import torch
-from comfy_api.latest import IO, InputImpl, VideoComponents
 
+from ..comfy_compat import IO, InputImpl, VideoComponents
 from ..core.video_sampling import sample_video_frames
 from ..extractor.materialize import materialize_video_reference
 from .base import resolve_video

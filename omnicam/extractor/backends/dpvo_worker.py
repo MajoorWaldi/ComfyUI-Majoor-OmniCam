@@ -8,12 +8,15 @@ exits the driver, rather than PyTorch's caching allocator, owns VRAM cleanup.
 from __future__ import annotations
 
 import contextlib
+import importlib
 import multiprocessing
 import shutil
+import sys
 import tempfile
 import threading
 import time
 import traceback
+import types
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,6 +27,9 @@ from .base import SolveError, checkpoint, report_progress, sample_features
 
 DPVO_WORKER_PROTOCOL = 2
 MAX_CHILD_ERROR_CHARS = 12_000
+CANONICAL_MODULE_NAME = "omnicam.extractor.backends.dpvo_worker"
+_PACKAGE_ROOT_PATH = Path(__file__).resolve().parents[3]
+PACKAGE_ROOT = str(_PACKAGE_ROOT_PATH)
 RESOLUTION_MULTIPLE = 4
 DPVO_FEATURE_RESOLUTION = 4
 
@@ -86,7 +92,7 @@ def write_frame_exchange(
                 raise ValueError("All DPVO exchange frames must have the same shape")
             mapped[index] = image
         mapped.flush()
-        del mapped
+        mapped = None
         return FrameExchange(
             directory=directory,
             frames_path=frames_path,
@@ -244,6 +250,88 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
             connection.close()
 
 
+def canonical_worker_entry(
+    request: DpvoWorkerRequest,
+) -> tuple[Callable[..., None], DpvoWorkerRequest]:
+    """Return a child entry point and request the spawned interpreter can unpickle.
+
+    ComfyUI registers a custom-node package in ``sys.modules`` under a name built
+    from its absolute filesystem path, so functions and classes defined here
+    pickle *by reference* under a dotted name
+    no fresh interpreter can import: the child then dies in the spawn bootstrap
+    with ``ModuleNotFoundError`` before any of our error handling exists.
+    Re-importing this module under its canonical name -- with the repository root
+    on ``sys.path``, which the bootstrap copies into the child -- yields a target
+    and a request whose references resolve there.
+    """
+    if __name__ == CANONICAL_MODULE_NAME:
+        return run_dpvo_child, request
+    if PACKAGE_ROOT not in sys.path:
+        sys.path.append(PACKAGE_ROOT)
+    try:
+        module = importlib.import_module(CANONICAL_MODULE_NAME)
+    except Exception as exc:  # noqa: BLE001 - a broken sys.path entry raises anything
+        raise SolveError(
+            f"OmniCam could not import {CANONICAL_MODULE_NAME} from {PACKAGE_ROOT} "
+            f"for the DPVO worker process: {exc}"
+        ) from exc
+    return module.run_dpvo_child, module.DpvoWorkerRequest.from_dict(request.to_dict())
+
+
+def _is_foreign_custom_node_entry(entry: str) -> bool:
+    """True for a ``sys.path`` entry belonging to some *other* ComfyUI custom node."""
+    if not entry:
+        return False
+    try:
+        resolved = Path(entry).resolve()
+    except (OSError, ValueError):
+        return False
+    if resolved == _PACKAGE_ROOT_PATH or _PACKAGE_ROOT_PATH in resolved.parents:
+        return False
+    return any(part.lower() == "custom_nodes" for part in resolved.parts)
+
+
+def child_sys_path(entries: Sequence[str]) -> list[str]:
+    """The import path the worker should start from.
+
+    Custom nodes routinely append their own root to ``sys.path``, and a stray
+    directory there shadows a real dependency for every later import -- a
+    ``coverage`` report folder, for instance, makes ``import coverage`` succeed
+    as an empty namespace package and takes Numba (hence DPVO) down with it.
+    The solver child only needs the interpreter's own paths plus this
+    repository, so foreign custom-node entries are dropped rather than
+    inherited.
+    """
+    kept = [entry for entry in entries if not _is_foreign_custom_node_entry(entry)]
+    if PACKAGE_ROOT not in kept:
+        kept.append(PACKAGE_ROOT)
+    return kept
+
+
+@contextlib.contextmanager
+def _isolated_child_bootstrap():
+    """Hand the spawn bootstrap a clean ``__main__`` and a clean ``sys.path``.
+
+    ``multiprocessing`` snapshots both when the process starts.  The parent's
+    main module is ComfyUI's ``main.py``; re-running it in the child re-imports
+    Torch, replays custom-node prestartup and can abort the child long before
+    the solver starts -- a main module carrying neither ``__spec__`` nor
+    ``__file__`` makes the bootstrap skip that step entirely.
+    """
+    real_main = sys.modules.get("__main__")
+    real_path = sys.path
+    sys.modules["__main__"] = types.ModuleType("__main__")
+    sys.path = child_sys_path(real_path)
+    try:
+        yield
+    finally:
+        sys.path = real_path
+        if real_main is not None:
+            sys.modules["__main__"] = real_main
+        else:
+            sys.modules.pop("__main__", None)
+
+
 class DpvoProcessRunner:
     """Own exactly one spawned child and reap it on every terminal path."""
 
@@ -267,13 +355,17 @@ class DpvoProcessRunner:
     ) -> tuple[list, list]:
         if self.process is not None:
             raise RuntimeError("This DPVO process runner is already active")
+        target, payload = self._target, request
+        if target is run_dpvo_child:
+            target, payload = canonical_worker_entry(request)
         context = multiprocessing.get_context("spawn")
         parent, child = context.Pipe(duplex=True)
-        process = context.Process(target=self._target, args=(child, request), daemon=True)
+        process = context.Process(target=target, args=(child, payload), daemon=True)
         self.process = process
         self._connection = parent
         started = time.monotonic()
-        process.start()
+        with _isolated_child_bootstrap():
+            process.start()
         self.last_pid = process.pid
         child.close()
         with _ACTIVE_RUNNERS_LOCK:
@@ -282,7 +374,14 @@ class DpvoProcessRunner:
             while True:
                 if self._timeout_seconds is not None and time.monotonic() - started > self._timeout_seconds:
                     raise SolveError("DPVO worker timed out")
-                if parent.poll(self._poll_seconds):
+                try:
+                    has_message = parent.poll(self._poll_seconds)
+                except (BrokenPipeError, EOFError, OSError):
+                    # A native CUDA extension can terminate the child before
+                    # Python has a chance to send its traceback.  Windows then
+                    # reports the closed named pipe from poll() itself.
+                    has_message = False
+                if has_message:
                     try:
                         message = parent.recv()
                     except EOFError:
@@ -317,10 +416,18 @@ class DpvoProcessRunner:
                     else:
                         raise SolveError(f"DPVO worker sent an unknown message {kind!r}")
                 elif not process.is_alive():
-                    if parent.poll():
+                    try:
+                        has_pending_message = parent.poll()
+                    except (BrokenPipeError, EOFError, OSError):
+                        has_pending_message = False
+                    if has_pending_message:
                         continue
                     raise SolveError(
-                        f"DPVO worker exited without a result (exit code {process.exitcode})"
+                        "DPVO worker exited without a result "
+                        f"(exit code {process.exitcode}). The child died before Python could report "
+                        "a traceback; this usually means a native extension or PyTorch/CUDA ABI mismatch. "
+                        "Rebuild DPVO for ComfyUI's embedded Python and PyTorch/CUDA environment, "
+                        "or select opencv_sift."
                     )
         finally:
             self._request_stop()

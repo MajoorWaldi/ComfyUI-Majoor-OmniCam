@@ -28,13 +28,19 @@ export function createAlignment() {
 }
 
 export class RefineController {
-  constructor({ onRefine, delay = REFINE_DEBOUNCE_MS, setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
+  constructor({ onRefine, delay = REFINE_DEBOUNCE_MS, setTimer, clearTimer } = {}) {
     this.settings = { ...REFINE_DEFAULTS };
     this.alignment = createAlignment();
     this.onRefine = onRefine || (() => {});
     this.delay = delay;
-    this.setTimer = setTimer;
-    this.clearTimer = clearTimer;
+    // Wrapped rather than stored bare. Assigning window.setTimeout straight to
+    // an instance property makes `this.setTimer(...)` call it with the
+    // controller as receiver, which browsers reject with "Illegal invocation".
+    // Node binds its own timers, so this only ever broke in the browser -- and
+    // only in dispose(), whose throw aborted the graph clear that precedes a
+    // workflow load, leaving the canvas empty.
+    this.setTimer = setTimer || ((callback, ms) => setTimeout(callback, ms));
+    this.clearTimer = clearTimer || ((id) => clearTimeout(id));
     this.timer = null;
     this.lastSent = "";
   }

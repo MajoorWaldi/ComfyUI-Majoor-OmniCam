@@ -6,8 +6,7 @@ are loaded by ComfyUI. Internal tools remain unregistered.
 
 from __future__ import annotations
 
-from comfy_api.latest import IO
-
+from ..comfy_compat import IO
 from .adapters import (
     MajoorOmniCamH3Adapter,
     MajoorOmniCamLTXCameraGuide,

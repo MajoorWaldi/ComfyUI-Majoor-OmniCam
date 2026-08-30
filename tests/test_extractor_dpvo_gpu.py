@@ -16,7 +16,6 @@ from omnicam.extractor.backends.dpvo_worker import (
 from omnicam.extractor.intrinsics import resolve_intrinsics
 from omnicam.extractor.video import FileVideoSource, decode_solver_frames
 
-
 pytestmark = pytest.mark.skipif(
     os.environ.get("OMNICAM_TEST_DPVO_GPU") != "1",
     reason="set OMNICAM_TEST_DPVO_GPU=1 after establishing a clean CUDA baseline",

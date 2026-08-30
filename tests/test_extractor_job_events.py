@@ -14,8 +14,8 @@ from omnicam.extractor.jobs.events import (
     QUALITY_EVENT,
     SolveEventPublisher,
 )
-from omnicam.extractor.jobs.worker import _JobObserver
 from omnicam.extractor.jobs.types import QualitySample, new_job
+from omnicam.extractor.jobs.worker import _JobObserver
 from omnicam.extractor.types import PoseSample
 
 

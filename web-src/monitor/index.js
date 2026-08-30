@@ -1,4 +1,4 @@
-import { api, app } from "../comfy-runtime.js";
+import { api } from "../comfy-runtime.js";
 import { sampleCamera } from "../director/core.js";
 import { annotatedAssetUrl } from "../shared/managed-assets.js";
 import { drawUpstreamPreview, upstreamPreviewMedia } from "../shared/upstream-preview.js";
@@ -11,24 +11,22 @@ import { MonitorPlayer } from "./player.js";
 import { renderPreflight } from "./preflight-view.js";
 import { renderPreview } from "./preview.js";
 import { MonitorRefreshController } from "./refresh.js";
-import { DirectorSourceWatcher } from "./source-sync.js";
+import { TrackSourceWatcher } from "./source-sync.js";
+import { linkedOrigin } from "../graph-links.js";
 import { createMonitorState, reduceMonitorState } from "./state.js";
 import { buildMonitorRoot } from "./template.js";
 import { bindTextPanels } from "./text-panels.js";
 
-const NODE_CLASS = "MajoorOmniCamMonitor";
 const INTEGER_SETTINGS = new Set(["width", "height", "length", "point_count", "ltx_max_frames"]);
 const SETTING_NAMES = [
   "base_prompt", "video_ref_token", "width", "height", "length",
   "point_count", "distribution", "ltx_max_frames", "ltx_sampling_mode",
 ];
+// Controls shown until a snapshot states which ones this adapter uses.
+const DEFAULT_FIELDS = ["base_prompt", "width", "height", "length"];
 
 function widget(node, name) {
   return node.widgets?.find((item) => item.name === name);
-}
-
-function nodeClass(node) {
-  return node.comfyClass || node.constructor?.type;
 }
 
 function hideWidgets(node) {
@@ -63,7 +61,7 @@ class MonitorUI {
     });
     this.bindControls();
     this.syncControlsFromWidgets();
-    this.watcher = new DirectorSourceWatcher(node, (source) => this.sourceChanged(source));
+    this.watcher = new TrackSourceWatcher(node, (source) => this.sourceChanged(source));
   }
 
   listen(target, name, listener) {
@@ -133,6 +131,17 @@ class MonitorUI {
       this.refreshProxyUpstreamPreview();
       return;
     }
+    if (!source.resolved) {
+      // A producer whose track only exists at execution time (Extractor, or a
+      // third-party node). The graph is valid, so this is not OFFLINE -- there
+      // is simply nothing to preview until the prompt runs.
+      this.state = reduceMonitorState(this.state, { type: "CONNECTED" });
+      this.player.setSource("");
+      this.timeline.render({ track: null, frame: 0, frameCount: 1 });
+      this.renderStatus();
+      this.refreshProxyUpstreamPreview();
+      return;
+    }
     const video = this.root.querySelector('[data-role="proxy-player"]');
     this.player.fps = source.track.fps;
     this.player.durationFrames = source.track.duration_frames;
@@ -160,8 +169,7 @@ class MonitorUI {
     if (this.source?.recordingPath) { canvas.hidden = true; return; }
     const input = (this.node.inputs || []).find((item) => item.name === "proxy_video");
     const graph = this.node.graph;
-    const link = input?.link != null && graph ? (graph.links?.[input.link] ?? graph.links?.get?.(input.link)) : null;
-    const origin = link ? graph.getNodeById?.(link.origin_id) : null;
+    const origin = input?.link != null ? linkedOrigin(graph, input.link) : null;
     const media = origin ? upstreamPreviewMedia(origin) : null;
     if (!media) { canvas.hidden = true; return; }
     drawUpstreamPreview(media, canvas, 640).then((drawn) => {
@@ -176,17 +184,42 @@ class MonitorUI {
     if (this.liveSync()) this.requestSnapshot();
   }
 
+  /**
+   * What the queue will actually be judged on.
+   *
+   * `proxy_available` used to be `Boolean(recordingPath)` -- the Director's
+   * playblast path -- so a VIDEO node wired straight into `proxy_video` was
+   * reported as "no proxy" on a graph that executes fine. Four different
+   * things were being conflated: the socket being connected, a preview being
+   * drawable, a managed file existing, and a Director playblast existing.
+   */
+  proxyPayload() {
+    const facts = { ...(this.source?.proxy || { available: false }) };
+    if (this.source?.recordingPath) {
+      facts.available = true;
+      facts.source = "director_playblast";
+      // A managed playblast was rendered by the Director at the track's own
+      // rate, which is the one frame rate the client can state honestly.
+      if (this.source?.track?.fps) facts.fps = Number(this.source.track.fps);
+      if (this.source?.track?.duration_frames && this.source?.track?.fps) {
+        facts.frame_count = Number(this.source.track.duration_frames);
+        facts.duration_seconds = Number(this.source.track.duration_frames) / Number(this.source.track.fps);
+      }
+    }
+    return facts;
+  }
+
   payload() {
     return {
       track: this.source?.track,
       adapter: this.adapter(),
-      proxy_available: Boolean(this.source?.recordingPath),
+      proxy: this.proxyPayload(),
       settings: this.settings(),
     };
   }
 
   requestSnapshot(immediate = false) {
-    if (!this.source?.connected) return;
+    if (!this.source?.resolved) return;
     this.state = reduceMonitorState(this.state, { type: "REFRESHING" });
     this.renderStatus();
     if (immediate) this.refreshController.refresh(this.payload());
@@ -208,17 +241,41 @@ class MonitorUI {
     const badge = this.root.querySelector('[data-role="monitor-status"]');
     badge.dataset.state = this.state.status;
     badge.lastChild.textContent = ` ${this.state.status}`;
-    const source = this.root.querySelector('[data-role="source-status"]');
-    source.textContent = this.source?.connected
-      ? `Director connected · ${this.source.track.duration_frames} frames · ${this.source.track.fps} fps${this.source.recordingPath ? " · proxy ready" : " · no proxy"}`
-      : "Connect an OmniCam Director camera track.";
+    this.root.querySelector('[data-role="source-status"]').textContent = this.sourceSummary();
     this.root.querySelector('[data-role="output-status"]').textContent = outputState(
       this.state.fingerprint,
       this.executedFingerprint,
     );
   }
 
+  sourceSummary() {
+    if (!this.source?.connected) return "Connect an OmniCam camera track.";
+    const proxy = this.source.proxy || {};
+    const proxyLabel = proxy.available
+      ? `proxy: ${this.source.recordingPath ? "Director playblast" : proxy.source || "connected"}`
+      : "no proxy connected";
+    if (!this.source.resolved) {
+      const origin = this.source.nodeClass || "upstream node";
+      return `${origin} connected · track resolves at execution · ${proxyLabel}`;
+    }
+    const { duration_frames: frames, fps } = this.source.track;
+    return `${this.source.nodeClass || "Track"} connected · ${frames} frames · ${fps} fps · ${proxyLabel}`;
+  }
+
+  /** Show only the controls this adapter actually consumes. */
+  applyAdapterFields(fields) {
+    const shown = new Set(fields && fields.length ? fields : DEFAULT_FIELDS);
+    for (const field of this.root.querySelectorAll("[data-field]")) {
+      field.hidden = !shown.has(field.dataset.field);
+    }
+  }
+
   renderSnapshot(snapshot) {
+    this.applyAdapterFields(snapshot?.adapter?.settings);
+    const proxyCard = this.root.querySelector('[data-role="proxy-card"]');
+    // The proxy monitor is meaningful only where a reference clip is the
+    // control path; for Wan Camera and the trajectory adapters it is noise.
+    if (proxyCard) proxyCard.hidden = !snapshot?.adapter?.requires_proxy;
     renderHealth(this.root.querySelector('[data-role="camera-health"]'), snapshot.health);
     renderPreflight(this.root.querySelector('[data-role="adapter-preflight"]'), snapshot.preflight);
     renderPreview(this.root.querySelector('[data-role="adapter-preview"]'), snapshot.preview);
@@ -256,7 +313,9 @@ class MonitorUI {
   }
 }
 
-function attachMonitor(node) {
+// Called by web-src/main.js once the Monitor chunk has loaded. This module has
+// no startup side effects, which is what keeps it out of the eager chunk.
+export function attachMonitor(node) {
   if (node.__majoorOmniCamMonitor) return;
   hideWidgets(node);
   const ui = new MonitorUI(node);
@@ -291,13 +350,3 @@ function attachMonitor(node) {
   };
 }
 
-export function registerOmniCamMonitor(target = app) {
-  target.registerExtension({
-    name: "Majoor.OmniCam.Monitor",
-    async nodeCreated(node) {
-      if (nodeClass(node) === NODE_CLASS) attachMonitor(node);
-    },
-  });
-}
-
-registerOmniCamMonitor();

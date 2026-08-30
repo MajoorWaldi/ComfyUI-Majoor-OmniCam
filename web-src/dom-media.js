@@ -2,11 +2,13 @@
 // The ComfyUI api object is injected via configureDomMedia so this module
 // stays bundle-local (no cross-root imports that break Vite rebasing).
 
-import { annotatedAssetUrl, clamp } from "./omnicam-core.js";
+import { annotatedAssetUrl, clamp } from "./director/core.js";
 import { syncExtractorCameraTrack } from "./extractor/director-link.js";
 import { uploadManagedFile } from "./omnicam-media.js";
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 import { upstreamPreviewMedia } from "./shared/upstream-preview.js";
+import { linkedOrigin } from "./graph-links.js";
+import { adoptUpstreamMediaMetadata } from "./upstream-media-metadata.js";
 
 let comfyApi = null;
 
@@ -20,7 +22,7 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVi
   // query string with the extension no longer at the end) should say so
   // directly, rather than have this guess from a URL the check cannot match.
   const path = String(object.asset || url).toLowerCase();
-  const asVideo = isVideo ?? /\.(mp4|webm|mov)(?:\s|$)/.test(path);
+  const asVideo = isVideo ?? /\.(mp4|mov|webm|mkv|m4v|avi)(?:\s|$)/.test(path);
   if (asVideo) {
     const video = document.createElement("video");
     video.src = url;
@@ -47,6 +49,20 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVi
     if (object.id === "subject") ui.cardMedia = image;
   }
   ui.render();
+  return ui.cardMediaById.get(object.id) || null;
+}
+
+async function describeUpstreamVideo(value, signal) {
+  if (!comfyApi?.fetchApi || !/\.(mp4|mov|webm|mkv|m4v|avi)(?:\s|$)/i.test(value)) return null;
+  const response = await comfyApi.fetchApi("/majoor/omnicam/extractor/source", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source: { kind: "annotated_input", value } }),
+    signal,
+  });
+  if (!response.ok) return null;
+  const payload = await response.json();
+  return payload?.info || null;
 }
 
 function upstreamAssetValue(value, subfolder = "") {
@@ -251,9 +267,7 @@ export async function syncUpstreamInputs(ui) {
   for (const input of inputs) {
     const inputName = String(input.name || "").toLowerCase();
     if (input.link == null) continue;
-    const link = graph.links ? graph.links[input.link] : null;
-    if (!link) continue;
-    const originNode = graph.getNodeById(link.origin_id);
+    const originNode = linkedOrigin(graph, input.link);
     if (!originNode) continue;
 
     // 1. IMAGE or VIDEO Input
@@ -264,14 +278,27 @@ export async function syncUpstreamInputs(ui) {
       );
       if (imageWidget && imageWidget.value) {
         const val = String(imageWidget.value);
-        const isVideo = /\.(mp4|webm|mov)(?:\s|$)/i.test(val);
+        const isVideo = /\.(mp4|mov|webm|mkv|m4v|avi)(?:\s|$)/i.test(val);
         const subfolder = originNode.widgets?.find((w) => String(w.name).toLowerCase() === "subfolder")?.value || "";
         const url = annotatedAssetUrl(upstreamAssetValue(val, subfolder));
         const subject = ui.state.objects.find((o) => o.id === "subject");
         if (subject) {
-          await loadMediaUrl(ui, subject, url, isCurrent, isVideo);
+          const media = await loadMediaUrl(ui, subject, url, isCurrent, isVideo);
           if (!isCurrent()) return;
           subject.asset = upstreamAssetValue(val, subfolder);
+          let videoInfo = null;
+          if (isVideo) {
+            try { videoInfo = await describeUpstreamVideo(val, fetchController.signal); } catch (error) {
+              if (error?.name === "AbortError") return;
+              console.warn("Failed to describe upstream video:", error);
+            }
+          }
+          if (isCurrent()) {
+            adoptUpstreamMediaMetadata(ui, media, {
+              fps: videoInfo?.fps,
+              frameCount: isVideo ? videoInfo?.frame_count : 1,
+            });
+          }
           ui.upstreamImageConnected = true;
           anyUpdated = true;
           ui.setStatus(t(`Upstream ${isVideo ? "video" : "image"}: ${val}`));
@@ -289,6 +316,7 @@ export async function syncUpstreamInputs(ui) {
           if (media instanceof HTMLVideoElement && media.paused) media.play().catch(() => {});
           ui.cardMediaById.set("subject", media);
           ui.cardMedia = media;
+          adoptUpstreamMediaMetadata(ui, media, { frameCount: media instanceof HTMLVideoElement ? 0 : 1 });
           ui.upstreamImageConnected = true;
           anyUpdated = true;
           ui.render();

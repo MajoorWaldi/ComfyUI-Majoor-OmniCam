@@ -1,6 +1,6 @@
 // Lower half of the Director: camera preview, transport, dope sheet, graph editor.
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 import { DOPE_CHANNELS } from "../dope-sheet.js";
 
 function previewPanel() {

@@ -4,8 +4,7 @@ import json
 import logging
 from typing import Any
 
-from comfy_api.latest import IO, UI
-
+from ..comfy_compat import IO, UI
 from ..core.director_shot import build_director_shot, build_shot_collection
 from ..core.editor_state import editor_state_to_track
 from ..core.sequence import (

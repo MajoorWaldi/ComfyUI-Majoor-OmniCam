@@ -16,7 +16,7 @@ async def main() -> None:
     # ComfyExtension.on_load() registers node replacements through
     # PromptServer.instance. Stand one up so this smoke test exercises the same
     # path a real startup does instead of crashing on a missing instance.
-    from server import PromptServer
+    from omnicam.comfy_compat.server import PromptServer
     if getattr(PromptServer, "instance", None) is None:
         PromptServer(asyncio.get_running_loop())
 

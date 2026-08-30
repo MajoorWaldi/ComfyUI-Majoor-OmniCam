@@ -108,6 +108,33 @@ test("a connected Load Video is a file-backed source", () => {
   assert.equal(source.label, "shot.mov");
 });
 
+test("a connected Load Video resolves through modern Map links", () => {
+  const graph = new FakeGraph();
+  graph.links = new Map();
+  const loader = graph.add(1, "LoadVideo");
+  loader.addWidget("combo", "file", "shot.mov");
+  const extractor = graph.add(2, "MajoorOmniCamExtractor");
+  const linkId = graph.next++;
+  graph.links.set(linkId, { origin_id: loader.id, target_id: extractor.id });
+  extractor.inputs.push({ name: "video", link: linkId });
+
+  const source = resolveInteractiveExtractorSource(extractor, graph);
+  assert.equal(source.available, true);
+  assert.equal(source.label, "shot.mov");
+});
+
+test("a connected Load Video resolves when the input carries its link object", () => {
+  const graph = new FakeGraph();
+  const loader = graph.add(1, "LoadVideo");
+  loader.addWidget("combo", "file", "shot.mov");
+  const extractor = graph.add(2, "MajoorOmniCamExtractor");
+  extractor.inputs.push({ name: "video", link: { originId: loader.id, targetId: extractor.id } });
+
+  const source = resolveInteractiveExtractorSource(extractor, graph);
+  assert.equal(source.available, true);
+  assert.equal(source.label, "shot.mov");
+});
+
 test("an in-memory VIDEO producer is refused with a reason, not a guess", () => {
   const graph = new FakeGraph();
   const creator = graph.add(1, "CreateVideo");
@@ -203,6 +230,24 @@ test("nothing connected asks for a source rather than failing", () => {
   const graph = new FakeGraph();
   const extractor = graph.add(1, "MajoorOmniCamExtractor");
   assert.equal(resolveInteractiveExtractorSource(extractor, graph).available, false);
+});
+
+test("a queued result drops the old interactive job before refinement can reuse it", () => {
+  let state = createExtractorState();
+  state = reduceExtractorState(state, { type: "JOB_STARTED", status: { job_id: "old-job", state: "COMPLETED" } });
+  state = reduceExtractorState(state, { type: "QUEUED_RESULT" });
+  assert.equal(state.jobId, "");
+  assert.equal(state.solveState, "COMPLETED");
+});
+
+test("a changed source clears its stale transport metadata", () => {
+  let state = createExtractorState();
+  state = reduceExtractorState(state, { type: "JOB_STARTED", status: { job_id: "old-job", state: "TRACKING", frame_count: 240 } });
+  state = reduceExtractorState(state, { type: "SOURCE", source: { info: { fps: 30, frame_count: 240 } } });
+  state = reduceExtractorState(state, { type: "SOURCE_RESET", source: { available: false, ref: null } });
+  assert.equal(state.jobId, "");
+  assert.equal(state.frameCount, 0);
+  assert.equal(state.source.info, null);
 });
 
 test("the source strip describes the resolved footage", () => {

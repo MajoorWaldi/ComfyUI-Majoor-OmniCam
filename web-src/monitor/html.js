@@ -6,7 +6,7 @@ export function escapeHtml(value) {
 
 export function diagnosticState(value) {
   const normalized = String(value || "").toLowerCase();
-  return ["ready", "warning", "blocked", "unknown"].includes(normalized)
+  return ["ready", "warning", "blocked", "risk", "pass", "connected", "unknown"].includes(normalized)
     ? normalized
     : "unknown";
 }

@@ -1,9 +1,9 @@
 // Scene outliner, inspector, object commands and key editing.
 
 import { app } from "../../scripts/app.js";
-import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./omnicam-core.js";
-import { confirmAction, promptText } from "./omnicam-ui.js";
-import { t } from "./omnicam-i18n.js";
+import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./director/core.js";
+import { confirmAction, promptText } from "./director/ui-services.js";
+import { t } from "./i18n.js";
 import { playblastCameraTrack } from "./omnicam-state-sync.js";
 import { findEditableKey } from "./scene/edit-target.js";
 

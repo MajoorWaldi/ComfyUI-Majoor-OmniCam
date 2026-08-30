@@ -121,6 +121,23 @@ def test_expected_inputs_match_the_installed_node_sockets():
         assert info["docs"].startswith("https://"), f"{adapter} needs a docs link"
 
 
+def test_adapter_contract_matrix_pins_upstream_and_input_fingerprints():
+    """Every compatibility claim remains reproducible outside this checkout."""
+    from omnicam.adapters.registry import ADAPTER_INFO, input_fingerprint
+
+    assert set(ADAPTER_INFO) == {
+        "wan_native", "wan_tracks_native", "h3", "h3_native", "ltx",
+        "ltx_motion_track", "wan_ati",
+    }
+    for adapter, info in ADAPTER_INFO.items():
+        upstream = info["upstream"]
+        assert upstream["repository"].startswith("https://github.com/"), adapter
+        assert len(upstream["tested_commit"]) == 40, adapter
+        assert info["input_fingerprint"] == input_fingerprint(
+            info["expected_inputs"], info["expected_widgets"],
+        )
+
+
 def test_nested_template_sockets_are_discovered():
     """Autogrow / DynamicCombo hide real sockets one level down.
 

@@ -1,9 +1,9 @@
 // Camera manager and camera-preview strip for the OmniCam Director.
 
-import { cloneCamera, sampleCamera } from "./omnicam-core.js";
+import { cloneCamera, sampleCamera } from "./director/core.js";
 import { SEQUENCE_TARGET, sequenceCuts } from "./director/sequence.js";
-import { confirmAction, promptText } from "./omnicam-ui.js";
-import { t } from "./omnicam-i18n.js";
+import { confirmAction, promptText } from "./director/ui-services.js";
+import { t } from "./i18n.js";
 import { focalLengthToFov, formatFocalLength } from "./lens.js";
 import { drawResolutionGate } from "./viewport/resolution-gate.js";
 

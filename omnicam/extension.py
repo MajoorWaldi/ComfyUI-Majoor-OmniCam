@@ -1,13 +1,22 @@
 from __future__ import annotations
 
-from comfy_api.latest import IO, ComfyAPI, ComfyExtension
 from typing_extensions import override
 
+from .comfy_compat import IO, ComfyAPI, ComfyExtension, register_shutdown_callback
+from .extractor.jobs.manager import solve_manager
+from .extractor.materialize import cleanup_runtime_videos
 from .node_registry import get_registered_nodes
+
+
+def _shutdown_extractor_runtime() -> None:
+    solve_manager().shutdown()
+    cleanup_runtime_videos()
 
 
 class MajoorOmniCamExtension(ComfyExtension):
     async def on_load(self) -> None:
+        cleanup_runtime_videos()
+        register_shutdown_callback("extractor-workers", _shutdown_extractor_runtime)
         await ComfyAPI().node_replacement.register(IO.NodeReplace(
             new_node_id="MajoorOmniCamWanVideoWrapperATI",
             old_node_id="MajoorOmniCamWanATIAdapter",

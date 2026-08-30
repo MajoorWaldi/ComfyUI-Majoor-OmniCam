@@ -11,7 +11,9 @@ from pathlib import Path
 
 import folder_paths
 from aiohttp import web
-from server import PromptServer
+
+from .asset_index import invalidate_asset_index, list_asset_page
+from .comfy_compat.server import PromptServer
 
 _CARD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mov"}
 _MODEL_EXTENSIONS = {".glb", ".obj", ".fbx", ".stl", ".ply"}
@@ -294,12 +296,14 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
 @PromptServer.instance.routes.post("/majoor/omnicam/upload_playblast")
 async def upload_playblast(request: web.Request):
     payload = await _save_multipart_file(request, "playblasts", _PLAYBLAST_EXTENSIONS, MAX_PLAYBLAST_BYTES)
+    invalidate_asset_index(_managed_root())
     return web.json_response(payload)
 
 
 @PromptServer.instance.routes.post("/majoor/omnicam/upload_asset")
 async def upload_asset(request: web.Request):
     payload = await _save_multipart_file(request, "cards", _CARD_EXTENSIONS, MAX_CARD_BYTES)
+    invalidate_asset_index(_managed_root())
     return web.json_response(payload)
 
 
@@ -315,6 +319,7 @@ async def upload_extractor_source(request: web.Request):
     payload = await _save_multipart_file(
         request, "extractor_sources", _SOURCE_EXTENSIONS, MAX_PLAYBLAST_BYTES
     )
+    invalidate_asset_index(_managed_root())
     return web.json_response({**payload, "kind": "managed"})
 
 
@@ -345,6 +350,7 @@ async def upload_model(request: web.Request):
         path.unlink(missing_ok=True)
         await _finish_quota_reservation(0, -payload["size"])
         raise web.HTTPBadRequest(text=f"Invalid {extension[1:].upper()} model file")
+    invalidate_asset_index(_managed_root())
     return web.json_response(payload)
 
 
@@ -376,16 +382,16 @@ async def motion_profiles(_request: web.Request):
 
 
 @PromptServer.instance.routes.get("/majoor/omnicam/assets")
-async def list_assets(_request: web.Request):
+async def list_assets(request: web.Request):
     """Managed-asset index: every file OmniCam wrote below <input>/omnicam."""
-    root = _managed_root()
-    assets = []
-    if root.exists():
-        for entry in sorted(root.rglob("*")):
-            if entry.is_file():
-                stat = entry.stat()
-                assets.append({"relative": entry.relative_to(root).as_posix(), "size": stat.st_size, "modified": stat.st_mtime})
-    return web.json_response({"root": "omnicam", "assets": assets, "total_bytes": sum(asset["size"] for asset in assets)})
+    try:
+        query = getattr(request, "query", {})
+        offset = int(query.get("offset", "0"))
+        limit = int(query.get("limit", "200"))
+        payload = await list_asset_page(_managed_root(), offset=offset, limit=limit)
+    except ValueError as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
+    return web.json_response(payload)
 
 
 @PromptServer.instance.routes.post("/majoor/omnicam/cleanup")
@@ -425,6 +431,7 @@ async def cleanup_assets(request: web.Request):
     async with _quota_lock:
         if _quota_usage is not None:
             _quota_usage = max(0, _quota_usage - sum(item["size"] for item in removed))
+    invalidate_asset_index(root)
     return web.json_response({"removed": removed, "freed_bytes": sum(item["size"] for item in removed)})
 
 
@@ -536,7 +543,9 @@ async def import_camera_route(request: web.Request):
     return web.json_response({"track": payload, "source": extension})
 
 
-# Register the focused no-run Monitor and Extractor routes alongside the
-# managed-asset routes. Both are separate modules so this one stays readable.
+# Register the frontend chunk route plus the focused no-run Monitor and
+# Extractor routes alongside the managed-asset routes. Each is a separate
+# module so this one stays readable.
+from . import routes_chunks as _routes_chunks  # noqa: E402,F401
 from . import routes_monitor as _routes_monitor  # noqa: E402,F401
 from .extractor.jobs import routes as _routes_extractor_jobs  # noqa: E402,F401

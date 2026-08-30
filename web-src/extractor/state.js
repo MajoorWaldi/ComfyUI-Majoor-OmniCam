@@ -46,6 +46,18 @@ export function reduceExtractorState(state, action) {
   switch (action.type) {
     case "SOURCE":
       return { ...state, source: { ...state.source, ...action.source } };
+    case "SOURCE_RESET":
+      return {
+        ...state,
+        solveState: "IDLE", jobId: "", progress: 0, stageProgress: 0,
+        frame: 0, frameCount: 0, backend: "", poseCount: 0, error: "",
+        warnings: [], anomalies: [], quality: [], refinedFingerprint: "",
+        source: { ...state.source, ...action.source, info: null },
+      };
+    case "QUEUED_RESULT":
+      // A queued execution has no interactive job to refine. Keeping the
+      // previous id here could send a cleanup request to unrelated footage.
+      return { ...state, jobId: "", solveState: "COMPLETED" };
     case "JOB_STARTED":
       return {
         ...state, jobId: action.status.job_id, solveState: action.status.state,

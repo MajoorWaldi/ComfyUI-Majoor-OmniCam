@@ -3,7 +3,7 @@
 // Each tab is a <details class="toolbar-menu">, which is what closeMenus() and
 // the outside-click handler in event-bindings/editor-global.js key off.
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 
 function sceneTab() {
   return `

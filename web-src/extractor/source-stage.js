@@ -38,23 +38,6 @@ export async function syncUpstreamPreviewCanvas(ui, resolved) {
   if (!ui.disposed) ui.render();
 }
 
-/** Draw the managed solver frame into the clean side of COMPARE. */
-export function drawCleanPreview(ui) {
-  const canvas = ui.$("clean-preview");
-  const video = ui.$("source-video");
-  if (!canvas || !video || video.readyState < 2) return false;
-  const width = Math.max(1, video.videoWidth || canvas.width);
-  const height = Math.max(1, video.videoHeight || canvas.height);
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-  const context = canvas.getContext("2d");
-  if (!context) return false;
-  context.drawImage(video, 0, 0, width, height);
-  return true;
-}
-
 /** Advance every read-only consumer from the one Extractor frame clock. */
 export function showExtractorFrame(ui, frame, { fromVideo = false } = {}) {
   const next = Math.max(0, Number(frame) || 0);
@@ -68,6 +51,5 @@ export function showExtractorFrame(ui, frame, { fromVideo = false } = {}) {
   const scrubber = ui.$("scrubber");
   if (scrubber && fromVideo) scrubber.value = String(next);
   ui.viewer?.setFrame(next);
-  drawCleanPreview(ui);
   ui.renderFrameReadouts();
 }

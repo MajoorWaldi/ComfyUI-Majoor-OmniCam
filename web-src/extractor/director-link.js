@@ -28,8 +28,9 @@
 
 import { UPSTREAM_METADATA_KEY } from "../canonical-track-import.js";
 import { importExtractorTrackAsCamera } from "../cameras.js";
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 import { EXTRACTOR_NODE_CLASS, readCachedResult } from "./result-cache.js";
+import { graphLink, linkedOrigin } from "../graph-links.js";
 
 export const CAMERA_TRACK_INPUT = "camera_track";
 
@@ -45,9 +46,7 @@ export function upstreamExtractorNode(ui) {
   for (const input of node.inputs || []) {
     if (String(input?.name || "").toLowerCase() !== CAMERA_TRACK_INPUT) continue;
     if (input.link == null) continue;
-    const link = graph.links ? graph.links[input.link] : null;
-    if (!link) continue;
-    const origin = graph.getNodeById?.(link.origin_id);
+    const origin = linkedOrigin(graph, input.link);
     if (origin && nodeClassOf(origin) === EXTRACTOR_NODE_CLASS) return origin;
   }
   return null;
@@ -156,10 +155,11 @@ export function notifyDownstreamDirectors(extractorNode) {
   let notified = 0;
   for (const output of outputs) {
     for (const linkId of output?.links || []) {
-      const link = graph.links ? graph.links[linkId] : null;
-      if (!link || seen.has(link.target_id)) continue;
-      seen.add(link.target_id);
-      const target = graph.getNodeById?.(link.target_id);
+      const link = graphLink(graph, linkId);
+      const targetId = link?.target_id ?? link?.targetId;
+      if (!link || targetId == null || seen.has(targetId)) continue;
+      seen.add(targetId);
+      const target = graph.getNodeById?.(targetId);
       const ui = target?.__majoorOmniCam;
       // Never re-queue the graph: the Director just re-reads the cache.
       if (ui?.syncUpstreamInputs) {

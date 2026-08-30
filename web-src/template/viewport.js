@@ -3,7 +3,7 @@
 // The <canvas> must stay a *direct* child of .viewport-wrap: viewport.js and
 // the Playwright mount test both resolve it as ".viewport-wrap > canvas".
 
-import { t } from "../omnicam-i18n.js";
+import { t } from "../i18n.js";
 
 function toolRail() {
   return `

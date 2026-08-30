@@ -9,7 +9,7 @@
 // does not know about the Director's cards, models, audio, background or
 // render mode, and importing must not take any of them away.
 
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 import { activeCameraTrack } from "./state-sync.js";
 
 export const UPSTREAM_METADATA_KEY = "upstream_camera_track";

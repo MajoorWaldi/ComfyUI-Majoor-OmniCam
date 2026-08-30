@@ -43,7 +43,7 @@ MAX_QUALITY_BATCH = 120
 
 def _send_sync(event: str, payload: dict[str, Any], client_id: str) -> None:
     try:
-        from server import PromptServer
+        from ...comfy_compat.server import PromptServer
 
         instance = getattr(PromptServer, "instance", None)
         if instance is None:

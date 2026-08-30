@@ -1,21 +1,15 @@
-// The Track timeline card: canvas, limit picker, summary line and scrubbing.
+// The Track timeline card: canonical camera channels and scrubbing.
 //
 // Split out of index.js so the panel's orchestration stays readable, and so the
 // grading choice -- which track is graded, against whose limits -- lives in one
 // place instead of being spread across three render methods.
 
-import { loadMotionProfiles } from "../motion-health/panel.js";
-
 import {
   DOPE_LAYOUT,
   drawTrackTimeline,
   frameAtTimelineX,
-  healthSummary,
   timelineHeight,
-  trackHealth,
 } from "./track-timeline.js";
-
-const NO_LIMITS = "Motion limits unavailable -- the adapter tables could not be loaded";
 
 export class TimelinePanelHost {
   /**
@@ -25,9 +19,6 @@ export class TimelinePanelHost {
   constructor(root, { onSeek = () => {} } = {}) {
     this.root = root;
     this.onSeek = onSeek;
-    this.profiles = null;
-    this.profileId = "";
-    this.health = null;
     this.scrubbing = false;
   }
 
@@ -36,56 +27,14 @@ export class TimelinePanelHost {
   }
 
   /**
-   * Fill the limit picker from the adapter tables.
-   *
-   * Fetched rather than duplicated: the numbers a shot is graded against belong
-   * to the adapters, and a second copy in the frontend is a second thing to
-   * forget to update.
-   */
-  async loadProfiles() {
-    const profiles = await loadMotionProfiles();
-    if (!profiles?.profiles?.length) return null;
-    this.profiles = profiles;
-    const select = this.$("limits-profile");
-    if (select) {
-      select.replaceChildren();
-      for (const profile of profiles.profiles) {
-        const option = select.ownerDocument.createElement("option");
-        option.value = profile.id;
-        option.textContent = profile.label || profile.id;
-        select.append(option);
-      }
-      select.value = this.profileId || profiles.profiles[0].id;
-      this.profileId = select.value;
-    }
-    return profiles;
-  }
-
-  setProfile(id) {
-    this.profileId = String(id || "");
-    return this.profileId;
-  }
-
-  limits() {
-    const id = this.$("limits-profile")?.value || this.profileId || "generic";
-    const entry = this.profiles?.profiles?.find((profile) => profile.id === id);
-    return { id, limits: entry ? entry.limits : null };
-  }
-
-  /**
    * Draw the strip for one track.
    *
    * The track passed in is whichever the viewer is showing, so switching
-   * RAW/REFINED moves the MOTION band with it; grading the refined track while
-   * the user looks at the raw one would be a quietly wrong answer.
+   * RAW/REFINED therefore moves the displayed keys with it.
    */
   render({ track = null, quality = [], frame = 0, frameCount = 0 } = {}) {
     const canvas = this.$("track-timeline");
     if (!canvas) return null;
-    const { id, limits } = this.limits();
-    this.health = trackHealth(track, limits, id);
-    const summary = this.$("limits-summary");
-    if (summary) summary.textContent = limits ? healthSummary(this.health) : NO_LIMITS;
     // The canvas is a lane stack inside the Director's dope sheet, so its
     // height is the rows it draws -- not a number in the markup that drifts
     // out of step with them the first time a lane is added.
@@ -93,7 +42,6 @@ export class TimelinePanelHost {
     if (canvas.height !== height) canvas.height = height;
     return drawTrackTimeline(canvas, {
       track,
-      health: this.health,
       quality,
       frame,
       layout: DOPE_LAYOUT,

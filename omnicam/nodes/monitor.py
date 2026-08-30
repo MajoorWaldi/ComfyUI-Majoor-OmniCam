@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from comfy_api.latest import IO
-
+from ..capabilities import detect_capabilities
+from ..comfy_compat import IO
 from ..monitor.execute import execute_monitor_adapter
 from ..monitor.fingerprint import monitor_fingerprint
 from .base import OMNICAM_TRACK, validated_track
@@ -22,9 +22,16 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             inputs=[
                 OMNICAM_TRACK.Input("camera_track"),
                 media_input("proxy_video", optional=True, tooltip="The shot this track describes, as a VIDEO or an IMAGE batch."),
-                IO.Combo.Input("adapter", options=["h3", "wan_native", "wan_ati", "wan_tracks_native", "ltx"], default="h3"),
+                IO.Combo.Input(
+                    "adapter",
+                    options=["h3", "h3_native", "wan_native", "wan_ati", "wan_tracks_native", "ltx_motion_track", "ltx"],
+                    default="h3",
+                ),
                 IO.String.Input("base_prompt", default="", multiline=True, optional=True),
-                IO.String.Input("video_ref_token", default="<Video 1>", multiline=False, advanced=True),
+                # Deprecated: the reference dialect is a property of the installed
+                # H3 node, not of the user. Kept so pinned workflows still load;
+                # "auto" resolves it from detected capabilities.
+                IO.String.Input("video_ref_token", default="auto", multiline=False, advanced=True),
                 IO.Int.Input("width", default=832, min=64, max=4096, step=8, advanced=True),
                 IO.Int.Input("height", default=480, min=64, max=4096, step=8, advanced=True),
                 IO.Int.Input("length", default=81, min=1, max=10000, step=1, advanced=True),
@@ -54,7 +61,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
     @classmethod
     def execute(
         cls, camera_track: dict[str, Any], proxy_video=None, adapter: str = "h3",
-        base_prompt: str = "", video_ref_token: str = "<Video 1>", width: int = 832,
+        base_prompt: str = "", video_ref_token: str = "auto", width: int = 832,
         height: int = 480, length: int = 81, point_count: int = 16,
         distribution: str = "balanced", ltx_max_frames: int = 121,
         ltx_sampling_mode: str = "contiguous",
@@ -67,7 +74,10 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             "point_count": point_count, "distribution": distribution,
             "ltx_max_frames": ltx_max_frames, "ltx_sampling_mode": ltx_sampling_mode,
         }
-        result = execute_monitor_adapter(adapter=adapter, track=track, proxy_video=proxy_video, **settings)
+        result = execute_monitor_adapter(
+            adapter=adapter, track=track, proxy_video=proxy_video,
+            capabilities=detect_capabilities(), **settings,
+        )
         fingerprint = monitor_fingerprint(track=track.to_dict(), adapter=adapter, settings=settings)
         ordered = (
             result["reference_video"], result["camera_prompt"], result["cinematic_prompt"],

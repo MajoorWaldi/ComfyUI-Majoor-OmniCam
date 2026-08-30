@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><title>OmniCam Director removed-during-load test</title>
+    <style>body { background: #111; }</style>
+    <script type="importmap">
+      { "imports": { "/scripts/app.js": "/tests/frontend/stubs/app.js", "/scripts/api.js": "/tests/frontend/stubs/api.js" } }
+    </script>
+  </head>
+  <body>
+    <div id="status">loading</div>
+    <div id="host"></div>
+    <script type="module">
+      // ComfyUI calls nodeCreated from the node constructor and does not await
+      // it, so a node can be deleted while its UI chunk is still downloading.
+      // Attaching anyway would graft a DOM widget onto a dead node and open a
+      // WebGL context nothing will ever dispose.
+      const fail = (error) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamRemoved = { error: String(error?.stack || error?.message || error) };
+      };
+      window.addEventListener("error", (event) => fail(event.error || event.message));
+      window.addEventListener("unhandledrejection", (event) => fail(event.reason));
+      try {
+        await import("/tests/frontend/stubs/app.js");
+        await import("/web/omnicam.js");
+        const extension = (window.__omnicamExtensions || []).find((item) => item.name === "Majoor.OmniCam.Director");
+        if (!extension) throw new Error("Director extension did not register");
+
+        let widgetAdded = false;
+        const node = {
+          comfyClass: "MajoorOmniCamDirector",
+          widgets: [
+            { name: "state_json", value: JSON.stringify({ cameras: [{ id: "c1", name: "c1", keyframes: [] }], active_camera_id: "c1", playblast_camera_id: "c1", objects: [] }) },
+            { name: "recording_path", value: "" }, { name: "card_asset", value: "" },
+            { name: "width", value: 1280 }, { name: "height", value: 720 },
+            { name: "fps", value: 24 }, { name: "duration_seconds", value: 5 },
+            { name: "render_mode", value: "omni_ref" },
+          ],
+          size: [800, 800], pos: [0, 0],
+          graph: { setDirtyCanvas() {} },
+          addDOMWidget(name, type, element) {
+            widgetAdded = true;
+            document.querySelector("#host").appendChild(element);
+            return { element, options: {} };
+          },
+          setSize() {}, connect() { return true; },
+        };
+
+        // Not awaited, exactly as ComfyUI does it.
+        const created = extension.nodeCreated(node);
+        // The user deletes the node before the chunk lands.
+        node.onRemoved?.();
+
+        await created;
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        window.omnicamRemoved = {
+          attached: Boolean(node.__majoorOmniCam),
+          widgetAdded,
+          hostChildren: document.querySelector("#host").children.length,
+        };
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        fail(error);
+      }
+    </script>
+  </body>
+</html>

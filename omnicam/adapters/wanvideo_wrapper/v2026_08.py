@@ -32,10 +32,9 @@ Three consequences drive everything below.
 from __future__ import annotations
 
 import json
-import math
 
 from ...core.track import OmniCamTrack
-from ..ati import track_to_ati_bridge
+from ..ati import project_reference_trajectories
 
 ATI_LENGTH = 121
 COMPATIBILITY = {
@@ -44,29 +43,6 @@ COMPATIBILITY = {
     "input": "tracks",
     "format": "JSON list of up-to-121-sample [{x, y}] tracks, in the node's own pixel space",
 }
-
-
-def _resample(samples: list[dict], length: int) -> list[dict | None]:
-    """Resample to `length` slots, keeping None where the point is not visible."""
-    if not samples:
-        return [None] * length
-    resampled: list[dict | None] = []
-    last = len(samples) - 1
-    for index in range(length):
-        source = 0.0 if length == 1 else index * last / (length - 1)
-        low = math.floor(source)
-        high = min(last, low + 1)
-        a, b = samples[low], samples[high]
-        if not a.get("visible") or not b.get("visible"):
-            # Straddling an invisible sample: the point is not reliably tracked.
-            resampled.append(None)
-            continue
-        ratio = source - low
-        resampled.append({
-            "x": a["x_px"] + (b["x_px"] - a["x_px"]) * ratio,
-            "y": a["y_px"] + (b["y_px"] - a["y_px"]) * ratio,
-        })
-    return resampled
 
 
 def track_to_ati_tracks(
@@ -79,26 +55,13 @@ def track_to_ati_tracks(
     """Project reference points into the ATI node's pixel space.
 
     `width`/`height` must match the WanVideoATITracks widgets; they default to
-    the track's own resolution.
+    the track's own resolution. The projection and truncation policy is shared
+    with every other trajectory adapter; ATI's contribution is the fixed 121.
     """
-    target_width = int(width or track.width)
-    target_height = int(height or track.height)
-    scale_x = target_width / max(1, track.width)
-    scale_y = target_height / max(1, track.height)
-
-    bridge = track_to_ati_bridge(track, point_count, distribution=distribution)
-    tracks: list[list[dict[str, float]]] = []
-    for trajectory in bridge["trajectories"]:
-        resampled = _resample(trajectory["samples"], ATI_LENGTH)
-        if resampled[0] is None:
-            continue  # cannot express a track that starts off-screen
-        points = []
-        for point in resampled:
-            if point is None:
-                break  # the zero padding downstream marks the rest invisible
-            points.append({"x": point["x"] * scale_x, "y": point["y"] * scale_y})
-        tracks.append(points)
-    return tracks
+    return project_reference_trajectories(
+        track, length=ATI_LENGTH, point_count=point_count,
+        distribution=distribution, width=width, height=height,
+    )
 
 
 def track_to_ati_json(

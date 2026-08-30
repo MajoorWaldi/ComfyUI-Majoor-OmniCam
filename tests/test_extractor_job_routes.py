@@ -167,9 +167,17 @@ def test_a_non_object_body_is_refused():
 
 def test_settings_default_when_omitted():
     validated = api.validate_settings(None)
-    assert validated["method"] == "auto"
-    assert validated["max_dimension"] == 960
+    assert validated["method"] == "dpvo"
+    assert validated["max_dimension"] == 640
     assert validated["frame_step"] == 1
+
+
+def test_interactive_settings_include_the_same_refinement_contract_as_the_node():
+    validated = api.validate_settings({
+        "refine": {"motion_scale": 3.0, "position_smoothing": 0.6},
+    })
+    assert validated["refine"]["motion_scale"] == 3.0
+    assert validated["refine"]["position_smoothing"] == 0.6
 
 
 # ---------------------------------------------------------------------------

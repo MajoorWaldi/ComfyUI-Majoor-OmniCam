@@ -1,7 +1,7 @@
 // Timeline pointer events, scrubbing, multi-key selection, dragging and retiming for OmniCam Director.
 
-import { clamp } from "./omnicam-core.js";
-import { t } from "./omnicam-i18n.js";
+import { clamp } from "./director/core.js";
+import { t } from "./i18n.js";
 
 export function timelinePercentForFrame(ui, frame) {
   const lastFrame = Math.max(1, ui.state.duration_frames - 1);

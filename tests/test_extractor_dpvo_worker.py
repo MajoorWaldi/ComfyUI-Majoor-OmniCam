@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
+import importlib
+import multiprocessing.spawn as mp_spawn
+import os
+import pickle
+import sys
 import time
+import types
 
 import numpy as np
 import pytest
 
 from omnicam.extractor.backends.base import SolveError
 from omnicam.extractor.backends.dpvo_worker import (
+    CANONICAL_MODULE_NAME,
+    PACKAGE_ROOT as REPOSITORY_ROOT,
     DpvoProcessRunner,
     DpvoWorkerRequest,
+    _isolated_child_bootstrap,
+    child_sys_path,
     extract_active_patch_features,
     write_frame_exchange,
 )
@@ -81,13 +91,18 @@ def _hung_child(connection, request) -> None:
     time.sleep(30)
 
 
-class _Cancelled(Exception):
+def _hard_exit_child(connection, request) -> None:
+    del connection, request
+    os._exit(1)
+
+
+class _CancelledError(Exception):
     pass
 
 
 class _CancellingControl:
     def checkpoint(self) -> None:
-        raise _Cancelled
+        raise _CancelledError
 
 
 class _PatchTensor:
@@ -194,6 +209,19 @@ def test_spawned_runner_surfaces_child_error_and_joins(tmp_path):
     assert runner.process is None
 
 
+def test_spawned_runner_explains_a_native_dpvo_child_crash(tmp_path):
+    runner = DpvoProcessRunner(target=_hard_exit_child, poll_seconds=0.01)
+
+    with pytest.raises(SolveError) as error:
+        runner.solve(_request(tmp_path))
+
+    message = str(error.value)
+    assert "exit code 1" in message
+    assert "native extension" in message
+    assert "PyTorch/CUDA" in message
+    assert runner.process is None
+
+
 def test_spawned_runner_terminates_a_hung_child(tmp_path):
     runner = DpvoProcessRunner(
         target=_hung_child,
@@ -213,7 +241,75 @@ def test_spawned_runner_sends_cooperative_stop_when_parent_is_cancelled(tmp_path
         target=_successful_child, poll_seconds=0.01, stop_grace_seconds=0.5,
     )
 
-    with pytest.raises(_Cancelled):
+    with pytest.raises(_CancelledError):
         runner.solve(_request(tmp_path), control=_CancellingControl())
 
     assert runner.process is None
+
+
+def _load_worker_as_comfyui_does(name: str):
+    """Import the worker under a path-shaped package name, the way ComfyUI loads nodes."""
+    package = types.ModuleType(name)
+    package.__path__ = [REPOSITORY_ROOT]
+    package.__package__ = name
+    sys.modules[name] = package
+    try:
+        return importlib.import_module(f"{name}.omnicam.extractor.backends.dpvo_worker")
+    except BaseException:
+        _forget_modules(name)
+        raise
+
+
+def _forget_modules(prefix: str) -> None:
+    for key in [key for key in sys.modules if key == prefix or key.startswith(f"{prefix}.")]:
+        del sys.modules[key]
+
+
+def test_worker_entry_pickles_under_a_name_the_child_can_import(tmp_path):
+    """ComfyUI names a custom-node package after its path; no fresh child can import that."""
+    name = r"C:\comfy\custom_nodes\ComfyUI-Majoor-OmniCam"
+    module = _load_worker_as_comfyui_does(name)
+    try:
+        assert module.run_dpvo_child.__module__.startswith(name)
+
+        target, payload = module.canonical_worker_entry(_request(tmp_path))
+
+        assert target.__module__ == CANONICAL_MODULE_NAME
+        assert type(payload).__module__ == CANONICAL_MODULE_NAME
+        assert type(payload.intrinsics).__module__.startswith("omnicam.")
+        assert importlib.import_module(target.__module__) is not module
+        restored = pickle.loads(pickle.dumps(payload))
+        assert restored.source_frames == payload.source_frames
+        assert restored.intrinsics.fx == payload.intrinsics.fx
+    finally:
+        _forget_modules(name)
+
+
+def test_spawn_bootstrap_does_not_re_execute_the_host_main_module():
+    """Re-running ComfyUI's main.py in the child re-imports Torch and can kill it."""
+    real_main = sys.modules["__main__"]
+    real_path = list(sys.path)
+
+    with _isolated_child_bootstrap():
+        data = mp_spawn.get_preparation_data("omnicam-dpvo-test")
+
+    assert not [key for key in data if key.startswith("init_main")]
+    assert sys.modules["__main__"] is real_main
+    assert sys.path == real_path
+
+
+def test_child_sys_path_drops_other_custom_nodes_but_keeps_omnicam():
+    """A stray folder on a sibling node's path shadows real packages (numba's `coverage`)."""
+    foreign = os.path.join("F:", os.sep, "comfy", "custom_nodes", "majoor-assetsmanager")
+    site_packages = os.path.join("F:", os.sep, "comfy", "python_embeded", "Lib", "site-packages")
+
+    kept = child_sys_path([foreign, os.path.join(foreign, "src"), site_packages, REPOSITORY_ROOT])
+
+    assert foreign not in kept
+    assert os.path.join(foreign, "src") not in kept
+    assert site_packages in kept
+    assert REPOSITORY_ROOT in kept
+
+
+def test_child_sys_path_always_reaches_this_repository():
+    assert REPOSITORY_ROOT in child_sys_path([])

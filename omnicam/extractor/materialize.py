@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import contextlib
 import uuid
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 RUNTIME_SUBFOLDER = Path("omnicam") / "extractor_runtime"
 
@@ -81,3 +81,28 @@ def materialize_video_reference(video, *, roots: Mapping[str, Path] | None = Non
             target.unlink()
         raise
 
+
+def cleanup_runtime_videos(*, roots: Mapping[str, Path] | None = None) -> int:
+    """Remove only OmniCam's transient materialized videos.
+
+    Runtime values have no workflow-owned lifetime. Keeping them after a
+    server restart leaks one UUID-named MP4 per execution, so cleanup is called
+    both when the extension loads and from the ComfyUI shutdown callback.
+    """
+    managed_roots = {
+        key: Path(value).resolve() for key, value in (roots or _comfy_roots()).items()
+    }
+    runtime_root = (managed_roots["temp"] / RUNTIME_SUBFOLDER).resolve()
+    if not runtime_root.is_dir():
+        return 0
+    removed = 0
+    for path in runtime_root.glob("*.mp4"):
+        try:
+            resolved = path.resolve(strict=True)
+            if resolved.parent != runtime_root or not resolved.is_file():
+                continue
+            resolved.unlink()
+            removed += 1
+        except OSError:
+            continue
+    return removed

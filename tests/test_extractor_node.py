@@ -32,6 +32,14 @@ def test_node_offers_the_three_documented_methods():
     schema = MajoorOmniCamExtractor.define_schema()
     method = next(item for item in schema.inputs if item.id == "method")
     assert list(method.options) == ["auto", "dpvo", "opencv_sift"]
+    assert method.default == "dpvo"
+
+
+def test_node_defaults_to_a_640_pixel_dpvo_solve():
+    schema = MajoorOmniCamExtractor.define_schema()
+    max_dimension = next(item for item in schema.inputs if item.id == "max_dimension")
+
+    assert max_dimension.default == 640
 
 
 def test_node_execution_emits_the_track_and_a_ui_envelope(clip, monkeypatch):

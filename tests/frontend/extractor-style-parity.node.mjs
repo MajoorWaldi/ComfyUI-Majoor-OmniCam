@@ -62,19 +62,22 @@ test("the Extractor keeps the OmniCam node mark", () => {
   assert.match(extractorMarkup(), /oc-mark-core/);
 });
 
-test("every Extractor control is reachable and labelled", () => {
+test("Extractor exposes the focused video-to-track workflow", () => {
   const markup = extractorMarkup();
-  for (const action of ["track", "pause", "resume", "stop", "apply", "fit", "choose-source"]) {
+  for (const action of ["track", "stop", "apply", "fit", "estimate-up"]) {
     assert.match(markup, new RegExp(`data-act="${action}"`), `${action} must exist`);
   }
-  for (const tab of ["source", "track3d", "compare"]) {
+  for (const tab of ["source", "track3d"]) {
     assert.match(markup, new RegExp(`data-tab="${tab}"`));
   }
   for (const view of ["perspective", "top", "front", "side"]) {
     assert.match(markup, new RegExp(`data-view="${view}"`));
   }
-  for (const mode of ["raw", "refined", "compare"]) {
+  for (const mode of ["raw", "refined"]) {
     assert.match(markup, new RegExp(`data-track-mode="${mode}"`));
+  }
+  for (const removed of ["choose-source", "pause", "resume", "compare"]) {
+    assert.doesNotMatch(markup, new RegExp(`data-(?:act|tab|track-mode)="${removed}"`));
   }
 });
 
@@ -84,10 +87,15 @@ test("the panel declares the readouts the plan calls for", () => {
     "solve-status", "source-strip", "source-label", "scrubber", "frame-readout",
     "quality-timeline", "quality-details", "extractor-camera", "anomalies",
     "progress-bar", "solve-error", "applied-state", "track-canvas", "tracking-overlay",
-    "clean-preview", "compare-clean", "compare-diagnostics", "compare-track",
   ]) {
     assert.match(markup, new RegExp(`data-role="${role}"`), `${role} must exist`);
   }
+});
+
+test("the full-width Solve panel precedes the video and track viewers", () => {
+  const markup = extractorMarkup();
+  assert.match(markup, /<div class="oc-card oc-solve-card">/);
+  assert.match(EXTRACTOR_STYLES, /\.oc-extractor \.oc-solve-card\{order:-1;width:100%/);
 });
 
 test("the Extractor never bakes a node-wide glow the plan forbids", () => {
@@ -97,10 +105,10 @@ test("the Extractor never bakes a node-wide glow the plan forbids", () => {
 
 test("Extractor uses the Director transport and dope-sheet anatomy", () => {
   const markup = extractorMarkup();
-  for (const role of ["extractor-ruler", "extractor-solve-lane", "extractor-quality-lane"]) {
+  for (const role of ["extractor-ruler"]) {
     assert.match(markup, new RegExp(`data-role="${role}"`), `${role} must exist`);
   }
-  for (const label of ["SOLVE", "QUALITY", "Camera", "Look At", "Focal Length", "Roll"]) {
+  for (const label of ["Camera", "Look At", "Focal Length", "Roll"]) {
     assert.match(markup, new RegExp(`>${label}<`), `${label} lane must exist`);
   }
   assert.match(markup, /class="[^"]*oc-dope[^"]*"/);

@@ -1,7 +1,7 @@
-﻿// F-Curves spline graph editor and tangent handles controller for OmniCam Director.
+// F-Curves spline graph editor and tangent handles controller for OmniCam Director.
 
-import { clamp, cloneCamera, cloneTransform, resolveChannelHandles, sampleCamera, sampleObjectTransform } from "./omnicam-core.js";
-import { t } from "./omnicam-i18n.js";
+import { clamp, cloneCamera, cloneTransform, resolveChannelHandles, sampleCamera, sampleObjectTransform } from "./director/core.js";
+import { t } from "./i18n.js";
 import { drawTimeAxis, drawValueAxis } from "./curve-editor/axes.js";
 
 export function curveChannels(ui) {

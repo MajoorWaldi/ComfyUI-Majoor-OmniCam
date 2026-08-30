@@ -9,7 +9,7 @@
 // The maths is a straight reuse of the camera basis the projector already uses,
 // so the gizmo can never drift from what the viewport shows.
 
-import { cameraBasis } from "./omnicam-core.js";
+import { cameraBasis } from "./director/core.js";
 
 export const AXES = [
   { id: "x", label: "X", vector: [1, 0, 0], color: "#e5484d" },

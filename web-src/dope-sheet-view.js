@@ -7,7 +7,7 @@
 import { dopeSheetRows } from "./dope-sheet.js";
 import { timelinePercentForFrame } from "./timeline-interaction.js";
 import { updatePlayhead } from "./timeline/playhead.js";
-import { t } from "./omnicam-i18n.js";
+import { t } from "./i18n.js";
 
 /**
  * The tinted rail that joins a channel's first key to its last.

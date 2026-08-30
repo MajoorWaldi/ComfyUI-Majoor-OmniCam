@@ -1,5 +1,8 @@
 pytest>=8
 ruff>=0.6
 mypy>=1.11
+# ComfyUI's V3 Video API imports NumPy during module initialization. Keep the
+# core test environment able to import the same contracts as integration CI.
+numpy>=1.25.0
 # Validates the published contracts in schemas/ against real payloads.
 jsonschema>=4.20
