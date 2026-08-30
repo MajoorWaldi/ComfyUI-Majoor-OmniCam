@@ -21,11 +21,12 @@ async def main() -> None:
         PromptServer(asyncio.get_running_loop())
 
     from omnicam.extension import comfy_entrypoint
+    from omnicam.node_registry import REGISTERED_NODE_IDS
 
     extension = await comfy_entrypoint()
     await extension.on_load()
     nodes = await extension.get_node_list()
-    assert len(nodes) == 5, [node.__name__ for node in nodes]
+    assert [node.__name__ for node in nodes] == list(REGISTERED_NODE_IDS)
     for node in nodes:
         schema = node.define_schema()
         assert schema is not None, node.__name__

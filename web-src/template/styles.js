@@ -6,6 +6,8 @@
 
 import { SHELL_STYLES } from "./styles/shell.js";
 import { LOWER_DECK_STYLES } from "./styles/lower-deck.js";
+import { SHARED_STYLES } from "./styles/shared.js";
+import { DENSITY_STYLES } from "./styles/density.js";
 
 const COMPONENT_STYLES = `
       .majoor-omnicam{font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--fg-color,#ddd);background:#161618;border:1px solid #383842;border-radius:10px;overflow:visible;user-select:none;container-type:inline-size}
@@ -65,6 +67,15 @@ const COMPONENT_STYLES = `
       .majoor-omnicam .viewport-wrap.edit-mode .viewport-tally-banner{display:inline-flex;background:rgba(50,10,10,0.94);border:1px solid #ef4444;color:#fee2e2;box-shadow:0 0 16px rgba(239,68,68,0.6)}
       .majoor-omnicam .viewport-wrap.edit-mode .viewport-tally-banner .tally-dot{background:#ef4444;box-shadow:0 0 10px #ef4444;animation:tallyBlink .8s infinite}
       @keyframes tallyBlink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.75)}}
+
+      /* Extracted-camera preview banner: staged, not applied -- see director-link.js */
+      .majoor-omnicam .extractor-import-banner{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:8;display:flex;align-items:center;gap:10px;padding:7px 10px 7px 14px;border-radius:10px;font-size:12px;background:rgba(20,20,26,0.92);border:1px solid #9ca3af;color:#e5e7eb;box-shadow:0 6px 20px rgba(0,0,0,0.5);backdrop-filter:blur(8px)}
+      .majoor-omnicam .extractor-import-banner[hidden]{display:none}
+      .majoor-omnicam .extractor-import-banner i.pi-video{color:#9ca3af}
+      .majoor-omnicam .extractor-import-banner .ei-import{background:#4aa3ef;color:#0b1220;border:none;border-radius:6px;padding:5px 12px;font-weight:600;cursor:pointer}
+      .majoor-omnicam .extractor-import-banner .ei-import:hover{background:#6fb6f4}
+      .majoor-omnicam .extractor-import-banner .ei-dismiss{background:transparent;border:none;color:#9ca3af;cursor:pointer;padding:4px;line-height:0}
+      .majoor-omnicam .extractor-import-banner .ei-dismiss:hover{color:#e5e7eb}
       
       .majoor-omnicam canvas{display:block;width:100%;height:100%;pointer-events:auto;outline:none;cursor:grab}.majoor-omnicam canvas.dragging{cursor:grabbing}
       
@@ -255,4 +266,4 @@ const COMPONENT_STYLES = `
       @container (max-width:460px){.majoor-omnicam .viewport-wrap{min-height:360px;aspect-ratio:auto}.majoor-omnicam .camera-preview-strip[data-layout="2"],.majoor-omnicam .camera-preview-strip[data-layout="4"]{grid-auto-flow:row;grid-template-columns:1fr;grid-auto-columns:100%}.majoor-omnicam .menu-panel{width:min(240px,calc(100cqw - 24px))}}
 `;
 
-export const DIRECTOR_STYLES = COMPONENT_STYLES + SHELL_STYLES + LOWER_DECK_STYLES;
+export const DIRECTOR_STYLES = SHARED_STYLES + COMPONENT_STYLES + SHELL_STYLES + LOWER_DECK_STYLES + DENSITY_STYLES;

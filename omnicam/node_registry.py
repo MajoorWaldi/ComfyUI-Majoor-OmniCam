@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
-PUBLIC_NODES = (
+PRODUCT_NODES = (
     "MajoorOmniCamDirector",
+    "MajoorOmniCamExtractor",
+    "MajoorOmniCamMonitor",
+)
+
+COMPATIBILITY_NODES = (
     "MajoorOmniCamH3Adapter",
     "MajoorOmniCamWanNativeCamera",
     "MajoorOmniCamLTXCameraGuide",
     "MajoorOmniCamWanVideoWrapperATI",
 )
+
+REGISTERED_NODE_IDS = PRODUCT_NODES + COMPATIBILITY_NODES
+PUBLIC_NODES = PRODUCT_NODES
 
 LEGACY_NODE_IDS = frozenset({
     "MajoorOmniCamSequencer",
@@ -30,11 +38,15 @@ def get_registered_nodes():
         MajoorOmniCamWanVideoWrapperATI,
     )
     from .nodes.director import MajoorOmniCamDirector
+    from .nodes.extractor import MajoorOmniCamExtractor
+    from .nodes.monitor import MajoorOmniCamMonitor
 
-    if len(PUBLIC_NODES) != 5 or len(set(PUBLIC_NODES)) != 5:
-        raise RuntimeError("OmniCam public registry must contain exactly five unique enabled nodes")
+    if len(REGISTERED_NODE_IDS) != len(set(REGISTERED_NODE_IDS)):
+        raise RuntimeError("OmniCam registered node IDs must be unique")
     return [
         MajoorOmniCamDirector,
+        MajoorOmniCamExtractor,
+        MajoorOmniCamMonitor,
         MajoorOmniCamH3Adapter,
         MajoorOmniCamWanNativeCamera,
         MajoorOmniCamLTXCameraGuide,

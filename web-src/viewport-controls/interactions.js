@@ -272,7 +272,9 @@ export function onPointerDown(ui, e) {
     }
   }
 
-  if (!hit && canPick && (e.ctrlKey || e.metaKey || ui.state.navigation_profile === "blender")) {
+  // Box selection is drag-only in the Blender profile. Ctrl+drag must stay free for
+  // viewport navigation (Ctrl+wheel/Ctrl+middle); multi-select uses Ctrl+click instead.
+  if (!hit && canPick && !e.ctrlKey && !e.metaKey && ui.state.navigation_profile === "blender") {
     ui.boxSelection = {
       start: [pointerX, pointerY], current: [pointerX, pointerY],
       additive: e.shiftKey, initial: new Set(ui.selectedObjectIds || []),
@@ -422,10 +424,24 @@ export function onPointerMove(ui, e) {
         ui.gizmoDrag.object.position = spatiallySnap(ui, position, pointer, [ui.gizmoDrag.object.id]);
       }
     } else if (ui.state.gizmo_mode === "scale") {
-      const size = [...ui.gizmoDrag.size];
-      const value = size[ui.gizmoDrag.axisIndex] + (deltaPixels * ui.gizmoDrag.worldLength) / ui.gizmoDrag.screenLength;
-      size[ui.gizmoDrag.axisIndex] = Math.max(0.01, snapping ? snapValue(value, 0.1) : value);
-      ui.gizmoDrag.object.size = size;
+      if (ui.gizmoDrag.free) {
+        // The junction of the three axes scales them together (a homothety):
+        // up-and-right grows, down-and-left shrinks, the way Maya's own
+        // uniform-scale manipulator reads a single free-form drag.
+        const dx = (pointer[0] - ui.gizmoDrag.pointer[0]) * precision;
+        const dy = (pointer[1] - ui.gizmoDrag.pointer[1]) * precision;
+        const delta = (dx - dy) * ui.gizmoDrag.freeScale;
+        const size = ui.gizmoDrag.size.map((value) => {
+          const next = value + delta;
+          return Math.max(0.01, snapping ? snapValue(next, 0.1) : next);
+        });
+        ui.gizmoDrag.object.size = size;
+      } else {
+        const size = [...ui.gizmoDrag.size];
+        const value = size[ui.gizmoDrag.axisIndex] + (deltaPixels * ui.gizmoDrag.worldLength) / ui.gizmoDrag.screenLength;
+        size[ui.gizmoDrag.axisIndex] = Math.max(0.01, snapping ? snapValue(value, 0.1) : value);
+        ui.gizmoDrag.object.size = size;
+      }
     } else {
       const rotation = [...ui.gizmoDrag.rotation];
       const value = rotation[ui.gizmoDrag.axisIndex] + deltaPixels * 0.75;

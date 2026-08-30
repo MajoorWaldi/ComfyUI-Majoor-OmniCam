@@ -1,0 +1,169 @@
+// Help content for every public OmniCam node, keyed by comfyClass.
+//
+// One entry, one place to edit. The selection-toolbar "?" button
+// (web-src/help/toolbar.js) shows whichever entry matches the selected node.
+// Content is plain English on purpose (see web-src/help/schema.js) rather than
+// routed through t(): a paragraph-length reference does not carry across the
+// FR catalogue the way short UI chrome strings do, and check:locales does not
+// require it (missing translations only lower coverage, they never fail).
+
+import { registerNodeHelp } from "./schema.js";
+
+registerNodeHelp("MajoorOmniCamDirector", {
+  title: "OmniCam Director",
+  tagline: "Interactive camera-authoring node: block a shot in a live 3D viewport and record it as a canonical camera track.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "The Director opens a full 3D viewport on the node's face. You place cameras and reference objects, pose the frame, and record keyframes as you scrub the timeline. The result is a canonical OmniCam camera track - a portable, relative 6DoF motion path - plus an optional neutral-grey proxy playblast video.\n\nThe track carries motion only, never final look. Wire it into OmniCam Monitor to turn it into whatever a downstream video model needs.",
+    },
+    {
+      heading: "Basic workflow",
+      bullets: [
+        "Compose a frame in the viewport.",
+        "Press `I` to insert a keyframe at the current time.",
+        "Scrub the timeline, move the camera, press `I` again.",
+        "Press `Space` to preview the move inside the viewport.",
+        "Click `Playblast` to record the proxy reference video.",
+      ],
+    },
+    {
+      heading: "Output",
+      defs: [
+        ["camera_track", "The canonical OmniCam track: positions, rotations and lens data over time."],
+        ["proxy_video", "Optional neutral-grey playblast of the recorded camera move, used as a visual reference by some adapters."],
+      ],
+    },
+  ],
+  footer: "For AI-video camera control, wire camera_track into OmniCam Monitor rather than one of the legacy adapter nodes.",
+});
+
+registerNodeHelp("MajoorOmniCamExtractor", {
+  title: "OmniCam Extractor",
+  tagline: "Solve a real video's camera motion into a canonical OmniCam track, so you can re-target it onto a new shot.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "Extracts a relative 6DoF camera trajectory from one continuous video shot using visual odometry (DPVO when installed, OpenCV/SIFT otherwise) and emits the same canonical track format the Director produces. Feed the result into the Director to edit it further, or straight into OmniCam Monitor.\n\nThe video must be a single continuous shot - hard cuts are reported in the output, not stitched across.",
+    },
+    {
+      heading: "Key inputs",
+      defs: [
+        ["video", "One continuous shot to solve."],
+        ["method", "`auto` prefers DPVO when installed and falls back to OpenCV/SIFT."],
+        ["lens_mode", "How the lens is described: `auto`, an explicit field of view, or a focal length + sensor width."],
+        ["motion_scale", "Monocular solves have no metric scale; this rescales the recovered translation to fit your scene."],
+        ["simplify_keys", "Reduces the solved path to a sparser, easier-to-edit set of keyframes within the given tolerances."],
+      ],
+    },
+    {
+      heading: "Outputs",
+      defs: [
+        ["camera_track", "The solved canonical OmniCam track."],
+        ["confidence", "A rough solve-quality score."],
+        ["report", "Human-readable notes: detected cuts, tracking quality, warnings."],
+      ],
+    },
+  ],
+  footer: "Low confidence usually means low-texture footage, motion blur, or a shot the solver treated as multiple cuts - check report first.",
+});
+
+registerNodeHelp("MajoorOmniCamMonitor", {
+  title: "OmniCam Monitor",
+  tagline: "Validate a camera track, preview it, and route it to whichever AI-video camera adapter your workflow needs.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "The Monitor is the single exit point from OmniCam into the rest of your graph. It checks a camera_track is well-formed, previews it, and converts it into the format the chosen adapter expects - all in one node, so you no longer need to pick a separate legacy adapter node per target model.",
+    },
+    {
+      heading: "Choosing an adapter",
+      defs: [
+        ["h3", "Universal camera reference video + cinematic prompt (MiniMax H3 Omni Reference, Kling, Luma, HunyuanVideo, Wan, and other prompt-driven pipelines)."],
+        ["wan_native", "Native Wan camera embedding (Plücker-style conditioning)."],
+        ["wan_ati", "ATI bridge / JSON trajectory data for Wan ATI workflows."],
+        ["wan_tracks_native", "The exact tracks STRING consumed by WanVideoATITracks in WanVideoWrapper."],
+        ["ltx", "Decoded proxy frames as an LTX camera guide."],
+      ],
+    },
+    {
+      heading: "Outputs",
+      body: "Every output for every adapter is exposed on the node at once; only the ones relevant to your chosen `adapter` are populated, so you only wire up what you actually need. This includes `reference_video`, `camera_prompt`, `cinematic_prompt`, `final_prompt`, `camera_data_json`, `wan_camera`, `tracks`, `adapter_width/height/length`, `guide_frames` and `adapter_profile_json`.",
+    },
+  ],
+  footer: "This node replaces the older single-target adapter nodes (H3 Adapter, Wan Native Camera, LTX Camera Guide, WanVideoWrapper ATI) - use it for new workflows.",
+});
+
+registerNodeHelp("MajoorOmniCamH3Adapter", {
+  title: "OmniCam → Universal Reference & AI Prompts",
+  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "Turns a camera_track into a proxy reference video plus model-tailored cinematic prompts for MiniMax H3 Omni Reference, Kling, Luma Dream Machine, HunyuanVideo, Wan 2.1 and generic Universal pipelines.",
+    },
+    {
+      heading: "Key inputs",
+      defs: [
+        ["prompt_style", "Which model's prompt phrasing to generate: `h3`, `universal`, `kling`, `luma`, `hunyuan` or `wan`."],
+        ["video_ref_token", "The placeholder token your prompt style expects for the reference video, e.g. `<Video 1>`."],
+      ],
+    },
+  ],
+  footer: "Prefer OmniCam Monitor with adapter = h3 in new workflows - same output, one fewer node type to maintain.",
+});
+
+registerNodeHelp("MajoorOmniCamWanNativeCamera", {
+  title: "OmniCam → Wan Native Camera",
+  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "Converts a camera_track to a native Wan camera embedding at a given width, height and frame length.",
+    },
+    {
+      heading: "Inputs",
+      defs: [
+        ["width / height", "Output resolution the embedding is generated for."],
+        ["length", "Number of frames the embedding covers."],
+      ],
+    },
+  ],
+  footer: "Prefer OmniCam Monitor with adapter = wan_native in new workflows.",
+});
+
+registerNodeHelp("MajoorOmniCamLTXCameraGuide", {
+  title: "OmniCam → LTX Camera Guide",
+  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "Decodes proxy VIDEO frames from a camera_track into an LTX camera guide, with control over frame range, sampling and resize.",
+    },
+    {
+      heading: "Key inputs",
+      defs: [
+        ["start_frame / end_frame", "Frame range to sample from the proxy video (0 means the full range)."],
+        ["sampling_mode", "`contiguous` samples a run of consecutive frames; `uniform` spreads samples evenly across the range."],
+        ["resize_width / resize_height", "Resize the guide frames; 0 keeps the source size."],
+      ],
+    },
+  ],
+  footer: "Prefer OmniCam Monitor with adapter = ltx in new workflows.",
+});
+
+registerNodeHelp("MajoorOmniCamWanVideoWrapperATI", {
+  title: "OmniCam → WanVideoWrapper ATI",
+  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
+  sections: [
+    {
+      heading: "What it does",
+      body: "Produces the exact `tracks` STRING consumed by WanVideoATITracks in WanVideoWrapper, from a camera_track.",
+    },
+    {
+      heading: "Important",
+      body: "WanVideoATITracks normalises coordinates with its own width and height. Wire this node's `width` and `height` outputs into WanVideoATITracks as well - if they are left mismatched, every trajectory is silently offset and rescaled.",
+    },
+  ],
+  footer: "Prefer OmniCam Monitor with adapter = wan_tracks_native in new workflows.",
+});

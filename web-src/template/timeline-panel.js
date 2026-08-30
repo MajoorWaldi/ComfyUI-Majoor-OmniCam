@@ -40,7 +40,7 @@ function transportBar() {
         <button class="icon-button primary-key oc-key" data-act="key" title="${t("Insert / Update Keyframe at Playhead (I)")}" aria-label="${t("Insert or update key")}"><span class="oc-diamond"></span> ${t("Key")}</button>
         <button class="icon-button auto-key-btn" data-act="auto-key" title="${t("Auto-Key: Records moves live while scrubbing/navigating")}" aria-label="${t("Toggle Auto Key")}" aria-pressed="false"><i class="pi pi-circle-fill"></i></button>
       </div>
-      <button class="icon-button" data-act="toggle-graph" title="${t("Open or close the animation curve editor")}"><i class="pi pi-chart-line"></i></button>
+      <button class="icon-button" data-act="toggle-graph" data-density-min="animation" title="${t("Open or close the animation curve editor")}"><i class="pi pi-chart-line"></i></button>
       <label class="oc-fps">${t("FPS")} <input data-role="timeline-fps" type="number" min="1" max="120" step="1" value="24"></label>
 
       <details class="toolbar-menu oc-overflow" data-menu="timeline">
@@ -89,7 +89,7 @@ function dopeSheet() {
 
 function graphEditor() {
   return `
-    <details class="curve-editor oc-graph" open>
+    <details class="curve-editor oc-graph" data-density-min="animation" open>
       <summary>
         <span class="oc-graph-tabs" data-role="graph-tabs">
           <button class="oc-graph-tab active" data-graph-tab="curves" aria-pressed="true" title="${t("Edit animation curves")}"><strong>${t("Graph Editor")}</strong></button>

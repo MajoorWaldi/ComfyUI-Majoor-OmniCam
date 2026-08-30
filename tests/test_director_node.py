@@ -47,10 +47,10 @@ def test_director_multi_camera_sequence_output():
         render_mode="omni_ref",
     )
 
-    # outputs: camera_track, proxy_video, audio, shot_collection
+    # outputs: camera_track, proxy_video, audio, shot_collection, proxy_frames
     outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
-    assert len(outputs) == 4
-    track_dict, _proxy_video, _audio, shot_collection = outputs
+    assert len(outputs) == 5
+    track_dict, _proxy_video, _audio, shot_collection, _proxy_frames = outputs
 
     assert track_dict["metadata"]["camera_id"] == "cam_1"
     assert shot_collection["kind"] == "omnicam_shot_collection"
@@ -62,10 +62,10 @@ def test_director_public_display_name_is_unprefixed():
     assert MajoorOmniCamDirector.define_schema().display_name == "OmniCam Director"
 
 
-def test_director_exposes_four_focused_outputs():
+def test_director_exposes_five_focused_outputs():
     outputs = MajoorOmniCamDirector.define_schema().outputs
     assert [output.display_name for output in outputs] == [
-        "camera_track", "proxy_video", "audio", "shot_collection",
+        "camera_track", "proxy_video", "audio", "shot_collection", "proxy_frames",
     ]
 
 
@@ -186,3 +186,65 @@ def test_an_edit_that_is_off_adds_no_sequence_shot():
     _track, collection = _run(state)
     assert [shot["id"] for shot in collection["shots"]] == ["cam_1", "cam_2"]
     assert collection["metadata"]["sequence"]["enabled"] is False
+
+
+# ---------------------------------------------------------------------------
+# Upstream OmniCam Extractor link
+# ---------------------------------------------------------------------------
+
+def _extractor_track(fingerprint="fp-1", fps=30, duration=90):
+    base = {"fov": 53.0, "roll": 0.0, "camera_type": "perspective", "zoom": 1.0,
+            "near": 0.01, "far": 10000.0}
+    return {
+        "schema_version": 1, "fps": fps, "duration_frames": duration,
+        "width": 1920, "height": 1080, "render_mode": "omni_ref",
+        "keyframes": [
+            {"frame": 0, "camera": {**base, "position": [0, 0, 0], "target": [0, 0, -1]},
+             "interpolation": "linear"},
+            {"frame": 60, "camera": {**base, "position": [0, 0, -4], "target": [0, 0, -5]},
+             "interpolation": "linear"},
+        ],
+        "objects": [],
+        "metadata": {"source": "omnicam_extractor", "backend": "dpvo", "confidence": 0.94,
+                     "monocular_scale": True, "extractor_fingerprint": fingerprint},
+    }
+
+
+def _run_with_upstream(state, upstream):
+    out = MajoorOmniCamDirector.execute(
+        state_json=json.dumps(state), recording_path="", card_asset="",
+        width=1280, height=720, fps=24, duration_seconds=2.0, render_mode="omni_ref",
+        camera_track=upstream,
+    )
+    outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
+    return outputs[0]
+
+
+def test_director_schema_exposes_an_optional_camera_track_input():
+    schema = MajoorOmniCamDirector.define_schema()
+    camera_track = next(item for item in schema.inputs if item.id == "camera_track")
+    assert camera_track.io_type == "MAJOOR_OMNICAM_TRACK"
+    assert camera_track.optional is True
+
+
+def test_director_adopts_an_unimported_extractor_track():
+    track = _run_with_upstream({"duration_frames": 48, "fps": 24}, _extractor_track())
+    assert [key["frame"] for key in track["keyframes"]] == [0, 60]
+    assert track["metadata"]["upstream_camera_track"]["fingerprint"] == "fp-1"
+    # The render context stays the Director's queue widgets.
+    assert (track["width"], track["height"]) == (1280, 720)
+
+
+def test_director_keeps_local_edits_once_the_fingerprint_is_imported():
+    state = {
+        "duration_frames": 48, "fps": 24,
+        "keyframes": [{"frame": 0, "camera": {"position": [7, 7, 7], "target": [0, 0, 0]}}],
+        "metadata": {"upstream_camera_track": {"fingerprint": "fp-1"}},
+    }
+    track = _run_with_upstream(state, _extractor_track(fingerprint="fp-1"))
+    assert track["keyframes"][0]["camera"]["position"] == pytest.approx([7.0, 7.0, 7.0])
+
+
+def test_director_without_a_cable_is_unchanged():
+    track = _run_with_upstream({"duration_frames": 48, "fps": 24}, None)
+    assert "upstream_camera_track" not in track["metadata"]

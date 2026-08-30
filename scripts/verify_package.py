@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> None:
     for path in ROOT.rglob("*.py"):
-        if any(part in path.parts for part in ("__pycache__", ".venv", "node_modules")):
+        # Hidden directories are never packaged, and they are where local
+        # scratch lives: a DPVO checkout under .dpvo-install/ carries Python 2
+        # sources that cannot be parsed and have nothing to do with OmniCam.
+        if any(part.startswith(".") or part in ("__pycache__", "node_modules") for part in path.parts):
             continue
         ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 

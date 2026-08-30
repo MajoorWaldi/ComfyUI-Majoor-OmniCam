@@ -18,11 +18,56 @@ export const CAMERA_PALETTE = [
   "#8b5cf6", // Camera 8 - Violet
 ];
 
-function nextCameraId(state) {
+export function nextCameraId(state) {
   const prefix = `camera_${Date.now().toString(36)}`;
   let id = prefix;
   let suffix = 2;
   while (state.cameras.some((camera) => camera.id === id)) id = `${prefix}_${suffix++}`;
+  return id;
+}
+
+function uniqueCameraName(state, base) {
+  if (!state.cameras.some((camera) => camera.name === base)) return base;
+  let suffix = 2;
+  while (state.cameras.some((camera) => camera.name === `${base} ${suffix}`)) suffix += 1;
+  return `${base} ${suffix}`;
+}
+
+/**
+ * Add an extracted solve as a brand-new camera, never touching an existing one.
+ *
+ * This is the counterpart to {@link addCamera}: same list, same palette, same
+ * "activate what you just created" ending, but seeded from a solved track
+ * instead of the current view. The keyframes' frame numbers are rescaled from
+ * the track's own fps to the Director's, so the imported motion lands at the
+ * same wall-clock timing regardless of what the source footage was shot at --
+ * the Director's fps is shared by every camera, and nothing else may move it.
+ */
+export function importExtractorTrackAsCamera(ui, track, { label = "Extracted Camera" } = {}) {
+  const sourceKeyframes = Array.isArray(track?.keyframes) ? track.keyframes : [];
+  if (!sourceKeyframes.length) throw new Error(t("no camera keys in this solve"));
+
+  const directorFps = Number(ui.state.fps) || 24;
+  const trackFps = Number(track.fps) || directorFps;
+  const scale = trackFps > 0 ? directorFps / trackFps : 1;
+
+  const id = nextCameraId(ui.state);
+  const count = ui.state.cameras.length;
+  const name = uniqueCameraName(ui.state, label || "Extracted Camera");
+  const color = CAMERA_PALETTE[count % CAMERA_PALETTE.length];
+  const keyframes = sourceKeyframes.map((key) => ({
+    ...key,
+    frame: Math.round((Number(key.frame) || 0) * scale),
+    camera: cloneCamera(key.camera),
+  }));
+
+  ui.state.cameras.push({ id, name, color, camera: cloneCamera(keyframes[0].camera), keyframes });
+  if (Number.isFinite(Number(track.duration_frames))) {
+    const scaledDuration = Math.round(Number(track.duration_frames) * scale);
+    ui.state.duration_frames = Math.max(ui.state.duration_frames || 1, scaledDuration);
+  }
+  ui.cameraPreviewSignature = "";
+  ui.activateCamera(id);
   return id;
 }
 

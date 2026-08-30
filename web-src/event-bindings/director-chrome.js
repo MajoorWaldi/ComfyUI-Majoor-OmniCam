@@ -7,6 +7,8 @@ import { focalLengthToFov, formatFocalLength } from "../lens.js";
 import { captureBaseline, smoothKeyframes } from "../path-smoothing.js";
 import { renderDopeRows } from "../dope-sheet-view.js";
 import { exportCamera, importCameraFile, loadExchangeFormats, pickCameraFile } from "../camera-exchange.js";
+import { loadMotionProfiles, recenterSubject, renderHealthPanel, slowToLimits, smoothFlaggedZones } from "../motion-health/panel.js";
+import { commitPendingExtractorImport, dismissPendingExtractorImport } from "../extractor/director-link.js";
 
 function bindLensCard(ui, signal) {
   const focal = ui.root.querySelector('[data-role="camera-focal"]');
@@ -86,6 +88,15 @@ function bindDopeChannels(ui, signal) {
   }
 }
 
+function bindExtractorImportBanner(ui, signal) {
+  ui.root.querySelector('[data-act="import-extractor-camera"]')?.addEventListener("click", () => {
+    commitPendingExtractorImport(ui);
+  }, { signal });
+  ui.root.querySelector('[data-act="dismiss-extractor-camera"]')?.addEventListener("click", () => {
+    dismissPendingExtractorImport(ui);
+  }, { signal });
+}
+
 function bindViewToggles(ui, signal) {
   ui.root.querySelector('[data-act="toggle-fullscreen"]')?.addEventListener("click", () => {
     const expanded = ui.root.classList.toggle("oc-fullscreen");
@@ -115,6 +126,58 @@ function bindCameraExchange(ui, signal) {
   }, { signal });
 }
 
+function bindHealthPanel(ui, signal) {
+  const select = ui.root.querySelector('[data-role="health-profile"]');
+  if (!select) return;
+
+  const rerender = () => {
+    renderHealthPanel(ui);
+    ui.refreshKeys(); // repaint the timeline bands against the new profile
+  };
+
+  // The limit tables live in Python. Until they arrive the panel stays in its
+  // "unavailable" state rather than grading against invented numbers.
+  loadMotionProfiles().then((roster) => {
+    if (ui.abortController?.signal.aborted) return;
+    // A response with no profiles list is as unusable as no response at all:
+    // stay in "unavailable" rather than grade against an empty table.
+    if (!Array.isArray(roster?.profiles) || roster.profiles.length === 0) {
+      ui.motionProfiles = null;
+      renderHealthPanel(ui);
+      return;
+    }
+    ui.motionProfiles = roster;
+    const stored = ui.state.health_profile;
+    select.innerHTML = roster.profiles
+      .map((profile) => `<option value="${profile.id}">${profile.display_name}</option>`).join("");
+    select.value = roster.profiles.some((profile) => profile.id === stored) ? stored : roster.default;
+    rerender();
+  });
+
+  select.addEventListener("change", () => {
+    ui.state.health_profile = select.value;
+    ui.serialize();
+    rerender();
+  }, { signal });
+
+  ui.root.querySelector('[data-role="health-body"]')?.addEventListener("click", (event) => {
+    const zone = event.target.closest("[data-zone-start]");
+    if (zone) {
+      ui.setFrame(Number(zone.dataset.zoneStart), false, false);
+      return;
+    }
+    const action = event.target.closest("[data-act]")?.dataset.act;
+    if (action === "health-slow") slowToLimits(ui);
+    else if (action === "health-smooth") smoothFlaggedZones(ui);
+    else if (action === "health-recenter") recenterSubject(ui);
+  }, { signal });
+
+  // Opening the tab must show the current shot, not the last render.
+  for (const tab of ui.root.querySelectorAll('[data-tab="health"]')) {
+    tab.addEventListener("click", () => renderHealthPanel(ui), { signal });
+  }
+}
+
 export function bindDirectorChrome(ui, signal) {
   bindCameraExchange(ui, signal);
   bindLensCard(ui, signal);
@@ -122,4 +185,6 @@ export function bindDirectorChrome(ui, signal) {
   bindOutlinerSearch(ui, signal);
   bindDopeChannels(ui, signal);
   bindViewToggles(ui, signal);
+  bindExtractorImportBanner(ui, signal);
+  bindHealthPanel(ui, signal);
 }

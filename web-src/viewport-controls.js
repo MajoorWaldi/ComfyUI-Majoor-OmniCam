@@ -185,7 +185,12 @@ export function pickGizmo(ui, pointer) {
   if (!geometry) return null;
   const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
   const centerDistance = Math.hypot(pointer[0] - geometry.center[0], pointer[1] - geometry.center[1]);
-  if (ui.state.gizmo_mode === "translate" && geometry.entity.type === "object" && centerDistance <= 11 * pixelRatio) {
+  // The junction of the three axes is a fourth handle in both modes: in
+  // translate it moves freely off-axis, in scale it grows or shrinks every
+  // axis together (a homothety) instead of one at a time.
+  const hasCenterHandle = geometry.entity.type === "object"
+    && (ui.state.gizmo_mode === "translate" || ui.state.gizmo_mode === "scale");
+  if (hasCenterHandle && centerDistance <= 11 * pixelRatio) {
     const center = geometry.center;
     return {
       free: true,
@@ -272,6 +277,28 @@ export function pickSceneObject(ui, pointer) {
   return best?.distance <= 22 * Math.min(2, window.devicePixelRatio || 1) ? { type: "object", object: best.object } : null;
 }
 
+/** A Maya-style cone tip pointing from `from` toward `to`, filled with the
+ * current fill style. Distinguishes a translate handle from a scale handle's
+ * square tip at a glance, the way Maya's own move/scale tools do. */
+function drawArrowHead(ctx, from, to, size = 15) {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py = ux;
+  const halfWidth = size * 0.4;
+  const backX = to[0] - ux * size;
+  const backY = to[1] - uy * size;
+  ctx.beginPath();
+  ctx.moveTo(to[0], to[1]);
+  ctx.lineTo(backX + px * halfWidth, backY + py * halfWidth);
+  ctx.lineTo(backX - px * halfWidth, backY - py * halfWidth);
+  ctx.closePath();
+  ctx.fill();
+}
+
 export function drawTransformGizmo(ui) {
   const geometry = gizmoGeometry(ui);
   if (!geometry || !geometry.handles) return;
@@ -299,19 +326,29 @@ export function drawTransformGizmo(ui) {
       if (ui.state.gizmo_mode === "scale" && geometry.entity?.type === "object") {
         ui.ctx.fillRect(end[0] - 6, end[1] - 6, 12, 12);
       } else {
-        ui.ctx.beginPath();
-        ui.ctx.arc(end[0], end[1], 6, 0, Math.PI * 2);
-        ui.ctx.fill();
+        // A cone reads as "translate" the way Maya's move tool does; a bare
+        // dot does not distinguish translate from anything else.
+        drawArrowHead(ui.ctx, validPoints[0], end);
       }
     }
   }
-  if (ui.state.gizmo_mode === "translate" && geometry.entity?.type === "object") {
+  const hasCenterHandle = geometry.entity?.type === "object"
+    && (ui.state.gizmo_mode === "translate" || ui.state.gizmo_mode === "scale");
+  if (hasCenterHandle) {
     const centerHighlighted = ui.hoveredGizmoHandle === "free" || ui.gizmoDrag?.free;
     ui.ctx.fillStyle = centerHighlighted ? "#fbbf24" : "#f4f7fb";
     ui.ctx.strokeStyle = "#15171c";
     ui.ctx.lineWidth = 2;
     ui.ctx.beginPath();
-    ui.ctx.arc(geometry.center[0], geometry.center[1], centerHighlighted ? 10 : 7, 0, Math.PI * 2);
+    if (ui.state.gizmo_mode === "scale") {
+      // A small cube face, like Maya's uniform-scale manipulator, instead of
+      // the round free-move handle -- so the two centre handles read as
+      // "move" and "scale" even before you hover them.
+      const half = centerHighlighted ? 8 : 6;
+      ui.ctx.rect(geometry.center[0] - half, geometry.center[1] - half, half * 2, half * 2);
+    } else {
+      ui.ctx.arc(geometry.center[0], geometry.center[1], centerHighlighted ? 10 : 7, 0, Math.PI * 2);
+    }
     ui.ctx.fill();
     ui.ctx.stroke();
   }

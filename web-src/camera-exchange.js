@@ -12,6 +12,7 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 
 import { api as comfyApi } from "../../scripts/api.js";
 import { AnimationMixer, Quaternion, Vector3 } from "./three-runtime.js";
+import { applyCanonicalTrack } from "./canonical-track-import.js";
 import { t } from "./omnicam-i18n.js";
 import { activeCameraTrack } from "./omnicam-state-sync.js";
 
@@ -96,7 +97,9 @@ export async function importCameraFile(ui, file) {
     const track = extension === ".fbx"
       ? await readFbxCamera(ui, file)
       : await readViaBackend(file);
-    applyImportedTrack(ui, track, file.name);
+    // A DCC file is authored at its own rate; adopting it would silently
+    // retime the shot, so file imports keep the Director's fps.
+    applyCanonicalTrack(ui, track, { label: file.name, source: "camera_import", adoptFps: false });
   } catch (error) {
     console.error("[OmniCam] camera import failed", error);
     ui.setStatus(t("Camera import failed: {error}").replace("{error}", String(error?.message || error).slice(0, 120)));
@@ -173,27 +176,4 @@ async function readFbxCamera(ui, file) {
     objects: [],
     metadata: { imported_from: "fbx" },
   };
-}
-
-function applyImportedTrack(ui, track, filename) {
-  const keyframes = track?.keyframes;
-  if (!Array.isArray(keyframes) || !keyframes.length) throw new Error(t("no camera keys in this file"));
-
-  ui.checkpoint("Import camera");
-  const camera = activeCameraTrack(ui);
-  camera.keyframes = keyframes;
-  // state.keyframes aliases the active track; both have to move together.
-  ui.state.keyframes = keyframes;
-  if (Number.isFinite(track.duration_frames)) {
-    ui.state.duration_frames = Math.max(1, Math.round(track.duration_frames));
-    if (ui.durationWidget) ui.durationWidget.value = ui.state.duration_frames / Math.max(1, ui.state.fps);
-  }
-  ui.syncActiveCameraTrack();
-  ui.setFrame(0);
-  ui.refreshKeys();
-  ui.render();
-  ui.scheduleSerialize();
-  ui.setStatus(t("Imported {count} camera keys from {name}")
-    .replace("{count}", String(keyframes.length))
-    .replace("{name}", filename));
 }

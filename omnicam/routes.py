@@ -16,6 +16,10 @@ from server import PromptServer
 _CARD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mov"}
 _MODEL_EXTENSIONS = {".glb", ".obj", ".fbx", ".stl", ".ply"}
 _PLAYBLAST_EXTENSIONS = {".mp4", ".webm", ".mov"}
+# Containers the Extractor's own source picker accepts. Wider than the playblast
+# set because a matchmove source is footage the user already has, not something
+# OmniCam produced.
+_SOURCE_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"}
 _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
 _EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".ps1", ".sh", ".js", ".py", ".dll", ".com"}
 
@@ -56,6 +60,8 @@ _SIGNATURES = {
     ".gif": [(0, b"GIF87a"), (0, b"GIF89a")],
     ".mp4": [(4, b"ftyp")],
     ".mov": [(4, b"ftyp")],
+    ".m4v": [(4, b"ftyp")],
+    ".mkv": [(0, b"\x1a\x45\xdf\xa3")],
     ".webm": [(0, b"\x1a\x45\xdf\xa3")],
     ".glb": [(0, b"glTF")],
 }
@@ -177,7 +183,7 @@ def _validate_media_metadata(path: Path) -> None:
             raise
         except Exception as exc:
             raise web.HTTPBadRequest(text="Image metadata could not be validated") from exc
-    elif extension in _PLAYBLAST_EXTENSIONS:
+    elif extension in _PLAYBLAST_EXTENSIONS | _SOURCE_EXTENSIONS:
         try:
             import av
             container = av.open(str(path))
@@ -265,7 +271,7 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
             raise web.HTTPBadRequest(text="Empty uploads are rejected")
         if not _signature_ok(dest.suffix.lower(), header):
             raise web.HTTPBadRequest(text=f"File signature does not match {dest.suffix.lower()}")
-        if dest.suffix.lower() in _CARD_EXTENSIONS | _PLAYBLAST_EXTENSIONS:
+        if dest.suffix.lower() in _CARD_EXTENSIONS | _PLAYBLAST_EXTENSIONS | _SOURCE_EXTENSIONS:
             await asyncio.to_thread(_validate_media_metadata, dest)
     except Exception:
         dest.unlink(missing_ok=True)
@@ -295,6 +301,21 @@ async def upload_playblast(request: web.Request):
 async def upload_asset(request: web.Request):
     payload = await _save_multipart_file(request, "cards", _CARD_EXTENSIONS, MAX_CARD_BYTES)
     return web.json_response(payload)
+
+
+@PromptServer.instance.routes.post("/majoor/omnicam/upload_extractor_source")
+async def upload_extractor_source(request: web.Request):
+    """A video for an interactive solve, stored where the resolver can find it.
+
+    Deliberately the same managed-upload path as every other OmniCam asset:
+    same extension whitelist, same magic-byte check, same quota and free-space
+    reservation. A second upload implementation is a second place to get file
+    handling wrong.
+    """
+    payload = await _save_multipart_file(
+        request, "extractor_sources", _SOURCE_EXTENSIONS, MAX_PLAYBLAST_BYTES
+    )
+    return web.json_response({**payload, "kind": "managed"})
 
 
 @PromptServer.instance.routes.post("/majoor/omnicam/upload_model")
@@ -339,6 +360,19 @@ async def capabilities(_request: web.Request):
 
     detected = detect_capabilities()
     return web.json_response({**detected, "diagnostic": diagnose_setup(detected)})
+
+
+@PromptServer.instance.routes.get("/majoor/omnicam/motion_profiles")
+async def motion_profiles(_request: web.Request):
+    """Recommended motion limits per target model, for the Health panel.
+
+    The panel grades locally so the feedback stays live while scrubbing, but the
+    numbers it grades against are served from here: the adapter tables stay the
+    single source of truth and the frontend never hardcodes a limit.
+    """
+    from .adapters.motion_profiles import motion_profile_roster
+
+    return web.json_response(motion_profile_roster())
 
 
 @PromptServer.instance.routes.get("/majoor/omnicam/assets")
@@ -500,3 +534,9 @@ async def import_camera_route(request: web.Request):
     except Exception as exc:
         raise web.HTTPBadRequest(text=f"Could not read a camera from this file: {exc}") from exc
     return web.json_response({"track": payload, "source": extension})
+
+
+# Register the focused no-run Monitor and Extractor routes alongside the
+# managed-asset routes. Both are separate modules so this one stays readable.
+from . import routes_monitor as _routes_monitor  # noqa: E402,F401
+from .extractor.jobs import routes as _routes_extractor_jobs  # noqa: E402,F401

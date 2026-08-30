@@ -166,6 +166,44 @@ The viewport, backend and adapters are designed around the same camera motion.
 
 ---
 
+# Product workflow
+
+```text
+OmniCam Extractor
+    ↓ recover camera motion
+OmniCam Director
+    ↓ author camera motion
+OmniCam Monitor
+    ↓ inspect, validate and route
+AI-video adapter / model workflow
+```
+
+The three product nodes share the versioned `MAJOOR_OMNICAM_TRACK` contract.
+Extractor recovers a relative trajectory from video, Director authors and
+serializes the shot, and Monitor is the QC/preflight/delivery stage before a
+generation. Model-specific behavior stays behind Monitor's adapter selection;
+it never leaks into the canonical track.
+
+## OmniCam Monitor
+
+Connect the Director's `camera_track` and, when available, `proxy_video` to
+`MajoorOmniCamMonitor`. Monitor provides camera-health metrics, adapter
+preflight, proxy playback, exact lightweight adapter previews, copyable prompt
+and camera-data panels, a shared read-only Camera/Look At/FOV/Roll timeline,
+and separate preflight and execution-output states.
+
+The adapter menu supports H3, Wan Native Camera, Wan/ATI, native Wan tracks and
+LTX. Exact lightweight representations are labelled **OUTPUT PREVIEW**; the Wan
+Native camera path is explicitly labelled **DIAGNOSTIC** because its embedding
+only exists during normal graph execution.
+
+**Refresh and Live Sync do not queue the ComfyUI graph, run a model, generate a
+Wan embedding or decode full LTX guide tensors.** They call only the bounded
+snapshot endpoint. Existing adapter nodes remain loadable under
+`Majoor/OmniCam/Legacy`, but new workflows should use Monitor.
+
+---
+
 # The OmniCam Proxy
 
 The OmniCam proxy is **not a beauty render**.
@@ -212,7 +250,7 @@ The proxy geometry, grid, markers and neutral viewport appearance are not intend
 
 # Public Nodes
 
-OmniCam currently exposes **five public nodes**.
+OmniCam currently exposes **six public nodes**.
 
 ## 🎥 OmniCam Director
 
@@ -234,16 +272,234 @@ Main outputs include:
 ```text
 camera_track
 proxy_video
+proxy_frames  (an IMAGE twin of proxy_video, for graphs that want frames)
 audio
 ```
 
+### Media sockets take a VIDEO or an IMAGE batch
+
+Every OmniCam socket that carries footage — the Director's `image` and `video`,
+the Extractor's `video`, the Monitor's `proxy_video` — is a multi-type socket
+accepting either a ComfyUI `VIDEO` or an `IMAGE` batch, so a generator's frames
+connect without an `ImageToVideo` node in between.
+
+The conversion happens at the node boundary:
+
+| Connected | Wanted | What OmniCam does |
+|---|---|---|
+| `IMAGE` | video | wraps the batch in memory, read at the node's own fps, or 24 when it has none |
+| `VIDEO` | images | samples the clip, never decoding it whole |
+| `IMAGE` | a solvable source | encodes it below `temp/omnicam/extractor_runtime/` first, because a solve seeks inside its source |
+
+### Video outputs carry an IMAGE twin
+
+An output can only ever return one concrete value, so a "VIDEO or IMAGE" output
+socket does not exist — ComfyUI has no such type, and a downstream node that
+expected one would receive the other. Instead, every socket that outputs a
+proxy or reference video carries a second, plain `IMAGE` output next to it:
+`proxy_frames` on the Director, `reference_frames` on the Monitor and on the
+deprecated H3 compatibility node. Each twin is a bounded, uniform sample of the
+video beside it — never a full decode — and degrades to `None` rather than
+aborting the node if that video cannot be sampled. Connect whichever output
+your downstream node actually wants; nothing needs both.
+
+### Interface density: Basic, Animation, Advanced
+
+The `View` menu's `Interface` selector (also in ComfyUI's Settings, under
+Director defaults) picks how much of the editor chrome is shown, the way
+Blender's "Simplify" or Maya's UI levels do — not three different layouts,
+just progressive disclosure of the same one:
+
+| Tier | Adds |
+|---|---|
+| `Basic` | placing objects and cameras, keyframing, playback, playblast |
+| `Animation` | camera import/export, aim baking, the Health panel, the animation curve editor, output delivery presets |
+| `Advanced` | everything: sub-object selection, spatial snapping, diagnostic overlays, background stills, cache maintenance |
+
+The Interface selector itself is never hidden by its own setting, and leaving
+a tab that a lower tier hides (Health, in Basic) falls back to the Outliner
+rather than showing a blank pane.
+
 ### Node mark
+
 
 Every OmniCam node carries the same mark in its title bar — a red centre inside a
 sober ring (`◉`). When the node is selected on the graph it gains a slow, discreet
 red halo, so the node you are steering from the viewport stays easy to pick out on
 a busy canvas. The mark is defined once in [`web/assets/omnicam-icon.svg`](web/assets/omnicam-icon.svg)
 and reused for the ComfyUI Registry icon and this document's header.
+
+---
+
+## 🎬 OmniCam Extractor
+
+Recovers a relative 6DoF camera trajectory from **one continuous video shot**
+and emits the same canonical `MAJOOR_OMNICAM_TRACK` the Director produces.
+
+```text
+Load Video -> OmniCam Extractor -> OmniCam Director -> adapters
+```
+
+Outputs:
+
+```text
+camera_track
+confidence
+report
+```
+
+### What it recovers, and what it does not
+
+It solves translation, orientation, and the resulting velocity, acceleration
+and path curvature. It does **not** recover metric scale, an exact physical
+focal length, animated zoom, lens distortion, or rolling shutter, and it does
+not reconstruct multi-shot edits or any object/body motion.
+
+Two consequences are worth stating plainly:
+
+- **Translation scale is relative.** A single moving lens cannot tell a small
+  camera move through a small room from a large one through a large room. The
+  `motion_scale` widget is how you size the result for your scene.
+- **`confidence` is solver coverage, not accuracy.** It reports the share of
+  sampled frames that produced a pose. A clean solve at the wrong scale still
+  scores 1.0.
+
+### Solvers
+
+| `method` | Behaviour |
+|---|---|
+| `auto` | DPVO when installed, otherwise OpenCV/SIFT, otherwise an actionable error |
+| `dpvo` | DPVO only |
+| `opencv_sift` | Classical visual odometry only |
+
+Both backends are **optional**. OmniCam loads normally with neither installed;
+only the Extractor node itself is unavailable, and the setup diagnostic reports
+that as a warning rather than an error.
+
+DPVO ([princeton-vl/DPVO](https://github.com/princeton-vl/DPVO), MIT) needs its
+compiled CUDA extension plus a checkpoint at a fixed managed path:
+
+```text
+ComfyUI/models/omnicam/dpvo/dpvo.pth
+```
+
+The path is not configurable from the node, and **OmniCam never runs
+`pip install` for you**. When a backend is missing, the error message says
+exactly what is missing and what to do about it.
+
+Each DPVO solve runs in a fresh spawned process. Frames cross the boundary
+through a private NumPy memmap below ComfyUI's temp directory; the exchange is
+removed on success, stop and failure. When the child exits, its CUDA context
+exits with it, so DPVO VRAM is returned to the driver instead of remaining in
+ComfyUI's PyTorch allocator until a server restart.
+
+#### DPVO on the Windows portable build
+
+The official DPVO install is a source install: it clones the repository with
+submodules, adds Eigen 3.4.0, then runs `pip install .` to compile CUDA
+extensions. It does not provide a portable Windows wheel. The build must use a
+CUDA toolkit compatible with the CUDA version used to build ComfyUI's PyTorch,
+as well as the MSVC C++ compiler.
+
+For example, a ComfyUI environment with PyTorch `+cu130` cannot build DPVO with
+the system CUDA 12.x toolkit. The resulting error is a CUDA version mismatch;
+installing the Python files alone does not fix it. Do not downgrade or replace
+ComfyUI's PyTorch just to silence this error without a separate environment.
+
+If those prerequisites are not available, select `method=opencv_sift` (or keep
+`method=auto` to use it as the fallback). DPVO also needs its downloaded model
+at the managed path above; the Extractor never downloads packages or model
+weights at runtime.
+
+### Interactive tracking, without pressing Run
+
+The Extractor node carries a solve panel. `▶ TRACK` starts the solve
+immediately and **does not queue a ComfyUI prompt** — no render, no waiting
+behind whatever else is in the queue, and no diffusion model loaded.
+
+```text
+▶ TRACK      start solving now
+Ⅱ PAUSE      stop at the next safe checkpoint
+▶ RESUME     continue the same job, from where it was
+■ STOP       abandon it, keeping the partial path for review
+```
+
+Pause and normal stop are **cooperative**: the solver is asked between safe
+frames. That is why the panel distinguishes `PAUSING` (asked) from `PAUSED`
+(actually stopped). Server shutdown, a crashed child or a timeout still reaps
+the isolated process so no DPVO worker survives its job.
+
+While it runs the panel shows three views:
+
+| Tab | Shows |
+|---|---|
+| `SOURCE` | the clean managed footage the solver is reading |
+| `TRACK 3D` | the solved trajectory, read-only: orbit, pan, zoom, Fit, Top/Front/Side |
+| `COMPARE` | clean source, the same frame with live solver points, and the read-only 3D track side by side |
+
+Before the first graph execution, interactive tracking needs a file-backed
+video. A `Load Video` node or `Choose Video` works immediately. A runtime-only
+source — an executing `VIDEO`, or an `IMAGE` batch — is materialized during
+normal graph execution below `temp/omnicam/extractor_runtime/`; the execution
+envelope then refreshes the preview and enables subsequent interactive tracking
+from that safe `[temp]` reference. The panel never queues the graph by itself.
+
+OpenCV streams a bounded transient 3D path while it tracks. DPVO exposes honest
+source-frame progress but publishes its trajectory only after global
+optimization completes; it does not fabricate intermediate camera poses.
+
+### Cleaning a solve
+
+The raw solve is **immutable**. Every slider re-derives a refined track from it,
+which is why the controls are live: refining runs no solver, decodes no video
+and touches no GPU.
+
+```text
+Position / rotation smoothing   centred, so smoothing adds no temporal lag
+Motion scale                    sizes the relative translation for your scene
+Key reduction                   fewer keys, within a tolerance you set
+Global alignment                one pitch/yaw/roll offset for the whole solve
+Trim                            in/out on the refined output only
+Spike review                    INTERPOLATE / IGNORE / EXCLUDE per flagged frame
+```
+
+Spike detection uses robust statistics (median and MAD), so a camera that is
+simply moving fast is not flagged for moving fast — only a step that does not
+fit the rest of the shot is.
+
+`RESET` returns to the raw solve exactly. Nothing in this list edits the
+reconstruction; it corrects it. Moving a key because you want the shot to feel
+different is the Director's job.
+
+### Applying to the Director
+
+`APPLY REFINED` stores the cleaned track and notifies the connected Director.
+It does not queue anything either.
+
+Applying is explicit on purpose. While you experiment the Director keeps what
+it already has, and once you change a setting after applying, the panel reads
+`OUTDATED` until you apply again. A stopped or failed solve can never be
+applied at all: a partial trajectory is reviewable, not shippable.
+
+### Extractor to Director
+
+Connect `camera_track` into the Director's optional `camera_track` input.
+
+The Director imports each **new** solve once, identified by a fingerprint of
+the track, and then leaves it alone. That is what lets you keep editing:
+
+1. queue the Extractor, and the trajectory appears in the Director;
+2. edit keys, retime, smooth, refine F-Curves;
+3. re-running with the same footage and settings produces the same fingerprint,
+   so **your edits survive**;
+4. changing the footage or a solver setting produces a new fingerprint, and the
+   new source trajectory replaces the camera.
+
+To freeze a solved trajectory permanently, **disconnect the cable**. The
+imported keys stay exactly where they are and simply stop being refreshed.
+
+The Director keeps its own scene throughout: cards, models, audio, background,
+render mode and output resolution are never replaced by a camera import.
 
 ---
 
@@ -1040,7 +1296,7 @@ Development utilities
 The sequencer, the Sequence/EDL nodes, the sequence data model, the Track
 Sampler and Camera Tools nodes, the audio/video assembly stack and the
 Blender/Unreal DCC exporters were removed from the shipped package: none of them
-were reachable from the five public nodes. Their history remains in git.
+were reachable from the public nodes. Their history remains in git.
 
 The public interface intentionally remains small.
 

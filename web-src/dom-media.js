@@ -3,8 +3,10 @@
 // stays bundle-local (no cross-root imports that break Vite rebasing).
 
 import { annotatedAssetUrl, clamp } from "./omnicam-core.js";
+import { syncExtractorCameraTrack } from "./extractor/director-link.js";
 import { uploadManagedFile } from "./omnicam-media.js";
 import { t } from "./omnicam-i18n.js";
+import { upstreamPreviewMedia } from "./shared/upstream-preview.js";
 
 let comfyApi = null;
 
@@ -12,10 +14,14 @@ export function configureDomMedia({ api }) {
   comfyApi = api;
 }
 
-export async function loadMediaUrl(ui, object, url, isCurrent = () => true) {
+export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVideo = null) {
   if (!object || !url) return;
+  // A caller that already knows the real filename (before it became a `/view?`
+  // query string with the extension no longer at the end) should say so
+  // directly, rather than have this guess from a URL the check cannot match.
   const path = String(object.asset || url).toLowerCase();
-  if (/\.(mp4|webm|mov)(?:\s|$)/.test(path)) {
+  const asVideo = isVideo ?? /\.(mp4|webm|mov)(?:\s|$)/.test(path);
+  if (asVideo) {
     const video = document.createElement("video");
     video.src = url;
     video.loop = true;
@@ -26,6 +32,10 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true) {
       video.addEventListener("error", resolve, { once: true });
     });
     if (!isCurrent()) { video.pause(); video.removeAttribute("src"); video.load(); return; }
+    // Matches loadCardFile: an upstream card is meant to read as a live
+    // texture, not a frozen first frame. Playback failing (autoplay policy,
+    // a source with no video track) still leaves a usable still image.
+    await video.play().catch(() => {});
     ui.cardMediaById.set(object.id, video);
     if (object.id === "subject") ui.cardMedia = video;
   } else {
@@ -259,22 +269,30 @@ export async function syncUpstreamInputs(ui) {
         const url = annotatedAssetUrl(upstreamAssetValue(val, subfolder));
         const subject = ui.state.objects.find((o) => o.id === "subject");
         if (subject) {
-          await loadMediaUrl(ui, subject, url, isCurrent);
+          await loadMediaUrl(ui, subject, url, isCurrent, isVideo);
           if (!isCurrent()) return;
           subject.asset = upstreamAssetValue(val, subfolder);
           ui.upstreamImageConnected = true;
           anyUpdated = true;
           ui.setStatus(t(`Upstream ${isVideo ? "video" : "image"}: ${val}`));
         }
-      } else if (originNode.imgs?.length) {
-        const firstImg = originNode.imgs[0];
-        if (firstImg) {
-          ui.cardMediaById.set("subject", firstImg);
-          ui.cardMedia = firstImg;
+      } else {
+        // No file-backed widget to read: fall back to whatever the origin
+        // node has already rendered into its own DOM (a post-run thumbnail,
+        // a widget's own preview) -- the same client-only trick Extractor
+        // uses for a source it cannot resolve into a managed file either.
+        const media = upstreamPreviewMedia(originNode);
+        if (media) {
+          // A borrowed video may already be paused for reasons that are the
+          // origin node's own business; this only asks it to play again, it
+          // never fails the sync if that request is refused.
+          if (media instanceof HTMLVideoElement && media.paused) media.play().catch(() => {});
+          ui.cardMediaById.set("subject", media);
+          ui.cardMedia = media;
           ui.upstreamImageConnected = true;
           anyUpdated = true;
           ui.render();
-          ui.setStatus(t("Upstream image preview synced"));
+          ui.setStatus(media instanceof HTMLVideoElement ? t("Upstream video preview synced") : t("Upstream image preview synced"));
         }
       }
     }
@@ -394,6 +412,11 @@ export async function syncUpstreamInputs(ui) {
     anyUpdated = true;
     ui.setStatus(t("Upstream 3D scene disconnected · model removed"));
   }
+
+  // The camera_track cable is handled last and separately: it replaces keys
+  // rather than media, and it decides for itself whether anything changed.
+  // A disconnected cable is deliberately a no-op -- the imported keys stay.
+  if (syncExtractorCameraTrack(ui)) anyUpdated = true;
 
   if (anyUpdated) {
     ui.serialize();

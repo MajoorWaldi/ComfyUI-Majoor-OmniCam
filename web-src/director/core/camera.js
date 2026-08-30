@@ -1,9 +1,9 @@
 import { add, clamp, cross, dot, mul, norm, resolveSampleSegment, sampleChannel, sub } from "../core.js";
 import { cloneCamera, defaultCamera, sampleObjectWorldTransform } from "../core.js";
+import { annotatedAssetUrl as sharedAnnotatedAssetUrl } from "../../shared/managed-assets.js";
 
 export function annotatedAssetUrl(value) {
-  if (!value) return ""; const match = String(value).match(/^(.*?)(?:\s+\[(input|output|temp)\])?$/); const filename = match?.[1] || String(value); const type = match?.[2] || "input"; const slash = filename.lastIndexOf("/"); const subfolder = slash >= 0 ? filename.slice(0, slash) : ""; const name = slash >= 0 ? filename.slice(slash + 1) : filename;
-  return apiUrl(`/view?filename=${encodeURIComponent(name)}&subfolder=${encodeURIComponent(subfolder)}&type=${encodeURIComponent(type)}`);
+  return sharedAnnotatedAssetUrl({ apiURL: apiUrl }, value);
 }
 
 let apiUrl = (path) => path;

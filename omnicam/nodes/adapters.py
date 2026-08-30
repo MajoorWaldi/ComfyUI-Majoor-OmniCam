@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import numpy as np
 import torch
 from comfy_api.latest import IO
 
@@ -13,12 +12,14 @@ from ..adapters import (
     track_to_ati_json,
     track_to_ati_tracks,
     track_to_ltx_camera_bridge,
-    track_to_wan_camera_params,
 )
 from ..adapters.ltx import ltx_camera_control_profile
+from ..adapters.ltx_guide import build_ltx_guide_frames
+from ..adapters.wan_native import build_wan_camera_embedding
 from ..core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass
-from ..core.video_sampling import inspect_video, sample_video_frames, sampling_indices
+from ..core.video_sampling import inspect_video, sample_video_frames
 from .base import OMNICAM_ATI_BRIDGE, OMNICAM_LTX_BRIDGE, OMNICAM_TRACK, validated_track
+from .media import as_image_batch, as_video, image_twin, media_input
 
 
 class MajoorOmniCamH3Adapter(IO.ComfyNode):
@@ -27,9 +28,11 @@ class MajoorOmniCamH3Adapter(IO.ComfyNode):
         return IO.Schema(
             node_id="MajoorOmniCamH3Adapter",
             display_name="OmniCam → Universal Reference & AI Prompts",
-            category="Majoor/OmniCam/Adapters",
+            category="Majoor/OmniCam/Legacy",
+            is_deprecated=True,
             description=(
-                "Multimodal adapter providing camera reference video and generating model-tailored cinematic prompts "
+                "Deprecated compatibility node; new workflows should use OmniCam Monitor. "
+                "Provides camera reference video and model-tailored cinematic prompts "
                 "for MiniMax H3 Omni Reference, Kling, Luma Dream Machine, HunyuanVideo, Wan 2.1 and Universal pipelines."
             ),
             search_aliases=[
@@ -46,7 +49,7 @@ class MajoorOmniCamH3Adapter(IO.ComfyNode):
             ],
             inputs=[
                 OMNICAM_TRACK.Input("camera_track"),
-                IO.Video.Input("proxy_video", optional=True),
+                media_input("proxy_video", optional=True),
                 IO.String.Input("video_ref_token", default="<Video 1>", multiline=False),
                 IO.Combo.Input("prompt_style", options=["h3", "universal", "kling", "luma", "hunyuan", "wan"]),
                 IO.String.Input("base_prompt", default="", multiline=True, optional=True),
@@ -56,6 +59,8 @@ class MajoorOmniCamH3Adapter(IO.ComfyNode):
                 IO.String.Output(display_name="prompt_fragment"),
                 IO.String.Output(display_name="cinematic_prompt"),
                 IO.String.Output(display_name="camera_analysis_json"),
+                # Appended, not inserted, so existing links keep their slot index.
+                IO.Image.Output(display_name="reference_frames"),
             ],
         )
 
@@ -72,11 +77,13 @@ class MajoorOmniCamH3Adapter(IO.ComfyNode):
         track = validated_track(camera_track)
         analysis = analyze_camera_trajectory(track)
         cinematic = build_cinematic_motion_prompt(track, base_prompt=base_prompt, style=prompt_style)
+        proxy_video = as_video(proxy_video)
         return IO.NodeOutput(
             proxy_video,
             build_h3_prompt(track, video_ref_token=video_ref_token),
             cinematic,
             json.dumps(analysis, indent=2),
+            image_twin(proxy_video),
         )
 
 
@@ -120,8 +127,9 @@ class MajoorOmniCamWanNativeCamera(IO.ComfyNode):
         return IO.Schema(
             node_id="MajoorOmniCamWanNativeCamera",
             display_name="OmniCam → Wan Native Camera",
-            category="Majoor/OmniCam/Adapters",
-            description="Converts an arbitrary OmniCam track to ComfyUI's native Wan Plücker camera embedding.",
+            category="Majoor/OmniCam/Legacy",
+            is_deprecated=True,
+            description="Deprecated compatibility node. New workflows should use OmniCam Monitor. Converts an OmniCam track to a native Wan camera embedding.",
             inputs=[
                 OMNICAM_TRACK.Input("camera_track"),
                 IO.Int.Input("width", default=832, min=16, max=4096, step=16),
@@ -138,19 +146,8 @@ class MajoorOmniCamWanNativeCamera(IO.ComfyNode):
 
     @classmethod
     def execute(cls, camera_track: dict[str, Any], width: int, height: int, length: int) -> IO.NodeOutput:
-        import comfy.model_management
-        from comfy_extras.nodes_camera_trajectory import process_pose_params
-
-        if (length - 1) % 4:
-            raise ValueError("Wan camera length must be 4n+1 frames")
         track = validated_track(camera_track)
-        params = np.asarray(track_to_wan_camera_params(track, length), dtype=np.float32)
-        embedding = process_pose_params(params, width=width, height=height, original_pose_width=track.width, original_pose_height=track.height)
-        embedding = embedding.permute([3, 0, 1, 2]).unsqueeze(0).to(device=comfy.model_management.intermediate_device())
-        embedding = torch.concat([torch.repeat_interleave(embedding[:, :, 0:1], repeats=4, dim=2), embedding[:, :, 1:]], dim=2).transpose(1, 2)
-        batch, frames, channels, latent_height, latent_width = embedding.shape
-        embedding = embedding.contiguous().view(batch, frames // 4, 4, channels, latent_height, latent_width).transpose(2, 3)
-        embedding = embedding.contiguous().view(batch, frames // 4, channels * 4, latent_height, latent_width).transpose(1, 2)
+        embedding = build_wan_camera_embedding(track, width=width, height=height, length=length)
         return IO.NodeOutput(embedding, width, height, length)
 
 
@@ -160,8 +157,10 @@ class MajoorOmniCamWanVideoWrapperATI(IO.ComfyNode):
         return IO.Schema(
             node_id="MajoorOmniCamWanVideoWrapperATI",
             display_name="OmniCam → WanVideoWrapper ATI",
-            category="Majoor/OmniCam/Adapters",
+            category="Majoor/OmniCam/Legacy",
+            is_deprecated=True,
             description=(
+                "Deprecated compatibility node; new workflows should use OmniCam Monitor. "
                 "Produces the exact tracks STRING consumed by WanVideoATITracks. "
                 "WanVideoATITracks normalises the coordinates with its own width/height, "
                 "so wire the width and height outputs to it as well: leaving them "
@@ -218,7 +217,7 @@ class MajoorOmniCamATIPreview(IO.ComfyNode):
             category="Majoor/OmniCam/Adapters",
             inputs=[
                 OMNICAM_TRACK.Input("camera_track"),
-                IO.Image.Input("image"),
+                media_input("image"),
                 IO.Int.Input("point_count", default=16, min=4, max=128),
                 IO.Combo.Input("distribution", options=["balanced", "subject_focus", "ground_parallax"]),
             ],
@@ -242,7 +241,7 @@ class MajoorOmniCamATIPreview(IO.ComfyNode):
         than being an undifferentiated cloud of squares.
         """
         track = validated_track(camera_track)
-        preview = image[:1].clone()
+        preview = as_image_batch(image, max_frames=1).clone()
         height, width = preview.shape[1:3]
         tracks = track_to_ati_tracks(
             track, point_count=point_count, distribution=distribution, width=width, height=height)
@@ -292,11 +291,12 @@ class MajoorOmniCamLTXCameraGuide(IO.ComfyNode):
         return IO.Schema(
             node_id="MajoorOmniCamLTXCameraGuide",
             display_name="OmniCam → LTX Camera Guide",
-            category="Majoor/OmniCam/Adapters",
-            description="Decodes the proxy VIDEO to IMAGE frames for LTX Add Video IC-LoRA Guide, provides cinematic prompt and recommended camera LoRA profile.",
+            category="Majoor/OmniCam/Legacy",
+            is_deprecated=True,
+            description="Deprecated compatibility node. New workflows should use OmniCam Monitor. Decodes proxy VIDEO frames for LTX camera guidance.",
             inputs=[
                 OMNICAM_TRACK.Input("camera_track"),
-                IO.Video.Input("proxy_video"),
+                media_input("proxy_video"),
                 IO.String.Input("base_prompt", default="", multiline=True, optional=True),
                 IO.Int.Input("start_frame", default=0, min=0, max=100000, advanced=True),
                 IO.Int.Input("end_frame", default=0, min=0, max=100000, advanced=True),
@@ -318,31 +318,19 @@ class MajoorOmniCamLTXCameraGuide(IO.ComfyNode):
                 resize_height: int = 0, sampling_mode: str = "contiguous") -> IO.NodeOutput:
         from ..core.camera_tools import build_cinematic_motion_prompt
         track = validated_track(camera_track)
-        metadata = inspect_video(proxy_video)
-        planned_count = len(sampling_indices(
-            metadata.frame_count, start_frame, end_frame, max_frames, sampling_mode
-        ))
-        target_width = int(resize_width) or metadata.width
-        target_height = int(resize_height) or metadata.height
-        # Comfy IMAGE is normally float32 RGB; reject unsafe plans before decode.
-        estimated = planned_count * target_width * target_height * 3 * 4
-        if estimated > 2 * 1024**3:
-            raise ValueError("LTX guide would exceed the 2 GiB decoded-frame safety limit; reduce frames or resolution")
-        frames = sample_video_frames(
-            proxy_video,
+        guide = build_ltx_guide_frames(
+            track,
+            as_video(proxy_video),
+            max_frames=max_frames,
+            sampling_mode=sampling_mode,
+            width=resize_width,
+            height=resize_height,
             start_frame=start_frame,
             end_frame=end_frame,
-            max_frames=max_frames,
-            mode=sampling_mode,
         )
-        if not frames.shape[0]:
-            raise ValueError("The LTX guide source contains no decodable video frames")
-        if (target_height, target_width) != tuple(frames.shape[1:3]):
-            frames = torch.nn.functional.interpolate(
-                frames.permute(0, 3, 1, 2), size=(target_height, target_width), mode="bilinear", align_corners=False
-            ).permute(0, 2, 3, 1)
+        frames, profile = guide["frames"], guide["profile"]
+        estimated = guide["plan"]["estimated_memory_bytes"]
         cinematic = build_cinematic_motion_prompt(track, base_prompt=base_prompt, style="universal")
-        profile = ltx_camera_control_profile(track)
         profile["guide_diagnostics"] = {
             "guide_type": "IMAGE",
             "frames": int(frames.shape[0]),

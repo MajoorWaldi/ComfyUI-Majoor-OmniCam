@@ -1,7 +1,7 @@
 """V3 node package for OmniCam.
 
-Only the five nodes listed in :mod:`omnicam.node_registry` are ever loaded by
-ComfyUI. ``tools`` stays importable for internal reuse but is not registered.
+Product nodes and compatibility facades listed by :mod:`omnicam.node_registry`
+are loaded by ComfyUI. Internal tools remain unregistered.
 """
 
 from __future__ import annotations
@@ -24,6 +24,8 @@ from .base import (
     validated_track,
 )
 from .director import MajoorOmniCamDirector
+from .extractor import MajoorOmniCamExtractor
+from .monitor import MajoorOmniCamMonitor
 
 
 def get_registered_nodes() -> list[type[IO.ComfyNode]]:
@@ -39,8 +41,10 @@ __all__ = [
     "OMNICAM_SHOT_COLLECTION",
     "OMNICAM_TRACK",
     "MajoorOmniCamDirector",
+    "MajoorOmniCamExtractor",
     "MajoorOmniCamH3Adapter",
     "MajoorOmniCamLTXCameraGuide",
+    "MajoorOmniCamMonitor",
     "MajoorOmniCamWanNativeCamera",
     "MajoorOmniCamWanVideoWrapperATI",
     "get_registered_nodes",

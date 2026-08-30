@@ -1,0 +1,1499 @@
+{
+  "generator": "scripts/generate_motion_health_fixture.py",
+  "epsilon": 1e-06,
+  "cases": [
+    {
+      "name": "burst_after_idle",
+      "profile": "h3",
+      "track": {
+        "schema_version": 1,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "objects": [],
+        "metadata": {},
+        "fps": 24,
+        "duration_frames": 25,
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                0,
+                1,
+                5
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 18,
+            "camera": {
+              "position": [
+                0.2,
+                1,
+                5
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 24,
+            "camera": {
+              "position": [
+                6,
+                1,
+                5
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "linear"
+          }
+        ]
+      },
+      "limits": {
+        "max_speed": 8.0,
+        "max_angular_speed": 120.0,
+        "max_acceleration": 40.0,
+        "max_jerk": 400.0,
+        "max_fov_change": 25.0,
+        "allow_framing_loss": false
+      },
+      "python_report": {
+        "profile": "h3",
+        "warn_ratio": 0.8,
+        "limits": {
+          "max_speed": 8.0,
+          "max_angular_speed": 120.0,
+          "max_acceleration": 40.0,
+          "max_jerk": 400.0,
+          "max_fov_change": 25.0,
+          "allow_framing_loss": false
+        },
+        "subject": [
+          0.0,
+          1.5,
+          0.0
+        ],
+        "duration_frames": 25,
+        "fps": 24,
+        "max_speed": 23.200000000000003,
+        "max_angular_speed": 260.2647408220525,
+        "max_acceleration": 550.3999999999999,
+        "max_jerk": 13209.599999999997,
+        "max_fov_change": 0.0,
+        "framing_loss_frames": 0,
+        "series": {
+          "speed": [
+            0.0,
+            0.26666666666666666,
+            0.26666666666666666,
+            0.2666666666666666,
+            0.2666666666666667,
+            0.2666666666666667,
+            0.26666666666666655,
+            0.2666666666666667,
+            0.2666666666666667,
+            0.2666666666666667,
+            0.2666666666666667,
+            0.2666666666666667,
+            0.2666666666666664,
+            0.26666666666666705,
+            0.2666666666666664,
+            0.26666666666666705,
+            0.2666666666666664,
+            0.2666666666666664,
+            0.26666666666666705,
+            23.199999999999996,
+            23.200000000000003,
+            23.200000000000003,
+            23.199999999999992,
+            23.200000000000003,
+            23.200000000000003
+          ],
+          "angular_speed": [
+            0.0,
+            3.0557698958578814,
+            3.0557398637143867,
+            3.0556798011525865,
+            3.0555897118979303,
+            3.055469601127035,
+            3.0553194760180924,
+            3.0551393453396765,
+            3.0549292195894386,
+            3.0546891111330963,
+            3.0544190344812105,
+            3.0541190051916565,
+            3.0537890412465076,
+            3.0534291618174403,
+            3.053039388230917,
+            3.052619743146294,
+            3.052170251384264,
+            3.051690939655602,
+            3.0511818356019234,
+            260.2647408220525,
+            239.44841305902827,
+            208.83937799996738,
+            176.05955278083368,
+            145.94929432157193,
+            120.42249231559941
+          ],
+          "acceleration": [
+            0.0,
+            6.4,
+            0.0,
+            1.3322676295501878e-15,
+            2.6645352591003757e-15,
+            0.0,
+            3.9968028886505635e-15,
+            3.9968028886505635e-15,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            7.993605777301127e-15,
+            1.5987211554602254e-14,
+            1.5987211554602254e-14,
+            1.5987211554602254e-14,
+            1.5987211554602254e-14,
+            0.0,
+            1.5987211554602254e-14,
+            550.3999999999999,
+            1.7053025658242404e-13,
+            0.0,
+            2.5579538487363607e-13,
+            2.5579538487363607e-13,
+            0.0
+          ],
+          "jerk": [
+            0.0,
+            153.60000000000002,
+            153.60000000000002,
+            3.197442310920451e-14,
+            3.197442310920451e-14,
+            6.394884621840902e-14,
+            9.592326932761353e-14,
+            0.0,
+            9.592326932761353e-14,
+            0.0,
+            0.0,
+            0.0,
+            1.9184653865522705e-13,
+            1.9184653865522705e-13,
+            0.0,
+            0.0,
+            0.0,
+            3.836930773104541e-13,
+            3.836930773104541e-13,
+            13209.599999999997,
+            13209.599999999991,
+            4.092726157978177e-12,
+            6.139089236967266e-12,
+            0.0,
+            6.139089236967266e-12
+          ]
+        },
+        "framing": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "frame_grades": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over"
+        ],
+        "segments": [
+          {
+            "start": 0,
+            "end": 18,
+            "grade": "ok",
+            "metrics": []
+          },
+          {
+            "start": 19,
+            "end": 19,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 20,
+            "end": 20,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 21,
+            "end": 24,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "speed"
+            ]
+          }
+        ],
+        "violations": [
+          {
+            "metric": "max_speed",
+            "value": 23.200000000000003,
+            "recommended_max": 8.0
+          },
+          {
+            "metric": "max_angular_speed",
+            "value": 260.2647408220525,
+            "recommended_max": 120.0
+          },
+          {
+            "metric": "max_acceleration",
+            "value": 550.3999999999999,
+            "recommended_max": 40.0
+          },
+          {
+            "metric": "max_jerk",
+            "value": 13209.599999999997,
+            "recommended_max": 400.0
+          }
+        ],
+        "track_grades": {
+          "fov_drift": "ok"
+        },
+        "grade": "over",
+        "trajectory_valid": false,
+        "ok": false
+      }
+    },
+    {
+      "name": "eased_orbit_with_lens_ramp",
+      "profile": "ltx",
+      "track": {
+        "schema_version": 1,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "objects": [],
+        "metadata": {},
+        "fps": 30,
+        "duration_frames": 31,
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                4,
+                2,
+                4
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ],
+              "fov": 24,
+              "roll": 0
+            },
+            "interpolation": "bezier"
+          },
+          {
+            "frame": 15,
+            "camera": {
+              "position": [
+                0,
+                3,
+                6
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ],
+              "fov": 45,
+              "roll": 8
+            },
+            "interpolation": "ease"
+          },
+          {
+            "frame": 30,
+            "camera": {
+              "position": [
+                -4,
+                2,
+                4
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ],
+              "fov": 60,
+              "roll": -6
+            },
+            "interpolation": "ease_out"
+          }
+        ]
+      },
+      "limits": {
+        "max_speed": 4.0,
+        "max_angular_speed": 60.0,
+        "max_acceleration": 20.0,
+        "max_jerk": 200.0,
+        "max_fov_change": 15.0,
+        "allow_framing_loss": false
+      },
+      "python_report": {
+        "profile": "ltx",
+        "warn_ratio": 0.8,
+        "limits": {
+          "max_speed": 4.0,
+          "max_angular_speed": 60.0,
+          "max_acceleration": 20.0,
+          "max_jerk": 200.0,
+          "max_fov_change": 15.0,
+          "allow_framing_loss": false
+        },
+        "subject": [
+          0.0,
+          1.5,
+          0.0
+        ],
+        "duration_frames": 31,
+        "fps": 30,
+        "max_speed": 13.727360081778842,
+        "max_angular_speed": 157.80943298382425,
+        "max_acceleration": 279.1230716512873,
+        "max_jerk": 8373.69214953862,
+        "max_fov_change": 36.0,
+        "framing_loss_frames": 0,
+        "series": {
+          "speed": [
+            0.0,
+            9.304102388376243,
+            9.556465071089372,
+            9.756765298774848,
+            9.895233917263388,
+            9.965887493571268,
+            9.965887493529893,
+            9.895233917140816,
+            9.756765298576148,
+            9.55646507082359,
+            9.304102372058262,
+            9.014249348892683,
+            8.707686399888791,
+            8.413064500731167,
+            8.168327871757096,
+            8.020738563827644,
+            1.7515622656275651,
+            4.928814747463614,
+            7.617259155171048,
+            9.816895488749836,
+            11.527723748200021,
+            12.749743933521609,
+            13.482956044714488,
+            13.727360081778842,
+            13.482956044714514,
+            12.749743933521561,
+            11.527723748200037,
+            9.816895488749854,
+            7.61725915517104,
+            4.9288147474636075,
+            1.7515622656275625
+          ],
+          "angular_speed": [
+            0.0,
+            92.17705542473895,
+            97.45139336166508,
+            100.8778794136273,
+            102.47657995846494,
+            102.3943567172494,
+            100.88295690259883,
+            98.26381563520785,
+            94.88921312504577,
+            91.10905114728378,
+            87.24907017631129,
+            83.60197140726473,
+            80.429389840895,
+            77.97069053634335,
+            76.45406645335255,
+            76.10621914119689,
+            16.870332585920107,
+            48.09719350077408,
+            76.11665181958395,
+            101.17437295004572,
+            122.9056719909122,
+            140.40961866549398,
+            152.44900179952967,
+            157.80943298382425,
+            155.73146839712507,
+            146.21257844051874,
+            129.99446748823567,
+            108.23277922187226,
+            82.03197474155644,
+            52.053526148387235,
+            18.29179124882999
+          ],
+          "acceleration": [
+            0.0,
+            279.1230716512873,
+            7.5708804813938535,
+            6.009006830564285,
+            4.154058554656199,
+            2.1196072892363915,
+            1.241247105099319e-09,
+            2.1196072916723097,
+            4.154058556940026,
+            6.009006832576755,
+            7.570880962959841,
+            8.695590694967361,
+            9.196888470116757,
+            8.838656974728725,
+            7.34209886922212,
+            4.427679237883577,
+            188.07528894600236,
+            95.31757445508146,
+            80.65333223122303,
+            65.98909000736363,
+            51.324847783505554,
+            36.660605559647635,
+            21.996363335786366,
+            7.332121111930636,
+            7.332121111929837,
+            21.996363335788605,
+            36.66060555964572,
+            51.324847783505504,
+            65.9890900073644,
+            80.65333223122298,
+            95.31757445508136
+          ],
+          "jerk": [
+            0.0,
+            8373.69214953862,
+            8146.565735096805,
+            46.85620952488705,
+            55.64844827724258,
+            61.03353796259423,
+            63.58821863985433,
+            63.58821871293188,
+            61.03353795803148,
+            55.64844826910189,
+            46.856223911492556,
+            33.74129196022562,
+            15.03893325448189,
+            10.746944861640984,
+            44.89674316519814,
+            87.43258894015628,
+            5509.428291243564,
+            2782.731434727627,
+            439.9272667157527,
+            439.92726671578214,
+            439.92726671574223,
+            439.9272667157376,
+            439.9272667158381,
+            439.9272667156719,
+            2.398081733190338e-11,
+            439.92726671576304,
+            439.92726671571336,
+            439.9272667157936,
+            439.9272667157668,
+            439.92726671575736,
+            439.92726671575144
+          ]
+        },
+        "framing": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "frame_grades": [
+          "ok",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over"
+        ],
+        "segments": [
+          {
+            "start": 0,
+            "end": 0,
+            "grade": "ok",
+            "metrics": []
+          },
+          {
+            "start": 1,
+            "end": 1,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 2,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 3,
+            "end": 15,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "speed"
+            ]
+          },
+          {
+            "start": 16,
+            "end": 16,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "jerk"
+            ]
+          },
+          {
+            "start": 17,
+            "end": 22,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 23,
+            "end": 23,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 24,
+            "end": 24,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "speed"
+            ]
+          },
+          {
+            "start": 25,
+            "end": 29,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "angular_speed",
+              "jerk",
+              "speed"
+            ]
+          },
+          {
+            "start": 30,
+            "end": 30,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "jerk"
+            ]
+          }
+        ],
+        "violations": [
+          {
+            "metric": "max_speed",
+            "value": 13.727360081778842,
+            "recommended_max": 4.0
+          },
+          {
+            "metric": "max_angular_speed",
+            "value": 157.80943298382425,
+            "recommended_max": 60.0
+          },
+          {
+            "metric": "max_acceleration",
+            "value": 279.1230716512873,
+            "recommended_max": 20.0
+          },
+          {
+            "metric": "max_jerk",
+            "value": 8373.69214953862,
+            "recommended_max": 200.0
+          },
+          {
+            "metric": "max_fov_change",
+            "value": 36.0,
+            "recommended_max": 15.0
+          }
+        ],
+        "track_grades": {
+          "fov_drift": "over"
+        },
+        "grade": "over",
+        "trajectory_valid": false,
+        "ok": false
+      }
+    },
+    {
+      "name": "subject_swings_out_of_frame",
+      "profile": "wan_ati",
+      "track": {
+        "schema_version": 1,
+        "width": 640,
+        "height": 360,
+        "render_mode": "omni_ref",
+        "objects": [],
+        "metadata": {},
+        "fps": 24,
+        "duration_frames": 21,
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                0,
+                1.5,
+                5
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 20,
+            "camera": {
+              "position": [
+                0,
+                1.5,
+                5
+              ],
+              "target": [
+                60,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "linear"
+          }
+        ]
+      },
+      "limits": {
+        "max_speed": 5.0,
+        "max_angular_speed": 70.0,
+        "max_acceleration": 25.0,
+        "max_jerk": 250.0,
+        "max_fov_change": 15.0,
+        "allow_framing_loss": false,
+        "min_visible_point_ratio": 0.35
+      },
+      "python_report": {
+        "profile": "wan_ati",
+        "warn_ratio": 0.8,
+        "limits": {
+          "max_speed": 5.0,
+          "max_angular_speed": 70.0,
+          "max_acceleration": 25.0,
+          "max_jerk": 250.0,
+          "max_fov_change": 15.0,
+          "allow_framing_loss": false,
+          "min_visible_point_ratio": 0.35
+        },
+        "subject": [
+          0.0,
+          1.5,
+          0.0
+        ],
+        "duration_frames": 21,
+        "fps": 24,
+        "max_speed": 0.0,
+        "max_angular_speed": 743.1301567697649,
+        "max_acceleration": 0.0,
+        "max_jerk": 0.0,
+        "max_fov_change": 0.0,
+        "framing_loss_frames": 20,
+        "series": {
+          "speed": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "angular_speed": [
+            0.0,
+            743.1301567697649,
+            461.5361370158705,
+            258.02320783651294,
+            154.43373962488076,
+            100.43798700284174,
+            69.86010782802893,
+            51.15871783207673,
+            38.981011721531424,
+            30.64348607253401,
+            24.69971530333811,
+            20.320176572678264,
+            17.003651548917084,
+            14.43367607151876,
+            12.40283901291645,
+            10.770787884685213,
+            9.439888606472934,
+            8.34056921888428,
+            7.4221951475962005,
+            6.647218808033574,
+            5.987329543419415
+          ],
+          "acceleration": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "jerk": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "framing": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "frame_grades": [
+          "ok",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over",
+          "over"
+        ],
+        "segments": [
+          {
+            "start": 0,
+            "end": 0,
+            "grade": "ok",
+            "metrics": []
+          },
+          {
+            "start": 1,
+            "end": 6,
+            "grade": "over",
+            "metrics": [
+              "angular_speed",
+              "framing_loss"
+            ]
+          },
+          {
+            "start": 7,
+            "end": 20,
+            "grade": "over",
+            "metrics": [
+              "framing_loss"
+            ]
+          }
+        ],
+        "violations": [
+          {
+            "metric": "max_angular_speed",
+            "value": 743.1301567697649,
+            "recommended_max": 70.0
+          },
+          {
+            "metric": "framing_loss_frames",
+            "value": 20,
+            "recommended_max": 0
+          }
+        ],
+        "track_grades": {
+          "fov_drift": "ok"
+        },
+        "grade": "over",
+        "trajectory_valid": false,
+        "ok": false
+      }
+    },
+    {
+      "name": "static_camera_pure_zoom",
+      "profile": "wan_native",
+      "track": {
+        "schema_version": 1,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "objects": [],
+        "metadata": {},
+        "fps": 24,
+        "duration_frames": 13,
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                0,
+                1.5,
+                6
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ],
+              "fov": 20
+            },
+            "interpolation": "linear"
+          },
+          {
+            "frame": 12,
+            "camera": {
+              "position": [
+                0,
+                1.5,
+                6
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ],
+              "fov": 75
+            },
+            "interpolation": "linear"
+          }
+        ]
+      },
+      "limits": {
+        "max_speed": 6.0,
+        "max_angular_speed": 90.0,
+        "max_acceleration": 30.0,
+        "max_jerk": 300.0,
+        "max_fov_change": 20.0,
+        "allow_framing_loss": false
+      },
+      "python_report": {
+        "profile": "wan_native",
+        "warn_ratio": 0.8,
+        "limits": {
+          "max_speed": 6.0,
+          "max_angular_speed": 90.0,
+          "max_acceleration": 30.0,
+          "max_jerk": 300.0,
+          "max_fov_change": 20.0,
+          "allow_framing_loss": false
+        },
+        "subject": [
+          0.0,
+          1.5,
+          0.0
+        ],
+        "duration_frames": 13,
+        "fps": 24,
+        "max_speed": 0.0,
+        "max_angular_speed": 0.0,
+        "max_acceleration": 0.0,
+        "max_jerk": 0.0,
+        "max_fov_change": 55.0,
+        "framing_loss_frames": 0,
+        "series": {
+          "speed": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "angular_speed": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "acceleration": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "jerk": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "framing": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "frame_grades": [
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok",
+          "ok"
+        ],
+        "segments": [
+          {
+            "start": 0,
+            "end": 12,
+            "grade": "ok",
+            "metrics": []
+          }
+        ],
+        "violations": [
+          {
+            "metric": "max_fov_change",
+            "value": 55.0,
+            "recommended_max": 20.0
+          }
+        ],
+        "track_grades": {
+          "fov_drift": "over"
+        },
+        "grade": "over",
+        "trajectory_valid": false,
+        "ok": false
+      }
+    },
+    {
+      "name": "generic_profile_no_violations",
+      "profile": "generic",
+      "track": {
+        "schema_version": 1,
+        "width": 1280,
+        "height": 720,
+        "render_mode": "omni_ref",
+        "objects": [],
+        "metadata": {},
+        "fps": 24,
+        "duration_frames": 17,
+        "keyframes": [
+          {
+            "frame": 0,
+            "camera": {
+              "position": [
+                2,
+                1.5,
+                5
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "ease"
+          },
+          {
+            "frame": 16,
+            "camera": {
+              "position": [
+                -2,
+                1.5,
+                5
+              ],
+              "target": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "interpolation": "ease"
+          }
+        ]
+      },
+      "limits": {
+        "max_speed": 10.0,
+        "max_angular_speed": 150.0,
+        "max_acceleration": 50.0,
+        "max_jerk": 500.0,
+        "max_fov_change": 30.0,
+        "allow_framing_loss": false
+      },
+      "python_report": {
+        "profile": "generic",
+        "warn_ratio": 0.8,
+        "limits": {
+          "max_speed": 10.0,
+          "max_angular_speed": 150.0,
+          "max_acceleration": 50.0,
+          "max_jerk": 500.0,
+          "max_fov_change": 30.0,
+          "allow_framing_loss": false
+        },
+        "subject": [
+          0.0,
+          1.5,
+          0.0
+        ],
+        "duration_frames": 17,
+        "fps": 24,
+        "max_speed": 8.953125,
+        "max_angular_speed": 102.40552098042583,
+        "max_acceleration": 47.25,
+        "max_jerk": 621.0,
+        "max_fov_change": 0.0,
+        "framing_loss_frames": 0,
+        "series": {
+          "speed": [
+            0.0,
+            1.078125,
+            3.046875,
+            4.734375,
+            6.140625,
+            7.265625,
+            8.109375,
+            8.671875,
+            8.953125,
+            8.953125,
+            8.671875,
+            8.109375,
+            7.265625,
+            6.140625,
+            4.734375,
+            3.046875,
+            1.078125
+          ],
+          "angular_speed": [
+            0.0,
+            10.683229957191163,
+            30.542379937680757,
+            48.45134587332604,
+            64.52684193239065,
+            78.53576803349463,
+            89.96042612547085,
+            98.12831483243352,
+            102.40552098042583,
+            102.40552098042583,
+            98.12831483243352,
+            89.96042612547085,
+            78.53576803349463,
+            64.52684193239065,
+            48.45134587332604,
+            30.542379937680757,
+            10.683229957191163
+          ],
+          "acceleration": [
+            0.0,
+            25.875,
+            47.25,
+            40.5,
+            33.75,
+            27.0,
+            20.25,
+            13.5,
+            6.75,
+            0.0,
+            6.75,
+            13.5,
+            20.25,
+            27.0,
+            33.75,
+            40.5,
+            47.25
+          ],
+          "jerk": [
+            0.0,
+            621.0,
+            513.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0,
+            162.0
+          ]
+        },
+        "framing": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "frame_grades": [
+          "ok",
+          "over",
+          "over",
+          "warn",
+          "ok",
+          "ok",
+          "warn",
+          "warn",
+          "warn",
+          "warn",
+          "warn",
+          "warn",
+          "ok",
+          "ok",
+          "ok",
+          "warn",
+          "warn"
+        ],
+        "segments": [
+          {
+            "start": 0,
+            "end": 0,
+            "grade": "ok",
+            "metrics": []
+          },
+          {
+            "start": 1,
+            "end": 1,
+            "grade": "over",
+            "metrics": [
+              "jerk"
+            ]
+          },
+          {
+            "start": 2,
+            "end": 2,
+            "grade": "over",
+            "metrics": [
+              "acceleration",
+              "jerk"
+            ]
+          },
+          {
+            "start": 3,
+            "end": 3,
+            "grade": "warn",
+            "metrics": [
+              "acceleration"
+            ]
+          },
+          {
+            "start": 4,
+            "end": 5,
+            "grade": "ok",
+            "metrics": []
+          },
+          {
+            "start": 6,
+            "end": 11,
+            "grade": "warn",
+            "metrics": [
+              "speed"
+            ]
+          },
+          {
+            "start": 12,
+            "end": 14,
+            "grade": "ok",
+            "metrics": []
+          },
+          {
+            "start": 15,
+            "end": 16,
+            "grade": "warn",
+            "metrics": [
+              "acceleration"
+            ]
+          }
+        ],
+        "violations": [
+          {
+            "metric": "max_jerk",
+            "value": 621.0,
+            "recommended_max": 500.0
+          }
+        ],
+        "track_grades": {
+          "fov_drift": "ok"
+        },
+        "grade": "over",
+        "trajectory_valid": false,
+        "ok": false
+      }
+    }
+  ]
+}

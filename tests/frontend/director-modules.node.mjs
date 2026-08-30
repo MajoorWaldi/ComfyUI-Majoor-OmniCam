@@ -37,10 +37,13 @@ test("node branding applies only to OmniCam node definitions", () => {
   let extension;
   registerOmniCamNodeBranding({ registerExtension(value) { extension = value; } });
   class OmniNode {}
+  class MonitorNode {}
   class ForeignNode {}
   extension.beforeRegisterNodeDef(OmniNode, { name: "MajoorOmniCamSequencer" });
+  extension.beforeRegisterNodeDef(MonitorNode, { name: "MajoorOmniCamMonitor" });
   extension.beforeRegisterNodeDef(ForeignNode, { name: "ForeignNode" });
   assert.equal(typeof OmniNode.prototype.onDrawForeground, "function");
+  assert.equal(typeof MonitorNode.prototype.onDrawForeground, "function");
   assert.equal(ForeignNode.prototype.onDrawForeground, undefined);
 
   // The overlay must never throw before the icon has loaded, and the active
@@ -329,6 +332,7 @@ test("upstream media preserves managed annotations and cancels stale work", asyn
   assert.match(source, /upstreamSyncId/);
   assert.match(source, /AbortController/);
 });
+
 
 test("desktop dialogs never fall back to unavailable browser modal APIs", async () => {
   const source = await readFile(new URL("../../web-src/director/ui-services.js", import.meta.url), "utf8");

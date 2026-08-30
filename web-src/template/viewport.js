@@ -13,13 +13,13 @@ function toolRail() {
       <button class="vp-tool" data-transform-mode="rotate" title="${t("Rotation gizmo (click)")}"><i class="pi pi-replay"></i></button>
       <button class="vp-tool" data-transform-mode="scale" title="${t("Scale gizmo (click)")}"><i class="pi pi-stop"></i></button>
       <span class="vp-rail-divider"></span>
-      <button class="vp-tool" data-select-mode="vertex" title="${t("Vertex Selection Mode (1)")}"><i class="pi pi-circle"></i></button>
-      <button class="vp-tool" data-select-mode="edge" title="${t("Edge Selection Mode (2)")}"><i class="pi pi-minus"></i></button>
-      <button class="vp-tool" data-select-mode="face" title="${t("Face / Polygon Selection Mode (3)")}"><i class="pi pi-table"></i></button>
+      <button class="vp-tool" data-select-mode="vertex" data-density-min="advanced" title="${t("Vertex Selection Mode (1)")}"><i class="pi pi-circle"></i></button>
+      <button class="vp-tool" data-select-mode="edge" data-density-min="advanced" title="${t("Edge Selection Mode (2)")}"><i class="pi pi-minus"></i></button>
+      <button class="vp-tool" data-select-mode="face" data-density-min="advanced" title="${t("Face / Polygon Selection Mode (3)")}"><i class="pi pi-table"></i></button>
       <button class="vp-tool active" data-select-mode="object" title="${t("Object Selection Mode (4)")}"><i class="pi pi-box"></i></button>
       <span class="vp-rail-divider"></span>
       <button class="vp-tool" data-act="frame-target" title="${t("Frame Subject Target (F)")}"><i class="pi pi-expand"></i></button>
-      <button class="vp-tool" data-act="select-look-at" title="${t("Select camera Look-At target")}"><i class="pi pi-bullseye"></i></button>
+      <button class="vp-tool" data-act="select-look-at" data-density-min="advanced" title="${t("Select camera Look-At target")}"><i class="pi pi-bullseye"></i></button>
       <button class="vp-tool" data-act="toggle-inspector" title="${t("Toggle Inspector Panel (N)")}"><i class="pi pi-ellipsis-h"></i></button>
     </div>`;
 }
@@ -49,6 +49,13 @@ export function viewportMarkup() {
       <div class="viewport-tally-banner" data-role="tally-banner" hidden>
         <span class="tally-dot"></span>
         <span class="tally-text" data-role="tally-text">REC KEY @ F0</span>
+      </div>
+
+      <div class="extractor-import-banner" data-role="extractor-import-banner" hidden>
+        <i class="pi pi-video"></i>
+        <span data-role="extractor-import-text"></span>
+        <button type="button" class="ei-import" data-act="import-extractor-camera">${t("Import as Camera")}</button>
+        <button type="button" class="ei-dismiss" data-act="dismiss-extractor-camera" title="${t("Dismiss")}" aria-label="${t("Dismiss")}"><i class="pi pi-times"></i></button>
       </div>
 
       ${viewPills()}

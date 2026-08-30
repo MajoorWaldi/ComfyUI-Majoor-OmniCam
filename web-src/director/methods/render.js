@@ -23,13 +23,30 @@ export function createRenderMethods(dependencies) {
     const worldObjects = this.state.objects.some((obj) => obj.parent_id) ? this.state.objects.map((obj) => obj.parent_id ? { ...obj, ...worldTransform(this.state.objects, obj) } : obj) : this.state.objects;
     const backgroundSequence = (this.viewportBgSequenceImages || []).map((image) => image.src);
     const backgroundImage = this.viewportBgImage?.src || "";
+    // A pending Extractor import is drawn but never adopted: it rides along as
+    // an extra, gray entry in the *render-time* camera list only, so it gets
+    // the same 3D path/gizmo the WebGL viewport already draws for every real
+    // camera -- without ever touching this.state.cameras, the camera preview
+    // strip, or anything serialized. Committing (or dismissing) makes it
+    // disappear from here by clearing this.pendingExtractorImport.
+    const pending = this.pendingExtractorImport;
+    const renderCameras = pending
+      ? [...this.state.cameras, {
+          id: "__extractor_preview__",
+          name: pending.label,
+          color: "#9ca3af",
+          camera: pending.track.keyframes[0]?.camera,
+          keyframes: pending.track.keyframes,
+        }]
+      : this.state.cameras;
     const renderState = {
       ...this.state,
+      cameras: renderCameras,
       objects: worldObjects,
       viewport_bg_image: backgroundImage,
       viewport_bg_sequence: backgroundSequence,
       __selectedObjectIds: [...(this.selectedObjectIds || [])],
-      __omnicamRevision: this.renderRevision || 0,
+      __omnicamRevision: `${this.renderRevision || 0}:${pending?.fingerprint || ""}`,
     };
     let webglRendered = false;
     if (this.webgl) {

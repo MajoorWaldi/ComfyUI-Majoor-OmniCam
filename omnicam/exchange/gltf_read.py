@@ -203,39 +203,23 @@ def _animation_channels(document: dict[str, Any], buffers: list[bytes], node_ind
 
 
 def _normalize_quaternion(quaternion: list[float]) -> list[float]:
-    length = math.sqrt(sum(component * component for component in quaternion))
-    return [component / length for component in quaternion] if length > 1e-9 else [0.0, 0.0, 0.0, 1.0]
+    from ..core.camera_pose import normalize_quaternion_xyzw
+
+    return normalize_quaternion_xyzw(quaternion)
 
 
 def _camera_from_node(translation: list[float], rotation: list[float], fov: float,
                       near: float, far: float, orthographic: bool = False,
                       zoom: float = 1.0) -> dict[str, Any]:
     """A glTF camera node is a transform; OmniCam wants position + target + roll."""
-    from ..core.camera_math import camera_quaternion, rotate_quaternion
+    from ..core.camera_pose import camera_payload_from_pose
 
-    forward = rotate_quaternion([0.0, 0.0, -1.0], rotation)
-    up = rotate_quaternion([0.0, 1.0, 0.0], rotation)
-    target = [translation[axis] + forward[axis] for axis in range(3)]
-
-    reference = camera_quaternion(translation, target, 0.0)
-    reference_up = rotate_quaternion([0.0, 1.0, 0.0],
-                                     [reference["x"], reference["y"], reference["z"], reference["w"]])
-    cross = [
-        reference_up[1] * up[2] - reference_up[2] * up[1],
-        reference_up[2] * up[0] - reference_up[0] * up[2],
-        reference_up[0] * up[1] - reference_up[1] * up[0],
-    ]
-    dot = sum(a * b for a, b in zip(reference_up, up, strict=True))
-    sign = sum(c * f for c, f in zip(cross, forward, strict=True))
-    roll = math.degrees(math.atan2(sign, max(-1.0, min(1.0, dot))))
-
-    return {
-        "position": [float(value) for value in translation],
-        "target": [float(value) for value in target],
-        "fov": float(fov),
-        "roll": roll,
-        "camera_type": "orthographic" if orthographic else "perspective",
-        "zoom": float(zoom),
-        "near": float(near),
-        "far": float(far),
-    }
+    return camera_payload_from_pose(
+        translation,
+        rotation,
+        fov=fov,
+        near=near,
+        far=far,
+        camera_type="orthographic" if orthographic else "perspective",
+        zoom=zoom,
+    )

@@ -115,7 +115,7 @@ function inspectorPanel() {
         </div>
       </div>
 
-      <details class="oc-more"><summary>${t("Projection & Clipping")}</summary>
+      <details class="oc-more" data-density-min="advanced"><summary>${t("Projection & Clipping")}</summary>
         <div class="oc-field-row"><span class="oc-field-label">${t("Projection")}</span>
           <select data-role="camera-type"><option value="perspective">${t("Perspective")}</option><option value="orthographic">${t("Orthographic")}</option></select>
         </div>
@@ -168,13 +168,31 @@ function shotPanel() {
         <div class="oc-field-row"><span class="oc-field-label">${t("FOV")}</span><input data-role="key-fov" type="number" min="5" max="150" step="0.1"></div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Roll")}</span><input data-role="key-roll" type="number" min="-180" max="180" step="0.1"></div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Zoom")}</span><input data-role="key-zoom" type="number" min="0.01" step="0.05"></div>
-        <details class="oc-more"><summary>${t("Projection & Clipping")}</summary>
+        <details class="oc-more" data-density-min="advanced"><summary>${t("Projection & Clipping")}</summary>
           <div class="oc-field-row"><span class="oc-field-label">${t("Camera")}</span>
             <select data-role="key-camera-type"><option value="perspective">${t("Perspective")}</option><option value="orthographic">${t("Orthographic")}</option></select>
           </div>
           <div class="oc-field-row"><span class="oc-field-label">${t("Near Clip")}</span><input data-role="key-near" type="number" min="0.0001" step="0.001"></div>
           <div class="oc-field-row"><span class="oc-field-label">${t("Far Clip")}</span><input data-role="key-far" type="number" min="0.0002" step="1"></div>
         </details>
+      </div>
+    </div>`;
+}
+
+// Camera Health. The body is rendered by motion-health/panel.js rather than
+// declared here: its rows depend on the limit tables fetched from the server,
+// so there is no honest static markup for them.
+function healthPanel() {
+  return `
+    <div class="inspector-tab-content oc-side-body" data-tab-panel="health" data-density-min="animation" hidden>
+      <div class="oc-card oc-health">
+        <div class="oc-card-title"><i class="pi pi-heart"></i> ${t("Camera Health")}
+          <span class="oc-health-badge" data-role="health-badge">${t("Checking")}</span>
+        </div>
+        <div class="oc-field-row"><span class="oc-field-label">${t("Target model")}</span>
+          <select data-role="health-profile" title="${t("Grade the shot against this model's recommended limits")}"></select>
+        </div>
+        <div data-role="health-body"></div>
       </div>
     </div>`;
 }
@@ -186,9 +204,11 @@ export function sidePanelMarkup() {
         <button class="inspector-tab active" data-tab="scene">${t("Outliner")}</button>
         <button class="inspector-tab" data-tab="camera">${t("Inspector")}</button>
         <button class="inspector-tab" data-tab="display">${t("Shot")}</button>
+        <button class="inspector-tab" data-tab="health" data-density-min="animation">${t("Health")}</button>
       </div>
       ${outlinerPanel()}
       ${inspectorPanel()}
       ${shotPanel()}
+      ${healthPanel()}
     </div>`;
 }

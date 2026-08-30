@@ -212,16 +212,6 @@ def validate_zero_motion(track: OmniCamTrack, tolerance: float = 1e-6) -> bool:
     return True
 
 
-def _angular_speed(cameras: list[CameraState], fps: int) -> list[float]:
-    speeds = [0.0]
-    for previous, current in pairwise(cameras):
-        forward_a = _normalize([previous.target[i] - previous.position[i] for i in range(3)])
-        forward_b = _normalize([current.target[i] - current.position[i] for i in range(3)])
-        angle = math.degrees(math.acos(max(-1.0, min(1.0, sum(forward_a[i] * forward_b[i] for i in range(3))))))
-        speeds.append(angle * fps)
-    return speeds
-
-
 def motion_health_check(track: OmniCamTrack, limits: dict[str, float] | None = None, subject: list[float] | None = None) -> dict[str, Any]:
     """Measure speed, angular speed, acceleration, jerk, FOV drift and framing loss.
 
@@ -230,44 +220,13 @@ def motion_health_check(track: OmniCamTrack, limits: dict[str, float] | None = N
     max_fov_change). The core never hardcodes model semantics: without limits
     the report is purely descriptive. Framing loss counts frames where the
     subject point (the ``subject`` object when present) leaves the image.
-    """
-    limits = limits or {}
-    cameras = [track.sample(frame) for frame in range(track.duration_frames)]
-    speeds = motion_speed_profile(track)
-    angular = _angular_speed(cameras, track.fps)
-    accelerations = [0.0, *[abs(b - a) * track.fps for a, b in pairwise(speeds)]]
-    jerks = [0.0, *[abs(b - a) * track.fps for a, b in pairwise(accelerations)]]
-    fovs = [camera.fov for camera in cameras]
-    framing_loss = 0
-    from .projection import project_point
 
-    if subject is None:
-        subject_object = next((obj for obj in track.objects if obj.get("id") == "subject"), None)
-        subject = list(subject_object.get("position", [0.0, 1.5, 0.0])) if isinstance(subject_object, dict) else [0.0, 1.5, 0.0]
-    for camera in cameras:
-        projected = project_point(subject, camera, track.width, track.height)
-        if projected is None or not (0 <= projected[0] < track.width and 0 <= projected[1] < track.height):
-            framing_loss += 1
-    report = {
-        "max_speed": max(speeds, default=0.0),
-        "max_angular_speed": max(angular, default=0.0),
-        "max_acceleration": max(accelerations, default=0.0),
-        "max_jerk": max(jerks, default=0.0),
-        "max_fov_change": max(fovs, default=0.0) - min(fovs, default=0.0),
-        "framing_loss_frames": framing_loss,
-        "duration_frames": track.duration_frames,
-        "fps": track.fps,
-        "violations": [],
-    }
-    metric_keys = ("max_speed", "max_angular_speed", "max_acceleration", "max_jerk", "max_fov_change")
-    for metric in metric_keys:
-        recommended = limits.get(metric)
-        if recommended is not None and report[metric] > float(recommended):
-            report["violations"].append({"metric": metric, "value": report[metric], "recommended_max": float(recommended)})
-    if framing_loss and limits.get("allow_framing_loss") is not True:
-        report["violations"].append({"metric": "framing_loss_frames", "value": framing_loss, "recommended_max": 0})
-    report["ok"] = not report["violations"]
-    return report
+    Thin wrapper over :func:`motion_health.motion_health_report`, which owns the
+    maths and additionally returns the per-frame series the Health panel paints.
+    """
+    from .motion_health import motion_health_report
+
+    return motion_health_report(track, limits, subject)
 
 
 def retime_to_speed(track: OmniCamTrack, target_speed: float) -> OmniCamTrack:
@@ -298,6 +257,109 @@ def retime_to_speed(track: OmniCamTrack, target_speed: float) -> OmniCamTrack:
         })
     payload["keyframes"] = keys
     return OmniCamTrack.from_dict(payload)
+
+
+def retime_constant_speed(track: OmniCamTrack) -> OmniCamTrack:
+    """Redistribute timing so the camera travels its path at a constant speed.
+
+    Unlike :func:`retime_to_speed` the duration is preserved, which is what a
+    fixed-length generation requires. For a fixed path and a fixed duration the
+    average speed is invariant, so flattening the profile is the *most* a
+    re-time can do: it lowers the peak to that average and no further.
+    """
+    frames = track.duration_frames
+    if frames < 3:
+        return track
+    cameras = [track.sample(frame) for frame in range(frames)]
+    cumulative = [0.0]
+    for previous, current in pairwise(cameras):
+        cumulative.append(cumulative[-1] + math.sqrt(sum((current.position[i] - previous.position[i]) ** 2 for i in range(3))))
+    total = cumulative[-1]
+    if total <= 1e-9:
+        return track
+    keys = []
+    source = 0
+    for frame in range(frames):
+        travelled = total * frame / (frames - 1)
+        while source < frames - 2 and cumulative[source + 1] < travelled:
+            source += 1
+        span = cumulative[source + 1] - cumulative[source]
+        fraction = 0.0 if span <= 1e-12 else (travelled - cumulative[source]) / span
+        keys.append(CameraKeyframe(frame, track.sample(source + fraction), "linear"))
+    return _copy_track(track, keys)
+
+
+def plan_speed_fix(track: OmniCamTrack, target_speed: float) -> dict[str, Any]:
+    """Report what a "slow down to the limit" action can actually achieve.
+
+    Returns the peak speed now, after a duration-preserving flatten, and the
+    duration a real slow-down would need. The caller decides; this function
+    never claims a fix that the geometry does not allow.
+    """
+    target_speed = max(1e-6, float(target_speed))
+    peak = max(motion_speed_profile(track), default=0.0)
+    flattened_peak = max(motion_speed_profile(retime_constant_speed(track)), default=0.0)
+    # The shortest duration that respects the limit, measured after flattening:
+    # a burst that merely peaks above the limit needs no extra frames at all,
+    # and quoting the raw peak here would demand a pointless longer shot.
+    required_frames = track.duration_frames if flattened_peak <= target_speed else max(
+        track.duration_frames, round(track.duration_frames * (flattened_peak / target_speed)))
+    return {
+        "target_speed": target_speed,
+        "peak_speed": peak,
+        "flattened_peak_speed": flattened_peak,
+        "already_within_limit": peak <= target_speed,
+        "constant_speed_is_enough": flattened_peak <= target_speed,
+        "duration_frames": track.duration_frames,
+        "required_duration_frames": required_frames,
+    }
+
+
+def smooth_camera_path_range(track: OmniCamTrack, start: int, end: int, radius: int = 2) -> OmniCamTrack:
+    """Smooth only frames within ``[start, end]``, leaving the rest sampled as-is.
+
+    The averaging window is clamped to the range, so the untouched frames on
+    either side keep their exact values and the repair stays local to the
+    segment the Health panel flagged.
+    """
+    radius = max(1, int(radius))
+    last = track.duration_frames - 1
+    start, end = max(0, min(int(start), last)), max(0, min(int(end), last))
+    if end < start:
+        start, end = end, start
+    samples = [track.sample(frame) for frame in range(track.duration_frames)]
+    keys = []
+    for frame, camera in enumerate(samples):
+        smoothed = CameraState.from_dict(asdict(camera))
+        if start <= frame <= end:
+            lo, hi = max(start, frame - radius), min(end + 1, frame + radius + 1)
+            window = samples[lo:hi]
+            smoothed.position = [sum(item.position[axis] for item in window) / len(window) for axis in range(3)]
+            smoothed.target = [sum(item.target[axis] for item in window) / len(window) for axis in range(3)]
+        keys.append(CameraKeyframe(frame, smoothed, "linear"))
+    return _copy_track(track, keys)
+
+
+def recenter_subject_range(track: OmniCamTrack, subject: list[float], start: int = 0, end: int | None = None) -> OmniCamTrack:
+    """Aim the keys inside ``[start, end]`` at ``subject`` without baking the track.
+
+    Keys outside the range keep their authored target, so recentring one flagged
+    segment does not flatten the framing of the whole shot the way
+    :func:`constrain_look_at` does.
+    """
+    last = track.duration_frames - 1
+    end = last if end is None else max(0, min(int(end), last))
+    start = max(0, min(int(start), last))
+    if end < start:
+        start, end = end, start
+    point = [float(value) for value in subject]
+    keys = []
+    for key in track.keyframes:
+        camera = CameraState.from_dict(asdict(key.camera))
+        if start <= key.frame <= end:
+            camera.target = list(point)
+        keys.append(CameraKeyframe(key.frame, camera, key.interpolation, key.tangents, key.references))
+    return _copy_track(track, keys)
 
 
 def fov_to_focal_length(fov_degrees: float, sensor_height_mm: float = 24.0) -> float:

@@ -236,9 +236,21 @@ export function createSceneMethods(dependencies) {
     toggleCameraView(this);
   },
   setDensity(density) {
-    ["basic", "animation", "advanced"].includes(density) || (density = "advanced"), this.state.ui_density = density, this.root.dataset.density = density, this.root.querySelector('[data-role="ui-density"]').value = density, this.serialize(), requestAnimationFrame(() => {
+    ["basic", "animation", "advanced"].includes(density) || (density = "advanced");
+    this.state.ui_density = density;
+    this.root.dataset.density = density;
+    this.root.querySelector('[data-role="ui-density"]').value = density;
+    // A tab that just became density-hidden must not stay "active" behind an
+    // invisible pane -- fall back to the Outliner, which every tier keeps.
+    const activeTab = this.root.querySelector(".inspector-tab.active");
+    if (activeTab && getComputedStyle(activeTab).display === "none") {
+      this.root.querySelector('[data-tab="scene"]')?.click();
+    }
+    this.serialize();
+    requestAnimationFrame(() => {
       this.resizeCanvas(), this.render();
-    }), this.setStatus(`Interface: ${density}`);
+    });
+    this.setStatus(`Interface: ${density}`);
   },
   lookAtObject(id) {
     const object = this.state.objects.find((item) => item.id === id);

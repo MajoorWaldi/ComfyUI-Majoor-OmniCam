@@ -160,6 +160,22 @@ async def test_upload_rejects_signature_mismatch(input_dir):
 
 
 @pytest.mark.asyncio
+async def test_extractor_metadata_failure_removes_completed_upload(input_dir, monkeypatch):
+    monkeypatch.setattr(
+        routes,
+        "_validate_media_metadata",
+        lambda _path: (_ for _ in ()).throw(web.HTTPBadRequest(text="invalid video")),
+    )
+    request = FakeRequest(FakeField("video", "broken.avi", [b"RIFF\x00\x00\x00\x00AVI invalid"]))
+
+    with pytest.raises(web.HTTPBadRequest) as exc_info:
+        await routes.upload_extractor_source(request)
+
+    assert exc_info.value.text == "invalid video"
+    assert not any(p.is_file() for p in (input_dir / "omnicam").rglob("*"))
+
+
+@pytest.mark.asyncio
 async def test_upload_client_disconnect_cleans_partial(input_dir):
     field = FakeField("file", "card.png", [b"\x89PNG\r\n\x1a\n"], fail_at=1)
     field._chunks = [b"\x89PNG\r\n\x1a\n"]  # one chunk written, then disconnect

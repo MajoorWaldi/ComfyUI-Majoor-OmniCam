@@ -159,65 +159,74 @@ export function createResourceMethods(dependencies) {
 
         const position = new THREE.Vector3().fromArray(key.camera.position);
         const target = new THREE.Vector3().fromArray(key.camera.target || [0, 0, 0]);
-        const forward = target.clone().sub(position).normalize();
-        let right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
-        if (right.lengthSq() < 1e-8) right.set(1, 0, 0); else right.normalize();
-        const up = new THREE.Vector3().crossVectors(right, forward).normalize();
-        const distance = THREE.MathUtils.clamp(position.distanceTo(target) * 0.08, 0.25, 0.8);
-        const halfHeight = key.camera.camera_type === "orthographic" ? distance * 0.55 : distance * Math.tan(THREE.MathUtils.degToRad(key.camera.fov || 35) * 0.5);
-        const halfWidth = (halfHeight * (state.width || 16)) / Math.max(1, state.height || 9);
-        const center = position.clone().addScaledVector(forward, distance);
-        const corners = [
-          center.clone().addScaledVector(right, -halfWidth).addScaledVector(up, -halfHeight),
-          center.clone().addScaledVector(right, halfWidth).addScaledVector(up, -halfHeight),
-          center.clone().addScaledVector(right, halfWidth).addScaledVector(up, halfHeight),
-          center.clone().addScaledVector(right, -halfWidth).addScaledVector(up, halfHeight),
-        ];
-        const segments = [];
-        for (const corner of corners) segments.push(position, corner);
-        for (let index = 0; index < 4; index++) segments.push(corners[index], corners[(index + 1) % 4]);
-        const frustum = new THREE.BufferGeometry().setFromPoints(segments);
-        const frustumLines = new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({
-          color: isSelected ? palette.marker : palette.frustum,
-          transparent: true,
-          opacity: isSelected ? 1.0 : isActive ? 0.9 : 0.45,
-          depthTest: false,
-        }));
-        frustumLines.userData.omnicamWidget = "gizmo";
-        this.path.add(frustumLines);
+        const selectedKeyHere = isActive && selectedFrame != null && key.frame === selectedFrame;
 
-        // A shaded body with a lens cone reads as a camera at a glance, where
-        // the frustum lines alone read as an abstract shape.
-        const body = cameraBodyGizmo(THREE, {
-          position, forward, up,
-          color: palette.marker,
-          scale: THREE.MathUtils.clamp(distance * 1.15, 0.35, 1.6),
-          active: isActive,
-        });
-        body.userData.omnicamWidget = "gizmo";
-        this.path.add(body);
+        // Every other keyframe is just its path point above: the frustum and
+        // camera body only draw for the one keyframe actually selected. The
+        // live (scrubbed) position gets its own camera from updateLiveCameras,
+        // so a path full of keyframes never reads as a wall of cameras.
+        if (selectedKeyHere) {
+          const forward = target.clone().sub(position).normalize();
+          let right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
+          if (right.lengthSq() < 1e-8) right.set(1, 0, 0); else right.normalize();
+          const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+          const distance = THREE.MathUtils.clamp(position.distanceTo(target) * 0.08, 0.25, 0.8);
+          const halfHeight = key.camera.camera_type === "orthographic" ? distance * 0.55 : distance * Math.tan(THREE.MathUtils.degToRad(key.camera.fov || 35) * 0.5);
+          const halfWidth = (halfHeight * (state.width || 16)) / Math.max(1, state.height || 9);
+          const center = position.clone().addScaledVector(forward, distance);
+          const corners = [
+            center.clone().addScaledVector(right, -halfWidth).addScaledVector(up, -halfHeight),
+            center.clone().addScaledVector(right, halfWidth).addScaledVector(up, -halfHeight),
+            center.clone().addScaledVector(right, halfWidth).addScaledVector(up, halfHeight),
+            center.clone().addScaledVector(right, -halfWidth).addScaledVector(up, halfHeight),
+          ];
+          const segments = [];
+          for (const corner of corners) segments.push(position, corner);
+          for (let index = 0; index < 4; index++) segments.push(corners[index], corners[(index + 1) % 4]);
+          const frustum = new THREE.BufferGeometry().setFromPoints(segments);
+          const frustumLines = new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({
+            color: palette.marker,
+            transparent: true,
+            opacity: 1.0,
+            depthTest: false,
+          }));
+          frustumLines.userData.omnicamWidget = "gizmo";
+          this.path.add(frustumLines);
 
-        if (isActive) {
-          const selectedKeyHere = selectedFrame != null && key.frame === selectedFrame;
+          // A shaded body with a lens cone reads as a camera at a glance, where
+          // the frustum lines alone read as an abstract shape.
+          const body = cameraBodyGizmo(THREE, {
+            position, forward, up,
+            color: palette.marker,
+            scale: THREE.MathUtils.clamp(distance * 1.15, 0.35, 1.6),
+            active: isActive,
+          });
+          body.userData.omnicamWidget = "gizmo";
+          this.path.add(body);
+        }
+
+        // Same rule as the frustum above: a look-at crosshair per keyframe was
+        // just as much clutter as a camera per keyframe. Only the selected key
+        // gets one here; the live (scrubbed) look-at comes from
+        // updateLiveCameras, same as the live camera body.
+        if (selectedKeyHere) {
           const crosshair = targetCrosshair(THREE, {
             position: target,
-            radius: THREE.MathUtils.clamp(position.distanceTo(target) * 0.05, 0.16, 0.5) * (selectedKeyHere ? 1.4 : 1),
-            bold: selectedKeyHere,
+            radius: THREE.MathUtils.clamp(position.distanceTo(target) * 0.05, 0.16, 0.5) * 1.4,
+            bold: true,
           });
           crosshair.userData.omnicamWidget = "lookat";
           this.path.add(crosshair);
 
           // Highlight the selected keyframe's line of sight so the look-at reads
           // as a direction, not just a point in space.
-          if (selectedKeyHere) {
-            const sight = new THREE.Line(
-              new THREE.BufferGeometry().setFromPoints([position.clone(), target.clone()]),
-              new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, depthTest: false }),
-            );
-            sight.renderOrder = 914;
-            sight.userData.omnicamWidget = "lookat";
-            this.path.add(sight);
-          }
+          const sight = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([position.clone(), target.clone()]),
+            new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, depthTest: false }),
+          );
+          sight.renderOrder = 914;
+          sight.userData.omnicamWidget = "lookat";
+          this.path.add(sight);
         }
       }
     });

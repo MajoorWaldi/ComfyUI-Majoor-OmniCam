@@ -99,7 +99,31 @@ def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -
             "installed": bool(detected), "detected_nodes": detected,
             "expected_inputs": sorted(expected), "docs": info["docs"],
         })
-    return {"format": "majoor.omnicam.capabilities.v2", "states": CAPABILITY_STATES, "capabilities": capabilities}
+    return {
+        "format": "majoor.omnicam.capabilities.v2",
+        "states": CAPABILITY_STATES,
+        "capabilities": capabilities,
+        "extractor": detect_extractor_backends(),
+    }
+
+
+def detect_extractor_backends() -> dict[str, Any]:
+    """Which camera-tracking solvers this install can actually run.
+
+    Both are optional, and probing them must never be able to break OmniCam's
+    import: an environment with a half-built CUDA extension is exactly the one
+    that needs the diagnostic to still load.
+    """
+    try:
+        from .extractor.backends import backend_availability
+
+        return {
+            name: {"available": availability.available, "reason": availability.reason}
+            for name, availability in backend_availability().items()
+        }
+    except Exception as exc:  # noqa: BLE001 - a broken optional dependency is a report, not a crash
+        logger.debug("OmniCam extractor backends could not be probed: %s", exc)
+        return {}
 
 
 def _remediation(entry: dict[str, Any]) -> str | None:
@@ -124,6 +148,18 @@ def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]
                 "message": f"{entry['display']} contract is {entry['state'].replace('_', ' ')}.",
                 "remediation": remediation, "docs": entry["docs"],
             })
+    extractor = capabilities.get("extractor") or {}
+    if extractor and not any(entry.get("available") for entry in extractor.values()):
+        # A warning, not an error: OmniCam's five other nodes work perfectly
+        # well without a tracker installed.
+        reasons = "; ".join(f"{name}: {entry.get('reason') or 'unavailable'}" for name, entry in extractor.items())
+        issues.append({
+            "adapter": "extractor", "display": "OmniCam Extractor", "state": "missing",
+            "severity": "warning",
+            "message": f"No camera-tracking backend is installed ({reasons}).",
+            "remediation": "Install DPVO or OpenCV to use OmniCam Extractor. See docs/NODES.md",
+            "docs": "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main/docs/NODES.md",
+        })
     return {"format": "majoor.omnicam.setup-diagnostic.v2", "ok": not any(i["severity"] == "error" for i in issues), "issues": issues}
 
 

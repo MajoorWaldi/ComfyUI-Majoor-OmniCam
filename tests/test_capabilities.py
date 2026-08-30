@@ -158,3 +158,36 @@ def test_socket_discovery_survives_hostile_shapes():
     assert "loop" in _socket_names([Cyclic()]), "recursion is depth-capped, not fatal"
     assert _socket_names(None) == set()
     assert _socket_names([object()]) == set()
+
+
+def test_capabilities_report_extractor_backend_availability():
+    report = detect_capabilities(set())["extractor"]
+    assert set(report) == {"dpvo", "opencv_sift"}
+    for entry in report.values():
+        assert isinstance(entry["available"], bool)
+        if not entry["available"]:
+            assert entry["reason"]
+
+
+def test_a_missing_tracker_is_a_warning_not_an_error(monkeypatch):
+    from omnicam.extractor.backends import BackendAvailability, DpvoBackend, OpenCvSiftBackend
+
+    for backend in (DpvoBackend, OpenCvSiftBackend):
+        monkeypatch.setattr(
+            backend, "availability", classmethod(lambda cls: BackendAvailability(False, "not here"))
+        )
+    diagnostic = diagnose_setup(detect_capabilities({"WanCameraImageToVideo", "WanVideoATITracks",
+                                                     "MiniMaxHailuoVideoNode", "LTXVBaseSampler"}))
+    extractor_issues = [issue for issue in diagnostic["issues"] if issue["adapter"] == "extractor"]
+    assert len(extractor_issues) == 1
+    assert extractor_issues[0]["severity"] == "warning"
+    assert "not here" in extractor_issues[0]["message"]
+
+
+def test_an_available_tracker_raises_no_extractor_issue():
+    from omnicam.extractor.backends import backend_availability
+
+    if not any(entry.available for entry in backend_availability().values()):
+        pytest.skip("no camera-tracking backend is installed in this environment")
+    diagnostic = diagnose_setup(detect_capabilities(set()))
+    assert not [issue for issue in diagnostic["issues"] if issue["adapter"] == "extractor"]

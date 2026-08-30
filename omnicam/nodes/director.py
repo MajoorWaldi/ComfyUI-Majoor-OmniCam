@@ -17,8 +17,10 @@ from ..core.sequence import (
     targets_sequence,
 )
 from ..core.track import OmniCamTrack
+from ..core.upstream_track import resolve_director_camera_track
 from ..core.video_sampling import sample_video_frames
 from .base import OMNICAM_SHOT_COLLECTION, OMNICAM_TRACK, resolve_video
+from .media import as_image_batch, as_video, media_input
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +50,29 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                     "render_mode",
                     options=["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"],
                 ),
-                IO.Image.Input("image", optional=True),
-                IO.Video.Input("video", optional=True),
+                media_input("image", optional=True, tooltip="Reference stills, or a clip sampled for them."),
+                media_input("video", optional=True, tooltip="A proxy clip, or an IMAGE batch read at the node fps."),
                 IO.Audio.Input("audio", optional=True),
                 IO.Custom("*").Input("scene_3d", optional=True),
+                OMNICAM_TRACK.Input(
+                    "camera_track",
+                    optional=True,
+                    tooltip=(
+                        "Optional upstream canonical camera track. OmniCam Extractor can connect "
+                        "here. The Director imports each new extractor fingerprint once and then "
+                        "leaves your edits alone; disconnect the cable to freeze what you imported."
+                    ),
+                ),
             ],
             outputs=[
                 OMNICAM_TRACK.Output(display_name="camera_track"),
                 IO.Video.Output(display_name="proxy_video"),
                 IO.Audio.Output(display_name="audio"),
                 OMNICAM_SHOT_COLLECTION.Output(display_name="shot_collection"),
+                # Appended, not inserted: existing saved links address outputs by
+                # slot index, and this twin only needs to exist for graphs that
+                # want frames without a Video-to-Image node in between.
+                IO.Image.Output(display_name="proxy_frames"),
             ],
         )
 
@@ -76,7 +91,13 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         video=None,
         audio=None,
         scene_3d=None,
+        camera_track=None,
     ) -> IO.NodeOutput:
+        # Both media sockets take either type: a clip connected to `image` is
+        # sampled for stills, and stills connected to `video` become a proxy
+        # read at this node's own frame rate.
+        image = as_image_batch(image, max_frames=32)
+        video = as_video(video, fps=float(fps))
         raw_state: dict[str, Any] = {}
         try:
             parsed = json.loads(state_json) if state_json else {}
@@ -93,7 +114,17 @@ class MajoorOmniCamDirector(IO.ComfyNode):
             "duration_frames": max(1, round(float(duration_seconds) * int(fps))),
             "render_mode": str(render_mode),
         }
-        track = OmniCamTrack.from_dict(editor_state_to_track(authoritative_state, validate=True))
+        # A connected Extractor is authoritative once per solve, never on every
+        # queue: resolve_director_camera_track() compares fingerprints so local
+        # edits survive a cable that is still plugged in.
+        effective_track = resolve_director_camera_track(
+            local_track=editor_state_to_track(authoritative_state, validate=True),
+            upstream_track=camera_track if isinstance(camera_track, dict) else None,
+            width=int(width),
+            height=int(height),
+            render_mode=str(render_mode),
+        )
+        track = OmniCamTrack.from_dict(effective_track)
         cameras = raw_state.get("cameras")
         selected_camera_id = track.metadata.get("camera_id")
         selected_camera = next(
@@ -202,7 +233,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 "cuts": edit_cuts,
             },
         })
-        preview = image[:32] if image is not None else None
+        preview = image if image is not None else None
         if preview is None and proxy_video is not None:
             # The proxy thumbnail is cosmetic: an unreadable or non-decodable
             # playblast must never abort the graph execution that produced it.
@@ -213,4 +244,6 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 logger.warning("OmniCam Director could not sample the proxy video for preview: %s", exc)
                 preview = None
         ui = UI.PreviewImage(preview, cls=cls) if preview is not None else None
-        return IO.NodeOutput(track.to_dict(), proxy_video, audio, shot_collection, ui=ui)
+        # `preview` is already the bounded proxy sample (or the connected image
+        # batch); the graph twin is exactly that, not a second decode.
+        return IO.NodeOutput(track.to_dict(), proxy_video, audio, shot_collection, preview, ui=ui)

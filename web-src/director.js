@@ -1,6 +1,13 @@
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 import { registerOmniCamNodeBranding } from "./node-branding.js";
+import { configureMotionHealthApi } from "./motion-health/panel.js";
+// Registers the sixth public node inside this same bundle; there is no second
+// public script for ComfyUI to load.
+import "./extractor/index.js";
+import "./monitor/index.js";
+import "./help/index.js";
+configureMotionHealthApi(api);
 import { migrateDirectorOutputs } from "./director-output-migration.js";
 import { OMNICAM_SETTINGS, applyDirectorDefaults, registerOmniCamLocales } from "./settings.js";
 import { OmniWebGLViewport } from "./omnicam-webgl.js";

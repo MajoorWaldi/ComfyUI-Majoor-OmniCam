@@ -8,6 +8,7 @@ import { renderRuler } from "./timeline/ruler.js";
 import { renderChannelList } from "./curve-editor/channel-list.js";
 import { renderGraphDopeSheet } from "./curve-editor/dope-view.js";
 import { refreshGraphTab } from "./curve-editor/tabs.js";
+import { renderHealthZones } from "./motion-health/panel.js";
 
 export * from "./timeline-interaction.js";
 export * from "./curve-editor.js";
@@ -56,6 +57,10 @@ export function refreshKeys(ui) {
     range.style.width = `${Math.max(0, endPct - startPct)}%`;
     box.appendChild(range);
   }
+
+  // Health bands sit under the keys so a flagged stretch is visible where the
+  // animator is already looking, not only inside the Health tab.
+  renderHealthZones(ui, box);
 
   for (const marker of ui.state.markers || []) {
     const pct = timelinePercentForFrame(ui, marker.frame);

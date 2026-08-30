@@ -2,6 +2,7 @@
 
 import { api } from "../../scripts/api.js";
 import { t } from "./omnicam-i18n.js";
+import { fetchOmniCamCapabilities } from "./shared/capabilities.js";
 
 export async function refreshSetupDiagnostic(ui) {
   const badge = ui.root.querySelector('[data-role="setup-badge"]');
@@ -9,9 +10,7 @@ export async function refreshSetupDiagnostic(ui) {
   if (!badge || !issuesBox) return;
   let payload;
   try {
-    const response = await api.fetchApi("/majoor/omnicam/capabilities");
-    if (!response.ok) return;
-    payload = await response.json();
+    payload = await fetchOmniCamCapabilities(api);
   } catch {
     return; // diagnostic is best-effort; never break the editor
   }

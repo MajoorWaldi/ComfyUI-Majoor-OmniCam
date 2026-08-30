@@ -5,19 +5,7 @@
 // declared here, so retheming means editing this block only.
 
 export const SHELL_STYLES = `
-      .majoor-omnicam{
-        --oc-bg:#141419; --oc-panel:#1a1a21; --oc-panel-2:#20202a; --oc-sunken:#101014;
-        --oc-line:#2c2c38; --oc-line-soft:#26262f;
-        --oc-text:#e6e6f0; --oc-text-dim:#9a9aad; --oc-text-faint:#6f6f82;
-        --oc-accent:#8b7bd8; --oc-accent-soft:#6d5fb0; --oc-accent-ink:#ffffff;
-        --oc-radius:10px; --oc-radius-sm:7px;
-        background:var(--oc-bg);border-color:var(--oc-line);color:var(--oc-text);
-      }
-
       /* ---- header --------------------------------------------------- */
-      .majoor-omnicam .oc-header{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--oc-panel);border-bottom:1px solid var(--oc-line)}
-      .majoor-omnicam .oc-brand{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--oc-panel-2);border:1px solid var(--oc-line);color:var(--oc-text)}
-      .majoor-omnicam .oc-title{font-size:14px;font-weight:650;letter-spacing:.01em}
       .majoor-omnicam .oc-header-spacer,.majoor-omnicam .oc-toolbar-spacer,.majoor-omnicam .oc-transport-spacer,.majoor-omnicam .oc-footer-spacer,.majoor-omnicam .oc-graph-spacer{flex:1 1 auto;min-width:0}
       .majoor-omnicam .oc-status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;background:#16281d;border:1px solid #2f6b45;color:#7ee2a8;font-size:11px;font-weight:600;white-space:nowrap}
       .majoor-omnicam .oc-status-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
@@ -127,6 +115,33 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-more>summary{cursor:pointer;color:var(--oc-text-dim);font-size:11px;font-weight:600}
       .majoor-omnicam .oc-more[open]>summary{margin-bottom:6px}
       .majoor-omnicam .oc-more .oc-field-row{margin-top:4px}
+
+      /* ---- camera health --------------------------------------------- */
+      /* One traffic-light palette, shared by the panel rows, the zone list and
+         the timeline bands, so the same colour always means the same verdict. */
+      .majoor-omnicam .oc-health{--oc-health-ok:#46a758;--oc-health-warn:#f2b03c;--oc-health-over:#e5484d}
+      .majoor-omnicam .oc-health-badge{margin-left:auto;padding:2px 7px;border-radius:9px;background:var(--oc-sunken);color:var(--oc-text-dim);font-size:10px;font-weight:600;letter-spacing:.02em}
+      .majoor-omnicam .oc-health-badge.ok{background:#46a75826;color:#7fd694}
+      .majoor-omnicam .oc-health-badge.warn{background:#f2b03c26;color:#f2c67a}
+      .majoor-omnicam .oc-health-badge.over{background:#e5484d26;color:#f08a8d}
+      .majoor-omnicam .oc-health-metrics{display:flex;flex-direction:column;gap:2px;margin-top:5px}
+      .majoor-omnicam .oc-health-metric{display:flex;align-items:center;gap:6px;padding:3px 5px;border-radius:4px;background:var(--oc-sunken);font-size:11px}
+      .majoor-omnicam .oc-health-metric-name{flex:1;color:var(--oc-text-dim)}
+      .majoor-omnicam .oc-health-metric-value{font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--oc-text)}
+      .majoor-omnicam .oc-health-dot{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:var(--oc-health-ok)}
+      .majoor-omnicam [data-grade=warn] .oc-health-dot{background:var(--oc-health-warn)}
+      .majoor-omnicam [data-grade=over] .oc-health-dot{background:var(--oc-health-over)}
+      .majoor-omnicam .oc-health-zones{display:flex;flex-direction:column;gap:2px}
+      .majoor-omnicam .oc-health-zone{display:flex;align-items:center;gap:6px;width:100%;padding:3px 5px;background:var(--oc-sunken);border:1px solid transparent;border-radius:4px;color:var(--oc-text);font-size:11px;text-align:left;cursor:pointer}
+      .majoor-omnicam .oc-health-zone:hover{border-color:var(--oc-line)}
+      .majoor-omnicam .oc-health-zone-range{flex:0 0 auto;font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+      .majoor-omnicam .oc-health-zone-reason{flex:1;overflow:hidden;color:var(--oc-text-dim);text-overflow:ellipsis;white-space:nowrap}
+      .majoor-omnicam .oc-health-empty{padding:6px 5px;color:var(--oc-text-dim);font-size:11px}
+      .majoor-omnicam .oc-health-note{margin:6px 0 0;color:var(--oc-text-dim);font-size:10.5px;line-height:1.45}
+      /* Bands sit behind the keyframe diamonds and must never eat their clicks. */
+      .majoor-omnicam .oc-health-band{position:absolute;z-index:1;top:0;bottom:0;pointer-events:none}
+      .majoor-omnicam .oc-health-band[data-grade=warn]{background:#f2b03c1f;border-top:2px solid #f2b03caa}
+      .majoor-omnicam .oc-health-band[data-grade=over]{background:#e5484d24;border-top:2px solid #e5484dcc}
 
       /* ---- footer ---------------------------------------------------- */
       .majoor-omnicam .oc-footer{display:flex;align-items:center;gap:9px;padding:8px 12px;background:var(--oc-panel);border-top:1px solid var(--oc-line)}
