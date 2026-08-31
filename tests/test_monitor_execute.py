@@ -6,6 +6,29 @@ from omnicam.core.track import OmniCamTrack
 from omnicam.monitor import execute as monitor_execute
 
 
+class FakeVideo:
+    def get_frame_rate(self):
+        return 24.0
+
+    def get_frame_count(self):
+        return 120
+
+    def get_dimensions(self):
+        return 1280, 720
+
+
+def test_proxy_media_facts_reads_a_real_video_contract():
+    facts = monitor_execute.proxy_media_facts(FakeVideo())
+    assert facts == {
+        "available": True,
+        "fps": 24.0,
+        "frame_count": 120,
+        "duration_seconds": 5.0,
+        "width": 1280,
+        "height": 720,
+    }
+
+
 def _track():
     return OmniCamTrack.from_dict({"duration_frames": 2, "keyframes": [{"frame": 0, "camera": {}}]})
 

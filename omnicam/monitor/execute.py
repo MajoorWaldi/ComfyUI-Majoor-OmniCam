@@ -30,11 +30,12 @@ def proxy_media_facts(proxy_video: Any) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 - third-party VIDEO objects vary
         logger.debug("Could not inspect the Monitor proxy video: %s", exc)
         return {"available": True}
+    frame_rate = metadata.frame_rate
     return {
         "available": True,
-        "fps": metadata.fps,  # type: ignore[attr-defined]
+        "fps": frame_rate,
         "frame_count": metadata.frame_count,
-        "duration_seconds": metadata.frame_count / max(1e-6, metadata.fps),  # type: ignore[attr-defined]
+        "duration_seconds": metadata.frame_count / max(1e-6, frame_rate),
         "width": metadata.width,
         "height": metadata.height,
     }
