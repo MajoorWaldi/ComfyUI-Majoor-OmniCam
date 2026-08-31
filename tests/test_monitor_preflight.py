@@ -81,12 +81,26 @@ def test_h3_dialects_are_reported_per_profile(track):
     assert any(check["label"] == "Prompt dialect: <Video 1>" for check in native.checks)
 
 
-def test_h3_native_enforces_its_17n_plus_5_length(track):
-    proxy = {"available": True, "duration_seconds": 5.0}
-    assert _h3(track, "h3_native", proxy=proxy, length=124).state == "READY"
-    bad = _h3(track, "h3_native", proxy=proxy, length=120)
-    assert bad.state == "BLOCKED"
-    assert any(issue["id"] == "length_17n_plus_5" for issue in bad.issues)
+def test_h3_native_reports_length_snap_instead_of_blocking(track):
+    proxy = {"available": True, "frame_count": 120, "duration_seconds": 5.0}
+    report = _h3(track, "h3_native", proxy=proxy, length=81)
+    assert report.state in {"READY", "WARNING"}
+    assert not any(i["severity"] == "error" and i["id"] == "length_17n_plus_5" for i in report.issues)
+    snap = next(c for c in report.checks if c["id"] == "length_17n_plus_5")
+    assert "90" in snap["message"]
+
+
+def test_h3_native_short_but_valid_reference_is_warning_not_blocked(track):
+    proxy = {"available": True, "frame_count": 22, "duration_seconds": 22 / 24}
+    report = _h3(track, "h3_native", proxy=proxy, length=124)
+    assert report.state == "WARNING"
+    assert not any(i["severity"] == "error" and i["id"] == "reference_duration" for i in report.issues)
+
+
+def test_h3_native_reference_under_five_frames_blocks(track):
+    proxy = {"available": True, "frame_count": 4, "duration_seconds": 4 / 24}
+    report = _h3(track, "h3_native", proxy=proxy, length=124)
+    assert report.state == "BLOCKED"
 
 
 def test_h3_prompt_budget_is_a_real_check(track):

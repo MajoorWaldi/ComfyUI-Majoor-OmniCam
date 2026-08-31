@@ -32,9 +32,9 @@ def proxy_media_facts(proxy_video: Any) -> dict[str, Any]:
         return {"available": True}
     return {
         "available": True,
-        "fps": metadata.fps,
+        "fps": metadata.fps,  # type: ignore[attr-defined]
         "frame_count": metadata.frame_count,
-        "duration_seconds": metadata.frame_count / max(1e-6, metadata.fps),
+        "duration_seconds": metadata.frame_count / max(1e-6, metadata.fps),  # type: ignore[attr-defined]
         "width": metadata.width,
         "height": metadata.height,
     }
@@ -42,26 +42,33 @@ def proxy_media_facts(proxy_video: Any) -> dict[str, Any]:
 
 def _validate_h3_reference(adapter: str, facts: dict[str, Any]) -> None:
     """Fail here, with the reason, rather than deep inside the H3 node."""
-    limits = H3_NATIVE_MEDIA_LIMITS if adapter == "h3_native" else H3_API_MEDIA_LIMITS
     duration = facts.get("duration_seconds")
-    fps = facts.get("fps")
-    if adapter == "h3" and fps and not (limits["min_fps"] <= float(fps) <= limits["max_fps"]):
-        raise ValueError(
-            f"The H3 reference video is {float(fps):.2f} FPS. MinimaxHailuo03ReferenceNode "
-            "supports 23.976-60 FPS."
-        )
-    if duration is None:
-        return
-    if float(duration) < limits["min_duration_seconds"]:
-        raise ValueError(
-            f"The H3 reference video is {float(duration):.2f}s. The minimum is "
-            f"{limits['min_duration_seconds']:.0f} seconds."
-        )
-    if float(duration) > limits["max_total_duration_seconds"]:
-        raise ValueError(
-            f"The H3 reference video is {float(duration):.2f}s. The maximum is "
-            f"{limits['max_total_duration_seconds']:.0f} seconds."
-        )
+    if adapter == "h3":
+        limits = H3_API_MEDIA_LIMITS
+        fps = facts.get("fps")
+        if fps and not (limits["min_fps"] <= float(fps) <= limits["max_fps"]):
+            raise ValueError(
+                f"The H3 reference video is {float(fps):.2f} FPS. MinimaxHailuo03ReferenceNode "
+                "supports 23.976-60 FPS."
+            )
+        if duration is not None:
+            if float(duration) < limits["min_duration_seconds"]:
+                raise ValueError(
+                    f"The H3 reference video is {float(duration):.2f}s. The minimum is "
+                    f"{limits['min_duration_seconds']:.0f} seconds."
+                )
+            if float(duration) > limits["max_total_duration_seconds"]:
+                raise ValueError(
+                    f"The H3 reference video is {float(duration):.2f}s. The maximum is "
+                    f"{limits['max_total_duration_seconds']:.0f} seconds."
+                )
+    elif adapter == "h3_native":
+        frame_count = facts.get("frame_count")
+        if frame_count is not None and int(frame_count) < H3_NATIVE_MEDIA_LIMITS["min_reference_frames"]:
+            raise ValueError(
+                f"The H3 reference video has {int(frame_count)} frames. The Native node requires "
+                f"at least {H3_NATIVE_MEDIA_LIMITS['min_reference_frames']} frames."
+            )
 
 
 def execute_monitor_adapter(

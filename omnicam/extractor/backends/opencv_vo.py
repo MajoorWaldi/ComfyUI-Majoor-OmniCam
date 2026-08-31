@@ -141,7 +141,7 @@ class OpenCvSiftBackend:
             [[intrinsics.fx, 0.0, intrinsics.cx], [0.0, intrinsics.fy, intrinsics.cy], [0.0, 0.0, 1.0]],
             dtype=np.float64,
         )
-        detector = cv2.SIFT_create()
+        detector = cv2.SIFT_create()  # type: ignore[attr-defined]
         matcher = cv2.BFMatcher(cv2.NORM_L2)
 
         warnings: list[str] = []

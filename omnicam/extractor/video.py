@@ -85,8 +85,8 @@ class FileVideoSource:
             stream = next((item for item in container.streams if item.type == "video"), None)
             if stream is None:
                 raise VideoDecodeError(f"{self._path} contains no video stream")
-            self._width = self._width or int(stream.width or 0)
-            self._height = self._height or int(stream.height or 0)
+            self._width = self._width or int(stream.width or 0)  # type: ignore[attr-defined]
+            self._height = self._height or int(stream.height or 0)  # type: ignore[attr-defined]
             self._fps = self._fps or float(stream.average_rate or 0)
             if not self._frame_count:
                 frames = int(stream.frames or 0)

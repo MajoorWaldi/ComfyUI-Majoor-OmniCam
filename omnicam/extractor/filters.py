@@ -194,19 +194,19 @@ def _segment_error(
     first, last, sample = samples[start], samples[end], samples[index]
 
     predicted_position = [
-        first["position"][axis] + (last["position"][axis] - first["position"][axis]) * t
+        first["position"][axis] + (last["position"][axis] - first["position"][axis]) * t  # type: ignore[index]
         for axis in range(3)
     ]
     predicted_target = [
-        first["target"][axis] + (last["target"][axis] - first["target"][axis]) * t
+        first["target"][axis] + (last["target"][axis] - first["target"][axis]) * t  # type: ignore[index]
         for axis in range(3)
     ]
     position_error = math.sqrt(
-        sum((sample["position"][axis] - predicted_position[axis]) ** 2 for axis in range(3))
+        sum((sample["position"][axis] - predicted_position[axis]) ** 2 for axis in range(3))  # type: ignore[index]
     )
 
     predicted_aim = [predicted_target[axis] - predicted_position[axis] for axis in range(3)]
-    actual_aim = [sample["target"][axis] - sample["position"][axis] for axis in range(3)]
+    actual_aim = [sample["target"][axis] - sample["position"][axis] for axis in range(3)]  # type: ignore[index]
     predicted_length = math.sqrt(sum(component ** 2 for component in predicted_aim))
     if predicted_length < 1e-9:
         # The lerped chord collapsed onto the camera: the endpoints look in
@@ -217,7 +217,7 @@ def _segment_error(
             (predicted_aim[axis] / predicted_length) * actual_aim[axis] for axis in range(3)
         )
         aim_error = math.degrees(math.acos(max(-1.0, min(1.0, dot))))
-    roll_error = abs(_shortest_angle_delta(_lerp_angle(first["roll"], last["roll"], t), sample["roll"]))
+    roll_error = abs(_shortest_angle_delta(_lerp_angle(first["roll"], last["roll"], t), sample["roll"]))  # type: ignore[arg-type]
     rotation_error = max(aim_error, roll_error)
 
     return max(

@@ -63,7 +63,7 @@ def apply_global_rotation(
             )
             for pose in poses
         ]
-    rotation = normalize_quaternion(quaternion)
+    rotation = normalize_quaternion(quaternion)  # type: ignore[arg-type]
     return [
         PoseSample(
             source_frame=pose.source_frame,
@@ -102,17 +102,17 @@ def estimate_up_correction(poses: Sequence[PoseSample]) -> list[float] | None:
     dot = max(-1.0, min(1.0, sum(average[axis] * world_up[axis] for axis in range(3))))
     if dot > 1.0 - 1e-9:
         return list(IDENTITY_QUATERNION)
-    axis = [
+    axis = [  # type: ignore[assignment]
         average[1] * world_up[2] - average[2] * world_up[1],
         average[2] * world_up[0] - average[0] * world_up[2],
         average[0] * world_up[1] - average[1] * world_up[0],
     ]
-    axis_length = math.sqrt(sum(component * component for component in axis))
+    axis_length = math.sqrt(sum(component * component for component in axis))  # type: ignore[attr-defined]
     if axis_length < 1e-9:
         return None
     angle = math.acos(dot)
     sine = math.sin(angle * 0.5)
     return normalize_quaternion(
-        [axis[0] / axis_length * sine, axis[1] / axis_length * sine, axis[2] / axis_length * sine,
+        [axis[0] / axis_length * sine, axis[1] / axis_length * sine, axis[2] / axis_length * sine,  # type: ignore[index]
          math.cos(angle * 0.5)]
     )

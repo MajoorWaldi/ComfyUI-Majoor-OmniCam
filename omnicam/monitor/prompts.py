@@ -66,6 +66,10 @@ def _trajectory_prompt(track: OmniCamTrack, **_: Any) -> str:
 def _ltx_prompt(track: OmniCamTrack, **_: Any) -> str:
     return _natural_camera_prompt(track)
 
+def _ltx_motion_track_prompt(track: OmniCamTrack, **_: Any) -> str:
+    del track
+    return ""
+
 
 _BUILDERS = {
     "h3": _h3_prompt,
@@ -73,7 +77,7 @@ _BUILDERS = {
     "wan_native": _wan_camera_prompt,
     "wan_ati": _trajectory_prompt,
     "wan_tracks_native": _trajectory_prompt,
-    "ltx_motion_track": _trajectory_prompt,
+    "ltx_motion_track": _ltx_motion_track_prompt,
     "ltx": _ltx_prompt,
 }
 
@@ -85,7 +89,7 @@ def build_camera_prompt(
     """The camera instruction this adapter's target model should actually receive."""
     adapter_info(adapter)
     builder = _BUILDERS[adapter]
-    return builder(track, adapter=adapter, settings=dict(settings or {}), capabilities=capabilities)
+    return builder(track, adapter=adapter, settings=dict(settings or {}), capabilities=capabilities)  # type: ignore[operator]
 
 
 def prompt_contract(adapter: str, capabilities: dict[str, Any] | None = None) -> dict[str, Any]:

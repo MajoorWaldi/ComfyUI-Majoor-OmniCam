@@ -65,7 +65,7 @@ def apply_spike_actions(
         if before is None and after is None:
             continue
         if before is None or after is None:
-            donor = working[after if before is None else before]
+            donor = working[after if before is None else before]  # type: ignore[index]
             pose.position = [float(value) for value in donor.position]
             pose.quaternion_xyzw = list(donor.quaternion_xyzw)
             continue

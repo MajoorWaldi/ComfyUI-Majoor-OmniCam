@@ -21,7 +21,7 @@ def register_shutdown_callback(name: str, callback: Callable[[], None], *, serve
     if shutdown_hooks is None:
         return False
 
-    registrations = getattr(app, "_majoor_omnicam_shutdown_callbacks", set())
+    registrations = getattr(app, "_majoor_omnicam_shutdown_callbacks", set())  # type: ignore[var-annotated]
     if name in registrations:
         return True
 
@@ -30,5 +30,5 @@ def register_shutdown_callback(name: str, callback: Callable[[], None], *, serve
 
     shutdown_hooks.append(_shutdown)
     registrations.add(name)
-    app._majoor_omnicam_shutdown_callbacks = registrations
+    app._majoor_omnicam_shutdown_callbacks = registrations  # type: ignore[union-attr]
     return True

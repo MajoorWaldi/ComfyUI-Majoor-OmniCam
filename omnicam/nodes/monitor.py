@@ -77,7 +77,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
         }
         result = execute_monitor_adapter(
             adapter=adapter, track=track, proxy_video=proxy_video,
-            capabilities=detect_capabilities(), **settings,
+            capabilities=detect_capabilities(), **settings,  # type: ignore[arg-type]
         )
         fingerprint = monitor_fingerprint(track=track.to_dict(), adapter=adapter, settings=settings)
         reference_frames = (

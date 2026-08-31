@@ -381,8 +381,8 @@ class DpvoProcessRunner:
         context = multiprocessing.get_context("spawn")
         parent, child = context.Pipe(duplex=True)
         process = context.Process(target=target, args=(child, payload), daemon=True)
-        self.process = process
-        self._connection = parent
+        self.process = process  # type: ignore[assignment]
+        self._connection = parent  # type: ignore[assignment]
         started = time.monotonic()
         with _isolated_child_bootstrap():
             process.start()

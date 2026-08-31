@@ -147,7 +147,7 @@ async def _reserve_quota(dest_dir: Path, incoming_max: int) -> None:
         )
         if stale:
             await _sync_quota_usage()
-        if _quota_usage + _quota_reserved + incoming_max > MAX_FOLDER_BYTES:
+        if _quota_usage + _quota_reserved + incoming_max > MAX_FOLDER_BYTES:  # type: ignore[operator]
             raise web.HTTPInsufficientStorage(text=f"OmniCam folder quota exceeded ({MAX_FOLDER_BYTES} bytes)")
         await asyncio.to_thread(_check_free_space, dest_dir, incoming_max)
         _quota_reserved += incoming_max
@@ -198,7 +198,7 @@ def _validate_media_metadata(path: Path) -> None:
             stream = next((item for item in container.streams if item.type == "video"), None)
             if stream is None:
                 raise web.HTTPBadRequest(text="Video metadata could not be validated")
-            width, height = int(stream.width), int(stream.height)
+            width, height = int(stream.width), int(stream.height)  # type: ignore[attr-defined]
             if stream.duration is not None and stream.time_base is not None:
                 duration = float(stream.duration * stream.time_base)
             elif container.duration is not None:
@@ -232,10 +232,10 @@ def _declared_upload_size(request: web.Request, max_bytes: int) -> int:
 async def _save_multipart_file(request: web.Request, subfolder: str, allowed_extensions: set[str], max_bytes: int) -> dict:
     reader = await request.multipart()
     field = await reader.next()
-    if field is None or field.name not in {"file", "video", "asset"}:
+    if field is None or field.name not in {"file", "video", "asset"}:  # type: ignore[operator, union-attr]
         raise web.HTTPBadRequest(text="Expected multipart field named file/video/asset")
 
-    filename = _safe_filename(field.filename or "asset.webm", allowed_extensions, fallback_ext=".webm")
+    filename = _safe_filename(field.filename or "asset.webm", allowed_extensions, fallback_ext=".webm")  # type: ignore[union-attr]
     managed_root = _managed_root()
     dest_dir = (managed_root / subfolder).resolve()
     if managed_root not in dest_dir.parents:
@@ -256,7 +256,7 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
         with dest.open("wb") as handle:
             while True:
                 try:
-                    chunk = await field.read_chunk(size=1024 * 1024)
+                    chunk = await field.read_chunk(size=1024 * 1024)  # type: ignore[union-attr]
                 except (ConnectionResetError, asyncio.IncompleteReadError) as exc:
                     raise web.HTTPRequestTimeout(text="Client disconnected during upload") from exc
                 if not chunk:
@@ -430,7 +430,7 @@ async def cleanup_assets(request: web.Request):
     global _quota_usage
     async with _quota_lock:
         if _quota_usage is not None:
-            _quota_usage = max(0, _quota_usage - sum(item["size"] for item in removed))
+            _quota_usage = max(0, _quota_usage - sum(item["size"] for item in removed))  # type: ignore[misc]
     invalidate_asset_index(root)
     return web.json_response({"removed": removed, "freed_bytes": sum(item["size"] for item in removed)})
 
@@ -511,17 +511,17 @@ async def import_camera_route(request: web.Request):
 
     reader = await request.multipart()
     field = await reader.next()
-    if field is None or field.name not in {"file", "asset"}:
+    if field is None or field.name not in {"file", "asset"}:  # type: ignore[operator, union-attr]
         raise web.HTTPBadRequest(text="Expected a multipart field named file/asset")
 
-    extension = os.path.splitext(field.filename or "")[1].lower()
+    extension = os.path.splitext(field.filename or "")[1].lower()  # type: ignore[union-attr]
     if extension not in IMPORT_EXTENSIONS:
         raise web.HTTPBadRequest(text=f"Unsupported camera file: {extension or 'no extension'}")
 
     chunks: list[bytes] = []
     size = 0
     while True:
-        chunk = await field.read_chunk(size=1024 * 1024)
+        chunk = await field.read_chunk(size=1024 * 1024)  # type: ignore[union-attr]
         if not chunk:
             break
         size += len(chunk)

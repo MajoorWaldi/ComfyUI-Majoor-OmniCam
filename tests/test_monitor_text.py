@@ -46,10 +46,17 @@ def test_h3_native_profile_uses_the_bracketed_dialect():
     assert result.contract["reference_kind"] == "IMAGE"
 
 
-def test_dialect_falls_back_to_the_h3_node_that_is_installed():
-    """The user should never have to know which H3 front door they have."""
-    result = build_monitor_text(_track(), adapter="h3", base_prompt="", capabilities=_caps("h3_native"))
+def test_h3_api_never_switches_to_native_dialect_from_capabilities():
+    result = build_monitor_text(_track(), adapter="h3", capabilities=_caps("h3_native"))
+    assert "Video 1" in result.camera_prompt
+    assert "<Video 1>" not in result.camera_prompt
+    assert result.contract["dialect"] == "comfy_api"
+
+
+def test_h3_native_never_switches_to_api_dialect_from_capabilities():
+    result = build_monitor_text(_track(), adapter="h3_native", capabilities=_caps("h3"))
     assert "<Video 1>" in result.camera_prompt
+    assert result.contract["dialect"] == "native"
 
 
 def test_a_pinned_token_still_wins_for_older_workflows():
@@ -71,11 +78,17 @@ def test_wan_camera_prompt_defers_to_the_embedding():
 
 
 def test_trajectory_and_ltx_prompts_are_natural_language():
-    for adapter in ("wan_ati", "wan_tracks_native", "ltx_motion_track", "ltx"):
+    for adapter in ("wan_ati", "wan_tracks_native", "ltx"):
         prompt = build_monitor_text(_track(), adapter=adapter, base_prompt="").camera_prompt
         assert "The camera" in prompt
         assert "acceleration and deceleration" not in prompt
         assert "FOV" not in prompt
+
+
+def test_ltx_motion_track_prompt_is_empty_to_avoid_competing_with_tracks():
+    result = build_monitor_text(_track(), adapter="ltx_motion_track", base_prompt="A red fox")
+    assert result.camera_prompt == ""
+    assert result.final_prompt.strip() == "A red fox"
 
 
 def test_camera_data_carries_the_derived_phases():

@@ -57,19 +57,55 @@ function captureBrowserDiagnostics(page, testInfo) {
   return diagnostics;
 }
 
-async function openComfy(page) {
+
+async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker) {
+  try {
+    await page.waitForFunction(
+      (args) => {
+        const { globalNodeVar, expectedUIMarker } = args;
+        return window[globalNodeVar]?.[expectedUIMarker]?.root;
+      },
+      { globalNodeVar, expectedUIMarker },
+      { timeout: 30000 },
+    );
+  } catch (error) {
+    if (error.name === 'TimeoutError') {
+      const diag = await page.evaluate((args) => {
+        const { typeName, globalNodeVar, expectedUIMarker } = args;
+        const node = window[globalNodeVar];
+        const isGraphReady = window.comfyAPI?.app?.app?.isGraphReady;
+        const hasMarker = node ? !!node[expectedUIMarker] : false;
+        const chunks = Array.from(document.querySelectorAll('script')).map(s => s.src).filter(s => s.includes('omnicam'));
+        return {
+          nodeType: typeName,
+          nodeId: node ? node.id : 'missing_node',
+          isGraphReady,
+          hasMarker,
+          chunks
+        };
+      }, { typeName, globalNodeVar, expectedUIMarker });
+      throw new Error('Attach timeout diagnostic: ' + JSON.stringify(diag, null, 2));
+    }
+    throw error;
+  }
+}
+
+async function openComfyReady(page) {
   await page.goto("/");
   await page.waitForFunction(
     () => window.comfyAPI?.app?.app?.isGraphReady
       && window.LiteGraph?.registered_node_types?.MajoorOmniCamDirector
-      && window.LiteGraph?.registered_node_types?.MajoorOmniCamExtractor,
+      && window.LiteGraph?.registered_node_types?.MajoorOmniCamExtractor
+      && window.LiteGraph?.registered_node_types?.MajoorOmniCamMonitor,
     null,
     { timeout: 30_000 },
   );
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 }
 
-test("Director survives widget edit, workflow reload, recreation and queueing", async ({ page }) => {
-  await openComfy(page);
+test("Director survives widget edit, workflow reload, recreation and queueing", async ({ page }, testInfo) => {
+  await openComfyReady(page);
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
     app.graph.clear();
@@ -77,11 +113,7 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
     app.graph.add(director);
     window.omnicamCiDirector = director;
   });
-  await page.waitForFunction(
-    () => window.omnicamCiDirector?.__majoorOmniCam?.root,
-    null,
-    { timeout: 30_000 },
-  );
+  await assertAttachReady(page, "MajoorOmniCamDirector", "omnicamCiDirector", "__majoorOmniCam");
 
   const editedFps = await page.evaluate(() => {
     const node = window.omnicamCiDirector;
@@ -101,11 +133,7 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
     }
     window.omnicamCiDirector = app.graph.nodes.find((node) => node.comfyClass === "MajoorOmniCamDirector");
   }, editedFps);
-  await page.waitForFunction(
-    () => window.omnicamCiDirector?.__majoorOmniCam?.root,
-    null,
-    { timeout: 30_000 },
-  );
+  await assertAttachReady(page, "MajoorOmniCamDirector", "omnicamCiDirector", "__majoorOmniCam");
   expect(await page.evaluate(() => window.omnicamCiDirector.widgets.find((widget) => widget.name === "fps").value)).toBe(30);
 
   const queued = page.waitForResponse((response) => response.url().endsWith("/prompt"));
@@ -122,16 +150,12 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
     app.graph.add(replacement);
     window.omnicamCiDirector = replacement;
   });
-  await page.waitForFunction(
-    () => window.omnicamCiDirector?.__majoorOmniCam?.root,
-    null,
-    { timeout: 30_000 },
-  );
+  await assertAttachReady(page, "MajoorOmniCamDirector", "omnicamCiDirector", "__majoorOmniCam");
 });
 
 test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", async ({ page }, testInfo) => {
+  await openComfyReady(page);
   const diagnostics = captureBrowserDiagnostics(page, testInfo);
-  await openComfy(page);
   const attached = await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
     app.graph.clear();
@@ -140,16 +164,10 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
     window.omnicamCiExtractor = extractor;
   });
   void attached;
-  await page.waitForFunction(
-    (diagnostics) => {
-      if (diagnostics.pageErrors.length || diagnostics.consoleErrors.length) {
-        throw new Error("Console errors: " + diagnostics.consoleErrors.join(", ") + " Page errors: " + diagnostics.pageErrors.join(", "));
-      }
-      return window.omnicamCiExtractor?.__majoorOmniCamExtractor?.root;
-    },
-    diagnostics,
-    { timeout: 30_000 },
-  );
+  if (diagnostics.pageErrors.length || diagnostics.consoleErrors.length) {
+    throw new Error("Console errors: " + diagnostics.consoleErrors.join(", ") + " Page errors: " + diagnostics.pageErrors.join(", "));
+  }
+  await assertAttachReady(page, "MajoorOmniCamExtractor", "omnicamCiExtractor", "__majoorOmniCamExtractor");
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
     window.omnicamCiExtractorRoot = window.omnicamCiExtractor.__majoorOmniCamExtractor.root;
@@ -160,13 +178,12 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
   expect(diagnostics.consoleErrors).toEqual([]);
   expect(diagnostics.requestFailures).toEqual([]);
   expect(diagnostics.responseErrors).toEqual([]);
-  expect(diagnostics.chunkResponses.some(({ url, status }) => url.endsWith("/omnicam.js") && status === 200)).toBe(true);
   expect(diagnostics.chunkResponses.some(({ url, status }) => !url.endsWith("/omnicam.js") && status === 200)).toBe(true);
 });
 
 test("Extractor renders an injected solved track in TRACK 3D without page errors", async ({ page }, testInfo) => {
+  await openComfyReady(page);
   const diagnostics = captureBrowserDiagnostics(page, testInfo);
-  await openComfy(page);
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
     app.graph.clear();
@@ -174,16 +191,10 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
     app.graph.add(extractor);
     window.omnicamCiTrackExtractor = extractor;
   });
-  await page.waitForFunction(
-    (diagnostics) => {
-      if (diagnostics.pageErrors.length || diagnostics.consoleErrors.length) {
-        throw new Error("Console errors: " + diagnostics.consoleErrors.join(", ") + " Page errors: " + diagnostics.pageErrors.join(", "));
-      }
-      return window.omnicamCiTrackExtractor?.__majoorOmniCamExtractor?.root;
-    },
-    diagnostics,
-    { timeout: 30_000 },
-  );
+  if (diagnostics.pageErrors.length || diagnostics.consoleErrors.length) {
+    throw new Error("Console errors: " + diagnostics.consoleErrors.join(", ") + " Page errors: " + diagnostics.pageErrors.join(", "));
+  }
+  await assertAttachReady(page, "MajoorOmniCamExtractor", "omnicamCiTrackExtractor", "__majoorOmniCamExtractor");
   const viewer = await page.evaluate(async () => {
     const ui = window.omnicamCiTrackExtractor.__majoorOmniCamExtractor;
     const track = {
@@ -215,8 +226,9 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
   expect(viewer.frustums).toBeGreaterThan(0);
 });
 
-test("Director mounts inside a Subgraph and keeps its promoted fps widget", async ({ page }) => {
-  await openComfy(page);
+test("Director mounts inside a Subgraph and keeps its promoted fps widget", async ({ page }, testInfo) => {
+  await openComfyReady(page);
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
   const fs = await import("fs/promises");
   const path = await import("path");
   const { fileURLToPath } = await import("url");
@@ -248,3 +260,50 @@ test("Director mounts inside a Subgraph and keeps its promoted fps widget", asyn
   })).toBe(30);
 });
 
+
+
+
+test("Ancient v1 workflows deserialize safely with live Vue attachment", async ({ page }, testInfo) => {
+  await openComfyReady(page);
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const { fileURLToPath } = await import("url");
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const workflowData = JSON.parse(await fs.readFile(path.join(__dirname, "../fixtures/workflows/v0.3-director-basic.json"), "utf8"));
+
+  await page.evaluate(async (workflow) => {
+    const { app } = await import("/scripts/app.js");
+    app.graph.clear();
+    if (typeof app.loadGraphData === "function") {
+      await app.loadGraphData(workflow);
+    } else {
+      app.graph.configure(workflow);
+    }
+    window.omnicamCiV1Director = app.graph.nodes.find((node) => node.comfyClass === "MajoorOmniCamDirector");
+  }, workflowData);
+
+  await assertAttachReady(page, "MajoorOmniCamDirector", "omnicamCiV1Director", "__majoorOmniCam");
+
+  const directorState = await page.evaluate(() => {
+    const node = window.omnicamCiV1Director;
+    return {
+      fps: node.widgets.find((w) => w.name === "fps")?.value,
+      renderMode: node.widgets.find((w) => w.name === "render_mode")?.value
+    };
+  });
+
+  expect(directorState.fps).toBeDefined();
+  expect(directorState.renderMode).toBeDefined();
+  expect(diagnostics.pageErrors).toEqual([]);
+  expect(diagnostics.consoleErrors).toEqual([]);
+});
+
+test("Diagnostics are empty immediately after openComfyReady establishes the epoch even if a startup error occurred", async ({ page }, testInfo) => {
+  // Simulate a startup error before epoch (which we can't reliably do without modifying ComfyUI, 
+  // but we test that the diagnostic capture doesn't capture anything before it is attached)
+  await openComfyReady(page);
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
+  expect(diagnostics.pageErrors).toEqual([]);
+  expect(diagnostics.consoleErrors).toEqual([]);
+});

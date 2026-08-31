@@ -85,7 +85,7 @@ def read_chan(text: str, fps: int = 24, width: int = 1280, height: int = 720) ->
     return {
         "schema_version": 1,
         "fps": max(1, int(fps)),
-        "duration_frames": max(1, max(frames) + 1),
+        "duration_frames": max(1, max(frames) + 1),  # type: ignore[type-var, operator]
         "width": int(width),
         "height": int(height),
         "render_mode": "omni_ref",

@@ -445,3 +445,8 @@ model-agnostic synthetic anchors.
   passes.
 - `omnicam/core/camera_tools.py`: an internal library the adapters call,
   exposed by no node.
+
+### OmniCam → LTX 2.5 Motion Track
+
+Projected 2D trajectories consumed by LTXVDrawTracks and the IC-LoRA Motion Track.
+The length must satisfy the 8n+1 frame rule.

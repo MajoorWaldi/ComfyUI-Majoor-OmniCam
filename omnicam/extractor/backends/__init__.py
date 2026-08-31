@@ -24,7 +24,7 @@ METHODS = ("auto", "dpvo", "opencv_sift")
 # Ordered by solve quality: `auto` walks this list and takes the first backend
 # that is actually installed.
 BACKEND_CLASSES: tuple[type, ...] = (DpvoBackend, OpenCvSiftBackend)
-BACKENDS_BY_NAME = {backend.name: backend for backend in BACKEND_CLASSES}
+BACKENDS_BY_NAME = {backend.name: backend for backend in BACKEND_CLASSES}  # type: ignore[attr-defined]
 
 
 def backend_availability() -> dict[str, BackendAvailability]:
@@ -32,9 +32,9 @@ def backend_availability() -> dict[str, BackendAvailability]:
     report: dict[str, BackendAvailability] = {}
     for backend in BACKEND_CLASSES:
         try:
-            report[backend.name] = backend.availability()
+            report[backend.name] = backend.availability()  # type: ignore[attr-defined]
         except Exception as exc:  # noqa: BLE001 - third-party import machinery may raise anything
-            report[backend.name] = BackendAvailability(False, f"availability probe failed: {exc}")
+            report[backend.name] = BackendAvailability(False, f"availability probe failed: {exc}")  # type: ignore[attr-defined]
     return report
 
 
@@ -58,13 +58,13 @@ def select_backend(method: str) -> CameraMotionBackend:
     report = backend_availability()
     if requested == "auto":
         for backend in BACKEND_CLASSES:
-            if report[backend.name].available:
+            if report[backend.name].available:  # type: ignore[attr-defined]
                 return backend()
         raise BackendUnavailableError(_no_backend_message(report))
     backend_class = BACKENDS_BY_NAME[requested]
     availability = report[requested]
     if not availability.available:
-        raise BackendUnavailableError(backend_class.unavailable_message(availability.reason))
+        raise BackendUnavailableError(backend_class.unavailable_message(availability.reason))  # type: ignore[attr-defined]
     return backend_class()
 
 

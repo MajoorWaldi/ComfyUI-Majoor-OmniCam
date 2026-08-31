@@ -39,8 +39,8 @@ def _accessor(buffer: bytearray, values: list[list[float]] | list[float], kind: 
     if kind == "SCALAR":
         flat = [float(value) for value in values]  # type: ignore[arg-type]
     else:
-        for item in values:  # type: ignore[assignment]
-            flat.extend(float(component) for component in item)
+        for item in values:
+            flat.extend(float(component) for component in item)  # type: ignore
     offset = len(buffer)
     buffer.extend(struct.pack(f"<{len(flat)}f", *flat))
     count = len(values)

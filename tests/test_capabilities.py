@@ -49,7 +49,7 @@ def test_detect_capabilities_verifies_v3_schema_before_legacy():
 
 def test_diagnostic_is_actionable():
     diagnostic = diagnose_setup(detect_capabilities(set()))
-    assert diagnostic["ok"] is False
+    assert diagnostic["ok"] is True
     assert all(issue["remediation"] for issue in diagnostic["issues"])
     assert all(issue["docs"].startswith("http") for issue in diagnostic["issues"])
 

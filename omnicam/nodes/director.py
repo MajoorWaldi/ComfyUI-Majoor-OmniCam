@@ -145,7 +145,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
 
         # Export every authored camera as a runtime shot packet. Missing proxies
         # remain explicit so consumers can report exactly which camera is offline.
-        collection_shots = []
+        collection_shots = []  # type: ignore[var-annotated]
         tracks_by_camera: dict[str, OmniCamTrack] = {}
         if isinstance(cameras, list) and cameras:
             for cam in cameras:

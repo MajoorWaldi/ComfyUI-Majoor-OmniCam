@@ -155,12 +155,14 @@ def build_adapter_preflight(
 
 def _h3_checks(adapter, check, note, *, media, contract, length, prompt_length) -> None:
     """Everything MinimaxHailuo03ReferenceNode / MiniMaxH3ReferenceToVideo enforce."""
+    from ..adapters.h3 import h3_native_aligned_length
     limits = H3_NATIVE_MEDIA_LIMITS if adapter == "h3_native" else H3_API_MEDIA_LIMITS
     token = contract.get("reference_token")
     note("dialect", f"Prompt dialect: {token}", f"{contract.get('dialect_display') or ''}".strip())
 
     duration = _float(media.get("duration_seconds"))
     fps = _float(media.get("fps"))
+    frame_count = media.get("frame_count")
 
     if adapter == "h3":
         if fps is None:
@@ -174,21 +176,38 @@ def _h3_checks(adapter, check, note, *, media, contract, length, prompt_length) 
                 limits["min_fps"] <= fps <= limits["max_fps"],
                 message=f"Reference video is {fps:.2f} FPS. Supported range is 23.976-60 FPS.",
             )
-
-    if duration is None:
-        check(
-            "reference_duration", "Reference duration", True, warning=True,
-            message="Reference duration unknown; the node requires 2-15 seconds.",
-        )
-    else:
-        check(
-            "reference_duration", f"Reference duration {duration:.2f}s",
-            limits["min_duration_seconds"] <= duration <= limits["max_total_duration_seconds"],
-            message=(
-                f"Reference video is {duration:.1f}s. The node requires "
-                f"{limits['min_duration_seconds']:.0f}-{limits['max_total_duration_seconds']:.0f} seconds."
-            ),
-        )
+        if duration is None:
+            check(
+                "reference_duration", "Reference duration", True, warning=True,
+                message="Reference duration unknown; the node requires 2-15 seconds.",
+            )
+        else:
+            check(
+                "reference_duration", f"Reference duration {duration:.2f}s",
+                limits["min_duration_seconds"] <= duration <= limits["max_total_duration_seconds"],
+                message=(
+                    f"Reference video is {duration:.1f}s. The node requires "
+                    f"{limits['min_duration_seconds']:.0f}-{limits['max_total_duration_seconds']:.0f} seconds."
+                ),
+            )
+    elif adapter == "h3_native":
+        if frame_count is not None:
+            check(
+                "reference_frames", f"Reference frames: {int(frame_count)}",
+                int(frame_count) >= limits["min_reference_frames"],
+                message=f"Reference has {int(frame_count)} frames. Native node requires at least {limits['min_reference_frames']}.",
+            )
+        if duration is not None:
+            if duration < limits["recommended_min_duration_seconds"]:
+                check(
+                    "reference_duration", f"Reference duration {duration:.2f}s", True, warning=True,
+                    message=f"Reference is {duration:.1f}s. Recommended minimum is {limits['recommended_min_duration_seconds']:.0f}s.",
+                )
+            elif duration > limits["recommended_max_duration_seconds"]:
+                check(
+                    "reference_duration", f"Reference duration {duration:.2f}s", True, warning=True,
+                    message=f"Reference is {duration:.1f}s. Recommended maximum is {limits['recommended_max_duration_seconds']:.0f}s.",
+                )
 
     budget = contract.get("max_prompt_characters")
     if budget:
@@ -201,14 +220,14 @@ def _h3_checks(adapter, check, note, *, media, contract, length, prompt_length) 
     if adapter == "h3_native":
         base, step = limits["length_base"], limits["length_step"]
         valid = int(length) >= base and (int(length) - base) % step == 0
-        nearest = base + max(0, round((int(length) - base) / step)) * step
-        check(
-            "length_17n_plus_5", f"Length is {step}n+{base}", valid,
-            message=(
-                f"MiniMaxH3ReferenceToVideo accepts {step}n+{base} frames; "
-                f"{int(length)} is not one. The nearest valid length is {nearest}."
-            ),
-        )
+        nearest = h3_native_aligned_length(int(length))
+        if not valid:
+            check(
+                "length_17n_plus_5", f"Length is not {step}n+{base}", True, warning=True,
+                message=(
+                    f"Requested {int(length)}; MiniMax H3 resolves to {nearest} frames."
+                ),
+            )
 
 
 def _ltx_track_checks(check, note, *, length) -> None:

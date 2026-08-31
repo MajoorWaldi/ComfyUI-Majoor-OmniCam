@@ -18,7 +18,7 @@ def _contract(
     *,
     display_name: str,
     target: str,
-    node_classes: list[str],
+    node_classes: list[list[str]],
     inputs: list[str],
     repository: str,
     tested_ref: str,
@@ -51,7 +51,7 @@ ADAPTER_INFO = {
     "wan_native": _contract(
         display_name="Wan Camera",
         target="WAN_CAMERA_EMBEDDING",
-        node_classes=["WanCameraImageToVideo"],
+        node_classes=[["WanCameraImageToVideo"]],
         inputs=["camera_conditions"],
         repository="https://github.com/Comfy-Org/ComfyUI",
         tested_ref="v0.34.0",
@@ -63,7 +63,7 @@ ADAPTER_INFO = {
     "wan_tracks_native": _contract(
         display_name="Wan Motion Tracks",
         target="WanTrackToVideo tracks STRING",
-        node_classes=["WanTrackToVideo"],
+        node_classes=[["WanTrackToVideo"]],
         inputs=["tracks"],
         repository="https://github.com/Comfy-Org/ComfyUI",
         tested_ref="v0.34.0",
@@ -74,7 +74,7 @@ ADAPTER_INFO = {
     "h3": _contract(
         display_name="MiniMax H3 - Comfy API",
         target="reference video and prompt",
-        node_classes=["MinimaxHailuo03ReferenceNode"],
+        node_classes=[["MinimaxHailuo03ReferenceNode"]],
         inputs=["reference_video"],
         repository="https://github.com/Comfy-Org/ComfyUI",
         tested_ref="v0.34.0",
@@ -85,7 +85,7 @@ ADAPTER_INFO = {
     "ltx": _contract(
         display_name="LTX Proxy Guide (legacy)",
         target="IMAGE guide frames",
-        node_classes=["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"],
+        node_classes=[["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"]],
         inputs=["image"],
         repository="https://github.com/Lightricks/ComfyUI-LTXVideo",
         tested_ref="ac4d99839020b983e956a8ab67ec38aec1b6e65a",
@@ -96,7 +96,7 @@ ADAPTER_INFO = {
     "h3_native": _contract(
         display_name="MiniMax H3 - Native",
         target="reference frames and prompt",
-        node_classes=["MiniMaxH3ReferenceToVideo"],
+        node_classes=[["MiniMaxH3ReferenceToVideo"]],
         inputs=["ref_videos"],
         repository="https://github.com/Comfy-Org/ComfyUI",
         tested_ref="v0.34.0",
@@ -108,7 +108,7 @@ ADAPTER_INFO = {
     "ltx_motion_track": _contract(
         display_name="LTX 2.5 Motion Track",
         target="LTXVDrawTracks tracks STRING",
-        node_classes=["LTXVDrawTracks", "LTXAddVideoICLoRAGuide"],
+        node_classes=[["LTXVDrawTracks"], ["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"]],
         inputs=["tracks"],
         widgets=["width", "height"],
         repository="https://github.com/Lightricks/ComfyUI-LTXVideo",
@@ -121,7 +121,7 @@ ADAPTER_INFO = {
     "wan_ati": _contract(
         display_name="Wan 2.1 ATI - WanVideoWrapper",
         target="WanVideoATITracks tracks STRING",
-        node_classes=["WanVideoATITracks"],
+        node_classes=[["WanVideoATITracks"]],
         inputs=["tracks"],
         widgets=["width", "height"],
         repository="https://github.com/kijai/ComfyUI-WanVideoWrapper",

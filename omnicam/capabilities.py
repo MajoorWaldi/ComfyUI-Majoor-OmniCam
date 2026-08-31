@@ -63,7 +63,7 @@ def _declared_inputs(node_class: Any) -> set[str] | None:
         return None
     if not isinstance(spec, dict):
         return None
-    names: set[str] = set()
+    names: set[str] = set()  # type: ignore[no-redef]
     for group in ("required", "optional"):
         values = spec.get(group, {})
         if isinstance(values, dict):
@@ -78,15 +78,23 @@ def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -
     )
     capabilities = []
     for adapter, info in ADAPTER_INFO.items():
-        candidates = list(info.get("required_node_classes", []))
-        detected = [name for name in candidates if name in mappings]
-        # expected_widgets are inputs too: the ATI node normalises trajectories
-        # with its own width/height, so a build exposing only `tracks` is not a
-        # usable contract even though the socket name matches.
+        requirements = list(info.get("required_node_classes", []))
+
+        # Check that for EACH requirement group, AT LEAST ONE node is present
+        detected = []
+        is_missing = False
+        for group in requirements:
+            group_detected = [name for name in group if name in mappings]
+            if not group_detected:
+                is_missing = True
+                break
+            detected.extend(group_detected)
+
         expected = set(info.get("expected_inputs", [])) | set(info.get("expected_widgets", []))
-        contracts = [_declared_inputs(mappings[name]) for name in detected if mappings[name] is not None]
+        contracts = [_declared_inputs(mappings[name]) for name in detected if mappings.get(name) is not None]
         known = [inputs for inputs in contracts if inputs is not None]
-        if not detected:
+
+        if is_missing:
             state = "missing"
         elif not known:
             state = "detected_unverified"
@@ -94,9 +102,10 @@ def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -
             state = "verified"
         else:
             state = "incompatible"
+
         capabilities.append({
             "adapter": adapter, "display": info["display_name"], "state": state,
-            "installed": bool(detected), "detected_nodes": detected,
+            "installed": not is_missing, "detected_nodes": detected,
             "expected_inputs": sorted(expected), "docs": info["docs"],
         })
     return {
@@ -142,9 +151,16 @@ def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]
     for entry in capabilities["capabilities"]:
         remediation = _remediation(entry)
         if remediation:
+            if entry["state"] == "incompatible":
+                severity = "error"
+            elif entry["state"] == "missing":
+                severity = "info"
+            else:
+                severity = "warning"
+
             issues.append({
                 "adapter": entry["adapter"], "display": entry["display"], "state": entry["state"],
-                "severity": "error" if entry["state"] in {"missing", "incompatible"} else "warning",
+                "severity": severity,
                 "message": f"{entry['display']} contract is {entry['state'].replace('_', ' ')}.",
                 "remediation": remediation, "docs": entry["docs"],
             })

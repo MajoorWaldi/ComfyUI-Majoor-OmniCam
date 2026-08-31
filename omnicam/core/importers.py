@@ -41,7 +41,7 @@ def import_blender_camera(payload: dict[str, Any], fps: int = 24) -> OmniCamTrac
     frames = payload.get("frames")
     if not isinstance(frames, list) or not frames:
         raise ValueError("Blender camera import requires a frames list")
-    keyframes = []
+    keyframes = []  # type: ignore[var-annotated]
     for entry in frames:
         if not isinstance(entry, dict):
             continue

@@ -56,13 +56,19 @@ H3_API_MEDIA_LIMITS = {
 }
 
 H3_NATIVE_MEDIA_LIMITS = {
-    "min_duration_seconds": 2.0,
-    "max_total_duration_seconds": 15.0,
     "reference_fps": 24,
-    # io.Int.Input("length", default=124, min=5, step=17)
+    "min_reference_frames": 5,
+    "recommended_min_duration_seconds": 2.0,
+    "recommended_max_duration_seconds": 15.0,
     "length_base": 5,
     "length_step": 17,
 }
+
+def h3_native_aligned_length(length: int) -> int:
+    value = max(5, int(length))
+    while value % 17 != 5:
+        value += 1
+    return value
 
 H3_DIALECTS = {
     "comfy_api": {
@@ -98,21 +104,13 @@ def h3_dialect(adapter: str = "h3") -> dict[str, Any]:
 
 
 def resolve_h3_dialect(adapter: str, capabilities: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Pick the dialect, preferring the one whose node is actually installed.
+    """Pick the dialect strictly based on the requested adapter.
 
-    ``adapter`` states the intent; capabilities settle it. Selecting the API
-    profile on an install that only has the native node would emit ``Video 1``
-    into a model that wants ``<Video 1>``, which is exactly the failure this
-    split exists to prevent.
+    capabilities is retained in the signature for API compatibility, but
+    must not cause silent cross-contract dialect fallback.
     """
-    wanted = h3_dialect(adapter)
-    entries = {entry.get("adapter"): entry for entry in (capabilities or {}).get("capabilities", [])}
-    wanted_state = str(entries.get("h3_native" if wanted["id"] == "native" else "h3", {}).get("state") or "missing")
-    if wanted_state != "missing":
-        return wanted
-    other = H3_DIALECTS["comfy_api" if wanted["id"] == "native" else "native"]
-    other_state = str(entries.get("h3_native" if other["id"] == "native" else "h3", {}).get("state") or "missing")
-    return other if other_state != "missing" else wanted
+    del capabilities
+    return h3_dialect(adapter)
 
 
 def classify_camera_motion(track: OmniCamTrack) -> str:

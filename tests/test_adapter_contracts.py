@@ -26,10 +26,20 @@ def test_contract_matrix_has_pinned_upstream_and_input_fingerprint():
 
 
 def test_contract_matrix_verifies_each_adapter_input_surface():
-    mappings = {}
+    # A node class might be shared across adapters with different expected inputs.
+    # We need to union them so the dummy node satisfies all contracts that depend on it.
+    node_inputs = {}
     for contract in ADAPTER_INFO.values():
-        node = _node_with_inputs(*contract["expected_inputs"], *contract["expected_widgets"])
-        mappings.update({node_class: node for node_class in contract["required_node_classes"]})
+        for group in contract["required_node_classes"]:
+            for node_class in group:
+                node_inputs.setdefault(node_class, set()).update(
+                    contract["expected_inputs"] + contract["expected_widgets"]
+                )
+
+    mappings = {
+        node_class: _node_with_inputs(*inputs)
+        for node_class, inputs in node_inputs.items()
+    }
 
     states = {entry["adapter"]: entry["state"] for entry in detect_capabilities(mappings)["capabilities"]}
     assert states == {adapter: "verified" for adapter in ADAPTER_INFO}

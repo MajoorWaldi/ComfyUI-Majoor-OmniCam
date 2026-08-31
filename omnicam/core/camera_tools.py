@@ -453,11 +453,11 @@ def analyze_camera_trajectory(track: OmniCamTrack) -> dict[str, Any]:
 
     path_curvature = 0.0
     segments = [[b.position[i] - a.position[i] for i in range(3)] for a, b in pairwise(cameras)]
-    for previous, current in pairwise(segments):
-        len_a = math.sqrt(sum(v * v for v in previous))
-        len_b = math.sqrt(sum(v * v for v in current))
+    for previous, current in pairwise(segments):  # type: ignore[assignment]
+        len_a = math.sqrt(sum(v * v for v in previous))  # type: ignore[attr-defined]
+        len_b = math.sqrt(sum(v * v for v in current))  # type: ignore[attr-defined]
         if len_a > 1e-9 and len_b > 1e-9:
-            cosine = sum(previous[i] * current[i] for i in range(3)) / (len_a * len_b)
+            cosine = sum(previous[i] * current[i] for i in range(3)) / (len_a * len_b)  # type: ignore[index]
             path_curvature += math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
     peak_speed = max(speeds, default=0.0)
     avg_speed = sum(speeds) / max(1, len(speeds))

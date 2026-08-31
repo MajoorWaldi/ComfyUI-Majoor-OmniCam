@@ -108,7 +108,7 @@ def optical_flow_pass(track: OmniCamTrack, *, step: int = 1) -> dict[str, Any]:
             name = obj.get("id")
             projected = project_point(_object_center(objects, obj, frame), camera, track.width, track.height)
             current = projected[:2] if projected else None
-            last = previous.get(name)
+            last = previous.get(name)  # type: ignore[arg-type]
             vectors.append(
                 {
                     "name": name,
@@ -116,6 +116,6 @@ def optical_flow_pass(track: OmniCamTrack, *, step: int = 1) -> dict[str, Any]:
                     "visible": current is not None,
                 }
             )
-            previous[name] = current
+            previous[name] = current  # type: ignore[index]
         frames.append({"frame": frame, "vectors": vectors})
     return {"format": "majoor.omnicam.flow-pass.v1", "fps": track.fps, "width": track.width, "height": track.height, "frames": frames}

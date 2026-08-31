@@ -166,7 +166,7 @@ def describe_video_file(path: Path) -> dict[str, Any]:
         stream = next((item for item in container.streams if item.type == "video"), None)
         if stream is None:
             raise SourceResolutionError("This file contains no video stream")
-        width, height = int(stream.width or 0), int(stream.height or 0)
+        width, height = int(stream.width or 0), int(stream.height or 0)  # type: ignore[attr-defined]
         if width <= 0 or height <= 0:
             raise SourceResolutionError("This video reports no usable dimensions")
         fps = float(stream.average_rate or 0)

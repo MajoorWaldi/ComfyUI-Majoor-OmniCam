@@ -67,6 +67,21 @@ def resampling_indices(
     ]
 
 
+def contiguous_ranges(indices: list[int]) -> list[tuple[int, int]]:
+    """Return inclusive start / exclusive stop ranges covering unique sorted indices."""
+    if not indices:
+        return []
+    unique = sorted(list(set(indices)))
+    ranges = []
+    start = unique[0]
+    for i in range(1, len(unique)):
+        if unique[i] != unique[i-1] + 1:
+            ranges.append((start, unique[i-1] + 1))
+            start = unique[i]
+    ranges.append((start, unique[-1] + 1))
+    return ranges
+
+
 def _decode_trim(video: Any, start_frame: int, frame_count: int, fps: float) -> torch.Tensor:
     trimmed = video.as_trimmed(
         start_time=float(start_frame) / fps,
@@ -114,16 +129,22 @@ def resample_video_frames(
     )
     if not indices:
         return torch.empty((0, metadata.height, metadata.width, 3), dtype=torch.float32)
-    decoded: dict[int, torch.Tensor] = {}
-    ordered: list[torch.Tensor] = []
-    for frame in indices:
-        batch = decoded.get(frame)
-        if batch is None:
-            batch = _decode_trim(video, frame, 1, metadata.frame_rate)[:1]
-            if not batch.shape[0]:
-                continue
-            decoded[frame] = batch
-        ordered.append(batch)
-    if not ordered:
-        return torch.empty((0, metadata.height, metadata.width, 3), dtype=torch.float32)
-    return torch.cat(ordered, dim=0)
+
+    ranges = contiguous_ranges(indices)
+    frame_to_out: dict[int, list[int]] = {}
+    for out_idx, src_idx in enumerate(indices):
+        frame_to_out.setdefault(src_idx, []).append(out_idx)
+
+    out = torch.empty((len(indices), metadata.height, metadata.width, 3), dtype=torch.float32)
+
+    for r_start, r_stop in ranges:
+        count = r_stop - r_start
+        batch = _decode_trim(video, r_start, count, metadata.frame_rate)
+        for i in range(batch.shape[0]):
+            src_idx = r_start + i
+            if src_idx in frame_to_out:
+                for out_idx in frame_to_out[src_idx]:
+                    out[out_idx].copy_(batch[i])
+
+    return out
+
