@@ -6,11 +6,11 @@
 //
 // `npm run check:locales` fails if a key here no longer exists in the source.
 export const FR = {
-  "1 adapter missing": "1 adaptateur manquant",
+  "1 optional adapter issue": "1 problème d’adaptateur optionnel",
   "1 key": "1 clé",
   "2D Radar Mini-Map": "Mini-carte radar 2D",
   "Active playblast camera": "Caméra de playblast active",
-  "Adapters ready": "Adaptateurs prêts",
+  "Core ready": "Cœur prêt",
   "Add a second camera, then Auto-split to cut between them.": "Ajoutez une deuxième caméra, puis découpez automatiquement pour couper entre elles.",
   "Add Camera": "Ajouter une caméra",
   "Add Cube (+)": "Ajouter un cube (+)",
@@ -414,7 +414,7 @@ export const FR = {
   "Zoom in curve editor (Mouse wheel)": "Zoomer dans l'éditeur de courbes (molette)",
   "Zoom out curve editor": "Dézoomer dans l'éditeur de courbes",
   "{channel} changes at frame {frame}": "{channel} change à l'image {frame}",
-  "{count} adapters missing": "{count} adaptateurs manquants",
+  "{count} optional adapter issues": "{count} problèmes d’adaptateurs optionnels",
   "{format} imported: {name}": "{format} importé : {name}",
   "{format} shown locally, but the upload failed — it will not survive a reload.": "{format} affiché en local, mais l'envoi a échoué — il ne survivra pas à un rechargement.",
   "Read by": "Lu par",

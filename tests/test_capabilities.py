@@ -83,6 +83,26 @@ def test_diagnostic_is_actionable():
     assert all(issue["docs"].startswith("http") for issue in diagnostic["issues"])
 
 
+def test_an_incompatible_optional_adapter_warns_without_blocking_global_setup():
+    report = diagnose_setup({
+        "capabilities": [{
+            "adapter": "ltx_motion_track", "display": "LTX Motion Track",
+            "state": "incompatible", "docs": "https://example.test/ltx",
+        }],
+        "extractor": {},
+    })
+    assert report["ok"] is True
+    assert report["issues"][0]["severity"] == "warning"
+
+
+def test_wanvideowrapper_legacy_node_does_not_claim_native_tracks():
+    capabilities = detect_capabilities({
+        "WanVideoATITracks": _node_with_inputs("tracks", "width", "height"),
+    })
+    report = check_workflow_compatibility(["MajoorOmniCamWanVideoWrapperATI"], capabilities)
+    assert "wan_tracks_native" not in {problem["adapter"] for problem in report["problems"]}
+
+
 def test_workflow_compatibility_flags_missing_downstream():
     result = check_workflow_compatibility(["MajoorOmniCamH3Adapter"], detect_capabilities(set()))
     assert result["ok"] is False

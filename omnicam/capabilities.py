@@ -174,7 +174,7 @@ def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]
         remediation = _remediation(entry)
         if remediation:
             if entry["state"] == "incompatible":
-                severity = "error"
+                severity = "warning"
             elif entry["state"] == "missing":
                 severity = "info"
             else:
@@ -209,7 +209,7 @@ def check_workflow_compatibility(workflow_node_types: list[str], capabilities: d
     usage = {
         "h3": {"MajoorOmniCamH3Adapter"}, "h3_native": set(),
         "wan_ati": {"MajoorOmniCamWanVideoWrapperATI"},
-        "wan_native": {"MajoorOmniCamWanNativeCamera"}, "wan_tracks_native": {"MajoorOmniCamWanVideoWrapperATI"},
+        "wan_native": {"MajoorOmniCamWanNativeCamera"}, "wan_tracks_native": set(),
         "ltx": {"MajoorOmniCamLTXAdapter", "MajoorOmniCamLTXCameraGuide"},
         "ltx_motion_track": set(),
     }

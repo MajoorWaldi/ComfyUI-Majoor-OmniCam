@@ -3,6 +3,7 @@
 import { api } from "../../scripts/api.js";
 import { t } from "./i18n.js";
 import { fetchOmniCamCapabilities } from "./shared/capabilities.js";
+import { setupBadgeModel } from "./shared/setup-diagnostic.js";
 
 export async function refreshSetupDiagnostic(ui) {
   const badge = ui.root.querySelector('[data-role="setup-badge"]');
@@ -16,18 +17,18 @@ export async function refreshSetupDiagnostic(ui) {
   }
   ui.adapterCapabilities = payload;
   const issues = payload.diagnostic?.issues || [];
+  const badgeModel = setupBadgeModel(issues);
   badge.hidden = false;
   if (!issues.length) {
-    badge.className = "setup-badge ok";
-    badge.textContent = t("Adapters ready");
+    badge.className = `setup-badge ${badgeModel.tone}`;
+    badge.textContent = t("Core ready");
     issuesBox.innerHTML = "";
     return;
   }
-  const hasError = issues.some((issue) => issue.severity === "error");
-  badge.className = `setup-badge ${hasError ? "error" : "warn"}`;
+  badge.className = `setup-badge ${badgeModel.tone}`;
   badge.textContent = issues.length === 1
-    ? t("1 adapter missing")
-    : t("{count} adapters missing").replace("{count}", String(issues.length));
+    ? t("1 optional adapter issue")
+    : t("{count} optional adapter issues").replace("{count}", String(issues.length));
   issuesBox.innerHTML = "";
   for (const issue of issues) {
     const line = document.createElement("div");
