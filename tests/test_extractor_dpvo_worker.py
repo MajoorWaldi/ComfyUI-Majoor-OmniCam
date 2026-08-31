@@ -16,13 +16,15 @@ import pytest
 from omnicam.extractor.backends.base import SolveError
 from omnicam.extractor.backends.dpvo_worker import (
     CANONICAL_MODULE_NAME,
-    PACKAGE_ROOT as REPOSITORY_ROOT,
     DpvoProcessRunner,
     DpvoWorkerRequest,
     _isolated_child_bootstrap,
     child_sys_path,
     extract_active_patch_features,
     write_frame_exchange,
+)
+from omnicam.extractor.backends.dpvo_worker import (
+    PACKAGE_ROOT as REPOSITORY_ROOT,
 )
 from omnicam.extractor.types import CameraIntrinsics, VideoFrameSample
 
@@ -217,6 +219,7 @@ def test_spawned_runner_explains_a_native_dpvo_child_crash(tmp_path):
 
     message = str(error.value)
     assert "exit code 1" in message
+    assert f"pid={runner.last_pid}" in message
     assert "native extension" in message
     assert "PyTorch/CUDA" in message
     assert runner.process is None

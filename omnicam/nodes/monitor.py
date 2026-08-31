@@ -4,6 +4,7 @@ from typing import Any
 
 from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
+from ..core.video_sampling import resample_video_frames
 from ..monitor.execute import execute_monitor_adapter
 from ..monitor.fingerprint import monitor_fingerprint
 from .base import OMNICAM_TRACK, validated_track
@@ -79,11 +80,20 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             capabilities=detect_capabilities(), **settings,
         )
         fingerprint = monitor_fingerprint(track=track.to_dict(), adapter=adapter, settings=settings)
+        reference_frames = (
+            resample_video_frames(
+                result["reference_video"],
+                target_fps=24.0,
+                max_seconds=15.0,
+            )
+            if adapter == "h3_native" and result["reference_video"] is not None
+            else image_twin(result["reference_video"])
+        )
         ordered = (
             result["reference_video"], result["camera_prompt"], result["cinematic_prompt"],
             result["final_prompt"], result["camera_data_json"], result["wan_camera"],
             result["tracks"], result["adapter_width"], result["adapter_height"],
             result["adapter_length"], result["guide_frames"], result["adapter_profile_json"],
-            image_twin(result["reference_video"]),
+            reference_frames,
         )
         return IO.NodeOutput(*ordered, ui={"monitor": {"format": "majoor.omnicam.monitor.execution.v1", "fingerprint": fingerprint}})

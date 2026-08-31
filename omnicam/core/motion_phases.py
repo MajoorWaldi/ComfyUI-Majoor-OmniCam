@@ -183,7 +183,7 @@ def segment_motion_phases(
             continue
         runs.append({"axis": label, "start": index, "end": index + 1})
 
-    min_frames = max(2, int(round(min_phase_seconds * track.fps)))
+    min_frames = max(2, round(min_phase_seconds * track.fps))
     runs = _cap(_merge_short(runs, min_frames), max(1, int(max_phases)))
     runs.sort(key=lambda phase: phase["start"])
 

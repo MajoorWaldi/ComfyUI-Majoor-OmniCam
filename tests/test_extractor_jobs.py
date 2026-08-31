@@ -15,8 +15,6 @@ from omnicam.extractor.jobs.manager import (
 from omnicam.extractor.jobs.types import (
     COMPLETED,
     FAILED,
-    PAUSED,
-    PAUSING,
     PREPARING,
     SOLVING,
     STOPPED,
@@ -78,14 +76,6 @@ def test_the_documented_flow_is_legal():
     assert can_transition("REFINING", COMPLETED)
 
 
-def test_pause_and_resume_are_legal_from_the_working_states():
-    for state in (TRACKING, SOLVING):
-        assert can_transition(state, PAUSING)
-    assert can_transition(PAUSING, PAUSED)
-    assert can_transition(PAUSED, TRACKING)
-    assert can_transition(PAUSED, SOLVING)
-
-
 def test_terminal_states_go_nowhere():
     assert not can_transition(STOPPED, TRACKING)
     assert not can_transition(FAILED, TRACKING)
@@ -105,8 +95,6 @@ def test_an_illegal_transition_is_refused():
 def test_a_new_job_starts_runnable():
     job = new_job(owner_client_id="a", extractor_node_id="1", source_ref={}, settings={})
     assert job.state == "IDLE"
-    assert job.resume_gate.is_set(), "the gate starts open or the worker would block immediately"
-    assert not job.pause_requested.is_set()
     assert not job.stop_requested.is_set()
 
 
@@ -114,10 +102,8 @@ def test_a_new_job_starts_runnable():
 # Cooperative control
 # ---------------------------------------------------------------------------
 
-def control_for(job, **hooks):
-    return SolveControl(
-        job.pause_requested, job.resume_gate, job.stop_requested, poll_seconds=0.01, **hooks
-    )
+def control_for(job):
+    return SolveControl(job.stop_requested)
 
 
 def test_a_checkpoint_passes_straight_through_when_nothing_is_requested():
@@ -130,62 +116,6 @@ def test_a_stop_request_cancels_at_the_next_checkpoint():
     job.stop_requested.set()
     with pytest.raises(SolveCancelled):
         control_for(job).checkpoint()
-
-
-def test_pause_blocks_the_worker_and_resume_releases_it():
-    job = new_job(owner_client_id="a", extractor_node_id="1", source_ref={}, settings={})
-    paused, resumed = threading.Event(), threading.Event()
-    control = control_for(job, on_paused=paused.set, on_resumed=resumed.set)
-
-    passed = threading.Event()
-
-    def worker():
-        control.checkpoint()
-        passed.set()
-
-    job.pause_requested.set()
-    thread = threading.Thread(target=worker, daemon=True)
-    thread.start()
-
-    assert paused.wait(2.0), "the worker must report reaching a checkpoint"
-    assert not passed.is_set(), "a paused worker must not run past its checkpoint"
-
-    job.pause_requested.clear()
-    job.resume_gate.set()
-    assert passed.wait(2.0)
-    assert resumed.is_set()
-    thread.join(2.0)
-
-
-def test_a_paused_worker_still_notices_a_stop():
-    job = new_job(owner_client_id="a", extractor_node_id="1", source_ref={}, settings={})
-    control = control_for(job)
-    cancelled = threading.Event()
-
-    def worker():
-        try:
-            control.checkpoint()
-        except SolveCancelled:
-            cancelled.set()
-
-    job.pause_requested.set()
-    thread = threading.Thread(target=worker, daemon=True)
-    thread.start()
-    job.stop_requested.set()
-    assert cancelled.wait(2.0), "a stop must reach a worker that is already paused"
-    thread.join(2.0)
-
-
-def test_a_broken_pause_listener_cannot_wedge_the_solve():
-    job = new_job(owner_client_id="a", extractor_node_id="1", source_ref={}, settings={})
-
-    def explode():
-        raise RuntimeError("the manager went away")
-
-    control = control_for(job, on_paused=explode)
-    job.stop_requested.set()
-    with pytest.raises(SolveCancelled):
-        control.checkpoint()
 
 
 # ---------------------------------------------------------------------------
@@ -211,73 +141,14 @@ def test_manager_shutdown_stops_jobs_and_reaps_backend_processes():
     assert cleaned == [True]
 
 
-def test_pause_reports_pausing_then_paused_only_when_the_worker_stops():
+def test_stop_signals_an_active_worker():
     mgr = manager()
     job = start(mgr)
     mgr.transition(job, PREPARING)
     mgr.transition(job, TRACKING)
-
-    mgr.pause(job)
-    assert job.state == PAUSING, "PAUSING means asked, not stopped"
-
-    mgr.worker_paused(job)
-    assert job.state == PAUSED
-
-
-def test_resume_returns_to_the_stage_that_was_interrupted():
-    mgr = manager()
-    job = start(mgr)
-    mgr.transition(job, PREPARING)
-    mgr.transition(job, TRACKING)
-    mgr.transition(job, SOLVING)
-
-    mgr.pause(job)
-    mgr.worker_paused(job)
-    mgr.resume(job)
-    mgr.worker_resumed(job)
-    assert job.state == SOLVING, "resume must not claim to be tracking again"
-    assert job.resume_gate.is_set()
-    assert not job.pause_requested.is_set()
-
-
-def test_resuming_a_job_that_never_reached_a_checkpoint_still_recovers():
-    mgr = manager()
-    job = start(mgr)
-    mgr.transition(job, PREPARING)
-    mgr.transition(job, TRACKING)
-    mgr.pause(job)
-    mgr.resume(job)
-    assert job.state == TRACKING
-
-
-def test_pausing_a_job_that_is_not_working_is_refused():
-    mgr = manager()
-    job = start(mgr)
-    with pytest.raises(JobStateError, match="cannot be paused"):
-        mgr.pause(job)
-
-
-def test_resuming_a_running_job_is_refused():
-    mgr = manager()
-    job = start(mgr)
-    mgr.transition(job, PREPARING)
-    mgr.transition(job, TRACKING)
-    with pytest.raises(JobStateError, match="cannot be resumed"):
-        mgr.resume(job)
-
-
-def test_stop_signals_the_worker_and_wakes_a_paused_one():
-    mgr = manager()
-    job = start(mgr)
-    mgr.transition(job, PREPARING)
-    mgr.transition(job, TRACKING)
-    mgr.pause(job)
-    mgr.worker_paused(job)
-
     mgr.stop(job)
     assert job.state == STOPPING
     assert job.stop_requested.is_set()
-    assert job.resume_gate.is_set(), "a stopped worker must be woken to see the stop"
 
 
 def test_stopping_a_finished_job_is_a_no_op():
@@ -356,6 +227,19 @@ def test_deleting_an_active_gpu_job_keeps_the_slot_until_the_worker_finishes():
     assert mgr.delete(first.job_id) is True
 
 
+def test_dpvo_does_not_start_while_comfyui_is_executing():
+    mgr = manager(execution_probe=lambda: True)
+    with pytest.raises(SolveSlotBusyError, match="currently executing a workflow"):
+        start(mgr, method="dpvo")
+    with pytest.raises(SolveSlotBusyError, match="currently executing a workflow"):
+        start(mgr, method="auto")
+
+
+def test_opencv_remains_available_while_comfyui_is_executing():
+    mgr = manager(execution_probe=lambda: True)
+    assert start(mgr, method="opencv_sift").settings["method"] == "opencv_sift"
+
+
 def test_another_client_cannot_touch_a_job():
     mgr = manager()
     job = start(mgr, client_id="client-a")
@@ -423,3 +307,8 @@ def test_the_job_status_payload_is_recoverable_over_http():
 
 def test_every_state_name_is_unique():
     assert len(job_types.STATES) == len(set(job_types.STATES))
+
+
+def test_public_job_state_machine_has_no_pause_states():
+    assert "PAUSING" not in job_types.STATES
+    assert "PAUSED" not in job_types.STATES

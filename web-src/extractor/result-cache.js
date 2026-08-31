@@ -106,6 +106,6 @@ export function statusLine(result) {
   const backend = String(metadata.backend || "solver").toUpperCase();
   const frames = Number(result?.track?.duration_frames) || 0;
   const keys = Array.isArray(result?.track?.keyframes) ? result.track.keyframes.length : 0;
-  const coverage = Math.round((Number(result?.confidence) || 0) * 100);
-  return `${backend} · ${frames} f · ${keys} keys · ${coverage}%`;
+  const coverage = Math.round((Number(result?.solver_coverage ?? result?.confidence) || 0) * 100);
+  return `${backend} · ${frames} f · ${keys} keys · Solver Coverage ${coverage}%`;
 }

@@ -1,120 +1,147 @@
 # OmniCam keyboard shortcuts and controls
 
-Les raccourcis sont actifs uniquement lorsque le viewport ou la timeline
-OmniCam a le focus. Ils ne capturent jamais le clavier pendant la saisie dans
-un champ.
+Shortcuts are live only while the OmniCam viewport or timeline has focus. They
+never capture the keyboard while you are typing into a field, and OmniCam
+claims a key from ComfyUI only when it actually handles it
+(`web-src/commands.js`).
 
-## Navigation du viewport
+Keys are scoped to the zone the event came from: the **viewport** owns the
+spatial keys, the **timeline / graph editor** own the temporal keys, and the
+**sequence editor** owns its own. Only a small transport set (undo/redo,
+copy/paste, duplicate, `Space`, `Escape`) fires from any zone.
 
-Le profil se choisit dans **Transform Tools > Navigation** :
+## Viewport navigation
 
-- **Maya** : `Alt/Option` + bouton gauche / milieu / droit pour orbit / pan / dolly.
-- **Blender** : bouton milieu pour orbit, `Shift` + milieu pour pan,
-  `Ctrl/Cmd` + milieu pour dolly. Un glisser gauche dans le vide crée une
-  sélection rectangulaire.
+The navigation profile is chosen in the toolbar's **Navigation & Selection**
+menu (and seeded per node by *Settings → OmniCam → Navigation*):
 
-| Contrôle | Action |
+- **Maya** — `Alt`/`Option` + left / middle / right drag for orbit / pan /
+  dolly.
+- **Blender** — middle drag orbits, `Shift` + middle pans, `Ctrl`/`Cmd` +
+  middle dollies. A plain left drag in empty space starts a marquee selection.
+
+| Control | Action |
 |---|---|
-| Molette | Dolly avant/arrière |
-| Double-clic | Placer la cible de caméra |
-| `W`, `A`, `S`, `D`, `Q`, `E` en Fly | Déplacement libre |
-| Molette en Fly | Régler la vitesse Fly |
-| `F` ou `Numpad .` | Cadrer la sélection |
-| `Numpad 0` | Vue de la caméra active |
-| `Numpad 1` / `Ctrl/Cmd + Numpad 1` | Vue avant / arrière |
-| `Numpad 3` / `Ctrl/Cmd + Numpad 3` | Vue droite / gauche |
-| `Numpad 7` / `Ctrl/Cmd + Numpad 7` | Vue dessus / dessous |
+| Mouse wheel | Dolly in / out |
+| Double-click in the viewport | Place the camera target under the cursor |
+| `F` or `Numpad .` | Frame the selection (or the target) |
+| `C`, or `Shift` + `` ` `` | Toggle Fly mode |
+| `W` `A` `S` `D` `Q` `E` (Fly mode only) | Fly move; `Shift` flies faster |
+| Mouse wheel (Fly mode) | Adjust fly speed |
+| Drag (Fly mode) | Look around; `Esc` or `C` exits Fly |
+| `Numpad 0` | Active-camera view |
+| `Numpad 1` / `Ctrl`/`Cmd` + `Numpad 1` | Front / back view |
+| `Numpad 3` / `Ctrl`/`Cmd` + `Numpad 3` | Right / left view |
+| `Numpad 7` / `Ctrl`/`Cmd` + `Numpad 7` | Top / bottom view |
+| `Numpad 9` | Bottom view |
+| `Numpad 5` | Toggle camera / perspective view |
+| `N` | Toggle the Inspector panel |
 
-## Sélection et transformation
+Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 
-| Raccourci | Action |
+## Selection and transformation (viewport zone)
+
+| Shortcut | Action |
 |---|---|
-| Clic | Sélectionner un objet |
-| `Shift/Ctrl/Cmd + clic` | Ajouter/retirer un objet de la sélection |
-| `Ctrl/Cmd + glisser dans le vide` | Sélection rectangulaire avec le profil Maya |
-| Glisser gauche dans le vide | Sélection rectangulaire avec le profil Blender |
-| `Shift + G` | Sélectionner l'objet actif et tous ses descendants |
-| `T` | Translation modale |
-| `R` | Rotation modale |
-| `S` | Mise à l'échelle modale |
-| `X`, `Y`, `Z` pendant `T/R/S` | Contraindre ou libérer l'axe |
-| Chiffres, `-`, `.` ou `,` | Saisir une valeur exacte |
-| `Shift` pendant la transformation | Mouvement précis |
-| `Enter` ou clic gauche | Confirmer |
-| `Escape` ou clic droit | Annuler |
-| Boutons ↔ / ⟳ / ⤢ | Choisir le gizmo translation / rotation / échelle |
-| `Tab` | Basculer Object Mode / Component Mode |
+| Click | Select an object |
+| `Shift`/`Ctrl`/`Cmd` + click | Add / remove from the selection |
+| `Ctrl`/`Cmd` + drag in empty space | Marquee selection (Maya profile) |
+| Left drag in empty space | Marquee selection (Blender profile) |
+| Hold `Shift` when the marquee starts | Additive marquee |
+| `Shift` + `G` | Select the active object and all its descendants |
+| `T` | Modal translate |
+| `R` | Modal rotate |
+| `S` | Modal scale |
+| `X` `Y` `Z` during `T`/`R`/`S` | Constrain or release the axis |
+| digits, `-`, `.` or `,` during `T`/`R`/`S` | Type an exact value |
+| `Shift` during a transform | Precision movement |
+| `Enter` or left click | Confirm the transform |
+| `Escape` or right click | Cancel the transform |
+| `Tab` | Toggle Object Mode / Component Mode |
+| `1` `2` `3` `4` (not numpad) | Component select mode: vertex / edge / face / object |
+| `H` / `Alt`+`H` | Hide the selected object / show all |
+| `Delete` / `Backspace` | Delete the selected object or camera |
 
-`T/R/S` transforme tous les objets sélectionnés autour de leur pivot moyen.
-Les objets verrouillés restent sélectionnables mais ne sont pas transformés.
-`Q/W/E/A/S/D` ne pilotent la caméra que lorsque le mode Fly est actif ; hors
-Fly, `Q`, `W` et `E` n'ont volontairement aucune commande d'outil concurrente.
+`T`/`R`/`S` transform every selected object around their shared pivot. Locked
+objects stay selectable but are not transformed. The toolbar's **Spatial Snap**
+menu is independent of the timeline's temporal snapping: **Grid** snaps to the
+configured step, **Vertex** snaps the selection pivot to a visible vertex, and
+holding `Ctrl`/`Cmd` engages the grid temporarily.
 
-Le menu **Spatial Snap** est indépendant du snapping temporel de la timeline :
-**Grid** utilise le pas configuré, tandis que **Vertex** accroche le pivot de la
-sélection à un sommet visible. `Ctrl/Cmd` active temporairement la grille. Pour
-une sélection rectangulaire additive, maintenir `Shift` au démarrage.
+## Animation and editing
 
-## Animation et édition
-
-| Raccourci | Action |
+| Shortcut | Action |
 |---|---|
-| `I` | Insérer/remplacer une clé à l'image courante |
-| `Space` | Lecture/arrêt |
-| Flèche gauche/droite | Image précédente/suivante |
-| Flèche haut/bas | Clé précédente/suivante |
-| `Home` / `End` | Première/dernière image |
-| `[` / `]` | Définir le début/la fin de lecture |
-| `Delete` / `Backspace` | Supprimer la clé ou l'objet sélectionné |
-| `Ctrl/Cmd + C` / `Ctrl/Cmd + V` | Copier/coller une clé |
-| `Ctrl/Cmd + D` | Dupliquer l'objet ou la caméra |
-| `H` / `Alt/Option + H` | Masquer la sélection / tout afficher |
-| `Ctrl/Cmd + Z` | Undo viewport |
-| `Ctrl/Cmd + Shift + Z` | Redo viewport |
-| `Ctrl/Cmd + Y` | Redo alternatif |
+| `I` or `K` | Insert / replace a keyframe at the current frame |
+| `Space` | Play / stop |
+| `←` / `→` | Previous / next frame |
+| `↑` / `↓`, `.` / `,`, or `Shift` + `→` / `Shift` + `←` | Previous / next keyframe |
+| `Delete` / `Backspace` (timeline zone) | Delete the selected keyframe |
+| `Ctrl`/`Cmd` + `C` / `V` | Copy / paste a keyframe |
+| `Ctrl`/`Cmd` + `D` | Duplicate the selected object or camera |
+| `Ctrl`/`Cmd` + `Z` | Undo (viewport history) |
+| `Ctrl`/`Cmd` + `Shift` + `Z`, or `Ctrl`/`Cmd` + `Y` | Redo |
 
-## Timeline et Curve Editor
+`Home` / `End` select the **first / last keyframe** in the timeline and graph
+zones. In the sequence editor they jump to frame 0 / the last frame instead.
 
-| Contrôle | Action |
+Playback in / out points are set with the two range buttons in the transport
+bar (`web-src/event-bindings/transport-media.js`); there is no keyboard
+shortcut for them.
+
+## Timeline and Curve Editor
+
+| Control | Action |
 |---|---|
-| Cliquer/glisser la règle | Scrubber les images |
-| Cliquer/glisser la timeline | Scrubber les images |
-| Clic sur un losange de canal | Aller à cette clé et la sélectionner |
-| Onglets Graph Editor / Dope Sheet | Basculer la vue du panneau bas |
-| Glisser une clé | Déplacer la clé dans le temps |
-| `Shift + clic` | Ajouter une clé à la sélection |
-| `Shift + glisser` dans le vide | Sélection rectangulaire de clés |
-| `Alt/Option + glisser` une clé | Dupliquer et déplacer la clé |
-| Molette | Zoom temporel |
-| Bouton milieu ou `Alt/Option + glisser` | Pan |
-| Glisser un point/une tangente | Modifier la valeur ou l'interpolation |
+| Click / drag the ruler or the timeline | Scrub frames |
+| Click a channel diamond | Jump to that key and select it |
+| Graph Editor / Dope Sheet tabs | Switch the lower-panel view |
+| Drag a key | Move it in time |
+| `Shift` + click | Add a key to the selection |
+| `Shift` + drag in empty space | Marquee-select keys |
+| `Alt`/`Option` + drag a key | Duplicate and move the key |
+| Mouse wheel | Time zoom |
+| Middle drag, or `Alt`/`Option` + drag | Pan |
+| Drag a point or tangent | Change the value or the interpolation |
 
-## Chrome du viewport
+## Sequence editor (Advanced interface tier)
 
-Le rail vertical à gauche du viewport regroupe l'outil de sélection, les gizmos
-translation / rotation / échelle, les quatre modes de sélection, le cadrage de
-la cible et la bascule du panneau latéral. Les pastilles en haut à gauche
-choisissent la vue et la caméra active ; le coin haut droit affiche le zoom et
-la bascule plein écran, qui masque les panneaux pour ne garder que l'image.
+Active only when the sequence editor zone has focus:
 
-Sous ce coin, le gizmo d'axes indique l'orientation du monde : X en rouge, Y en
-vert, Z en bleu. L'axe qui pointe vers vous porte sa lettre, celui qui s'éloigne
-reste un point atténué. C'est un calque SVG, pas un rendu WebGL : il n'apparaît
-donc jamais dans le playblast, qui doit rester une référence de mouvement neutre.
+| Shortcut | Action |
+|---|---|
+| `←` / `→` | Previous / next frame |
+| `Home` / `End` | Frame 0 / last frame |
+| `S` | Split the shot at the playhead (auto-split if there are no cuts yet) |
+| `A` | Auto-split the whole timeline into shots |
+| `Delete` / `Backspace` | Remove the shot under the playhead |
+
+## Viewport chrome
+
+The vertical rail left of the viewport holds the select tool, the
+translate / rotate / scale gizmos, the four component select modes, frame-target
+and the side-panel toggle. The pills at top-left choose the view and the active
+camera; the top-right corner shows the zoom and the full-screen toggle, which
+hides the panels down to the image alone.
+
+Below that corner, the axis gizmo shows world orientation — X red, Y green,
+Z blue. The axis pointing toward you carries its letter; the one pointing away
+is a dimmed dot. It is an SVG overlay, not a WebGL pass, so it never appears in
+the playblast, which stays a neutral motion reference.
 
 ## Mini-radar
 
-La case *Display → 2D Radar Mini-Map* affiche une carte vue de dessus en bas à
-droite du viewport : tracé de toutes les caméras (actif en surbrillance),
-positions et cône de visée de la caméra active, cible, objets de la scène, clés
-de trajectoire, et une pastille d'altitude colorée par tranche de hauteur.
-L'échelle s'adapte pour garder les trajectoires, la caméra et la cible dans le
-cadre. Le radar n'est jamais dessiné pendant un playblast.
+*Display → 2D Radar Mini-Map* draws a top-down map at the bottom-right of the
+viewport: every camera path (active one highlighted), the active camera's
+position and view cone, the target, scene objects, trajectory keys and an
+altitude dot coloured by height band. The scale adapts to keep the paths, the
+camera and the target in frame. The radar is never drawn during a playblast.
 
-## Vérification manuelle du viewport
+## Manual viewport QA
 
-1. Créer trois objets au centre, en verrouiller un et effectuer une sélection multiple.
-2. Tester `T X 2 Enter`, `R Z 45 Enter`, `S 1,5 Enter`, puis Undo/Redo.
-3. Tester Grid et Vertex sans modifier le snapping de la timeline.
-4. Tester la sélection rectangulaire additive et `Shift+G` sur une hiérarchie.
-5. Basculer Maya/Blender et vérifier orbit, pan et dolly dans chaque profil.
+1. Create three centred objects, lock one, and multi-select.
+2. Run `T X 2 Enter`, `R Z 45 Enter`, `S 1.5 Enter`, then Undo / Redo.
+3. Test Grid and Vertex snapping without changing the timeline snap.
+4. Test the additive marquee and `Shift`+`G` on a hierarchy.
+5. Switch Maya / Blender and check orbit, pan and dolly in each profile.
+6. Enter Fly with `C`, move with `W`/`A`/`S`/`D`/`Q`/`E`, exit with `Esc`.

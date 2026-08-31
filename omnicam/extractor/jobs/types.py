@@ -2,7 +2,7 @@
 
 A solve started from the Extractor panel is a long-running server-side job, not
 a graph execution. It therefore needs its own lifecycle, and that lifecycle has
-to be explicit: the difference between PAUSING and PAUSED, or between STOPPED
+to be explicit: the difference between STOPPING and STOPPED, or between STOPPED
 and COMPLETED, is exactly what tells the user whether the partial trajectory on
 screen is reviewable scratch or a shippable camera.
 
@@ -23,8 +23,6 @@ PREPARING = "PREPARING"
 TRACKING = "TRACKING"
 SOLVING = "SOLVING"
 REFINING = "REFINING"
-PAUSING = "PAUSING"
-PAUSED = "PAUSED"
 STOPPING = "STOPPING"
 STOPPED = "STOPPED"
 COMPLETED = "COMPLETED"
@@ -32,24 +30,19 @@ FAILED = "FAILED"
 
 STATES = (
     IDLE, PREPARING, TRACKING, SOLVING, REFINING,
-    PAUSING, PAUSED, STOPPING, STOPPED, COMPLETED, FAILED,
+    STOPPING, STOPPED, COMPLETED, FAILED,
 )
 
 #: States in which the worker thread is still alive and holding resources.
-ACTIVE_STATES = frozenset({PREPARING, TRACKING, SOLVING, REFINING, PAUSING, PAUSED, STOPPING})
+ACTIVE_STATES = frozenset({PREPARING, TRACKING, SOLVING, REFINING, STOPPING})
 #: States from which nothing further happens on its own.
 TERMINAL_STATES = frozenset({STOPPED, COMPLETED, FAILED})
-#: States a pause request is meaningful in.
-PAUSABLE_STATES = frozenset({TRACKING, SOLVING})
-
 VALID_TRANSITIONS: dict[str, frozenset[str]] = {
     IDLE: frozenset({PREPARING, STOPPING, FAILED}),
     PREPARING: frozenset({TRACKING, STOPPING, FAILED}),
-    TRACKING: frozenset({SOLVING, PAUSING, STOPPING, FAILED}),
-    SOLVING: frozenset({REFINING, PAUSING, STOPPING, FAILED}),
+    TRACKING: frozenset({SOLVING, STOPPING, FAILED}),
+    SOLVING: frozenset({REFINING, STOPPING, FAILED}),
     REFINING: frozenset({COMPLETED, STOPPING, FAILED}),
-    PAUSING: frozenset({PAUSED, STOPPING, FAILED}),
-    PAUSED: frozenset({TRACKING, SOLVING, STOPPING, FAILED}),
     STOPPING: frozenset({STOPPED, FAILED}),
     STOPPED: frozenset(),
     COMPLETED: frozenset({REFINING}),
@@ -118,9 +111,6 @@ class InteractiveSolveJob:
     anomalies: list = field(default_factory=list)
 
     backend_name: str = ""
-    #: The state a pause interrupted, so resuming returns to it rather than
-    #: guessing TRACKING and lying about which stage is running.
-    paused_from: str = ""
     warnings: list[str] = field(default_factory=list)
     error: str = ""
 
@@ -130,13 +120,7 @@ class InteractiveSolveJob:
     #: the very first job of a process invisible to the TTL sweep.
     finished_at: float | None = None
 
-    pause_requested: Event = field(default_factory=Event)
-    #: Set means "run". The worker blocks on it while paused.
-    resume_gate: Event = field(default_factory=Event)
     stop_requested: Event = field(default_factory=Event)
-
-    def __post_init__(self) -> None:
-        self.resume_gate.set()
 
     @property
     def is_active(self) -> bool:

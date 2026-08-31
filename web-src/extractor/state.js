@@ -2,21 +2,20 @@
 //
 // The server owns the truth; this file only decides what the panel shows and
 // which buttons are live. Keeping that as a pure reducer means the button rules
-// -- which are genuinely fiddly, because PAUSING is not PAUSED and STOPPED is
-// not COMPLETED -- are testable without a browser.
+// -- which are genuinely fiddly, because STOPPING is not STOPPED and STOPPED
+// is not COMPLETED -- are testable without a browser.
 
 export const SOLVE_STATES = [
   "IDLE", "PREPARING", "TRACKING", "SOLVING", "REFINING",
-  "PAUSING", "PAUSED", "STOPPING", "STOPPED", "COMPLETED", "FAILED",
+  "STOPPING", "STOPPED", "COMPLETED", "FAILED",
 ];
 
-const ACTIVE = new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "PAUSING", "STOPPING"]);
-const PAUSABLE = new Set(["TRACKING", "SOLVING"]);
+const ACTIVE = new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]);
 
 // Status-pill colour families, matching the shared Director tokens.
 const TONES = {
   IDLE: "neutral", PREPARING: "info", TRACKING: "active", SOLVING: "active", REFINING: "active",
-  PAUSING: "warn", PAUSED: "warn", STOPPING: "warn", STOPPED: "neutral",
+  STOPPING: "warn", STOPPED: "neutral",
   COMPLETED: "ok", FAILED: "danger",
 };
 
@@ -139,12 +138,10 @@ export function reduceExtractorState(state, action) {
 /** Which controls are live, given the solve state and what the source offers. */
 export function controlAvailability(state) {
   const solve = state.solveState;
-  const busy = ACTIVE.has(solve) || solve === "PAUSED";
+  const busy = ACTIVE.has(solve);
   const completed = solve === "COMPLETED";
   return {
     track: !busy && state.source.available,
-    pause: PAUSABLE.has(solve),
-    resume: solve === "PAUSED",
     stop: busy,
     // A partial solve is reviewable, never shippable.
     apply: completed && Boolean(state.refinedFingerprint),
@@ -164,10 +161,6 @@ export function statusLabel(state) {
     case "TRACKING":
     case "SOLVING":
       return `${state.solveState} ${percent}%`;
-    case "PAUSED":
-      return state.frameCount ? `PAUSED · Frame ${state.frame} / ${state.frameCount}` : "PAUSED";
-    case "PAUSING":
-      return "PAUSING…";
     case "STOPPING":
       return "STOPPING…";
     default:

@@ -124,6 +124,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             "kind": RESULT_ENVELOPE_KIND,
             "fingerprint": result.fingerprint,
             "track": result.track,
+            "solver_coverage": result.confidence,
             "confidence": result.confidence,
             "report": result.report,
             "source": source_reference,

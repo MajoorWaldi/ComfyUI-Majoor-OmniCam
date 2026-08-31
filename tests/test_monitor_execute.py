@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from omnicam.core.track import OmniCamTrack
 from omnicam.monitor import execute as monitor_execute
 
@@ -44,3 +48,26 @@ def test_h3_and_ati_never_touch_heavy_engines(monkeypatch):
     monkeypatch.setattr(monitor_execute, "build_ltx_guide_frames", forbidden)
     assert _run("h3")["reference_video"] == "proxy"
     assert _run("wan_ati")["tracks"]
+
+
+@pytest.mark.parametrize(("adapter", "payload_key"), [
+    ("wan_native", "wan_camera"),
+    ("wan_tracks_native", "tracks"),
+    ("h3", "reference_video"),
+    ("h3_native", "reference_video"),
+    ("ltx_motion_track", "tracks"),
+    ("wan_ati", "tracks"),
+])
+def test_pinned_adapter_contracts_accept_generated_payloads(adapter, payload_key, monkeypatch):
+    if adapter == "wan_native":
+        monkeypatch.setattr(
+            monitor_execute,
+            "build_wan_camera_embedding",
+            lambda *args, **kwargs: {"camera_conditions": []},
+        )
+    result = _run(adapter)
+    assert result[payload_key] not in (None, "")
+    assert result["adapter_width"] == 832
+    assert result["adapter_height"] == 480
+    assert result["adapter_length"] == 81
+    json.loads(result["adapter_profile_json"])

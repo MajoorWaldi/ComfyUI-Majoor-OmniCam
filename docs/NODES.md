@@ -1,184 +1,197 @@
-# OmniCam — guide des nodes publics
+# OmniCam — node guide
 
-Ce document décrit exclusivement les nodes actuellement enregistrés par
-OmniCam. Le registre contient trois nodes produit et quatre nodes de
-compatibilité dépréciés. Le Sequencer, les analyses de scène et les transferts
-DCC restent internes ou désactivés.
+This document describes only the nodes OmniCam actually registers
+(`omnicam/node_registry.py`): **three product nodes** and **four deprecated
+compatibility nodes**. The Sequencer, the scene-motion analysis helpers and the
+DCC exporters are removed from the shipped package; their history is in git.
 
-## Flux canonique
+| Node id | Display name | Category | State |
+|---|---|---|---|
+| `MajoorOmniCamDirector` | OmniCam Director | `Majoor/OmniCam` | product |
+| `MajoorOmniCamExtractor` | OmniCam Extractor | `Majoor/OmniCam` | product |
+| `MajoorOmniCamMonitor` | OmniCam Monitor | `Majoor/OmniCam` | product |
+| `MajoorOmniCamH3Adapter` | OmniCam → Universal Reference & AI Prompts | `Majoor/OmniCam/Legacy` | deprecated |
+| `MajoorOmniCamWanNativeCamera` | OmniCam → Wan Native Camera | `Majoor/OmniCam/Legacy` | deprecated |
+| `MajoorOmniCamLTXCameraGuide` | OmniCam → LTX Camera Guide | `Majoor/OmniCam/Legacy` | deprecated |
+| `MajoorOmniCamWanVideoWrapperATI` | OmniCam → WanVideoWrapper ATI | `Majoor/OmniCam/Legacy` | deprecated |
+
+## Canonical flow
 
 ```text
-OmniCam Extractor → OmniCam Director → MAJOOR_OMNICAM_TRACK → OmniCam Monitor → adapter modèle
-                                      ↘ proxy_video        ↗
-                                      ↘ shot_collection
+OmniCam Extractor → OmniCam Director → MAJOOR_OMNICAM_TRACK → OmniCam Monitor → model adapter
+   recover              author                                 QC / preflight / route
 ```
 
-Le Track est la source de vérité. Les adapters ne lisent pas directement
-l’état interne du viewport.
+The track is the source of truth. Adapters never read the viewport's internal
+state directly. Model-specific behaviour lives behind Monitor's adapter
+selection and never leaks into the canonical track.
 
-## Sockets média : VIDEO ou IMAGE
+## Media sockets: VIDEO or IMAGE
 
-Chaque socket OmniCam qui transporte des images — `image` et `video` du
-Director, `video` de l’Extractor, `proxy_video` du Monitor et des nodes de
-compatibilité — est un socket multi-types `VIDEO,IMAGE`. Un lot d’images
-généré par le graphe se branche donc sans node `ImageToVideo` intermédiaire.
+Every OmniCam socket that carries footage — the Director's `image` and `video`,
+the Extractor's `video`, the Monitor's `proxy_video` — is a multi-type
+`VIDEO,IMAGE` socket, so a generator's `IMAGE` batch connects without an
+`ImageToVideo` node in between. The conversion happens at the node boundary
+(`omnicam/nodes/media.py`):
 
-La conversion a lieu à la frontière du node, dans `omnicam/nodes/media.py` :
-
-| Branché | Attendu | Conversion |
+| Connected | Wanted | What OmniCam does |
 |---|---|---|
-| `IMAGE` | vidéo | enveloppe en mémoire, lue au FPS du node, sinon 24 |
-| `VIDEO` | images | échantillonnage borné, jamais un décodage complet |
-| `IMAGE` | source solvable | encodée d’abord sous `temp/omnicam/extractor_runtime/`, car un solve a besoin de chercher dans un fichier |
+| `IMAGE` | video | wraps the batch in memory, read at the node's fps (24 if it has none) |
+| `VIDEO` | images | bounded sampling, never a full decode |
+| `IMAGE` | a solvable source | encodes it below `temp/omnicam/extractor_runtime/` first, because a solve seeks inside its source |
 
-Le schéma canonique et les adaptateurs ne changent pas : la conversion produit
-exactement les mêmes objets que ceux déjà attendus en aval.
+### Video outputs carry an IMAGE twin
 
-### Les sorties vidéo ont un jumeau IMAGE
+An output returns exactly one concrete value, and ComfyUI has no "VIDEO or
+IMAGE" output type, so every socket that outputs a proxy or reference video
+carries a second plain `IMAGE` output beside it: `proxy_frames` on the Director,
+`reference_frames` on the Monitor and on the deprecated H3 node. Each twin is a
+bounded uniform sample — never a full decode — and degrades to `None` rather
+than aborting the node. Wire whichever output your downstream node wants;
+nothing needs both.
 
-Une sortie ne renvoie qu’une seule valeur concrète à l’exécution : un socket de
-sortie « VIDEO ou IMAGE » n’existe pas dans ComfyUI, et un node en aval qui
-attendrait l’un recevrait parfois l’autre. `IO.MultiType` ne définit d’ailleurs
-qu’un `Input`, jamais d’`Output`.
+---
 
-À la place, chaque sortie qui produit une vidéo de proxy ou de référence est
-accompagnée d’une seconde sortie `IMAGE` : `proxy_frames` sur le Director,
-`reference_frames` sur le Monitor et sur le node de compatibilité H3 déprécié.
-Chaque jumeau est un échantillon borné et uniforme de la vidéo voisine — jamais
-un décodage complet — et devient `None` plutôt que de faire échouer le node si
-cette vidéo n’est pas échantillonnable. Il suffit de brancher la sortie voulue ;
-aucun aval n’a besoin des deux.
+## OmniCam Director — `MajoorOmniCamDirector`
 
-## OmniCam Director
+Interactive camera-layout, animation, timeline and playblast environment. The
+frontend stores a canonical camera track and an optional proxy playblast;
+execution exposes both to the graph.
 
-Identifiant : `MajoorOmniCamDirector`
+![OmniCam Director](assets/director-outliner.png)
 
-Éditeur de layout caméra, objets proxy, animation, timeline et playblast.
+*Regenerate the screenshots with `npx playwright test tests/frontend/docs-screens.spec.js`, then copy `test-results/docs-*.png` into `docs/assets/`.*
 
-Entrées utilisateur principales : résolution, FPS, durée, mode de rendu,
-image/vidéo/audio et scène 3D optionnelles — `image` et `video` acceptent
-l’un ou l’autre type. `state_json`, `recording_path` et
-`card_asset` sont des champs avancés gérés par l’interface.
+**Inputs.** `width`, `height`, `fps`, `duration_seconds`, `render_mode`
+(`omni_ref`, `graybox`, `grid`, `point_field`, `wireframe`, `card_grid`,
+`beauty`), optional `image` / `video` (either media type) and `audio`, an
+optional `scene_3d`, and an optional upstream `camera_track` (an OmniCam
+Extractor connects here). `state_json`, `recording_path` and `card_asset` are
+advanced fields the interface manages.
 
-Sorties :
+**Outputs**, in schema order:
 
-`camera_track` est le seul contrat public recommande. Les sorties `confidence`
-et `report` restent temporairement disponibles pour les workflows existants;
-elles ne sont pas une mesure de precision et seront retirees seulement avec une
-migration ComfyUI versionnee.
-
-- `camera_track` — Track canonique de la caméra active ;
-- `proxy_video` — playblast ou vidéo connectée ;
-- `audio` — audio associé ;
-- `shot_collection` — toutes les caméras du Director et leurs proxies ;
-- `proxy_frames` — jumeau `IMAGE` borné de `proxy_video`, `None` sans proxy.
-
-Le Director ne produit plus `camera_info`, `track_json`, `sequence`,
-`shots_json` ou `director_shot`. Pour une preview vidéo, il lit les métadonnées
-puis décode au plus 32 images uniformes via des plages `VIDEO.as_trimmed()`.
-
-### Densité d’interface : Basic, Animation, Advanced
-
-Le sélecteur `Interface` du menu `View` (et des réglages ComfyUI) choisit la
-quantité de chrome affichée, sur le modèle du « Simplify » de Blender ou des
-niveaux d’interface de Maya — une divulgation progressive, pas trois mises en
-page différentes.
-
-| Palier | Ajoute |
-|---|---|
-| `Basic` | placement objets/caméras, keyframing, lecture, playblast |
-| `Animation` | import/export caméra, bake d’aim, panneau Health, éditeur de courbes, presets de sortie |
-| `Advanced` | tout : sélection sub-object, snapping spatial, overlays de diagnostic, fonds statiques, maintenance du cache |
-
-Le sélecteur lui-même n’est jamais masqué par son propre réglage. Quitter un
-onglet qu’un palier inférieur masque (Health, en Basic) revient sur l’Outliner
-plutôt que d’afficher un panneau vide.
-
-## OmniCam Extractor
-
-Le transport expose `TRACK` et `STOP`. Le panneau utilise deux vues : `VIDEO`
-pour la source connectee et `TRACK 3D` pour la trajectoire finalisee. Les
-anomalies et la qualite du solve restent des diagnostics de l'Extractor ; les
-limites de modele et les profils adapters sont centralises dans le Monitor.
-
-Identifiant : `MajoorOmniCamExtractor`
-
-Estime une trajectoire caméra 6DoF **relative** à partir d’un plan vidéo
-continu et émet un Track canonique schema v1.
-
-Entrées :
-
-| Entrée | Défaut | Rôle |
+| Output | Type | Meaning |
 |---|---|---|
-| `video` | — | Un seul plan continu, `VIDEO` ou lot `IMAGE`. Une coupe franche est signalée, jamais recollée. |
-| `method` | `dpvo` | `dpvo` par défaut ; `auto` ou `opencv_sift` restent disponibles. |
-| `lens_mode` | `auto` | `auto` (53° vertical documenté), `fov` ou `focal_mm`. |
-| `fov_degrees` | `53.0` | FOV vertical, utilisé si `lens_mode=fov`. |
-| `focal_length_mm` | `24.0` | Focale, utilisée si `lens_mode=focal_mm`. |
-| `sensor_width_mm` | `36.0` | Largeur capteur, utilisée si `lens_mode=focal_mm`. |
-| `max_dimension` | `640` | Bord long des images envoyées au solveur. Jamais d’upscale. |
-| `frame_step` | `1` | Échantillonnage. Les clés gardent les numéros de frames **source**. |
-| `normalize_origin` | `True` | Place la frame 0 à l’origine, orientation identité. |
-| `motion_scale` | `1.0` | Met la translation à l’échelle de la scène. N’affecte jamais la rotation. |
-| `position_smoothing` | `0.15` | Lissage centré, sans retard temporel. `0` = solve brut. |
-| `rotation_smoothing` | `0.10` | Moyenne quaternion pondérée, après continuité de signe. |
-| `simplify_keys` | `True` | Réduction de clés tenant compte position **et** orientation. |
-| `position_tolerance` | `0.01` | Erreur de position admise. `0` = sans perte. |
-| `rotation_tolerance_deg` | `0.25` | Erreur angulaire admise. `0` = sans perte. |
+| `camera_track` | `MAJOOR_OMNICAM_TRACK` | canonical track of the active camera — the one public contract |
+| `proxy_video` | `VIDEO` | the recorded playblast, or the connected clip |
+| `audio` | `AUDIO` | associated audio |
+| `shot_collection` | `MAJOOR_OMNICAM_SHOT_COLLECTION` | every authored camera and its proxy, with a per-camera `proxy_ready` flag |
+| `proxy_frames` | `IMAGE` | bounded IMAGE twin of `proxy_video`; `None` when there is no proxy |
 
-Sorties :
+The Director no longer emits `camera_info`, `track_json`, `sequence`,
+`shots_json` or `director_shot`. For a video preview it reads container
+metadata, then decodes at most 32 uniform frames through bounded
+`VIDEO.as_trimmed()` ranges.
 
-- `camera_track` — Track canonique `MAJOOR_OMNICAM_TRACK` ;
-- `confidence` — **couverture du solveur**, pas une précision physique ;
-- `report` — résumé lisible (backend, clés, objectif, avertissements).
+**Interface density.** The `View → Interface` selector (Basic / Animation /
+Advanced) is progressive disclosure of one layout, not three layouts. The full
+table is in the project README under *Interface density: Basic, Animation,
+Advanced*.
 
-Limites assumées en V1 : pas d’échelle métrique, pas de focale animée, pas de
-distorsion, pas de rolling shutter, pas de solve multi-plans, pas de capture
-d’objets ou de personnages.
+### Upstream `camera_track` import
 
-### Panneau de solve interactif
+The Director's optional `camera_track` input is imported by fingerprint
+(`extractor_fingerprint`):
 
-Le node Extractor embarque un panneau de matchmove. `▶ TRACK` lance le solve
-**sans passer par la file de prompts ComfyUI** : aucune exécution de graphe,
-aucun modèle chargé.
+- no cable → the Director's local state;
+- fingerprint already imported → the local state, **including your edits**;
+- unknown fingerprint → the upstream camera motion, re-hosted in the Director's
+  scene and render context.
 
-États du job :
+Resolution, render mode, objects, constraints and scene metadata always stay
+with the Director. Disconnect the cable to freeze the imported trajectory.
+
+---
+
+## OmniCam Extractor — `MajoorOmniCamExtractor`
+
+Estimates a **relative** 6DoF camera trajectory from one continuous video shot
+and emits a canonical schema-v1 track.
+
+**Inputs.**
+
+| Input | Default | Role |
+|---|---|---|
+| `video` | — | one continuous shot, `VIDEO` or `IMAGE` batch; a hard cut is reported, never stitched |
+| `method` | `dpvo` | `dpvo`; `auto` prefers DPVO when installed and falls back to OpenCV/SIFT; `opencv_sift` forces the classical solver |
+| `lens_mode` | `auto` | `auto`, `fov` or `focal_mm` |
+| `fov_degrees` | `53.0` | vertical FOV, used when `lens_mode=fov` |
+| `focal_length_mm` | `24.0` | focal length, used when `lens_mode=focal_mm` |
+| `sensor_width_mm` | `36.0` | sensor width, used when `lens_mode=focal_mm` |
+| `max_dimension` | `640` | solver long edge; never upscales |
+| `frame_step` | `1` | sampling stride; keys keep the **source** frame numbers |
+| `normalize_origin` | `True` | places frame 0 at the origin with identity orientation |
+| `motion_scale` | `1.0` | sizes the relative translation for your scene; never touches rotation |
+| `position_smoothing` | `0.15` | centred, so it adds no temporal lag; `0` = raw solve |
+| `rotation_smoothing` | `0.10` | weighted quaternion mean after sign-continuity |
+| `simplify_keys` | `True` | key reduction that accounts for position **and** orientation |
+| `position_tolerance` | `0.01` | allowed position error; `0` = lossless |
+| `rotation_tolerance_deg` | `0.25` | allowed angular error; `0` = lossless |
+
+**Outputs.** `camera_track` (canonical `MAJOOR_OMNICAM_TRACK`), `confidence`
+(**solver coverage**, the share of sampled frames that produced a pose — not a
+physical accuracy), `report` (human-readable: backend, keys, lens, warnings).
+
+`confidence` remains at its historical slot in 0.x as a legacy alias for the
+canonical `solver_coverage` metadata field. The UI labels it **Solver Coverage**.
+
+**V1 limits.** No metric scale, no animated zoom, no lens distortion, no
+rolling shutter, no multi-shot solve, no object or body capture.
+
+### Interactive solve panel
+
+The node carries a matchmove panel. `▶ TRACK` starts the solve immediately and
+**does not queue a ComfyUI prompt** — no graph run, no model loaded. Four
+transport controls:
+
+```text
+▶ TRACK     start solving now
+■ STOP      abandon it, keeping the partial path for review
+```
+
+Job states:
 
 ```text
 IDLE → PREPARING → TRACKING → SOLVING → REFINING → COMPLETED
-TRACKING/SOLVING → PAUSING → PAUSED → TRACKING/SOLVING
-tout état actif → STOPPING → STOPPED
-tout état actif → FAILED
+any active state → STOPPING → STOPPED
+any active state → FAILED
 ```
 
-`PAUSING` signifie « demandé », `PAUSED` signifie « le worker s’est
-réellement arrêté à un point de contrôle ». La pause et l’arrêt sont
-coopératifs : aucun thread n’est tué, aucun contexte CUDA n’est détruit de
-force.
+Stop is cooperative: the solver is asked between safe frames, and the panel
+reports `STOPPING` until the worker reaches one. No thread is killed and no CUDA
+context is force-destroyed. Pause/Resume is intentionally absent because native
+GPU backends cannot guarantee it safely. A `STOPPED` or `FAILED` solve never
+produces a final track and `APPLY REFINED` stays disabled.
 
-Un solve `STOPPED` ou `FAILED` ne produit **jamais** de track final :
-`APPLY REFINED` reste désactivé.
+While it runs the panel shows three tabs:
 
-### Sources acceptées sans Run
-
-| Source | Interactif |
+| Tab | Shows |
 |---|---|
-| `Load Video` natif connecté | oui |
-| Fichier choisi via `Choose Video` | oui |
-| `Create Video` / VIDEO ou IMAGE généré en mémoire, avant sa première exécution | non, raison affichée |
-| VIDEO runtime après exécution normale de l’Extractor | oui, copie gérée `[temp]` |
-| Node VIDEO tiers inconnu, après matérialisation par l’Extractor | oui, référence `[temp]` |
+| `SOURCE` | the clean managed footage the solver reads |
+| `TRACK 3D` | the solved trajectory, read-only: orbit / pan / zoom, Fit, Top/Front/Side |
+| `COMPARE` | clean source, the same frame with live solver points, and the read-only 3D track, side by side |
 
-Les noms de widgets de nodes tiers ne sont jamais devinés. Le panneau ne met
-jamais silencieusement le graphe en file d’attente.
+OpenCV streams a bounded transient 3D path while it tracks. DPVO reports honest
+source-frame progress but publishes its trajectory only after global
+optimisation completes; it does not fabricate intermediate poses.
 
-Lors d’une exécution normale, une source qui n’est pas déjà un fichier géré —
-VIDEO runtime ou lot IMAGE — est encodée sous `temp/omnicam/extractor_runtime/` avec un nom UUID. L’enveloppe UI
-contient uniquement la référence annotée, jamais le chemin absolu. Le player,
-la timeline et le viewer 3D acceptent ce résultat par le même chemin que le
-solve interactif.
+### Sources accepted without Run
 
-### Routes no-run
+| Source | Interactive |
+|---|---|
+| a connected native `Load Video` | yes |
+| a file chosen through `Choose Video` | yes |
+| an in-memory `VIDEO` / `IMAGE` batch, before its first execution | no — the reason is shown |
+| a runtime `VIDEO` after a normal Extractor execution | yes — via a managed `[temp]` copy |
+| an unknown third-party `VIDEO` node, after the Extractor materialises it | yes — via a `[temp]` reference |
+
+Third-party widget names are never guessed. The panel never silently queues the
+graph. During a normal execution, a source that is not already a managed file
+is encoded below `temp/omnicam/extractor_runtime/` with a UUID name; the UI
+envelope carries only the annotated reference, never an absolute path.
+
+### No-run routes
 
 ```text
 POST   /majoor/omnicam/extractor/source
@@ -193,349 +206,242 @@ DELETE /majoor/omnicam/extractor/jobs/{job_id}
 POST   /majoor/omnicam/upload_extractor_source
 ```
 
-`/extractor/source` mesure une source sans rien démarrer : le panneau a besoin de la cadence et du nombre d’images avant le premier solve, sinon son scrubber n’a aucune plage.
+`/extractor/source` measures a source without starting anything: the panel
+needs the frame rate and count before the first solve, or its scrubber has no
+range. WebSocket events
+`majoor.omnicam.extractor.{job,progress,pose,quality,features,completed,failed}`
+are rate-limited to ~10 Hz **per channel**. The WebSocket is transport, not
+state: `GET /jobs/{id}` stays the source of truth after a disconnect.
 
-Événements WebSocket : `majoor.omnicam.extractor.{job,progress,pose,quality,features,completed,failed}`,
-limités à environ 10 Hz **par canal** (un compteur global laissait le premier
-canal déclenché faire taire les autres dans la même fenêtre). Le WebSocket est
-un transport, pas un état : `GET /jobs/{id}` reste la source de vérité après une
-déconnexion.
+### Track timeline
 
-`features` porte les points suivis d’une image — au plus 240, échantillonnés sur
-toute l’image, normalisés dans le carré unité et marqués `accepted`/`rejected`
-selon le masque d’inliers. Purement d’affichage : ils ne sont jamais stockés sur
-le job, car un overlay ne décrit qu’une image et les garder toutes croîtrait
-sans borne sur un plan long.
+Below the solve, the panel draws the channels the solve produced — Camera,
+Look At, Focal Length, Roll — as diamonds on the video's frame axis. A key sits
+only where **its** channel changes. Two bands sit above it:
 
-### Timeline de track
+- **SOLVE** — tracker health (coverage, inliers): could it *see*?
+- **MOTION** — `motion_health`, the same grading as the Director's Health
+  panel, against the selected adapter's limits: is the recovered camera
+  *shootable*?
 
-Sous le solve, le panneau dessine les canaux que le solve a produits — Camera,
-Look At, Focal Length, Roll — en losanges, sur le même axe d’images que la
-vidéo. Une clé n’est posée que là où **son** canal change : un objectif qui ne
-bouge pas affiche une seule clé, pas une par image.
+A green SOLVE with a red MOTION is a real case — a clean track of a camera too
+fast for the target model — and is exactly what one merged bar would hide. The
+MOTION band follows RAW / REFINED. The timeline edits nothing: the Extractor
+corrects through Refine, and a second editable timeline would silently disagree
+with the first.
 
-Deux bandes la surmontent et ne disent pas la même chose :
+### Non-destructive refinement
 
-* **SOLVE** — la santé du tracker (couverture, inliers) : est-ce qu’il *voyait* ?
-* **MOTION** — `motion_health`, la même notation que le panneau Health du
-  Director, contre les limites de l’adaptateur choisi : la caméra obtenue est-
-  elle *tournable* ?
-
-Un solve vert avec un MOTION rouge est un cas réel — un track propre d’une
-caméra trop rapide pour le modèle visé — et c’est exactement ce qu’une barre
-unique masquerait. La bande MOTION suit RAW/REFINED : noter le track raffiné
-pendant que l’utilisateur regarde le brut serait une réponse fausse en silence.
-
-La timeline ne modifie rien : l’Extractor corrige par Refine, et une timeline
-éditable serait un second éditeur en désaccord silencieux avec le premier.
-
-### Raffinement non destructif
-
-Le solve brut est **immuable**. Chaque réglage redérive un track à partir de
-lui, sans décodage vidéo ni solveur :
+The raw solve is **immutable**. Every control re-derives a track from it, with
+no video decode and no solver:
 
 ```text
-raw → actions spikes → trim → origine → alignement global
-    → échelle → continuité quaternion → lissage → réduction de clés → track
+raw → spike actions → trim → origin → global alignment
+    → scale → quaternion continuity → smoothing → key reduction → track
 ```
 
-L’alignement est **global** : un seul offset pitch/yaw/roll pour tout le solve,
-jamais par clé. La détection de spikes utilise médiane et MAD, donc une caméra
-rapide mais régulière n’est pas signalée.
+Alignment is **global**: one pitch/yaw/roll offset for the whole solve, never
+per key. Spike detection uses median and MAD, so a camera that is simply moving
+fast is not flagged. `RESET` returns to the raw solve exactly.
 
-`APPLY REFINED` écrit le résultat dans l’état sérialisé du node et prévient
-le Director connecté. Modifier un réglage ensuite marque le résultat
-`OUTDATED` jusqu’au prochain Apply : le Director n’est jamais écrasé pendant
-que l’utilisateur expérimente.
+`APPLY REFINED` writes the result into the node's serialized state and notifies
+the connected Director. Changing a control afterwards marks the result
+`OUTDATED` until the next apply; the Director is never overwritten while you
+experiment.
 
 ### Backends
 
-DPVO ([princeton-vl/DPVO](https://github.com/princeton-vl/DPVO), licence MIT)
-et OpenCV/SIFT sont **optionnels** et importés paresseusement : OmniCam se
-charge normalement sans eux. Le checkpoint DPVO est lu à un emplacement géré et
-non configurable :
+DPVO ([princeton-vl/DPVO](https://github.com/princeton-vl/DPVO), MIT) and
+OpenCV/SIFT are **optional** and lazily imported: OmniCam loads normally with
+neither. The DPVO checkpoint is read from one fixed, non-configurable managed
+path:
 
 ```text
 ComfyUI/models/omnicam/dpvo/dpvo.pth
 ```
 
-OmniCam n’installe jamais de paquet Python à l’exécution. Aucun code ni aucune
-configuration DPVO n’est redistribué dans ce paquet — l’intégration se fait par
-import à l’exécution — donc `THIRD_PARTY_NOTICES.md`, qui décrit uniquement le
-bundle `web/omnicam.js`, reste inchangé.
+OmniCam never runs `pip install` at runtime. No DPVO code or configuration is
+redistributed in this package. Each DPVO solve runs in a fresh spawned process;
+sampled frames cross through a private NumPy memmap below ComfyUI's temp
+directory, removed on success, stop and failure. When the child exits its CUDA
+context exits with it, so DPVO VRAM returns to the driver instead of staying in
+ComfyUI's allocator. See the README for the Windows-portable build notes.
 
-Chaque solve DPVO est exécuté dans un processus `spawn` jetable. Les images
-échantillonnées sont écrites progressivement dans un `.npy` memmap privé sous
-le temp ComfyUI. Succès, erreur, annulation et arrêt serveur ferment le pipe,
-rejoignent le processus et suppriment l’échange. La VRAM CUDA appartient donc
-au processus enfant et redescend quand son PID disparaît. Pendant le solve,
-DPVO publie la frame source courante mais aucune pose provisoire : sa trajectoire
-n’est valide qu’après `terminate()`.
+---
 
-### Entrée `camera_track` du Director
+## OmniCam Monitor — `MajoorOmniCamMonitor`
 
-Le Director expose une entrée optionnelle `camera_track`. La règle est une
-importation par empreinte (`extractor_fingerprint`) :
+![OmniCam Monitor](assets/monitor-panel.png)
 
-- pas de câble → l’état local du Director ;
-- empreinte déjà importée → l’état local, **éditions comprises** ;
-- empreinte inconnue → le mouvement caméra amont, dans le contexte de scène et
-  de rendu du Director.
+The QC, preflight and delivery stage for the canonical track, and the single
+exit point from OmniCam into the rest of the graph. Monitor watches the
+Director without running the graph: an upstream change moves the state to
+`OUTDATED`, then Live Sync calls the bounded
+`POST /majoor/omnicam/monitor/snapshot` route after 250 ms; Refresh calls the
+same route. Neither loads a model, builds `WAN_CAMERA_EMBEDDING` or
+materialises the LTX IMAGE batch.
 
-Résolution, mode de rendu, objets, contraintes et métadonnées de scène restent
-au Director. Débrancher le câble fige la trajectoire importée.
+The watcher follows the **sockets**, not the upstream node class. Any source of
+`MAJOOR_OMNICAM_TRACK` is accepted — Director, Extractor or a third-party node.
+A source that does not expose its track in a widget (Extractor) is `CONNECTED`,
+not `OFFLINE`. Proxy availability follows the `proxy_video` socket;
+`recording_path` is just the Director playblast special case.
 
-## OmniCam Monitor
+**Inputs.**
 
-Identifiant : `MajoorOmniCamMonitor`
-
-Étape de contrôle qualité, préflight et livraison du Track canonique. Monitor
-observe le Director sans lancer le graphe : une modification amont passe
-immédiatement l’état à `OUTDATED`, puis Live Sync appelle après 250 ms la route
-légère `/majoor/omnicam/monitor/snapshot`. Refresh appelle la même route. Aucun
-de ces chemins ne charge de modèle, ne construit `WAN_CAMERA_EMBEDDING` et ne
-matérialise le batch IMAGE LTX.
-
-Monitor réutilise le lecteur d’assets gérés et la timeline read-only de
-l’Extractor. La timeline montre les lanes Camera, Look At, Focal Length et Roll
-sur le même axe que le proxy.
-
-Le watcher suit les **sockets**, pas la classe du node amont. Toute source de
-`MAJOOR_OMNICAM_TRACK` est acceptée : Director, Extractor ou un node tiers. Une
-source qui n’expose pas sa track dans un widget (Extractor) est signalée
-`CONNECTED` — le graphe est valide, la track n’existe qu’à l’exécution — et non
-`OFFLINE`. De même, la disponibilité du proxy suit le socket `proxy_video` ;
-`recording_path` n’est qu’un cas particulier, le playblast du Director.
-
-Entrées :
-
-| Entrée | Défaut | Rôle |
+| Input | Default | Role |
 |---|---|---|
-| `camera_track` | — | Track canonique produit par Director. |
-| `proxy_video` | optionnel | Proxy géré utilisé par H3 et LTX, `VIDEO` ou lot `IMAGE`. |
-| `adapter` | `h3` | `h3`, `h3_native`, `wan_native`, `wan_ati`, `wan_tracks_native`, `ltx_motion_track` ou `ltx`. |
-| `base_prompt` | vide | Intention utilisateur conservée dans le prompt final. |
-| `video_ref_token` | `auto` | Déprécié. Le dialecte H3 est déduit du node installé ; masqué dans l’UI. |
-| `width`, `height`, `length` | `832`, `480`, `81` | Dimensions et longueur de l’adapter. |
-| `point_count`, `distribution` | `16`, `balanced` | Projection des trajectoires ATI. |
-| `ltx_max_frames`, `ltx_sampling_mode` | `121`, `contiguous` | Plan d’échantillonnage LTX legacy borné. |
+| `camera_track` | — | canonical track |
+| `proxy_video` | optional | the shot the track describes, `VIDEO` or `IMAGE` batch |
+| `adapter` | `h3` | `h3`, `h3_native`, `wan_native`, `wan_ati`, `wan_tracks_native`, `ltx_motion_track`, `ltx` |
+| `base_prompt` | empty | user intent kept in the final prompt |
+| `video_ref_token` | `auto` | deprecated; the H3 dialect is inferred from the installed node, hidden in the UI |
+| `width`, `height`, `length` | `832`, `480`, `81` | adapter dimensions and length |
+| `point_count`, `distribution` | `16`, `balanced` | ATI trajectory projection |
+| `ltx_max_frames`, `ltx_sampling_mode` | `121`, `contiguous` | bounded legacy LTX sampling plan |
 
-Sorties stables : `reference_video`, `camera_prompt`, `cinematic_prompt`,
-`final_prompt`, `camera_data_json`, `wan_camera`, `tracks`, `adapter_width`,
-`adapter_height`, `adapter_length`, `guide_frames`, `adapter_profile_json` et
-`reference_frames` (jumeau `IMAGE` borné de `reference_video`). Seules les
-sorties de l’adapter sélectionné sont calculées ; les sorties lourdes inactives
-valent `None`.
+**Outputs**, in schema order: `reference_video`, `camera_prompt`,
+`cinematic_prompt`, `final_prompt`, `camera_data_json`, `wan_camera`, `tracks`,
+`adapter_width`, `adapter_height`, `adapter_length`, `guide_frames`,
+`adapter_profile_json`, `reference_frames` (bounded IMAGE twin of
+`reference_video`). Only the selected adapter's outputs are computed; inactive
+heavy outputs are `None`.
 
-La vue H3 réutilise le proxy réel. ATI, Wan Motion Tracks et LTX Motion Track
-affichent les coordonnées exactes livrées. LTX legacy affiche les indices exacts
-du plan de sampling. Wan Camera affiche uniquement un chemin caméra marqué
-`DIAGNOSTIC`, car l’embedding final n’existe qu’après l’exécution du node.
+The preview reuses the real proxy for `h3`. ATI, Wan tracks and LTX Motion
+Track show the exact delivered coordinates. Legacy LTX shows the exact sampling
+indices. Wan Camera shows only a camera path marked **DIAGNOSTIC**, because the
+final embedding only exists after node execution.
 
-### Les cinq familles d’adapters
+### The seven adapters, by family
 
-Ce ne sont pas cinq variantes d’un même contrôle, et l’UI les nomme désormais
-pour ce qu’elles sont :
-
-| Adapter | Famille | Chemin de contrôle |
+| Adapter | Family | Control path |
 |---|---|---|
-| `h3` | `video_reference` | Vidéo de référence + prompt, dialecte `Video 1` (`MinimaxHailuo03ReferenceNode`). |
-| `h3_native` | `video_reference` | Frames de référence + prompt, dialecte `<Video 1>` (`MiniMaxH3ReferenceToVideo`), `length` = 17n+5. |
-| `wan_native` | `camera_conditioning` | Vraie caméra numérique : extrinsics/intrinsics → `WAN_CAMERA_EMBEDDING`. Référence de fidélité. |
-| `wan_tracks_native` | `trajectory` | Trajectoires 2D projetées → `WanTrackToVideo`. Approximation d’une caméra. |
-| `wan_ati` | `trajectory` | Trajectoires 2D → `WanVideoATITracks` (Wan **2.1** ATI, WanVideoWrapper). |
-| `ltx_motion_track` | `trajectory` | Trajectoires 2D → `LTXVDrawTracks` → IC-LoRA Motion Track. Longueur = 8n+1. |
-| `ltx` | `proxy_guide` | Legacy : frames de proxy échantillonnées. Ne porte pas la caméra authorée. |
+| `h3` | video reference | reference video + prompt, `Video 1` dialect (`MinimaxHailuo03ReferenceNode`) |
+| `h3_native` | video reference | reference frames + prompt, `<Video 1>` dialect (`MiniMaxH3ReferenceToVideo`), `length` = 17n+5 |
+| `wan_native` | camera conditioning | a true digital camera: extrinsics/intrinsics → `WAN_CAMERA_EMBEDDING`; the fidelity reference; `length` = 4n+1 |
+| `wan_tracks_native` | trajectory | projected 2D trajectories → `WanTrackToVideo`; an approximation of a camera |
+| `wan_ati` | trajectory | projected 2D trajectories → `WanVideoATITracks` (Wan 2.1 ATI, WanVideoWrapper) |
+| `ltx_motion_track` | trajectory | projected 2D trajectories → `LTXVDrawTracks` → IC-LoRA Motion Track; `length` = 8n+1 |
+| `ltx` | proxy guide | legacy: sampled proxy frames; does not carry the authored camera |
 
-### Preflight, validité de track et motion risk
+### Preflight vs track validity vs motion risk
 
-Trois notions distinctes, délibérément séparées :
+Three deliberately separate ideas:
 
-1. **Adapter contract** — les seuls faits qui décident `READY` / `WARNING` /
-   `BLOCKED`. Chaque règle est lue chez le node aval : FPS 23.976–60, durée
-   2–15 s et budget de prompt 7000 caractères pour H3 API, `length` 17n+5 pour
-   H3 natif, 4n+1 pour Wan Camera, 8n+1 pour LTX Motion Track, contrat de socket
-   détecté pour tous.
-2. **Track validity** — non-finitude (bloquant) et perte de cadrage
-   (avertissement). Propriétés objectives de la track.
-3. **Motion risk** — `LOW` / `MEDIUM` / `HIGH`, estimation empirique OmniCam
-   graduée contre des tables qu’aucun projet amont ne publie, en unités monde
-   sans signification métrique. Affiché, jamais compté dans le verdict.
+1. **Adapter contract** — the only facts that decide `READY` / `WARNING` /
+   `BLOCKED`, each read from the downstream node: 23.976–60 FPS and a 2–15 s
+   duration and the H3 API prompt-character budget for `h3`; `length` = 17n+5
+   for `h3_native`, 4n+1 for `wan_native`, 8n+1 for `ltx_motion_track`; the
+   detected socket contract for every adapter.
+2. **Track validity** — non-finite values (blocking) and framing loss
+   (warning). Objective properties of the track.
+3. **Motion risk** — `LOW` / `MEDIUM` / `HIGH`, an OmniCam empirical estimate
+   in world units with no metric meaning, graded against tables no upstream
+   project publishes. Shown, never counted in the verdict.
 
-Les quatre anciens nodes adapters restent chargeables pour les workflows
-existants, dans `Majoor/OmniCam/Legacy` avec `is_deprecated=True`. Ils conservent
-leur comportement d’exécution, mais les nouveaux graphes doivent passer par
-Monitor.
+---
 
-## Universal Reference & AI Prompts
+## Deprecated compatibility nodes
 
-Identifiant : `MajoorOmniCamH3Adapter`
+All four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`. They
+keep their execution behaviour so pinned workflows still load and run; new
+graphs should use Monitor, whose adapter menu covers every one of these paths.
+The old `MajoorOmniCamWanATIAdapter` additionally has an official Node
+Replacement to `MajoorOmniCamWanVideoWrapperATI`.
 
-Produit une vidéo de référence caméra, un fragment de prompt, un prompt
-cinématique et l’analyse JSON du trajet. Le proxy est décrit explicitement
-comme référence de mouvement seulement : sa géométrie et son apparence ne
-doivent pas être copiées.
+### OmniCam → Universal Reference & AI Prompts — `MajoorOmniCamH3Adapter`
 
-L’analyse utilise tout le trajet : translations locales dolly/truck/crane,
-orbite signée, distance parcourue, rotation, vitesse, accélération, jerk,
-courbure et variations optiques. Truck reste une translation latérale et crane
-une translation verticale ; ces termes ne sont jamais remplacés par pan/tilt.
-L'analyse reste indépendante des templates de prompt et expose une classification
-multi-tag (`primary`, `secondary`, `optical`, `compound`) pour les mouvements
-composés, le pan, le tilt, le roll, le zoom optique et les plans verrouillés.
+Camera reference video, a prompt fragment, a cinematic prompt and the JSON
+trajectory analysis. The analysis uses the whole path — local dolly/truck/crane
+translation, signed orbit, distance travelled, rotation, speed, acceleration,
+jerk, curvature and optical change — and exposes a multi-tag classification
+(`primary`, `secondary`, `optical`, `compound`). Truck stays a lateral
+translation and crane a vertical one; these terms are never swapped for
+pan/tilt. Inputs: `video_ref_token`, `prompt_style`
+(`h3`/`universal`/`kling`/`luma`/`hunyuan`/`wan`), `base_prompt`, optional
+`proxy_video`. Outputs: `camera_reference_video`, `prompt_fragment`,
+`cinematic_prompt`, `camera_analysis_json`, `reference_frames`.
 
-## Wan Native Camera
+### OmniCam → Wan Native Camera — `MajoorOmniCamWanNativeCamera`
 
-Identifiant : `MajoorOmniCamWanNativeCamera`
+Converts the track to `WAN_CAMERA_EMBEDDING`. `length` must be 4n+1. The output
+feeds the Wan native node's `camera_conditions` input. Outputs:
+`camera_embedding`, `width`, `height`, `length`.
 
-Convertit le Track en `WAN_CAMERA_EMBEDDING`. La longueur doit respecter
-`4n+1`. La sortie se connecte à l’entrée `camera_conditions` du node Wan natif.
+### OmniCam → LTX Camera Guide — `MajoorOmniCamLTXCameraGuide`
 
-## LTX Camera Guide
+Decodes proxy `VIDEO` frames into an LTX camera guide. Inputs: `proxy_video`,
+`base_prompt`, `start_frame`, `end_frame`, `max_frames`, `resize_width`,
+`resize_height`, `sampling_mode` (`contiguous` / `uniform`). It computes the
+range and the memory budget before decoding, then uses `VIDEO.as_trimmed()`. It
+recognises the current `LTXAddVideoICLoRAGuide` and
+`LTXAddVideoICLoRAGuideAdvanced` classes plus the older aliases for diagnostics.
+Outputs: `guide_frames`, `cinematic_prompt`, `camera_profile_json` (whose
+`guide_diagnostics` reports the IMAGE type, frame count, resolution and memory
+estimate of the decoded guide).
 
-Identifiant : `MajoorOmniCamLTXCameraGuide`
+### OmniCam → WanVideoWrapper ATI — `MajoorOmniCamWanVideoWrapperATI`
 
-Produit :
+Projects stable 3D reference points and returns the `tracks` STRING consumed by
+`WanVideoATITracks`. The same STRING contract is detected for the native
+`WanTrackToVideo` node.
 
-- `guide_frames` — batch IMAGE borné ;
-- `cinematic_prompt` ;
-- `camera_profile_json`.
+`WanVideoATITracks` normalises coordinates with **its own** `width`/`height`
+widgets (`process_tracks` computes `(xy - size/2) / min(size) * 2`). Writing
+1280×720 pixels into a node still set to 832×480 silently offsets and rescales
+every trajectory, so this node exposes `width` and `height` as inputs **and
+outputs** — wire them to `WanVideoATITracks`.
 
-Le node calcule la plage et le budget mémoire avant décodage, puis utilise
-`VIDEO.as_trimmed()`. Il reconnaît les classes LTX actuelles
-`LTXAddVideoICLoRAGuide` et `LTXAddVideoICLoRAGuideAdvanced`, ainsi que les
-anciens alias à des fins de diagnostic.
-`camera_profile_json.guide_diagnostics` indique le type IMAGE, le nombre de
-frames, la résolution et l'estimation mémoire du guide décodé.
+`pad_pts` forces visibility 1 for every supplied point and pads to 121 with
+zeros. The only way to say "this point left frame" is to end its list, so
+OmniCam truncates a trajectory at the first invisible frame instead of clamping
+it to the border. A point that is not visible at frame 0 opens no trajectory.
+The ATI preview draws the trajectories **actually exported**, with a radius that
+grows from oldest to newest sample, like WanVideoWrapper's own visualiser.
 
-## WanVideoWrapper ATI
+Inputs: `point_count`, `distribution` (`balanced` / `subject_focus` /
+`ground_parallax`), `width`, `height`. Outputs: `tracks`, `width`, `height`.
 
-Identifiant : `MajoorOmniCamWanVideoWrapperATI`
+---
 
-Projette des points 3D stables et retourne la chaîne `tracks` consommée par
-`WanVideoATITracks`. Le même contrat STRING est détecté pour le node natif
-`WanTrackToVideo`, sans prétendre qu’une intégration est vérifiée lorsque seule
-sa classe est présente.
+## Camera interchange
 
-L’ancien `MajoorOmniCamWanATIAdapter` dispose d’un Node Replacement officiel
-vers ce node ; son ancienne sortie JSON est remappée vers `tracks`.
+Export to `.glb` / `.gltf`, `.usda` and `.chan`; import from `.gltf`, `.glb`,
+`.fbx`, `.chan` and OmniCam / Blender JSON. Written files land under
+`output/omnicam/exports/`. Everything is baked one sample per frame:
+OmniCam's ease / smooth / bezier / hold interpolation has no equivalent in
+these formats, so writing only the keys would change the received curve. glTF
+also carries the canonical track in `extras.omnicam`, which makes the round trip
+back into OmniCam lossless. OBJ is not offered (no camera, no time, no FOV).
+FBX is read but not written — export goes through glTF or USD, which reach the
+same applications.
 
-## Capacités et compatibilité
+## Capabilities and compatibility
 
-`ADAPTER_INFO` est l’unique registre. Les états runtime sont :
+`ADAPTER_INFO` is the single registry. Runtime states: `missing`,
+`detected_unverified`, `verified`, `incompatible`. Verification inspects the
+sockets the installed classes expose; class presence alone never announces a
+pinned version or a verified integration.
 
-- `missing` ;
-- `detected_unverified` ;
-- `verified` ;
-- `incompatible`.
+OmniCam uses `comfy_api.latest` because the required V3 contract (`IO.Schema`,
+`IO.Video`, `IO.WanCameraEmbedding`, Node Replacement) is not fully provided by
+the stable `v0_0_2` adapter. The declared and tested minimum is ComfyUI
+`0.31.0`, which bundles `comfyui-frontend-package==1.48.7`; both bounds in
+`pyproject.toml` agree. CI blocks on `v0.31.0` and `v0.34.0`; `master` is a
+non-blocking canary.
 
-La vérification inspecte les sockets exposées par les classes installées. Une
-simple présence de classe ne suffit pas à annoncer une version épinglée ou une
-compatibilité vérifiée.
+### Compatibility deprecations
 
-## Adaptateur ATI : résolution et visibilité
+Monitor outputs are not reordered or removed in 0.3.x. A future major may
+deprecate `camera_prompt`, `cinematic_prompt`, `camera_data_json`, and
+`adapter_profile_json`; saved links remain stable until a versioned slot
+migration exists. Scene-aware trajectory anchors (depth, mesh, tracked points)
+are explicitly deferred until after 1.0; the stable core continues to project
+model-agnostic synthetic anchors.
 
-`WanVideoATITracks` normalise les coordonnées avec **ses propres** widgets
-`width`/`height` (`process_tracks` fait `(xy - taille/2) / min(taille) * 2`).
-Écrire des pixels 1280×720 dans un node resté à 832×480 décale et rééchelonne
-silencieusement toutes les trajectoires. Le node OmniCam expose donc `width` et
-`height` en entrée **et en sortie** : câblez-les vers `WanVideoATITracks`.
+## Non-public components
 
-`pad_pts` force la visibilité à 1 pour chaque point fourni et complète à 121
-avec des zéros (visibilité 0). La seule façon de dire « ce point est sorti du
-champ » est donc d'arrêter la liste : OmniCam tronque la trajectoire à la
-première image invisible au lieu de la plaquer sur le bord, ce qui aurait
-demandé au modèle de suivre un point glissant le long du cadre. Un point non
-visible dès l'image 0 n'ouvre pas de trajectoire, faute de pouvoir exprimer une
-apparition différée.
-
-L'aperçu ATI dessine désormais les trajectoires **réellement exportées**, avec
-un rayon croissant de l'ancien vers le récent, comme le visualiseur de
-WanVideoWrapper.
-
-## Échange de caméra
-
-Export vers `.glb`/`.gltf`, `.usda` et `.chan` ; import depuis `.gltf`, `.glb`,
-`.fbx`, `.chan` et JSON OmniCam/Blender. Les fichiers écrits atterrissent sous
-`output/omnicam/exports/`. Tout est baké image par image : les interpolations
-d'OmniCam (ease, smooth, bezier, hold) n'ont aucun équivalent dans ces formats,
-donc n'écrire que les clés changerait la courbe reçue. Le glTF embarque en plus
-la piste canonique dans `extras.omnicam`, ce qui rend le retour dans OmniCam
-strictement sans perte.
-
-OBJ n'est pas proposé : le format ne connaît ni caméra, ni temps, ni champ de
-vision. FBX est lu mais pas écrit — l'export passe par glTF ou USD, qui
-atteignent les mêmes logiciels.
-
-## Mode de rendu `beauty`
-
-Le viewport d'édition est éclairé (IBL, rig trois points, ombre de contact,
-tone mapping ACES). Ce look s'arrête au playblast : tous les modes proxy
-enregistrent le rendu neutre. Seul `beauty` conserve l'éclairage dans la vidéo
-enregistrée — à réserver aux cas où l'on veut une référence jolie, en sachant
-qu'un modèle de conditionnement peut alors copier l'apparence en plus du
-mouvement.
-
-## Composants non publics
-
-- Scene Motion Analysis : données géométriques de centres projetés, pas de
-  véritables passes pixels ;
-- `core/camera_tools.py` : bibliothèque interne utilisée par les adaptateurs,
-  exposée par aucun node.
-
-Le Sequencer, les nodes Sequence/EDL et Track Sampler/Camera Tools, le modèle de
-données de séquence, le montage audio/vidéo et les exports DCC (Blender/Unreal)
-ont été retirés du paquet livré : ils n'étaient atteignables depuis aucun des
-nodes publics. Leur historique reste dans git.
-
-## Compatibilité minimale
-
-OmniCam utilise actuellement `comfy_api.latest` car le contrat V3 nécessaire
-(`IO.Schema`, `IO.Video`, `IO.WanCameraEmbedding`, Node Replacement) n’est pas
-entièrement fourni par l’adapter stable `v0_0_2`. La version minimale déclarée
-et testée est donc ComfyUI `0.31.0`, qui embarque exactement
-`comfyui-frontend-package==1.48.7`; les deux bornes publiées dans
-`pyproject.toml` sont donc cohérentes. La CI valide les releases stables
-`v0.31.0` et `v0.34.0`; `master` est un canary non bloquant, jamais la définition
-du support stable. La dépendance frontend est publiée selon la spécification du
-Registry afin que l’hôte reçoive une incompatibilité explicite plutôt qu’un
-frontend incomplet. La CI exécute également un import réel de l’extension, son
-hook `on_load()` et `define_schema()` sur chacun des six nodes.
-
-## Installation DPVO sous Windows
-
-L installation officielle DPVO est une compilation depuis les sources : depot
-avec sous-modules, Eigen 3.4.0, puis `pip install .` pour compiler les
-extensions CUDA. Il n existe pas de wheel Windows portable fournie par DPVO.
-L extension doit etre compilee contre le PyTorch de l environnement ComfyUI
-lui-meme : une extension CUDA est liee a l ABI de son PyTorch, donc un `dpvo`
-construit dans un environnement conda separe (fork Windows, WSL2) n est pas
-importable par le python embarque de ComfyUI.
-
-Deux prerequis seulement : Visual Studio 2022 avec la charge de travail
-« Developpement Desktop en C++ », et un GPU NVIDIA.
-
-Le cas d echec courant est PyTorch `+cu130` avec un toolkit systeme CUDA 12.x :
-`torch.utils.cpp_extension` s arrete sur `CUDA version mismatch` des que la
-version majeure de `nvcc` differe. Ne remplacez pas le PyTorch de ComfyUI pour
-contourner ce controle. Il n est pas non plus necessaire d installer le toolkit
-CUDA complet : NVIDIA publie chaque composant separement sur
-`developer.download.nvidia.com/compute/cuda/redist`, et `nvcc` plus les en-tetes
-suffisent a construire un `CUDA_HOME` local, sans droits administrateur.
-
-Les sources upstream demandent par ailleurs cinq correctifs pour MSVC et pour
-PyTorch 2.x : `.type()` -> `.scalar_type()` dans les macros `AT_DISPATCH_*`,
-suppression de `torch/extension.h` dans les unites de compilation device (ses
-en-tetes dynamo declenchent `C2872: 'std': ambiguous symbol` sous nvcc), `long`
--> `int64_t` pour les index de tenseurs (`long` fait 32 bits sous MSVC), les
-litteraux composes GNU de `ba_cuda.cu`, et l `__init__.py` absent de
-`dpvo/loop_closure`. `dpvo/net.py` importe enfin `torch_scatter`, autre
-extension CUDA a compiler avec la meme chaine.
-
-Cette procedure est scriptee et reproductible dans `.dpvo-install/`, dont le
-`README.md` decrit la sequence complete ; ce dossier n est pas versionne.
-
-Si ces prerequis ne sont pas reunis, utilisez `method=opencv_sift` (ou
-`method=auto`, qui retombe sur OpenCV/SIFT). Dans tous les cas, DPVO attend
-egalement le checkpoint `ComfyUI/models/omnicam/dpvo/dpvo.pth`. OmniCam
-n installe ni paquet Python ni poids de modele pendant l execution.
+- Scene motion analysis: geometry-derived projected-centre data, not real pixel
+  passes.
+- `omnicam/core/camera_tools.py`: an internal library the adapters call,
+  exposed by no node.

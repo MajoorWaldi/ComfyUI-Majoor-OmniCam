@@ -24,6 +24,7 @@ import {
 } from "../../web-src/extractor/source-resolver.js";
 import { timecode } from "../../web-src/extractor/source-viewer.js";
 import {
+  SOLVE_STATES,
   appliedLabel,
   controlAvailability,
   createExtractorState,
@@ -281,21 +282,19 @@ test("the job client only ever talks to the extractor job routes", async () => {
   const client = new SolveJobClient(api);
   await client.startSolve({ nodeId: 1, source: {}, settings: {} });
   await client.getSolveStatus("j1");
-  await client.pauseSolve("j1");
-  await client.resumeSolve("j1");
   await client.stopSolve("j1");
   await client.refineSolve("j1", { motion_scale: 2 });
   await client.getSolveResult("j1");
   await client.deleteSolve("j1");
 
-  assert.equal(api.calls.length, 8);
+  assert.equal(api.calls.length, 6);
   for (const call of api.calls) {
     assert.match(call.path, /^\/majoor\/omnicam\/extractor\/jobs/);
     assert.doesNotMatch(call.path, /prompt|queue/i);
   }
   assert.deepEqual(
     api.calls.map((call) => call.method),
-    ["POST", "GET", "POST", "POST", "POST", "POST", "GET", "DELETE"],
+    ["POST", "GET", "POST", "POST", "GET", "DELETE"],
   );
 });
 
@@ -341,8 +340,8 @@ test("an idle panel with a source offers only TRACK", () => {
   const state = stateAfter({ type: "SOURCE", source: { available: true } });
   const available = controlAvailability(state);
   assert.deepEqual(
-    [available.track, available.pause, available.resume, available.stop, available.apply],
-    [true, false, false, false, false],
+    [available.track, available.stop, available.apply],
+    [true, false, false],
   );
 });
 
@@ -350,35 +349,26 @@ test("no source means TRACK stays disabled", () => {
   assert.equal(controlAvailability(createExtractorState()).track, false);
 });
 
-test("tracking offers pause and stop but not track", () => {
+test("tracking offers stop but not track", () => {
   const state = stateAfter(
     { type: "SOURCE", source: { available: true } },
     { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
   );
   const available = controlAvailability(state);
-  assert.deepEqual([available.track, available.pause, available.stop], [false, true, true]);
+  assert.deepEqual([available.track, available.stop], [false, true]);
 });
 
-test("PAUSING is not PAUSED: pause is spent, resume is not yet offered", () => {
-  const state = stateAfter(
-    { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING" } },
-    { type: "JOB_STATE", state: "PAUSING" },
+test("interactive controls expose stop without a pause-resume protocol", () => {
+  const state = reduceExtractorState(
+    { ...createExtractorState(), source: { available: true } },
+    { type: "JOB_STATE", state: "TRACKING" },
   );
   const available = controlAvailability(state);
-  assert.equal(available.pause, false);
-  assert.equal(available.resume, false);
   assert.equal(available.stop, true);
-  assert.equal(statusLabel(state), "PAUSING…");
-});
-
-test("PAUSED offers resume and reports the frame it stopped on", () => {
-  const state = stateAfter(
-    { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
-    { type: "PROGRESS", progress: { state: "TRACKING", frame: 64, frame_count: 121, progress: 0.53 } },
-    { type: "JOB_STATE", state: "PAUSED" },
-  );
-  assert.equal(controlAvailability(state).resume, true);
-  assert.equal(statusLabel(state), "PAUSED · Frame 64 / 121");
+  assert.equal("pause" in available, false);
+  assert.equal("resume" in available, false);
+  assert.equal(SOLVE_STATES.includes("PAUSING"), false);
+  assert.equal(SOLVE_STATES.includes("PAUSED"), false);
 });
 
 test("a stopped solve can be retried but never applied", () => {

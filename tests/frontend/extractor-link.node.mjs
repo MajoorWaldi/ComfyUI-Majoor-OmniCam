@@ -227,7 +227,7 @@ test("a node with nothing cached, or with junk cached, reads as empty", () => {
 
 test("the node status is one compact line, not the payload", () => {
   const line = statusLine(parseExtractorMessage(solvedMessage("fp-1")));
-  assert.equal(line, "DPVO · 90 f · 3 keys · 98%");
+  assert.equal(line, "DPVO · 90 f · 3 keys · Solver Coverage 98%");
   assert.ok(!line.includes("keyframes"));
 });
 

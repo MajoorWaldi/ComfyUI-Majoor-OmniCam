@@ -12,6 +12,7 @@ MAX_PAGE_SIZE = 500
 _CACHE_TTL_SECONDS = max(0, int(os.environ.get("OMNICAM_ASSET_INDEX_TTL_SECONDS", "30")))
 _cache_lock = asyncio.Lock()
 _cache: dict[Path, tuple[float, list[dict[str, float | int | str]], int]] = {}
+_generations: dict[Path, int] = {}
 
 
 def _scan(root: Path) -> tuple[list[dict[str, float | int | str]], int]:
@@ -37,17 +38,25 @@ def _scan(root: Path) -> tuple[list[dict[str, float | int | str]], int]:
 async def _assets(root: Path) -> tuple[list[dict[str, float | int | str]], int]:
     root = root.resolve()
     async with _cache_lock:
-        cached = _cache.get(root)
-        if cached is not None and time.monotonic() - cached[0] <= _CACHE_TTL_SECONDS:
-            return cached[1], cached[2]
-        assets, total_bytes = await asyncio.to_thread(_scan, root)
-        _cache[root] = (time.monotonic(), assets, total_bytes)
-        return assets, total_bytes
+        while True:
+            cached = _cache.get(root)
+            if cached is not None and time.monotonic() - cached[0] <= _CACHE_TTL_SECONDS:
+                return cached[1], cached[2]
+            generation = _generations.get(root, 0)
+            assets, total_bytes = await asyncio.to_thread(_scan, root)
+            if _generations.get(root, 0) != generation:
+                # An upload/cleanup happened while this scan was in flight.
+                # Retry instead of publishing a stale directory snapshot.
+                continue
+            _cache[root] = (time.monotonic(), assets, total_bytes)
+            return assets, total_bytes
 
 
 def invalidate_asset_index(root: Path) -> None:
     """Invalidate after a managed upload or explicit cleanup."""
-    _cache.pop(root.resolve(), None)
+    resolved = root.resolve()
+    _generations[resolved] = _generations.get(resolved, 0) + 1
+    _cache.pop(resolved, None)
 
 
 async def list_asset_page(root: Path, *, offset: int = 0, limit: int = DEFAULT_PAGE_SIZE) -> dict[str, object]:

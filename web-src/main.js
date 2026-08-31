@@ -3,7 +3,12 @@ import { app, api } from "./comfy-runtime.js";
 import { registerOmniCamNodeBranding } from "./node-branding.js";
 import { configureMotionHealthApi } from "./motion-health/panel.js";
 import { migrateDirectorOutputs } from "./director-output-migration.js";
-import { OMNICAM_SETTINGS, applyDirectorDefaults, registerOmniCamLocales } from "./settings.js";
+import {
+  OMNICAM_SETTINGS,
+  registerDirectorRuntime,
+  registerOmniCamLocales,
+  seedDirectorDefaults,
+} from "./settings.js";
 import { installGlobalKeyInterceptor } from "./omnicam-commands.js";
 import { attachWhenLoaded } from "./lazy-node-ui.js";
 import {
@@ -25,6 +30,8 @@ import "./help/index.js";
 
 configureMotionHealthApi(api);
 
+let configuringGraph = false;
+
 // Claim OmniCam shortcuts on window-capture as early as possible -- ideally
 // before ComfyUI's ChangeTracker registers its own Ctrl+Z handler.
 installGlobalKeyInterceptor();
@@ -37,13 +44,23 @@ app.registerExtension({
   name: "Majoor.OmniCam.Director",
   settings: OMNICAM_SETTINGS,
   beforeConfigureGraph(graphData) {
+    configuringGraph = true;
     migrateDirectorOutputs(graphData);
+  },
+  afterConfigureGraph() {
+    configuringGraph = false;
   },
   async nodeCreated(node) {
     if (nodeClassOf(node) !== DIRECTOR_NODE_CLASS) return;
+    // ComfyUI does not await nodeCreated while restoring a workflow. Capture
+    // the lifecycle state before the dynamic import so afterConfigureGraph
+    // cannot make a loaded node look new when the chunk eventually resolves.
+    const seedDefaults = !configuringGraph;
     await attachWhenLoaded(node, async () => (await import("./director.js")).attachDirector);
-    // Preference defaults only seed a new node; a workflow load overwrites them.
-    if (node.__majoorOmniCam) applyDirectorDefaults(node.__majoorOmniCam);
+    const ui = node.__majoorOmniCam;
+    if (!ui) return;
+    registerDirectorRuntime(ui);
+    if (seedDefaults) seedDirectorDefaults(ui);
   },
 });
 

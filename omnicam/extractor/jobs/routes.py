@@ -81,22 +81,6 @@ async def solve_status_route(request: web.Request):
     )
 
 
-@PromptServer.instance.routes.post(PREFIX + "/{job_id}/pause")
-async def pause_solve_route(request: web.Request):
-    return _respond(
-        api.pause_job, solve_manager(), request.match_info["job_id"],
-        client_id=_client_id(request),
-    )
-
-
-@PromptServer.instance.routes.post(PREFIX + "/{job_id}/resume")
-async def resume_solve_route(request: web.Request):
-    return _respond(
-        api.resume_job, solve_manager(), request.match_info["job_id"],
-        client_id=_client_id(request),
-    )
-
-
 @PromptServer.instance.routes.post(PREFIX + "/{job_id}/stop")
 async def stop_solve_route(request: web.Request):
     return _respond(

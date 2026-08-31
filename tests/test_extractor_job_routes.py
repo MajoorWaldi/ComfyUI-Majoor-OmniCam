@@ -191,23 +191,6 @@ def test_status_is_readable_over_http_after_a_dropped_socket():
     assert api.job_status(mgr, job_id, client_id="client-a")["state"] == PREPARING
 
 
-def test_pausing_a_job_that_is_not_working_is_a_conflict():
-    mgr = manager()
-    job_id = start(mgr)["job_id"]
-    with pytest.raises(ApiError) as error:
-        api.pause_job(mgr, job_id, client_id="client-a")
-    assert error.value.status == 409
-
-
-def test_pause_and_resume_report_the_new_state():
-    mgr = manager()
-    job = mgr.get(start(mgr)["job_id"])
-    mgr.transition(job, PREPARING)
-    mgr.transition(job, TRACKING)
-    assert api.pause_job(mgr, job.job_id, client_id="client-a")["state"] == "PAUSING"
-    assert api.resume_job(mgr, job.job_id, client_id="client-a")["state"] == TRACKING
-
-
 def test_stopping_is_always_allowed():
     mgr = manager()
     job = mgr.get(start(mgr)["job_id"])

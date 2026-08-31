@@ -9,6 +9,10 @@ test("a workflow load that beats the lazy chunk still restores the Director", as
   // even though the attach lands after configure(); this pins that end-to-end
   // result down rather than the mechanism that produces it.
   expect(result.cameraIds).toEqual(["from_workflow_a", "from_workflow_b"]);
+  expect(result.width).toBe(1920);
+  expect(result.height).toBe(1080);
+  expect(result.fps).toBe(30);
+  expect(result.duration).toBe(8);
 });
 
 test("a node deleted while its chunk loads is never attached", async ({ page }) => {

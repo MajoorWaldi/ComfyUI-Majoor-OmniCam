@@ -11,7 +11,7 @@ jobs:
     # optional dependency skip themselves via pytest.importorskip.
     strategy:
       matrix:
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.10", "3.12", "3.13"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -125,6 +125,34 @@ def test_chan_round_trip_keeps_position_aim_fov_and_roll():
     assert worst["roll"] < 1e-5
 
 
+@pytest.mark.parametrize(("fmt", "extension"), [("gltf", ".gltf"), ("glb", ".glb"), ("chan", ".chan")])
+def test_stabilization_golden_roundtrip_at_frames_0_24_48(fmt, extension):
+    track = OmniCamTrack.from_dict({
+        "schema_version": 1, "fps": 24, "duration_frames": 49,
+        "width": 1920, "height": 1080, "render_mode": "omni_ref",
+        "keyframes": [
+            {"frame": 0, "camera": {"position": [-3, 1, 6], "target": [0, 1, 0], "fov": 31, "roll": -4, **BASE}, "interpolation": "linear"},
+            {"frame": 24, "camera": {"position": [0, 4, 5], "target": [1, 1.5, 0], "fov": 47, "roll": 8, **BASE}, "interpolation": "linear"},
+            {"frame": 48, "camera": {"position": [4, 2, 3], "target": [0, 2, -1], "fov": 36, "roll": 2, **BASE}, "interpolation": "linear"},
+        ],
+    })
+    restored = OmniCamTrack.from_dict(import_camera(
+        export_camera(track, fmt), extension, fps=24, width=1920, height=1080
+    ))
+    for frame in (0, 24, 48):
+        original, roundtripped = track.sample(frame), restored.sample(frame)
+        assert roundtripped.position == pytest.approx(original.position, abs=1e-5)
+        original_aim = [a - b for a, b in zip(original.target, original.position, strict=True)]
+        restored_aim = [a - b for a, b in zip(roundtripped.target, roundtripped.position, strict=True)]
+        original_len = math.sqrt(sum(value * value for value in original_aim))
+        restored_len = math.sqrt(sum(value * value for value in restored_aim))
+        assert [value / restored_len for value in restored_aim] == pytest.approx(
+            [value / original_len for value in original_aim], abs=1e-5
+        )
+        assert roundtripped.fov == pytest.approx(original.fov, abs=1e-4)
+        assert roundtripped.roll == pytest.approx(original.roll, abs=1e-4)
+
+
 # --------------------------------------------------------------------------
 # Format shape
 # --------------------------------------------------------------------------

@@ -100,6 +100,7 @@ def test_builder_marks_monocular_scale():
 def test_builder_labels_confidence_as_solver_coverage():
     metadata = build(moving(), confidence=0.812)["metadata"]
     assert metadata["confidence_kind"] == "solver_coverage"
+    assert metadata["solver_coverage"] == pytest.approx(0.812)
     assert metadata["confidence"] == pytest.approx(0.812)
 
 

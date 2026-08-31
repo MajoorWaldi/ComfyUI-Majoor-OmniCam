@@ -23,7 +23,7 @@ from .manager import (
     SolveJobManager,
     SolveSlotBusyError,
 )
-from .types import COMPLETED, JobStateError
+from .types import COMPLETED
 from .worker import job_result
 
 MAX_REQUEST_BYTES = 256 * 1024
@@ -180,24 +180,6 @@ def describe_source(body: Any) -> dict[str, Any]:
 def job_status(manager: SolveJobManager, job_id: str, *, client_id: str) -> dict[str, Any]:
     """The authoritative state. A dropped WebSocket is recovered through this."""
     return _lookup(manager, job_id, client_id).status()
-
-
-def pause_job(manager: SolveJobManager, job_id: str, *, client_id: str) -> dict[str, Any]:
-    job = _lookup(manager, job_id, client_id)
-    try:
-        manager.pause(job)
-    except JobStateError as exc:
-        raise ApiError(409, str(exc)) from exc
-    return job.status()
-
-
-def resume_job(manager: SolveJobManager, job_id: str, *, client_id: str) -> dict[str, Any]:
-    job = _lookup(manager, job_id, client_id)
-    try:
-        manager.resume(job)
-    except JobStateError as exc:
-        raise ApiError(409, str(exc)) from exc
-    return job.status()
 
 
 def stop_job(manager: SolveJobManager, job_id: str, *, client_id: str) -> dict[str, Any]:

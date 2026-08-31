@@ -60,12 +60,12 @@ registerNodeHelp("MajoorOmniCamExtractor", {
       heading: "Outputs",
       defs: [
         ["camera_track", "The solved canonical OmniCam track."],
-        ["confidence", "A rough solve-quality score."],
+        ["confidence", "Legacy output alias for Solver Coverage (not camera accuracy)."],
         ["report", "Human-readable notes: detected cuts, tracking quality, warnings."],
       ],
     },
   ],
-  footer: "Low confidence usually means low-texture footage, motion blur, or a shot the solver treated as multiple cuts - check report first.",
+  footer: "Low Solver Coverage usually means low-texture footage, motion blur, or a shot the solver treated as multiple cuts - check report first.",
 });
 
 registerNodeHelp("MajoorOmniCamMonitor", {
@@ -79,11 +79,13 @@ registerNodeHelp("MajoorOmniCamMonitor", {
     {
       heading: "Choosing an adapter",
       defs: [
-        ["h3", "Universal camera reference video + cinematic prompt (MiniMax H3 Omni Reference, Kling, Luma, HunyuanVideo, Wan, and other prompt-driven pipelines)."],
-        ["wan_native", "Native Wan camera embedding (Plücker-style conditioning)."],
-        ["wan_ati", "ATI bridge / JSON trajectory data for Wan ATI workflows."],
-        ["wan_tracks_native", "The exact tracks STRING consumed by WanVideoATITracks in WanVideoWrapper."],
-        ["ltx", "Decoded proxy frames as an LTX camera guide."],
+        ["h3", "Video-reference family. Camera reference video + cinematic prompt, `Video 1` dialect (MiniMax H3 Omni Reference, Kling, Luma, HunyuanVideo, Wan and other prompt-driven pipelines)."],
+        ["h3_native", "Video-reference family. Reference frames + prompt, `<Video 1>` dialect (MiniMaxH3ReferenceToVideo); length must be 17n+5."],
+        ["wan_native", "Camera-conditioning family. A true digital camera: extrinsics/intrinsics to a native Wan camera embedding (Plücker-style). The fidelity reference; length must be 4n+1."],
+        ["wan_tracks_native", "Trajectory family. Projected 2D trajectories for the native WanTrackToVideo node."],
+        ["wan_ati", "Trajectory family. Projected 2D trajectories for WanVideoATITracks (Wan 2.1 ATI, WanVideoWrapper)."],
+        ["ltx_motion_track", "Trajectory family. Projected 2D trajectories for LTXVDrawTracks / IC-LoRA Motion Track; length must be 8n+1."],
+        ["ltx", "Proxy-guide family (legacy). Sampled proxy frames as an LTX camera guide; does not carry the authored camera."],
       ],
     },
     {

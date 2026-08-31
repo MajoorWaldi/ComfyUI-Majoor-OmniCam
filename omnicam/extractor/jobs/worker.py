@@ -68,13 +68,7 @@ class _JobObserver:
 
 def run_solve_job(job, manager, publisher) -> None:
     """Solve, refine and complete one job. Never raises to the caller."""
-    control = SolveControl(
-        job.pause_requested,
-        job.resume_gate,
-        job.stop_requested,
-        on_paused=lambda: manager.worker_paused(job),
-        on_resumed=lambda: manager.worker_resumed(job),
-    )
+    control = SolveControl(job.stop_requested)
 
     def stage(target: str) -> None:
         """Enter the next stage, or give up if a stop landed first.
@@ -176,7 +170,9 @@ def completion_payload(job) -> dict[str, Any]:
         "fingerprint": str((refined.get("metadata") or {}).get("extractor_fingerprint", "")),
         "key_count": len(refined.get("keyframes", [])),
         "pose_count": len(job.raw_poses),
-        "coverage": round(float((refined.get("metadata") or {}).get("confidence", 0.0)), 4),
+        "coverage": round(float((refined.get("metadata") or {}).get(
+            "solver_coverage", (refined.get("metadata") or {}).get("confidence", 0.0)
+        )), 4),
         "anomaly_count": len(job.anomalies),
     }
 
@@ -196,4 +192,7 @@ def job_result(job) -> dict[str, Any]:
         "refine_settings": job.refine_settings,
         "report": build_report(job.refined_track),
         "fingerprint": str((job.refined_track.get("metadata") or {}).get("extractor_fingerprint", "")),
+        "solver_coverage": float((job.refined_track.get("metadata") or {}).get(
+            "solver_coverage", (job.refined_track.get("metadata") or {}).get("confidence", 0.0)
+        )),
     }

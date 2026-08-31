@@ -87,6 +87,9 @@ def build_omnicam_track(
             "source": SOURCE,
             "generator": "ComfyUI-Majoor-OmniCam",
             "backend": str(backend),
+            "solver_coverage": round(float(confidence), 6),
+            # Backward-compatible 0.x alias. Removing it would change saved
+            # Extractor output semantics and requires a major slot migration.
             "confidence": round(float(confidence), 6),
             # Named, not implied: this is how healthy the solve was, not how
             # accurate the camera is in the world.
@@ -124,7 +127,7 @@ def build_report(track: dict[str, Any]) -> str:
         f"camera keys: {metadata.get('simplified_key_count', 0)}",
         f"timeline: {track.get('duration_frames', 0)} frames at {track.get('fps', 0)} fps",
         f"lens: {metadata.get('intrinsics_source', 'unknown')}",
-        f"solver coverage: {float(metadata.get('confidence', 0.0)):.0%}",
+        f"solver coverage: {float(metadata.get('solver_coverage', metadata.get('confidence', 0.0))):.0%}",
         f"motion scale: {metadata.get('motion_scale', 1.0)}",
     ]
     for warning in metadata.get("warnings", []):

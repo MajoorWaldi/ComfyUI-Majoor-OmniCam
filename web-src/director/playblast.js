@@ -1,6 +1,16 @@
 const MIME_TYPES = ["video/mp4;codecs=avc1.42E01E", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
 
-export async function captureRealtimePlayblast({ canvas, fps, frameCount, renderFrame, mediaRecorder = globalThis.MediaRecorder, signal }) {
+export async function captureRealtimePlayblast({
+  canvas,
+  fps,
+  frameCount,
+  renderFrame,
+  mediaRecorder = globalThis.MediaRecorder,
+  signal,
+  now = () => globalThis.performance?.now?.() ?? Date.now(),
+  sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  onMetrics,
+}) {
   if (!mediaRecorder || !canvas.captureStream) throw new Error("MediaRecorder unsupported in this browser");
   const stream = canvas.captureStream(fps); let recorder;
   try {
@@ -9,8 +19,26 @@ export async function captureRealtimePlayblast({ canvas, fps, frameCount, render
     const chunks = []; recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
     const finished = new Promise((resolve, reject) => { recorder.addEventListener("stop", resolve, { once: true }); recorder.addEventListener("error", () => reject(recorder.error || new Error("MediaRecorder failed")), { once: true }); });
     recorder.start(100);
-    for (let frame = 0; frame < frameCount; frame++) { if (signal?.aborted) throw new DOMException("Playblast cancelled", "AbortError"); await renderFrame(frame); await new Promise((resolve) => setTimeout(resolve, 1000 / fps)); }
-    recorder.stop(); await finished; return new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+    const startedAt = now();
+    for (let frame = 0; frame < frameCount; frame++) {
+      if (signal?.aborted) throw new DOMException("Playblast cancelled", "AbortError");
+      await renderFrame(frame);
+      await sleep(1000 / fps);
+    }
+    recorder.stop();
+    await finished;
+    const recordedDurationMs = Math.max(0, now() - startedAt);
+    const expectedDurationMs = frameCount / fps * 1000;
+    const metrics = {
+      requestedFrames: frameCount,
+      expectedDurationMs,
+      recordedDurationMs,
+      driftMs: recordedDurationMs - expectedDurationMs,
+    };
+    onMetrics?.(metrics);
+    const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+    Object.defineProperty(blob, "omnicamMetrics", { value: metrics, enumerable: true });
+    return blob;
   } finally { if (recorder?.state === "recording") recorder.stop(); stream.getTracks().forEach((track) => track.stop()); }
 }
 

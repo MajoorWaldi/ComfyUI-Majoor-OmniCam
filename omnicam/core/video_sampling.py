@@ -44,6 +44,28 @@ def sampling_indices(total: int, start_frame: int, end_frame: int, max_frames: i
     return [start + round(index * span / (count - 1)) for index in range(count)]
 
 
+def resampling_indices(
+    total_frames: int,
+    source_fps: float,
+    target_fps: float,
+    *,
+    max_seconds: float | None = None,
+) -> list[int]:
+    """Map a source clip onto a duration-preserving target frame clock."""
+    if total_frames <= 0:
+        return []
+    if source_fps <= 0 or target_fps <= 0:
+        raise ValueError("frame rates must be positive")
+    duration = total_frames / source_fps
+    if max_seconds is not None:
+        duration = min(duration, max(0.0, float(max_seconds)))
+    target_count = max(1, round(duration * target_fps))
+    return [
+        min(total_frames - 1, round(index * source_fps / target_fps))
+        for index in range(target_count)
+    ]
+
+
 def _decode_trim(video: Any, start_frame: int, frame_count: int, fps: float) -> torch.Tensor:
     trimmed = video.as_trimmed(
         start_time=float(start_frame) / fps,
@@ -69,3 +91,34 @@ def sample_video_frames(video: Any, *, start_frame: int = 0, end_frame: int = 0,
     if not batches:
         return torch.empty((0, metadata.height, metadata.width, 3), dtype=torch.float32)
     return torch.cat(batches, dim=0)
+
+
+def resample_video_frames(
+    video: Any,
+    *,
+    target_fps: float,
+    max_seconds: float | None = None,
+) -> torch.Tensor:
+    """Decode a VIDEO on a new clock while preserving its elapsed duration."""
+    metadata = inspect_video(video)
+    indices = resampling_indices(
+        metadata.frame_count,
+        metadata.frame_rate,
+        target_fps,
+        max_seconds=max_seconds,
+    )
+    if not indices:
+        return torch.empty((0, metadata.height, metadata.width, 3), dtype=torch.float32)
+    decoded: dict[int, torch.Tensor] = {}
+    ordered: list[torch.Tensor] = []
+    for frame in indices:
+        batch = decoded.get(frame)
+        if batch is None:
+            batch = _decode_trim(video, frame, 1, metadata.frame_rate)[:1]
+            if not batch.shape[0]:
+                continue
+            decoded[frame] = batch
+        ordered.append(batch)
+    if not ordered:
+        return torch.empty((0, metadata.height, metadata.width, 3), dtype=torch.float32)
+    return torch.cat(ordered, dim=0)

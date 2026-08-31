@@ -1,5 +1,41 @@
 import { expect, test } from "@playwright/test";
 
+function captureBrowserDiagnostics(page, testInfo) {
+  const diagnostics = {
+    pageErrors: [],
+    consoleErrors: [],
+    requestFailures: [],
+    chunkResponses: [],
+  };
+  const annotation = { type: "browser-diagnostics", description: "no browser errors" };
+  testInfo.annotations.push(annotation);
+  const refresh = () => {
+    annotation.description = JSON.stringify(diagnostics);
+  };
+  page.on("pageerror", (error) => {
+    diagnostics.pageErrors.push(String(error?.stack || error));
+    refresh();
+  });
+  page.on("console", (message) => {
+    if (message.type() === "error") diagnostics.consoleErrors.push(message.text());
+    refresh();
+  });
+  page.on("requestfailed", (request) => {
+    diagnostics.requestFailures.push({
+      url: request.url(),
+      error: request.failure()?.errorText || "unknown",
+    });
+    refresh();
+  });
+  page.on("response", (response) => {
+    if (response.url().includes("/extensions/majoor-omnicam-chunks/")) {
+      diagnostics.chunkResponses.push({ url: response.url(), status: response.status() });
+      refresh();
+    }
+  });
+  return diagnostics;
+}
+
 async function openComfy(page) {
   await page.goto("/");
   await page.waitForFunction(
@@ -67,7 +103,8 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
   );
 });
 
-test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", async ({ page }) => {
+test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", async ({ page }, testInfo) => {
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
   await openComfy(page);
   const attached = await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
@@ -88,11 +125,14 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
     app.graph.remove(window.omnicamCiExtractor);
   });
   await page.waitForFunction(() => !window.omnicamCiExtractorRoot.isConnected);
+  expect(diagnostics.pageErrors).toEqual([]);
+  expect(diagnostics.requestFailures).toEqual([]);
+  expect(diagnostics.chunkResponses.some(({ url, status }) => url.endsWith("/omnicam.js") && status === 200)).toBe(true);
+  expect(diagnostics.chunkResponses.some(({ url, status }) => !url.endsWith("/omnicam.js") && status === 200)).toBe(true);
 });
 
-test("Extractor renders an injected solved track in TRACK 3D without page errors", async ({ page }) => {
-  const errors = [];
-  page.on("pageerror", (error) => errors.push(String(error)));
+test("Extractor renders an injected solved track in TRACK 3D without page errors", async ({ page }, testInfo) => {
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
   await openComfy(page);
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
@@ -127,7 +167,8 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
       frustums: ui.viewer?.trackScene?.frustumGroup?.children?.length || 0,
     };
   });
-  expect(errors).toEqual([]);
+  expect(diagnostics.pageErrors).toEqual([]);
+  expect(diagnostics.requestFailures).toEqual([]);
   expect(viewer.renderer).toBe(true);
   expect(viewer.canvasWidth).toBeGreaterThan(0);
   expect(viewer.paths).toBeGreaterThan(0);
@@ -139,51 +180,13 @@ test("Director mounts inside a Subgraph and keeps its promoted fps widget", asyn
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
     app.graph.clear();
-    const director = window.LiteGraph.createNode("MajoorOmniCamDirector");
-    app.graph.add(director);
-    const serializedDirector = director.serialize();
-    const subgraphId = crypto.randomUUID();
-    serializedDirector.id = 1;
-    const workflow = {
-      version: 1,
-      state: { lastNodeId: 2, lastLinkId: 0, lastGroupId: 0, lastRerouteId: 0 },
-      nodes: [{
-        id: 2,
-        type: subgraphId,
-        pos: [80, 80],
-        size: [300, 180],
-        flags: {},
-        order: 0,
-        mode: 0,
-        properties: { proxyWidgets: [["1", "fps"]] },
-      }],
-      links: [],
-      groups: [],
-      definitions: {
-        subgraphs: [{
-          id: subgraphId,
-          version: 1,
-          revision: 0,
-          state: { lastNodeId: 1, lastLinkId: 0, lastGroupId: 0, lastRerouteId: 0 },
-          name: "OmniCam Director test",
-          config: {},
-          inputNode: { id: -10, bounding: [10, 100, 150, 126] },
-          outputNode: { id: -20, bounding: [400, 100, 140, 126] },
-          inputs: [],
-          outputs: [],
-          widgets: [{ id: 1, name: "fps" }],
-          nodes: [serializedDirector],
-          links: [],
-          groups: [],
-        }],
-      },
-    };
+    const workflow = await fetch("/tests/fixtures/director-subgraph-v034.json").then((response) => response.json());
     if (typeof app.loadGraphData === "function") {
       await app.loadGraphData(workflow);
     } else {
       app.graph.configure(workflow);
     }
-    window.omnicamCiSubgraph = app.graph.nodes.find((node) => node.id === 2);
+    window.omnicamCiSubgraph = app.graph.nodes.find((node) => node.id === 20);
   });
   await page.waitForFunction(
     () => window.omnicamCiSubgraph?.widgets?.some((widget) => widget.name === "fps"),

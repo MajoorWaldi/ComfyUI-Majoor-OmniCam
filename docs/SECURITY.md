@@ -32,6 +32,11 @@ the snapshot payload contains only `proxy_available: true|false`.
 
 ## Upload validation
 
+Cleanup request JSON is bounded to 256 KiB and camera-export request JSON to
+8 MiB. Both limits are enforced against `Content-Length` when present and
+against the streamed body, so chunked requests cannot bypass them. Invalid or
+non-object JSON is rejected before any managed file operation.
+
 Uploads are restricted by route and extension, sanitized to a generated file
 name, streamed in bounded chunks, checked against file signatures, and removed
 when validation or the client connection fails. Image uploads are decoded with
@@ -76,9 +81,10 @@ the defaults instead of preventing the extension from loading.
 | `OMNICAM_MAX_VIDEO_DURATION_SECONDS` | 3,600 | Maximum video duration |
 | `OMNICAM_QUOTA_CACHE_TTL_SECONDS` | 300 | Managed-folder size cache lifetime |
 
-Les previews VIDEO et les guides LTX ne materialisent pas le clip complet:
-l'echantillonnage est planifie depuis les metadonnees, puis decode par plages
-`as_trimmed()` bornees. Le budget LTX de 2 Gio est controle avant decodage.
+VIDEO previews and LTX guides never materialise the whole clip: sampling is
+planned from the container metadata, then decoded through bounded
+`VIDEO.as_trimmed()` ranges. The 2 GiB LTX decode budget is checked before any
+frame is decoded.
 
 ## Managed model directory
 

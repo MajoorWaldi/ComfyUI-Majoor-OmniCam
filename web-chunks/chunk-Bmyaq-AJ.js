@@ -1,4 +1,4 @@
-import { a as p, e as g, _ as S } from "./chunk-BAOz0k6p.js";
+import { a as p, e as g, _ as S } from "./chunk-DMJgQTTA.js";
 import { g as C, l as I } from "./chunk-B0ZcW-l0.js";
 const H = `
       .majoor-omnicam .oc-lower{display:grid;grid-template-columns:236px minmax(0,1fr);gap:8px;padding:0 8px 8px}
@@ -329,8 +329,8 @@ function W(o) {
   return !r || !Array.isArray(r.keyframes) || !r.keyframes.length ? null : { track: r, fingerprint: e };
 }
 function eo(o) {
-  const e = o?.track?.metadata || {}, a = String(e.backend || "solver").toUpperCase(), r = Number(o?.track?.duration_frames) || 0, t = Array.isArray(o?.track?.keyframes) ? o.track.keyframes.length : 0, n = Math.round((Number(o?.confidence) || 0) * 100);
-  return `${a} · ${r} f · ${t} keys · ${n}%`;
+  const e = o?.track?.metadata || {}, a = String(e.backend || "solver").toUpperCase(), r = Number(o?.track?.duration_frames) || 0, t = Array.isArray(o?.track?.keyframes) ? o.track.keyframes.length : 0, n = Math.round((Number(o?.solver_coverage ?? o?.confidence) || 0) * 100);
+  return `${a} · ${r} f · ${t} keys · Solver Coverage ${n}%`;
 }
 const $ = "camera_track";
 function P(o) {

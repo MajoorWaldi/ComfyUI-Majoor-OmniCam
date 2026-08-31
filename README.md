@@ -63,13 +63,9 @@ The goal is to make camera direction fast, visual and predictable before generat
 
 ## Director Preview
 
-<!-- Add an animated GIF or WebP here later -->
-
-<!--
 <p align="center">
-  <img src="docs/assets/director-demo.gif" alt="OmniCam Director Demo">
+  <img src="docs/assets/director-outliner.png" width="900" alt="OmniCam Director: 3D viewport, Outliner, multi-channel timeline and Graph Editor">
 </p>
--->
 
 The **OmniCam Director** provides a small shot-layout environment directly inside ComfyUI with:
 
@@ -192,6 +188,10 @@ preflight, proxy playback, exact lightweight adapter previews, copyable prompt
 and camera-data panels, a shared read-only Camera/Look At/FOV/Roll timeline,
 and separate preflight and execution-output states.
 
+<p align="center">
+  <img src="docs/assets/monitor-panel.png" width="560" alt="OmniCam Monitor: proxy player, adapter preflight, OUTPUT PREVIEW and prompt panels">
+</p>
+
 The adapter menu supports H3, Wan Native Camera, Wan/ATI, native Wan tracks and
 LTX. Exact lightweight representations are labelled **OUTPUT PREVIEW**; the Wan
 Native camera path is explicitly labelled **DIAGNOSTIC** because its embedding
@@ -248,9 +248,25 @@ The proxy geometry, grid, markers and neutral viewport appearance are not intend
 
 ---
 
-# Public Nodes
+# Node surface
 
-OmniCam currently exposes **six public nodes**.
+OmniCam registers **seven nodes**: three product nodes and four deprecated
+compatibility nodes.
+
+| Node | Category | State |
+|---|---|---|
+| **OmniCam Director** | `Majoor/OmniCam` | product |
+| **OmniCam Extractor** | `Majoor/OmniCam` | product |
+| **OmniCam Monitor** | `Majoor/OmniCam` | product |
+| OmniCam → Universal Reference & AI Prompts | `Majoor/OmniCam/Legacy` | deprecated |
+| OmniCam → Wan Native Camera | `Majoor/OmniCam/Legacy` | deprecated |
+| OmniCam → LTX Camera Guide | `Majoor/OmniCam/Legacy` | deprecated |
+| OmniCam → WanVideoWrapper ATI | `Majoor/OmniCam/Legacy` | deprecated |
+
+New workflows use **Director → Monitor** (add **Extractor** in front to recover
+a camera from real footage). The four deprecated nodes stay loadable so pinned
+workflows keep running; Monitor's adapter menu covers every path they offered.
+Full input/output reference: [Node Guide](docs/NODES.md).
 
 ## 🎥 OmniCam Director
 
@@ -267,13 +283,14 @@ Use it to:
 - record camera-reference playblasts;
 - output the canonical OmniCam camera track.
 
-Main outputs include:
+Outputs, in socket order:
 
 ```text
-camera_track
-proxy_video
-proxy_frames  (an IMAGE twin of proxy_video, for graphs that want frames)
-audio
+camera_track      canonical track of the active camera (the one public contract)
+proxy_video       recorded playblast, or the connected clip
+audio             associated audio
+shot_collection   every authored camera and its proxy
+proxy_frames      IMAGE twin of proxy_video, for graphs that want frames
 ```
 
 ### Media sockets take a VIDEO or an IMAGE batch
@@ -360,7 +377,8 @@ Two consequences are worth stating plainly:
 - **Translation scale is relative.** A single moving lens cannot tell a small
   camera move through a small room from a large one through a large room. The
   `motion_scale` widget is how you size the result for your scene.
-- **`confidence` is solver coverage, not accuracy.** It reports the share of
+- **Solver Coverage is not accuracy.** The historical `confidence` output is a
+  compatibility alias; it reports the share of
   sampled frames that produced a pose. A clean solve at the wrong scale still
   scores 1.0.
 
@@ -420,15 +438,13 @@ behind whatever else is in the queue, and no diffusion model loaded.
 
 ```text
 ▶ TRACK      start solving now
-Ⅱ PAUSE      stop at the next safe checkpoint
-▶ RESUME     continue the same job, from where it was
 ■ STOP       abandon it, keeping the partial path for review
 ```
 
-Pause and normal stop are **cooperative**: the solver is asked between safe
-frames. That is why the panel distinguishes `PAUSING` (asked) from `PAUSED`
-(actually stopped). Server shutdown, a crashed child or a timeout still reaps
-the isolated process so no DPVO worker survives its job.
+Normal stop is **cooperative**: the solver is asked between safe frames and the
+panel reports `STOPPING` until it reaches one. Server shutdown, a crashed child
+or a timeout still reaps the isolated process so no DPVO worker survives its
+job. Pause/Resume was removed because it could not guarantee native GPU safety.
 
 While it runs the panel shows three views:
 
@@ -504,104 +520,21 @@ render mode and output resolution are never replaced by a camera import.
 
 ---
 
-## ✨ Universal Reference & AI Prompts
+## Deprecated compatibility nodes
 
-Analyzes the authored camera trajectory and creates camera-motion prompts for video-generation workflows.
+These four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`.
+They keep their execution behaviour so pinned workflows still load and run. For
+anything new, use **OmniCam Monitor** and pick the matching adapter — it
+produces the same outputs from one node.
 
-Designed for workflows including:
+| Deprecated node | Monitor adapter | Purpose |
+|---|---|---|
+| OmniCam → Universal Reference & AI Prompts | `adapter = h3` | camera reference video + model-tailored cinematic prompt (MiniMax H3, Kling, Luma, HunyuanVideo, Wan, universal) with a full trajectory analysis; the proxy is described as camera-motion guidance only |
+| OmniCam → Wan Native Camera | `adapter = wan_native` | OmniCam track → native `WAN_CAMERA_EMBEDDING`; `length` must be 4n+1 |
+| OmniCam → LTX Camera Guide | `adapter = ltx` | proxy video → LTX IC-LoRA guide frames, with frame range, sampling, resize and a decode-memory budget |
+| OmniCam → WanVideoWrapper ATI | `adapter = wan_ati` / `wan_tracks_native` | stable 3D points projected through the camera into ATI-compatible 2D tracks; wire the `width`/`height` outputs to `WanVideoATITracks` |
 
-- MiniMax H3;
-- Kling;
-- Luma;
-- HunyuanVideo;
-- Wan;
-- generic / universal video prompting.
-
-The node can analyze:
-
-- dolly;
-- truck;
-- crane / pedestal;
-- pan;
-- tilt;
-- orbit;
-- roll;
-- zoom;
-- compound camera moves;
-- camera speed;
-- acceleration;
-- path curvature;
-- FOV evolution.
-
-For MiniMax H3, the generated prompt explicitly treats the OmniCam proxy as **camera-motion guidance only**.
-
----
-
-## 🟣 OmniCam → Wan Native Camera
-
-Converts an OmniCam camera track to ComfyUI's native Wan camera-conditioning representation.
-
-```text
-OmniCam Director
-       ↓
-camera_track
-       ↓
-Wan Native Camera
-       ↓
-WAN_CAMERA_EMBEDDING
-       ↓
-Wan Camera Image To Video
-```
-
-This path is intended for perspective camera tracks compatible with Wan camera conditioning.
-
----
-
-## 🔵 OmniCam → LTX Camera Guide
-
-Converts the OmniCam proxy video into guide frames for compatible LTX IC-LoRA workflows.
-
-Features include:
-
-- frame-range selection;
-- maximum-frame limits;
-- contiguous or uniform sampling;
-- optional resizing;
-- decoded-frame memory safeguards;
-- camera-motion prompt generation;
-- camera-profile metadata.
-
-```text
-OmniCam Director
-       │
-       ├── camera_track
-       │
-       └── proxy_video
-              ↓
-       LTX Camera Guide
-              ↓
-        IMAGE guide frames
-              ↓
-   LTX Add Video IC-LoRA Guide
-```
-
----
-
-## 🟠 OmniCam → WanVideoWrapper ATI
-
-Projects stable 3D reference points through the authored camera and converts the resulting trajectories into ATI-compatible 2D tracks.
-
-Useful for WanVideoWrapper trajectory-control workflows.
-
-```text
-3D Reference Points
-        ↓
-OmniCam Camera
-        ↓
-2D Projected Trajectories
-        ↓
-ATI Tracks
-```
+See the [Node Guide](docs/NODES.md) for each node's exact inputs and outputs.
 
 ---
 
@@ -715,11 +648,13 @@ Universal Prompt
 
 | Shortcut | Action |
 |---|---|
-| `I` | Insert / replace camera keyframe |
+| `I` or `K` | Insert / replace camera keyframe |
 | `Space` | Play / pause |
 | `F` | Frame the current subject / target |
-| `W A S D` | Fly camera |
-| `Q / E` | Vertical fly movement |
+| `C` | Toggle Fly mode |
+| `W A S D` (in Fly) | Fly camera |
+| `Q / E` (in Fly) | Vertical fly movement |
+| `N` | Toggle the Inspector panel |
 
 See the full control reference:
 
@@ -745,6 +680,10 @@ FOV, two readouts of the same value), Transform, and Motion. Advanced controls
 that the panel does not surface directly -- lens presets, blocking scene sets,
 motion presets, camera shakes, projection and clipping -- live in the toolbar
 tabs and in the collapsed sections beneath each card. Nothing was removed.
+
+<p align="center">
+  <img src="docs/assets/director-inspector.png" width="900" alt="OmniCam Director Inspector: Lens, Transform and Motion groups">
+</p>
 
 The **dope sheet** shows one row per animated channel under a shared frame
 ruler. OmniCam keys are whole-camera, so a channel row marks the keys where
@@ -1190,6 +1129,7 @@ More detailed documentation is available here:
 - [Keyboard Shortcuts](docs/SHORTCUTS.md)
 - [Security and File Limits](docs/SECURITY.md)
 - [Validation Report](docs/VALIDATION_REPORT.md)
+- [Code and Documentation Audit](docs/AUDIT.md)
 
 ---
 
@@ -1313,15 +1253,21 @@ The public interface intentionally remains small.
 
 # Public Node Surface
 
-The current Registry release exposes exactly:
+The Registry release registers seven nodes — three product nodes and four
+deprecated compatibility nodes kept loadable for pinned workflows:
 
 ```text
-1. OmniCam Director
-2. Universal Reference & AI Prompts
-3. OmniCam → Wan Native Camera
-4. OmniCam → LTX Camera Guide
-5. OmniCam → WanVideoWrapper ATI
+Product          1. OmniCam Director
+                 2. OmniCam Extractor
+                 3. OmniCam Monitor
+
+Deprecated       4. OmniCam → Universal Reference & AI Prompts
+(Majoor/         5. OmniCam → Wan Native Camera
+ OmniCam/        6. OmniCam → LTX Camera Guide
+ Legacy)         7. OmniCam → WanVideoWrapper ATI
 ```
+
+New workflows should only need Director, Extractor and Monitor.
 
 ---
 

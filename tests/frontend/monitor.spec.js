@@ -10,7 +10,6 @@ test("Monitor renders its QC, preflight, preview and delivery surfaces", async (
   await expect(page.locator('[data-role="adapter-preflight"]')).toContainText("Verify socket contract");
   await expect(page.locator(".oc-trajectory-canvas")).toBeVisible();
   await expect(page.locator('[data-role="adapter-preview"]')).toContainText("OUTPUT PREVIEW");
-  await page.locator('[data-tab="final-prompt"]').click();
   await expect(page.locator('[data-role="final-prompt"]')).toContainText("Copy camera motion only");
   await page.locator('[data-act="copy-text"]').click();
   await expect(page.locator('[data-act="copy-text"]')).toHaveText("COPIED");

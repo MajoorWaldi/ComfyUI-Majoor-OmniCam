@@ -7,7 +7,7 @@
 
 const BASE = "/majoor/omnicam/extractor/jobs";
 const ACTIVE_STATES = new Set([
-  "IDLE", "PREPARING", "TRACKING", "SOLVING", "REFINING", "PAUSING", "PAUSED", "STOPPING",
+  "IDLE", "PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING",
 ]);
 
 /** Best-effort cooperative cancellation when the panel can no longer own a job. */
@@ -69,14 +69,6 @@ export class SolveJobClient {
 
   getSolveStatus(jobId) {
     return this._request(`${BASE}/${encodeURIComponent(jobId)}`);
-  }
-
-  pauseSolve(jobId) {
-    return this._request(`${BASE}/${encodeURIComponent(jobId)}/pause`, { method: "POST" });
-  }
-
-  resumeSolve(jobId) {
-    return this._request(`${BASE}/${encodeURIComponent(jobId)}/resume`, { method: "POST" });
   }
 
   stopSolve(jobId) {

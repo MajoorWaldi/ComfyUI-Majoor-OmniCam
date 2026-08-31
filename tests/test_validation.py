@@ -100,6 +100,17 @@ def test_migration_from_unversioned_payload():
     assert migrated["custom_field"] == {"keep": True}  # unknown fields preserved
 
 
+@pytest.mark.parametrize("schema,payload", [
+    (TRACK_SCHEMA, {"schemaVersion": 0, "durationFrames": 48, "renderMode": "grid", "future": 7}),
+    (SEQUENCE_SCHEMA, {"schemaVersion": 0, "durationFrames": 48, "shots": [], "future": 7}),
+])
+def test_migrations_are_idempotent_and_non_destructive(schema, payload):
+    once = migrate_payload(payload, schema)
+    twice = migrate_payload(once, schema)
+    assert twice == once
+    assert twice["future"] == 7
+
+
 def test_newer_schema_is_rejected():
     with pytest.raises(ValueError):
         OmniCamTrack.from_dict({"schema_version": 99})

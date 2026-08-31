@@ -125,10 +125,10 @@ def test_pose_events_share_the_same_throttle():
 def test_a_state_change_is_never_throttled():
     _job, recorder, _clock, pub = publisher(throttle_seconds=10.0)
     pub.state_changed("TRACKING")
-    pub.state_changed("PAUSING")
-    pub.state_changed("PAUSED")
+    pub.state_changed("SOLVING")
+    pub.state_changed("REFINING")
     assert [payload["state"] for payload in recorder.events(JOB_EVENT)] == [
-        "TRACKING", "PAUSING", "PAUSED",
+        "TRACKING", "SOLVING", "REFINING",
     ]
 
 

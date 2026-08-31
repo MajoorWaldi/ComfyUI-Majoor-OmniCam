@@ -19,6 +19,8 @@ async def main() -> None:
     from omnicam.comfy_compat.server import PromptServer
     if getattr(PromptServer, "instance", None) is None:
         PromptServer(asyncio.get_running_loop())
+    from omnicam.comfy_compat.execution import execution_busy
+    assert execution_busy() is False, "a fresh PromptServer must not report GPU execution"
 
     from omnicam.extension import comfy_entrypoint
     from omnicam.node_registry import REGISTERED_NODE_IDS

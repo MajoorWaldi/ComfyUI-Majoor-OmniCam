@@ -19,16 +19,13 @@ import threading
 import time
 from typing import Any
 
+from ...comfy_compat.execution import execution_busy
 from ..backends.dpvo_worker import close_all_dpvo_runners
 from .events import SolveEventPublisher
 from .types import (
     COMPLETED,
-    PAUSABLE_STATES,
-    PAUSED,
-    PAUSING,
     STOPPED,
     STOPPING,
-    TRACKING,
     InteractiveSolveJob,
     JobStateError,
     can_transition,
@@ -62,7 +59,8 @@ class SolveJobManager:
 
     def __init__(self, *, runner=run_solve_job, publisher_factory=SolveEventPublisher,
                  ttl_seconds: float = TERMINAL_TTL_SECONDS, clock=time.monotonic,
-                 backend_cleanup=close_all_dpvo_runners) -> None:
+                 backend_cleanup=close_all_dpvo_runners,
+                 execution_probe=execution_busy) -> None:
         self._jobs: dict[str, InteractiveSolveJob] = {}
         self._threads: dict[str, threading.Thread] = {}
         self._publishers: dict[str, Any] = {}
@@ -72,6 +70,7 @@ class SolveJobManager:
         self._ttl = float(ttl_seconds)
         self._clock = clock
         self._backend_cleanup = backend_cleanup
+        self._execution_probe = execution_probe
         self._exclusive_job_id: str | None = None
 
     # -- lookup ------------------------------------------------------------
@@ -101,6 +100,11 @@ class SolveJobManager:
     ) -> InteractiveSolveJob:
         """Create a job and hand it to a worker thread outside the prompt queue."""
         method = str(settings.get("method", "auto"))
+        if method in EXCLUSIVE_BACKENDS and self._execution_probe():
+            raise SolveSlotBusyError(
+                "ComfyUI is currently executing a workflow. Wait for GPU execution "
+                "to finish before starting DPVO tracking."
+            )
         with self._lock:
             self._sweep_locked()
             if method in EXCLUSIVE_BACKENDS and self._exclusive_job_id:
@@ -147,54 +151,11 @@ class SolveJobManager:
 
     # -- control -----------------------------------------------------------
 
-    def pause(self, job: InteractiveSolveJob) -> InteractiveSolveJob:
-        with self._lock:
-            if job.state not in PAUSABLE_STATES:
-                raise JobStateError(f"An OmniCam solve in {job.state} cannot be paused")
-            job.paused_from = job.state
-            job.pause_requested.set()
-        # PAUSING, not PAUSED: the worker has been asked, not yet stopped.
-        self.transition(job, PAUSING)
-        return job
-
-    def worker_paused(self, job: InteractiveSolveJob) -> None:
-        """Called by the worker once it has genuinely blocked at a checkpoint."""
-        with self._lock:
-            if job.state != PAUSING:
-                return
-        self.transition(job, PAUSED)
-
-    def worker_resumed(self, job: InteractiveSolveJob) -> None:
-        """Called by the worker as it leaves the gate and starts working again."""
-        with self._lock:
-            if job.state != PAUSED:
-                return
-            target = job.paused_from or TRACKING
-        self.transition(job, target, force=True)
-
-    def resume(self, job: InteractiveSolveJob) -> InteractiveSolveJob:
-        """Release the gate. The same job continues; nothing restarts."""
-        with self._lock:
-            if job.state not in {PAUSED, PAUSING}:
-                raise JobStateError(f"An OmniCam solve in {job.state} cannot be resumed")
-            was_pausing = job.state == PAUSING
-            target = job.paused_from or TRACKING
-            job.pause_requested.clear()
-            job.resume_gate.set()
-        if was_pausing:
-            # It never reached a checkpoint, so there is no worker_resumed
-            # callback coming: put the state back here instead.
-            self.transition(job, target, force=True)
-        return job
-
     def stop(self, job: InteractiveSolveJob) -> InteractiveSolveJob:
         with self._lock:
             if job.is_terminal:
                 return job
             job.stop_requested.set()
-            # Release the gate so a paused worker wakes up and sees the stop.
-            job.pause_requested.clear()
-            job.resume_gate.set()
         if job.state != STOPPING:
             self.transition(job, STOPPING, force=True)
         return job
@@ -256,7 +217,6 @@ class SolveJobManager:
     def shutdown(self) -> None:
         for job in self.jobs():
             job.stop_requested.set()
-            job.resume_gate.set()
         self._backend_cleanup()
 
 

@@ -270,7 +270,7 @@ def canonical_worker_entry(
         sys.path.append(PACKAGE_ROOT)
     try:
         module = importlib.import_module(CANONICAL_MODULE_NAME)
-    except Exception as exc:  # noqa: BLE001 - a broken sys.path entry raises anything
+    except Exception as exc:  # a broken sys.path entry raises anything; re-raised as SolveError
         raise SolveError(
             f"OmniCam could not import {CANONICAL_MODULE_NAME} from {PACKAGE_ROOT} "
             f"for the DPVO worker process: {exc}"
@@ -332,6 +332,26 @@ def _isolated_child_bootstrap():
             sys.modules.pop("__main__", None)
 
 
+def _worker_exit_error(process, *, last_state: str | None = None) -> SolveError:
+    """Describe a child that died before it could return its structured error."""
+    details = ["DPVO worker exited without a result"]
+    pid = getattr(process, "pid", None)
+    exitcode = getattr(process, "exitcode", None)
+    if pid is not None:
+        details.append(f"pid={pid}")
+    if exitcode is not None:
+        details.append(f"exit code {exitcode}")
+    if last_state:
+        details.append(f"state={last_state}")
+    summary = " (" + ", ".join(details[1:]) + ")" if len(details) > 1 else ""
+    return SolveError(
+        details[0] + summary + ". The child died before Python could report a traceback; "
+        "this usually means a native extension or PyTorch/CUDA ABI mismatch. "
+        "Rebuild DPVO for ComfyUI's embedded Python and PyTorch/CUDA environment, "
+        "or select opencv_sift."
+    )
+
+
 class DpvoProcessRunner:
     """Own exactly one spawned child and reap it on every terminal path."""
 
@@ -388,7 +408,7 @@ class DpvoProcessRunner:
                         message = None
                     if message is None:
                         if not process.is_alive():
-                            raise SolveError("DPVO worker exited without a result")
+                            raise _worker_exit_error(process, last_state="eof")
                         continue
                     kind = message.get("kind")
                     if kind == "ready":
@@ -422,13 +442,7 @@ class DpvoProcessRunner:
                         has_pending_message = False
                     if has_pending_message:
                         continue
-                    raise SolveError(
-                        "DPVO worker exited without a result "
-                        f"(exit code {process.exitcode}). The child died before Python could report "
-                        "a traceback; this usually means a native extension or PyTorch/CUDA ABI mismatch. "
-                        "Rebuild DPVO for ComfyUI's embedded Python and PyTorch/CUDA environment, "
-                        "or select opencv_sift."
-                    )
+                    raise _worker_exit_error(process, last_state="no_result")
         finally:
             self._request_stop()
             self._reap()

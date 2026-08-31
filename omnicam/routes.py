@@ -14,6 +14,7 @@ from aiohttp import web
 
 from .asset_index import invalidate_asset_index, list_asset_page
 from .comfy_compat.server import PromptServer
+from .http_json import read_bounded_json_object
 
 _CARD_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".mp4", ".webm", ".mov"}
 _MODEL_EXTENSIONS = {".glb", ".obj", ".fbx", ".stl", ".ply"}
@@ -44,6 +45,8 @@ MAX_IMAGE_PIXELS = _env_limit("OMNICAM_MAX_IMAGE_PIXELS", 80_000_000)
 MAX_IMAGE_FRAMES = _env_limit("OMNICAM_MAX_IMAGE_FRAMES", 2_000)
 MAX_VIDEO_PIXELS = _env_limit("OMNICAM_MAX_VIDEO_PIXELS", 16_777_216)
 MAX_VIDEO_DURATION_SECONDS = _env_limit("OMNICAM_MAX_VIDEO_DURATION_SECONDS", 3_600)
+MAX_CLEANUP_JSON_BYTES = _env_limit("OMNICAM_MAX_CLEANUP_JSON_BYTES", 256 * 1024)
+MAX_EXPORT_JSON_BYTES = _env_limit("OMNICAM_MAX_EXPORT_JSON_BYTES", 8 * 1024 * 1024)
 # The cached folder size goes stale as soon as anything deletes managed files
 # without going through /cleanup. Re-scan at most this often.
 QUOTA_CACHE_TTL_SECONDS = _env_limit("OMNICAM_QUOTA_CACHE_TTL_SECONDS", 300)
@@ -401,11 +404,8 @@ async def cleanup_assets(request: web.Request):
     Body: {"files": ["cards/foo.png", ...]} with paths relative to the managed
     omnicam folder. Traversal outside the managed folder is rejected.
     """
-    try:
-        body = await request.json()
-    except Exception as exc:
-        raise web.HTTPBadRequest(text="Expected a JSON body") from exc
-    files = body.get("files") if isinstance(body, dict) else None
+    body = await read_bounded_json_object(request, max_bytes=MAX_CLEANUP_JSON_BYTES)
+    files = body.get("files")
     if not isinstance(files, list) or not files:
         raise web.HTTPBadRequest(text="Expected a non-empty files list")
     root = _managed_root()
@@ -470,12 +470,7 @@ async def export_camera_route(request: web.Request):
     from .core.validation import validate_track_payload
     from .exchange import EXPORT_FORMATS, export_camera
 
-    try:
-        body = await request.json()
-    except Exception as exc:
-        raise web.HTTPBadRequest(text="Expected a JSON body") from exc
-    if not isinstance(body, dict):
-        raise web.HTTPBadRequest(text="Expected a JSON object")
+    body = await read_bounded_json_object(request, max_bytes=MAX_EXPORT_JSON_BYTES)
 
     fmt = str(body.get("format", "glb"))
     if fmt not in EXPORT_FORMATS:

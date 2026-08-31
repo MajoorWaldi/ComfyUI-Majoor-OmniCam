@@ -83,10 +83,23 @@ class FakeMultipart:
         return self._field
 
 
+class FakeContent:
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+
+    async def iter_chunked(self, _size):
+        for chunk in self._chunks:
+            yield chunk
+
+
 class FakeRequest:
-    def __init__(self, field=None, json_body=None):
+    def __init__(self, field=None, json_body=None, *, raw_body=None, content_length=None):
         self._field = field
         self._json = json_body
+        raw = raw_body if raw_body is not None else json.dumps(json_body).encode("utf-8")
+        self.content = FakeContent([raw] if isinstance(raw, bytes) else list(raw))
+        self.content_length = len(raw) if content_length is None and isinstance(raw, bytes) else content_length
+        self.can_read_body = bool(raw)
 
     async def multipart(self):
         return FakeMultipart(self._field)
@@ -244,6 +257,22 @@ async def test_cleanup_validates_all_targets_before_deleting(input_dir):
     with pytest.raises(web.HTTPNotFound):
         await routes.cleanup_assets(FakeRequest(json_body={"files": ["cards/keep.png", "cards/missing.png"]}))
     assert keep.exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", [b"{", b"[]"])
+async def test_cleanup_rejects_invalid_or_non_object_json(input_dir, raw):
+    with pytest.raises(web.HTTPBadRequest):
+        await routes.cleanup_assets(FakeRequest(raw_body=raw))
+
+
+@pytest.mark.asyncio
+async def test_cleanup_rejects_declared_and_streamed_oversize_json(input_dir):
+    limit = routes.MAX_CLEANUP_JSON_BYTES
+    with pytest.raises(web.HTTPRequestEntityTooLarge):
+        await routes.cleanup_assets(FakeRequest(raw_body=b"{}", content_length=limit + 1))
+    with pytest.raises(web.HTTPRequestEntityTooLarge):
+        await routes.cleanup_assets(FakeRequest(raw_body=[b'{"files":["', b"x" * limit, b'"]}']))
 
 
 def test_env_limit_rejects_invalid_and_out_of_range(monkeypatch):
@@ -420,7 +449,17 @@ async def test_export_refuses_bad_input(output_dir):
     assert "Unsupported export format" in await refused({"format": "obj", "track": _track_payload()})
     assert "track object" in await refused({"format": "glb"})
     assert "Invalid camera track" in await refused({"format": "glb", "track": {"render_mode": "not_a_mode"}})
-    assert "JSON body" in await refused(ValueError("bad json"))
+    with pytest.raises(web.HTTPBadRequest) as invalid_json:
+        await routes.export_camera_route(FakeRequest(raw_body=b"{"))
+    assert invalid_json.value.text == "Expected a JSON object"
+
+
+@pytest.mark.asyncio
+async def test_export_rejects_oversize_json_before_validation(output_dir):
+    with pytest.raises(web.HTTPRequestEntityTooLarge):
+        await routes.export_camera_route(
+            FakeRequest(raw_body=b"{}", content_length=routes.MAX_EXPORT_JSON_BYTES + 1),
+        )
 
 
 @pytest.mark.asyncio

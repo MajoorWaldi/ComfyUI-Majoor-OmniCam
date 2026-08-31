@@ -228,6 +228,45 @@ def test_monitor_gains_an_image_twin_of_its_reference_video(monkeypatch):
     assert output.args[-1].shape[0] == 6
 
 
+def test_h3_native_reference_frames_preserve_five_seconds_at_24_fps(monkeypatch):
+    from types import SimpleNamespace
+
+    from omnicam.nodes.monitor import MajoorOmniCamMonitor
+
+    class Video:
+        def get_frame_rate(self): return 30.0
+        def get_frame_count(self): return 150
+        def get_dimensions(self): return (24, 16)
+        def as_trimmed(self, *, start_time, duration, strict_duration=False):
+            start = round(start_time * 30.0)
+            count = max(1, round(duration * 30.0))
+            images = torch.full((count, 16, 24, 3), float(start))
+            return SimpleNamespace(get_components=lambda: SimpleNamespace(images=images))
+
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.execute_monitor_adapter",
+        lambda **kwargs: {
+            "reference_video": kwargs["proxy_video"], "camera_prompt": "", "cinematic_prompt": "",
+            "final_prompt": "", "camera_data_json": "{}", "wan_camera": None, "tracks": "[]",
+            "adapter_width": 832, "adapter_height": 480, "adapter_length": 81,
+            "guide_frames": None, "adapter_profile_json": "{}",
+        },
+    )
+    video = Video()
+    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
+    camera = {"position": [0, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base}
+    output = MajoorOmniCamMonitor.execute(
+        camera_track={
+            "schema_version": 1, "fps": 24, "duration_frames": 120,
+            "width": 320, "height": 180, "render_mode": "omni_ref", "objects": [],
+            "keyframes": [{"frame": 0, "camera": camera, "interpolation": "smooth"}],
+        },
+        proxy_video=video,
+        adapter="h3_native",
+    )
+    assert output.args[-1].shape[0] == 120
+
+
 def test_h3_legacy_adapter_gains_an_image_twin_of_its_reference_video(monkeypatch):
     from omnicam.nodes.adapters import MajoorOmniCamH3Adapter
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess
 from dataclasses import asdict
 from pathlib import Path
@@ -12,6 +13,28 @@ from omnicam.core.track import OmniCamTrack
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES_DIR = ROOT / "tests" / "fixtures" / "tracks"
 PYTHON_GOLDEN = ROOT / "tests" / "fixtures" / "parity" / "camera_sampling.python-golden.json"
+
+
+def assert_nested_close(actual, expected, *, path="root"):
+    """Compare golden structures while tolerating cross-runtime float noise."""
+    if isinstance(expected, dict):
+        assert isinstance(actual, dict), f"{path}: expected object"
+        assert actual.keys() == expected.keys(), f"{path}: keys differ"
+        for key in expected:
+            assert_nested_close(actual[key], expected[key], path=f"{path}.{key}")
+        return
+    if isinstance(expected, list):
+        assert isinstance(actual, list), f"{path}: expected list"
+        assert len(actual) == len(expected), f"{path}: lengths differ"
+        for index, (actual_item, expected_item) in enumerate(zip(actual, expected, strict=True)):
+            assert_nested_close(actual_item, expected_item, path=f"{path}[{index}]")
+        return
+    if isinstance(expected, (int, float)) and not isinstance(expected, bool):
+        assert isinstance(actual, (int, float)) and not isinstance(actual, bool), f"{path}: expected number"
+        assert math.isfinite(float(actual)) and math.isfinite(float(expected)), f"{path}: non-finite number"
+        assert actual == pytest.approx(expected, rel=1e-9, abs=1e-10), f"{path}: floats differ"
+        return
+    assert actual == expected, f"{path}: values differ"
 
 
 def get_js_samples(track_dict: dict, frames: list[int]) -> list[dict]:
@@ -74,6 +97,13 @@ def test_committed_python_camera_golden_is_fresh():
     for case in golden["cases"]:
         track = OmniCamTrack.from_dict(case["track"])
         regenerated = [{"frame": frame, **asdict(track.sample(frame))} for frame in case["frames"]]
-        assert regenerated == case["python_samples"], (
-            f"Stale Python parity golden for {case['name']}; run python scripts/generate_parity_fixture.py"
-        )
+        assert_nested_close(regenerated, case["python_samples"], path=case["name"])
+
+
+def test_nested_golden_tolerance_accepts_sub_ulp_noise_but_not_real_differences():
+    assert_nested_close({"value": [2.152891949165152]}, {"value": [2.1528919491651513]})
+    with pytest.raises(AssertionError):
+        assert_nested_close({"value": [2.1528]}, {"value": [2.1529]})
+    for invalid in (math.nan, math.inf, -math.inf):
+        with pytest.raises(AssertionError, match="non-finite"):
+            assert_nested_close({"value": invalid}, {"value": invalid})

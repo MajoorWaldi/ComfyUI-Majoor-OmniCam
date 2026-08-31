@@ -13,13 +13,15 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Ignore all docs except NODES.md
+# Ignore all docs except the maintained set
 docs/*
 !docs/NODES.md
 !docs/SHORTCUTS.md
 !docs/SECURITY.md
 !docs/VALIDATION_REPORT.md
 !docs/REFACTOR_CHECKLIST.md
+!docs/AUDIT.md
+!docs/assets/
 
 # DPVO build tree: sources upstream, toolkit CUDA portable, archives
 .dpvo-install/

@@ -200,9 +200,12 @@ export function configureDirectorViewports(ui) {
   }
 }
 
-export function applyDirectorDefaults(ui) {
+export function registerDirectorRuntime(ui) {
   registerDirector(ui);
   configureDirectorViewports(ui);
+}
+
+export function seedDirectorDefaults(ui) {
   const defaults = directorDefaults();
   if (ui.fpsWidget) ui.fpsWidget.value = defaults.fps;
   if (ui.durationWidget) ui.durationWidget.value = defaults.durationSeconds;
@@ -259,4 +262,11 @@ export function applyDirectorDefaults(ui) {
     camera_view_visible: defaults.cameraViewVisible,
   });
   ui.syncFromWidgets?.();
+}
+
+// Compatibility facade for callers that intentionally initialize a brand-new
+// Director in one step. Workflow restoration must call only the runtime half.
+export function applyDirectorDefaults(ui) {
+  registerDirectorRuntime(ui);
+  seedDirectorDefaults(ui);
 }

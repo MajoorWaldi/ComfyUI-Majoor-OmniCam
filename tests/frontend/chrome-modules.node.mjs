@@ -16,6 +16,7 @@ import { DEFAULT_QUALITY, QUALITY_PRESETS, qualityPreset } from "../../web-src/v
 import { SAMPLE_SIZE, createQualityMonitor, nextLevelDown, recordFrame, resetMonitor } from "../../web-src/viewport/adaptive-quality.js";
 import { interpolationAfterDrag, pathKeyFromHit, screenToPlane } from "../../web-src/viewport/path-editing.js";
 import { project } from "../../web-src/director/core.js";
+import { captureRealtimePlayblast } from "../../web-src/director/playblast.js";
 
 test("OmniCam settings expose ComfyUI-compatible definitions", () => {
   const ids = OMNICAM_SETTINGS.map((setting) => setting.id);
@@ -443,4 +444,28 @@ test("only tagged markers resolve to a keyframe handle", () => {
   assert.deepEqual(pathKeyFromHit({ object: child }), tag);
   assert.equal(pathKeyFromHit({ object: { userData: {} } }), null);
   assert.equal(pathKeyFromHit(null), null);
+});
+
+test("realtime playblast reports requested frames, duration, and timing drift", async () => {
+  let clock = 100;
+  class FakeRecorder {
+    static isTypeSupported() { return true; }
+    constructor() { this.mimeType = "video/webm"; this.state = "inactive"; this.listeners = {}; }
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+    start() { this.state = "recording"; }
+    stop() { this.state = "inactive"; this.listeners.stop?.(); }
+  }
+  const canvas = { captureStream: () => ({ getTracks: () => [{ stop() {} }] }) };
+  const metricsSeen = [];
+  const blob = await captureRealtimePlayblast({
+    canvas, fps: 24, frameCount: 120, renderFrame() {}, mediaRecorder: FakeRecorder,
+    now: () => clock,
+    sleep: async (milliseconds) => { clock += milliseconds + 0.25; },
+    onMetrics: (metrics) => metricsSeen.push(metrics),
+  });
+  assert.equal(blob.omnicamMetrics.requestedFrames, 120);
+  assert.equal(blob.omnicamMetrics.expectedDurationMs, 5000);
+  assert.ok(Math.abs(blob.omnicamMetrics.recordedDurationMs - 5030) < 1e-9);
+  assert.ok(Math.abs(blob.omnicamMetrics.driftMs - 30) < 1e-9);
+  assert.deepEqual(metricsSeen, [blob.omnicamMetrics]);
 });
