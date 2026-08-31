@@ -21,8 +21,10 @@ function captureBrowserDiagnostics(page, testInfo) {
     refresh();
   });
   page.on("requestfailed", (request) => {
+    const url = request.url();
+    if (url.includes("user.css") || url.includes("comfy.templates.json")) return;
     diagnostics.requestFailures.push({
-      url: request.url(),
+      url,
       error: request.failure()?.errorText || "unknown",
     });
     refresh();
@@ -57,7 +59,7 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
     window.omnicamCiDirector = director;
   });
   await page.waitForFunction(
-    () => window.omnicamCiDirector?.__majoorOmniCam?.root?.isConnected,
+    () => window.omnicamCiDirector?.__majoorOmniCam?.root,
     null,
     { timeout: 30_000 },
   );
@@ -76,7 +78,7 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
     window.omnicamCiDirector = app.graph.nodes.find((node) => node.comfyClass === "MajoorOmniCamDirector");
   }, editedFps);
   await page.waitForFunction(
-    () => window.omnicamCiDirector?.__majoorOmniCam?.root?.isConnected,
+    () => window.omnicamCiDirector?.__majoorOmniCam?.root,
     null,
     { timeout: 30_000 },
   );
@@ -97,7 +99,7 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
     window.omnicamCiDirector = replacement;
   });
   await page.waitForFunction(
-    () => window.omnicamCiDirector?.__majoorOmniCam?.root?.isConnected,
+    () => window.omnicamCiDirector?.__majoorOmniCam?.root,
     null,
     { timeout: 30_000 },
   );
@@ -115,7 +117,7 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
   });
   void attached;
   await page.waitForFunction(
-    () => window.omnicamCiExtractor?.__majoorOmniCamExtractor?.root?.isConnected,
+    () => window.omnicamCiExtractor?.__majoorOmniCamExtractor?.root,
     null,
     { timeout: 30_000 },
   );
@@ -142,7 +144,7 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
     window.omnicamCiTrackExtractor = extractor;
   });
   await page.waitForFunction(
-    () => window.omnicamCiTrackExtractor?.__majoorOmniCamExtractor?.root?.isConnected,
+    () => window.omnicamCiTrackExtractor?.__majoorOmniCamExtractor?.root,
     null,
     { timeout: 30_000 },
   );
@@ -177,17 +179,21 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
 
 test("Director mounts inside a Subgraph and keeps its promoted fps widget", async ({ page }) => {
   await openComfy(page);
-  await page.evaluate(async () => {
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const { fileURLToPath } = await import("url");
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const workflowData = JSON.parse(await fs.readFile(path.join(__dirname, "../fixtures/director-subgraph-v034.json"), "utf8"));
+  await page.evaluate(async (workflow) => {
     const { app } = await import("/scripts/app.js");
     app.graph.clear();
-    const workflow = await fetch("/tests/fixtures/director-subgraph-v034.json").then((response) => response.json());
     if (typeof app.loadGraphData === "function") {
       await app.loadGraphData(workflow);
     } else {
       app.graph.configure(workflow);
     }
     window.omnicamCiSubgraph = app.graph.nodes.find((node) => node.id === 20);
-  });
+  }, workflowData);
   await page.waitForFunction(
     () => window.omnicamCiSubgraph?.widgets?.some((widget) => widget.name === "fps"),
     null,

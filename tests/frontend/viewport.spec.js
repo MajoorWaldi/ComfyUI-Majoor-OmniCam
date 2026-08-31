@@ -78,8 +78,9 @@ test("the studio look is editor-only unless the beauty mode asks for it", async 
   await page.goto("/tests/frontend/director-mount.html");
   await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
 
-  const probe = await page.evaluate(() => {
+  const probe = await page.evaluate(async () => {
     const ui = window.omnicamNode.__majoorOmniCam;
+    await ui.webglReady;
     const viewport = ui.webgl;
     const shoot = (mode, cleanCapture) => {
       viewport.render({ ...ui.state, render_mode: mode }, ui.camera, new Map(), 256, 256,

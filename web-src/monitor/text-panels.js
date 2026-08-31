@@ -26,10 +26,14 @@ function promptNote(snapshot) {
 }
 
 async function copyText(value) {
-  if (globalThis.navigator?.clipboard?.writeText) return globalThis.navigator.clipboard.writeText(value);
-  const area = document.createElement("textarea");
-  area.value = value; area.style.position = "fixed"; area.style.opacity = "0";
-  document.body.appendChild(area); area.select(); document.execCommand?.("copy"); area.remove();
+  try {
+    if (globalThis.navigator?.clipboard?.writeText) return await globalThis.navigator.clipboard.writeText(value);
+    const area = document.createElement("textarea");
+    area.value = value; area.style.position = "fixed"; area.style.opacity = "0";
+    document.body.appendChild(area); area.select(); document.execCommand?.("copy"); area.remove();
+  } catch (error) {
+    console.warn("OmniCam clipboard copy failed:", error);
+  }
 }
 
 export function bindTextPanels(root) {
