@@ -1043,11 +1043,11 @@ function ho(e) {
   return e.links = e.links.filter((o) => !a.has(et(o).id)), e;
 }
 const go = {
-  "1 adapter missing": "1 adaptateur manquant",
+  "1 optional adapter issue": "1 problème d’adaptateur optionnel",
   "1 key": "1 clé",
   "2D Radar Mini-Map": "Mini-carte radar 2D",
   "Active playblast camera": "Caméra de playblast active",
-  "Adapters ready": "Adaptateurs prêts",
+  "Core ready": "Cœur prêt",
   "Add a second camera, then Auto-split to cut between them.": "Ajoutez une deuxième caméra, puis découpez automatiquement pour couper entre elles.",
   "Add Camera": "Ajouter une caméra",
   "Add Cube (+)": "Ajouter un cube (+)",
@@ -1447,12 +1447,11 @@ const go = {
   Wireframe: "Filaire",
   "Wireframe / Edges": "Filaire / arêtes",
   World: "Monde",
-  "World axis orientation": "Orientation des axes du monde",
   Zoom: "Zoom",
   "Zoom in curve editor (Mouse wheel)": "Zoomer dans l'éditeur de courbes (molette)",
   "Zoom out curve editor": "Dézoomer dans l'éditeur de courbes",
   "{channel} changes at frame {frame}": "{channel} change à l'image {frame}",
-  "{count} adapters missing": "{count} adaptateurs manquants",
+  "{count} optional adapter issues": "{count} problèmes d’adaptateurs optionnels",
   "{format} imported: {name}": "{format} importé : {name}",
   "{format} shown locally, but the upload failed — it will not survive a reload.": "{format} affiché en local, mais l'envoi a échoué — il ne survivra pas à un rechargement.",
   "Read by": "Lu par",
@@ -1512,7 +1511,19 @@ const go = {
   "Nothing is flagged on this shot.": "Rien n'est signalé sur ce plan.",
   "Smoothed {count} flagged zone(s).": "{count} zone(s) signalée(s) lissée(s).",
   "The subject stays in frame on this shot.": "Le sujet reste dans le cadre sur ce plan.",
-  "Recentred {count} zone(s) on the subject.": "{count} zone(s) recentrée(s) sur le sujet."
+  "Recentred {count} zone(s) on the subject.": "{count} zone(s) recentrée(s) sur le sujet.",
+  "Frame selection": "Cadrer la s?lection",
+  "Quick viewport views": "Vues rapides de l'espace de travail",
+  "Perspective View": "Vue en perspective",
+  Front: "Face",
+  "Right View": "Vue de droite",
+  Right: "Droite",
+  Top: "Dessus",
+  "Isometric View": "Vue isom?trique",
+  ISO: "ISO",
+  "More viewport views": "Plus de vues",
+  "World axis navigation": "Navigation des axes monde",
+  "View: {axis} axis": "Vue : axe {axis}"
 }, q = ["OmniCam", "Director"], gt = "MajoorOmniCam.Locale", yt = "MajoorOmniCam.Defaults.Fps", bt = "MajoorOmniCam.Defaults.DurationSeconds", _t = "MajoorOmniCam.Defaults.Width", vt = "MajoorOmniCam.Defaults.Height", wt = "MajoorOmniCam.Defaults.RenderMode", xt = "MajoorOmniCam.Defaults.Encoder", St = "MajoorOmniCam.Defaults.PlayblastResolution", Mt = "MajoorOmniCam.Defaults.PlayblastGrid", Ct = "MajoorOmniCam.Proxy.PointDensity", Dt = "MajoorOmniCam.Proxy.PointSpread", jt = "MajoorOmniCam.Proxy.PointColor", It = "MajoorOmniCam.Proxy.CardFit", Tt = "MajoorOmniCam.Viewport.Quality", Et = "MajoorOmniCam.Viewport.Adaptive", kt = "MajoorOmniCam.Viewport.BackgroundColor", Ot = "MajoorOmniCam.Display.Grid", At = "MajoorOmniCam.Display.Radar", Pt = "MajoorOmniCam.Display.CameraPaths", zt = "MajoorOmniCam.Display.CameraGizmos", Nt = "MajoorOmniCam.Display.LookAt", Ft = "MajoorOmniCam.Display.HelperAxes", Rt = "MajoorOmniCam.Display.Gizmo", Lt = "MajoorOmniCam.Display.Guides", Vt = "MajoorOmniCam.Display.SafeAreas", Kt = "MajoorOmniCam.Display.ResolutionGate", Gt = "MajoorOmniCam.Display.AspectRatio", Bt = "MajoorOmniCam.Display.BurnIn", Ht = "MajoorOmniCam.Display.SpeedHeatmap", Wt = "MajoorOmniCam.Display.Wireframe", qt = "MajoorOmniCam.Display.Vertices", $t = "MajoorOmniCam.Tools.SelectMode", Ut = "MajoorOmniCam.Tools.GizmoMode", Xt = "MajoorOmniCam.Tools.GizmoSpace", Yt = "MajoorOmniCam.Tools.SpatialSnapMode", Zt = "MajoorOmniCam.Tools.SpatialGridSize", Qt = "MajoorOmniCam.Navigation.Profile", Jt = "MajoorOmniCam.Navigation.FlySpeed", ea = "MajoorOmniCam.Navigation.ViewMode", ta = "MajoorOmniCam.Timeline.SnapEnabled", aa = "MajoorOmniCam.Timeline.SnapFrames", oa = "MajoorOmniCam.Timeline.AutoKey", ra = "MajoorOmniCam.Timeline.TimecodeMode", na = "MajoorOmniCam.Timeline.LoopPlayback", sa = "MajoorOmniCam.Interface.Density", ia = "MajoorOmniCam.Interface.PreviewLayout", ca = "MajoorOmniCam.Interface.CameraPreviews", la = "MajoorOmniCam.History.Limit";
 function E(e, t, a, o, r) {
   return { id: e, category: [...q, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
@@ -3180,7 +3191,7 @@ U.registerExtension({
   async nodeCreated(e) {
     if (qe(e) !== Qo) return;
     const t = !Ae;
-    await We(e, async () => (await import("./chunk-Du9MCYKc.js").then((o) => o.e)).attachDirector);
+    await We(e, async () => (await import("./chunk-CEOIfcT5.js").then((o) => o.e)).attachDirector);
     const a = e.__majoorOmniCam;
     a && (Do(a), t && jo(a));
   }
@@ -3188,13 +3199,13 @@ U.registerExtension({
 U.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(e) {
-    qe(e) === Jo && await We(e, async () => (await import("./chunk-D5iOHF5b.js")).attachExtractor);
+    qe(e) === Jo && await We(e, async () => (await import("./chunk-DrkIVvoZ.js")).attachExtractor);
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Monitor",
   async nodeCreated(e) {
-    qe(e) === er && await We(e, async () => (await import("./chunk-BlFPBS1G.js")).attachMonitor);
+    qe(e) === er && await We(e, async () => (await import("./chunk-Ccmf0MBq.js")).attachMonitor);
   }
 });
 export {

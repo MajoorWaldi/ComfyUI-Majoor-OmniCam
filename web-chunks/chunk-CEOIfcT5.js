@@ -1,7 +1,7 @@
 import { app as co } from "../../scripts/app.js";
 import { api as Te } from "../../scripts/api.js";
-import { s as re, c as P, t as H, a as s, o as lo, b as Ia, d as je, e as N, r as Zo, f as Ie, g as $a, h as mo, i as Jo, j as Qo, k as er, S as Ee, l as tr, m as qa, n as ar, p as or, q as za, u as rr, v as nr, w as sr, x as Ce, y as oe, z as he, A as ir, B as ka, C as Sa, D as po, E as cr, F as Ca, G as Ze, H as lr, I as Xa, J as dr, K as fo, L as mr, M as pr, N as fr, O as hr, P as br, Q as ur, R as gr, T as yr, U as vr, V as xr, W as wr, X as kr, Y as ho } from "./chunk-DVQY0KQ6.js";
-import { L as Sr, a as Cr, f as jr, b as bo, c as _r, d as $r, e as Er, s as Mr } from "./chunk-Bxy1KhHN.js";
+import { s as re, c as P, t as H, a as s, o as lo, b as Ia, d as je, e as N, r as Zo, f as Ie, g as $a, h as mo, i as Jo, j as Qo, k as er, S as Ee, l as tr, m as qa, n as ar, p as or, q as za, u as rr, v as nr, w as sr, x as Ce, y as oe, z as he, A as ir, B as ka, C as Sa, D as po, E as cr, F as Ca, G as Ze, H as lr, I as Xa, J as dr, K as fo, L as mr, M as pr, N as fr, O as hr, P as br, Q as ur, R as gr, T as yr, U as vr, V as xr, W as wr, X as kr, Y as ho } from "./chunk-BClSJcr9.js";
+import { L as Sr, a as Cr, f as jr, b as bo, c as _r, d as $r, e as Er, s as Mr } from "./chunk-BODSkS5Y.js";
 import { S as Ar, l as Pr, u as Fr } from "./chunk-B0ZcW-l0.js";
 import { b as zr } from "./chunk-D2Hci8OZ.js";
 function Ye(e, t = 0) {
@@ -1131,12 +1131,9 @@ const kn = `
 
       /* ---- viewport chrome ------------------------------------------ */
       .majoor-omnicam .vp-pills{position:absolute;top:9px;left:9px;z-index:6;display:flex;gap:5px}
-      .majoor-omnicam .vp-quick-views{display:flex;gap:2px;background:rgba(26,26,33,.86);border:1px solid var(--oc-line);border-radius:var(--oc-radius-sm);padding:2px;backdrop-filter:blur(7px)}
-      .majoor-omnicam .vp-view{padding:2px 8px;border-radius:3px;background:transparent;border:none;color:var(--oc-text-dim);font-size:11px;cursor:pointer;font-weight:600}
-      .majoor-omnicam .vp-view:hover{color:var(--oc-text)}
-      .majoor-omnicam .vp-view.active{background:rgba(167,139,250,0.15);color:#A78BFA}
       .majoor-omnicam .vp-pill{padding:4px 11px;border-radius:999px;background:rgba(26,26,33,.86);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px;backdrop-filter:blur(7px)}
       .majoor-omnicam .vp-pill-select{appearance:none;padding-right:20px;cursor:pointer}
+      .majoor-omnicam .vp-pills .vp-pill:first-child{background:var(--oc-accent-soft);border-color:var(--oc-accent);color:#fff}
       .majoor-omnicam .vp-corner{position:absolute;top:9px;right:9px;z-index:6;display:flex;align-items:center;gap:5px}
       .majoor-omnicam .vp-zoom{padding:4px 9px;border-radius:var(--oc-radius-sm);background:rgba(26,26,33,.86);border:1px solid var(--oc-line);color:var(--oc-text-dim);font:11px ui-monospace,SFMono-Regular,Menlo,monospace;backdrop-filter:blur(7px)}
       .majoor-omnicam .vp-rail{position:absolute;top:52px;left:9px;z-index:6;display:flex;flex-direction:column;gap:3px;padding:4px;border-radius:var(--oc-radius);background:rgba(26,26,33,.86);border:1px solid var(--oc-line);backdrop-filter:blur(7px)}
@@ -2566,7 +2563,7 @@ function ps(e, t) {
     o && (o.open = !o.open, a.currentTarget.classList.toggle("active", o.open), o.open && e.drawCurveEditor());
   }, { signal: t });
 }
-const xa = () => import("./chunk-DlwKp_Ta.js");
+const xa = () => import("./chunk-CwSr9kcc.js");
 function fs(e, t) {
   xa().then(({ loadExchangeFormats: o }) => o(e)), e.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", async () => {
     (await xa()).pickCameraFile(e);
@@ -2633,7 +2630,7 @@ function gs(e) {
   const r = new e.CanvasTexture(t);
   return r.colorSpace = e.SRGBColorSpace, r.needsUpdate = !0, r;
 }
-function Kc(e, t, a = Ko) {
+function Tc(e, t, a = Ko) {
   const o = Ba(a), r = new e.Group();
   r.name = "omnicam-studio";
   const n = new e.DirectionalLight(16774374, 1.9);
@@ -2682,11 +2679,11 @@ function Kc(e, t, a = Ko) {
     }
   };
 }
-function Tc(e, t, a) {
+function Ic(e, t, a) {
   const o = Ba(a);
   return e.quality = a, e.key.shadow.mapSize.set(o.shadowSize, o.shadowSize), e.key.shadow.map?.dispose(), e.key.shadow.map = null, t.toneMappingExposure = o.toneExposure, o;
 }
-function Ic(e, t, a, o, r) {
+function qc(e, t, a, o, r) {
   o.group.visible = r, t.environment = r ? o.environment : null, t.background = r ? o.sky : new e.Color(1184274), a.toneMapping = r ? e.ACESFilmicToneMapping : e.NoToneMapping, a.toneMappingExposure = r ? Ba(o.quality).toneExposure : 1, t.traverse((n) => {
     n.material && (n.material.needsUpdate = !0);
   });
@@ -2701,6 +2698,16 @@ function vs(e, t) {
   return a ? t === a[0] ? a[1] : a[0] : null;
 }
 function xs(e, t, a) {
+  const o = e.root.querySelector('[data-role="viewport-axis"]');
+  if (o) {
+    const r = (n) => {
+      const i = n.target.closest?.("[data-axis], [data-axis-center]") || n.target, c = i.getAttribute("data-axis"), m = vs(c?.toLowerCase(), e.state.view_mode);
+      m ? (n.preventDefault(), e.setViewMode(m)) : i.hasAttribute("data-axis-center") && (n.preventDefault(), e.frameTarget());
+    };
+    o.addEventListener("click", r, { signal: a }), o.addEventListener("keydown", (n) => {
+      (n.key === "Enter" || n.key === " ") && r(n);
+    }, { signal: a });
+  }
   for (const r of e.root.querySelectorAll('[data-role="mode"]'))
     r.addEventListener("change", (n) => {
       e.state.render_mode = n.target.value, e.modeWidget && (e.modeWidget.value = n.target.value);
@@ -2729,19 +2736,6 @@ function xs(e, t, a) {
   }
   for (const r of e.root.querySelectorAll("[data-view]"))
     r.addEventListener("click", () => e.setViewMode(r.dataset.view), { signal: a });
-  const o = t('[data-role="viewport-axis"]');
-  if (o) {
-    const r = (n) => {
-      const i = n.closest("[data-axis]");
-      if (i) {
-        const c = vs(i.dataset.axis, e.state.view_mode);
-        c && e.setViewMode(c);
-      } else n.closest("[data-axis-center]") && e.frameTarget();
-    };
-    o.addEventListener("click", (n) => r(n.target), { signal: a }), o.addEventListener("keydown", (n) => {
-      (n.key === "Enter" || n.key === " ") && (n.preventDefault(), r(n.target));
-    }, { signal: a });
-  }
   for (const r of e.root.querySelectorAll("[data-select-mode]"))
     r.addEventListener("click", () => e.setSelectMode(r.dataset.selectMode), { signal: a });
   for (const r of e.root.querySelectorAll('[data-role="select-mode"]'))
@@ -3350,7 +3344,7 @@ async function qs(e) {
   (r.width !== e.canvas.width || r.height !== e.canvas.height) && (e.canvas.width = r.width, e.canvas.height = r.height, e.render());
   try {
     let n = null;
-    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: m } = await import("./chunk-NXxYUSeF.js");
+    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: m } = await import("./chunk-Di-o6v_M.js");
     i !== "realtime" && await m(e.canvas.width, e.canvas.height) && (n = await c(e.canvas, e.state.duration_frames, e.state.fps, async (l) => {
       e.setFrame(l, !0), e.setStatus(s(`Encoding frame ${l + 1}/${e.state.duration_frames}…`)), await qo(e), await new Promise((p) => requestAnimationFrame(p));
     }, e.abortController?.signal)), n || (e.setStatus(s("WebCodecs unavailable; recording realtime fallback…")), n = await Oo(e)), e.setFrame(t), await Do(e, n);
@@ -4334,7 +4328,16 @@ async function ji(e, { signal: t } = {}) {
   if (!a.ok) throw new Error(`Capabilities request failed (${a.status || "unknown"})`);
   return a.json();
 }
-async function _i(e) {
+function _i(e) {
+  const t = Array.isArray(e) ? e : [];
+  if (!t.length) return { tone: "ok", label: "Core ready" };
+  const a = t.length;
+  return {
+    tone: t.some((o) => o?.severity === "error") ? "error" : "warn",
+    label: a === 1 ? "1 optional adapter issue" : `${a} optional adapter issues`
+  };
+}
+async function $i(e) {
   const t = e.root.querySelector('[data-role="setup-badge"]'), a = e.root.querySelector('[data-role="setup-issues"]');
   if (!t || !a) return;
   let o;
@@ -4344,13 +4347,12 @@ async function _i(e) {
     return;
   }
   e.adapterCapabilities = o;
-  const r = o.diagnostic?.issues || [];
+  const r = o.diagnostic?.issues || [], n = _i(r);
   if (t.hidden = !1, !r.length) {
-    t.className = "setup-badge ok", t.textContent = s("Adapters ready"), a.innerHTML = "";
+    t.className = `setup-badge ${n.tone}`, t.textContent = s("Core ready"), a.innerHTML = "";
     return;
   }
-  const n = r.some((i) => i.severity === "error");
-  t.className = `setup-badge ${n ? "error" : "warn"}`, t.textContent = r.length === 1 ? s("1 adapter missing") : s("{count} adapters missing").replace("{count}", String(r.length)), a.innerHTML = "";
+  t.className = `setup-badge ${n.tone}`, t.textContent = r.length === 1 ? s("1 optional adapter issue") : s("{count} optional adapter issues").replace("{count}", String(r.length)), a.innerHTML = "";
   for (const i of r) {
     const c = document.createElement("div");
     c.className = "setup-issue";
@@ -4373,7 +4375,7 @@ function Ga(e, t) {
   const a = t || e.activeCameraTrack?.(), o = a?.aim_bone ?? (a?.id === e.state.active_camera_id ? e.state.aim_bone : null);
   return typeof o == "string" && o ? o : null;
 }
-function $i(e, t = Ua(e)) {
+function Ei(e, t = Ua(e)) {
   if (!t) return [];
   const a = e.state.objects.find((o) => o.id === t);
   return !a || a.type !== "model" && a.type !== "glb" ? [] : e.webgl?.listObjectBones?.(t) || [];
@@ -4388,7 +4390,7 @@ function Uo(e, t, a) {
   const m = (t || e.activeCameraTrack?.())?.target_offset || e.state.target_offset || [0, 0, 0];
   return [i[0] + (m[0] || 0), i[1] + (m[1] || 0), i[2] + (m[2] || 0)];
 }
-function Ei(e, t, a) {
+function Mi(e, t, a) {
   const o = t.type === "model" || t.type === "glb" ? e.webgl?.sampleModelPoint?.(t.id, null, a, e.state.fps || 24) : null;
   return o || (t.keyframes?.length ? Ie(t, a).position : t.position || [0, 1.5, 0]);
 }
@@ -4397,19 +4399,19 @@ function Ta(e, t, a, o) {
   const r = Uo(e, t, o);
   return r && (a.target = r), a;
 }
-function Mi(e, t) {
+function Ai(e, t) {
   const a = t || null;
   e.checkpoint("Change aim bone");
   const o = e.activeCameraTrack();
   o.aim_bone = a, o.id === e.state.active_camera_id && (e.state.aim_bone = a), e.setFrame(e.frame), e.serialize(), e.refreshInspector(), e.render(), e.setStatus(a ? s("Aiming at bone {bone}").replace("{bone}", a) : s("Aiming at the whole object"));
 }
-function Ai(e, { perFrame: t = !1 } = {}) {
+function Pi(e, { perFrame: t = !1 } = {}) {
   const a = e.activeCameraTrack(), o = Ua(e, a), r = Ga(e, a);
   if (!o || !r) return e.bakeAimToKeyframes();
   const n = e.state.objects.find((c) => c.id === o);
   if (!n || !a.keyframes?.length) return;
   e.checkpoint(t ? "Bake aim per frame" : "Bake aim to keyframes");
-  const i = (c) => Uo(e, a, c) || Ei(e, n, c);
+  const i = (c) => Uo(e, a, c) || Mi(e, n, c);
   if (t) {
     const c = a.keyframes[0].frame, m = a.keyframes[a.keyframes.length - 1].frame, l = new Map(a.keyframes.map((p) => [p.frame, p]));
     for (let p = c; p <= m; p++) {
@@ -4421,10 +4423,10 @@ function Ai(e, { perFrame: t = !1 } = {}) {
     for (const c of a.keyframes) c.camera.target = [...i(c.frame)];
   a.id === e.state.active_camera_id && (e.state.keyframes = a.keyframes), e.setFrame(e.frame), e.serialize(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(s("Aim baked on bone {bone} ({count} keys)").replace("{bone}", r).replace("{count}", String(a.keyframes.length)));
 }
-function Pi(e) {
+function Fi(e) {
   const t = e.root?.querySelector('[data-role="camera-aim-bone-row"]'), a = e.root?.querySelector('[data-role="camera-aim-bone"]');
   if (!a) return;
-  const o = $i(e);
+  const o = Ei(e);
   t && (t.hidden = o.length === 0);
   const r = Ga(e) || "";
   a.innerHTML = "";
@@ -4440,7 +4442,7 @@ function Pi(e) {
   }
   a.value = r;
 }
-function Fi(e) {
+function zi(e) {
   const t = e.root.querySelector('[data-role="objects"]');
   if (!t) return;
   t.innerHTML = "";
@@ -4524,7 +4526,7 @@ function Fi(e) {
   }
   e.refreshInspector();
 }
-function zi(e, t) {
+function Li(e, t) {
   e.checkpoint("Create object");
   const a = `${t}_${Date.now().toString(36)}`, o = t === "ground", r = {
     id: a,
@@ -4539,24 +4541,24 @@ function zi(e, t) {
   };
   e.state.objects.push(r), e.selectedEntity = "object", e.selectedObjectId = a, e.selectedObjectIds = /* @__PURE__ */ new Set([a]), e.selectedKeyFrame = null, e.serialize(), e.refreshObjects(), e.refreshKeys(), e.render();
 }
-async function Li(e, t) {
+async function Ki(e, t) {
   const a = e.state.objects.find((r) => r.id === t);
   if (!a) return;
   const o = (await Da(e.app, s("Rename object"), s("Object name"), a.name || a.type))?.trim();
   !o || o === a.name || (e.checkpoint("Rename object"), a.name = o.slice(0, 80), e.serialize(), e.refreshObjects(), e.refreshKeys(), e.setStatus(s(`Object renamed: ${a.name}`)));
 }
-function Ki(e, t) {
+function Ti(e, t) {
   const a = e.state.objects.find((r) => r.id === t);
   if (!a) return;
   e.checkpoint("Duplicate object");
   const o = JSON.parse(JSON.stringify(a));
   o.id = `${a.type}_${Date.now().toString(36)}`, o.name = `${a.name || a.type} Copy`, o.position = he(o.position || [0, 0, 0], [0.35, 0, 0.35]), o.asset && delete o.asset, e.state.objects.push(o), e.selectedEntity = "object", e.selectedObjectId = o.id, e.selectedObjectIds = /* @__PURE__ */ new Set([o.id]), e.serialize(), e.refreshObjects(), e.refreshKeys(), e.render(), e.setStatus(s(`${o.name} added`));
 }
-function Ti(e, t) {
+function Ii(e, t) {
   const a = e.state.objects.find((o) => o.id === t);
   a && (e.checkpoint(a.enabled === !1 ? "Show object" : "Hide object"), a.enabled = a.enabled === !1, e.serialize(), e.refreshObjects(), e.render(), e.setStatus(s(`${a.name || a.type} ${a.enabled ? "shown" : "hidden"}`)));
 }
-async function Ii(e, t) {
+async function qi(e, t) {
   if (t === "subject") return e.setStatus(s("The subject card cannot be deleted"));
   const a = e.state.objects.find((o) => o.id === t);
   if (a && await Ao(e.app, s("Delete object"), s(`Delete ${a.name || a.type} and its ${(a.keyframes || []).length} keyframe(s)?`))) {
@@ -4565,7 +4567,7 @@ async function Ii(e, t) {
     e.state.objects = e.state.objects.filter((o) => o.id !== t), e.selectedObjectIds?.delete(t), e.removeObjectResources(t), e.selectedObjectId === t && (e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedKeyFrame = e.state.keyframes.find((o) => o.frame === e.frame)?.frame ?? null), e.serialize(), e.refreshObjects(), e.refreshKeys(), e.render(), e.setStatus(s(`${a.name || a.type} deleted`));
   }
 }
-function qi(e) {
+function Oi(e) {
   const t = `card_${Date.now().toString(36)}`;
   e.state.objects.push({
     id: t,
@@ -4591,7 +4593,7 @@ function no(e, t) {
       r && (o.textContent = r);
     }
 }
-function Oi(e) {
+function Di(e) {
   const t = tt(e), a = e.root.querySelector('[data-role="object-panel"]');
   a && (a.hidden = !t);
   const o = (v) => e.root.querySelector(v), r = e.activeCameraTrack(), n = o('[data-role="camera-target-object"]');
@@ -4606,7 +4608,7 @@ function Oi(e) {
     }
     n.value = v;
   }
-  Pi(e);
+  Fi(e);
   const i = [...e.camera.position, ...e.camera.target, e.camera.fov, e.camera.roll || 0, e.camera.near, e.camera.far];
   ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far"].forEach((v, g) => {
     for (const w of e.root.querySelectorAll(`[data-role="${v}"]`))
@@ -4686,7 +4688,7 @@ function Oi(e) {
     u.value = String(t.animation_index || 0);
   }
 }
-function Di(e) {
+function Ri(e) {
   const t = tt(e);
   if (!t) return;
   const a = (i, c) => {
@@ -4710,11 +4712,11 @@ function Go(e, t) {
   );
   return e.state.auto_key ? (a || (a = { frame: e.frame, transform: je(t), interpolation: e.root.querySelector('[data-role="interp"]')?.value || "ease" }, t.keyframes.push(a), t.keyframes.sort((o, r) => o.frame - r.frame), e.refreshKeys()), e.selectedKeyFrame = a.frame, e.editingKeyFrame = a.frame, e.updateKeyVisualState()) : a && (e.selectedKeyFrame = a.frame, e.updateKeyVisualState()), a;
 }
-function Ri(e, t) {
+function Ni(e, t) {
   const a = Go(e, t);
   a && (a.transform = je(t)), e.scheduleSerialize(), e.refreshKeyEditor(), e.updateKeyVisualState(), e.drawCurveEditor();
 }
-function Ni(e) {
+function Bi(e) {
   const t = globalThis.performance?.now?.() ?? Date.now();
   (!Number.isFinite(e.lastCameraHudEditAt) || t - e.lastCameraHudEditAt > 300) && e.checkpoint("Edit camera"), e.lastCameraHudEditAt = t;
   const a = (o, r) => {
@@ -4725,21 +4727,21 @@ function Ni(e) {
   };
   e.camera.position = [a("camera-px", e.camera.position[0]), a("camera-py", e.camera.position[1]), a("camera-pz", e.camera.position[2])], e.camera.target = [a("camera-tx", e.camera.target[0]), a("camera-ty", e.camera.target[1]), a("camera-tz", e.camera.target[2])], e.camera.fov = P(a("camera-fov", e.camera.fov), 5, 150), e.camera.roll = P(a("camera-roll", e.camera.roll || 0), -180, 180), e.camera.near = Math.max(1e-4, a("camera-near", e.camera.near)), e.camera.far = Math.max(e.camera.near + 1e-4, a("camera-far", e.camera.far)), e.beginCameraEdit(), e.commitCameraEdit(), e.finishCameraEdit(), e.render();
 }
-function Bi(e, t) {
+function Wi(e, t) {
   const a = tt(e);
   if (!a) return;
   e.checkpoint("Set parent"), a.parent_id = t || null, e.serialize(), e.refreshObjects(), e.render();
   const o = e.state.objects.find((r) => r.id === t);
   e.setStatus(o ? s(`${a.name || a.type} parented to ${o.name || o.type}`) : s(`${a.name || a.type} unparented`));
 }
-function Wi(e, t) {
+function Hi(e, t) {
   const a = tt(e);
   a && (a.animation_index = Math.max(0, t || 0), e.serialize(), e.webgl?.selectAnimation(a.id, t), e.setStatus(s(`Animation: ${e.modelInfoById.get(a.id)?.animationNames?.[t] || t + 1}`)));
 }
-function Hi(e, t) {
+function Vi(e, t) {
   e.objectUrls.revoke(t), e.cardMediaById.delete(t), e.modelUrlsById.delete(t), e.modelInfoById.delete(t), e.webgl?.removeModel(t);
 }
-function Vi(e, t) {
+function Ui(e, t) {
   return t(Na(e), e.frame);
 }
 function ve(e) {
@@ -4748,19 +4750,19 @@ function ve(e) {
 function xe(e) {
   return ve(e)?.keyframes || e.state.keyframes;
 }
-function Ui(e, t) {
+function Gi(e, t) {
   for (const a of e.state.objects) {
     if (!a.keyframes?.length) continue;
     const o = t(a, e.frame);
     a.position = o.position, a.rotation = o.rotation, a.size = o.size;
   }
 }
-function Gi(e) {
+function Xi(e) {
   e.checkpoint("Set keyframe");
   const t = e.root.querySelector('[data-role="key-interp"]')?.value || e.root.querySelector('[data-role="interp"]')?.value || "ease", a = ve(e), o = xe(e), r = a ? { frame: e.frame, transform: je(a), interpolation: t } : { frame: e.frame, camera: N(e.camera), interpolation: t }, n = o.findIndex((i) => i.frame === e.frame);
   n >= 0 ? o[n] = r : o.push(r), o.sort((i, c) => i.frame - c.frame), e.selectedKeyFrame = e.frame, e.selectedKeyFrames = /* @__PURE__ */ new Set([e.frame]), e.editingKeyFrame = null, e.serialize(), e.refreshKeys(), e.refreshKeyEditor(), e.updateKeyVisualState(), e.drawCurveEditor(), e.setStatus(s(`${a?.name || "Camera"} ${n >= 0 ? "key updated" : "key inserted"} @ ${e.frame}`));
 }
-function Xi(e, t) {
+function Yi(e, t) {
   const a = _e(e);
   if (!a) return;
   e.checkpoint("Change key interpolation"), a.interpolation = t;
@@ -4770,7 +4772,7 @@ function Xi(e, t) {
     r.classList.toggle("active", r.dataset.interp === t);
   e.serialize(), e.refreshKeys(), e.refreshKeyEditor(), e.drawCurveEditor(), e.setStatus(s(`Key @ ${a.frame} interpolation set to ${t}`));
 }
-function Yi(e) {
+function Zi(e) {
   const t = ve(e), a = xe(e);
   if (!t && a.length <= 1) return e.setStatus(s("Keep at least one camera keyframe"));
   const o = _e(e) || a.find((i) => i.frame === e.frame);
@@ -4779,11 +4781,11 @@ function Yi(e) {
   const r = xe(e), n = o.frame;
   e.editingKeyFrame === n && (e.editingKeyFrame = null), e.selectedKeyFrame = r.length ? r.reduce((i, c) => Math.abs(c.frame - n) < Math.abs(i.frame - n) ? c : i).frame : null, e.camera = re(e.state, e.frame), e.applyObjectAnimationFrame(), e.serialize(), e.refreshKeys(), e.render(), e.setStatus(s(`${t?.name || "Camera"} key deleted @ ${n}`));
 }
-function Zi(e) {
+function Ji(e) {
   const t = ve(e), a = _e(e) || xe(e).find((o) => o.frame === e.frame);
   e.copiedKeyframe = t ? { kind: "object", transform: je(a?.transform || t), interpolation: a?.interpolation || e.root.querySelector('[data-role="interp"]')?.value || "ease" } : { kind: "camera", camera: N(a?.camera || e.camera), interpolation: a?.interpolation || e.root.querySelector('[data-role="interp"]')?.value || "ease" }, e.setStatus(s(`Keyframe copied @ ${a?.frame ?? e.frame}`));
 }
-function Ji(e) {
+function Qi(e) {
   if (!e.copiedKeyframe) return e.setStatus(s("Copy a keyframe first"));
   const t = ve(e), a = t ? "object" : "camera";
   if (e.copiedKeyframe.kind !== a) return e.setStatus(s(`Copy a ${a} keyframe first`));
@@ -4794,10 +4796,10 @@ function Ji(e) {
 function _e(e) {
   return xe(e).find((t) => t.frame === e.selectedKeyFrame) || null;
 }
-function Qi(e, t) {
+function ec(e, t) {
   t && (e.selectedKeyFrame = t.frame, e.selectedKeyFrames = /* @__PURE__ */ new Set([t.frame]), e.editingKeyFrame = null, e.setFrame(t.frame));
 }
-function ec(e) {
+function tc(e) {
   const t = e.activeCameraTrack();
   if (t?.locked)
     return e.setStatus(s(`${t.name} is locked`)), null;
@@ -4809,11 +4811,11 @@ function ec(e) {
   );
   return e.state.auto_key ? (a || (a = { frame: e.frame, camera: N(e.camera), interpolation: e.root.querySelector('[data-role="key-interp"]')?.value || "ease" }, e.state.keyframes.push(a), e.state.keyframes.sort((o, r) => o.frame - r.frame), e.refreshKeys()), e.selectedKeyFrame = a.frame, e.editingKeyFrame = a.frame) : a && (e.selectedKeyFrame = a.frame), e.cameraEditKey = a || null, e.cameraEditActive = !0, e.updateKeyVisualState(), a;
 }
-function tc(e) {
+function ac(e) {
   const t = e.cameraEditKey;
   t && (t.camera = N(e.camera), e.frame = t.frame, e.selectedKeyFrame = t.frame), e.scheduleSerialize(), e.refreshKeyEditor(), e.updateKeyVisualState(), e.render();
 }
-function ac(e) {
+function oc(e) {
   if (e.cameraEditActive) {
     if (e.cameraEditActive = !1, e.cameraEditKey = null, e.editingKeyFrame = null, e.selectedKeyFrame === null) {
       const t = e.state.keyframes.find((a) => a.frame === e.frame);
@@ -4822,20 +4824,20 @@ function ac(e) {
     e.refreshKeys();
   }
 }
-function oc(e, t = !1) {
+function rc(e, t = !1) {
   e.editingKeyFrame === null && (!t || e.selectedKeyFrame === null && !e.selectedKeyFrames?.size) || (e.cameraEditActive = !1, e.cameraEditKey = null, e.editingKeyFrame = null, t && (e.selectedKeyFrame = null, e.selectedKeyFrames = null), e.refreshKeys());
 }
-function rc(e) {
+function nc(e) {
   e.state.auto_key = !e.state.auto_key, e.state.auto_key || e.exitKeyEdit(!1), e.serialize(), e.updateEditState(), e.setStatus(s(`Auto Key ${e.state.auto_key ? "on" : "off"}`));
 }
-const nc = ["guides", "safe-areas", "resolution-gate", "aspect-ratio"];
-function sc(e) {
+const sc = ["guides", "safe-areas", "resolution-gate", "aspect-ratio"];
+function ic(e) {
   const t = e.root.querySelector(".viewport-wrap"), a = e.editingKeyFrame !== null, o = !!e.state.auto_key;
   t && (t.classList.toggle("edit-mode", a), t.classList.toggle("auto-key", o));
   for (const p of e.root.querySelectorAll('[data-act="auto-key"]'))
     p.classList.toggle("active", o), p.setAttribute("aria-pressed", String(o)), p.title = s(`Auto Key ${o ? "on" : "off"}`);
   const r = e.state.view_mode === "camera";
-  for (const p of nc)
+  for (const p of sc)
     for (const h of e.root.querySelectorAll(`[data-role="${p}"]`)) {
       h.disabled = !r;
       const f = h.closest("label");
@@ -4851,7 +4853,7 @@ function sc(e) {
   const l = e.root.querySelector('[data-role="viewport-state"]');
   l && (a ? l.textContent = i ? `● EDITING ${i.name || i.type} @ F${e.editingKeyFrame}${o ? " · AUTO KEY" : ""}` : `● EDITING ${n.name} @ F${e.editingKeyFrame}${o ? " · AUTO KEY" : ""}` : o ? l.textContent = i ? `● AUTO KEY · ${i.name || i.type}` : `● AUTO KEY · ${n.name}` : i ? l.textContent = `SELECTED: ${i.name || i.type}` : l.textContent = e.state.view_mode === "camera" ? `CAMERA: ${n.name}` : `VIEW: ${e.state.view_mode.toUpperCase()}`);
 }
-function ic(e) {
+function cc(e) {
   const t = e.selectedKeyFrames || (e.selectedKeyFrame === null ? /* @__PURE__ */ new Set() : /* @__PURE__ */ new Set([e.selectedKeyFrame]));
   for (const a of e.root.querySelectorAll("[data-key-frame]")) {
     const o = Number(a.dataset.keyFrame);
@@ -4859,7 +4861,7 @@ function ic(e) {
   }
   e.updateEditState();
 }
-function cc(e) {
+function lc(e) {
   const t = ve(e), a = _e(e), o = e.root.querySelector('[data-role="key-editor"]');
   o && (o.dataset.empty = String(!a));
   const r = e.root.querySelector('[data-role="selected-key-label"]');
@@ -4904,7 +4906,7 @@ function cc(e) {
     h && document.activeElement !== h && (h.value = String(p));
   }
 }
-function lc(e, t, a = !1) {
+function dc(e, t, a = !1) {
   const o = _e(e);
   if (!o) return;
   const r = xe(e);
@@ -4924,7 +4926,7 @@ function lc(e, t, a = !1) {
   const c = e.editingKeyFrame === o.frame;
   o.frame = n, e.selectedKeyFrame = n, e.editingKeyFrame = c ? n : null, e.frame = n, r.sort((m, l) => m.frame - l.frame), e.serialize(), e.setFrame(n), e.setStatus(s(`Keyframe moved to ${n}`));
 }
-function dc(e) {
+function mc(e) {
   const t = _e(e);
   if (!t) return;
   if (e.editingKeyFrame = t.frame, ve(e)) {
@@ -4937,17 +4939,17 @@ function dc(e) {
   };
   t.interpolation = e.root.querySelector('[data-role="key-interp"]').value, t.camera.position = [a("key-px", t.camera.position[0]), a("key-py", t.camera.position[1]), a("key-pz", t.camera.position[2])], t.camera.target = [a("key-tx", t.camera.target[0]), a("key-ty", t.camera.target[1]), a("key-tz", t.camera.target[2])], t.camera.fov = P(a("key-fov", t.camera.fov), 5, 150), t.camera.roll = P(a("key-roll", t.camera.roll || 0), -180, 180), t.camera.zoom = Math.max(0.01, a("key-zoom", t.camera.zoom || 1)), t.camera.near = Math.max(1e-4, a("key-near", t.camera.near)), t.camera.far = Math.max(t.camera.near + 1e-4, a("key-far", t.camera.far)), t.camera.camera_type = e.root.querySelector('[data-role="key-camera-type"]').value, e.camera = N(t.camera), e.frame = t.frame, e.serialize(), e.setFrame(t.frame), e.setStatus(s(`Keyframe updated @ ${t.frame}`));
 }
-function mc(e) {
+function pc(e) {
   const t = _e(e);
   t && (e.setFrame(t.frame), e.setStatus(s(`Loaded keyframe @ ${t.frame}`)));
 }
-function pc(e, t) {
+function fc(e, t) {
   const a = xe(e);
   if (!a.length) return;
   const o = t < 0 ? [...a].reverse().find((r) => r.frame < e.frame) || a[a.length - 1] : a.find((r) => r.frame > e.frame) || a[0];
   e.selectKeyframe(o);
 }
-const fc = 220;
+const hc = 220;
 function so(e) {
   return JSON.stringify({
     background: e.viewport_bg_image || "",
@@ -4955,7 +4957,7 @@ function so(e) {
     objects: (e.objects || []).map((t) => [t.id, t.type, t.asset || ""])
   });
 }
-function hc(e) {
+function bc(e) {
   const { app: t, api: a, EditorHistory: o, ContextMenuController: r, initializeTooltips: n, promptText: i, ObjectUrlRegistry: c, buildRoot: m, dispatchDirectorKey: l, activeCameraTrack: p, bindWidgetCallbacks: h, playblastCameraTrack: f, restoreFromWidgets: u, serializeEditorState: y, syncActiveCameraTrack: S, syncFromWidgets: v, bind: g, activateCamera: w, addCamera: x, deleteCamera: j, drawPreviewOverlays: _, duplicateCamera: O, maximizeCameraPreview: A, refreshCameraPreviews: B, refreshCameraSelectors: z, renameCamera: I, setPlayblastCamera: ge, toggleCameraView: ee, captureRealtime: ne, makePlayblast: se, uploadDirectorPlayblast: me, waitForMediaFrame: pe, computeAudioPeaks: Z, loadAudioFile: E, stopPlay: Y, togglePlay: K, applyCameraPreset: F, applyCameraShake: R, applyProxyPreset: ie, clearViewportBgImage: q, loadViewportBgFile: W, loadViewportBgSequence: X, drawCameraPath: V, drawCard: be, drawCube: ue, drawGrid: we, drawHuman: fe, drawLine3D: J, drawNull: te, drawOverlays: ce, drawPointField: ae, drawSpeedHeatmap: U, drawSphere: ye, curveChannels: at, drawCurveEditor: qe, onCurvePointerDown: Oe, onCurvePointerMove: De, onCurvePointerUp: Re, onTimelinePointerDown: ot, onTimelinePointerMove: rt, onTimelinePointerUp: nt, refreshKeys: Ne, resetCurveZoom: Be, resetTimelineZoom: Me, setChannelFilter: We, setCurveInterpolation: He, setTangentMode: Ve, timelineFrameFromEvent: st, toggleCurveHandles: Ue, zoomCurve: it, drawTransformGizmo: ct, frameTarget: lt, gizmoAxes: dt, gizmoGeometry: mt, onPointerDown: pt, onPointerMove: ft, onPointerUp: ht, onWheel: bt, pickGizmo: ut, pickSceneObject: gt, resetCamera: yt, setTransformMode: vt, setViewMode: xt, viewportCamera: wt, loadCardFile: kt, loadExecutionPreview: St, loadMediaUrl: Ct, loadModelFile: jt, loadSelectedReference: _t, onModelLoaded: $t, restoreAssets: Et, syncUpstreamInputs: Mt, configureDomMedia: Ma, refreshSetupDiagnostic: At, addMediaCard: Pt, addPrimitive: Ft, applyObjectAnimationFrame: zt, beginCameraEdit: Lt, beginObjectEdit: Kt, commitCameraEdit: Tt, commitObjectEdit: It, copyKeyframe: qt, deleteKeyframe: Ot, deleteObject: Dt, duplicateObject: Rt, exitKeyEdit: Nt, finishCameraEdit: Bt, goToAdjacentKey: Wt, insertKeyframe: Ht, loadSelectedKeyView: Vt, pasteKeyframe: Ut, playblastCameraAtFrame: Gt, refreshInspector: Xt, refreshKeyEditor: Yt, refreshObjects: Zt, removeObjectResources: Jt, renameObject: Qt, retimeSelectedKey: ea, selectKeyframe: ta, selectedKeyframe: aa, selectedObject: oa, selectObjectAnimation: ra, setKeyInterpolation: na, setObjectParent: sa, timelineKeyframes: ia, timelineObject: ca, toggleAutoKey: la, toggleObject: da, updateCameraFromHud: ma, updateEditState: pa, updateKeyVisualState: fa, updateSelectedKey: ha, updateSelectedObject: ba, clamp: Ge, cloneCamera: Aa, configureCore: Pa, defaultCamera: ua, sampleCamera: ke, sampleObjectTransform: $e, sanitizeState: ga, worldTransform: ya } = e;
   return {
     setSelectMode(d) {
@@ -5220,7 +5222,7 @@ function hc(e) {
       const b = Math.min(2, window.devicePixelRatio || 1), k = d.clientWidth || 320, C = d.clientHeight || 180, M = Math.max(320, Math.round(k * b)), T = Math.max(180, Math.round(C * b));
       (this.canvas.width !== M || this.canvas.height !== T) && (this.canvas.width = M, this.canvas.height = T);
       for (const G of this.cameraPreviewCanvases.values()) {
-        const le = G.clientWidth || 220, L = G.clientHeight || 124, $ = Math.max(b, fc / Math.max(1, le)), Se = Math.max(1, Math.round(le * $)), Xe = Math.max(1, Math.round(L * $));
+        const le = G.clientWidth || 220, L = G.clientHeight || 124, $ = Math.max(b, hc / Math.max(1, le)), Se = Math.max(1, Math.round(le * $)), Xe = Math.max(1, Math.round(L * $));
         (G.width !== Se || G.height !== Xe) && (G.width = Se, G.height = Xe);
       }
       this.drawCurveEditor();
@@ -5230,18 +5232,18 @@ function hc(e) {
 function Xo(e) {
   e.serialize(), e.refreshObjects(), e.refreshKeys(), e.refreshKeyEditor(), e.refreshInspector(), e.drawCurveEditor(), e.render();
 }
-function bc(e, t) {
+function uc(e, t) {
   const a = e.state.cameras.find((r) => r.id === t);
   if (!a) return;
   e.checkpoint("Reset camera animation"), e.finishCameraEdit();
   const o = fo();
   o.position = [0, 0, 0], o.target = [0, 0, -1], a.camera = N(o), a.keyframes = [{ frame: 0, camera: N(o), interpolation: "ease" }], e.state.active_camera_id = a.id, e.state.camera = N(o), e.state.keyframes = a.keyframes, e.camera = N(o), e.frame = 0, e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedKeyFrame = 0, e.editingKeyFrame = null, e.cameraEditKey = null, e.cameraEditActive = !1, e.cameraPreviewSignature = "", Xo(e), e.refreshCameraSelectors(), e.setStatus(s(`${a.name} animation reset`));
 }
-function uc(e, t) {
+function gc(e, t) {
   const a = e.state.objects.find((o) => o.id === t);
   a && (e.checkpoint("Reset object animation"), a.keyframes = [], a.position = [0, 0, 0], a.rotation = [0, 0, 0], e.frame = 0, e.selectedEntity = "object", e.selectedObjectId = a.id, e.selectedKeyFrame = null, e.editingKeyFrame = null, Xo(e), e.setStatus(s(`${a.name || a.type} animation reset`)));
 }
-function gc(e) {
+function yc(e) {
   const { app: t, api: a, EditorHistory: o, ContextMenuController: r, initializeTooltips: n, promptText: i, ObjectUrlRegistry: c, buildRoot: m, dispatchDirectorKey: l, activeCameraTrack: p, bindWidgetCallbacks: h, playblastCameraTrack: f, restoreFromWidgets: u, serializeEditorState: y, syncActiveCameraTrack: S, syncFromWidgets: v, bind: g, activateCamera: w, addCamera: x, deleteCamera: j, drawPreviewOverlays: _, duplicateCamera: O, maximizeCameraPreview: A, refreshCameraPreviews: B, refreshCameraSelectors: z, renameCamera: I, setPlayblastCamera: ge, toggleCameraView: ee, captureRealtime: ne, makePlayblast: se, uploadDirectorPlayblast: me, waitForMediaFrame: pe, computeAudioPeaks: Z, loadAudioFile: E, stopPlay: Y, togglePlay: K, applyCameraPreset: F, applyCameraShake: R, applyProxyPreset: ie, clearViewportBgImage: q, loadViewportBgFile: W, loadViewportBgSequence: X, drawCameraPath: V, drawCard: be, drawCube: ue, drawGrid: we, drawHuman: fe, drawLine3D: J, drawNull: te, drawOverlays: ce, drawPointField: ae, drawSpeedHeatmap: U, drawSphere: ye, curveChannels: at, drawCurveEditor: qe, onCurvePointerDown: Oe, onCurvePointerMove: De, onCurvePointerUp: Re, onTimelinePointerDown: ot, onTimelinePointerMove: rt, onTimelinePointerUp: nt, refreshKeys: Ne, resetCurveZoom: Be, resetTimelineZoom: Me, setChannelFilter: We, setCurveInterpolation: He, setTangentMode: Ve, timelineFrameFromEvent: st, toggleCurveHandles: Ue, zoomCurve: it, drawTransformGizmo: ct, frameTarget: lt, gizmoAxes: dt, gizmoGeometry: mt, onPointerDown: pt, onPointerMove: ft, onPointerUp: ht, onWheel: bt, pickGizmo: ut, pickSceneObject: gt, resetCamera: yt, setTransformMode: vt, setViewMode: xt, viewportCamera: wt, loadCardFile: kt, loadExecutionPreview: St, loadMediaUrl: Ct, loadModelFile: jt, loadSelectedReference: _t, onModelLoaded: $t, restoreAssets: Et, syncUpstreamInputs: Mt, configureDomMedia: Ma, refreshSetupDiagnostic: At, addMediaCard: Pt, addPrimitive: Ft, applyObjectAnimationFrame: zt, beginCameraEdit: Lt, beginObjectEdit: Kt, commitCameraEdit: Tt, commitObjectEdit: It, copyKeyframe: qt, deleteKeyframe: Ot, deleteObject: Dt, duplicateObject: Rt, exitKeyEdit: Nt, finishCameraEdit: Bt, goToAdjacentKey: Wt, insertKeyframe: Ht, loadSelectedKeyView: Vt, pasteKeyframe: Ut, playblastCameraAtFrame: Gt, refreshInspector: Xt, refreshKeyEditor: Yt, refreshObjects: Zt, removeObjectResources: Jt, renameObject: Qt, retimeSelectedKey: ea, selectKeyframe: ta, selectedKeyframe: aa, selectedObject: oa, selectObjectAnimation: ra, setKeyInterpolation: na, setObjectParent: sa, timelineKeyframes: ia, timelineObject: ca, toggleAutoKey: la, toggleObject: da, updateCameraFromHud: ma, updateEditState: pa, updateKeyVisualState: fa, updateSelectedKey: ha, updateSelectedObject: ba, clamp: Ge, cloneCamera: Aa, configureCore: Pa, defaultCamera: ua, sampleCamera: ke, sampleObjectTransform: $e, sanitizeState: ga, worldTransform: ya } = e;
   return {
     setChannelFilter(d) {
@@ -5308,10 +5310,10 @@ function gc(e) {
       yt(this, ua);
     },
     resetCameraAnimation(d) {
-      bc(this, d);
+      uc(this, d);
     },
     resetObjectAnimation(d) {
-      uc(this, d);
+      gc(this, d);
     },
     selectedKeyframe() {
       return aa(this);
@@ -5524,10 +5526,10 @@ function gc(e) {
       this.camera.target = [...M], this.beginCameraEdit(), this.commitCameraEdit(), this.finishCameraEdit(), this.serialize(), this.refreshInspector(), this.updateHudCamera(), this.render(), this.setStatus(`Camera tracking locked to ${k.name || k.id}`);
     },
     setAimBone(d) {
-      Mi(this, d);
+      Ai(this, d);
     },
     bakeAimConstraint(d) {
-      Ai(this, d);
+      Pi(this, d);
     },
     setCameraTrackingTarget(d) {
       this.checkpoint("Change camera tracking target");
@@ -5554,7 +5556,7 @@ function gc(e) {
     }
   };
 }
-function yc(e) {
+function vc(e) {
   const { app: t, api: a, EditorHistory: o, ContextMenuController: r, initializeTooltips: n, promptText: i, ObjectUrlRegistry: c, buildRoot: m, dispatchDirectorKey: l, activeCameraTrack: p, bindWidgetCallbacks: h, playblastCameraTrack: f, restoreFromWidgets: u, serializeEditorState: y, syncActiveCameraTrack: S, syncFromWidgets: v, bind: g, activateCamera: w, addCamera: x, deleteCamera: j, drawPreviewOverlays: _, duplicateCamera: O, maximizeCameraPreview: A, refreshCameraPreviews: B, refreshCameraSelectors: z, renameCamera: I, setPlayblastCamera: ge, toggleCameraView: ee, captureRealtime: ne, makePlayblast: se, uploadDirectorPlayblast: me, waitForMediaFrame: pe, computeAudioPeaks: Z, loadAudioFile: E, stopPlay: Y, togglePlay: K, applyCameraPreset: F, applyCameraShake: R, applyProxyPreset: ie, clearViewportBgImage: q, loadViewportBgFile: W, loadViewportBgSequence: X, drawCameraPath: V, drawCard: be, drawCube: ue, drawGrid: we, drawHuman: fe, drawLine3D: J, drawNull: te, drawOverlays: ce, drawPointField: ae, drawSpeedHeatmap: U, drawSphere: ye, curveChannels: at, drawCurveEditor: qe, onCurvePointerDown: Oe, onCurvePointerMove: De, onCurvePointerUp: Re, onTimelinePointerDown: ot, onTimelinePointerMove: rt, onTimelinePointerUp: nt, refreshKeys: Ne, resetCurveZoom: Be, resetTimelineZoom: Me, setChannelFilter: We, setCurveInterpolation: He, setTangentMode: Ve, timelineFrameFromEvent: st, toggleCurveHandles: Ue, zoomCurve: it, drawTransformGizmo: ct, frameTarget: lt, gizmoAxes: dt, gizmoGeometry: mt, onPointerDown: pt, onPointerMove: ft, onPointerUp: ht, onWheel: bt, pickGizmo: ut, pickSceneObject: gt, resetCamera: yt, setTransformMode: vt, setViewMode: xt, viewportCamera: wt, loadCardFile: kt, loadExecutionPreview: St, loadMediaUrl: Ct, loadModelFile: jt, loadSelectedReference: _t, onModelLoaded: $t, restoreAssets: Et, syncUpstreamInputs: Mt, configureDomMedia: Ma, refreshSetupDiagnostic: At, addMediaCard: Pt, addPrimitive: Ft, applyObjectAnimationFrame: zt, beginCameraEdit: Lt, beginObjectEdit: Kt, commitCameraEdit: Tt, commitObjectEdit: It, copyKeyframe: qt, deleteKeyframe: Ot, deleteObject: Dt, duplicateObject: Rt, exitKeyEdit: Nt, finishCameraEdit: Bt, goToAdjacentKey: Wt, insertKeyframe: Ht, loadSelectedKeyView: Vt, pasteKeyframe: Ut, playblastCameraAtFrame: Gt, refreshInspector: Xt, refreshKeyEditor: Yt, refreshObjects: Zt, removeObjectResources: Jt, renameObject: Qt, retimeSelectedKey: ea, selectKeyframe: ta, selectedKeyframe: aa, selectedObject: oa, selectObjectAnimation: ra, setKeyInterpolation: na, setObjectParent: sa, timelineKeyframes: ia, timelineObject: ca, toggleAutoKey: la, toggleObject: da, updateCameraFromHud: ma, updateEditState: pa, updateKeyVisualState: fa, updateSelectedKey: ha, updateSelectedObject: ba, clamp: Ge, cloneCamera: Aa, configureCore: Pa, defaultCamera: ua, sampleCamera: ke, sampleObjectTransform: $e, sanitizeState: ga, worldTransform: ya } = e;
   return {
     setTargetAtCursor(d) {
@@ -5806,31 +5808,31 @@ function yc(e) {
     }
   };
 }
-const vc = [
+const xc = [
   { id: "x", label: "X", vector: [1, 0, 0], color: "#e5484d" },
   { id: "y", label: "Y", vector: [0, 1, 0], color: "#46a758" },
   { id: "z", label: "Z", vector: [0, 0, 1], color: "#4a8fe7" }
 ];
-function xc(e) {
+function wc(e) {
   const { right: t, up: a, forward: o } = mr(e || {});
-  return vc.map((r) => {
+  return xc.map((r) => {
     const [n, i, c] = r.vector, m = n * t[0] + i * t[1] + c * t[2], l = n * a[0] + i * a[1] + c * a[2], p = -(n * o[0] + i * o[1] + c * o[2]);
     return { id: r.id, label: r.label, color: r.color, x: m, y: -l, depth: p };
   });
 }
-function wc(e) {
+function kc(e) {
   return [...e].sort((t, a) => t.depth - a.depth);
 }
-function kc(e) {
+function Sc(e) {
   return 0.45 + 0.55 * ((Math.max(-1, Math.min(1, e)) + 1) / 2);
 }
-const Sc = "http://www.w3.org/2000/svg", Pe = 26, io = 17, Cc = 5.4;
+const Cc = "http://www.w3.org/2000/svg", Pe = 26, io = 17, jc = 5.4;
 function Fe(e, t) {
-  const a = document.createElementNS(Sc, e);
+  const a = document.createElementNS(Cc, e);
   for (const [o, r] of Object.entries(t)) a.setAttribute(o, String(r));
   return a;
 }
-function jc(e) {
+function _c(e) {
   const t = e.root?.querySelector('[data-role="viewport-axis"]');
   if (!t) return;
   const a = e.viewportCamera ? e.viewportCamera() : e.camera;
@@ -5844,12 +5846,12 @@ function jc(e) {
     fill: "#A78BFA",
     tabindex: "0",
     role: "button",
-    "aria-label": s("Frame selection"),
-    "pointer-events": "auto"
+    "pointer-events": "auto",
+    "aria-label": s("Frame selection")
   }), r = Fe("title", {});
   r.textContent = s("Frame selection"), o.appendChild(r), t.appendChild(o);
-  for (const n of wc(xc(a))) {
-    const i = Pe + n.x * io, c = Pe + n.y * io, m = kc(n.depth);
+  for (const n of kc(wc(a))) {
+    const i = Pe + n.x * io, c = Pe + n.y * io, m = Sc(n.depth);
     t.appendChild(Fe("line", {
       x1: Pe,
       y1: Pe,
@@ -5860,21 +5862,21 @@ function jc(e) {
       "stroke-linecap": "round",
       opacity: m
     }));
-    const l = n.label.toLowerCase(), p = Fe("circle", {
+    const l = n.depth >= 0, p = Fe("circle", {
       cx: i,
       cy: c,
-      r: Cc,
-      fill: n.depth >= 0 ? n.color : "#15151b",
+      r: jc,
+      fill: l ? n.color : "transparent",
       stroke: n.color,
       "stroke-width": 1.4,
       opacity: m,
-      "data-axis": l,
+      "data-axis": n.label.toLowerCase(),
       tabindex: "0",
       role: "button",
-      "aria-label": s(`View: ${n.label} axis`),
+      "aria-label": s("View: {axis} axis").replace("{axis}", n.label),
       "pointer-events": "auto"
     }), h = Fe("title", {});
-    if (h.textContent = s(`View: ${n.label} axis`), p.appendChild(h), t.appendChild(p), n.depth >= 0) {
+    if (h.textContent = s("View: {axis} axis").replace("{axis}", n.label), p.appendChild(h), t.appendChild(p), l) {
       const f = Fe("text", {
         x: i,
         y: c,
@@ -5882,14 +5884,13 @@ function jc(e) {
         "dominant-baseline": "central",
         "font-size": 7,
         "font-weight": 700,
-        fill: "#101014",
-        "pointer-events": "none"
+        fill: "#101014"
       });
       f.textContent = n.label, t.appendChild(f);
     }
   }
 }
-function _c(e) {
+function $c(e) {
   const { app: t, api: a, EditorHistory: o, ContextMenuController: r, initializeTooltips: n, promptText: i, ObjectUrlRegistry: c, buildRoot: m, dispatchDirectorKey: l, activeCameraTrack: p, bindWidgetCallbacks: h, playblastCameraTrack: f, restoreFromWidgets: u, serializeEditorState: y, syncActiveCameraTrack: S, syncFromWidgets: v, bind: g, activateCamera: w, addCamera: x, deleteCamera: j, drawPreviewOverlays: _, duplicateCamera: O, maximizeCameraPreview: A, refreshCameraPreviews: B, refreshCameraSelectors: z, renameCamera: I, setPlayblastCamera: ge, toggleCameraView: ee, captureRealtime: ne, makePlayblast: se, uploadDirectorPlayblast: me, waitForMediaFrame: pe, computeAudioPeaks: Z, loadAudioFile: E, stopPlay: Y, togglePlay: K, applyCameraPreset: F, applyCameraShake: R, applyProxyPreset: ie, clearViewportBgImage: q, loadViewportBgFile: W, loadViewportBgSequence: X, drawCameraPath: V, drawCard: be, drawCube: ue, drawGrid: we, drawHuman: fe, drawLine3D: J, drawNull: te, drawOverlays: ce, drawPointField: ae, drawSpeedHeatmap: U, drawSphere: ye, curveChannels: at, drawCurveEditor: qe, onCurvePointerDown: Oe, onCurvePointerMove: De, onCurvePointerUp: Re, onTimelinePointerDown: ot, onTimelinePointerMove: rt, onTimelinePointerUp: nt, refreshKeys: Ne, resetCurveZoom: Be, resetTimelineZoom: Me, setChannelFilter: We, setCurveInterpolation: He, setTangentMode: Ve, timelineFrameFromEvent: st, toggleCurveHandles: Ue, zoomCurve: it, drawTransformGizmo: ct, frameTarget: lt, gizmoAxes: dt, gizmoGeometry: mt, onPointerDown: pt, onPointerMove: ft, onPointerUp: ht, onWheel: bt, pickGizmo: ut, pickSceneObject: gt, resetCamera: yt, setTransformMode: vt, setViewMode: xt, viewportCamera: wt, loadCardFile: kt, loadExecutionPreview: St, loadMediaUrl: Ct, loadModelFile: jt, loadSelectedReference: _t, onModelLoaded: $t, restoreAssets: Et, syncUpstreamInputs: Mt, configureDomMedia: Ma, refreshSetupDiagnostic: At, addMediaCard: Pt, addPrimitive: Ft, applyObjectAnimationFrame: zt, beginCameraEdit: Lt, beginObjectEdit: Kt, commitCameraEdit: Tt, commitObjectEdit: It, copyKeyframe: qt, deleteKeyframe: Ot, deleteObject: Dt, duplicateObject: Rt, exitKeyEdit: Nt, finishCameraEdit: Bt, goToAdjacentKey: Wt, insertKeyframe: Ht, loadSelectedKeyView: Vt, pasteKeyframe: Ut, playblastCameraAtFrame: Gt, refreshInspector: Xt, refreshKeyEditor: Yt, refreshObjects: Zt, removeObjectResources: Jt, renameObject: Qt, retimeSelectedKey: ea, selectKeyframe: ta, selectedKeyframe: aa, selectedObject: oa, selectObjectAnimation: ra, setKeyInterpolation: na, setObjectParent: sa, timelineKeyframes: ia, timelineObject: ca, toggleAutoKey: la, toggleObject: da, updateCameraFromHud: ma, updateEditState: pa, updateKeyVisualState: fa, updateSelectedKey: ha, updateSelectedObject: ba, clamp: Ge, cloneCamera: Aa, configureCore: Pa, defaultCamera: ua, sampleCamera: ke, sampleObjectTransform: $e, sanitizeState: ga, worldTransform: ya } = e;
   return {
     render() {
@@ -5934,7 +5935,7 @@ function _c(e) {
           D.enabled !== !1 && (D.type === "card" && ["omni_ref", "card_grid", "graybox", "wireframe"].includes(C) ? this.drawCard(D) : ["cube", "ground", "glb", "model"].includes(D.type) && C !== "grid" && C !== "point_field" ? this.drawCube(D) : D.type === "sphere" && C !== "grid" && C !== "point_field" ? this.drawSphere(D) : D.type === "human" && C !== "grid" && C !== "point_field" ? this.drawHuman(D) : D.type === "null" && this.drawNull(D));
         !this.recording && this.state.show_camera_paths && this.drawCameraPath();
       }
-      !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays(), this.state.show_gizmo && jc(this), this.renderCameraView();
+      !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays(), this.state.show_gizmo && _c(this), this.renderCameraView();
     },
     renderCameraView() {
       if (this.state.camera_view_visible) {
@@ -6013,7 +6014,7 @@ class Yo {
   async loadWebGLViewports() {
     let t;
     try {
-      ({ OmniWebGLViewport: t } = await import("./chunk-NXxYUSeF.js"));
+      ({ OmniWebGLViewport: t } = await import("./chunk-Di-o6v_M.js"));
     } catch (a) {
       console.warn("OmniCam WebGL unavailable; using Canvas fallback", a);
       return;
@@ -6038,15 +6039,15 @@ class Yo {
     }
   }
 }
-const wa = { app: co, api: Te, EditorHistory: Eo, ContextMenuController: Mo, initializeTooltips: wn, promptText: Da, ObjectUrlRegistry: Po, buildRoot: Fo, dispatchDirectorKey: hr, activeCameraTrack: Je, bindWidgetCallbacks: Un, playblastCameraTrack: Na, restoreFromWidgets: Xn, serializeEditorState: Vn, syncActiveCameraTrack: zo, syncFromWidgets: Gn, bind: ks, activateCamera: Ms, addCamera: js, deleteCamera: Es, drawPreviewOverlays: Fs, duplicateCamera: $s, maximizeCameraPreview: Io, refreshCameraPreviews: Wa, refreshCameraSelectors: Ss, renameCamera: _s, setPlayblastCamera: As, toggleCameraView: Ps, captureRealtime: Oo, makePlayblast: qs, uploadDirectorPlayblast: Do, waitForMediaFrame: qo, computeAudioPeaks: Ro, loadAudioFile: Ds, stopPlay: Ka, togglePlay: Os, applyCameraPreset: Rs, applyCameraShake: Ns, applyProxyPreset: Bs, clearViewportBgImage: Us, loadViewportBgFile: Hs, loadViewportBgSequence: Vs, drawCameraPath: ti, drawCard: ei, drawCube: Ys, drawGrid: Gs, drawHuman: Js, drawLine3D: Q, drawNull: Qs, drawOverlays: oi, drawPointField: Xs, drawSpeedHeatmap: ai, drawSphere: Zs, curveChannels: et, drawCurveEditor: cn, onCurvePointerDown: Zr, onCurvePointerMove: Jr, onCurvePointerUp: Qr, onTimelinePointerDown: br, onTimelinePointerMove: ur, onTimelinePointerUp: gr, refreshKeys: ii, resetCurveZoom: sn, resetTimelineZoom: yr, setChannelFilter: tn, setCurveInterpolation: en, setTangentMode: an, timelineFrameFromEvent: Ia, toggleCurveHandles: on, zoomCurve: nn, drawTransformGizmo: ui, frameTarget: mi, gizmoAxes: Bo, gizmoGeometry: Va, onPointerDown: vr, onPointerMove: xr, onPointerUp: wr, onWheel: kr, pickGizmo: fi, pickSceneObject: hi, resetCamera: di, setTransformMode: li, setViewMode: ci, viewportCamera: Ea, loadCardFile: wi, loadExecutionPreview: ki, loadMediaUrl: Ho, loadModelFile: xi, loadSelectedReference: Si, onModelLoaded: vi, restoreAssets: yi, syncUpstreamInputs: Ci, configureDomMedia: Wo, refreshSetupDiagnostic: _i, addMediaCard: qi, addPrimitive: zi, applyObjectAnimationFrame: Ui, beginCameraEdit: ec, beginObjectEdit: Go, commitCameraEdit: tc, commitObjectEdit: Ri, copyKeyframe: Zi, deleteKeyframe: Yi, deleteObject: Ii, duplicateObject: Ki, exitKeyEdit: oc, finishCameraEdit: ac, goToAdjacentKey: pc, insertKeyframe: Gi, loadSelectedKeyView: mc, pasteKeyframe: Ji, playblastCameraAtFrame: Vi, refreshInspector: Oi, refreshKeyEditor: cc, refreshObjects: Fi, removeObjectResources: Hi, renameObject: Li, retimeSelectedKey: lc, selectKeyframe: Qi, selectedKeyframe: _e, selectedObject: tt, selectObjectAnimation: Wi, setKeyInterpolation: Xi, setObjectParent: Bi, timelineKeyframes: xe, timelineObject: ve, toggleAutoKey: rc, toggleObject: Ti, updateCameraFromHud: Ni, updateEditState: sc, updateKeyVisualState: ic, updateSelectedKey: dc, updateSelectedObject: Di, clamp: P, cloneCamera: N, configureCore: ho, defaultCamera: fo, sampleCamera: re, sampleObjectTransform: Ie, sanitizeState: qa, worldTransform: po };
+const wa = { app: co, api: Te, EditorHistory: Eo, ContextMenuController: Mo, initializeTooltips: wn, promptText: Da, ObjectUrlRegistry: Po, buildRoot: Fo, dispatchDirectorKey: hr, activeCameraTrack: Je, bindWidgetCallbacks: Un, playblastCameraTrack: Na, restoreFromWidgets: Xn, serializeEditorState: Vn, syncActiveCameraTrack: zo, syncFromWidgets: Gn, bind: ks, activateCamera: Ms, addCamera: js, deleteCamera: Es, drawPreviewOverlays: Fs, duplicateCamera: $s, maximizeCameraPreview: Io, refreshCameraPreviews: Wa, refreshCameraSelectors: Ss, renameCamera: _s, setPlayblastCamera: As, toggleCameraView: Ps, captureRealtime: Oo, makePlayblast: qs, uploadDirectorPlayblast: Do, waitForMediaFrame: qo, computeAudioPeaks: Ro, loadAudioFile: Ds, stopPlay: Ka, togglePlay: Os, applyCameraPreset: Rs, applyCameraShake: Ns, applyProxyPreset: Bs, clearViewportBgImage: Us, loadViewportBgFile: Hs, loadViewportBgSequence: Vs, drawCameraPath: ti, drawCard: ei, drawCube: Ys, drawGrid: Gs, drawHuman: Js, drawLine3D: Q, drawNull: Qs, drawOverlays: oi, drawPointField: Xs, drawSpeedHeatmap: ai, drawSphere: Zs, curveChannels: et, drawCurveEditor: cn, onCurvePointerDown: Zr, onCurvePointerMove: Jr, onCurvePointerUp: Qr, onTimelinePointerDown: br, onTimelinePointerMove: ur, onTimelinePointerUp: gr, refreshKeys: ii, resetCurveZoom: sn, resetTimelineZoom: yr, setChannelFilter: tn, setCurveInterpolation: en, setTangentMode: an, timelineFrameFromEvent: Ia, toggleCurveHandles: on, zoomCurve: nn, drawTransformGizmo: ui, frameTarget: mi, gizmoAxes: Bo, gizmoGeometry: Va, onPointerDown: vr, onPointerMove: xr, onPointerUp: wr, onWheel: kr, pickGizmo: fi, pickSceneObject: hi, resetCamera: di, setTransformMode: li, setViewMode: ci, viewportCamera: Ea, loadCardFile: wi, loadExecutionPreview: ki, loadMediaUrl: Ho, loadModelFile: xi, loadSelectedReference: Si, onModelLoaded: vi, restoreAssets: yi, syncUpstreamInputs: Ci, configureDomMedia: Wo, refreshSetupDiagnostic: $i, addMediaCard: Oi, addPrimitive: Li, applyObjectAnimationFrame: Gi, beginCameraEdit: tc, beginObjectEdit: Go, commitCameraEdit: ac, commitObjectEdit: Ni, copyKeyframe: Ji, deleteKeyframe: Zi, deleteObject: qi, duplicateObject: Ti, exitKeyEdit: rc, finishCameraEdit: oc, goToAdjacentKey: fc, insertKeyframe: Xi, loadSelectedKeyView: pc, pasteKeyframe: Qi, playblastCameraAtFrame: Ui, refreshInspector: Di, refreshKeyEditor: lc, refreshObjects: zi, removeObjectResources: Vi, renameObject: Ki, retimeSelectedKey: dc, selectKeyframe: ec, selectedKeyframe: _e, selectedObject: tt, selectObjectAnimation: Hi, setKeyInterpolation: Yi, setObjectParent: Wi, timelineKeyframes: xe, timelineObject: ve, toggleAutoKey: nc, toggleObject: Ii, updateCameraFromHud: Bi, updateEditState: ic, updateKeyVisualState: cc, updateSelectedKey: mc, updateSelectedObject: Ri, clamp: P, cloneCamera: N, configureCore: ho, defaultCamera: fo, sampleCamera: re, sampleObjectTransform: Ie, sanitizeState: qa, worldTransform: po };
 Object.assign(
   Yo.prototype,
-  hc(wa),
-  gc(wa),
+  bc(wa),
   yc(wa),
-  _c(wa)
+  vc(wa),
+  $c(wa)
 );
-function $c(e) {
+function Ec(e) {
   if (e.__majoorOmniCam) return;
   const t = new Yo(e);
   e.__majoorOmniCam = t, t.hideInternalWidgets();
@@ -6094,16 +6095,16 @@ function $c(e) {
     p?.apply(this, arguments), t.loadExecutionPreview(h), t.syncUpstreamInputs();
   };
 }
-const qc = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const Oc = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  attachDirector: $c
+  attachDirector: Ec
 }, Symbol.toStringTag, { value: "Module" }));
 export {
   oo as D,
-  Tc as a,
+  Ic as a,
   Ko as b,
-  Kc as c,
+  Tc as c,
   Je as d,
-  qc as e,
-  Ic as s
+  Oc as e,
+  qc as s
 };
