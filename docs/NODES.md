@@ -312,12 +312,18 @@ Track show the exact delivered coordinates. Legacy LTX shows the exact sampling
 indices. Wan Camera shows only a camera path marked **DIAGNOSTIC**, because the
 final embedding only exists after node execution.
 
+The global setup diagnostic distinguishes core readiness from optional adapter
+issues. An incompatible adapter that is not selected is a warning and does not
+make the model-agnostic core unhealthy. The selected adapter is checked again
+by Monitor preflight; any incompatible required stage or socket contract is
+blocking for that workflow.
+
 ### The seven adapters, by family
 
 | Adapter | Family | Control path |
 |---|---|---|
 | `h3` | video reference | reference video + prompt, `Video 1` dialect (`MinimaxHailuo03ReferenceNode`) |
-| `h3_native` | video reference | reference frames + prompt, `<Video 1>` dialect (`MiniMaxH3ReferenceToVideo`), `length` = 17n+5 |
+| `h3_native` | video reference | complete supplied reference resampled to 24 FPS as IMAGE frames + prompt, `<Video 1>` dialect (`MiniMaxH3ReferenceToVideo`); no 15-second truncation |
 | `wan_native` | camera conditioning | a true digital camera: extrinsics/intrinsics → `WAN_CAMERA_EMBEDDING`; the fidelity reference; `length` = 4n+1 |
 | `wan_tracks_native` | trajectory | projected 2D trajectories → `WanTrackToVideo`; an approximation of a camera |
 | `wan_ati` | trajectory | projected 2D trajectories → `WanVideoATITracks` (Wan 2.1 ATI, WanVideoWrapper) |
@@ -330,9 +336,11 @@ Three deliberately separate ideas:
 
 1. **Adapter contract** — the only facts that decide `READY` / `WARNING` /
    `BLOCKED`, each read from the downstream node: 23.976–60 FPS and a 2–15 s
-   duration and the H3 API prompt-character budget for `h3`; `length` = 17n+5
-   for `h3_native`, 4n+1 for `wan_native`, 8n+1 for `ltx_motion_track`; the
-   detected socket contract for every adapter.
+   duration and the H3 API prompt-character budget for `h3`; for `h3_native`,
+   fewer than five reference frames blocks while the 2–15 s duration and
+   `length = 17n+5` guidance warn; `length = 4n+1` for `wan_native`, `length =
+   8n+1` for `ltx_motion_track`; the detected socket contract for every
+   required adapter stage.
 2. **Track validity** — non-finite values (blocking) and framing loss
    (warning). Objective properties of the track.
 3. **Motion risk** — `LOW` / `MEDIUM` / `HIGH`, an OmniCam empirical estimate
@@ -344,7 +352,7 @@ Three deliberately separate ideas:
 ## Deprecated compatibility nodes
 
 All four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`. They
-keep their execution behaviour so pinned workflows still load and run; new
+remain executable throughout 0.3.x so pinned workflows still load and run; new
 graphs should use Monitor, whose adapter menu covers every one of these paths.
 The old `MajoorOmniCamWanATIAdapter` additionally has an official Node
 Replacement to `MajoorOmniCamWanVideoWrapperATI`.
@@ -361,6 +369,8 @@ pan/tilt. Inputs: `video_ref_token`, `prompt_style`
 (`h3`/`universal`/`kling`/`luma`/`hunyuan`/`wan`), `base_prompt`, optional
 `proxy_video`. Outputs: `camera_reference_video`, `prompt_fragment`,
 `cinematic_prompt`, `camera_analysis_json`, `reference_frames`.
+All five outputs remain functional for saved 0.3.x workflows even though the
+node is deprecated.
 
 ### OmniCam → Wan Native Camera — `MajoorOmniCamWanNativeCamera`
 

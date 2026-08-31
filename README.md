@@ -17,7 +17,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/ComfyUI-0.31%2B-blue" alt="ComfyUI 0.31+">
-  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.12-blue" alt="Python 3.10 / 3.12">
+  <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.12%20%7C%203.13-blue" alt="Python 3.10 / 3.12 / 3.13">
   <img src="https://img.shields.io/badge/Version-0.3.0-orange" alt="Version 0.3.0">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </p>
@@ -201,6 +201,13 @@ only exists during normal graph execution.
 Wan embedding or decode full LTX guide tensors.** They call only the bounded
 snapshot endpoint. Existing adapter nodes remain loadable under
 `Majoor/OmniCam/Legacy`, but new workflows should use Monitor.
+
+The setup badge reports the model-agnostic OmniCam core separately from
+optional adapter health. A missing or incompatible adapter that the workflow
+does not use is reported as an optional issue and does not block the core.
+Monitor preflight checks the adapter currently selected by the workflow and
+blocks execution when one of that adapter's required socket contracts is
+incompatible.
 
 ---
 
@@ -523,7 +530,8 @@ render mode and output resolution are never replaced by a camera import.
 ## Deprecated compatibility nodes
 
 These four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`.
-They keep their execution behaviour so pinned workflows still load and run. For
+They remain executable throughout the 0.3.x line so pinned workflows still load
+and run, including the legacy H3 node and its five historical outputs. For
 anything new, use **OmniCam Monitor** and pick the matching adapter — it
 produces the same outputs from one node.
 
@@ -804,6 +812,14 @@ in the source.
 Screenshots and example workflows will be added progressively.
 
 ## MiniMax H3
+
+Monitor offers two distinct contracts. `adapter = h3` follows the
+MinimaxHailuo03 API constraints (23.976–60 FPS and 2–15 seconds). `adapter =
+h3_native` preserves the complete supplied reference and returns an IMAGE batch
+resampled to 24 FPS for `MiniMaxH3ReferenceToVideo`; it does not truncate the
+reference at 15 seconds. For H3 Native, the 2–15 second range and `17n+5`
+generation length are guidance warnings. Fewer than five reference frames is
+the blocking media error.
 
 ```text
 OmniCam Director
