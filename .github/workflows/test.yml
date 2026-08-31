@@ -6,10 +6,12 @@ on:
 
 jobs:
   python-core:
+    name: python-core (${{ matrix.python-version }})
     # Deliberately installs only requirements-dev.txt: the model-agnostic core
     # must stay testable without ComfyUI or torch. Suites that genuinely need an
     # optional dependency skip themselves via pytest.importorskip.
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.12", "3.13"]
     runs-on: ubuntu-latest
@@ -24,6 +26,7 @@ jobs:
       - run: mypy
 
   python-full:
+    name: python-full
     # Same suite with the ComfyUI runtime dependencies present, so the route and
     # video-sampling tests that python-core skips are actually exercised.
     runs-on: ubuntu-latest
@@ -37,6 +40,7 @@ jobs:
       - run: pytest -q
 
   comfyui-integration:
+    name: comfyui-integration (${{ matrix.label }})
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +68,7 @@ jobs:
       - run: PYTHONPATH=.comfyui:. python scripts/comfy_integration_smoke.py
 
   comfyui-browser:
+    name: comfyui-browser
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -87,6 +92,7 @@ jobs:
           OMNICAM_LIVE_MATCH: "live-ci.spec.js"
 
   frontend:
+    name: frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

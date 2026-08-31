@@ -4,6 +4,6 @@ ruff==0.15.17
 mypy==1.19.1
 # ComfyUI's V3 Video API imports NumPy during module initialization. Keep the
 # core test environment able to import the same contracts as integration CI.
-numpy==2.3.4
+numpy==2.2.6
 # Validates the published contracts in schemas/ against real payloads.
 jsonschema==4.26.0
