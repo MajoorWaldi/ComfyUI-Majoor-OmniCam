@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import warnings
 from typing import Any
 
 import torch
 
 from ..adapters import (
+    build_h3_prompt,
     track_to_ati_bridge,
     track_to_ati_json,
     track_to_ati_tracks,
@@ -16,7 +18,7 @@ from ..adapters.wan_native import build_wan_camera_embedding
 from ..comfy_compat import IO
 from ..core.control_passes import depth_pass, normals_pass, object_id_pass, optical_flow_pass
 from .base import OMNICAM_ATI_BRIDGE, OMNICAM_LTX_BRIDGE, OMNICAM_TRACK, validated_track
-from .media import as_image_batch, as_video, media_input
+from .media import as_image_batch, as_video, image_twin, media_input
 
 
 class MajoorOmniCamH3Adapter(IO.ComfyNode):
@@ -70,12 +72,24 @@ class MajoorOmniCamH3Adapter(IO.ComfyNode):
         base_prompt: str = "",
         proxy_video=None,
     ) -> IO.NodeOutput:
-        import logging
-        import warnings
-        msg = "MajoorOmniCamH3Adapter is retired. Please replace it with the new OmniCam Monitor node."
-        logging.warning(msg)
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        raise NotImplementedError(msg)
+        warnings.warn(
+            "MajoorOmniCamH3Adapter is deprecated; use OmniCam Monitor for new workflows.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from ..core.camera_tools import analyze_camera_trajectory, build_cinematic_motion_prompt
+
+        track = validated_track(camera_track)
+        analysis = analyze_camera_trajectory(track)
+        cinematic = build_cinematic_motion_prompt(track, base_prompt=base_prompt, style=prompt_style)
+        proxy_video = as_video(proxy_video)
+        return IO.NodeOutput(
+            proxy_video,
+            build_h3_prompt(track, video_ref_token=video_ref_token),
+            cinematic,
+            json.dumps(analysis, indent=2),
+            image_twin(proxy_video),
+        )
 
 
 class MajoorOmniCamWanATIAdapter(IO.ComfyNode):

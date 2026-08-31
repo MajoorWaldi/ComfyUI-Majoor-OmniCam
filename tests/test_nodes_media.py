@@ -1,5 +1,7 @@
 """The VIDEO-or-IMAGE socket and the coercions behind it."""
 
+import json
+
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -17,6 +19,18 @@ from omnicam.nodes.media import (  # noqa: E402
 
 def image_batch(frames=3, height=16, width=24):
     return torch.rand((frames, height, width, 3))
+
+
+def canonical_track_payload(duration_frames):
+    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
+    camera = {
+        "position": [0, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base,
+    }
+    return {
+        "schema_version": 1, "fps": 24, "duration_frames": duration_frames,
+        "width": 320, "height": 180, "render_mode": "omni_ref", "objects": [],
+        "keyframes": [{"frame": 0, "camera": camera, "interpolation": "smooth"}],
+    }
 
 
 def test_media_input_accepts_both_media_types():
@@ -228,14 +242,14 @@ def test_monitor_gains_an_image_twin_of_its_reference_video(monkeypatch):
     assert output.args[-1].shape[0] == 6
 
 
-def test_h3_native_reference_frames_preserve_five_seconds_at_24_fps(monkeypatch):
+def test_h3_native_reference_frames_preserve_the_complete_reference(monkeypatch):
     from types import SimpleNamespace
 
     from omnicam.nodes.monitor import MajoorOmniCamMonitor
 
     class Video:
         def get_frame_rate(self): return 30.0
-        def get_frame_count(self): return 150
+        def get_frame_count(self): return 600
         def get_dimensions(self): return (24, 16)
         def as_trimmed(self, *, start_time, duration, strict_duration=False):
             start = round(start_time * 30.0)
@@ -253,18 +267,12 @@ def test_h3_native_reference_frames_preserve_five_seconds_at_24_fps(monkeypatch)
         },
     )
     video = Video()
-    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
-    camera = {"position": [0, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base}
     output = MajoorOmniCamMonitor.execute(
-        camera_track={
-            "schema_version": 1, "fps": 24, "duration_frames": 120,
-            "width": 320, "height": 180, "render_mode": "omni_ref", "objects": [],
-            "keyframes": [{"frame": 0, "camera": camera, "interpolation": "smooth"}],
-        },
+        camera_track=canonical_track_payload(duration_frames=480),
         proxy_video=video,
         adapter="h3_native",
     )
-    assert output.args[-1].shape[0] == 120
+    assert output.args[-1].shape[0] == 480
 
 
 def test_h3_legacy_adapter_gains_an_image_twin_of_its_reference_video(monkeypatch):
@@ -276,17 +284,17 @@ def test_h3_legacy_adapter_gains_an_image_twin_of_its_reference_video(monkeypatc
     assert names[-1] == "reference_frames"
     assert _output_by_name(schema, "reference_frames").io_type == "IMAGE"
 
-    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
-    camera = {"position": [0, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base}
-    output = MajoorOmniCamH3Adapter.execute(
-        camera_track={
-            "schema_version": 1, "fps": 24, "duration_frames": 2,
-            "width": 320, "height": 180, "render_mode": "omni_ref", "objects": [],
-            "keyframes": [
-                {"frame": 0, "camera": camera, "interpolation": "smooth"},
-                {"frame": 1, "camera": camera, "interpolation": "smooth"},
-            ],
-        },
-        proxy_video=image_batch(3),
-    )
-    assert output.args[-1].shape[0] == 3
+    with pytest.warns(DeprecationWarning, match="OmniCam Monitor"):
+        output = MajoorOmniCamH3Adapter.execute(
+            camera_track=canonical_track_payload(duration_frames=2),
+            proxy_video=image_batch(3),
+            base_prompt="A brass robot",
+            prompt_style="h3",
+        )
+
+    assert len(output.args) == 5
+    assert output.args[0].get_frame_count() == 3
+    assert "camera-motion" in output.args[1]
+    assert "A brass robot" in output.args[2]
+    assert json.loads(output.args[3])["classification"]
+    assert output.args[4].shape[0] == 3

@@ -84,7 +84,6 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             resample_video_frames(
                 result["reference_video"],
                 target_fps=24.0,
-                max_seconds=15.0,
             )
             if adapter == "h3_native" and result["reference_video"] is not None
             else image_twin(result["reference_video"])
