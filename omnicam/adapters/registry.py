@@ -14,6 +14,16 @@ def input_fingerprint(inputs: list[str], widgets: list[str] | None = None) -> st
     return f"sha256:{hashlib.sha256(encoded).hexdigest()}"
 
 
+def _requirement(
+    any_of: list[str], inputs: list[str], widgets: list[str] | None = None,
+) -> dict[str, list[str]]:
+    return {
+        "any_of": list(any_of),
+        "expected_inputs": list(inputs),
+        "expected_widgets": list(widgets or []),
+    }
+
+
 def _contract(
     *,
     display_name: str,
@@ -27,13 +37,18 @@ def _contract(
     connection_recipe: str,
     widgets: list[str] | None = None,
     motion_limits: dict[str, str] | None = None,
+    requirements: list[dict[str, list[str]]] | None = None,
 ) -> dict[str, Any]:
+    stage_requirements = requirements or [
+        _requirement(group, inputs, widgets) for group in node_classes
+    ]
     return {
         "display_name": display_name,
         "target": target,
         "required_node_classes": node_classes,
         "expected_inputs": inputs,
         "expected_widgets": widgets or [],
+        "requirements": stage_requirements,
         "input_fingerprint": input_fingerprint(inputs, widgets),
         "upstream": {"repository": repository, "tested_ref": tested_ref, "tested_commit": tested_commit},
         "tested_version": tested_ref,
@@ -111,6 +126,13 @@ ADAPTER_INFO = {
         node_classes=[["LTXVDrawTracks"], ["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"]],
         inputs=["tracks"],
         widgets=["width", "height"],
+        requirements=[
+            _requirement(["LTXVDrawTracks"], ["tracks"], ["width", "height"]),
+            _requirement(
+                ["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"],
+                ["image"],
+            ),
+        ],
         repository="https://github.com/Lightricks/ComfyUI-LTXVideo",
         tested_ref="ac4d99839020b983e956a8ab67ec38aec1b6e65a",
         tested_commit="ac4d99839020b983e956a8ab67ec38aec1b6e65a",

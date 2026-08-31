@@ -7,6 +7,15 @@ from omnicam.core.manifest import camera_manifest, motion_fidelity_report
 from omnicam.core.track import OmniCamTrack
 
 
+def _node_with_inputs(*names: str):
+    class Node:
+        @classmethod
+        def INPUT_TYPES(cls):
+            return {"required": {name: ("ANY",) for name in names}}
+
+    return Node
+
+
 def test_detect_capabilities_marks_installed_nodes():
     caps = detect_capabilities({"WanCameraImageToVideo", "WanVideoATITracks"})
     by_adapter = {entry["adapter"]: entry for entry in caps["capabilities"]}
@@ -45,6 +54,26 @@ def test_detect_capabilities_verifies_v3_schema_before_legacy():
         if item["adapter"] == "wan_native"
     )
     assert entry["state"] == "verified"
+
+
+def test_ltx_motion_track_is_not_verified_when_the_guide_stage_is_incompatible():
+    report = detect_capabilities({
+        "LTXVDrawTracks": _node_with_inputs("tracks", "width", "height"),
+        "LTXAddVideoICLoRAGuide": _node_with_inputs("mask"),
+    })
+    ltx = next(item for item in report["capabilities"] if item["adapter"] == "ltx_motion_track")
+    assert ltx["state"] == "incompatible"
+    assert [stage["state"] for stage in ltx["requirements"]] == ["verified", "incompatible"]
+
+
+def test_ltx_motion_track_verifies_each_distinct_stage_contract():
+    report = detect_capabilities({
+        "LTXVDrawTracks": _node_with_inputs("tracks", "width", "height"),
+        "LTXAddVideoICLoRAGuide": _node_with_inputs("image"),
+    })
+    ltx = next(item for item in report["capabilities"] if item["adapter"] == "ltx_motion_track")
+    assert ltx["state"] == "verified"
+    assert [stage["state"] for stage in ltx["requirements"]] == ["verified", "verified"]
 
 
 def test_diagnostic_is_actionable():

@@ -71,6 +71,35 @@ def _declared_inputs(node_class: Any) -> set[str] | None:
     return names
 
 
+def _evaluate_requirement(requirement: dict[str, Any], mappings: dict[str, Any]) -> dict[str, Any]:
+    candidates = list(requirement.get("any_of", []))
+    detected = [name for name in candidates if name in mappings]
+    expected = set(requirement.get("expected_inputs", [])) | set(
+        requirement.get("expected_widgets", [])
+    )
+    if not detected:
+        state = "missing"
+    else:
+        contracts = [
+            _declared_inputs(mappings[name])
+            for name in detected
+            if mappings.get(name) is not None
+        ]
+        known = [inputs for inputs in contracts if inputs is not None]
+        if not known:
+            state = "detected_unverified"
+        elif any(expected.issubset(inputs) for inputs in known):
+            state = "verified"
+        else:
+            state = "incompatible"
+    return {
+        "state": state,
+        "any_of": candidates,
+        "detected_nodes": detected,
+        "expected_inputs": sorted(expected),
+    }
+
+
 def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -> dict[str, Any]:
     """Detect presence and, where introspectable, the actual socket contract."""
     mappings = _available_node_mappings() if node_classes is None else (
@@ -78,35 +107,28 @@ def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -
     )
     capabilities = []
     for adapter, info in ADAPTER_INFO.items():
-        requirements = list(info.get("required_node_classes", []))
-
-        # Check that for EACH requirement group, AT LEAST ONE node is present
-        detected = []
-        is_missing = False
-        for group in requirements:
-            group_detected = [name for name in group if name in mappings]
-            if not group_detected:
-                is_missing = True
-                break
-            detected.extend(group_detected)
-
-        expected = set(info.get("expected_inputs", [])) | set(info.get("expected_widgets", []))
-        contracts = [_declared_inputs(mappings[name]) for name in detected if mappings.get(name) is not None]
-        known = [inputs for inputs in contracts if inputs is not None]
-
-        if is_missing:
+        requirements = list(info.get("requirements", []))
+        stage_reports = [_evaluate_requirement(requirement, mappings) for requirement in requirements]
+        states = [stage["state"] for stage in stage_reports]
+        if "missing" in states:
             state = "missing"
-        elif not known:
-            state = "detected_unverified"
-        elif any(expected.issubset(inputs) for inputs in known):
-            state = "verified"
-        else:
+        elif "incompatible" in states:
             state = "incompatible"
+        elif "detected_unverified" in states:
+            state = "detected_unverified"
+        else:
+            state = "verified"
+
+        detected = [
+            name for stage in stage_reports for name in stage["detected_nodes"]
+        ]
+        expected = set(info.get("expected_inputs", [])) | set(info.get("expected_widgets", []))
 
         capabilities.append({
             "adapter": adapter, "display": info["display_name"], "state": state,
-            "installed": not is_missing, "detected_nodes": detected,
+            "installed": "missing" not in states, "detected_nodes": detected,
             "expected_inputs": sorted(expected), "docs": info["docs"],
+            "requirements": stage_reports,
         })
     return {
         "format": "majoor.omnicam.capabilities.v2",
