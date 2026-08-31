@@ -23,7 +23,7 @@ Last updated: 31 August 2026
       covering Director creation/reload/recreation/queue, Extractor attachment,
       TRACK 3D, subgraph FPS, v1 workflow loading and diagnostics.
 - [x] Hand-written source ceiling: 376 files checked, maximum 800 lines.
-- [x] UTF-8/encoding gate: 420 files checked.
+- [x] UTF-8/encoding gate: 421 files checked.
 - [x] Three.js API contract: 58 symbols checked.
 - [x] French locale coverage: 100% of 479 source messages.
 
