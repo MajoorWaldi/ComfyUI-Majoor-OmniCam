@@ -11,6 +11,7 @@ import { createResourceMethods } from "./viewport/resources.js";
 import { createSceneMethods } from "./viewport/scene.js";
 import { createCameraPickingMethods } from "./viewport/camera-picking.js";
 import { createRenderMethods } from "./viewport/render.js";
+import { hasOutlineMesh, SelectionOutlineRenderer } from "./viewport/selection-outline.js";
 import { DEFAULT_QUALITY, applyQuality, createStudio, setStudioEnabled } from "./viewport/studio.js";
 
 const neutral = new THREE.MeshStandardMaterial({ color: 0x8c929b, roughness: 0.9, metalness: 0 });
@@ -271,7 +272,7 @@ export class OmniWebGLViewport {
   }
 
 }
-const viewportDependencies = { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform };
+const viewportDependencies = { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh, SelectionOutlineRenderer };
 Object.assign(
   OmniWebGLViewport.prototype,
   createResourceMethods(viewportDependencies),

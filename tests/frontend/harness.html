@@ -41,7 +41,8 @@
         viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]]));
         const glbLoaded = viewport.models.has("model") && viewport.content.children.some((child) => child.userData.omnicamId === "model");
         viewport.render(state, camera, new Map(), 640, 360, new Map([["model", modelUrl]]), 0, false, "object", "cube");
-        const selectionVisible = viewport.selectionGroup.visible && viewport.selectionGroup.children.length > 0;
+        const selectionVisible = Boolean(viewport.outlineRenderer)
+          || (viewport.selectionGroup.visible && viewport.selectionGroup.children.length > 0);
         viewport.dispose();
         URL.revokeObjectURL(modelUrl);
         window.omnicamTest = { perspectivePixels, modeChildren, glbLoaded, selectionVisible, disposed: viewport.disposed, width: viewport.canvas.width, height: viewport.canvas.height };

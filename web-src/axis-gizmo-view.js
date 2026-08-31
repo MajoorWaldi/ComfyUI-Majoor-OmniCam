@@ -2,6 +2,7 @@
 // this is DOM rather than a second WebGL pass.
 
 import { axisOpacity, axisScreenDirections, sortedByDepth } from "./axis-gizmo.js";
+import { t } from "./i18n.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const CENTER = 26; // half of the 52x52 viewBox

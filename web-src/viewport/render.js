@@ -172,7 +172,7 @@ export function createRenderMethods(dependencies) {
       const node = this.objectNodes.get(selectedObjectId);
       if (node && hasOutlineMesh(node)) {
         if (!this.outlineRenderer) {
-          this.outlineRenderer = new SelectionOutlineRenderer(this.renderer, this.scene);
+          this.outlineRenderer = new SelectionOutlineRenderer(this.renderer, this.scene, undefined, camera);
         }
         // The outline pass modifies the object material temporarily, so we need to pass an array of the selected objects.
         // OutlinePass expects a flat array of meshes, but we can pass the root node and it might handle it or we pass the meshes.
