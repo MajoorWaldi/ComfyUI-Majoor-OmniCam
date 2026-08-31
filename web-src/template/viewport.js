@@ -26,10 +26,19 @@ function toolRail() {
 
 function viewPills() {
   return `
-    <div class="vp-pills">
-      <select class="vp-pill vp-pill-select" data-role="view-mode" title="${t("View mode: Camera (Numpad 0), Front/Back (1), Top/Bottom (7), Right/Left (3)")}">
-        <option value="perspective">${t("Perspective")}</option>
+    <div class="vp-pills" role="group" aria-label="${t("Quick viewport views")}">
+      <div class="vp-quick-views">
+        <button type="button" class="vp-view active" data-view="camera" aria-pressed="true" title="${t("Camera View")}">${t("Camera")}</button>
+        <button type="button" class="vp-view" data-view="perspective" aria-pressed="false" title="${t("Perspective View")}">${t("Perspective")}</button>
+        <button type="button" class="vp-view" data-view="front" aria-pressed="false" title="${t("Front View")}">${t("Front")}</button>
+        <button type="button" class="vp-view" data-view="right" aria-pressed="false" title="${t("Right View")}">${t("Right")}</button>
+        <button type="button" class="vp-view" data-view="top" aria-pressed="false" title="${t("Top View")}">${t("Top")}</button>
+        <button type="button" class="vp-view" data-view="iso" aria-pressed="false" title="${t("Isometric View")}">${t("ISO")}</button>
+      </div>
+      <select class="vp-pill vp-pill-select" data-role="view-mode" aria-label="${t("More viewport views")}" title="${t("View mode: Camera (Numpad 0), Front/Back (1), Top/Bottom (7), Right/Left (3)")}">
         <option value="camera">${t("Camera View")}</option>
+        <option value="perspective">${t("Perspective")}</option>
+        <option value="iso">${t("Isometric View")}</option>
         <option value="front">${t("Front View")}</option>
         <option value="back">${t("Back View")}</option>
         <option value="top">${t("Top View")}</option>
@@ -68,7 +77,9 @@ export function viewportMarkup() {
       ${toolRail()}
 
       <svg class="vp-axis" data-role="viewport-axis" viewBox="0 0 52 52" width="52" height="52"
-           aria-label="${t("World axis orientation")}" role="img"></svg>
+           aria-label="${t("World axis navigation")}" role="group">
+        <circle data-axis-center cx="26" cy="26" r="4" tabindex="0" role="button" aria-label="${t("Frame selection")}"></circle>
+      </svg>
 
       <span class="vp-state" data-role="viewport-state"></span>
       <div class="vp-hint">${t("Orbit: MMB · Pan: Shift+MMB · Dolly: Scroll · Fly: WASD / QE")}</div>

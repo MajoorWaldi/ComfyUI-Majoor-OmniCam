@@ -189,6 +189,7 @@ export function defaultEditorViews() {
   const view = (position, up = [0, 1, 0], cameraType = "orthographic") => ({ ...defaultCamera(), position, target: [...target], up, camera_type: cameraType, zoom: 1 });
   return {
     perspective: view([8, 6, 8], [0, 1, 0], "perspective"),
+    iso: view([10, 11, 10]),
     front: view([0, 1, 14]), back: view([0, 1, -14]),
     top: view([0, 14, 0], [0, 0, -1]), bottom: view([0, -12, 0], [0, 0, 1]),
     right: view([14, 1, 0]), left: view([-14, 1, 0]),
@@ -517,7 +518,7 @@ export function sanitizeState(raw) {
   out.preview_layout = ["auto", "1", "2", "4"].includes(String(out.preview_layout)) ? String(out.preview_layout) : "auto";
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
-  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "viewport"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
+  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "viewport"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
   const editorViews = defaultEditorViews(); out.editor_views = Object.fromEntries(Object.entries(editorViews).map(([name, camera]) => [name, cloneCamera(out.editor_views?.[name] || camera)]));
   return out;
 }

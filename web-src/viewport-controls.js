@@ -12,9 +12,14 @@ export function viewportCamera(ui) {
 }
 
 export function setViewMode(ui, mode) {
-  if (!["camera", "perspective", "front", "back", "top", "right", "left", "bottom"].includes(mode)) return;
+  if (!["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(mode)) return;
   ui.state.view_mode = mode;
   for (const vm of ui.root.querySelectorAll('[data-role="view-mode"]')) vm.value = mode;
+  for (const button of ui.root.querySelectorAll("[data-view]")) {
+    const active = button.dataset.view === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
   ui.serialize();
   ui.render();
   ui.setStatus(t(`View: ${mode[0].toUpperCase()}${mode.slice(1)}`));

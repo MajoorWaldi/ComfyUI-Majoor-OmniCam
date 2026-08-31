@@ -74,6 +74,39 @@ test("the axis gizmo tracks the camera and stays out of the recorded canvas", as
   expect(await read()).not.toBe(before);
 });
 
+test("quick views and the compact axis tripod drive editor navigation", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+
+  const quickViews = page.locator("[data-view]");
+  await expect(quickViews).toHaveCount(6);
+  await page.locator('[data-view="iso"]').click();
+  await expect(page.locator('[data-view="iso"]')).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.view_mode)).toBe("iso");
+
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setViewMode("perspective"));
+  const xTip = page.locator('[data-role="viewport-axis"] [data-axis="x"]');
+  await expect(xTip).toHaveCount(1);
+  await xTip.click();
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.view_mode)).toBe("right");
+  await xTip.click();
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.view_mode)).toBe("left");
+
+  const zTip = page.locator('[data-role="viewport-axis"] [data-axis="z"]');
+  await zTip.press("Enter");
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.view_mode)).toBe("front");
+
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.__frameSelectionCalls = 0;
+    ui.frameTarget = () => { ui.__frameSelectionCalls += 1; };
+  });
+  const center = page.locator('[data-role="viewport-axis"] [data-axis-center]');
+  await center.focus();
+  await center.press("Enter");
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.__frameSelectionCalls)).toBe(1);
+});
+
 test("the studio look is editor-only unless the beauty mode asks for it", async ({ page }) => {
   await page.goto("/tests/frontend/director-mount.html");
   await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
@@ -299,4 +332,34 @@ test("the radar draws a continuous path for the active camera keys", async ({ pa
   // A sampled path has one segment per frame, so it must contain more than
   // the two straight key-to-key segments used by the old radar renderer.
   expect(segments.threeKeys - segments.oneKey).toBeGreaterThan(2);
+});
+
+test("interactive object selection invokes the outline renderer while clean captures skip it", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  const probe = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const vp = ui.webgl;
+    ui.state.objects = [{ id: "mesh_1", name: "Mesh", type: "cube", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [], enabled: true }];
+    ui.serialize();
+    vp.rebuildPath(ui.state, "object", null);
+
+    // Interactive render via UI to ensure the state propagates
+    ui.selectedEntity = "object";
+    ui.selectedObjectId = "mesh_1";
+    ui.render();
+
+    const wasOutlined = !!vp.outlineRenderer;
+
+    // Clean capture render
+    let cleanRenderCalled = false;
+    const originalRender = vp.renderer.render;
+    vp.renderer.render = (...args) => { cleanRenderCalled = true; originalRender.apply(vp.renderer, args); };
+    vp.render(ui.state, ui.state.cameras[0], new Map(), 800, 600, new Map(), 0, true, "object", "mesh_1");
+    vp.renderer.render = originalRender; // restore
+
+    return { wasOutlined, cleanRenderCalled };
+  });
+  expect(probe.wasOutlined).toBe(true);
+  expect(probe.cleanRenderCalled).toBe(true);
 });

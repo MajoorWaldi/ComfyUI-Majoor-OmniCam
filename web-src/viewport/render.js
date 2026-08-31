@@ -1,10 +1,10 @@
-﻿// WebGL viewport methods extracted from the public facade.
+// WebGL viewport methods extracted from the public facade.
 
 import { DEFAULT_BG_COLOR, applyQuality, setStudioEnabled } from "./studio.js";
 import { createQualityMonitor, recordFrame, resetMonitor } from "./adaptive-quality.js";
 
 export function createRenderMethods(dependencies) {
-  const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
+  const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh, SelectionOutlineRenderer } = dependencies;
   return {
   render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null, selectedFrame = null) {
     // The studio look stays on while editing. During a capture it survives only
@@ -17,7 +17,7 @@ export function createRenderMethods(dependencies) {
     }
     if (this.disposed) return;
     if (this.canvas.width !== width || this.canvas.height !== height) this.renderer.setSize(width, height, false);
-    
+
     // Viewport background color / image / image sequence
     const activeBgUrl = (state.viewport_bg_sequence && state.viewport_bg_sequence.length)
       ? state.viewport_bg_sequence[frame % state.viewport_bg_sequence.length]
@@ -112,7 +112,7 @@ export function createRenderMethods(dependencies) {
     // that is meant to read without a grid.
     const editorGrid = state.show_grid !== false && state.render_mode !== "point_field";
     this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
-    
+
     const pathKey = `${selectedEntity}:${selectedFrame ?? ""}:${state.__omnicamRevision ?? JSON.stringify([
       state.active_camera_id,
       (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target])]),
@@ -166,7 +166,25 @@ export function createRenderMethods(dependencies) {
     });
     this.renderer.setScissorTest(false); this.renderer.setViewport(0, 0, width, height);
     const startedAt = performance.now();
-    this.renderer.render(this.scene, camera);
+
+    let outlined = false;
+    if (!cleanCapture && selectedEntity === "object" && selectedObjectId && !subSelection) {
+      const node = this.objectNodes.get(selectedObjectId);
+      if (node && hasOutlineMesh(node)) {
+        if (!this.outlineRenderer) {
+          this.outlineRenderer = new SelectionOutlineRenderer(this.renderer, this.scene);
+        }
+        // The outline pass modifies the object material temporarily, so we need to pass an array of the selected objects.
+        // OutlinePass expects a flat array of meshes, but we can pass the root node and it might handle it or we pass the meshes.
+        // Wait, OutlinePass handles traversing Object3D. We just pass `[node]`.
+        this.outlineRenderer.render(camera, width, height, [node]);
+        outlined = true;
+      }
+    }
+    if (!outlined) {
+      this.renderer.render(this.scene, camera);
+    }
+
     // Only judge the interactive viewport; a capture pass is allowed to be slow.
     if (!cleanCapture && this.adaptiveQuality !== false) {
       this.qualityMonitor ||= createQualityMonitor(this.studio?.quality);
@@ -193,8 +211,8 @@ export function createRenderMethods(dependencies) {
     for (const model of this.models.values()) disposeObject(model.scene, true);
     this.models.clear(); this.modelLoads.clear();
     this.studio?.dispose();
+    this.outlineRenderer?.dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss(); this.canvas.width = 1; this.canvas.height = 1;
   }
   };
 }
-

@@ -28,6 +28,7 @@ menu (and seeded per node by *Settings → OmniCam → Navigation*):
 | `C`, or `Shift` + `` ` `` | Toggle Fly mode |
 | `W` `A` `S` `D` `Q` `E` (Fly mode only) | Fly move; `Shift` flies faster |
 | Mouse wheel (Fly mode) | Adjust fly speed |
+| Axis tripod (top right) | Click an axis tip to snap to that orthographic view. Click again to flip. Click the purple center to frame selection. |
 | Drag (Fly mode) | Look around; `Esc` or `C` exits Fly |
 | `Numpad 0` | Active-camera view |
 | `Numpad 1` / `Ctrl`/`Cmd` + `Numpad 1` | Front / back view |

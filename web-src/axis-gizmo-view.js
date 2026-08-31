@@ -21,6 +21,21 @@ export function drawAxisGizmo(ui) {
   if (!camera) return;
 
   svg.replaceChildren();
+
+  const centerCircle = element("circle", {
+    "data-axis-center": "",
+    cx: CENTER, cy: CENTER, r: 4,
+    fill: "#A78BFA",
+    tabindex: "0",
+    role: "button",
+    "pointer-events": "auto",
+    "aria-label": t("Frame selection"),
+  });
+  const centerTitle = element("title", {});
+  centerTitle.textContent = t("Frame selection");
+  centerCircle.appendChild(centerTitle);
+  svg.appendChild(centerCircle);
+
   for (const axis of sortedByDepth(axisScreenDirections(camera))) {
     const endX = CENTER + axis.x * ARM;
     const endY = CENTER + axis.y * ARM;
@@ -30,14 +45,25 @@ export function drawAxisGizmo(ui) {
       x1: CENTER, y1: CENTER, x2: endX, y2: endY,
       stroke: axis.color, "stroke-width": 1.8, "stroke-linecap": "round", opacity,
     }));
-    svg.appendChild(element("circle", {
+    
+    const isActive = axis.depth >= 0;
+    const circle = element("circle", {
       cx: endX, cy: endY, r: TIP,
-      fill: axis.depth >= 0 ? axis.color : "#15151b",
+      fill: isActive ? axis.color : "transparent",
       stroke: axis.color, "stroke-width": 1.4, opacity,
-    }));
+      "data-axis": axis.label.toLowerCase(),
+      tabindex: "0",
+      role: "button",
+      "aria-label": t("View: {axis} axis").replace("{axis}", axis.label),
+      "pointer-events": "auto",
+    });
+    const title = element("title", {});
+    title.textContent = t("View: {axis} axis").replace("{axis}", axis.label);
+    circle.appendChild(title);
+    svg.appendChild(circle);
 
     // The label only fits on the tip facing the viewer; the far one stays a dot.
-    if (axis.depth >= 0) {
+    if (isActive) {
       const label = element("text", {
         x: endX, y: endY, "text-anchor": "middle", "dominant-baseline": "central",
         "font-size": 7, "font-weight": 700, fill: "#101014",

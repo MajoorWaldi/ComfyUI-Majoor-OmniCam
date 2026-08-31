@@ -5,7 +5,6 @@
 // FOV, gizmo, transform) are kept as-is on purpose.
 //
 // `npm run check:locales` fails if a key here no longer exists in the source.
-
 export const FR = {
   "1 adapter missing": "1 adaptateur manquant",
   "1 key": "1 clé",
@@ -411,7 +410,6 @@ export const FR = {
   "Wireframe": "Filaire",
   "Wireframe / Edges": "Filaire / arêtes",
   "World": "Monde",
-  "World axis orientation": "Orientation des axes du monde",
   "Zoom": "Zoom",
   "Zoom in curve editor (Mouse wheel)": "Zoomer dans l'éditeur de courbes (molette)",
   "Zoom out curve editor": "Dézoomer dans l'éditeur de courbes",
@@ -439,7 +437,6 @@ export const FR = {
   "glTF, GLB, FBX, .chan or an OmniCam JSON track.": "glTF, GLB, FBX, .chan ou une trajectoire JSON OmniCam.",
   "Export format": "Format d'export",
   "Export Camera": "Exporter la caméra",
-
   // Camera Health
   "Health": "Santé",
   "Camera Health": "Santé caméra",
@@ -478,6 +475,17 @@ export const FR = {
   "Smoothed {count} flagged zone(s).": "{count} zone(s) signalée(s) lissée(s).",
   "The subject stays in frame on this shot.": "Le sujet reste dans le cadre sur ce plan.",
   "Recentred {count} zone(s) on the subject.": "{count} zone(s) recentrée(s) sur le sujet.",
+  "Frame selection": "Cadrer la s?lection",
+  "Quick viewport views": "Vues rapides de l'espace de travail",
+  "Perspective View": "Vue en perspective",
+  "Front": "Face",
+  "Right View": "Vue de droite",
+  "Right": "Droite",
+  "Top": "Dessus",
+  "Isometric View": "Vue isom?trique",
+  "ISO": "ISO",
+  "More viewport views": "Plus de vues",
+  "World axis navigation": "Navigation des axes monde",
+  "View: {axis} axis": "Vue : axe {axis}"
 };
-
 export default FR;

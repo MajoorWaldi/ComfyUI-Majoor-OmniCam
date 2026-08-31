@@ -10,6 +10,19 @@ import { syncMirroredControl } from "../event-bindings.js";
 import { t } from "../i18n.js";
 
 export function bindViewportSettings(ui, q, signal) {
+  const axisGizmo = ui.root.querySelector('[data-role="viewport-axis"]');
+  if (axisGizmo) {
+    const handleAxisEvent = (e) => {
+      const axis = e.target.getAttribute("data-axis");
+      if (axis) { e.preventDefault(); ui.setViewMode(axis.toLowerCase()); }
+      else if (e.target.hasAttribute("data-axis-center")) { e.preventDefault(); ui.frameTarget(); }
+    };
+    axisGizmo.addEventListener("click", handleAxisEvent, { signal });
+    axisGizmo.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") handleAxisEvent(e);
+    }, { signal });
+  }
+
   for (const el of ui.root.querySelectorAll('[data-role="mode"]')) {
     el.addEventListener("change", (e) => {
       ui.state.render_mode = e.target.value;

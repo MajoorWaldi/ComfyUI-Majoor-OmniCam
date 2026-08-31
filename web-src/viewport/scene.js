@@ -3,7 +3,7 @@
 import { worldOverlay } from "./mesh-overlays.js";
 
 export function createSceneMethods(dependencies) {
-  const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
+  const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh } = dependencies;
   return {
   updateLiveCameras(state, frame, cleanCapture, viewMode, selectedEntity = "camera", selectedFrame = null) {
     disposeObject(this.liveCameras);
@@ -127,7 +127,7 @@ export function createSceneMethods(dependencies) {
         const isTargetSelected = isActive && selectedEntity === "camera_target";
         const lineGeo = new THREE.BufferGeometry().setFromPoints([pos, tgt]);
         const sightLine = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({
-          color: isSelected || isTargetSelected ? 0x38bdf8 : palette.marker,
+          color: isSelected || isTargetSelected ? 0x8B5CF6 : palette.marker,
           dashSize: 0.15,
           gapSize: 0.1,
           transparent: true,
@@ -144,7 +144,7 @@ export function createSceneMethods(dependencies) {
         ];
         const tgtGeo = new THREE.BufferGeometry().setFromPoints(tgtPoints);
         const tgtCross = new THREE.LineSegments(tgtGeo, new THREE.LineBasicMaterial({
-          color: isTargetSelected || isSelected ? 0x38bdf8 : palette.marker,
+          color: isTargetSelected || isSelected ? 0x8B5CF6 : palette.marker,
           linewidth: isTargetSelected ? 3 : 1,
           transparent: true,
           opacity: isTargetSelected || isSelected ? 1.0 : (isActive ? 0.9 : 0.5),
@@ -163,7 +163,7 @@ export function createSceneMethods(dependencies) {
         if ((isTargetSelected || isSelected) && viewMode !== "camera") {
           const tgtRingGeo = new THREE.RingGeometry(0.14, 0.18, 24);
           tgtRingGeo.rotateX(Math.PI / 2);
-          const tgtRingMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+          const tgtRingMat = new THREE.MeshBasicMaterial({ color: 0x8B5CF6, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
           const tgtRingMesh = new THREE.Mesh(tgtRingGeo, tgtRingMat);
           tgtRingMesh.position.copy(tgt);
           tgtRingMesh.userData.omnicamWidget = "lookat";
@@ -220,9 +220,9 @@ export function createSceneMethods(dependencies) {
           } else {
             box.setFromObject(node);
           }
-          if (!box.isEmpty() && Number.isFinite(box.min.x) && Number.isFinite(box.max.x) && Number.isFinite(box.min.y) && Number.isFinite(box.max.y) && Number.isFinite(box.min.z) && Number.isFinite(box.max.z)) {
+          if (!hasOutlineMesh(node) && !box.isEmpty() && Number.isFinite(box.min.x) && Number.isFinite(box.max.x) && Number.isFinite(box.min.y) && Number.isFinite(box.max.y) && Number.isFinite(box.min.z) && Number.isFinite(box.max.z)) {
             box.expandByScalar(0.04);
-            const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0x38bdf8));
+            const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0x8B5CF6));
             boxHelper.material.transparent = true;
             boxHelper.material.opacity = 0.95;
             boxHelper.material.depthTest = false;
@@ -236,7 +236,7 @@ export function createSceneMethods(dependencies) {
           node.traverse((child) => {
             if (!child.isMesh || !child.geometry || child.userData.omnicamHelper || highlightedMeshes >= 64) return;
             const overlay = worldOverlay(THREE, child, new THREE.MeshBasicMaterial({
-              color: 0x38bdf8,
+              color: 0x8B5CF6,
               transparent: true,
               opacity: 0.2,
               depthTest: true,
@@ -262,7 +262,7 @@ export function createSceneMethods(dependencies) {
             this.selectionGroup.add(marker);
 
             const ringGeo = new THREE.RingGeometry(0.1, 0.15, 24);
-            const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, depthTest: false });
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x8B5CF6, side: THREE.DoubleSide, depthTest: false });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.position.fromArray(subSelection.point);
             if (this.activeCamera) ring.quaternion.copy(this.activeCamera.quaternion);
@@ -283,7 +283,7 @@ export function createSceneMethods(dependencies) {
             faceGeo.setIndex([0, 1, 2]);
             faceGeo.computeVertexNormals();
             const faceMat = new THREE.MeshBasicMaterial({
-              color: 0x38bdf8,
+              color: 0x8B5CF6,
               opacity: 0.75,
               transparent: true,
               side: THREE.DoubleSide,
@@ -311,10 +311,10 @@ export function createSceneMethods(dependencies) {
         node.updateMatrixWorld(true);
         try {
           const box = new THREE.Box3().setFromObject(node);
-          if (!box.isEmpty() && Number.isFinite(box.min.x)) {
+          if (!hasOutlineMesh(node) && !box.isEmpty() && Number.isFinite(box.min.x)) {
             box.expandByScalar(0.04);
-            const helper = new THREE.Box3Helper(box, new THREE.Color(0xfbbf24));
-            helper.material.transparent = true; helper.material.opacity = 0.85; helper.material.depthTest = false; helper.renderOrder = 9997;
+            const helper = new THREE.Box3Helper(box, new THREE.Color(0xA78BFA));
+            helper.material.transparent = true; helper.material.opacity = 0.35; helper.material.depthTest = false; helper.renderOrder = 9997;
             this.selectionGroup.add(helper);
           }
         } catch (_) {}
@@ -407,4 +407,5 @@ export function createSceneMethods(dependencies) {
 
   };
 }
+
 
