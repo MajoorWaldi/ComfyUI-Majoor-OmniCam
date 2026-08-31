@@ -8,9 +8,10 @@ file-backed VideoInput can seek instead of materialising the full clip.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import torch
+if TYPE_CHECKING:
+    import torch
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,6 +79,8 @@ def _decode_trim(video: Any, start_frame: int, frame_count: int, fps: float) -> 
 def sample_video_frames(video: Any, *, start_frame: int = 0, end_frame: int = 0,
                         max_frames: int = 32, mode: str = "uniform") -> torch.Tensor:
     """Decode only the planned source ranges and return an IMAGE batch."""
+    import torch
+
     metadata = inspect_video(video)
     indices = sampling_indices(
         metadata.frame_count, start_frame, end_frame, max_frames, mode
@@ -100,6 +103,8 @@ def resample_video_frames(
     max_seconds: float | None = None,
 ) -> torch.Tensor:
     """Decode a VIDEO on a new clock while preserving its elapsed duration."""
+    import torch
+
     metadata = inspect_video(video)
     indices = resampling_indices(
         metadata.frame_count,

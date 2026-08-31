@@ -5,6 +5,7 @@ function captureBrowserDiagnostics(page, testInfo) {
     pageErrors: [],
     consoleErrors: [],
     requestFailures: [],
+    responseErrors: [],
     chunkResponses: [],
   };
   const annotation = { type: "browser-diagnostics", description: "no browser errors" };
@@ -17,7 +18,11 @@ function captureBrowserDiagnostics(page, testInfo) {
     refresh();
   });
   page.on("console", (message) => {
-    if (message.type() === "error") diagnostics.consoleErrors.push(message.text());
+    // Chromium omits the failed URL from this message. The response listener
+    // below records actionable HTTP failures with both URL and status.
+    if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) {
+      diagnostics.consoleErrors.push(message.text());
+    }
     refresh();
   });
   page.on("requestfailed", (request) => {
@@ -35,10 +40,19 @@ function captureBrowserDiagnostics(page, testInfo) {
     refresh();
   });
   page.on("response", (response) => {
-    if (response.url().includes("/extensions/majoor-omnicam-chunks/")) {
-      diagnostics.chunkResponses.push({ url: response.url(), status: response.status() });
+    const url = response.url();
+    const status = response.status();
+    if (url.includes("/extensions/majoor-omnicam-chunks/")) {
+      diagnostics.chunkResponses.push({ url, status });
       refresh();
     }
+    if (status < 400) return;
+    const parsed = new URL(url);
+    // A fresh ComfyUI profile legitimately has no optional user CSS or
+    // user-data files yet. The server reports those misses as 404 responses.
+    if (status === 404 && (parsed.pathname === "/user.css" || parsed.pathname.startsWith("/api/userdata"))) return;
+    diagnostics.responseErrors.push({ url, status });
+    refresh();
   });
   return diagnostics;
 }
@@ -46,7 +60,7 @@ function captureBrowserDiagnostics(page, testInfo) {
 async function openComfy(page) {
   await page.goto("/");
   await page.waitForFunction(
-    () => window.comfyAPI?.app?.app?.graph
+    () => window.comfyAPI?.app?.app?.isGraphReady
       && window.LiteGraph?.registered_node_types?.MajoorOmniCamDirector
       && window.LiteGraph?.registered_node_types?.MajoorOmniCamExtractor,
     null,
@@ -143,7 +157,9 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
   });
   await page.waitForFunction(() => !window.omnicamCiExtractorRoot.isConnected);
   expect(diagnostics.pageErrors).toEqual([]);
+  expect(diagnostics.consoleErrors).toEqual([]);
   expect(diagnostics.requestFailures).toEqual([]);
+  expect(diagnostics.responseErrors).toEqual([]);
   expect(diagnostics.chunkResponses.some(({ url, status }) => url.endsWith("/omnicam.js") && status === 200)).toBe(true);
   expect(diagnostics.chunkResponses.some(({ url, status }) => !url.endsWith("/omnicam.js") && status === 200)).toBe(true);
 });
@@ -190,7 +206,9 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
     };
   });
   expect(diagnostics.pageErrors).toEqual([]);
+  expect(diagnostics.consoleErrors).toEqual([]);
   expect(diagnostics.requestFailures).toEqual([]);
+  expect(diagnostics.responseErrors).toEqual([]);
   expect(viewer.renderer).toBe(true);
   expect(viewer.canvasWidth).toBeGreaterThan(0);
   expect(viewer.paths).toBeGreaterThan(0);
@@ -205,70 +223,25 @@ test("Director mounts inside a Subgraph and keeps its promoted fps widget", asyn
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const workflowData = JSON.parse(await fs.readFile(path.join(__dirname, "../fixtures/director-subgraph-v034.json"), "utf8"));
 
-  // Use afterConfigureGraph to ensure the full configure cycle (including
-  // SubgraphNode proxy widget population) has completed before we capture
-  // the outer node. loadGraphData resolves before SubgraphNode's async
-  // widget promotion via Vue reactivity finishes, so a raw await is not enough.
   await page.evaluate(async (workflow) => {
     const { app } = await import("/scripts/app.js");
     app.graph.clear();
-    await new Promise((resolve) => {
-      const ext = {
-        name: "OmniCam.SubgraphCiProbe",
-        afterConfigureGraph() {
-          try { app.unregisterExtension?.(ext); } catch { /* ignore */ }
-          resolve();
-        },
-      };
-      app.registerExtension(ext);
-      if (typeof app.loadGraphData === "function") {
-        app.loadGraphData(workflow).catch(() => resolve());
-      } else {
-        app.graph.configure(workflow);
-        // afterConfigureGraph won't fire for configure(); resolve immediately.
-        resolve();
-      }
-    });
+    if (typeof app.loadGraphData === "function") {
+      await app.loadGraphData(workflow);
+    } else {
+      app.graph.configure(workflow);
+    }
     window.omnicamCiSubgraph = app.graph.nodes.find((node) => node.id === 20);
   }, workflowData);
 
-  // Poll for the fps widget. Check both the outer SubgraphNode's proxy widget
-  // array (the intended path) and the inner graph nodes as a fallback, since
-  // the outer proxy population may be deferred by additional async passes.
   await page.waitForFunction(
-    () => {
-      const outer = window.omnicamCiSubgraph;
-      if (!outer) return false;
-      if (outer.widgets?.some((w) => w.name === "fps")) return true;
-      // Fallback: probe the subgraph's inner graph directly.
-      const innerGraph = outer.subgraph || outer._subgraph;
-      if (innerGraph) {
-        const nodes = innerGraph._nodes || innerGraph.nodes || [];
-        const director = nodes.find(
-          (n) => String(n.comfyClass || n.type) === "MajoorOmniCamDirector",
-        );
-        if (director?.widgets?.some((w) => w.name === "fps")) return true;
-      }
-      return false;
-    },
+    () => window.omnicamCiSubgraph?.widgets?.some((widget) => widget.name === "fps"),
     null,
     { timeout: 30_000 },
   );
 
-  // Locate the fps widget via whichever path succeeded, set its value and
-  // confirm the write-back.
   expect(await page.evaluate(() => {
-    const outer = window.omnicamCiSubgraph;
-    let fps = outer.widgets?.find((w) => w.name === "fps");
-    if (!fps) {
-      const innerGraph = outer.subgraph || outer._subgraph;
-      const nodes = (innerGraph?._nodes || innerGraph?.nodes || []);
-      const director = nodes.find(
-        (n) => String(n.comfyClass || n.type) === "MajoorOmniCamDirector",
-      );
-      fps = director?.widgets?.find((w) => w.name === "fps");
-    }
-    if (!fps) return null;
+    const fps = window.omnicamCiSubgraph.widgets.find((widget) => widget.name === "fps");
     fps.value = 30;
     fps.callback?.(30);
     return fps.value;

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import torch
-
 from ..core.track import OmniCamTrack
 from ..core.video_sampling import inspect_video, sample_video_frames, sampling_indices
 from .ltx import ltx_camera_control_profile
@@ -67,6 +65,8 @@ def build_ltx_guide_frames(
     if not frames.shape[0]:
         raise ValueError("The LTX guide source contains no decodable video frames")
     if (plan["height"], plan["width"]) != tuple(frames.shape[1:3]):
+        import torch
+
         frames = torch.nn.functional.interpolate(
             frames.permute(0, 3, 1, 2), size=(plan["height"], plan["width"]),
             mode="bilinear", align_corners=False,
