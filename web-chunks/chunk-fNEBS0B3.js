@@ -3179,7 +3179,7 @@ U.registerExtension({
   async nodeCreated(e) {
     if (qe(e) !== Qo) return;
     const t = !Ae;
-    await We(e, async () => (await import("./chunk-CBpXDU8d.js").then((o) => o.e)).attachDirector);
+    await We(e, async () => (await import("./chunk-D0x7mHm6.js").then((o) => o.e)).attachDirector);
     const a = e.__majoorOmniCam;
     a && (Do(a), t && jo(a));
   }
@@ -3187,13 +3187,13 @@ U.registerExtension({
 U.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(e) {
-    qe(e) === Jo && await We(e, async () => (await import("./chunk-BfPVEOW6.js")).attachExtractor);
+    qe(e) === Jo && await We(e, async () => (await import("./chunk-BDmbFSEq.js")).attachExtractor);
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Monitor",
   async nodeCreated(e) {
-    qe(e) === er && await We(e, async () => (await import("./chunk-BceUzBQ8.js")).attachMonitor);
+    qe(e) === er && await We(e, async () => (await import("./chunk-CwgmyOYj.js")).attachMonitor);
   }
 });
 export {

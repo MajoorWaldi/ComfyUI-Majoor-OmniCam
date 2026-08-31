@@ -1,6 +1,6 @@
 import "../../scripts/app.js";
 import { api as h } from "../../scripts/api.js";
-import { Z as T, s as C } from "./chunk-DMJgQTTA.js";
+import { Z as T, s as C } from "./chunk-fNEBS0B3.js";
 import { l as b, u as x, S as E, d as $ } from "./chunk-B0ZcW-l0.js";
 import { f as N, d as O, M as P } from "./chunk-BOOWUhms.js";
 import { b as A } from "./chunk-D2Hci8OZ.js";
@@ -367,9 +367,13 @@ function it(e) {
   return r ? `${o} / ${r} chars` : `${o} chars`;
 }
 async function st(e) {
-  if (globalThis.navigator?.clipboard?.writeText) return globalThis.navigator.clipboard.writeText(e);
-  const t = document.createElement("textarea");
-  t.value = e, t.style.position = "fixed", t.style.opacity = "0", document.body.appendChild(t), t.select(), document.execCommand?.("copy"), t.remove();
+  try {
+    if (globalThis.navigator?.clipboard?.writeText) return await globalThis.navigator.clipboard.writeText(e);
+    const t = document.createElement("textarea");
+    t.value = e, t.style.position = "fixed", t.style.opacity = "0", document.body.appendChild(t), t.select(), document.execCommand?.("copy"), t.remove();
+  } catch (t) {
+    console.warn("OmniCam clipboard copy failed:", t);
+  }
 }
 function nt(e) {
   let t = null, r = null;

@@ -40,6 +40,7 @@ function captureBrowserDiagnostics(page, testInfo) {
 
 async function openComfy(page) {
   await page.goto("/");
+  await page.waitForLoadState("networkidle");
   await page.waitForFunction(
     () => window.comfyAPI?.app?.app?.graph
       && window.LiteGraph?.registered_node_types?.MajoorOmniCamDirector
@@ -74,7 +75,12 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
 
   await page.evaluate(async (workflow) => {
     const { app } = await import("/scripts/app.js");
-    app.graph.configure({ last_node_id: workflow.id, last_link_id: 0, nodes: [workflow], links: [] });
+    const graphData = { last_node_id: workflow.id, last_link_id: 0, nodes: [workflow], links: [] };
+    if (typeof app.loadGraphData === "function") {
+      await app.loadGraphData(graphData);
+    } else {
+      app.graph.configure(graphData);
+    }
     window.omnicamCiDirector = app.graph.nodes.find((node) => node.comfyClass === "MajoorOmniCamDirector");
   }, editedFps);
   await page.waitForFunction(
@@ -110,10 +116,17 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
   await openComfy(page);
   const attached = await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
-    app.graph.clear();
-    const extractor = window.LiteGraph.createNode("MajoorOmniCamExtractor");
-    app.graph.add(extractor);
-    window.omnicamCiExtractor = extractor;
+    const extractorData = {
+      id: 1, type: "MajoorOmniCamExtractor", pos: [0, 0], size: [800, 780], flags: {},
+      order: 0, mode: 0, inputs: [], outputs: [], properties: {}, widgets_values: [],
+    };
+    const graphData = { last_node_id: 1, last_link_id: 0, nodes: [extractorData], links: [] };
+    if (typeof app.loadGraphData === "function") {
+      await app.loadGraphData(graphData);
+    } else {
+      app.graph.configure(graphData);
+    }
+    window.omnicamCiExtractor = app.graph.nodes.find(n => n.type === "MajoorOmniCamExtractor");
   });
   void attached;
   await page.waitForFunction(
@@ -138,10 +151,17 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
   await openComfy(page);
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
-    app.graph.clear();
-    const extractor = window.LiteGraph.createNode("MajoorOmniCamExtractor");
-    app.graph.add(extractor);
-    window.omnicamCiTrackExtractor = extractor;
+    const extractorData = {
+      id: 1, type: "MajoorOmniCamExtractor", pos: [0, 0], size: [800, 780], flags: {},
+      order: 0, mode: 0, inputs: [], outputs: [], properties: {}, widgets_values: [],
+    };
+    const graphData = { last_node_id: 1, last_link_id: 0, nodes: [extractorData], links: [] };
+    if (typeof app.loadGraphData === "function") {
+      await app.loadGraphData(graphData);
+    } else {
+      app.graph.configure(graphData);
+    }
+    window.omnicamCiTrackExtractor = app.graph.nodes.find(n => n.type === "MajoorOmniCamExtractor");
   });
   await page.waitForFunction(
     () => window.omnicamCiTrackExtractor?.__majoorOmniCamExtractor?.root,

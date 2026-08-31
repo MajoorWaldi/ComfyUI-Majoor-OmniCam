@@ -2,8 +2,8 @@ import "../../scripts/app.js";
 import { api as I } from "../../scripts/api.js";
 import { d as K, u as B, l as H, S as Q } from "./chunk-B0ZcW-l0.js";
 import { M as Y, t as X, d as J, f as Z, D as S, q as tt, a as et, b as rt } from "./chunk-BOOWUhms.js";
-import { g as G, n as ot, L as at, h as st, S as R, i as it, j as nt, r as ct, p as lt, T as dt, F as ut } from "./chunk-Bmyaq-AJ.js";
-import { Z as ht } from "./chunk-DMJgQTTA.js";
+import { g as G, n as ot, L as at, h as st, S as R, i as it, j as nt, r as ct, p as lt, T as dt, F as ut } from "./chunk-DFcuL7RF.js";
+import { Z as ht } from "./chunk-fNEBS0B3.js";
 function pt(e, t) {
   const r = e.$("tracking-overlay"), o = Math.round(Number(t?.width) || 0), a = Math.round(Number(t?.height) || 0);
   return !r || o < 1 || a < 1 || r.width === o && r.height === a ? !1 : (r.width = o, r.height = a, e.overlay.draw(), !0);
@@ -1011,7 +1011,7 @@ function ee(e) {
   return (e || []).map((t, r) => [`Note ${r + 1}`, String(t)]);
 }
 function re(e) {
-  return import("./chunk-B-aZafzR.js").then(({ TrackViewer: t }) => (e.viewerLoad = null, e.disposed || e.viewer || (e.viewer = new t(e.$("track-canvas"), {
+  return import("./chunk-Lb4_t0lP.js").then(({ TrackViewer: t }) => (e.viewerLoad = null, e.disposed || e.viewer || (e.viewer = new t(e.$("track-canvas"), {
     onFrameCamera: (r) => W(e.$("extractor-camera"), Zt(r, e.state.frame))
   }), e.pushTracksToViewer()), e.viewer)).catch((t) => (e.viewerLoad = null, console.warn("OmniCam track viewer unavailable", t), null));
 }

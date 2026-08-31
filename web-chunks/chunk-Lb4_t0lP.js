@@ -1,5 +1,5 @@
 import { q as G, s as T, i as R, F, G as f, o as C, f as L, U as E, M as O, X as D, v as q, L as X, x as H, a2 as B } from "./chunk-DICspFCd.js";
-import { s as y } from "./chunk-DMJgQTTA.js";
+import { s as y } from "./chunk-fNEBS0B3.js";
 const m = {
   perspective: { theta: Math.PI * 0.25, phi: Math.PI * 0.32 },
   // Just off the pole: exactly overhead makes the up vector ambiguous and the
