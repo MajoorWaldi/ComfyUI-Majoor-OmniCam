@@ -9,8 +9,6 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-av = pytest.importorskip("av")
-
 
 class FakeVideo:
     """The slice of the ComfyUI VIDEO contract the extractor consumes."""
@@ -37,7 +35,11 @@ class FakeVideo:
 
 @pytest.fixture
 def clip(tmp_path):
-    """A 24-frame 320x180 clip whose every frame differs."""
+    """A 24-frame 320x180 clip whose every frame differs.
+
+    Tests that depend on this fixture are skipped when PyAV is not installed.
+    """
+    av = pytest.importorskip("av")
     path = tmp_path / "shot.mp4"
     width, height, frames = 320, 180, 24
     with av.open(str(path), mode="w") as container:
