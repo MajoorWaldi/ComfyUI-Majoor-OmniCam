@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pytest
 
 from omnicam.extractor import preview_frame
@@ -31,6 +34,47 @@ def test_preview_frame_clamps_requested_index_to_the_video_timeline(monkeypatch,
     assert after_end.frame == 23
     assert before_start.frame_count == 24
     assert after_end.frame_count == 24
+
+
+def test_preview_frame_clamps_unknown_count_stream_at_eof(monkeypatch):
+    """An unknown container count must not leak a beyond-EOF frame index."""
+    class Image:
+        def save(self, output, **_kwargs):
+            output.write(b"\xff\xd8frame\xff\xd9")
+
+    class Frame:
+        width = 320
+        height = 180
+
+        def reformat(self, **_kwargs):
+            return self
+
+        def to_image(self):
+            return Image()
+
+    class Container:
+        def __init__(self):
+            self.streams = [types.SimpleNamespace(type="video", frames=0)]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def seek(self, *_args, **_kwargs):
+            pass
+
+        def decode(self, _stream):
+            return iter((Frame(), Frame(), Frame()))
+
+    monkeypatch.setattr(preview_frame, "resolve_interactive_video_source", lambda _source: "shot.mp4")
+    monkeypatch.setitem(sys.modules, "av", types.SimpleNamespace(open=lambda _path: Container()))
+
+    preview = preview_frame.decode_preview_frame(SOURCE, 10_000, 640)
+
+    assert preview.frame == 2
+    assert preview.frame_count == 3
 
 
 def test_preview_frame_is_a_jpeg_with_its_media_type(monkeypatch, clip):

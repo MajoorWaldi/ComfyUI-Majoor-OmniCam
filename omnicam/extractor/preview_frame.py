@@ -111,6 +111,7 @@ def decode_preview_frame(source_ref: Any, frame: Any, max_dimension: Any) -> Pre
                     raise PreviewFrameError("This file contains no decodable video frames")
             if not frame_count:
                 frame_count = decoded_count
+                target_frame = min(target_frame, frame_count - 1)
 
             width, height = _preview_size(int(selected.width), int(selected.height), bounded_dimension)
             rgb = selected.reformat(width=width, height=height, format="rgb24")

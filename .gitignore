@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_*/
+.superpowers/sdd/2026-09-01-extractor-ui-parity/task-1-report.md
 .codex-pytest-temp/
 .ruff_cache/
 .venv/
