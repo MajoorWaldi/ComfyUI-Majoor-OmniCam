@@ -1,34 +1,31 @@
 # OmniCam — node guide
 
 This document describes only the nodes OmniCam actually registers
-(`omnicam/node_registry.py`): **three product nodes** and **four deprecated
-compatibility nodes**. The Sequencer, the scene-motion analysis helpers and the
-DCC exporters are removed from the shipped package; their history is in git.
+(`omnicam/node_registry.py`): **three product nodes**. The unpublished
+compatibility nodes, Sequencer and DCC exporters are not part of the public
+registry; their history remains in git.
 
 | Node id | Display name | Category | State |
 |---|---|---|---|
 | `MajoorOmniCamDirector` | OmniCam Director | `Majoor/OmniCam` | product |
 | `MajoorOmniCamExtractor` | OmniCam Extractor | `Majoor/OmniCam` | product |
 | `MajoorOmniCamMonitor` | OmniCam Monitor | `Majoor/OmniCam` | product |
-| `MajoorOmniCamH3Adapter` | OmniCam → Universal Reference & AI Prompts | `Majoor/OmniCam/Legacy` | deprecated |
-| `MajoorOmniCamWanNativeCamera` | OmniCam → Wan Native Camera | `Majoor/OmniCam/Legacy` | deprecated |
-| `MajoorOmniCamLTXCameraGuide` | OmniCam → LTX Camera Guide | `Majoor/OmniCam/Legacy` | deprecated |
-| `MajoorOmniCamWanVideoWrapperATI` | OmniCam → WanVideoWrapper ATI | `Majoor/OmniCam/Legacy` | deprecated |
 
 ## Canonical flow
 
 ```text
-OmniCam Extractor → OmniCam Director → MAJOOR_OMNICAM_TRACK → OmniCam Monitor → model adapter
-   recover              author                                 QC / preflight / route
+OmniCam Extractor → OmniCam Director → OMNICAM_MOTION_SCENE → OmniCam Monitor → native model artifact
+   recover              author                                  preflight / compile
 ```
 
-The track is the source of truth. Adapters never read the viewport's internal
-state directly. Model-specific behaviour lives behind Monitor's adapter
-selection and never leaks into the canonical track.
+The motion scene is the source of truth. It contains model-independent cameras,
+objects, screen tracks, projected anchors and cuts. Model-specific frame grids,
+prompt dialects and transport formats belong to Monitor profiles and never leak
+into the Director scene.
 
 ## Media sockets: VIDEO or IMAGE
 
-Every OmniCam socket that carries footage — the Director's `image` and `video`,
+Every OmniCam input socket that carries footage — the Director's `image` and `video`,
 the Extractor's `video`, the Monitor's `proxy_video` — is a multi-type
 `VIDEO,IMAGE` socket, so a generator's `IMAGE` batch connects without an
 `ImageToVideo` node in between. The conversion happens at the node boundary
@@ -40,23 +37,20 @@ the Extractor's `video`, the Monitor's `proxy_video` — is a multi-type
 | `VIDEO` | images | bounded sampling, never a full decode |
 | `IMAGE` | a solvable source | encodes it below `temp/omnicam/extractor_runtime/` first, because a solve seeks inside its source |
 
-### Video outputs carry an IMAGE twin
+### Video outputs and bounded IMAGE conversion
 
-An output returns exactly one concrete value, and ComfyUI has no "VIDEO or
-IMAGE" output type, so every socket that outputs a proxy or reference video
-carries a second plain `IMAGE` output beside it: `proxy_frames` on the Director,
-`reference_frames` on the Monitor and on the deprecated H3 node. Each twin is a
-bounded uniform sample — never a full decode — and degrades to `None` rather
-than aborting the node. Wire whichever output your downstream node wants;
-nothing needs both.
+The Director keeps its playblast as `VIDEO`; it does not decode or duplicate
+frames during authoring execution. Monitor performs bounded conversion only for
+profiles that require `IMAGE` frames. Monitor exposes `reference_frames` only
+for profiles such as H3 Native that consume an IMAGE batch.
 
 ---
 
 ## OmniCam Director — `MajoorOmniCamDirector`
 
-Interactive camera-layout, animation, timeline and playblast environment. The
-frontend stores a canonical camera track and an optional proxy playblast;
-execution exposes both to the graph.
+Interactive camera-layout, motion-track, animation, timeline and playblast
+environment. Execution compiles the complete editor state to a strict,
+model-independent MotionScene.
 
 ![OmniCam Director](assets/director-outliner.png)
 
@@ -65,7 +59,7 @@ execution exposes both to the graph.
 **Inputs.** `width`, `height`, `fps`, `duration_seconds`, `render_mode`
 (`omni_ref`, `graybox`, `grid`, `point_field`, `wireframe`, `card_grid`,
 `beauty`), optional `image` / `video` (either media type) and `audio`, an
-optional `scene_3d`, and an optional upstream `camera_track` (an OmniCam
+optional `scene_3d`, and an optional upstream `motion_scene` (an OmniCam
 Extractor connects here). `state_json`, `recording_path` and `card_asset` are
 advanced fields the interface manages.
 
@@ -73,25 +67,51 @@ advanced fields the interface manages.
 
 | Output | Type | Meaning |
 |---|---|---|
-| `camera_track` | `MAJOOR_OMNICAM_TRACK` | canonical track of the active camera — the one public contract |
-| `proxy_video` | `VIDEO` | the recorded playblast, or the connected clip |
+| `motion_scene` | `OMNICAM_MOTION_SCENE` | cameras, objects, motion layers, cuts and authoring timeline |
+| `playblast_video` | `VIDEO` | the recorded model-control playblast, or the connected clip |
 | `audio` | `AUDIO` | associated audio |
-| `shot_collection` | `MAJOOR_OMNICAM_SHOT_COLLECTION` | every authored camera and its proxy, with a per-camera `proxy_ready` flag |
-| `proxy_frames` | `IMAGE` | bounded IMAGE twin of `proxy_video`; `None` when there is no proxy |
 
-The Director no longer emits `camera_info`, `track_json`, `sequence`,
-`shots_json` or `director_shot`. For a video preview it reads container
-metadata, then decodes at most 32 uniform frames through bounded
-`VIDEO.as_trimmed()` ranges.
+The Director does not emit camera-only, shot-collection or decoded-frame
+compatibility outputs. Cuts and all authored cameras remain inside MotionScene;
+the playblast stays a single first-class conditioning artifact.
+
+### Playblast contract
+
+Both WebCodecs and MediaRecorder capture exactly `duration_frames` at the
+authored fps and current playblast resolution. Capture mode suppresses
+selection outlines, gizmos, Motion Track overlays and other editor chrome while
+retaining intentional scene content such as cards, graybox objects and grids.
+
+After a successful managed upload, `MotionScene.metadata.playblast` records the
+encoder, MIME type, fps, frame count, exact duration, dimensions, aspect ratio,
+timing drift, clean-capture flag and resolved edit cuts. Monitor also inspects
+the connected ComfyUI `VIDEO` through `get_dimensions`, `get_frame_rate`,
+`get_frame_count` and `get_duration`; file-backed videos provide these facts
+without decoding their image tensors.
 
 **Interface density.** The `View → Interface` selector (Basic / Animation /
 Advanced) is progressive disclosure of one layout, not three layouts. The full
 authoring overview is in [USER_GUIDE.md](USER_GUIDE.md); keyboard and viewport
 controls are in [SHORTCUTS.md](SHORTCUTS.md).
 
-### Upstream `camera_track` import
+### Motion Tracks
 
-The Director's optional `camera_track` input is imported by fingerprint
+The Camera View toolbar provides `Select`, `Track`, `Anchor`, `Project` and
+`Erase`. Track draws a sparse normalized screen path over the current playback
+range; Anchor creates a held screen point; Project binds a point to the selected
+object or a world point. Camera Field presets add Balanced, Foreground, Subject,
+Ground Parallax or Depth Layers sources.
+
+Motion layers appear in the Outliner and as aligned timeline rows. Their keys
+support linear, smooth and hold interpolation, explicit visibility and retiming
+to the playback range. The authored layers serialize in `state_json` and compile
+into `OMNICAM_MOTION_SCENE`. Their editor overlay is excluded from playblast
+capture.
+
+### Upstream `motion_scene` import
+
+The Director's optional `motion_scene` input selects the scene's playblast
+camera and imports it by fingerprint
 (`extractor_fingerprint`):
 
 - no cable → the Director's local state;
@@ -107,7 +127,7 @@ with the Director. Disconnect the cable to freeze the imported trajectory.
 ## OmniCam Extractor — `MajoorOmniCamExtractor`
 
 Estimates a **relative** 6DoF camera trajectory from one continuous video shot
-and emits a canonical schema-v1 track.
+and wraps that internal camera solve in a canonical one-camera MotionScene.
 
 **Inputs.**
 
@@ -129,12 +149,12 @@ and emits a canonical schema-v1 track.
 | `position_tolerance` | `0.01` | allowed position error; `0` = lossless |
 | `rotation_tolerance_deg` | `0.25` | allowed angular error; `0` = lossless |
 
-**Outputs.** `camera_track` (canonical `MAJOOR_OMNICAM_TRACK`), `confidence`
-(**solver coverage**, the share of sampled frames that produced a pose — not a
-physical accuracy), `report` (human-readable: backend, keys, lens, warnings).
+**Outputs.** `motion_scene` (canonical `OMNICAM_MOTION_SCENE` with one extracted
+camera), `solver_coverage` (the share of sampled frames that produced a pose — not a
+physical accuracy), and `report` (human-readable: backend, keys, lens, warnings).
 
-`confidence` remains at its historical slot in 0.x as a legacy alias for the
-canonical `solver_coverage` metadata field. The UI labels it **Solver Coverage**.
+The solver and refinement stages still operate on the internal schema-v1
+`OmniCamTrack`; only the node boundary exposes MotionScene.
 
 **V1 limits.** No metric scale, no animated zoom, no lens distortion, no
 rolling shutter, no multi-shot solve, no object or body capture.
@@ -369,71 +389,6 @@ Three deliberately separate ideas:
 3. **Motion risk** — `LOW` / `MEDIUM` / `HIGH`, an OmniCam empirical estimate
    in world units with no metric meaning, graded against tables no upstream
    project publishes. Shown, never counted in the verdict.
-
----
-
-## Deprecated compatibility nodes
-
-All four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`. They
-remain executable throughout 0.1.x so pinned workflows still load and run; new
-graphs should use Monitor, whose adapter menu covers every one of these paths.
-The old `MajoorOmniCamWanATIAdapter` additionally has an official Node
-Replacement to `MajoorOmniCamWanVideoWrapperATI`.
-
-### OmniCam → Universal Reference & AI Prompts — `MajoorOmniCamH3Adapter`
-
-Camera reference video, a prompt fragment, a cinematic prompt and the JSON
-trajectory analysis. The analysis uses the whole path — local dolly/truck/crane
-translation, signed orbit, distance travelled, rotation, speed, acceleration,
-jerk, curvature and optical change — and exposes a multi-tag classification
-(`primary`, `secondary`, `optical`, `compound`). Truck stays a lateral
-translation and crane a vertical one; these terms are never swapped for
-pan/tilt. Inputs: `video_ref_token`, `prompt_style`
-(`h3`/`universal`/`kling`/`luma`/`hunyuan`/`wan`), `base_prompt`, optional
-`proxy_video`. Outputs: `camera_reference_video`, `prompt_fragment`,
-`cinematic_prompt`, `camera_analysis_json`, `reference_frames`.
-All five outputs remain functional for saved 0.1.x workflows even though the
-node is deprecated.
-
-### OmniCam → Wan Native Camera — `MajoorOmniCamWanNativeCamera`
-
-Converts the track to `WAN_CAMERA_EMBEDDING`. `length` must be 4n+1. The output
-feeds the Wan native node's `camera_conditions` input. Outputs:
-`camera_embedding`, `width`, `height`, `length`.
-
-### OmniCam → LTX Camera Guide — `MajoorOmniCamLTXCameraGuide`
-
-Decodes proxy `VIDEO` frames into an LTX camera guide. Inputs: `proxy_video`,
-`base_prompt`, `start_frame`, `end_frame`, `max_frames`, `resize_width`,
-`resize_height`, `sampling_mode` (`contiguous` / `uniform`). It computes the
-range and the memory budget before decoding, then uses `VIDEO.as_trimmed()`. It
-recognises the current `LTXAddVideoICLoRAGuide` and
-`LTXAddVideoICLoRAGuideAdvanced` classes plus the older aliases for diagnostics.
-Outputs: `guide_frames`, `cinematic_prompt`, `camera_profile_json` (whose
-`guide_diagnostics` reports the IMAGE type, frame count, resolution and memory
-estimate of the decoded guide).
-
-### OmniCam → WanVideoWrapper ATI — `MajoorOmniCamWanVideoWrapperATI`
-
-Projects stable 3D reference points and returns the `tracks` STRING consumed by
-`WanVideoATITracks`. The same STRING contract is detected for the native
-`WanTrackToVideo` node.
-
-`WanVideoATITracks` normalises coordinates with **its own** `width`/`height`
-widgets (`process_tracks` computes `(xy - size/2) / min(size) * 2`). Writing
-1280×720 pixels into a node still set to 832×480 silently offsets and rescales
-every trajectory, so this node exposes `width` and `height` as inputs **and
-outputs** — wire them to `WanVideoATITracks`.
-
-`pad_pts` forces visibility 1 for every supplied point and pads to 121 with
-zeros. The only way to say "this point left frame" is to end its list, so
-OmniCam truncates a trajectory at the first invisible frame instead of clamping
-it to the border. A point that is not visible at frame 0 opens no trajectory.
-The ATI preview draws the trajectories **actually exported**, with a radius that
-grows from oldest to newest sample, like WanVideoWrapper's own visualiser.
-
-Inputs: `point_count`, `distribution` (`balanced` / `subject_focus` /
-`ground_parallax`), `width`, `height`. Outputs: `tracks`, `width`, `height`.
 
 ---
 

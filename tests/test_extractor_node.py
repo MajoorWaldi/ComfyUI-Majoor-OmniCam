@@ -17,8 +17,10 @@ def test_node_schema_declares_the_canonical_contract():
     assert schema.node_id == "MajoorOmniCamExtractor"
     assert schema.display_name == "OmniCam Extractor"
     assert schema.category == "Majoor/OmniCam"
-    assert schema.outputs[0].io_type == "MAJOOR_OMNICAM_TRACK"
-    assert [output.display_name for output in schema.outputs] == ["camera_track", "confidence", "report"]
+    assert schema.outputs[0].io_type == "OMNICAM_MOTION_SCENE"
+    assert [output.display_name for output in schema.outputs] == [
+        "motion_scene", "solver_coverage", "report",
+    ]
 
 
 def test_node_takes_a_required_video_or_image_input():
@@ -42,7 +44,7 @@ def test_node_defaults_to_a_640_pixel_dpvo_solve():
     assert max_dimension.default == 640
 
 
-def test_node_execution_emits_the_track_and_a_ui_envelope(clip, monkeypatch):
+def test_node_execution_emits_a_one_camera_motion_scene_and_a_ui_envelope(clip, monkeypatch):
     monkeypatch.setattr(
         "omnicam.nodes.extractor.extract_camera_track",
         lambda **kwargs: extract_camera_track(**kwargs, backend=RecordingBackend()),
@@ -57,13 +59,25 @@ def test_node_execution_emits_the_track_and_a_ui_envelope(clip, monkeypatch):
         motion_scale=1.0, position_smoothing=0.15, rotation_smoothing=0.1, simplify_keys=True,
         position_tolerance=0.01, rotation_tolerance_deg=0.25,
     )
-    track, confidence, report = output[0], output[1], output[2]
+    motion_scene, solver_coverage, report = output[0], output[1], output[2]
+    assert motion_scene["version"] == 1
+    assert motion_scene["active_camera_id"] == "extracted_camera"
+    assert motion_scene["playblast_camera_id"] == "extracted_camera"
+    assert len(motion_scene["cameras"]) == 1
+    track = motion_scene["cameras"][0]["track"]
     assert track["schema_version"] == 1
-    assert 0.0 <= confidence <= 1.0
+    assert motion_scene["timeline"]["duration_seconds"] == pytest.approx(
+        track["duration_frames"] / track["fps"]
+    )
+    assert motion_scene["canvas"] == {"width": track["width"], "height": track["height"]}
+    assert 0.0 <= solver_coverage <= 1.0
     assert "OmniCam Extractor" in report
 
     envelope = json.loads(output.ui.as_dict()["text"][0])
     assert envelope["kind"] == RESULT_ENVELOPE_KIND
     assert envelope["fingerprint"] == track["metadata"]["extractor_fingerprint"]
-    assert envelope["track"]["keyframes"] == track["keyframes"]
+    assert envelope["motion_scene"] == motion_scene
+    assert envelope["solver_coverage"] == solver_coverage
+    assert "track" not in envelope
+    assert "confidence" not in envelope
     assert envelope["source"] == "omnicam/extractor_runtime/test.mp4 [temp]"

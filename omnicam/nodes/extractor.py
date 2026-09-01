@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 
 from ..comfy_compat import IO, UI
+from ..core.motion_scene import motion_scene_from_camera_track
 from ..extractor.pipeline import extract_camera_track
-from .base import OMNICAM_TRACK
+from .base import OMNICAM_MOTION_SCENE
 from .media import media_input, solve_source
 
 #: The browser cannot reach into the executing process, so the solved track
 #: travels to the Director through this preview payload.
-RESULT_ENVELOPE_KIND = "omnicam_extractor_result_v1"
+RESULT_ENVELOPE_KIND = "omnicam_extractor_result_v2"
 
 
 class MajoorOmniCamExtractor(IO.ComfyNode):
@@ -28,7 +29,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             category="Majoor/OmniCam",
             description=(
                 "Extract a relative 6DoF camera trajectory from one continuous video shot "
-                "and emit a canonical OmniCam camera track."
+                "and emit a canonical OmniCam motion scene."
             ),
             search_aliases=[
                 "camera extractor",
@@ -74,8 +75,8 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 IO.Float.Input("rotation_tolerance_deg", default=0.25, min=0.0, max=20.0, step=0.05, advanced=True),
             ],
             outputs=[
-                OMNICAM_TRACK.Output(display_name="camera_track"),
-                IO.Float.Output(display_name="confidence"),
+                OMNICAM_MOTION_SCENE.Output(display_name="motion_scene"),
+                IO.Float.Output(display_name="solver_coverage"),
                 IO.String.Output(display_name="report"),
             ],
         )
@@ -120,17 +121,17 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             position_tolerance=position_tolerance,
             rotation_tolerance_deg=rotation_tolerance_deg,
         )
+        motion_scene = motion_scene_from_camera_track(result.track).to_dict()
         envelope = {
             "kind": RESULT_ENVELOPE_KIND,
             "fingerprint": result.fingerprint,
-            "track": result.track,
+            "motion_scene": motion_scene,
             "solver_coverage": result.confidence,
-            "confidence": result.confidence,
             "report": result.report,
             "source": source_reference,
         }
         return IO.NodeOutput(
-            result.track,
+            motion_scene,
             result.confidence,
             result.report,
             ui=UI.PreviewText(json.dumps(envelope, separators=(",", ":"))),

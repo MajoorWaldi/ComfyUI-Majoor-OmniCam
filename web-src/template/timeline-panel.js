@@ -154,6 +154,7 @@ export function timelinePanelMarkup() {
       <div class="timeline oc-timeline">
         ${transportBar()}
         ${dopeSheet()}
+        <div class="motion-timeline" data-role="motion-timeline" aria-label="${t("Motion track timeline")}"></div>
       </div>
     </div>
     ${graphEditor()}`;

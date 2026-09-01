@@ -12,7 +12,6 @@ import { onPointerDown } from "../../web-src/viewport-controls.js";
 import { dispatchDirectorKey } from "../../web-src/commands.js";
 import { findEditableKey } from "../../web-src/scene/edit-target.js";
 import { registerOmniCamNodeBranding } from "../../web-src/node-branding.js";
-import { migrateDirectorOutputs } from "../../web-src/director-output-migration.js";
 import { resetCameraAnimation, resetObjectAnimation } from "../../web-src/animation-reset.js";
 import { beginModalTransform, handleModalTransformKey } from "../../web-src/viewport-controls/modal-transform.js";
 
@@ -60,26 +59,6 @@ test("node branding applies only to OmniCam node definitions", () => {
   const node = { size: [200, 120], flags: {}, selected: true, onDrawForeground: OmniNode.prototype.onDrawForeground };
   assert.doesNotThrow(() => node.onDrawForeground(ctx));
   assert.deepEqual(calls, [], "with no Image constructor there is no icon, so nothing is painted");
-});
-
-test("legacy Director outputs migrate by name and removed outputs disconnect", () => {
-  const graph = {
-    nodes: [
-      { id: 1, type: "MajoorOmniCamDirector", inputs: [{ name: "scene_3d", link: null }], outputs: [
-        { name: "camera_track" }, { name: "proxy_video" }, { name: "camera_info" },
-        { name: "track_json" }, { name: "audio" }, { name: "sequence" },
-        { name: "shots_json" }, { name: "director_shot" }, { name: "shot_collection" },
-      ] },
-      { id: 2, type: "Consumer", inputs: [{ name: "audio", link: 10 }, { name: "removed", link: 11 }] },
-    ],
-    links: [[10, 1, 4, 2, 0, "AUDIO"], [11, 1, 5, 2, 1, "MAJOOR_OMNICAM_SEQUENCE"]],
-  };
-  migrateDirectorOutputs(graph);
-  assert.equal(graph.nodes[0].outputs.length, 4);
-  assert.equal(graph.links.length, 1);
-  assert.equal(graph.links[0][2], 2);
-  assert.equal(graph.nodes[1].inputs[1].link, null);
-  assert.equal(graph.nodes[0].inputs.length, 1);
 });
 
 test("director state keeps an independent playblast path per camera", () => {

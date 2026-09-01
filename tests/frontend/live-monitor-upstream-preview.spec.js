@@ -18,7 +18,7 @@ test("Monitor's proxy panel reads a client-only preview with no Director connect
     const monitor = window.LiteGraph.createNode("MajoorOmniCamMonitor");
     monitor.pos = [0, 0];
     app.graph.add(monitor);
-    const proxyInput = monitor.inputs?.findIndex((i) => i.name === "proxy_video");
+    const proxyInput = monitor.inputs?.findIndex((i) => i.name === "playblast_video");
     loader.connect(0, monitor, proxyInput);
     window.omnicamMonitor = monitor;
   }, IMAGE);

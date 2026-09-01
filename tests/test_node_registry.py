@@ -2,19 +2,22 @@ import ast
 import json
 from pathlib import Path
 
+import pytest
+
 from omnicam.node_registry import (
-    COMPATIBILITY_NODES,
     INTERNAL_COMPONENTS,
     LEGACY_NODE_IDS,
     PRODUCT_NODES,
     REGISTERED_NODE_IDS,
+    get_registered_nodes,
 )
 
 
-def test_product_registry_is_extractor_director_monitor_and_legacy_nodes_still_load():
+def test_product_registry_contains_only_the_three_product_nodes():
+    pytest.importorskip("comfy_api.latest")
     assert PRODUCT_NODES == ("MajoorOmniCamDirector", "MajoorOmniCamExtractor", "MajoorOmniCamMonitor")
-    assert len(COMPATIBILITY_NODES) == 4
-    assert set(PRODUCT_NODES).isdisjoint(COMPATIBILITY_NODES)
+    assert REGISTERED_NODE_IDS == PRODUCT_NODES
+    assert [node.define_schema().node_id for node in get_registered_nodes()] == list(PRODUCT_NODES)
     assert "MajoorOmniCamSequencer" not in PRODUCT_NODES
     assert "MajoorOmniCamSequencer" in LEGACY_NODE_IDS
     assert INTERNAL_COMPONENTS
@@ -51,3 +54,13 @@ def test_public_node_schema_inputs_match_execute_signatures():
 def test_node_list_json_matches_the_public_registry():
     manifest = json.loads((Path(__file__).resolve().parents[1] / "node_list.json").read_text(encoding="utf-8"))
     assert manifest["nodes"] == list(REGISTERED_NODE_IDS)
+
+
+def test_no_legacy_adapter_node_class_is_present_or_registered():
+    root = Path(__file__).resolve().parents[1]
+    node_sources = list((root / "omnicam" / "nodes").glob("*.py"))
+    source_text = "\n".join(path.read_text(encoding="utf-8") for path in node_sources)
+
+    assert not any(legacy_id in source_text for legacy_id in LEGACY_NODE_IDS)
+    assert not any(path.name in {"adapters.py"} for path in node_sources)
+    assert set(PRODUCT_NODES).isdisjoint(LEGACY_NODE_IDS)

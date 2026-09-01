@@ -5,6 +5,7 @@ import { api } from "../../scripts/api.js";
 import { captureRealtimePlayblast, uploadPlayblast, waitForSeekingMedia } from "./omnicam-playblast.js";
 import { SEQUENCE_TARGET } from "./director/sequence.js";
 import { t } from "./i18n.js";
+import { storePlayblastManifest } from "./playblast-contract.js";
 
 export async function waitForMediaFrame(ui) {
   await waitForSeekingMedia(ui.cardMediaById.values());
@@ -22,6 +23,7 @@ export async function captureRealtime(ui) {
 
 export async function uploadDirectorPlayblast(ui, blob) {
   const uploaded = await uploadPlayblast(api, blob);
+  storePlayblastManifest(ui, blob);
   // A sequence recording belongs to the edit, not to any one camera.
   if (ui.state.playblast_camera_id === SEQUENCE_TARGET) {
     ui.state.sequence = { ...(ui.state.sequence || {}), recording_path: uploaded.path };

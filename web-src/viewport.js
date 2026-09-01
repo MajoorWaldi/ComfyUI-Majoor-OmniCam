@@ -7,6 +7,7 @@ import { STLLoader } from "three/addons/loaders/STLLoader.js";
 import { BufferTarget, CanvasSource, Output, Quality, WebMOutputFormat, canEncodeVideo } from "mediabunny";
 
 import { generatePointField, sampleCamera, sampleObjectTransform } from "./director/core.js";
+import { attachPlayblastMetrics } from "./playblast-contract.js";
 import { createResourceMethods } from "./viewport/resources.js";
 import { createSceneMethods } from "./viewport/scene.js";
 import { createCameraPickingMethods } from "./viewport/camera-picking.js";
@@ -320,5 +321,9 @@ export async function encodeDeterministicPlayblast(canvas, frameCount, fps, rend
     if (output.state !== "finalized") await output.cancel().catch(() => {});
     throw error;
   }
-  return new Blob([output.target.buffer], { type: await output.getMimeType() });
+  return attachPlayblastMetrics(new Blob([output.target.buffer], { type: await output.getMimeType() }), {
+    encoder: "webcodecs", requestedFrames: frameCount,
+    expectedDurationMs: frameCount / fps * 1000, recordedDurationMs: frameCount / fps * 1000,
+    driftMs: 0, fps, width: canvas.width, height: canvas.height,
+  });
 }

@@ -1,0 +1,46 @@
+{
+  "profile_id": "h3_native",
+  "display_name": "MiniMax H3 Native",
+  "semantic": "reference_video",
+  "node": {
+    "id": "MiniMaxH3ReferenceToVideo",
+    "inputs": [
+      {"name": "clip", "type": "CLIP"},
+      {"name": "vae", "type": "VAE"},
+      {"name": "audio_vae", "type": "VAE"},
+      {"name": "prompt", "type": "STRING"},
+      {"name": "width", "type": "INT"},
+      {"name": "height", "type": "INT"},
+      {"name": "length", "type": "INT"},
+      {"name": "ref_videos", "type": "IMAGE"}
+    ],
+    "outputs": [
+      {"name": "positive", "type": "CONDITIONING"},
+      {"name": "latent", "type": "LATENT"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "17n_plus_5_at_24fps",
+    "facts": [
+      "Generation and reference clips use the 17n+5 frame grid at 24 fps.",
+      "Reference videos require at least five frames.",
+      "Reference frames are bounded by the resolved generation frame count.",
+      "Prompt references use the strict <Video i> dialect."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "comfyui",
+      "url": "https://github.com/Comfy-Org/ComfyUI",
+      "ref": "v0.34.0",
+      "path": "comfy_extras/nodes_minimax_h3.py",
+      "required_literals": [
+        "FPS = 24",
+        "while n % 17 != 5:",
+        "MiniMax H3 reference videos need at least 5 frames",
+        "node_id=\"MiniMaxH3ReferenceToVideo\"",
+        "<Picture i> / <Video k> / <Audio j>"
+      ]
+    }
+  ]
+}

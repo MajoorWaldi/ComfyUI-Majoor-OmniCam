@@ -21,7 +21,7 @@
 //
 // The fingerprint is recorded the moment a solve is first noticed, not only
 // on commit. That is what keeps a queued render from silently swapping the
-// camera_track OUTPUT while the preview banner is still sitting there
+// motion_scene OUTPUT while the preview banner is still sitting there
 // unconfirmed: resolve_director_camera_track() (omnicam/core/upstream_track.py)
 // reads this same marker to decide whether to adopt the upstream for
 // execution, and "seen" has to mean the same thing in the browser and headless.
@@ -32,19 +32,19 @@ import { t } from "../i18n.js";
 import { EXTRACTOR_NODE_CLASS, readCachedResult } from "./result-cache.js";
 import { graphLink, linkedOrigin } from "../graph-links.js";
 
-export const CAMERA_TRACK_INPUT = "camera_track";
+export const MOTION_SCENE_INPUT = "motion_scene";
 
 function nodeClassOf(node) {
   return String(node?.comfyClass || node?.type || node?.constructor?.type || "");
 }
 
-/** The Extractor node feeding this Director's camera_track input, if any. */
+/** The Extractor node feeding this Director's motion_scene input, if any. */
 export function upstreamExtractorNode(ui) {
   const node = ui?.node;
   const graph = node?.graph;
   if (!graph) return null;
   for (const input of node.inputs || []) {
-    if (String(input?.name || "").toLowerCase() !== CAMERA_TRACK_INPUT) continue;
+    if (String(input?.name || "").toLowerCase() !== MOTION_SCENE_INPUT) continue;
     if (input.link == null) continue;
     const origin = linkedOrigin(graph, input.link);
     if (origin && nodeClassOf(origin) === EXTRACTOR_NODE_CLASS) return origin;

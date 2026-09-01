@@ -47,25 +47,26 @@ def test_director_multi_camera_sequence_output():
         render_mode="omni_ref",
     )
 
-    # outputs: camera_track, proxy_video, audio, shot_collection, proxy_frames
+    # outputs: motion_scene, playblast_video, audio
     outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
-    assert len(outputs) == 5
-    track_dict, _proxy_video, _audio, shot_collection, _proxy_frames = outputs
+    assert len(outputs) == 3
+    motion_scene, _playblast_video, _audio = outputs
 
-    assert track_dict["metadata"]["camera_id"] == "cam_1"
-    assert shot_collection["kind"] == "omnicam_shot_collection"
-    assert [shot["name"] for shot in shot_collection["shots"]] == ["Establishing Wide", "Close Up Subject"]
-    assert shot_collection["metadata"]["missing_proxy_camera_ids"] == ["cam_1", "cam_2"]
+    assert motion_scene["playblast_camera_id"] == "cam_1"
+    assert [camera["label"] for camera in motion_scene["cameras"]] == [
+        "Establishing Wide",
+        "Close Up Subject",
+    ]
 
 
 def test_director_public_display_name_is_unprefixed():
     assert MajoorOmniCamDirector.define_schema().display_name == "OmniCam Director"
 
 
-def test_director_exposes_five_focused_outputs():
+def test_director_exposes_three_focused_outputs():
     outputs = MajoorOmniCamDirector.define_schema().outputs
     assert [output.display_name for output in outputs] == [
-        "camera_track", "proxy_video", "audio", "shot_collection", "proxy_frames",
+        "motion_scene", "playblast_video", "audio",
     ]
 
 
@@ -81,7 +82,8 @@ def test_director_validates_authoritative_widget_duration():
         state_json=json.dumps(state), recording_path="", card_asset="",
         width=640, height=360, fps=10, duration_seconds=1, render_mode="grid",
     )
-    track = (out.outputs if hasattr(out, "outputs") else tuple(out))[0]
+    scene = (out.outputs if hasattr(out, "outputs") else tuple(out))[0]
+    track = scene["cameras"][0]["track"]
     assert track["duration_frames"] == 10
     # The widget duration wins, but the key beyond it is kept rather than folded
     # onto the last frame: sampling still interpolates toward it, exactly as the
@@ -106,10 +108,9 @@ def test_director_proxy_matches_selected_playblast_camera(monkeypatch):
         width=1280, height=720, fps=24, duration_seconds=5, render_mode="omni_ref",
     )
     outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
-    assert outputs[0]["metadata"]["camera_id"] == "cam_b"
+    assert outputs[0]["playblast_camera_id"] == "cam_b"
     assert outputs[1] == "video:b.webm [input]"
-    assert outputs[3]["shots"][1]["metadata"]["recording_path"] == "b.webm [input]"
-    assert outputs[3]["metadata"]["ready_count"] == 2
+    assert outputs[0]["metadata"]["recording_path"] == "b.webm [input]"
 
 
 def _edit_state(**overrides):
@@ -150,42 +151,34 @@ def _run(state):
         width=1280, height=720, fps=24, duration_seconds=2.0, render_mode="omni_ref",
     )
     outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
-    return outputs[0], outputs[3]
+    return outputs[0]
 
 
-def test_director_exports_the_edit_as_its_own_shot():
-    _track, collection = _run(_edit_state())
-    assert [shot["name"] for shot in collection["shots"]] == ["Wide", "Close", "Sequence"]
-    assert collection["metadata"]["sequence"]["cuts"] == [
-        {"camera_id": "cam_1", "start": 0, "end": 23},
-        {"camera_id": "cam_2", "start": 24, "end": 47},
+def test_director_exports_the_edit_as_motion_scene_cuts():
+    scene = _run(_edit_state())
+    assert scene["cuts"] == [
+        {"camera_id": "cam_1", "time_seconds": 0.0, "end_time_seconds": 1.0},
+        {"camera_id": "cam_2", "time_seconds": 1.0, "end_time_seconds": 2.0},
     ]
-    assert collection["metadata"]["sequence"]["is_playblast_target"] is True
+    assert scene["metadata"]["playblast_target"] == SEQUENCE_TARGET
 
 
-def test_the_merged_track_follows_the_cuts_frame_by_frame():
-    """A cut is a discontinuity, so the exported track has to be baked per frame.
-
-    Interpolating between sparse keys would slide the camera across the cut
-    instead of switching at it, and the export would not match the proxy.
-    """
-    _track, collection = _run(_edit_state())
-    sequence_shot = next(shot for shot in collection["shots"] if shot["id"] == SEQUENCE_TARGET)
-    keys = sequence_shot["camera_track"]["keyframes"]
-    assert [key["frame"] for key in keys] == list(range(48))
-    # cam_1 dollies back over its half; cam_2 is static and elsewhere.
-    assert keys[0]["camera"]["position"][2] == pytest.approx(5.0)
-    assert keys[23]["camera"]["position"][2] > 5.0
-    assert keys[24]["camera"]["position"] == pytest.approx([1.0, 1.5, 2.0])
-    assert keys[47]["camera"]["position"] == pytest.approx([1.0, 1.5, 2.0])
+def test_motion_scene_keeps_sparse_camera_tracks_around_cuts():
+    scene = _run(_edit_state())
+    tracks = {camera["id"]: camera["track"] for camera in scene["cameras"]}
+    assert [key["frame"] for key in tracks["cam_1"]["keyframes"]] == [0, 47]
+    assert tracks["cam_2"]["keyframes"][0]["camera"]["position"] == pytest.approx(
+        [1.0, 1.5, 2.0]
+    )
 
 
-def test_an_edit_that_is_off_adds_no_sequence_shot():
+def test_an_edit_that_is_off_keeps_authored_cuts_without_targeting_the_edit():
     state = _edit_state(playblast_camera_id="cam_1")
     state["sequence"]["enabled"] = False
-    _track, collection = _run(state)
-    assert [shot["id"] for shot in collection["shots"]] == ["cam_1", "cam_2"]
-    assert collection["metadata"]["sequence"]["enabled"] is False
+    scene = _run(state)
+    assert [camera["id"] for camera in scene["cameras"]] == ["cam_1", "cam_2"]
+    assert scene["playblast_camera_id"] == "cam_1"
+    assert "playblast_target" not in scene["metadata"]
 
 
 # ---------------------------------------------------------------------------
@@ -210,25 +203,58 @@ def _extractor_track(fingerprint="fp-1", fps=30, duration=90):
     }
 
 
+def _extractor_scene(fingerprint="fp-1"):
+    track = _extractor_track(fingerprint=fingerprint)
+    return {
+        "version": 1,
+        "timeline": {
+            "duration_seconds": track["duration_frames"] / track["fps"],
+            "authoring_fps": track["fps"],
+        },
+        "canvas": {"width": track["width"], "height": track["height"]},
+        "cameras": [{
+            "id": "extracted_camera",
+            "label": "Extracted Camera",
+            "enabled": True,
+            "track": track,
+        }],
+        "active_camera_id": "extracted_camera",
+        "playblast_camera_id": "extracted_camera",
+        "objects": [],
+        "motion_layers": [],
+        "cuts": [],
+        "metadata": {
+            "source": "omnicam_extractor",
+            "extractor_fingerprint": fingerprint,
+        },
+    }
+
+
 def _run_with_upstream(state, upstream):
     out = MajoorOmniCamDirector.execute(
         state_json=json.dumps(state), recording_path="", card_asset="",
         width=1280, height=720, fps=24, duration_seconds=2.0, render_mode="omni_ref",
-        camera_track=upstream,
+        motion_scene=upstream,
     )
     outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
-    return outputs[0]
+    scene = outputs[0]
+    selected = next(
+        camera for camera in scene["cameras"]
+        if camera["id"] == scene["playblast_camera_id"]
+    )
+    return selected["track"]
 
 
-def test_director_schema_exposes_an_optional_camera_track_input():
+def test_director_schema_exposes_an_optional_motion_scene_input():
     schema = MajoorOmniCamDirector.define_schema()
-    camera_track = next(item for item in schema.inputs if item.id == "camera_track")
-    assert camera_track.io_type == "MAJOOR_OMNICAM_TRACK"
-    assert camera_track.optional is True
+    motion_scene = next(item for item in schema.inputs if item.id == "motion_scene")
+    assert motion_scene.io_type == "OMNICAM_MOTION_SCENE"
+    assert motion_scene.optional is True
+    assert all(item.id != "camera_track" for item in schema.inputs)
 
 
-def test_director_adopts_an_unimported_extractor_track():
-    track = _run_with_upstream({"duration_frames": 48, "fps": 24}, _extractor_track())
+def test_director_adopts_an_unimported_extractor_scene():
+    track = _run_with_upstream({"duration_frames": 48, "fps": 24}, _extractor_scene())
     assert [key["frame"] for key in track["keyframes"]] == [0, 60]
     assert track["metadata"]["upstream_camera_track"]["fingerprint"] == "fp-1"
     # The render context stays the Director's queue widgets.
@@ -241,7 +267,7 @@ def test_director_keeps_local_edits_once_the_fingerprint_is_imported():
         "keyframes": [{"frame": 0, "camera": {"position": [7, 7, 7], "target": [0, 0, 0]}}],
         "metadata": {"upstream_camera_track": {"fingerprint": "fp-1"}},
     }
-    track = _run_with_upstream(state, _extractor_track(fingerprint="fp-1"))
+    track = _run_with_upstream(state, _extractor_scene(fingerprint="fp-1"))
     assert track["keyframes"][0]["camera"]["position"] == pytest.approx([7.0, 7.0, 7.0])
 
 

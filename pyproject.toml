@@ -79,10 +79,14 @@ python_version = "3.10"
 files = [
   "omnicam/core/camera_math.py",
   "omnicam/core/camera_pose.py",
+  "omnicam/core/compiler.py",
   "omnicam/core/upstream_track.py",
-  "omnicam/core/director_shot.py",
   "omnicam/core/editor_state.py",
   "omnicam/core/migrations.py",
+  "omnicam/core/motion_projection.py",
+  "omnicam/core/motion_resolution.py",
+  "omnicam/core/motion_sampling.py",
+  "omnicam/core/motion_scene.py",
   "omnicam/core/projection.py",
   "omnicam/core/track.py",
   "omnicam/core/validation.py",
@@ -91,6 +95,17 @@ files = [
   "omnicam/extractor/intrinsics.py",
   "omnicam/extractor/transforms.py",
   "omnicam/extractor/types.py",
+  "omnicam/monitor/result.py",
+  "omnicam/profiles/base.py",
+  "omnicam/profiles/catalog.py",
+  "omnicam/profiles/h3.py",
+  "omnicam/profiles/ltx_motion.py",
+  "omnicam/profiles/registry.py",
+  "omnicam/profiles/track_json.py",
+  "omnicam/profiles/wan_camera.py",
+  "omnicam/profiles/wan_move.py",
+  "omnicam/profiles/wan_track.py",
+  "omnicam/profiles/wanvideo_ati.py",
 ]
 ignore_missing_imports = true
 explicit_package_bases = true

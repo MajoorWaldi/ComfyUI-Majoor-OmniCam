@@ -289,17 +289,7 @@ export function createSceneMethods(dependencies) {
     this.state.render_mode = value.mode, this.state.burn_in = value.burn, this.root.querySelector('[data-role="mode"]').value = value.mode, this.root.querySelector('[data-role="burn-in"]').checked = value.burn, this.modeWidget && (this.modeWidget.value = value.mode), this.serialize(), this.render(), this.setStatus(`Proxy preset: ${preset}`);
   },
   createH3Setup() {
-    const adapter = LiteGraph.createNode("MajoorOmniCamH3Adapter");
-    if (!adapter) return this.setStatus("H3 adapter node is unavailable");
-    adapter.pos = [this.node.pos[0] + this.node.size[0] + 80, this.node.pos[1]], app.graph.add(adapter), this.node.connect(0, adapter, adapter.findInputSlot("camera_track")), this.node.connect(1, adapter, adapter.findInputSlot("proxy_video"));
-    const h3 = LiteGraph.createNode("MinimaxHailuo03ReferenceNode");
-    if (!h3) {
-      this.setStatus("H3 adapter created; official MiniMax H3 node not installed");
-      return;
-    }
-    h3.pos = [adapter.pos[0] + adapter.size[0] + 80, adapter.pos[1]], app.graph.add(h3);
-    const videoSlot = h3.findInputSlot("video_1"), promptSlot = h3.findInputSlot("prompt");
-    videoSlot >= 0 && adapter.connect(0, h3, videoSlot), promptSlot >= 0 && adapter.connect(1, h3, promptSlot), this.setStatus(videoSlot >= 0 ? "H3 reference workflow created" : "H3 nodes created; connect camera video to Video 1");
+    this.setStatus("Connect Motion Scene and Playblast Video to OmniCam Monitor");
   },
   refreshObjects() {
     refreshObjects(this);

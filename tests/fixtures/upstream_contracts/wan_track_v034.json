@@ -1,0 +1,45 @@
+{
+  "profile_id": "wan_track_native",
+  "display_name": "Wan Track Native",
+  "semantic": "screen_tracks",
+  "node": {
+    "id": "WanTrackToVideo",
+    "inputs": [
+      {"name": "positive", "type": "CONDITIONING"},
+      {"name": "negative", "type": "CONDITIONING"},
+      {"name": "vae", "type": "VAE"},
+      {"name": "tracks", "type": "STRING"},
+      {"name": "width", "type": "INT"},
+      {"name": "height", "type": "INT"},
+      {"name": "length", "type": "INT"}
+    ],
+    "outputs": [
+      {"name": "positive", "type": "CONDITIONING"},
+      {"name": "negative", "type": "CONDITIONING"},
+      {"name": "latent", "type": "LATENT"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "requested_length_with_121_source_grid",
+    "facts": [
+      "Input trajectories are JSON lists of x/y point dictionaries.",
+      "Source tracks are zero-padded or truncated to 121 points.",
+      "The 121-point source grid is resampled to the requested output length."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "comfyui",
+      "url": "https://github.com/Comfy-Org/ComfyUI",
+      "ref": "v0.34.0",
+      "path": "comfy_extras/nodes_wan.py",
+      "required_literals": [
+        "node_id=\"WanTrackToVideo\"",
+        "io.String.Input(\"tracks\", multiline=True, default=\"[]\")",
+        "FIXED_LENGTH = 121",
+        "pad = np.zeros((FIXED_LENGTH - n, 3), dtype=np.float32)",
+        "process_tracks(tracks_np, (width, height), length - 1)"
+      ]
+    }
+  ]
+}

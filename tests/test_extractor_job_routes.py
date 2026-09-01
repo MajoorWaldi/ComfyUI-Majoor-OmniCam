@@ -105,6 +105,12 @@ def test_a_solve_must_come_from_an_identified_client():
         start(manager(), client_id="")
 
 
+@pytest.mark.parametrize("client_id", ["bad client", "../other", "x" * 129])
+def test_client_id_must_be_a_bounded_transport_token(client_id):
+    with pytest.raises(ApiError, match="client id"):
+        start(manager(), client_id=client_id)
+
+
 def test_an_unknown_solve_method_is_refused():
     with pytest.raises(ApiError, match="Unsupported solve method"):
         start(manager(), settings={"method": "neural_magic"})

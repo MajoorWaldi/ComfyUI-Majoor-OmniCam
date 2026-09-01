@@ -50,6 +50,17 @@ function viewPills() {
     </div>`;
 }
 
+function motionTools() {
+  return `
+    <div class="motion-tools" role="toolbar" aria-label="${t("Motion track tools")}">
+      <button class="active" data-motion-tool="select" aria-pressed="true" title="${t("Select motion track")}"><i class="pi pi-arrow-up-left"></i></button>
+      <button data-motion-tool="track" aria-pressed="false" title="${t("Draw motion track")}"><i class="pi pi-pencil"></i></button>
+      <button data-motion-tool="anchor" aria-pressed="false" title="${t("Add static screen anchor")}"><i class="pi pi-map-marker"></i></button>
+      <button data-motion-tool="project" aria-pressed="false" title="${t("Project selected object or world point")}"><i class="pi pi-bullseye"></i></button>
+      <button data-motion-tool="erase" aria-pressed="false" title="${t("Erase motion track")}"><i class="pi pi-eraser"></i></button>
+    </div>`;
+}
+
 export function viewportMarkup() {
   return `
     <div class="viewport-wrap">
@@ -68,6 +79,7 @@ export function viewportMarkup() {
       </div>
 
       ${viewPills()}
+      ${motionTools()}
 
       <div class="vp-corner">
         <span class="vp-zoom" data-role="viewport-zoom" title="${t("Viewport zoom")}">1.00x</span>

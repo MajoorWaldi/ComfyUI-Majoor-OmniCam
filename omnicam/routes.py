@@ -371,17 +371,41 @@ async def capabilities(_request: web.Request):
     return web.json_response({**detected, "diagnostic": diagnose_setup(detected)})
 
 
-@PromptServer.instance.routes.get("/majoor/omnicam/motion_profiles")
-async def motion_profiles(_request: web.Request):
-    """Recommended motion limits per target model, for the Health panel.
+@PromptServer.instance.routes.get("/majoor/omnicam/monitor/profiles")
+async def monitor_profiles(_request: web.Request):
+    """Return the current Monitor profiles and downstream capability states."""
+    from .capabilities import detect_capabilities
+    from .profiles.catalog import PROFILE_REGISTRY
 
-    The panel grades locally so the feedback stays live while scrubbing, but the
-    numbers it grades against are served from here: the adapter tables stay the
-    single source of truth and the frontend never hardcodes a limit.
-    """
-    from .adapters.motion_profiles import motion_profile_roster
-
-    return web.json_response(motion_profile_roster())
+    capabilities = detect_capabilities()
+    capability_by_adapter = {
+        str(entry.get("adapter")): entry
+        for entry in capabilities.get("capabilities", [])
+    }
+    profile_adapters = {
+        "wan_camera_native": "wan_native",
+        "wan_move_native": "wan_tracks_native",
+        "wan_track_native": "wan_tracks_native",
+        "wanvideo_ati": "wan_ati",
+        "h3_native": "h3_native",
+        "h3_api": "h3",
+        "ltx25_motion_track": "ltx_motion_track",
+    }
+    profiles = [
+        {
+            "id": profile.id,
+            "display_name": profile.display_name,
+            "semantic": profile.semantic,
+            "frame_policy": profile.frame_policy,
+            "capability": capability_by_adapter.get(profile_adapters.get(profile.id, ""), {}),
+        }
+        for profile in (PROFILE_REGISTRY.require(profile_id) for profile_id in PROFILE_REGISTRY.ids)
+    ]
+    return web.json_response({
+        "format": "majoor.omnicam.monitor.profiles.v1",
+        "profiles": profiles,
+        "capabilities": capabilities,
+    })
 
 
 @PromptServer.instance.routes.get("/majoor/omnicam/assets")
@@ -542,5 +566,4 @@ async def import_camera_route(request: web.Request):
 # Extractor routes alongside the managed-asset routes. Each is a separate
 # module so this one stays readable.
 from . import routes_chunks as _routes_chunks  # noqa: E402,F401
-from . import routes_monitor as _routes_monitor  # noqa: E402,F401
 from .extractor.jobs import routes as _routes_extractor_jobs  # noqa: E402,F401

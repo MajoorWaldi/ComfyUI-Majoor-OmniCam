@@ -7,7 +7,7 @@ import { RefineController } from "./refine-controls.js";
 import {
   FINGERPRINT_WIDGET,
   SOURCE_WIDGET,
-  TRACK_WIDGET,
+  SCENE_WIDGET,
   cacheExtractorResult,
   cacheExtractorSource,
   ensureCacheWidgets,
@@ -53,7 +53,7 @@ function widget(node, name) {
   return node?.widgets?.find((item) => item.name === name) || null;
 }
 
-const INTERNAL_WIDGETS = [TRACK_WIDGET, FINGERPRINT_WIDGET, SOURCE_WIDGET];
+const INTERNAL_WIDGETS = [SCENE_WIDGET, FINGERPRINT_WIDGET, SOURCE_WIDGET];
 
 function hideInternalWidgets(node) {
   for (const name of INTERNAL_WIDGETS) {

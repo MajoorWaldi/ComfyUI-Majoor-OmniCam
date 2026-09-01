@@ -154,148 +154,36 @@ def test_the_director_reads_stills_connected_to_its_video_socket():
     assert float(proxy.get_frame_rate()) == 24.0
 
 
-def test_the_ati_preview_draws_over_a_video_connected_to_its_image_socket(clip):
-    from comfy_api.latest import InputImpl
-
-    from omnicam.nodes.adapters import MajoorOmniCamATIPreview
-
-    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
-    camera = {"position": [0, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base}
-    output = MajoorOmniCamATIPreview.execute(
-        camera_track={
-            "schema_version": 1, "fps": 24, "duration_frames": 8,
-            "width": 320, "height": 180, "render_mode": "omni_ref", "objects": [],
-            "keyframes": [
-                {"frame": 0, "camera": camera, "interpolation": "smooth"},
-                {"frame": 7, "camera": {**camera, "position": [1, 1, 4]}, "interpolation": "smooth"},
-            ],
-        },
-        image=InputImpl.VideoFromFile(clip.get_stream_source()),
-        point_count=8,
-    )
-    assert output.args[0].shape[0] == 1
-
-
 def _output_by_name(schema, name):
     return next(item for item in schema.outputs if item.display_name == name)
 
 
-def test_director_gains_an_image_twin_of_its_proxy_video():
+def test_director_keeps_video_transport_without_an_image_twin():
     from omnicam.nodes.director import MajoorOmniCamDirector
 
     schema = MajoorOmniCamDirector.define_schema()
     assert [output.display_name for output in schema.outputs] == [
-        "camera_track", "proxy_video", "audio", "shot_collection", "proxy_frames",
+        "motion_scene", "playblast_video", "audio",
     ]
-    assert _output_by_name(schema, "proxy_frames").io_type == "IMAGE"
 
     output = MajoorOmniCamDirector.execute(
         state_json="{}", recording_path="", card_asset="", width=1280, height=720, fps=24,
         duration_seconds=1.0, render_mode="omni_ref", video=image_batch(5),
     )
-    proxy_frames = output.args[4]
-    assert proxy_frames is not None
-    assert proxy_frames.shape[0] == 5
+    playblast_video = output.args[1]
+    assert playblast_video is not None
+    assert playblast_video.get_frame_count() == 5
 
 
-def test_director_proxy_frames_is_none_without_a_proxy():
+def test_director_playblast_is_none_without_a_proxy():
     from omnicam.nodes.director import MajoorOmniCamDirector
 
     output = MajoorOmniCamDirector.execute(
         state_json="{}", recording_path="", card_asset="", width=1280, height=720, fps=24,
         duration_seconds=1.0, render_mode="omni_ref",
     )
-    assert output.args[4] is None
+    assert output.args[1] is None
 
 
-def test_monitor_gains_an_image_twin_of_its_reference_video(monkeypatch):
-    from omnicam.nodes.monitor import MajoorOmniCamMonitor
-
-    schema = MajoorOmniCamMonitor.define_schema()
-    names = [output.display_name for output in schema.outputs]
-    assert names[0] == "reference_video"
-    assert names[-1] == "reference_frames"
-    assert _output_by_name(schema, "reference_frames").io_type == "IMAGE"
-
-    monkeypatch.setattr(
-        "omnicam.nodes.monitor.execute_monitor_adapter",
-        lambda **kwargs: {
-            "reference_video": kwargs["proxy_video"], "camera_prompt": "", "cinematic_prompt": "",
-            "final_prompt": "", "camera_data_json": "{}", "wan_camera": None, "tracks": "[]",
-            "adapter_width": 832, "adapter_height": 480, "adapter_length": 81,
-            "guide_frames": image_batch(1), "adapter_profile_json": "{}",
-        },
-    )
-    base = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
-    camera = {"position": [0, 1, 4], "target": [0, 1, 0], "fov": 35, "roll": 0, **base}
-    output = MajoorOmniCamMonitor.execute(
-        camera_track={
-            "schema_version": 1, "fps": 24, "duration_frames": 2,
-            "width": 320, "height": 180, "render_mode": "omni_ref", "objects": [],
-            "keyframes": [
-                {"frame": 0, "camera": camera, "interpolation": "smooth"},
-                {"frame": 1, "camera": camera, "interpolation": "smooth"},
-            ],
-        },
-        proxy_video=image_batch(6),
-    )
-    assert output.args[-1].shape[0] == 6
 
 
-def test_h3_native_reference_frames_are_bounded_by_the_aligned_generation_length(monkeypatch):
-    from types import SimpleNamespace
-
-    from omnicam.nodes.monitor import MajoorOmniCamMonitor
-
-    class Video:
-        def get_frame_rate(self): return 30.0
-        def get_frame_count(self): return 600
-        def get_dimensions(self): return (24, 16)
-        def as_trimmed(self, *, start_time, duration, strict_duration=False):
-            start = round(start_time * 30.0)
-            count = max(1, round(duration * 30.0))
-            images = torch.full((count, 16, 24, 3), float(start))
-            return SimpleNamespace(get_components=lambda: SimpleNamespace(images=images))
-
-    monkeypatch.setattr(
-        "omnicam.nodes.monitor.execute_monitor_adapter",
-        lambda **kwargs: {
-            "reference_video": kwargs["proxy_video"], "camera_prompt": "", "cinematic_prompt": "",
-            "final_prompt": "", "camera_data_json": "{}", "wan_camera": None, "tracks": "[]",
-            "adapter_width": 832, "adapter_height": 480, "adapter_length": 81,
-            "guide_frames": None, "adapter_profile_json": "{}",
-        },
-    )
-    video = Video()
-    output = MajoorOmniCamMonitor.execute(
-        camera_track=canonical_track_payload(duration_frames=480),
-        proxy_video=video,
-        adapter="h3_native",
-    )
-    assert output.args[-1].shape[0] == 90
-    assert output.args[9] == 90
-
-
-def test_h3_legacy_adapter_gains_an_image_twin_of_its_reference_video(monkeypatch):
-    from omnicam.nodes.adapters import MajoorOmniCamH3Adapter
-
-    schema = MajoorOmniCamH3Adapter.define_schema()
-    names = [output.display_name for output in schema.outputs]
-    assert names[0] == "camera_reference_video"
-    assert names[-1] == "reference_frames"
-    assert _output_by_name(schema, "reference_frames").io_type == "IMAGE"
-
-    with pytest.warns(DeprecationWarning, match="OmniCam Monitor"):
-        output = MajoorOmniCamH3Adapter.execute(
-            camera_track=canonical_track_payload(duration_frames=2),
-            proxy_video=image_batch(3),
-            base_prompt="A brass robot",
-            prompt_style="h3",
-        )
-
-    assert len(output.args) == 5
-    assert output.args[0].get_frame_count() == 3
-    assert "camera-motion" in output.args[1]
-    assert "A brass robot" in output.args[2]
-    assert json.loads(output.args[3])["classification"]
-    assert output.args[4].shape[0] == 3

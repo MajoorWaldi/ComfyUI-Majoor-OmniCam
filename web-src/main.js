@@ -2,7 +2,6 @@ import { app, api } from "./comfy-runtime.js";
 
 import { registerOmniCamNodeBranding } from "./node-branding.js";
 import { configureMotionHealthApi } from "./motion-health/panel.js";
-import { migrateDirectorOutputs } from "./director-output-migration.js";
 import {
   OMNICAM_SETTINGS,
   registerDirectorRuntime,
@@ -49,9 +48,8 @@ registerOmniCamLocales(app);
 app.registerExtension({
   name: "Majoor.OmniCam.Director",
   settings: OMNICAM_SETTINGS,
-  beforeConfigureGraph(graphData) {
+  beforeConfigureGraph() {
     configuringGraph = true;
-    migrateDirectorOutputs(graphData);
   },
   afterConfigureGraph() {
     configuringGraph = false;

@@ -10,10 +10,38 @@
 // there would make every reload look like a changed prompt.
 
 export { EXTRACTOR_NODE_CLASS } from "../node-classes.js";
-export const RESULT_ENVELOPE_KIND = "omnicam_extractor_result_v1";
-export const TRACK_WIDGET = "omnicam_extracted_track_json";
+export const RESULT_ENVELOPE_KIND = "omnicam_extractor_result_v2";
+export const SCENE_WIDGET = "omnicam_extracted_motion_scene_json";
 export const FINGERPRINT_WIDGET = "omnicam_extracted_track_fingerprint";
 export const SOURCE_WIDGET = "omnicam_extractor_source";
+
+export function motionSceneCameraTrack(motionScene) {
+  if (!motionScene || motionScene.version !== 1 || !Array.isArray(motionScene.cameras)) return null;
+  const cameraId = String(motionScene.playblast_camera_id || motionScene.active_camera_id || "");
+  const camera = motionScene.cameras.find((item) => String(item?.id || "") === cameraId);
+  const track = camera?.track;
+  return track && Array.isArray(track.keyframes) && track.keyframes.length ? track : null;
+}
+
+export function motionSceneFromTrack(track) {
+  if (!track || !Array.isArray(track.keyframes) || !track.keyframes.length) return null;
+  const fps = Number(track.fps);
+  const durationFrames = Number(track.duration_frames);
+  if (!(fps > 0) || !(durationFrames > 0)) return null;
+  const fingerprint = String(track.metadata?.extractor_fingerprint || "");
+  return {
+    version: 1,
+    timeline: { duration_seconds: durationFrames / fps, authoring_fps: fps },
+    canvas: { width: Number(track.width), height: Number(track.height) },
+    cameras: [{ id: "extracted_camera", label: "Extracted Camera", enabled: true, track }],
+    active_camera_id: "extracted_camera",
+    playblast_camera_id: "extracted_camera",
+    objects: Array.isArray(track.objects) ? track.objects : [],
+    motion_layers: [],
+    cuts: [],
+    metadata: { ...(track.metadata || {}), source: "omnicam_extractor", extractor_fingerprint: fingerprint },
+  };
+}
 
 /** Parse an onExecuted message into a result, or null if it is not ours. */
 export function parseExtractorMessage(message) {
@@ -27,12 +55,14 @@ export function parseExtractorMessage(message) {
     return null;
   }
   if (!envelope || envelope.kind !== RESULT_ENVELOPE_KIND) return null;
-  const track = envelope.track;
-  if (!track || !Array.isArray(track.keyframes)) return null;
+  const motionScene = envelope.motion_scene;
+  const track = motionSceneCameraTrack(motionScene);
+  if (!track) return null;
   return {
+    motionScene,
     track,
     fingerprint: String(envelope.fingerprint || ""),
-    confidence: Number(envelope.confidence) || 0,
+    solver_coverage: Number(envelope.solver_coverage) || 0,
     report: String(envelope.report || ""),
     source: String(envelope.source || ""),
   };
@@ -53,7 +83,7 @@ function findWidget(node, name) {
 /** Create the two cache widgets once, hidden but serialized with the workflow. */
 export function ensureCacheWidgets(node) {
   const widgets = [];
-  for (const name of [TRACK_WIDGET, FINGERPRINT_WIDGET]) {
+  for (const name of [SCENE_WIDGET, FINGERPRINT_WIDGET]) {
     let widget = findWidget(node, name);
     if (!widget) {
       widget = node.addWidget?.("text", name, "", () => {}, { serialize: true });
@@ -68,10 +98,10 @@ export function ensureCacheWidgets(node) {
 /** Store a parsed result on the node. Returns true when the fingerprint changed. */
 export function cacheExtractorResult(node, result) {
   ensureCacheWidgets(node);
-  const trackWidget = findWidget(node, TRACK_WIDGET);
+  const sceneWidget = findWidget(node, SCENE_WIDGET);
   const fingerprintWidget = findWidget(node, FINGERPRINT_WIDGET);
   const changed = String(fingerprintWidget?.value || "") !== result.fingerprint;
-  if (trackWidget) trackWidget.value = JSON.stringify(result.track);
+  if (sceneWidget) sceneWidget.value = JSON.stringify(result.motionScene);
   if (fingerprintWidget) fingerprintWidget.value = result.fingerprint;
   return changed;
 }
@@ -88,16 +118,17 @@ export function cacheExtractorSource(node, source) {
 /** Read back what an Extractor node has cached, or null when it has nothing. */
 export function readCachedResult(node) {
   const fingerprint = String(findWidget(node, FINGERPRINT_WIDGET)?.value || "");
-  const raw = String(findWidget(node, TRACK_WIDGET)?.value || "");
+  const raw = String(findWidget(node, SCENE_WIDGET)?.value || "");
   if (!fingerprint || !raw) return null;
-  let track;
+  let motionScene;
   try {
-    track = JSON.parse(raw);
+    motionScene = JSON.parse(raw);
   } catch {
     return null;
   }
-  if (!track || !Array.isArray(track.keyframes) || !track.keyframes.length) return null;
-  return { track, fingerprint };
+  const track = motionSceneCameraTrack(motionScene);
+  if (!track) return null;
+  return { motionScene, track, fingerprint };
 }
 
 /** A compact one-line summary for the node body -- never the whole JSON. */

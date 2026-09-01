@@ -1,5 +1,5 @@
-"""Lightweight monitoring, preflight, preview and adapter orchestration."""
+"""Typed values shared by the modern Monitor profile compilers."""
 
-from .types import MonitorSnapshot
+from .result import Check, CompiledMotion, ResolvedTimeline
 
-__all__ = ["MonitorSnapshot"]
+__all__ = ["Check", "CompiledMotion", "ResolvedTimeline"]

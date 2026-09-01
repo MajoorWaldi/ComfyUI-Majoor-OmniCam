@@ -14,12 +14,6 @@ from pathlib import Path
 
 import pytest
 
-from omnicam.core.director_shot import (
-    SHOT_COLLECTION_SCHEMA_VERSION,
-    SHOT_SCHEMA_VERSION,
-    build_director_shot,
-    build_shot_collection,
-)
 from omnicam.core.track import OmniCamTrack
 from omnicam.core.validation import (
     DEFAULT_LIMITS,
@@ -27,7 +21,6 @@ from omnicam.core.validation import (
     INTERPOLATION_MODES,
     LOOK_AT_STATUSES,
     MAX_METADATA_ENTRIES,
-    MAX_TEXT_LENGTH,
     RENDER_MODES,
     validate_track_payload,
 )
@@ -96,16 +89,6 @@ def test_every_interpolation_the_validator_accepts_is_in_the_schema(interpolatio
     validate(load("track.v1"), payload, registry)
 
 
-def test_shot_and_collection_payloads_match_their_schemas(registry):
-    shot = build_director_shot(
-        shot_id="cam_1", name="Camera 1", video=None, audio=None,
-        camera_track=sample_track(), metadata={"source": "test"},
-    )
-    validate(load("shot.v1"), shot, registry)
-    collection = build_shot_collection([shot], {"camera_count": 1})
-    validate(load("shot_collection.v1"), collection, registry)
-
-
 # --------------------------------------------------------------------------
 # The schemas actually reject what the validator rejects
 # --------------------------------------------------------------------------
@@ -163,24 +146,11 @@ def test_editor_state_schema_bounds_mirror_the_validator():
     assert properties["cameras"]["items"]["properties"]["keyframes"]["maxItems"] == DEFAULT_LIMITS.max_keys_per_track
 
 
-def test_shot_schema_versions_and_caps_mirror_the_code():
-    from omnicam.core.director_shot import MAX_COLLECTION_SHOTS
-
-    shot = load("shot.v1")
-    collection = load("shot_collection.v1")
-    assert shot["properties"]["schema_version"]["const"] == SHOT_SCHEMA_VERSION
-    assert collection["properties"]["schema_version"]["const"] == SHOT_COLLECTION_SCHEMA_VERSION
-    assert collection["properties"]["shots"]["maxItems"] == MAX_COLLECTION_SHOTS
-    assert shot["properties"]["id"]["maxLength"] == MAX_TEXT_LENGTH
-
-
 def test_only_schemas_for_live_contracts_are_published():
-    """The sequence stack was removed; its schemas went with it."""
+    """Only editor-state and internal camera-track schemas remain published."""
     published = {path.name for path in SCHEMA_DIR.glob("*.schema.json")}
     assert published == {
         "editor_state.v1.schema.json",
-        "shot.v1.schema.json",
-        "shot_collection.v1.schema.json",
         "track.v1.schema.json",
     }
 

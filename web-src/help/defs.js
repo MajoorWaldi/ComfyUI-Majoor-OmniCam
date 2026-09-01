@@ -11,11 +11,11 @@ import { registerNodeHelp } from "./schema.js";
 
 registerNodeHelp("MajoorOmniCamDirector", {
   title: "OmniCam Director",
-  tagline: "Interactive camera-authoring node: block a shot in a live 3D viewport and record it as a canonical camera track.",
+  tagline: "Interactive motion-scene authoring: block cameras and tracks in a live 3D viewport and record a clean playblast.",
   sections: [
     {
       heading: "What it does",
-      body: "The Director opens a full 3D viewport on the node's face. You place cameras and reference objects, pose the frame, and record keyframes as you scrub the timeline. The result is a canonical OmniCam camera track - a portable, relative 6DoF motion path - plus an optional neutral-grey proxy playblast video.\n\nThe track carries motion only, never final look. Wire it into OmniCam Monitor to turn it into whatever a downstream video model needs.",
+      body: "The Director opens a full 3D viewport on the node's face. You place cameras and reference objects, pose the frame, draw or project motion tracks, and record keyframes as you scrub the timeline. The result is a model-independent OmniCam MotionScene plus an optional neutral-grey playblast video.",
     },
     {
       heading: "Basic workflow",
@@ -30,21 +30,22 @@ registerNodeHelp("MajoorOmniCamDirector", {
     {
       heading: "Output",
       defs: [
-        ["camera_track", "The canonical OmniCam track: positions, rotations and lens data over time."],
-        ["proxy_video", "Optional neutral-grey playblast of the recorded camera move, used as a visual reference by some adapters."],
+        ["motion_scene", "Cameras, objects, normalized motion layers, cuts and authoring timeline."],
+        ["playblast_video", "Optional clean playblast used as a model-motion reference."],
+        ["audio", "Associated audio, passed through without model-specific processing."],
       ],
     },
   ],
-  footer: "For AI-video camera control, wire camera_track into OmniCam Monitor rather than one of the legacy adapter nodes.",
+  footer: "An Extractor MotionScene can be connected to Director and imported as a new editable camera.",
 });
 
 registerNodeHelp("MajoorOmniCamExtractor", {
   title: "OmniCam Extractor",
-  tagline: "Solve a real video's camera motion into a canonical OmniCam track, so you can re-target it onto a new shot.",
+  tagline: "Solve a real video's camera motion into a canonical OmniCam MotionScene, ready for Director.",
   sections: [
     {
       heading: "What it does",
-      body: "Extracts a relative 6DoF camera trajectory from one continuous video shot using visual odometry (DPVO when installed, OpenCV/SIFT otherwise) and emits the same canonical track format the Director produces. Feed the result into the Director to edit it further, or straight into OmniCam Monitor.\n\nThe video must be a single continuous shot - hard cuts are reported in the output, not stitched across.",
+      body: "Extracts a relative 6DoF camera trajectory from one continuous video shot using visual odometry (DPVO when installed, OpenCV/SIFT otherwise). The validated solve remains an internal camera primitive and is wrapped in a one-camera MotionScene for the Director.\n\nThe video must be a single continuous shot - hard cuts are reported in the output, not stitched across.",
     },
     {
       heading: "Key inputs",
@@ -59,8 +60,8 @@ registerNodeHelp("MajoorOmniCamExtractor", {
     {
       heading: "Outputs",
       defs: [
-        ["camera_track", "The solved canonical OmniCam track."],
-        ["confidence", "Legacy output alias for Solver Coverage (not camera accuracy)."],
+        ["motion_scene", "A canonical one-camera OmniCam MotionScene containing the solved trajectory."],
+        ["solver_coverage", "Share of sampled frames that produced a pose; not camera accuracy."],
         ["report", "Human-readable notes: detected cuts, tracking quality, warnings."],
       ],
     },

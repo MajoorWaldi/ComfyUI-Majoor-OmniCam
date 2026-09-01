@@ -8,14 +8,7 @@ PRODUCT_NODES = (
     "MajoorOmniCamMonitor",
 )
 
-COMPATIBILITY_NODES = (
-    "MajoorOmniCamH3Adapter",
-    "MajoorOmniCamWanNativeCamera",
-    "MajoorOmniCamLTXCameraGuide",
-    "MajoorOmniCamWanVideoWrapperATI",
-)
-
-REGISTERED_NODE_IDS = PRODUCT_NODES + COMPATIBILITY_NODES
+REGISTERED_NODE_IDS = PRODUCT_NODES
 PUBLIC_NODES = PRODUCT_NODES
 
 LEGACY_NODE_IDS = frozenset({
@@ -25,18 +18,14 @@ LEGACY_NODE_IDS = frozenset({
     "MajoorOmniCamSequence", "MajoorOmniCamSequenceBuilder", "MajoorOmniCamSequenceShot",
     "MajoorOmniCamSequenceManifest", "MajoorOmniCamSequenceEDL", "MajoorOmniCamSequenceEDLImport",
     "MajoorOmniCamDCCExport", "MajoorOmniCamBlenderExport", "MajoorOmniCamUnrealExport",
+    "MajoorOmniCamH3Adapter", "MajoorOmniCamWanNativeCamera", "MajoorOmniCamLTXCameraGuide",
+    "MajoorOmniCamWanVideoWrapperATI",
 })
 
 INTERNAL_COMPONENTS = ("camera_tools", "scene_motion_analysis")
 
 
 def get_registered_nodes():
-    from .nodes.adapters import (
-        MajoorOmniCamH3Adapter,
-        MajoorOmniCamLTXCameraGuide,
-        MajoorOmniCamWanNativeCamera,
-        MajoorOmniCamWanVideoWrapperATI,
-    )
     from .nodes.director import MajoorOmniCamDirector
     from .nodes.extractor import MajoorOmniCamExtractor
     from .nodes.monitor import MajoorOmniCamMonitor
@@ -47,8 +36,4 @@ def get_registered_nodes():
         MajoorOmniCamDirector,
         MajoorOmniCamExtractor,
         MajoorOmniCamMonitor,
-        MajoorOmniCamH3Adapter,
-        MajoorOmniCamWanNativeCamera,
-        MajoorOmniCamLTXCameraGuide,
-        MajoorOmniCamWanVideoWrapperATI,
     ]

@@ -18,6 +18,7 @@ import { SolveJobClient, stopActiveSolveOnDispose } from "../../web-src/extracto
 import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
 import { SOLVE_EVENTS, SolveEventSubscription, solveEventMatcher } from "../../web-src/extractor/job-events.js";
 import { RefineController, alignmentQuaternion } from "../../web-src/extractor/refine-controls.js";
+import { SCENE_WIDGET } from "../../web-src/extractor/result-cache.js";
 import { ResultApplyError, appliedStatus, applyRefinedTrack } from "../../web-src/extractor/result-sync.js";
 import {
   describeSource,
@@ -521,7 +522,7 @@ test("applying a completed solve caches it and notifies the Director", () => {
   const graph = new FakeGraph();
   const extractor = graph.add(1, "MajoorOmniCamExtractor");
   const director = graph.add(2, "MajoorOmniCamDirector");
-  graph.connect(extractor, director, "camera_track");
+  graph.connect(extractor, director, "motion_scene");
   let synced = 0;
   director.__majoorOmniCam = { syncUpstreamInputs: () => { synced += 1; } };
 
@@ -531,6 +532,9 @@ test("applying a completed solve caches it and notifies the Director", () => {
   assert.equal(
     extractor.widgets.find((w) => w.name === "omnicam_extracted_track_fingerprint").value, "fp-1",
   );
+  const cachedScene = JSON.parse(extractor.widgets.find((w) => w.name === SCENE_WIDGET).value);
+  assert.equal(cachedScene.active_camera_id, "extracted_camera");
+  assert.deepEqual(cachedScene.cameras[0].track, TRACK);
 });
 
 test("a stopped solve cannot be applied", () => {

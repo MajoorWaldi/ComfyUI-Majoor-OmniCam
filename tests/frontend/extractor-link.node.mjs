@@ -21,7 +21,7 @@ import {
 import {
   FINGERPRINT_WIDGET,
   RESULT_ENVELOPE_KIND,
-  TRACK_WIDGET,
+  SCENE_WIDGET,
   cacheExtractorResult,
   ensureCacheWidgets,
   parseExtractorMessage,
@@ -51,6 +51,27 @@ function extractorTrack(fingerprint = "fp-1", { fps = 30, duration = 90 } = {}) 
       source: "omnicam_extractor", backend: "dpvo", confidence: 0.98,
       monocular_scale: true, extractor_fingerprint: fingerprint,
     },
+  };
+}
+
+function extractorScene(fingerprint = "fp-1", overrides = {}) {
+  const track = extractorTrack(fingerprint, overrides);
+  return {
+    version: 1,
+    timeline: {
+      duration_seconds: track.duration_frames / track.fps,
+      authoring_fps: track.fps,
+    },
+    canvas: { width: track.width, height: track.height },
+    cameras: [{
+      id: "extracted_camera", label: "Extracted Camera", enabled: true, track,
+    }],
+    active_camera_id: "extracted_camera",
+    playblast_camera_id: "extracted_camera",
+    objects: [],
+    motion_layers: [],
+    cuts: [],
+    metadata: { source: "omnicam_extractor", extractor_fingerprint: fingerprint },
   };
 }
 
@@ -101,7 +122,7 @@ class FakeGraph {
   connect(origin, target, inputName) {
     const linkId = this._nextLink++;
     this.links[linkId] = { origin_id: origin.id, target_id: target.id };
-    origin.outputs.push({ name: "camera_track", links: [linkId] });
+    origin.outputs.push({ name: "motion_scene", links: [linkId] });
     target.inputs.push({ name: inputName, link: linkId });
     return linkId;
   }
@@ -154,8 +175,8 @@ function solvedMessage(fingerprint = "fp-1", overrides = {}) {
     text: [JSON.stringify({
       kind: RESULT_ENVELOPE_KIND,
       fingerprint,
-      track: extractorTrack(fingerprint, overrides),
-      confidence: 0.98,
+      motion_scene: extractorScene(fingerprint, overrides),
+      solver_coverage: 0.98,
       report: "OmniCam Extractor",
     })],
   };
@@ -165,7 +186,7 @@ function linkedPair() {
   const graph = new FakeGraph();
   const extractor = graph.add(1, "MajoorOmniCamExtractor");
   const director = graph.add(2, "MajoorOmniCamDirector");
-  graph.connect(extractor, director, "camera_track");
+  graph.connect(extractor, director, "motion_scene");
   return { graph, extractor, director, ui: makeDirectorUi(director) };
 }
 
@@ -174,6 +195,7 @@ function linkedPair() {
 test("an execution message is parsed only when it is an extractor envelope", () => {
   const parsed = parseExtractorMessage(solvedMessage("fp-9"));
   assert.equal(parsed.fingerprint, "fp-9");
+  assert.equal(parsed.motionScene.active_camera_id, "extracted_camera");
   assert.equal(parsed.track.keyframes.length, 3);
 
   assert.equal(parseExtractorMessage(undefined), null);
@@ -197,7 +219,7 @@ test("the cache widgets are hidden, serialized and created once", () => {
   const node = new FakeNode(1, "MajoorOmniCamExtractor", null);
   ensureCacheWidgets(node);
   ensureCacheWidgets(node);
-  assert.deepEqual(node.widgets.map((w) => w.name), [TRACK_WIDGET, FINGERPRINT_WIDGET]);
+  assert.deepEqual(node.widgets.map((w) => w.name), [SCENE_WIDGET, FINGERPRINT_WIDGET]);
   for (const widget of node.widgets) {
     assert.equal(widget.hidden, true);
     assert.deepEqual(widget.computeSize(), [0, -4]);
@@ -205,7 +227,7 @@ test("the cache widgets are hidden, serialized and created once", () => {
   }
 });
 
-test("executing the extractor caches the track and its fingerprint", () => {
+test("executing the extractor caches the motion scene and its fingerprint", () => {
   const node = new FakeNode(1, "MajoorOmniCamExtractor", null);
   const result = parseExtractorMessage(solvedMessage("fp-1"));
   assert.equal(cacheExtractorResult(node, result), true);
@@ -213,6 +235,7 @@ test("executing the extractor caches the track and its fingerprint", () => {
 
   const cached = readCachedResult(node);
   assert.equal(cached.fingerprint, "fp-1");
+  assert.equal(cached.motionScene.cameras.length, 1);
   assert.equal(cached.track.keyframes.length, 3);
 });
 
@@ -274,16 +297,16 @@ test("an empty track is refused rather than clearing the camera", () => {
 
 // --- link ------------------------------------------------------------------
 
-test("the linked extractor node is found through the camera_track input", () => {
+test("the linked extractor node is found through the motion_scene input", () => {
   const { extractor, ui } = linkedPair();
   assert.equal(upstreamExtractorNode(ui), extractor);
 });
 
-test("a foreign node on camera_track is not treated as an extractor", () => {
+test("a foreign node on motion_scene is not treated as an extractor", () => {
   const graph = new FakeGraph();
   const other = graph.add(1, "SomeOtherTrackSource");
   const director = graph.add(2, "MajoorOmniCamDirector");
-  graph.connect(other, director, "camera_track");
+  graph.connect(other, director, "motion_scene");
   assert.equal(upstreamExtractorNode(makeDirectorUi(director)), null);
 });
 
@@ -413,6 +436,6 @@ test("notifying tolerates a graph with no downstream Director", () => {
   const graph = new FakeGraph();
   const extractor = graph.add(1, "MajoorOmniCamExtractor");
   const consumer = graph.add(2, "SomeAdapter");
-  graph.connect(extractor, consumer, "camera_track");
+  graph.connect(extractor, consumer, "motion_scene");
   assert.equal(notifyDownstreamDirectors(extractor), 0);
 });

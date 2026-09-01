@@ -1,0 +1,54 @@
+import { diagnosticState, escapeHtml } from "./html.js";
+
+function unwrap(value) {
+  return Array.isArray(value) && value.length === 1 ? value[0] : value;
+}
+
+export function normalizeMonitorExecution(message) {
+  const payload = message?.ui && typeof message.ui === "object" ? message.ui : (message || {});
+  const preflight = Array.isArray(payload.preflight)
+    && payload.preflight.length === 1
+    && Array.isArray(payload.preflight[0])
+    ? payload.preflight[0]
+    : payload.preflight;
+  const capabilities = unwrap(payload.capabilities);
+  const targetProfile = unwrap(payload.target_profile);
+  return {
+    targetProfile: typeof targetProfile === "string" ? targetProfile : "",
+    preflight: Array.isArray(preflight) ? preflight : [],
+    capabilities: capabilities && typeof capabilities === "object"
+      ? capabilities
+      : { capabilities: [] },
+  };
+}
+
+function checkMarkup(check) {
+  const state = diagnosticState(check.state);
+  const message = check.message ? `<br><small>${escapeHtml(check.message)}</small>` : "";
+  return `<div class="oc-row"><span><strong>${escapeHtml(check.label || check.id)}</strong>${message}</span><span class="oc-state" data-state="${state}">${escapeHtml(check.state || "UNKNOWN")}</span></div>`;
+}
+
+export function renderMonitorExecution(root, message) {
+  const result = normalizeMonitorExecution(message);
+  const preflight = root.querySelector('[data-role="profile-preflight"]');
+  preflight.innerHTML = result.preflight.length
+    ? result.preflight.map(checkMarkup).join("")
+    : '<div class="oc-empty">No preflight checks returned.</div>';
+
+  const entries = Array.isArray(result.capabilities.capabilities)
+    ? result.capabilities.capabilities
+    : [];
+  const capabilities = root.querySelector('[data-role="profile-capabilities"]');
+  capabilities.innerHTML = entries.length
+    ? entries.map((entry) => `<div class="oc-row"><span>${escapeHtml(entry.display || entry.adapter)}</span><span class="oc-state" data-state="${diagnosticState(entry.state)}">${escapeHtml(entry.state)}</span></div>`).join("")
+    : '<div class="oc-empty">No optional downstream capability detected.</div>';
+
+  const blocked = result.preflight.some((check) => String(check.state).toUpperCase() === "BLOCKED");
+  const badge = root.querySelector('[data-role="monitor-status"]');
+  badge.dataset.state = blocked ? "BLOCKED" : "READY";
+  badge.lastChild.textContent = blocked ? " BLOCKED" : " READY";
+  root.querySelector('[data-role="output-status"]').textContent = result.targetProfile
+    ? `OUTPUT GENERATED · ${result.targetProfile}`
+    : "OUTPUT GENERATED";
+  return result;
+}

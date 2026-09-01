@@ -2,10 +2,6 @@
   "nodes": [
     "MajoorOmniCamDirector",
     "MajoorOmniCamExtractor",
-    "MajoorOmniCamMonitor",
-    "MajoorOmniCamH3Adapter",
-    "MajoorOmniCamWanNativeCamera",
-    "MajoorOmniCamLTXCameraGuide",
-    "MajoorOmniCamWanVideoWrapperATI"
+    "MajoorOmniCamMonitor"
   ]
 }

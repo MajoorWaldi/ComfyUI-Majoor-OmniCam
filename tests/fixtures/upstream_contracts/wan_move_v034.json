@@ -1,0 +1,39 @@
+{
+  "profile_id": "wan_move_native",
+  "display_name": "Wan Move Native",
+  "semantic": "screen_tracks",
+  "node": {
+    "id": "WanMoveTracksFromCoords",
+    "inputs": [
+      {"name": "track_coords", "type": "STRING"},
+      {"name": "track_mask", "type": "MASK"}
+    ],
+    "outputs": [
+      {"name": "tracks", "type": "TRACKS"},
+      {"name": "track_length", "type": "INT"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "track_length",
+    "facts": [
+      "All tracks share the frame count of the first track.",
+      "track_path has shape [frames, num_tracks, 2].",
+      "track_visibility is a boolean tensor with shape [frames, num_tracks]."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "comfyui",
+      "url": "https://github.com/Comfy-Org/ComfyUI",
+      "ref": "v0.34.0",
+      "path": "comfy_extras/nodes_wanmove.py",
+      "required_literals": [
+        "node_id=\"WanMoveTracksFromCoords\"",
+        "io.String.Input(\"track_coords\"",
+        "io.Tracks.Output()",
+        "out_track_info[\"track_path\"] = tracks",
+        "out_track_info[\"track_visibility\"] = track_visibility"
+      ]
+    }
+  ]
+}

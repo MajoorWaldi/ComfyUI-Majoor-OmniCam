@@ -1,0 +1,44 @@
+{
+  "profile_id": "wanvideo_ati",
+  "display_name": "WanVideoWrapper ATI",
+  "semantic": "screen_tracks",
+  "node": {
+    "id": "WanVideoATITracks",
+    "inputs": [
+      {"name": "model", "type": "WANVIDEOMODEL"},
+      {"name": "tracks", "type": "STRING"},
+      {"name": "width", "type": "INT"},
+      {"name": "height", "type": "INT"},
+      {"name": "temperature", "type": "FLOAT"},
+      {"name": "topk", "type": "INT"},
+      {"name": "start_percent", "type": "FLOAT"},
+      {"name": "end_percent", "type": "FLOAT"}
+    ],
+    "outputs": [
+      {"name": "model", "type": "WANVIDEOMODEL"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "fixed_121",
+    "facts": [
+      "Every trajectory is represented by exactly 121 samples.",
+      "Short trajectories are padded with zero x, zero y, and zero visibility.",
+      "Long trajectories are truncated to 121 samples."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "wanvideowrapper",
+      "url": "https://github.com/kijai/ComfyUI-WanVideoWrapper",
+      "ref": "088128b224242e110d3906c6750e9a3a348a659b",
+      "path": "ATI/nodes.py",
+      "required_literals": [
+        "FIXED_LENGTH = 121",
+        "pad = np.zeros((FIXED_LENGTH - n, 3), dtype=np.float32)",
+        "class WanVideoATITracks:",
+        "\"tracks\": (\"STRING\",)",
+        "RETURN_TYPES = (\"WANVIDEOMODEL\",)"
+      ]
+    }
+  ]
+}

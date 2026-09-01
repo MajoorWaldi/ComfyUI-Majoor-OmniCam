@@ -441,7 +441,7 @@ export async function syncUpstreamInputs(ui) {
     ui.setStatus(t("Upstream 3D scene disconnected · model removed"));
   }
 
-  // The camera_track cable is handled last and separately: it replaces keys
+  // The motion_scene cable is handled last and separately: it stages camera keys
   // rather than media, and it decides for itself whether anything changed.
   // A disconnected cable is deliberately a no-op -- the imported keys stay.
   if (syncExtractorCameraTrack(ui)) anyUpdated = true;

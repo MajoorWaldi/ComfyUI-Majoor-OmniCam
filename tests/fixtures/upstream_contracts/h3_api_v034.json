@@ -1,0 +1,41 @@
+{
+  "profile_id": "h3_api",
+  "display_name": "MiniMax H3 API",
+  "semantic": "reference_video",
+  "node": {
+    "id": "MinimaxHailuo03ReferenceNode",
+    "inputs": [
+      {"name": "model.prompt", "type": "STRING"},
+      {"name": "model.reference_videos", "type": "VIDEO"},
+      {"name": "seed", "type": "INT"},
+      {"name": "watermark", "type": "BOOLEAN"}
+    ],
+    "outputs": [
+      {"name": "video", "type": "VIDEO"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "api_duration_seconds",
+    "facts": [
+      "Reference motion remains VIDEO transport.",
+      "Reference videos are 2 to 15 seconds each and at most 15 seconds total.",
+      "Accepted reference frame rates are 23.976 to 60 fps.",
+      "Prompt references use the strict Video i dialect without angle brackets."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "comfyui",
+      "url": "https://github.com/Comfy-Org/ComfyUI",
+      "ref": "v0.34.0",
+      "path": "comfy_api_nodes/nodes_minimax.py",
+      "required_literals": [
+        "node_id=\"MinimaxHailuo03ReferenceNode\"",
+        "IO.Video.Input(\"reference_video\")",
+        "'Video 1', 'Audio 1'",
+        "Supported range is 23.976-60 FPS.",
+        "Maximum is 15 seconds."
+      ]
+    }
+  ]
+}

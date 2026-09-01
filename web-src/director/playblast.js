@@ -1,3 +1,5 @@
+import { attachPlayblastMetrics } from "../playblast-contract.js";
+
 const MIME_TYPES = ["video/mp4;codecs=avc1.42E01E", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
 
 export async function captureRealtimePlayblast({
@@ -30,15 +32,18 @@ export async function captureRealtimePlayblast({
     const recordedDurationMs = Math.max(0, now() - startedAt);
     const expectedDurationMs = frameCount / fps * 1000;
     const metrics = {
+      encoder: "media_recorder",
       requestedFrames: frameCount,
       expectedDurationMs,
       recordedDurationMs,
       driftMs: recordedDurationMs - expectedDurationMs,
+      fps,
+      width: canvas.width,
+      height: canvas.height,
     };
     onMetrics?.(metrics);
     const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
-    Object.defineProperty(blob, "omnicamMetrics", { value: metrics, enumerable: true });
-    return blob;
+    return attachPlayblastMetrics(blob, metrics);
   } finally { if (recorder?.state === "recording") recorder.stop(); stream.getTracks().forEach((track) => track.stop()); }
 }
 

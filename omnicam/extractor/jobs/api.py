@@ -9,6 +9,7 @@ thin binding that cannot accidentally grow logic of its own.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from ..preview_frame import PreviewFrame, PreviewFrameError, decode_preview_frame
@@ -31,6 +32,7 @@ MAX_REQUEST_BYTES = 256 * 1024
 METHODS = ("auto", "dpvo", "opencv_sift")
 LENS_MODES = ("auto", "fov", "focal_mm")
 SOURCE_KINDS = ("annotated_input", "managed")
+_CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
 class ApiError(Exception):
@@ -40,6 +42,13 @@ class ApiError(Exception):
         super().__init__(message)
         self.status = int(status)
         self.message = str(message)
+
+
+def validate_client_id(value: Any) -> str:
+    """Accept a bounded ComfyUI client token, never arbitrary request text."""
+    if not isinstance(value, str) or not _CLIENT_ID_PATTERN.fullmatch(value):
+        raise ApiError(400, "Invalid client id")
+    return value
 
 
 def _number(settings: dict[str, Any], name: str, default: float, low: float, high: float) -> float:
@@ -166,6 +175,7 @@ def start_job(manager: SolveJobManager, body: Any, *, client_id: str) -> dict[st
     validate_request_size(body)
     if not client_id:
         raise ApiError(400, "A solve must be started by an identified client")
+    client_id = validate_client_id(client_id)
     source = validate_source(body.get("source"))
     settings = validate_settings(body.get("settings"))
     try:

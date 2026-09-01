@@ -16,13 +16,13 @@ import pytest
 from omnicam.extractor.backends.base import SolveError
 from omnicam.extractor.backends.dpvo_worker import (
     CANONICAL_MODULE_NAME,
+    MIN_LANDMARK_CONFIDENCE,
     DpvoProcessRunner,
     DpvoWorkerRequest,
     _isolated_child_bootstrap,
     child_sys_path,
     extract_active_patch_features,
     extract_landmarks_3d,
-    MIN_LANDMARK_CONFIDENCE,
     writable_frame_copy,
     write_frame_exchange,
 )

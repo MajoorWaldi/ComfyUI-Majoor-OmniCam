@@ -1,24 +1,14 @@
 """V3 node package for OmniCam.
 
-Product nodes and compatibility facades listed by :mod:`omnicam.node_registry`
-are loaded by ComfyUI. Internal tools remain unregistered.
+Only product nodes listed by :mod:`omnicam.node_registry` are loaded by
+ComfyUI. Internal tools remain unregistered.
 """
 
 from __future__ import annotations
 
 from ..comfy_compat import IO
-from .adapters import (
-    MajoorOmniCamH3Adapter,
-    MajoorOmniCamLTXCameraGuide,
-    MajoorOmniCamWanNativeCamera,
-    MajoorOmniCamWanVideoWrapperATI,
-)
 from .base import (
-    OMNICAM_ATI_BRIDGE,
-    OMNICAM_EDITOR_STATE,
-    OMNICAM_LTX_BRIDGE,
-    OMNICAM_SHOT_COLLECTION,
-    OMNICAM_TRACK,
+    OMNICAM_MOTION_SCENE,
     resolve_video,
     validated_track,
 )
@@ -34,18 +24,10 @@ def get_registered_nodes() -> list[type[IO.ComfyNode]]:
 
 
 __all__ = [
-    "OMNICAM_ATI_BRIDGE",
-    "OMNICAM_EDITOR_STATE",
-    "OMNICAM_LTX_BRIDGE",
-    "OMNICAM_SHOT_COLLECTION",
-    "OMNICAM_TRACK",
+    "OMNICAM_MOTION_SCENE",
     "MajoorOmniCamDirector",
     "MajoorOmniCamExtractor",
-    "MajoorOmniCamH3Adapter",
-    "MajoorOmniCamLTXCameraGuide",
     "MajoorOmniCamMonitor",
-    "MajoorOmniCamWanNativeCamera",
-    "MajoorOmniCamWanVideoWrapperATI",
     "get_registered_nodes",
     "resolve_video",
     "validated_track",

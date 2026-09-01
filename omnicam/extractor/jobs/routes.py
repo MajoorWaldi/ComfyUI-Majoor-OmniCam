@@ -29,7 +29,7 @@ def _client_id(request: web.Request) -> str:
         request.headers.get("Comfy-Client-Id"),
     ):
         if candidate:
-            return str(candidate)
+            return api.validate_client_id(str(candidate))
     return ""
 
 
@@ -68,7 +68,9 @@ def _raise_api_error(exc: api.ApiError) -> None:
 @PromptServer.instance.routes.post(PREFIX)
 async def start_solve_route(request: web.Request):
     body = await _body(request)
-    client_id = _client_id(request) or str(body.get("client_id") or "")
+    client_id = _client_id(request)
+    if not client_id:
+        client_id = api.validate_client_id(body.get("client_id"))
     return _respond(api.start_job, solve_manager(), body, client_id=client_id)
 
 

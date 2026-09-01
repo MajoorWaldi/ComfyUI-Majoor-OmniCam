@@ -11,7 +11,7 @@
 // as they do after a normal execution.
 
 import { notifyDownstreamDirectors } from "./director-link.js";
-import { cacheExtractorResult } from "./result-cache.js";
+import { cacheExtractorResult, motionSceneFromTrack } from "./result-cache.js";
 
 export class ResultApplyError extends Error {}
 
@@ -35,7 +35,16 @@ export function applyRefinedTrack(node, { track, state } = {}) {
     throw new ResultApplyError("This track carries no extractor fingerprint.");
   }
 
-  cacheExtractorResult(node, { track, fingerprint, confidence: Number(track?.metadata?.confidence) || 0 });
+  const motionScene = motionSceneFromTrack(track);
+  if (!motionScene) {
+    throw new ResultApplyError("This solve cannot be wrapped in a canonical motion scene.");
+  }
+  cacheExtractorResult(node, {
+    motionScene,
+    track,
+    fingerprint,
+    solver_coverage: Number(track?.metadata?.solver_coverage ?? track?.metadata?.confidence) || 0,
+  });
   const notified = notifyDownstreamDirectors(node);
   return { fingerprint, notified };
 }

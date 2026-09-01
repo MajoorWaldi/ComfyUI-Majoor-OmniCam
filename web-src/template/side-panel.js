@@ -23,6 +23,25 @@ function outlinerPanel() {
         <button data-object-type="null" title="${t("Add Null (+)")}"><i class="pi pi-plus"></i> ${t("Null")}</button>
       </div>
       <div class="scene-tree" data-role="objects"></div>
+      <div class="oc-section motion-section-title">${t("Motion Tracks")}</div>
+      <div class="motion-preset-bar" aria-label="${t("Camera field presets")}">
+        <button data-motion-preset="balanced" title="${t("Balanced camera field")}">${t("Balanced")}</button>
+        <button data-motion-preset="foreground" title="${t("Foreground camera field")}">${t("Foreground")}</button>
+        <button data-motion-preset="subject" title="${t("Subject camera field")}">${t("Subject")}</button>
+        <button data-motion-preset="ground_parallax" title="${t("Ground parallax camera field")}">${t("Ground")}</button>
+        <button data-motion-preset="depth_layers" title="${t("Depth layers camera field")}">${t("Depth")}</button>
+      </div>
+      <div class="motion-empty" data-role="motion-layers-empty">${t("No motion tracks")}</div>
+      <div class="motion-layer-list" data-role="motion-layers"></div>
+      <div class="motion-layer-controls">
+        <select data-role="motion-interpolation" title="${t("Motion interpolation")}">
+          <option value="linear">${t("Linear")}</option><option value="smooth">${t("Smooth")}</option><option value="hold">${t("Hold")}</option>
+        </select>
+        <label title="${t("Motion key visibility")}"><input data-role="motion-key-visible" type="checkbox" checked> ${t("Visible")}</label>
+        <button class="icon-button" data-motion-layer-action="retime" title="${t("Retime motion keys to playback range")}"><i class="pi pi-clock"></i></button>
+        <button class="icon-button" data-motion-layer-action="toggle" title="${t("Enable or disable motion layer")}"><i class="pi pi-eye"></i></button>
+        <button class="icon-button" data-motion-layer-action="delete" title="${t("Delete motion layer")}"><i class="pi pi-trash"></i></button>
+      </div>
       <div class="oc-card" data-role="object-panel">
         <div class="oc-card-title" data-role="selected-name">${t("Object Transform")}</div>
         <div class="oc-field-row">

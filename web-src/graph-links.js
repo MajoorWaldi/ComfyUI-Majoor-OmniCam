@@ -11,5 +11,8 @@ export function graphLink(graph, linkRef) {
 export function linkedOrigin(graph, linkRef) {
   const link = graphLink(graph, linkRef);
   const originId = link?.origin_id ?? link?.originId;
-  return originId == null ? null : graph?.getNodeById?.(originId) ?? null;
+  if (originId == null) return null;
+  const node = graph?.getNodeById?.(originId);
+  if (node) return node;
+  return (graph?._nodes || graph?.nodes || []).find((candidate) => String(candidate?.id) === String(originId)) ?? null;
 }

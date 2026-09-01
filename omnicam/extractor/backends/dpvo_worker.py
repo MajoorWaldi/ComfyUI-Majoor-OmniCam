@@ -200,7 +200,7 @@ def extract_landmarks_3d(slam, limit: int = MAX_LANDMARKS_3D) -> list[dict[str, 
         array = geometry.detach().float().cpu().tolist() if hasattr(geometry, "detach") else geometry.tolist() if hasattr(geometry, "tolist") else geometry
         confidence_values = getattr(slam, "landmark_confidence", None)
         confidences = confidence_values.detach().float().cpu().tolist() if hasattr(confidence_values, "detach") else confidence_values.tolist() if hasattr(confidence_values, "tolist") else confidence_values
-    except Exception:
+    except Exception:  # noqa: BLE001 - optional third-party geometry must not fail a solve
         return []
     candidates = []
     for index, value in enumerate(array if isinstance(array, list) else []):

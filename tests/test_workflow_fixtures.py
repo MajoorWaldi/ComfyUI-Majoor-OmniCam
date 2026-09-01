@@ -10,7 +10,7 @@ KNOWN_NODE_TYPES = {"MajoorOmniCamDirector", "MajoorOmniCamExtractor", "MajoorOm
 EXPECTED_WIDGET_COUNTS = {
     "MajoorOmniCamDirector": 8,
     "MajoorOmniCamExtractor": 14,
-    "MajoorOmniCamMonitor": 10,
+    "MajoorOmniCamMonitor": 6,
 }
 
 
@@ -46,3 +46,14 @@ def test_real_v034_subgraph_shape_has_promoted_fps_and_no_legacy_definition_widg
     assert outer["properties"]["proxyWidgets"] == [["10", "fps"]]
     assert outer["widgets_values"] == [30]
     assert definition["widgets"] == []
+
+
+def test_v034_director_monitor_fixture_uses_current_scene_and_profile_contract():
+    workflow = json.loads((FIXTURES / "v0.34-director-monitor.json").read_text(encoding="utf-8"))
+    director, monitor = workflow["nodes"]
+
+    assert workflow["version"] == 0.4
+    assert director["outputs"][0]["type"] == "OMNICAM_MOTION_SCENE"
+    assert monitor["inputs"][0]["type"] == "OMNICAM_MOTION_SCENE"
+    assert monitor["widgets_values"][1] == "wan_camera_native"
+    assert all("MAJOOR_OMNICAM_TRACK" not in json.dumps(node) for node in workflow["nodes"])

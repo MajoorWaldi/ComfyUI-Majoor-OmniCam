@@ -1,0 +1,46 @@
+{
+  "profile_id": "wan_camera_native",
+  "display_name": "Wan Camera Native",
+  "semantic": "camera_embedding",
+  "node": {
+    "id": "WanCameraEmbedding",
+    "inputs": [
+      {"name": "camera_pose", "type": "COMBO"},
+      {"name": "width", "type": "INT"},
+      {"name": "height", "type": "INT"},
+      {"name": "length", "type": "INT"},
+      {"name": "speed", "type": "FLOAT"},
+      {"name": "fx", "type": "FLOAT"},
+      {"name": "fy", "type": "FLOAT"},
+      {"name": "cx", "type": "FLOAT"},
+      {"name": "cy", "type": "FLOAT"}
+    ],
+    "outputs": [
+      {"name": "camera_embedding", "type": "WAN_CAMERA_EMBEDDING"},
+      {"name": "width", "type": "INT"},
+      {"name": "height", "type": "INT"},
+      {"name": "length", "type": "INT"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "requested_length",
+    "facts": [
+      "The node generates one camera transform per requested frame.",
+      "The camera embedding packs four pixel frames per latent step after repeating the first frame four times."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "comfyui",
+      "url": "https://github.com/Comfy-Org/ComfyUI",
+      "ref": "v0.34.0",
+      "path": "comfy_extras/nodes_camera_trajectory.py",
+      "required_literals": [
+        "node_id=\"WanCameraEmbedding\"",
+        "io.WanCameraEmbedding.Output(display_name=\"camera_embedding\")",
+        "RT = get_camera_motion(angle, T, speed, length)",
+        "torch.repeat_interleave(control_camera_video[:, :, 0:1], repeats=4, dim=2)"
+      ]
+    }
+  ]
+}

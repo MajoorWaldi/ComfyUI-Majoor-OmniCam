@@ -1,4 +1,5 @@
 import { SEQUENCE_TARGET, defaultSequence, sanitizeSequence } from "./sequence.js";
+import { sanitizeMotionState } from "../motion-tracks/state.js";
 
 export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -372,6 +373,7 @@ export function defaultState() {
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
     health_profile: "generic",
+    motion_layers: [], selected_motion_layer_id: null, motion_tool: "select",
     sequence: defaultSequence(),
   };
 }
@@ -520,7 +522,7 @@ export function sanitizeState(raw) {
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
   out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "viewport"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
   const editorViews = defaultEditorViews(); out.editor_views = Object.fromEntries(Object.entries(editorViews).map(([name, camera]) => [name, cloneCamera(out.editor_views?.[name] || camera)]));
-  return out;
+  return sanitizeMotionState(out);
 }
 
 

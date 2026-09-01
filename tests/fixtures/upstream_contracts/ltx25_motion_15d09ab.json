@@ -1,0 +1,50 @@
+{
+  "profile_id": "ltx25_motion_track",
+  "display_name": "LTX 2.5 Motion Track",
+  "semantic": "screen_tracks",
+  "node": {
+    "id": "LTXVDrawTracks",
+    "inputs": [
+      {"name": "tracks", "type": "STRING"},
+      {"name": "width", "type": "INT"},
+      {"name": "height", "type": "INT"}
+    ],
+    "outputs": [
+      {"name": "image", "type": "IMAGE"}
+    ]
+  },
+  "frame_policy": {
+    "kind": "8n_plus_1",
+    "facts": [
+      "The track renderer emits one image per sampled JSON point.",
+      "Motion-track guide videos are trimmed to a frame count congruent to 1 modulo 8.",
+      "Track JSON is a list of point lists containing pixel x/y dictionaries."
+    ]
+  },
+  "evidence": [
+    {
+      "repository": "ltxvideo",
+      "url": "https://github.com/Lightricks/ComfyUI-LTXVideo",
+      "ref": "15d09abb5a187a8dcaea2fc31fe51ee96e6c9d0d",
+      "path": "sparse_tracks.py",
+      "required_literals": [
+        "node_id=\"LTXVDrawTracks\"",
+        "io.String.Input(\n                    \"tracks\"",
+        "JSON string of track coordinates (list of point lists with x/y keys).",
+        "num_frames = max(len(t) for t in parsed)",
+        "io.Image.Output()"
+      ]
+    },
+    {
+      "repository": "ltxvideo",
+      "url": "https://github.com/Lightricks/ComfyUI-LTXVideo",
+      "ref": "15d09abb5a187a8dcaea2fc31fe51ee96e6c9d0d",
+      "path": "iclora.py",
+      "required_literals": [
+        "node_id=\"LTXAddVideoICLoRAGuide\"",
+        "frame_idx must be 1 modulo 8",
+        "num_frames_to_keep = (\n            (images.shape[0] - 1) // time_scale_factor\n        ) * time_scale_factor + 1"
+      ]
+    }
+  ]
+}
