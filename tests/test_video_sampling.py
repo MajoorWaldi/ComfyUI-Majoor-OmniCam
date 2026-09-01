@@ -142,3 +142,12 @@ def test_h3_native_resampling_respects_max_seconds():
     # 15 seconds * 24 fps = 360 frames
     assert frames.shape[0] == 360
     assert video.decoded_ranges == [(0, 360)]
+
+
+def test_h3_native_resampling_respects_max_frames():
+    video = _Video()
+    video.fps = 24.0
+    video.total = 1440
+    frames = video_sampling.resample_video_frames(video, target_fps=24.0, max_frames=90)
+    assert frames.shape[0] == 90
+    assert video.decoded_ranges == [(0, 90)]

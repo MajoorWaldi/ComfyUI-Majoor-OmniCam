@@ -32,6 +32,12 @@ configureMotionHealthApi(api);
 
 let configuringGraph = false;
 
+function recordDirectorTrace(stage, node) {
+  const trace = globalThis.__majoorOmniCamCiTrace;
+  if (!Array.isArray(trace)) return;
+  trace.push({ stage, nodeId: node?.id ?? null, nodeClass: nodeClassOf(node), configuringGraph });
+}
+
 // Claim OmniCam shortcuts on window-capture as early as possible -- ideally
 // before ComfyUI's ChangeTracker registers its own Ctrl+Z handler.
 installGlobalKeyInterceptor();
@@ -52,13 +58,20 @@ app.registerExtension({
   },
   async nodeCreated(node) {
     if (nodeClassOf(node) !== DIRECTOR_NODE_CLASS) return;
+    recordDirectorTrace("director:nodeCreated", node);
     // ComfyUI does not await nodeCreated while restoring a workflow. Capture
     // the lifecycle state before the dynamic import so afterConfigureGraph
     // cannot make a loaded node look new when the chunk eventually resolves.
     const seedDefaults = !configuringGraph;
-    await attachWhenLoaded(node, async () => (await import("./director.js")).attachDirector);
+    await attachWhenLoaded(node, async () => {
+      recordDirectorTrace("director:import:start", node);
+      const { attachDirector } = await import("./director.js");
+      recordDirectorTrace("director:import:resolved", node);
+      return attachDirector;
+    });
     const ui = node.__majoorOmniCam;
     if (!ui) return;
+    recordDirectorTrace("director:attach:complete", node);
     registerDirectorRuntime(ui);
     if (seedDefaults) seedDirectorDefaults(ui);
   },

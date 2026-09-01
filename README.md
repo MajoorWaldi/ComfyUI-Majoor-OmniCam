@@ -18,7 +18,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/ComfyUI-0.31%2B-blue" alt="ComfyUI 0.31+">
   <img src="https://img.shields.io/badge/Python-3.10%20%7C%203.12%20%7C%203.13-blue" alt="Python 3.10 / 3.12 / 3.13">
-  <img src="https://img.shields.io/badge/Version-0.3.0-orange" alt="Version 0.3.0">
+  <img src="https://img.shields.io/badge/Version-0.1.0-orange" alt="Version 0.1.0">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
 </p>
 
@@ -530,7 +530,7 @@ render mode and output resolution are never replaced by a camera import.
 ## Deprecated compatibility nodes
 
 These four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`.
-They remain executable throughout the 0.3.x line so pinned workflows still load
+They remain executable throughout the 0.1.x line so pinned workflows still load
 and run, including the legacy H3 node and its five historical outputs. For
 anything new, use **OmniCam Monitor** and pick the matching adapter — it
 produces the same outputs from one node.

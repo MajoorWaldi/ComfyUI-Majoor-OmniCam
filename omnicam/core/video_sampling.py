@@ -51,6 +51,7 @@ def resampling_indices(
     target_fps: float,
     *,
     max_seconds: float | None = None,
+    max_frames: int | None = None,
 ) -> list[int]:
     """Map a source clip onto a duration-preserving target frame clock."""
     if total_frames <= 0:
@@ -61,6 +62,8 @@ def resampling_indices(
     if max_seconds is not None:
         duration = min(duration, max(0.0, float(max_seconds)))
     target_count = max(1, round(duration * target_fps))
+    if max_frames is not None:
+        target_count = min(target_count, max(1, int(max_frames)))
     return [
         min(total_frames - 1, round(index * source_fps / target_fps))
         for index in range(target_count)
@@ -116,6 +119,7 @@ def resample_video_frames(
     *,
     target_fps: float,
     max_seconds: float | None = None,
+    max_frames: int | None = None,
 ) -> torch.Tensor:
     """Decode a VIDEO on a new clock while preserving its elapsed duration."""
     import torch
@@ -126,6 +130,7 @@ def resample_video_frames(
         metadata.frame_rate,
         target_fps,
         max_seconds=max_seconds,
+        max_frames=max_frames,
     )
     if not indices:
         return torch.empty((0, metadata.height, metadata.width, 3), dtype=torch.float32)

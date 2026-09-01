@@ -222,10 +222,19 @@ Object.assign(
   createInteractionMethods(directorDependencies),
   createRenderMethods(directorDependencies),
 );
+function recordDirectorTrace(stage, node) {
+  const trace = globalThis.__majoorOmniCamCiTrace;
+  if (!Array.isArray(trace)) return;
+  trace.push({ stage, nodeId: node?.id ?? null, nodeClass: node?.comfyClass ?? node?.type ?? null });
+}
 export function attachDirector(node) {
   if (node.__majoorOmniCam) return;
+  recordDirectorTrace("director:attach:start", node);
+  recordDirectorTrace("director:constructor:start", node);
   const ui = new OmniCamDirectorUI(node);
+  recordDirectorTrace("director:constructor:complete", node);
   node.__majoorOmniCam = ui;
+  recordDirectorTrace("director:marker:assigned", node);
   ui.hideInternalWidgets();
   const preferredHeight = () => Math.max(700, ui.root.scrollHeight || 0);
   ui.domWidget = node.addDOMWidget("majoor_omnicam_viewport", "omnicam", ui.root, {

@@ -1,0 +1,23 @@
+name: External adapter contract canary
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+jobs:
+  adapter-contract-canary:
+    name: adapter-contract-canary
+    # This observes current third-party master branches. It never changes the
+    # pinned compatibility contracts and is intentionally excluded from branch
+    # protection.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git .adapter-canary/ltx
+      - run: git clone --depth 1 https://github.com/kijai/ComfyUI-WanVideoWrapper.git .adapter-canary/wan-video-wrapper
+      - run: python scripts/adapter_contract_canary.py .adapter-canary/ltx .adapter-canary/wan-video-wrapper

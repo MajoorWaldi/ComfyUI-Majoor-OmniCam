@@ -12,6 +12,9 @@ function captureBrowserDiagnostics(page, testInfo) {
   testInfo.annotations.push(annotation);
   const refresh = () => {
     annotation.description = JSON.stringify(diagnostics);
+    void page.evaluate((value) => {
+      window.__majoorOmniCamCiBrowserDiagnostics = value;
+    }, diagnostics).catch(() => {});
   };
   page.on("pageerror", (error) => {
     diagnostics.pageErrors.push(String(error?.stack || error));
@@ -79,9 +82,16 @@ async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker
         return {
           nodeType: typeName,
           nodeId: node ? node.id : 'missing_node',
+          comfyClass: node?.comfyClass,
+          nodeTypeName: node?.type,
+          constructorType: node?.constructor?.type,
+          hasGraph: Boolean(node?.graph),
+          widgetNames: node?.widgets?.map((widget) => widget.name) || [],
           isGraphReady,
           hasMarker,
-          chunks
+          chunks,
+          trace: window.__majoorOmniCamCiTrace || [],
+          browserDiagnostics: window.__majoorOmniCamCiBrowserDiagnostics || null,
         };
       }, { typeName, globalNodeVar, expectedUIMarker });
       throw new Error('Attach timeout diagnostic: ' + JSON.stringify(diag, null, 2));
@@ -92,6 +102,10 @@ async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker
 
 async function openComfyReady(page) {
   await page.goto("/");
+  await page.evaluate(() => {
+    window.__majoorOmniCamCiTrace = [];
+    window.__majoorOmniCamCiBrowserDiagnostics = null;
+  });
   await page.waitForFunction(
     () => window.comfyAPI?.app?.app?.isGraphReady
       && window.LiteGraph?.registered_node_types?.MajoorOmniCamDirector

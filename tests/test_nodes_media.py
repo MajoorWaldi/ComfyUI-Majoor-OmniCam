@@ -242,7 +242,7 @@ def test_monitor_gains_an_image_twin_of_its_reference_video(monkeypatch):
     assert output.args[-1].shape[0] == 6
 
 
-def test_h3_native_reference_frames_preserve_the_complete_reference(monkeypatch):
+def test_h3_native_reference_frames_are_bounded_by_the_aligned_generation_length(monkeypatch):
     from types import SimpleNamespace
 
     from omnicam.nodes.monitor import MajoorOmniCamMonitor
@@ -272,7 +272,8 @@ def test_h3_native_reference_frames_preserve_the_complete_reference(monkeypatch)
         proxy_video=video,
         adapter="h3_native",
     )
-    assert output.args[-1].shape[0] == 480
+    assert output.args[-1].shape[0] == 90
+    assert output.args[9] == 90
 
 
 def test_h3_legacy_adapter_gains_an_image_twin_of_its_reference_video(monkeypatch):

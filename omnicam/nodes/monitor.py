@@ -4,6 +4,7 @@ from typing import Any
 
 from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
+from ..adapters.h3 import h3_native_aligned_length
 from ..core.video_sampling import resample_video_frames
 from ..monitor.execute import execute_monitor_adapter
 from ..monitor.fingerprint import monitor_fingerprint
@@ -84,10 +85,13 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             resample_video_frames(
                 result["reference_video"],
                 target_fps=24.0,
+                max_frames=h3_native_aligned_length(length),
             )
             if adapter == "h3_native" and result["reference_video"] is not None
             else image_twin(result["reference_video"])
         )
+        if adapter == "h3_native":
+            result["adapter_length"] = h3_native_aligned_length(length)
         ordered = (
             result["reference_video"], result["camera_prompt"], result["cinematic_prompt"],
             result["final_prompt"], result["camera_data_json"], result["wan_camera"],

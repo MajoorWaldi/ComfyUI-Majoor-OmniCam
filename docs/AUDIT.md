@@ -234,7 +234,7 @@ node references. Not done this pass (outside selected scope).
 
 ### F-DOC-9 — README "Public nodes" count in the shields badge — Low
 
-The Version badge says `0.3.0` (matches `pyproject.toml`), the Python badge
+The Version badge says `0.1.0` (matches `pyproject.toml`), the Python badge
 says `3.10 | 3.12` (matches CI). No change needed; noted so the next version
 bump touches `README.md:21` and `README.md:5` (`web/assets/omnicam-icon.svg`
 path is correct).

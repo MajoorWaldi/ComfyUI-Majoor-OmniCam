@@ -323,7 +323,7 @@ blocking for that workflow.
 | Adapter | Family | Control path |
 |---|---|---|
 | `h3` | video reference | reference video + prompt, `Video 1` dialect (`MinimaxHailuo03ReferenceNode`) |
-| `h3_native` | video reference | complete supplied reference resampled to 24 FPS as IMAGE frames + prompt, `<Video 1>` dialect (`MiniMaxH3ReferenceToVideo`); no 15-second truncation |
+| `h3_native` | video reference | supplied reference resampled to 24 FPS as IMAGE frames + prompt, `<Video 1>` dialect (`MiniMaxH3ReferenceToVideo`); decoding is capped at the aligned generation length, not at an arbitrary duration |
 | `wan_native` | camera conditioning | a true digital camera: extrinsics/intrinsics → `WAN_CAMERA_EMBEDDING`; the fidelity reference; `length` = 4n+1 |
 | `wan_tracks_native` | trajectory | projected 2D trajectories → `WanTrackToVideo`; an approximation of a camera |
 | `wan_ati` | trajectory | projected 2D trajectories → `WanVideoATITracks` (Wan 2.1 ATI, WanVideoWrapper) |
@@ -352,7 +352,7 @@ Three deliberately separate ideas:
 ## Deprecated compatibility nodes
 
 All four register under `Majoor/OmniCam/Legacy` with `is_deprecated=True`. They
-remain executable throughout 0.3.x so pinned workflows still load and run; new
+remain executable throughout 0.1.x so pinned workflows still load and run; new
 graphs should use Monitor, whose adapter menu covers every one of these paths.
 The old `MajoorOmniCamWanATIAdapter` additionally has an official Node
 Replacement to `MajoorOmniCamWanVideoWrapperATI`.
@@ -369,7 +369,7 @@ pan/tilt. Inputs: `video_ref_token`, `prompt_style`
 (`h3`/`universal`/`kling`/`luma`/`hunyuan`/`wan`), `base_prompt`, optional
 `proxy_video`. Outputs: `camera_reference_video`, `prompt_fragment`,
 `cinematic_prompt`, `camera_analysis_json`, `reference_frames`.
-All five outputs remain functional for saved 0.3.x workflows even though the
+All five outputs remain functional for saved 0.1.x workflows even though the
 node is deprecated.
 
 ### OmniCam → Wan Native Camera — `MajoorOmniCamWanNativeCamera`
@@ -438,11 +438,13 @@ OmniCam uses `comfy_api.latest` because the required V3 contract (`IO.Schema`,
 the stable `v0_0_2` adapter. The declared and tested minimum is ComfyUI
 `0.31.0`, which bundles `comfyui-frontend-package==1.48.7`; both bounds in
 `pyproject.toml` agree. CI blocks on `v0.31.0` and `v0.34.0`; `master` is a
-non-blocking canary.
+non-blocking canary. A separate weekly, non-blocking contract canary checks the
+current LTX-Video and WanVideoWrapper sources against the pinned adapter socket
+contracts. It reports drift for review and never expands declared support.
 
 ### Compatibility deprecations
 
-Monitor outputs are not reordered or removed in 0.3.x. A future major may
+Monitor outputs are not reordered or removed in 0.1.x. A future major may
 deprecate `camera_prompt`, `cinematic_prompt`, `camera_data_json`, and
 `adapter_profile_json`; saved links remain stable until a versioned slot
 migration exists. Scene-aware trajectory anchors (depth, mesh, tracked points)
