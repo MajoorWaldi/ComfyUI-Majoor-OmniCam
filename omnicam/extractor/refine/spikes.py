@@ -96,6 +96,9 @@ def _flag(
                 kind=kind,
                 severity=float(score),
                 detail=f"{kind} step of {delta:.4g}{unit} against a typical {median:.4g}{unit}",
+                level="error" if score >= sigma * 1.5 else "warn",
+                metrics={"step": float(delta), "typical_step": float(median), "robust_score": float(score)},
+                suggested_action="interpolate",
             )
         )
     return anomalies
@@ -129,8 +132,31 @@ def detect_pose_spikes(
                     kind="coverage",
                     severity=float(COVERAGE_DROP - coverage),
                     detail=f"solver coverage fell to {coverage:.0%}",
+                    level="error" if coverage < COVERAGE_DROP * 0.5 else "warn",
+                    metrics={"coverage": coverage, "inliers": float(getattr(sample, "inliers", 0) or 0)},
+                    suggested_action="exclude",
                 )
             )
 
     anomalies.sort(key=lambda anomaly: (anomaly.frame, anomaly.kind))
-    return anomalies
+    return group_anomalies(anomalies)
+
+
+def group_anomalies(anomalies: Sequence[PoseAnomaly]) -> list[PoseAnomaly]:
+    """Merge adjacent problems of the same kind into one reviewable range."""
+    grouped: list[PoseAnomaly] = []
+    for anomaly in sorted(anomalies, key=lambda item: (item.kind, item.frame)):
+        previous = grouped[-1] if grouped else None
+        if previous and previous.kind == anomaly.kind and anomaly.frame <= (previous.end_frame or previous.frame) + 1:
+            start = previous.start_frame if previous.start_frame is not None else previous.frame
+            end = anomaly.frame
+            worst = anomaly if anomaly.severity > previous.severity else previous
+            grouped[-1] = PoseAnomaly(
+                frame=worst.frame, kind=previous.kind, severity=max(previous.severity, anomaly.severity),
+                detail=f"{previous.kind} issue across frames {start}-{end}", start_frame=start, end_frame=end,
+                level="error" if "error" in (previous.level, anomaly.level) else "warn",
+                metrics=worst.metrics, suggested_action=worst.suggested_action,
+            )
+        else:
+            grouped.append(anomaly)
+    return sorted(grouped, key=lambda item: (item.frame, item.kind))

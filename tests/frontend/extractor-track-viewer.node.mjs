@@ -21,6 +21,7 @@ import {
   projectPoint,
 } from "../../web-src/extractor/tracking-overlay.js";
 import { TrackControls, VIEWS } from "../../web-src/viewer/track-controls.js";
+import { TrackViewer } from "../../web-src/viewer/track-viewer.js";
 import {
   MAX_PASSIVE_FRUSTUMS,
   cameraBasis,
@@ -29,6 +30,7 @@ import {
 } from "../../web-src/viewer/track-frustums.js";
 import { gridSpacing } from "../../web-src/viewer/track-grid.js";
 import { TrackScene, pathBounds, samplePath, trackFrames } from "../../web-src/viewer/track-scene.js";
+import { MAX_TRACK_POINTS, buildTrackPoints } from "../../web-src/viewer/track-points.js";
 
 const BASE = { fov: 53, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
 
@@ -173,6 +175,32 @@ test("disposing the scene releases its groups", () => {
   assert.equal(scene.pathGroup.children.length, 0);
   assert.equal(scene.frustumGroup.children.length, 0);
   assert.equal(scene.tracks.refined, null);
+});
+
+test("landmarks use one bounded buffer geometry", () => {
+  const points = Array.from({ length: 9000 }, (_, index) => ({ x: index, y: 0, z: 1, confidence: 1 }));
+  const cloud = buildTrackPoints(points, { limit: MAX_TRACK_POINTS });
+  assert.equal(cloud.geometry.attributes.position.count, 8000);
+  cloud.geometry.dispose();
+  cloud.material.dispose();
+});
+
+test("camera inspection uses the solved pose and fov without changing the frame", () => {
+  const canvas = {
+    width: 320, height: 180, clientWidth: 320, clientHeight: 180,
+    addEventListener() {}, removeEventListener() {},
+  };
+  const viewer = new TrackViewer(canvas, {
+    rendererFactory: () => ({ setClearColor() {}, setSize() {}, render() {}, dispose() {} }),
+  });
+  viewer.setRefinedTrack(DOLLY);
+  viewer.setFrame(30);
+  viewer.setInspectionView("camera");
+
+  assert.equal(viewer.frame, 30);
+  assert.deepEqual(viewer.renderCamera.position.toArray(), [0, 1, 2]);
+  assert.equal(viewer.renderCamera.fov, 53);
+  viewer.dispose();
 });
 
 // --- grid ------------------------------------------------------------------

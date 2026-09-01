@@ -125,6 +125,7 @@ def run_solve_job(job, manager, publisher) -> None:
         # the raw the panel refines is the raw the pipeline produced.
         stage(SOLVING)
         job.raw_poses = list(raw.poses)
+        job.landmarks_3d = list(raw.landmarks_3d)
         job.backend_name = raw.backend
         job.warnings = list(raw.warnings)
         job.source_frame_count = max(job.source_frame_count, raw.duration_frames)
@@ -173,7 +174,7 @@ def _report(job, publisher, done: int, total: int) -> None:
 def completion_payload(job) -> dict[str, Any]:
     """What the panel needs the moment a solve finishes."""
     refined = job.refined_track or {}
-    return {
+    payload = {
         "state": job.state,
         "fingerprint": str((refined.get("metadata") or {}).get("extractor_fingerprint", "")),
         "key_count": len(refined.get("keyframes", [])),
@@ -183,6 +184,9 @@ def completion_payload(job) -> dict[str, Any]:
         )), 4),
         "anomaly_count": len(job.anomalies),
     }
+    if job.landmarks_3d:
+        payload["landmarks_3d"] = list(job.landmarks_3d)
+    return payload
 
 
 def job_result(job) -> dict[str, Any]:
@@ -191,7 +195,7 @@ def job_result(job) -> dict[str, Any]:
         raise ValueError(
             f"Job {job.job_id} is {job.state}; only a COMPLETED solve produces a final track."
         )
-    return {
+    payload = {
         "job_id": job.job_id,
         "raw_track": job.raw_track,
         "refined_track": job.refined_track,
@@ -204,3 +208,6 @@ def job_result(job) -> dict[str, Any]:
             "solver_coverage", (job.refined_track.get("metadata") or {}).get("confidence", 0.0)
         )),
     }
+    if job.landmarks_3d:
+        payload["landmarks_3d"] = list(job.landmarks_3d)
+    return payload

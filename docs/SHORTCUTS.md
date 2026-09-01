@@ -106,6 +106,10 @@ frames first, then solved camera keyframes. Drag anywhere across its ruler,
 solve-health band, or channel lanes to scrub; the fixed lane-label gutter is
 not part of the scrub range.
 
+In the Extractor 3D tab, `SCENE` is the orbitable path and frustum inspection
+view. `CAMERA` is the solved camera at the current source frame; scene view
+presets and Fit Track are disabled while it is active.
+
 ## Timeline and Curve Editor
 
 | Control | Action |

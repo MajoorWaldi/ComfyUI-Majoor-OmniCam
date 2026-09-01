@@ -103,8 +103,17 @@ def test_anomalies_are_sorted_and_serializable():
     anomalies = detect_pose_spikes(poses)
     assert [a.frame for a in anomalies] == sorted(a.frame for a in anomalies)
     payload = anomalies[0].to_dict()
-    assert set(payload) == {"frame", "kind", "severity", "detail"}
+    assert set(payload) == {"frame", "kind", "severity", "detail", "start_frame", "end_frame", "level", "metrics", "suggested_action"}
     assert isinstance(payload["frame"], int)
+
+
+def test_adjacent_coverage_failures_are_one_review_range():
+    samples = [QualitySample(frame=index, coverage=0.2, state="bad") for index in range(8, 11)]
+    anomaly = detect_pose_spikes(steady_dolly(20), quality_samples=samples)[0]
+
+    assert (anomaly.start_frame, anomaly.end_frame) == (8, 10)
+    assert anomaly.suggested_action == "exclude"
+    assert anomaly.level == "error"
 
 
 # ---------------------------------------------------------------------------

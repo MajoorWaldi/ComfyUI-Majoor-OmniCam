@@ -32,6 +32,8 @@ Build a shot in a live 3D viewport. Animate cameras and scene references, edit t
 
 Turn one continuous reference shot into an editable, relative 6DoF camera track. Use the recovered motion directly, or bring it into Director to retime, refine, and reframe it for a new scene.
 
+The Extractor previews with native browser video first and automatically switches to safe decoded frames when a browser cannot decode the source container. Its 3D tab offers `SCENE` orbit inspection and `CAMERA`, the recovered camera view at the current frame; compatible DPVO installations may also expose a lightweight optional landmark cloud.
+
 ### OmniCam Monitor
 
 ![OmniCam Monitor](docs/assets/monitor-panel.png)

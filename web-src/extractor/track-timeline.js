@@ -6,16 +6,9 @@
 // same frame axis as the video, so a spike in the trajectory is visible at the
 // frame it happens on rather than three panels away.
 //
-// Two grading bands sit above the lanes and mean different things on purpose:
-//
-// * SOLVE is the backend's own per-frame health (coverage, inliers). It says
-//   whether the tracker could see.
-// * MOTION is `motionHealthReport`, the same grading the Director's Health
-//   panel runs. It says whether the resulting camera is shootable.
-//
-// A solve can be green and the motion red -- that is a clean track of a camera
-// that moves too fast for the target model, and it is exactly the case a single
-// merged bar would hide.
+// The first row merges backend solve health with `motionHealthReport`: a pixel
+// takes the worse state, so a track that solved cleanly but moves too fast is
+// still visible at the frame where it needs attention.
 //
 // Nothing here edits: the Extractor corrects a track through Refine, and a
 // timeline you can drag keys on would be a second, silently disagreeing editor.
@@ -33,7 +26,6 @@ export const GRADE_COLORS = {
 export const CHANNEL_COLORS = {
   position: "#8b7bd8",
   target: "#e5a23c",
-  fov: "#5aa9e6",
   roll: "#e2649a",
 };
 
@@ -41,7 +33,6 @@ export const CHANNEL_COLORS = {
 export const TRACK_CHANNELS = [
   { key: "position", label: "Camera" },
   { key: "target", label: "Look At" },
-  { key: "fov", label: "Focal Length" },
   { key: "roll", label: "Roll" },
 ];
 
@@ -50,7 +41,7 @@ const BAND_HEIGHT = 9;
 const BAND_GAP = 2;
 const LABEL_WIDTH = 78;
 
-const BAND_LABELS = { solve: "SOLVE", motion: "MOTION" };
+const BAND_LABELS = { solve: "SOLVE HEALTH" };
 
 /**
  * The compact strip: its own label gutter, thin bands, its own ruler.
@@ -59,7 +50,7 @@ const BAND_LABELS = { solve: "SOLVE", motion: "MOTION" };
  * and so has nowhere else to put a lane name.
  */
 export const COMPACT_LAYOUT = {
-  bands: ["solve", "motion"],
+  bands: ["solve"],
   labels: true,
   labelWidth: LABEL_WIDTH,
   bandHeight: BAND_HEIGHT,
@@ -84,11 +75,11 @@ export const COMPACT_LAYOUT = {
  * and nothing else, on the Director's row pitch, so every lane sits on the
  * label the gutter gives it.
  *
- * SOLVE is absent on purpose too: the quality strip directly above the canvas
- * is that same band, and drawing it twice made the two disagree at a glance.
+ * Solve Health is the first canvas row, aligned with the first label in the
+ * surrounding dope sheet.
  */
 export const DOPE_LAYOUT = {
-  bands: [],
+  bands: ["solve"],
   labels: false,
   labelWidth: 0,
   bandHeight: 28,
@@ -138,7 +129,7 @@ function channelValue(camera, key) {
     const vector = camera[key];
     return Array.isArray(vector) ? vector.map(Number) : null;
   }
-  const value = Number(camera[key === "fov" ? "fov" : "roll"]);
+  const value = Number(camera.roll);
   return Number.isFinite(value) ? [value] : null;
 }
 
@@ -181,7 +172,13 @@ export function channelKeys(track, channels = TRACK_CHANNELS) {
 export function trackHealth(track, limits = null, profileId = "generic") {
   if (!track?.keyframes?.length || !limits) return null;
   try {
-    return motionHealthReport(track, limits, null, profileId);
+    const hasSubject = Array.isArray(track.objects)
+      && track.objects.some((object) => object?.id === "subject" && Array.isArray(object.position));
+    // An extracted camera has no authored scene subject. Treating the generic
+    // fallback point as a hard framing constraint turns an otherwise clean
+    // solve red end-to-end, which is a false diagnostic.
+    const extractorLimits = hasSubject ? limits : { ...limits, allow_framing_loss: true };
+    return motionHealthReport(track, extractorLimits, null, profileId);
   } catch {
     // A malformed track is the solve's problem to report, not the timeline's.
     return null;
@@ -207,6 +204,29 @@ function frameX(frame, width, frameCount, style) {
   return style.labelWidth + (Math.max(0, Math.min(span, frame)) / span) * usable;
 }
 
+/** Visible review markers, normalized to the same source-frame axis as the band. */
+export function healthAnomalyMarkers(anomalies, frameCount) {
+  const last = Math.max(0, Number(frameCount) - 1);
+  return (anomalies || []).map((anomaly) => {
+    const start = Math.max(0, Math.min(last, Number(anomaly?.start_frame ?? anomaly?.frame) || 0));
+    const end = Math.max(start, Math.min(last, Number(anomaly?.end_frame ?? anomaly?.frame) || start));
+    return { start, end, level: anomaly?.level === "error" ? "error" : "warn" };
+  });
+}
+
+function drawAnomalyMarkers(context, markers, row, width, frameCount, style) {
+  for (const marker of markers) {
+    const left = frameX(marker.start, width, frameCount, style);
+    const right = frameX(marker.end, width, frameCount, style);
+    const markerWidth = Math.max(2, right - left + 2);
+    // A dark outline keeps the marker legible even over a red health segment.
+    context.fillStyle = "#101014";
+    context.fillRect(Math.round(left - 1), row.top + 2, Math.ceil(markerWidth + 2), row.height - 4);
+    context.fillStyle = marker.level === "error" ? "#ffffff" : "#f2c66d";
+    context.fillRect(Math.round(left), row.top + 3, Math.ceil(markerWidth), row.height - 6);
+  }
+}
+
 function drawBand(context, { y, height, width, frameCount, colorAt, style }) {
   const total = Math.max(1, Number(frameCount) || 0);
   const usable = laneSpan(width, style);
@@ -218,6 +238,40 @@ function drawBand(context, { y, height, width, frameCount, colorAt, style }) {
     context.fillStyle = color;
     context.fillRect(style.labelWidth + (frame / total) * usable, y, barWidth, height);
   }
+}
+
+/**
+ * Return the most severe display state contained in one rendered time bucket.
+ * Motion grades are normalized to the solve-health palette before comparison.
+ */
+export function worstHealthState(samples, grades, start, end) {
+  const byFrame = new Map((samples || []).map((sample) => [Number(sample.frame), sample]));
+  let worst = "unknown";
+  for (let frame = Math.max(0, Number(start) || 0); frame < Math.max(0, Number(end) || 0); frame += 1) {
+    const solve = qualityState(byFrame.get(frame));
+    const grade = String((grades || [])[frame] || "").toLowerCase();
+    const motion = grade === "over" ? "bad" : grade === "warn" ? "weak" : grade === "ok" ? "good" : "unknown";
+    if (rankQuality(solve) > rankQuality(worst)) worst = solve;
+    if (rankQuality(motion) > rankQuality(worst)) worst = motion;
+  }
+  return worst;
+}
+
+/** Factual per-frame health rows for the Extractor diagnostics panel. */
+export function healthDetails(samples, health, frame) {
+  const current = Number(frame) || 0;
+  const solve = (samples || []).find((sample) => Number(sample.frame) === current);
+  const grade = String(health?.frame_grades?.[current] || "unknown").toUpperCase();
+  const rows = [["Solve state", qualityState(solve).toUpperCase()], ["Motion grade", grade]];
+  if (solve && Number.isFinite(Number(solve.coverage))) rows.push(["Coverage", `${Math.round(Number(solve.coverage) * 100)}%`]);
+  if (solve?.inliers != null) rows.push(["Inliers", String(solve.inliers)]);
+  for (const metric of ["speed", "angular_speed", "acceleration", "jerk"]) {
+    const value = Number(health?.series?.[metric]?.[current]);
+    const limit = Number(health?.limits?.[`max_${metric}`]);
+    if (Number.isFinite(value)) rows.push([metric.replace("_", " "), Number.isFinite(limit) ? `${value.toFixed(2)} / ${limit}` : value.toFixed(2)]);
+  }
+  if (health?.framing?.[current] === false && !health?.limits?.allow_framing_loss) rows.push(["Framing", "LOSS"]);
+  return rows;
 }
 
 function label(context, text, y, color) {
@@ -268,6 +322,7 @@ export function drawTrackTimeline(canvas, {
   track = null,
   health = null,
   quality = [],
+  anomalies = [],
   frame = 0,
   frameCount = 0,
   channels = TRACK_CHANNELS,
@@ -285,6 +340,7 @@ export function drawTrackTimeline(canvas, {
       bottom: row.top + row.height,
       keys: keys[row.key] || [],
     })),
+    anomalies: healthAnomalyMarkers(anomalies, total),
   };
   const context = canvas?.getContext?.("2d");
   const width = canvas?.width || 0;
@@ -293,28 +349,9 @@ export function drawTrackTimeline(canvas, {
 
   context.clearRect(0, 0, width, height);
 
-  const byFrame = new Map((quality || []).map((sample) => [Number(sample.frame), sample]));
   const grades = Array.isArray(health?.frame_grades) ? health.frame_grades : [];
   const bandColor = {
-    solve: (start, end) => {
-      let worst = null;
-      for (let index = start; index < end; index += 1) {
-        const sample = byFrame.get(index);
-        if (!sample) continue;
-        const state = qualityState(sample);
-        if (!worst || rankQuality(state) > rankQuality(worst)) worst = state;
-      }
-      return QUALITY_COLORS[worst || "unknown"];
-    },
-    motion: (start, end) => {
-      if (!grades.length) return QUALITY_COLORS.unknown;
-      let worst = "ok";
-      for (let index = start; index < end; index += 1) {
-        const grade = grades[Math.min(grades.length - 1, index)] || "ok";
-        if (rankGrade(grade) > rankGrade(worst)) worst = grade;
-      }
-      return GRADE_COLORS[worst];
-    },
+    solve: (start, end) => QUALITY_COLORS[worstHealthState(quality, grades, start, end)],
   };
 
   for (const row of rows) {
@@ -335,6 +372,7 @@ export function drawTrackTimeline(canvas, {
         colorAt,
         style,
       });
+      if (row.key === "solve") drawAnomalyMarkers(context, geometry.anomalies, row, width, total, style);
       continue;
     }
 
@@ -392,10 +430,6 @@ export function drawTrackTimeline(canvas, {
 
 function rankQuality(state) {
   return { unknown: 0, good: 1, weak: 2, bad: 3 }[state] ?? 0;
-}
-
-function rankGrade(grade) {
-  return { ok: 0, warn: 1, over: 2 }[grade] ?? 0;
 }
 
 /** The one-line summary under the strip; deliberately says when it knows nothing. */

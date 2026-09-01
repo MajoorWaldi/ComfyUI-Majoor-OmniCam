@@ -5,9 +5,6 @@ import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
 import { RefineController } from "./refine-controls.js";
 import {
-  drawQualityTimeline,
-} from "./quality-timeline.js";
-import {
   FINGERPRINT_WIDGET,
   SOURCE_WIDGET,
   TRACK_WIDGET,
@@ -36,6 +33,7 @@ import {
 } from "./state.js";
 import { buildExtractorRoot } from "./template.js";
 import { TimelinePanelHost } from "./timeline-panel.js";
+import { trackHealth } from "./track-timeline.js";
 import { bindExtractorTransport } from "./transport.js";
 import { TrackingOverlay } from "./tracking-overlay.js";
 import { renderAnomalies } from "./views.js";
@@ -91,8 +89,10 @@ class ExtractorUI {
     this.disposed = false;
     this.disposers = [];
     this.result = { raw: null, refined: null };
+    this.landmarks = [];
     this.diagnostics = new FrameDiagnosticsStore();
     this.upstreamPreviewActive = false;
+    this.motionLimits = null;
 
     this.client = new SolveJobClient(api);
     this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
@@ -113,6 +113,7 @@ class ExtractorUI {
       frameCount: this.state.frameCount,
       fps: this.sourceViewer.fps,
       loop: true,
+      onPlaybackState: () => this.transport?.render(),
     });
     this.timeline = new TimelinePanelHost(this.root, {
       onSeek: (frame) => this.coordinator.seek(frame, "timeline"),
@@ -138,6 +139,7 @@ class ExtractorUI {
     }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
 
     this.bind();
+    this.loadMotionLimits();
     this.refreshSource();
     this.restoreCachedResult();
     this.render();
@@ -161,6 +163,18 @@ class ExtractorUI {
     return this.state;
   }
 
+  async loadMotionLimits() {
+    try {
+      const response = await api.fetchApi?.("/majoor/omnicam/motion_profiles");
+      if (!response?.ok) return;
+      const payload = await response.json();
+      this.motionLimits = payload?.profiles?.find((profile) => profile.id === "generic")?.limits || null;
+      if (!this.disposed) this.render();
+    } catch {
+      // The panel still reports native solve quality when profile routes are unavailable.
+    }
+  }
+
   bind() {
     for (const tab of this.root.querySelectorAll("[data-tab]")) {
       this.listen(tab, "click", () => this.setViewerMode(tab.dataset.tab));
@@ -170,6 +184,17 @@ class ExtractorUI {
     }
     for (const button of this.root.querySelectorAll("[data-view]")) {
       this.listen(button, "click", () => this.viewer?.setView(button.dataset.view));
+    }
+    for (const button of this.root.querySelectorAll("[data-inspection-view]")) {
+      this.listen(button, "click", () => {
+        const view = this.viewer?.setInspectionView(button.dataset.inspectionView) || "scene";
+        for (const item of this.root.querySelectorAll("[data-inspection-view]")) {
+          item.setAttribute("aria-selected", String(item.dataset.inspectionView === view));
+        }
+        for (const item of this.root.querySelectorAll("[data-view], [data-act='fit']")) {
+          item.disabled = view === "camera";
+        }
+      });
     }
 
     this.listen(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
@@ -377,6 +402,7 @@ class ExtractorUI {
       result?.fingerprint || refined?.metadata?.extractor_fingerprint || "",
     );
     this.result = { raw: raw || refined, refined };
+    this.landmarks = Array.isArray(result?.landmarks_3d) ? result.landmarks_3d : [];
     if (origin === "queued") this.dispatch({ type: "QUEUED_RESULT" });
     this.dispatch({
       type: "STATUS",
@@ -496,6 +522,7 @@ class ExtractorUI {
     if (!this.viewer) return;
     this.viewer.setRawTrack(this.result.raw);
     this.viewer.setRefinedTrack(this.result.refined);
+    this.viewer.setLandmarks(this.landmarks);
     this.viewer.setMode(this.state.trackMode);
     this.coordinator.seek(this.state.frame, "sync");
   }
@@ -586,12 +613,14 @@ class ExtractorUI {
 
     renderAnomalies(this.$("anomalies"), this.state.anomalies, {
       actions: this.refine.settings.spike_actions,
-      onAction: (frame, action) => {
-        this.refine.setSpikeAction(frame, action);
+      onFrame: (frame) => this.coordinator.seek(frame, "anomaly"),
+      onAction: (anomaly, action) => {
+        const start = Number(anomaly.start_frame ?? anomaly.frame) || 0;
+        const end = Math.max(start, Number(anomaly.end_frame ?? anomaly.frame) || start);
+        for (let frame = start; frame <= end; frame += 1) this.refine.setSpikeAction(frame, action);
         this.render();
       },
     });
-    this.renderQuality();
     this.renderTimeline();
     this.transport.render();
     renderFrameReadouts(this);
@@ -610,17 +639,15 @@ class ExtractorUI {
    * The read-only solved camera channels, aligned to the source frame clock.
    */
   renderTimeline() {
+    const track = this.state.trackMode === "raw" ? this.result.raw : this.result.refined;
+    this.currentHealth = trackHealth(track, this.motionLimits);
     return this.timeline.render({
-      track: this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
+      track,
+      health: this.currentHealth,
       quality: this.state.quality,
+      anomalies: this.state.anomalies,
       frame: this.state.frame,
       frameCount: this.state.frameCount,
-    });
-  }
-
-  renderQuality() {
-    drawQualityTimeline(this.$("quality-timeline"), this.state.quality, this.state.frameCount, {
-      currentFrame: this.state.frame,
     });
   }
 

@@ -23,6 +23,7 @@ import {
 } from "../three-runtime.js";
 import { frustumFrames, frustumLines } from "./track-frustums.js";
 import { buildTrackGrid, disposeObject, refreshTrackGrid } from "./track-grid.js";
+import { buildTrackPoints } from "./track-points.js";
 
 export const RAW_COLOR = 0x8a8a9c;
 export const REFINED_COLOR = 0x8b7bd8;
@@ -87,7 +88,8 @@ export class TrackScene {
     this.pathGroup = new Group();
     this.frustumGroup = new Group();
     this.markerGroup = new Group();
-    this.scene.add(this.gridGroup, this.pathGroup, this.frustumGroup, this.markerGroup);
+    this.pointGroup = new Group();
+    this.scene.add(this.gridGroup, this.pathGroup, this.frustumGroup, this.markerGroup, this.pointGroup);
 
     this.currentFrustum = null;
     this.currentMarker = marker(REFINED_COLOR, 0.02);
@@ -107,6 +109,12 @@ export class TrackScene {
   setMode(mode) {
     this.mode = ["raw", "refined", "compare"].includes(mode) ? mode : "refined";
     this.rebuild();
+  }
+
+  setLandmarks(points) {
+    this._clear(this.pointGroup);
+    const cloud = buildTrackPoints(points, { extent: this.extent });
+    if (cloud.geometry.attributes.position.count) this.pointGroup.add(cloud);
   }
 
   activeTrack() {
@@ -218,7 +226,7 @@ export class TrackScene {
       disposeObject(this.currentFrustum);
       this.currentFrustum = null;
     }
-    for (const group of [this.pathGroup, this.frustumGroup, this.markerGroup, this.gridGroup]) {
+    for (const group of [this.pathGroup, this.frustumGroup, this.markerGroup, this.pointGroup, this.gridGroup]) {
       this._clear(group);
       this.scene.remove(group);
     }

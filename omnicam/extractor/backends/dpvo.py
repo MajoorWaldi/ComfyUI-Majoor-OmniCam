@@ -141,6 +141,7 @@ class DpvoBackend:
                 on_finalizing=lambda: observe_finalizing(observer),
             )
             result = self._poses_to_samples(np, poses, timestamps, frames)
+            result.landmarks_3d = list(getattr(runner, "landmarks_3d", []) or [])
             for pose in result.poses:
                 observe_pose(observer, pose)
             return result

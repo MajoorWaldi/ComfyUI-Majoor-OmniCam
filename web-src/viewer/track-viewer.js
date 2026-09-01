@@ -13,18 +13,22 @@ import { TrackControls } from "./track-controls.js";
 import { TrackScene } from "./track-scene.js";
 
 export class TrackViewer {
-  constructor(canvas, { onFrameCamera = () => {} } = {}) {
+  constructor(canvas, { onFrameCamera = () => {}, rendererFactory = (options) => new WebGLRenderer(options) } = {}) {
     this.canvas = canvas;
     this.onFrameCamera = onFrameCamera;
     this.disposed = false;
     this.pending = 0;
 
     this.trackScene = new TrackScene();
-    this.camera = new PerspectiveCamera(50, 16 / 9, 0.01, 100000);
-    this.controls = new TrackControls(this.camera, { onChange: () => this.requestRender() });
+    this.sceneCamera = new PerspectiveCamera(50, 16 / 9, 0.01, 100000);
+    this.solvedCamera = new PerspectiveCamera(50, 16 / 9, 0.01, 100000);
+    this.renderCamera = this.sceneCamera;
+    this.inspectionView = "scene";
+    this.frame = 0;
+    this.controls = new TrackControls(this.sceneCamera, { onChange: () => this.requestRender() });
 
     try {
-      this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false });
+      this.renderer = rendererFactory({ canvas, antialias: true, alpha: false });
       this.renderer.setClearColor(0x101014, 1);
     } catch (error) {
       console.warn("[OmniCam] track viewer WebGL unavailable", error);
@@ -37,6 +41,7 @@ export class TrackViewer {
   _bind() {
     if (!this.canvas) return;
     const down = (event) => {
+      if (this.inspectionView === "camera") return;
       this.canvas.setPointerCapture?.(event.pointerId);
       this.controls.beginDrag(event);
     };
@@ -48,6 +53,7 @@ export class TrackViewer {
       this.controls.endDrag();
     };
     const wheel = (event) => {
+      if (this.inspectionView === "camera") return;
       event.preventDefault();
       this.controls.wheel(event);
     };
@@ -79,14 +85,24 @@ export class TrackViewer {
     this.requestRender();
   }
 
+  setLandmarks(points) {
+    this.trackScene.setLandmarks(points);
+    this.requestRender();
+  }
+
   setFrame(frame) {
+    this.frame = Math.max(0, Number(frame) || 0);
     const camera = this.trackScene.setFrame(frame);
-    if (camera) this.onFrameCamera(camera);
+    if (camera) {
+      this._applySolvedCamera(camera);
+      this.onFrameCamera(camera);
+    }
     this.requestRender();
     return camera;
   }
 
   setView(view) {
+    if (this.inspectionView === "camera") return this.inspectionView;
     this.controls.setView(view);
     return view;
   }
@@ -97,13 +113,35 @@ export class TrackViewer {
     return bounds;
   }
 
+  setInspectionView(view) {
+    this.inspectionView = view === "camera" ? "camera" : "scene";
+    this.renderCamera = this.inspectionView === "camera" ? this.solvedCamera : this.sceneCamera;
+    const camera = this.trackScene.setFrame(this.frame);
+    if (camera) this._applySolvedCamera(camera);
+    this.requestRender();
+    return this.inspectionView;
+  }
+
+  _applySolvedCamera(camera) {
+    const aspect = Math.max(0.05, (Number(this.trackScene.activeTrack()?.width) || 16) / Math.max(1, Number(this.trackScene.activeTrack()?.height) || 9));
+    this.solvedCamera.aspect = aspect;
+    this.solvedCamera.fov = Math.max(1, Math.min(179, Number(camera.fov) || 50));
+    this.solvedCamera.position.set(...camera.position.map(Number));
+    this.solvedCamera.up.set(0, 1, 0);
+    this.solvedCamera.lookAt(...camera.target.map(Number));
+    this.solvedCamera.rotateZ((Number(camera.roll) || 0) * Math.PI / 180);
+    this.solvedCamera.updateProjectionMatrix?.();
+  }
+
   // -- rendering ---------------------------------------------------------
 
   resize() {
     const width = this.canvas?.clientWidth || this.canvas?.width || 1;
     const height = this.canvas?.clientHeight || this.canvas?.height || 1;
-    this.camera.aspect = Math.max(0.05, width / Math.max(1, height));
-    this.camera.updateProjectionMatrix?.();
+    for (const camera of [this.sceneCamera, this.solvedCamera]) {
+      camera.aspect = Math.max(0.05, width / Math.max(1, height));
+      camera.updateProjectionMatrix?.();
+    }
     this.renderer?.setSize?.(width, height, false);
     this.requestRender();
   }
@@ -121,7 +159,7 @@ export class TrackViewer {
 
   render() {
     if (this.disposed || !this.renderer) return;
-    this.renderer.render(this.trackScene.scene, this.camera);
+    this.renderer.render(this.trackScene.scene, this.renderCamera);
   }
 
   dispose() {

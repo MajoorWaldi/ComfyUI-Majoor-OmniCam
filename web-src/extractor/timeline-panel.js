@@ -32,7 +32,7 @@ export class TimelinePanelHost {
    * The track passed in is whichever the viewer is showing, so switching
    * RAW/REFINED therefore moves the displayed keys with it.
    */
-  render({ track = null, quality = [], frame = 0, frameCount = 0 } = {}) {
+  render({ track = null, health = null, quality = [], anomalies = [], frame = 0, frameCount = 0 } = {}) {
     const canvas = this.$("track-timeline");
     if (!canvas) return null;
     // The canvas is a lane stack inside the Director's dope sheet, so its
@@ -42,7 +42,9 @@ export class TimelinePanelHost {
     if (canvas.height !== height) canvas.height = height;
     return drawTrackTimeline(canvas, {
       track,
+      health,
       quality,
+      anomalies,
       frame,
       layout: DOPE_LAYOUT,
       frameCount: Math.max(Number(frameCount) || 0, Number(track?.duration_frames) || 0),

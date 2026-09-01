@@ -70,6 +70,8 @@ class BackendSolveResult:
     coverage: float
     warnings: list[str] = field(default_factory=list)
     diagnostics: dict[str, Any] = field(default_factory=dict)
+    #: Optional solver geometry for inspection only; never required for a solve.
+    landmarks_3d: list[dict[str, float]] = field(default_factory=list)
 
 
 @dataclass(slots=True)

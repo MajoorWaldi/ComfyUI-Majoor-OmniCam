@@ -140,6 +140,14 @@ def test_completion_and_failure_are_never_throttled():
     assert recorder.events(FAILED_EVENT)[0]["error"] == "bad shot"
 
 
+def test_completed_event_may_carry_bounded_landmarks():
+    _job, recorder, _clock, pub = publisher()
+    pub.completed({"state": "COMPLETED", "landmarks_3d": [{"x": 0.0, "y": 0.0, "z": 1.0, "confidence": 0.9}]})
+
+    payload = recorder.events(COMPLETED_EVENT)[0]
+    assert payload["landmarks_3d"][0]["z"] == 1.0
+
+
 # ---------------------------------------------------------------------------
 # Payload bounds
 # ---------------------------------------------------------------------------

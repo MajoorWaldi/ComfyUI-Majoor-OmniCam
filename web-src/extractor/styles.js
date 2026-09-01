@@ -40,6 +40,11 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-stage [hidden]{display:none}
   .oc-extractor .oc-stage[data-mode="source"] .oc-track-pane,.oc-extractor .oc-stage[data-mode="track3d"] .oc-diagnostic-pane{display:none}
   .oc-extractor .oc-stage[data-mode="track3d"] .oc-track-pane,.oc-extractor .oc-stage[data-mode="source"] .oc-diagnostic-pane{display:block}
+   .oc-extractor .oc-track-pane .oc-views{position:absolute;z-index:4;inset:10px auto auto 10px;width:auto;height:auto;display:flex;align-items:center;gap:4px;max-width:calc(100% - 20px);padding:4px;background:rgba(20,20,26,.88);border:1px solid rgba(255,255,255,.12);border-radius:7px;backdrop-filter:blur(8px)}
+   .oc-extractor .oc-track-pane .oc-views button{height:26px;padding:0 8px;white-space:nowrap;background:transparent;border-color:transparent;color:var(--oc-text-dim)}
+   .oc-extractor .oc-track-pane .oc-views button:hover:not(:disabled){background:var(--oc-panel-2);border-color:var(--oc-line);color:var(--oc-text)}
+   .oc-extractor .oc-track-pane .oc-views button:disabled{opacity:.35}
+   .oc-extractor .oc-track-pane .oc-view-divider{width:1px;height:18px;background:var(--oc-line);margin:0 2px}
   .oc-extractor .oc-extractor-timeline{gap:8px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);min-width:0}
   /* Wrapping rather than nowrap: an Extractor node is often narrower than a
      Director, and a squeezed transport crushed the TRACK group against the FPS
@@ -49,6 +54,10 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   /* Same 2px inset and 28px controls as the playback group, so the two groups
      are the same height and sit on one line. */
   .oc-extractor .oc-track-tools{gap:4px}
+   .oc-extractor .oc-transport .icon-button{display:inline-flex;align-items:center;justify-content:center;padding:0;line-height:1}
+   .oc-extractor .oc-transport .icon-button i{line-height:1}
+   .oc-extractor .oc-transport [data-act="toggle-loop"][aria-pressed="true"]{background:var(--oc-ok-bg);border-color:var(--oc-ok-line);color:var(--oc-ok-text)}
+   .oc-extractor .oc-transport .primary-play.playing{background:var(--oc-ok)!important;border-color:var(--oc-ok-line)!important;color:var(--oc-accent-ink)!important}
   /* TRACK is a square green key, not a word: the group is a row of 28px icon
      buttons, and a text button among them stretched the row and read as a
      label rather than as the thing you press to start a solve. Green because
@@ -64,16 +73,12 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-dope-tracks{cursor:crosshair;touch-action:none}
   .oc-extractor .oc-extractor-lanes{display:flex;flex-direction:column;gap:var(--oc-dope-gap);min-width:0}
   .oc-extractor .oc-extractor-lanes canvas{width:100%;border-radius:6px;background:var(--oc-panel-2);border:1px solid var(--oc-line-soft);cursor:pointer}
-  /* One dope-sheet row, so it lines up with the SOLVE label beside it. Scoped
-     past the generic .oc-quality rule further down, which is 26px. */
-  .oc-extractor .oc-extractor-lanes .oc-extractor-quality{height:var(--oc-dope-row-h)}
-  /* The lane stack paints its own row plates, one per label in the gutter, so
-     the element itself must not add a seventh box around them. */
+  /* The lane stack paints one health band and three channel row plates. */
   .oc-extractor .oc-extractor-lanes .oc-track-timeline{height:calc(4 * var(--oc-dope-row-h) + 3 * var(--oc-dope-gap));background:none;border:0;border-radius:0}
   .oc-extractor .oc-extractor-timeline-meta{padding:0 2px}
   .oc-extractor .oc-extractor-frame-readout{margin-left:auto;color:var(--oc-text-dim);font:11px ui-monospace,SFMono-Regular,Menlo,monospace}
-  .oc-extractor .oc-extractor-quality-details{max-height:64px;overflow:auto}
-  .oc-extractor .oc-views{display:flex;gap:4px;flex-wrap:wrap}
+   .oc-extractor .oc-extractor-quality-details{overflow:visible}
+   .oc-extractor .oc-views [data-inspection-view][aria-selected="true"]{background:var(--oc-accent)!important;border-color:var(--oc-accent)!important;color:var(--oc-accent-ink)!important}
   .oc-extractor .oc-progress{height:7px;border-radius:4px;background:var(--oc-sunken);overflow:hidden}
   .oc-extractor .oc-progress i{display:block;height:100%;width:0;background:var(--oc-accent);transition:width .12s linear}
   .oc-extractor .oc-solve-line{display:flex;justify-content:space-between;gap:8px;color:var(--oc-text-dim)}
@@ -101,6 +106,8 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   .oc-extractor .oc-row span:first-child{color:var(--oc-text-dim)}
   .oc-extractor .oc-anomalies{display:flex;flex-direction:column;gap:5px;max-height:150px;overflow:auto}
   .oc-extractor .oc-anomaly{display:flex;align-items:center;gap:6px;padding:5px 6px;background:var(--oc-sunken);border:1px solid var(--oc-line);border-radius:6px}
+   .oc-extractor .oc-anomaly[data-level="warn"]{border-left:3px solid var(--oc-warn)}
+   .oc-extractor .oc-anomaly[data-level="error"]{border-left:3px solid var(--oc-danger)}
   .oc-extractor .oc-anomaly .oc-anomaly-text{flex:1;min-width:0}
   .oc-extractor .oc-anomaly strong{color:var(--oc-warn-text)}
   .oc-extractor .oc-anomaly small{display:block;color:var(--oc-text-faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

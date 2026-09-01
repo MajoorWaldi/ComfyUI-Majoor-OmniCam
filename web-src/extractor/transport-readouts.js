@@ -3,6 +3,7 @@
 import { qualityDetails } from "./quality-timeline.js";
 import { timecode } from "./source-viewer.js";
 import { renderRows, warningRows } from "./views.js";
+import { healthDetails } from "./track-timeline.js";
 
 export function renderFrameReadouts(ui) {
   const frameInput = ui.$("frame");
@@ -15,7 +16,8 @@ export function renderFrameReadouts(ui) {
       + ` · ${timecode(ui.state.frame, ui.sourceViewer.fps)}`;
   }
   const rows = qualityDetails(ui.state.quality, ui.state.frame);
-  renderRows(ui.$("quality-details"), [...rows, ...warningRows(ui.state.warnings)], "No solve yet");
+  const health = healthDetails(ui.state.quality, ui.currentHealth, ui.state.frame);
+  renderRows(ui.$("quality-details"), [...rows, ...health, ...warningRows(ui.state.warnings)], "No solve yet");
 }
 
 export function renderExtractorRuler(ui) {

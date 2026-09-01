@@ -62,7 +62,7 @@ export function cameraRows(camera, frame) {
  * Each row offers the three actions the refinement stack understands. None of
  * them touch the raw solve: they are settings, re-applied on every refine.
  */
-export function renderAnomalies(container, anomalies, { onAction = () => {}, actions = {} } = {}) {
+export function renderAnomalies(container, anomalies, { onAction = () => {}, onFrame = () => {}, actions = {} } = {}) {
   if (!container) return 0;
   const doc = container.ownerDocument;
   container.replaceChildren();
@@ -76,17 +76,29 @@ export function renderAnomalies(container, anomalies, { onAction = () => {}, act
   for (const anomaly of anomalies) {
     const item = doc.createElement("div");
     item.className = "oc-anomaly";
+    item.dataset.level = String(anomaly.level || "warn");
 
     const text = doc.createElement("div");
     text.className = "oc-anomaly-text";
     const title = doc.createElement("strong");
-    title.textContent = `⚠ Frame ${anomaly.frame}`;
+    const start = Number(anomaly.start_frame ?? anomaly.frame);
+    const end = Number(anomaly.end_frame ?? anomaly.frame);
+    title.textContent = start === end ? `Frame ${start}` : `Frames ${start}-${end}`;
+    title.tabIndex = 0;
+    title.setAttribute("role", "button");
+    title.addEventListener("click", () => onFrame(anomaly.frame));
+    title.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onFrame(anomaly.frame);
+      }
+    });
     const detail = doc.createElement("small");
-    detail.textContent = anomaly.detail || anomaly.kind || "";
+    detail.textContent = `${String(anomaly.level || "warn").toUpperCase()} · ${anomaly.detail || anomaly.kind || ""}`;
     text.append(title, detail);
     item.append(text);
 
-    const current = actions[String(anomaly.frame)] || "ignore";
+    const current = actions[String(anomaly.frame)] || anomaly.suggested_action || "ignore";
     for (const action of ["interpolate", "ignore", "exclude"]) {
       const button = doc.createElement("button");
       button.type = "button";
@@ -94,7 +106,7 @@ export function renderAnomalies(container, anomalies, { onAction = () => {}, act
       button.dataset.action = action;
       button.dataset.frame = String(anomaly.frame);
       if (action === current) button.setAttribute("aria-selected", "true");
-      button.addEventListener("click", () => onAction(anomaly.frame, action));
+      button.addEventListener("click", () => onAction(anomaly, action));
       item.append(button);
     }
     container.append(item);

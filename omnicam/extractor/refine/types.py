@@ -26,13 +26,25 @@ class PoseAnomaly:
     kind: str
     severity: float
     detail: str
+    start_frame: int | None = None
+    end_frame: int | None = None
+    level: str = "warn"
+    metrics: dict[str, float] = field(default_factory=dict)
+    suggested_action: str = "interpolate"
 
     def to_dict(self) -> dict[str, Any]:
+        start = self.frame if self.start_frame is None else self.start_frame
+        end = self.frame if self.end_frame is None else self.end_frame
         return {
             "frame": int(self.frame),
             "kind": self.kind,
             "severity": round(float(self.severity), 3),
             "detail": self.detail,
+            "start_frame": int(start),
+            "end_frame": int(end),
+            "level": self.level,
+            "metrics": {str(key): round(float(value), 4) for key, value in self.metrics.items()},
+            "suggested_action": self.suggested_action,
         }
 
 

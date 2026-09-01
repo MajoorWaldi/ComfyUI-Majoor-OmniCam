@@ -85,7 +85,7 @@ test("the panel declares the readouts the plan calls for", () => {
   const markup = extractorMarkup();
   for (const role of [
     "solve-status", "source-strip", "source-label", "scrubber", "frame-readout",
-    "quality-timeline", "quality-details", "extractor-camera", "anomalies",
+    "quality-details", "anomalies",
     "progress-bar", "solve-error", "applied-state", "track-canvas", "tracking-overlay",
   ]) {
     assert.match(markup, new RegExp(`data-role="${role}"`), `${role} must exist`);
@@ -108,7 +108,7 @@ test("Extractor uses the Director transport and dope-sheet anatomy", () => {
   for (const role of ["extractor-ruler"]) {
     assert.match(markup, new RegExp(`data-role="${role}"`), `${role} must exist`);
   }
-  for (const label of ["Camera", "Look At", "Focal Length", "Roll"]) {
+  for (const label of ["Solve Health", "Camera", "Look At", "Roll"]) {
     assert.match(markup, new RegExp(`>${label}<`), `${label} lane must exist`);
   }
   assert.match(markup, /class="[^"]*oc-dope[^"]*"/);

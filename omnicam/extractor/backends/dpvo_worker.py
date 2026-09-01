@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import math
 import multiprocessing
 import shutil
 import sys
@@ -33,6 +34,8 @@ PACKAGE_ROOT = str(_PACKAGE_ROOT_PATH)
 RESOLUTION_MULTIPLE = 4
 DPVO_FEATURE_RESOLUTION = 4
 DEFAULT_FINALIZATION_TIMEOUT_SECONDS = 120.0
+MAX_LANDMARKS_3D = 8_000
+MIN_LANDMARK_CONFIDENCE = 0.2
 
 _ACTIVE_RUNNERS: set[DpvoProcessRunner] = set()
 _ACTIVE_RUNNERS_LOCK = threading.RLock()
@@ -184,6 +187,34 @@ def extract_active_patch_features(slam, width: int, height: int) -> list[dict[st
     return sample_features(normalized, [True] * len(normalized))
 
 
+def extract_landmarks_3d(slam, limit: int = MAX_LANDMARKS_3D) -> list[dict[str, float]]:
+    """Read an explicitly exposed DPVO geometry map, never 2-D patches.
+
+    DPVO builds differ in whether they expose reconstruction points. Unsupported
+    builds simply return no cloud and retain a successful camera solve.
+    """
+    geometry = next((getattr(slam, name, None) for name in ("landmarks_3d", "points_3d", "map_points") if getattr(slam, name, None) is not None), None)
+    if geometry is None:
+        return []
+    try:
+        array = geometry.detach().float().cpu().tolist() if hasattr(geometry, "detach") else geometry.tolist() if hasattr(geometry, "tolist") else geometry
+        confidence_values = getattr(slam, "landmark_confidence", None)
+        confidences = confidence_values.detach().float().cpu().tolist() if hasattr(confidence_values, "detach") else confidence_values.tolist() if hasattr(confidence_values, "tolist") else confidence_values
+    except Exception:
+        return []
+    candidates = []
+    for index, value in enumerate(array if isinstance(array, list) else []):
+        if not isinstance(value, (list, tuple)) or len(value) < 3:
+            continue
+        x, y, z = (float(value[axis]) for axis in range(3))
+        confidence = float(confidences[index]) if isinstance(confidences, (list, tuple)) and index < len(confidences) else 1.0
+        if not all(math.isfinite(component) for component in (x, y, z, confidence)) or z <= 0 or confidence < MIN_LANDMARK_CONFIDENCE:
+            continue
+        candidates.append((confidence, index, {"x": round(x, 5), "y": round(y, 5), "z": round(z, 5), "confidence": round(confidence, 5)}))
+    candidates.sort(key=lambda item: (-item[0], item[1]))
+    return [point for _confidence, _index, point in candidates[:max(0, min(MAX_LANDMARKS_3D, int(limit)))]]
+
+
 def writable_frame_copy(frames, index: int, height: int, width: int):
     """Detach one C-contiguous writable frame from the read-only exchange memmap."""
     import numpy as np
@@ -243,11 +274,16 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
             })
         connection.send({"kind": "finalizing", "total": total})
         poses, timestamps = slam.terminate()
-        connection.send({
+        result = {
             "kind": "result",
             "poses": np.asarray(poses).tolist(),
             "timestamps": np.asarray(timestamps).tolist(),
-        })
+        }
+        with contextlib.suppress(Exception):
+            landmarks = extract_landmarks_3d(slam)
+            if landmarks:
+                result["landmarks_3d"] = landmarks
+        connection.send(result)
     except BaseException as exc:  # noqa: BLE001 - failure must cross the process boundary
         message = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         with contextlib.suppress(Exception):
@@ -376,6 +412,7 @@ class DpvoProcessRunner:
         self._connection = None
         self.last_pid: int | None = None
         self.last_exitcode: int | None = None
+        self.landmarks_3d: list[dict[str, float]] = []
 
     def solve(
         self, request: DpvoWorkerRequest, *, progress=None, control=None,
@@ -393,6 +430,7 @@ class DpvoProcessRunner:
         process = context.Process(target=target, args=(child, payload), daemon=True)
         self.process = process  # type: ignore[assignment]
         self._connection = parent  # type: ignore[assignment]
+        self.landmarks_3d = []
         started = time.monotonic()
         finalization_started: float | None = None
         with _isolated_child_bootstrap():
@@ -458,6 +496,7 @@ class DpvoProcessRunner:
                                 with contextlib.suppress(Exception):
                                     on_finalizing()
                     elif kind == "result":
+                        self.landmarks_3d = list(message.get("landmarks_3d") or [])
                         return list(message.get("poses", [])), list(message.get("timestamps", []))
                     elif kind == "error":
                         raise SolveError(f"DPVO worker failed:\n{message.get('error', 'unknown error')}")

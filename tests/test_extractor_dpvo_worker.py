@@ -21,6 +21,8 @@ from omnicam.extractor.backends.dpvo_worker import (
     _isolated_child_bootstrap,
     child_sys_path,
     extract_active_patch_features,
+    extract_landmarks_3d,
+    MIN_LANDMARK_CONFIDENCE,
     writable_frame_copy,
     write_frame_exchange,
 )
@@ -139,6 +141,11 @@ class _PatchSlam:
     patches = _PatchTensor([[0.0, 0.0], [80.0, 60.0]])
 
 
+class _GeometrySlam:
+    landmarks_3d = _PatchTensor([[1.0, 2.0, 3.0], [float("nan"), 0.0, 2.0], [4.0, 5.0, 6.0], [7.0, 8.0, -1.0]])
+    landmark_confidence = _PatchTensor([0.9, 1.0, MIN_LANDMARK_CONFIDENCE, 1.0])
+
+
 def test_frame_exchange_round_trips_without_stacking_in_memory(tmp_path):
     exchange = write_frame_exchange(_frames(3), root=tmp_path)
 
@@ -195,6 +202,19 @@ def test_active_dpvo_patch_features_are_normalized_and_bounded():
         {"x": 0.0, "y": 0.0, "state": "accepted"},
         {"x": 0.5, "y": 0.5, "state": "accepted"},
     ]
+
+
+def test_landmarks_are_finite_confident_and_bounded():
+    points = extract_landmarks_3d(_GeometrySlam(), limit=1)
+
+    assert len(points) == 1
+    assert set(points[0]) == {"x", "y", "z", "confidence"}
+    assert points[0]["z"] > 0
+    assert points[0]["confidence"] >= MIN_LANDMARK_CONFIDENCE
+
+
+def test_unsupported_dpvo_cloud_is_optional():
+    assert extract_landmarks_3d(_PatchSlam()) == []
 
 
 def test_spawned_runner_joins_successful_child(tmp_path):

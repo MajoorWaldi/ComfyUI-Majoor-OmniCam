@@ -4,6 +4,8 @@
 // FrameCoordinator's single clock, so media, the track viewer and diagnostics
 // continue to move together.
 
+import { channelKeys } from "./track-timeline.js";
+
 const ACTIONS = [
   "first-frame", "previous-key", "previous-frame", "play",
   "next-frame", "next-key", "last-frame", "toggle-loop",
@@ -29,7 +31,10 @@ function validFrames(items) {
 
 function keyFrames(state, track) {
   const anomalies = validFrames(state?.anomalies);
-  const solved = validFrames(track?.keyframes);
+  // Navigate the same frames that the three visible lanes draw. Solvers may
+  // emit redundant poses; a navigation stop with no diamond is misleading.
+  const visible = validFrames(Object.values(channelKeys(track)).flat());
+  const solved = visible.length ? visible : validFrames(track?.keyframes);
   return { anomalies, solved };
 }
 
@@ -114,6 +119,13 @@ export function bindExtractorTransport(root, {
     if (next) next.disabled = adjacentFrame(current, 1, frames) === null;
     const loop = button("toggle-loop");
     if (loop) loop.setAttribute("aria-pressed", String(Boolean(coordinator?.loop)));
+    const play = button("play");
+    if (play) {
+      play.classList?.toggle?.("playing", Boolean(coordinator?.playing));
+      const icon = play.querySelector?.("i");
+      if (icon) icon.className = coordinator?.playing ? "pi pi-pause" : "pi pi-play";
+      play.setAttribute("aria-label", coordinator?.playing ? "Pause playback" : "Play playback");
+    }
   }
 
   return { render };

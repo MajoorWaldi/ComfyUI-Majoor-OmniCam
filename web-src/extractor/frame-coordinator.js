@@ -19,6 +19,7 @@ export class FrameCoordinator {
     showDiagnostics = () => {},
     dispatch = () => {},
     setFollow = () => {},
+    onPlaybackState = () => {},
     frameCount = 0,
     fps = 24,
     loop = false,
@@ -30,6 +31,7 @@ export class FrameCoordinator {
     this.showDiagnostics = showDiagnostics;
     this.dispatch = dispatch;
     this.setFollow = setFollow;
+    this.onPlaybackState = onPlaybackState;
     this.frameCount = Math.max(0, Math.floor(Number(frameCount) || 0));
     this.fps = Math.max(1, Number(fps) || 24);
     this.loop = Boolean(loop);
@@ -89,6 +91,7 @@ export class FrameCoordinator {
   play() {
     if (this.disposed || this.playing || this.frameCount < 1) return false;
     this.playing = true;
+    this.onPlaybackState(this.playing);
     this.playbackStartFrame = this.frame;
     this.playbackStartTime = null;
     this.schedule();
@@ -98,6 +101,7 @@ export class FrameCoordinator {
   pause() {
     if (!this.playing) return false;
     this.playing = false;
+    this.onPlaybackState(this.playing);
     this.playbackStartTime = null;
     if (this.animationFrame !== null) this.cancelAnimationFrame(this.animationFrame);
     this.animationFrame = null;
@@ -149,5 +153,6 @@ export class FrameCoordinator {
     this.showDiagnostics = null;
     this.dispatch = null;
     this.setFollow = null;
+    this.onPlaybackState = null;
   }
 }

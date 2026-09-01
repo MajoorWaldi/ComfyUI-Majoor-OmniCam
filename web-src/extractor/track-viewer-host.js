@@ -1,5 +1,3 @@
-import { cameraRows, renderRows } from "./views.js";
-
 /**
  * Lazily construct the Extractor's 3-D track viewer.
  *
@@ -17,9 +15,7 @@ export function loadTrackViewer(host) {
   return import("../viewer/track-viewer.js").then(({ TrackViewer }) => {
     host.viewerLoad = null;
     if (host.disposed || host.viewer) return host.viewer;
-    host.viewer = new TrackViewer(host.$("track-canvas"), {
-      onFrameCamera: (camera) => renderRows(host.$("extractor-camera"), cameraRows(camera, host.state.frame)),
-    });
+    host.viewer = new TrackViewer(host.$("track-canvas"));
     host.pushTracksToViewer();
     return host.viewer;
   }).catch((error) => {

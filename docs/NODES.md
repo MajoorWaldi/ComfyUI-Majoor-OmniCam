@@ -223,22 +223,33 @@ panel uses native browser video first; only an unsupported or undecodable
 container switches to this per-frame fallback, so the source scrubber remains
 usable without changing what the solver reads.
 
-### Track timeline
+### Track timeline and inspection
 
-Below the solve, the panel draws the channels the solve produced — Camera,
-Look At, Focal Length, Roll — as diamonds on the video's frame axis. A key sits
-only where **its** channel changes. Two bands sit above it:
+The read-only timeline has four visible rows: **Solve Health**, **Camera**,
+**Look At**, and **Roll**. Camera, Look At, and Roll show a diamond only when
+that channel changes; FOV remains in the canonical camera data and Current
+Frame details, but is not a timeline lane. Solve Health combines tracker
+quality (coverage and inliers) with the motion grade: each rendered pixel uses
+the worse state, shown as green, orange, red, or grey when unknown. Clicking an
+anomaly jumps the shared source/video/3D frame clock to that frame.
 
-- **SOLVE** — tracker health (coverage, inliers): could it *see*?
-- **MOTION** — `motion_health`, the same grading as the Director's Health
-  panel, against the selected adapter's limits: is the recovered camera
-  *shootable*?
+The Current Frame diagnostics distinguish **Solve state** from **Motion grade**
+and show only measured values: coverage, inliers, speed, angular speed,
+acceleration, jerk, and framing loss where available. Anomalies use structured
+severity (`WARN` or `ERROR`), the observed metric, a recommended compatible
+refinement action, and inclusive `start_frame`/`end_frame` ranges. Adjacent
+failures of one kind are shown as one review range; choosing an action applies
+it across that range without mutating the raw solve.
 
-A green SOLVE with a red MOTION is a real case — a clean track of a camera too
-fast for the target model — and is exactly what one merged bar would hide. The
-MOTION band follows RAW / REFINED. The timeline edits nothing: the Extractor
-corrects through Refine, and a second editable timeline would silently disagree
-with the first.
+The 3D tab has two read-only inspection modes. **SCENE** uses orbit controls to
+inspect the recovered path and current frustum. **CAMERA** renders the solved
+pose and FOV at the selected source frame; scene-orbit preset controls are
+disabled there. When a DPVO build exposes compatible map geometry, the finished
+job may include a bounded optional landmark cloud (at most 8,000 finite points).
+Its absence never affects a completed solve.
+
+The timeline edits nothing: the Extractor corrects through Refine, and a second
+editable timeline would silently disagree with the first.
 
 ### Non-destructive refinement
 

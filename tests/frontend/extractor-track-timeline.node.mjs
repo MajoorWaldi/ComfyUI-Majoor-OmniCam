@@ -16,8 +16,11 @@ import {
   drawTrackTimeline,
   frameAtTimelineX,
   healthSummary,
+  healthDetails,
+  healthAnomalyMarkers,
   timelineHeight,
   trackHealth,
+  worstHealthState,
 } from "../../web-src/extractor/track-timeline.js";
 import { SourceViewer, mediaErrorMessage } from "../../web-src/extractor/source-viewer.js";
 import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
@@ -52,7 +55,6 @@ test("a lane keys only where its own channel moved", () => {
   // Position changes on every key; the look-at never does, so it keys once.
   assert.deepEqual(keys.position, [0, 10, 20, 29]);
   assert.deepEqual(keys.target, [0], "a static look-at must not paint four identical diamonds");
-  assert.deepEqual(keys.fov, [0], "a lens that never racks keys once");
   assert.deepEqual(keys.roll, [0, 20], "roll keys where the roll actually changes");
 });
 
@@ -86,11 +88,59 @@ test("the motion band flags the frames a real limit is exceeded on", () => {
   assert.match(healthSummary(relaxed), /within limits/);
 });
 
-test("solve health and motion health stay separate colour scales", () => {
-  // They answer different questions, so sharing a palette entry would make one
-  // readable as the other.
+test("an Extractor track without an authored subject does not fail generic framing", () => {
+  const away = track([
+    key(0, { position: [0, 0, 0], target: [0, 0, 1] }),
+    key(29, { position: [0, 0, 0], target: [0, 0, 1] }),
+  ]);
+  const report = trackHealth(away, { max_speed: 1000 });
+  assert.deepEqual([...new Set(report.frame_grades)], ["ok"]);
+  assert.equal(report.limits.allow_framing_loss, true);
+});
+
+test("an authored subject retains framing-loss protection", () => {
+  const away = track([
+    key(0, { position: [0, 0, 0], target: [0, 0, 1] }),
+    key(29, { position: [0, 0, 0], target: [0, 0, 1] }),
+  ], { objects: [{ id: "subject", position: [0, 0, -4] }] });
+  const report = trackHealth(away, { max_speed: 1000 });
+  assert.ok(report.frame_grades.includes("over"));
+  assert.equal(report.limits.allow_framing_loss, undefined);
+});
+
+test("Extractor exposes only approved lanes in the approved order", () => {
+  assert.deepEqual(TRACK_CHANNELS.map((channel) => channel.key), ["position", "target", "roll"]);
+  assert.deepEqual(drawTrackTimeline(null, { track: DOLLY, layout: { bands: ["solve"] } }).lanes.map((lane) => lane.key), ["position", "target", "roll"]);
   assert.equal(Object.keys(GRADE_COLORS).sort().join(","), "ok,over,warn");
-  assert.equal(Object.keys(CHANNEL_COLORS).sort().join(","), "fov,position,roll,target");
+  assert.equal(Object.keys(CHANNEL_COLORS).sort().join(","), "position,roll,target");
+});
+
+test("health aggregation keeps the worst solve or motion state in one display pixel", () => {
+  assert.equal(worstHealthState([{ frame: 4, state: "good" }, { frame: 5, state: "weak" }], [], 4, 6), "weak");
+  assert.equal(worstHealthState([], ["ok", "over"], 0, 2), "bad");
+});
+
+test("anomaly markers preserve their solve-health frame ranges", () => {
+  assert.deepEqual(healthAnomalyMarkers([
+    { frame: 4, start_frame: 4, end_frame: 7, level: "error" },
+    { frame: 20, level: "warn" },
+  ], 30), [
+    { start: 4, end: 7, level: "error" },
+    { start: 20, end: 20, level: "warn" },
+  ]);
+  const model = drawTrackTimeline(null, { track: DOLLY, anomalies: [{ frame: 10, level: "error" }] });
+  assert.deepEqual(model.anomalies, [{ start: 10, end: 10, level: "error" }]);
+});
+
+test("frame health detail names both solve and motion causes", () => {
+  const rows = healthDetails([{ frame: 3, state: "weak", coverage: 0.4, inliers: 20 }], {
+    frame_grades: ["ok", "ok", "ok", "over"],
+    series: { speed: [0, 0, 0, 12], angular_speed: [], acceleration: [], jerk: [] },
+    limits: { max_speed: 10 }, framing: [true, true, true, false],
+  }, 3);
+  assert.ok(rows.some(([label, value]) => label === "Solve state" && value === "WEAK"));
+  assert.ok(rows.some(([label, value]) => label === "Motion grade" && value === "OVER"));
+  assert.ok(rows.some(([label]) => label === "Framing"));
 });
 
 // --- hit testing -----------------------------------------------------------
@@ -119,7 +169,6 @@ test("one dope-track pointer capture scrubs ruler, health, and channel lanes acr
   };
   const children = {
     "extractor-ruler": {},
-    "quality-timeline": {},
     "track-timeline": {},
   };
   const root = {
@@ -132,14 +181,14 @@ test("one dope-track pointer capture scrubs ruler, health, and channel lanes acr
   const panel = new TimelinePanelHost(root, { onSeek: (frame) => seeks.push(frame) });
   panel.bind((target, name, handler) => target.addEventListener(name, handler), () => 101);
 
-  for (const [role, x] of [["extractor-ruler", 200], ["quality-timeline", 360], ["track-timeline", 600]]) {
+  for (const [role, x] of [["extractor-ruler", 200], ["track-timeline", 600]]) {
     handlers.get("pointerdown")({ pointerId: 7, clientX: x, target: children[role] });
     handlers.get("pointermove")({ pointerId: 7, clientX: x + 20, target: children[role] });
     handlers.get("pointerup")({ pointerId: 7, clientX: x + 20, target: children[role] });
   }
 
-  assert.deepEqual(captures, [7, 7, 7]);
-  assert.equal(seeks.length, 6, "each drag seeks on down and move through the single track surface");
+  assert.deepEqual(captures, [7, 7]);
+  assert.equal(seeks.length, 4, "each drag seeks on down and move through the single track surface");
   assert.equal(seeks.at(-1), 100, "the final pointer position maps to the final source frame");
   assert.deepEqual(seeks.slice(0, 2), [0, 5], "the track-area left edge is frame zero, not an internal label gutter");
 });

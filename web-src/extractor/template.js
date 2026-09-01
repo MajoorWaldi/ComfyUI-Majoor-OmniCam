@@ -45,6 +45,16 @@ export function extractorMarkup() {
         </section>
         <section class="oc-pane oc-track-pane">
           <canvas data-role="track-canvas" width="960" height="540" hidden></canvas>
+          <div class="oc-views" data-role="views" hidden role="toolbar" aria-label="Track inspection views">
+            <button type="button" data-inspection-view="scene" aria-selected="true">SCENE</button>
+            <button type="button" data-inspection-view="camera" aria-selected="false">CAMERA</button>
+            <span class="oc-view-divider" aria-hidden="true"></span>
+            <button type="button" data-view="perspective">Perspective</button>
+            <button type="button" data-view="top">Top</button>
+            <button type="button" data-view="front">Front</button>
+            <button type="button" data-view="side">Side</button>
+            <button type="button" data-act="fit">Fit Track</button>
+          </div>
         </section>
       </div>
 
@@ -76,16 +86,15 @@ export function extractorMarkup() {
         <div class="oc-dope oc-extractor-dope">
           <div class="oc-dope-body">
             <div class="oc-dope-labels">
+              <span class="oc-dope-label oc-dope-health-label">Solve Health</span>
               <label class="oc-dope-label" style="--channel-color:var(--oc-accent)"><input type="checkbox" checked aria-label="Show camera lane"><span>Camera</span></label>
               <label class="oc-dope-label" style="--channel-color:var(--oc-warn)"><input type="checkbox" checked aria-label="Show look at lane"><span>Look At</span></label>
-              <label class="oc-dope-label" style="--channel-color:var(--oc-info)"><input type="checkbox" checked aria-label="Show focal length lane"><span>Focal Length</span></label>
               <label class="oc-dope-label" style="--channel-color:var(--oc-danger)"><input type="checkbox" checked aria-label="Show roll lane"><span>Roll</span></label>
             </div>
             <div class="oc-dope-tracks" data-role="extractor-dope-tracks">
               <div class="oc-ruler" data-role="extractor-ruler" title="Drag to scrub the source"></div>
               <div class="oc-extractor-lanes">
-                <canvas class="oc-quality oc-extractor-quality" data-role="quality-timeline" width="900" height="28" aria-label="Solve quality per frame"></canvas>
-                <canvas class="oc-track-timeline" data-role="track-timeline" width="900" height="156" aria-label="Solved camera channels and motion health per frame"></canvas>
+                <canvas class="oc-track-timeline" data-role="track-timeline" width="900" height="124" aria-label="Solve health and solved camera channels per frame"></canvas>
               </div>
               <span class="oc-playhead-line" data-role="extractor-playhead"></span>
             </div>
@@ -98,14 +107,6 @@ export function extractorMarkup() {
         </div>
         <div class="oc-rows oc-extractor-quality-details" data-role="quality-details"></div>
       </section>
-
-      <div class="oc-views" data-role="views" hidden>
-        <button type="button" data-view="perspective">Perspective</button>
-        <button type="button" data-view="top">Top</button>
-        <button type="button" data-view="front">Front</button>
-        <button type="button" data-view="side">Side</button>
-        <button type="button" data-act="fit">Fit Track</button>
-      </div>
 
       <div class="oc-card oc-solve-card">
         <div class="oc-section">Solve</div>
@@ -159,8 +160,6 @@ export function extractorMarkup() {
         </div>
 
         <aside class="oc-card">
-          <div class="oc-section">Current frame</div>
-          <div class="oc-rows" data-role="extractor-camera"><div class="oc-empty">No solve yet</div></div>
           <div class="oc-section">Anomalies</div>
           <div class="oc-anomalies" data-role="anomalies"><div class="oc-empty">No anomalies detected</div></div>
         </aside>

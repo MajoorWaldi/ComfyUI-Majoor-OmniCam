@@ -79,6 +79,7 @@ class RawSolve:
     frame_step: int
     warnings: list[str] = field(default_factory=list)
     sampled_frame_count: int = 0
+    landmarks_3d: list[dict[str, float]] = field(default_factory=list)
 
 
 def _validated_poses(poses, backend_name: str) -> list[PoseSample]:
@@ -137,6 +138,12 @@ def solve_raw_poses(
     )
     poses = _validated_poses(solved.poses, solved.backend)
     converted = convert_pose_sequence(poses, getattr(solver, "basis", "opencv"))
+    landmarks = []
+    for point in solved.landmarks_3d:
+        if getattr(solver, "basis", "opencv") == "opencv":
+            landmarks.append({**point, "y": -float(point["y"]), "z": -float(point["z"])})
+        else:
+            landmarks.append(dict(point))
 
     return RawSolve(
         poses=converted,
@@ -151,6 +158,7 @@ def solve_raw_poses(
         frame_step=max(1, int(frame_step)),
         warnings=[*decoded.warnings, *solved.warnings],
         sampled_frame_count=len(decoded.frames),
+        landmarks_3d=landmarks,
     )
 
 

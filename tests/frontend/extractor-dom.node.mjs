@@ -9,11 +9,13 @@ class FakeButton {
     this.dataset = { act: action };
     this.disabled = false;
     this.attributes = new Map();
+    this.classList = { toggle() {} };
     this.handlers = new Map();
   }
 
   addEventListener(name, handler) { this.handlers.set(name, handler); }
   removeEventListener() {}
+  querySelector() { return null; }
   setAttribute(name, value) { this.attributes.set(name, value); }
   click() { this.handlers.get("click")?.({ currentTarget: this }); }
 }
@@ -73,6 +75,18 @@ test("previous and next key prefer anomaly frames, fall back to solved keys, and
   empty.render();
   assert.equal(none.querySelector('[data-act="previous-key"]').disabled, true);
   assert.equal(none.querySelector('[data-act="next-key"]').disabled, true);
+});
+
+test("transport displays pause while playing and highlights an enabled loop", () => {
+  const root = transportRoot(["play", "toggle-loop"]);
+  const coordinator = { playing: true, loop: true };
+  const binding = bindExtractorTransport(root, {
+    coordinator, getState: () => ({ frameCount: 1 }), getTrack: () => null,
+    listen: (target, name, handler) => target.addEventListener(name, handler),
+  });
+  binding.render();
+  assert.equal(root.querySelector('[data-act="play"]').attributes.get("aria-label"), "Pause playback");
+  assert.equal(root.querySelector('[data-act="toggle-loop"]').attributes.get("aria-pressed"), "true");
 });
 
 test("Extractor keyboard transport is scoped to non-editable controls and prevents outer shortcuts only when it seeks", () => {

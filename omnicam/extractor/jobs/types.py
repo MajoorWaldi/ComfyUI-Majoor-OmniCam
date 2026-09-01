@@ -101,6 +101,7 @@ class InteractiveSolveJob:
 
     raw_poses: list = field(default_factory=list)
     quality_samples: list = field(default_factory=list)
+    landmarks_3d: list[dict[str, float]] = field(default_factory=list)
 
     #: The immutable solver output the refine route re-derives from, so a
     #: slider drag never has to decode or solve anything again.
