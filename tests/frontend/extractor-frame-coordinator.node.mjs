@@ -135,6 +135,29 @@ test("non-loop playback pauses at the final frame without scheduling another tic
   assert.deepEqual(fixture.scheduled, []);
 });
 
+test("the terminal tick after reaching the final frame pauses without another fan-out", () => {
+  const fixture = makeCoordinator({ frameCount: 3, fps: 2, loop: false });
+  fixture.coordinator.seek(1, "manual");
+  fixture.coordinator.play();
+  fixture.scheduled.shift().callback(100);
+  fixture.scheduled.shift().callback(600);
+  const fanout = {
+    media: [...fixture.mediaFrames],
+    viewer: [...fixture.viewerFrames],
+    diagnostics: [...fixture.diagnosticFrames],
+    actions: [...fixture.actions],
+  };
+
+  fixture.scheduled.shift().callback(1100);
+
+  assert.equal(fixture.coordinator.frame, 2);
+  assert.equal(fixture.coordinator.playing, false);
+  assert.deepEqual(fixture.mediaFrames, fanout.media);
+  assert.deepEqual(fixture.viewerFrames, fanout.viewer);
+  assert.deepEqual(fixture.diagnosticFrames, fanout.diagnostics);
+  assert.deepEqual(fixture.actions, fanout.actions);
+});
+
 test("playback advances from requestAnimationFrame elapsed time and disposal cancels its pending frame", () => {
   const fixture = makeCoordinator({ frameCount: 20, fps: 10 });
   fixture.coordinator.seek(1, "manual");

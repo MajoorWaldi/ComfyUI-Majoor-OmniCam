@@ -131,7 +131,7 @@ export class FrameCoordinator {
     if (next > last) {
       if (this.loop && total > 0) next %= total;
       else {
-        this.seek(last, "playback");
+        if (last !== this.frame) this.seek(last, "playback");
         this.pause();
         return;
       }
