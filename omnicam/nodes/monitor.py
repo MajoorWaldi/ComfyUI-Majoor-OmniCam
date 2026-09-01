@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..adapters.h3 import h3_native_aligned_length
 from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
-from ..adapters.h3 import h3_native_aligned_length
 from ..core.video_sampling import resample_video_frames
 from ..monitor.execute import execute_monitor_adapter
 from ..monitor.fingerprint import monitor_fingerprint

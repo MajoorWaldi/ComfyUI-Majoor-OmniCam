@@ -337,6 +337,7 @@ test("the radar draws a continuous path for the active camera keys", async ({ pa
 test("interactive object selection invokes the outline renderer while clean captures skip it", async ({ page }) => {
   await page.goto("/tests/frontend/director-mount.html");
   await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  await page.waitForFunction(() => window.omnicamNode?.__majoorOmniCam?.webgl, null, { timeout: 15000 });
   const probe = await page.evaluate(() => {
     const ui = window.omnicamNode.__majoorOmniCam;
     const vp = ui.webgl;

@@ -261,13 +261,26 @@ test("Director mounts inside a Subgraph and keeps its promoted fps widget", asyn
   }, workflowData);
 
   await page.waitForFunction(
-    () => window.omnicamCiSubgraph?.widgets?.some((widget) => widget.name === "fps"),
+    () => {
+      const subgraph = window.omnicamCiSubgraph;
+      const director = subgraph?.subgraph?._nodes?.find(
+        (node) => node.comfyClass === "MajoorOmniCamDirector",
+      );
+      return subgraph?.widgets?.some((widget) => widget.name === "fps")
+        || Boolean(director?.__majoorOmniCam?.root && director.widgets?.some((widget) => widget.name === "fps"));
+    },
     null,
     { timeout: 30_000 },
   );
 
   expect(await page.evaluate(() => {
-    const fps = window.omnicamCiSubgraph.widgets.find((widget) => widget.name === "fps");
+    const subgraph = window.omnicamCiSubgraph;
+    const director = subgraph.subgraph?._nodes?.find(
+      (node) => node.comfyClass === "MajoorOmniCamDirector",
+    );
+    const fps = subgraph.widgets?.find((widget) => widget.name === "fps")
+      || director?.widgets?.find((widget) => widget.name === "fps");
+    if (!fps) return null;
     fps.value = 30;
     fps.callback?.(30);
     return fps.value;
