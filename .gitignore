@@ -18,6 +18,8 @@ docs/*
 !docs/NODES.md
 !docs/SHORTCUTS.md
 !docs/SECURITY.md
+!docs/TECHNICAL_REFERENCE.md
+!docs/USER_GUIDE.md
 !docs/VALIDATION_REPORT.md
 !docs/REFACTOR_CHECKLIST.md
 !docs/AUDIT.md

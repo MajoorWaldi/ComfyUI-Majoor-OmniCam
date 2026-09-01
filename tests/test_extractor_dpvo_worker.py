@@ -21,6 +21,7 @@ from omnicam.extractor.backends.dpvo_worker import (
     _isolated_child_bootstrap,
     child_sys_path,
     extract_active_patch_features,
+    writable_frame_copy,
     write_frame_exchange,
 )
 from omnicam.extractor.backends.dpvo_worker import (
@@ -93,6 +94,12 @@ def _hung_child(connection, request) -> None:
     time.sleep(30)
 
 
+def _hung_finalization_child(connection, request) -> None:
+    del request
+    connection.send({"kind": "finalizing", "total": 2})
+    time.sleep(30)
+
+
 def _hard_exit_child(connection, request) -> None:
     del connection, request
     os._exit(1)
@@ -145,6 +152,19 @@ def test_frame_exchange_round_trips_without_stacking_in_memory(tmp_path):
     del loaded
     exchange.cleanup()
     assert not exchange.directory.exists()
+
+
+def test_worker_copies_read_only_memmap_frames_into_writable_storage(tmp_path):
+    exchange = write_frame_exchange(_frames(2), root=tmp_path)
+    loaded = np.load(exchange.frames_path, mmap_mode="r")
+
+    frame = writable_frame_copy(loaded, 0, 48, 64)
+
+    assert frame.flags.c_contiguous
+    assert frame.flags.writeable
+    assert not np.shares_memory(frame, loaded)
+    del loaded
+    exchange.cleanup()
 
 
 def test_frame_exchange_rejects_inconsistent_shapes(tmp_path):
@@ -236,6 +256,22 @@ def test_spawned_runner_terminates_a_hung_child(tmp_path):
     with pytest.raises(SolveError, match="timed out"):
         runner.solve(_request(tmp_path))
 
+    assert runner.process is None
+
+
+def test_spawned_runner_times_out_only_after_finalization_begins(tmp_path):
+    finalizing = []
+    runner = DpvoProcessRunner(
+        target=_hung_finalization_child,
+        poll_seconds=0.01,
+        finalization_timeout_seconds=0.15,
+        stop_grace_seconds=0.05,
+    )
+
+    with pytest.raises(SolveError, match=r"finalization timed out.*slam\.terminate"):
+        runner.solve(_request(tmp_path), on_finalizing=lambda: finalizing.append(True))
+
+    assert finalizing == [True]
     assert runner.process is None
 
 

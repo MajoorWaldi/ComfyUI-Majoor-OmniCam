@@ -86,8 +86,8 @@ metadata, then decodes at most 32 uniform frames through bounded
 
 **Interface density.** The `View → Interface` selector (Basic / Animation /
 Advanced) is progressive disclosure of one layout, not three layouts. The full
-table is in the project README under *Interface density: Basic, Animation,
-Advanced*.
+authoring overview is in [USER_GUIDE.md](USER_GUIDE.md); keyboard and viewport
+controls are in [SHORTCUTS.md](SHORTCUTS.md).
 
 ### Upstream `camera_track` import
 
@@ -174,7 +174,11 @@ While it runs the panel shows three tabs:
 
 OpenCV streams a bounded transient 3D path while it tracks. DPVO reports honest
 source-frame progress but publishes its trajectory only after global
-optimisation completes; it does not fabricate intermediate poses.
+optimisation completes; it does not fabricate intermediate poses. Once frame
+ingest completes, the panel changes from `TRACKING` to `SOLVING` while DPVO
+finalizes. That finalization has a separate 120-second watchdog: a stalled
+global optimization fails with guidance to shorten the clip, lower
+`max_dimension`, or select `opencv_sift`.
 
 ### Sources accepted without Run
 
@@ -265,7 +269,9 @@ redistributed in this package. Each DPVO solve runs in a fresh spawned process;
 sampled frames cross through a private NumPy memmap below ComfyUI's temp
 directory, removed on success, stop and failure. When the child exits its CUDA
 context exits with it, so DPVO VRAM returns to the driver instead of staying in
-ComfyUI's allocator. See the README for the Windows-portable build notes.
+ComfyUI's allocator. Frame memmap views are copied into writable contiguous
+arrays before Torch consumes them. See [TECHNICAL_REFERENCE.md](TECHNICAL_REFERENCE.md)
+for the DPVO runtime and Windows-portable build notes.
 
 ---
 

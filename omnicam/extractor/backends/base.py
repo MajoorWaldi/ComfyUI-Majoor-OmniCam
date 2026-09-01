@@ -47,6 +47,10 @@ class SolveObserver(Protocol):
     def progress_frame(self, frame: int) -> None:
         ...
 
+    def finalizing(self) -> None:
+        """The backend finished ingesting frames and is optimizing its trajectory."""
+        ...
+
 
 class BackendUnavailableError(RuntimeError):
     """The requested solver cannot run here. The message must say what to do about it."""
@@ -162,6 +166,17 @@ def observe_progress_frame(observer: SolveObserver | None, frame: int) -> None:
         return
     with contextlib.suppress(Exception):
         callback(int(frame))
+
+
+def observe_finalizing(observer: SolveObserver | None) -> None:
+    """Announce global optimization without coupling a backend to interactive jobs."""
+    if observer is None:
+        return
+    callback = getattr(observer, "finalizing", None)
+    if callback is None:
+        return
+    with contextlib.suppress(Exception):
+        callback()
 
 
 def coverage_ratio(valid_poses: int, requested_samples: int) -> float:

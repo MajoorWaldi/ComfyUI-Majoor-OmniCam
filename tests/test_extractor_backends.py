@@ -184,13 +184,14 @@ def test_dpvo_solve_routes_frames_and_intrinsics_through_an_isolated_runner(monk
     seen = []
 
     class Runner:
-        def solve(self, request, *, progress, control, on_source_frame, on_features):
+        def solve(self, request, *, progress, control, on_source_frame, on_features, on_finalizing):
             mapped = np.load(request.frames_path, mmap_mode="r")
             assert mapped.shape == (4, 50, 66, 3)
             assert request.intrinsics == intrinsics
             assert request.source_frames == (0, 2, 4, 6)
             progress(4, 4)
             on_source_frame(6)
+            on_finalizing()
             return poses, [0, 1, 2, 3]
 
         def close(self):
@@ -220,8 +221,9 @@ def test_dpvo_solve_forwards_child_patch_diagnostics_to_the_observer(monkeypatch
             observed.append((frame, points, state))
 
     class Runner:
-        def solve(self, request, *, progress, control, on_source_frame, on_features):
+        def solve(self, request, *, progress, control, on_source_frame, on_features, on_finalizing):
             on_features(2, [{"x": 0.2, "y": 0.3, "state": "accepted"}])
+            on_finalizing()
             return [[0, 0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0, 1]], [0, 1]
 
     force(monkeypatch, dpvo=True, opencv=True)

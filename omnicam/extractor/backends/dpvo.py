@@ -39,6 +39,7 @@ from .base import (
     checkpoint,
     coverage_ratio,
     observe_features,
+    observe_finalizing,
     observe_pose,
     observe_progress_frame,
 )
@@ -137,6 +138,7 @@ class DpvoBackend:
                 control=control,
                 on_source_frame=lambda frame: observe_progress_frame(observer, frame),
                 on_features=lambda frame, points: observe_features(observer, frame, points, "good"),
+                on_finalizing=lambda: observe_finalizing(observer),
             )
             result = self._poses_to_samples(np, poses, timestamps, frames)
             for pose in result.poses:

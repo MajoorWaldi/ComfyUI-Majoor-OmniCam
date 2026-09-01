@@ -37,9 +37,10 @@ logger = logging.getLogger(__name__)
 class _JobObserver:
     """Bridges backend callbacks into job state and throttled events."""
 
-    def __init__(self, job, publisher) -> None:
+    def __init__(self, job, publisher, manager=None) -> None:
         self._job = job
         self._publisher = publisher
+        self._manager = manager
 
     def backend(self, name: str) -> None:
         self._job.backend_name = str(name)
@@ -54,6 +55,11 @@ class _JobObserver:
         """Advance the playhead when a backend cannot expose live poses."""
         self._job.current_source_frame = int(frame)
         self._publisher.progress()
+
+    def finalizing(self) -> None:
+        """Expose DPVO global optimization as SOLVING instead of TRACKING 95%."""
+        if self._manager is not None and self._job.state == TRACKING:
+            self._manager.transition(self._job, SOLVING)
 
     def features(self, frame: int, points, state: str) -> None:
         # Deliberately not stored on the job: the overlay is live telemetry, and
@@ -79,6 +85,8 @@ def run_solve_job(job, manager, publisher) -> None:
         who pressed Stop would be shown an internal error instead of STOPPED.
         """
         control.checkpoint()
+        if job.state == target:
+            return
         manager.transition(job, target)
 
     try:
@@ -97,7 +105,7 @@ def run_solve_job(job, manager, publisher) -> None:
             fps=job.source_info.get("fps", 0.0),
             frame_count=job.source_frame_count,
         )
-        observer = _JobObserver(job, publisher)
+        observer = _JobObserver(job, publisher, manager)
         raw = solve_raw_poses(
             video=video,
             method=str(job.settings.get("method", "auto")),

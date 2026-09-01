@@ -32,6 +32,7 @@ _PACKAGE_ROOT_PATH = Path(__file__).resolve().parents[3]
 PACKAGE_ROOT = str(_PACKAGE_ROOT_PATH)
 RESOLUTION_MULTIPLE = 4
 DPVO_FEATURE_RESOLUTION = 4
+DEFAULT_FINALIZATION_TIMEOUT_SECONDS = 120.0
 
 _ACTIVE_RUNNERS: set[DpvoProcessRunner] = set()
 _ACTIVE_RUNNERS_LOCK = threading.RLock()
@@ -183,6 +184,13 @@ def extract_active_patch_features(slam, width: int, height: int) -> list[dict[st
     return sample_features(normalized, [True] * len(normalized))
 
 
+def writable_frame_copy(frames, index: int, height: int, width: int):
+    """Detach one C-contiguous writable frame from the read-only exchange memmap."""
+    import numpy as np
+
+    return np.array(frames[index, :height, :width], dtype=np.uint8, copy=True, order="C")
+
+
 def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
     """Import and execute DPVO inside the disposable CUDA process."""
     try:
@@ -217,9 +225,7 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
             if command.get("kind") != "continue":
                 connection.send({"kind": "stopped"})
                 return
-            image = torch.from_numpy(
-                np.ascontiguousarray(frames[index, :height, :width]),
-            ).permute(2, 0, 1)
+            image = torch.from_numpy(writable_frame_copy(frames, index, height, width)).permute(2, 0, 1)
             if torch.cuda.is_available():
                 image = image.cuda()
             slam(index, image, intrinsics)
@@ -235,6 +241,7 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
                 "kind": "progress", "done": index + 1, "total": total,
                 "source_frame": request.source_frames[index],
             })
+        connection.send({"kind": "finalizing", "total": total})
         poses, timestamps = slam.terminate()
         connection.send({
             "kind": "result",
@@ -358,11 +365,13 @@ class DpvoProcessRunner:
     def __init__(
         self, *, target=run_dpvo_child, poll_seconds: float = 0.05,
         timeout_seconds: float | None = None, stop_grace_seconds: float = 2.0,
+        finalization_timeout_seconds: float | None = DEFAULT_FINALIZATION_TIMEOUT_SECONDS,
     ) -> None:
         self._target = target
         self._poll_seconds = float(poll_seconds)
         self._timeout_seconds = timeout_seconds
         self._stop_grace_seconds = float(stop_grace_seconds)
+        self._finalization_timeout_seconds = finalization_timeout_seconds
         self.process = None
         self._connection = None
         self.last_pid: int | None = None
@@ -372,6 +381,7 @@ class DpvoProcessRunner:
         self, request: DpvoWorkerRequest, *, progress=None, control=None,
         on_source_frame: Callable[[int], None] | None = None,
         on_features: Callable[[int, list[dict[str, Any]]], None] | None = None,
+        on_finalizing: Callable[[], None] | None = None,
     ) -> tuple[list, list]:
         if self.process is not None:
             raise RuntimeError("This DPVO process runner is already active")
@@ -384,6 +394,7 @@ class DpvoProcessRunner:
         self.process = process  # type: ignore[assignment]
         self._connection = parent  # type: ignore[assignment]
         started = time.monotonic()
+        finalization_started: float | None = None
         with _isolated_child_bootstrap():
             process.start()
         self.last_pid = process.pid
@@ -392,8 +403,22 @@ class DpvoProcessRunner:
             _ACTIVE_RUNNERS.add(self)
         try:
             while True:
-                if self._timeout_seconds is not None and time.monotonic() - started > self._timeout_seconds:
+                checkpoint(control)
+                now = time.monotonic()
+                if self._timeout_seconds is not None and now - started > self._timeout_seconds:
                     raise SolveError("DPVO worker timed out")
+                if (
+                    finalization_started is not None
+                    and self._finalization_timeout_seconds is not None
+                    and now - finalization_started > self._finalization_timeout_seconds
+                ):
+                    raise SolveError(
+                        "DPVO finalization timed out after "
+                        f"{self._finalization_timeout_seconds:g} seconds while waiting for "
+                        "slam.terminate(). The frame pass completed, but DPVO's global "
+                        "optimization did not return a trajectory. Try a shorter clip, lower "
+                        "max_dimension, or method=opencv_sift."
+                    )
                 try:
                     has_message = parent.poll(self._poll_seconds)
                 except (BrokenPipeError, EOFError, OSError):
@@ -426,6 +451,12 @@ class DpvoProcessRunner:
                             points = list(message.get("points") or [])
                             with contextlib.suppress(Exception):
                                 on_features(source_frame, points)
+                    elif kind == "finalizing":
+                        if finalization_started is None:
+                            finalization_started = time.monotonic()
+                            if on_finalizing is not None:
+                                with contextlib.suppress(Exception):
+                                    on_finalizing()
                     elif kind == "result":
                         return list(message.get("poses", [])), list(message.get("timestamps", []))
                     elif kind == "error":
