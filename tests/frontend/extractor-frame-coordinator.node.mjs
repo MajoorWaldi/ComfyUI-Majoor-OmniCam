@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { FrameCoordinator } from "../../web-src/extractor/frame-coordinator.js";
+import { createExtractorState, reduceExtractorState } from "../../web-src/extractor/state.js";
 
 function makeCoordinator({ frameCount = 10, fps = 10, loop = false } = {}) {
   const mediaFrames = [];
@@ -72,17 +73,66 @@ test("backend and media follow events retain follow-solve while manual seeks dis
 
 test("the coordinator is the owner of media rate and frame-count configuration", () => {
   const settings = [];
+  const actions = [];
   const coordinator = new FrameCoordinator({
     media: {
       setRate: (fps) => settings.push(["rate", fps]),
       setFrameCount: (frameCount) => settings.push(["frameCount", frameCount]),
     },
+    dispatch: (action) => actions.push(action),
   });
 
   coordinator.setRate(30);
   coordinator.setFrameCount(240);
 
   assert.deepEqual(settings, [["rate", 30], ["frameCount", 240]]);
+  assert.deepEqual(actions, [{ type: "FRAME_COUNT", frameCount: 240 }]);
+});
+
+test("status and progress bounds reconcile through the coordinator into serializable state", () => {
+  let state = createExtractorState();
+  const coordinator = new FrameCoordinator({
+    dispatch: (action) => { state = reduceExtractorState(state, action); },
+  });
+
+  coordinator.reconcileFrameCount({ frame_count: 12 });
+  coordinator.reconcileFrameCount({ frame_count: 18 });
+
+  assert.equal(coordinator.frameCount, 18);
+  assert.equal(state.frameCount, 18);
+});
+
+test("an unchanged animation tick does not fan out another frame update", () => {
+  const fixture = makeCoordinator({ frameCount: 20, fps: 10 });
+  fixture.coordinator.seek(3, "manual");
+  fixture.coordinator.play();
+
+  fixture.scheduled.shift().callback(100);
+
+  assert.deepEqual(fixture.mediaFrames, [3]);
+  assert.deepEqual(fixture.viewerFrames, [3]);
+  assert.deepEqual(fixture.diagnosticFrames, [3]);
+  assert.deepEqual(fixture.actions, [{ type: "FRAME", frame: 3 }]);
+});
+
+test("an empty source never starts a playback loop", () => {
+  const fixture = makeCoordinator({ frameCount: 0 });
+
+  assert.equal(fixture.coordinator.play(), false);
+  assert.equal(fixture.coordinator.playing, false);
+  assert.deepEqual(fixture.scheduled, []);
+});
+
+test("non-loop playback pauses at the final frame without scheduling another tick", () => {
+  const fixture = makeCoordinator({ frameCount: 3, fps: 2, loop: false });
+  fixture.coordinator.seek(1, "manual");
+  fixture.coordinator.play();
+  fixture.scheduled.shift().callback(100);
+  fixture.scheduled.shift().callback(1100);
+
+  assert.equal(fixture.coordinator.frame, 2);
+  assert.equal(fixture.coordinator.playing, false);
+  assert.deepEqual(fixture.scheduled, []);
 });
 
 test("playback advances from requestAnimationFrame elapsed time and disposal cancels its pending frame", () => {

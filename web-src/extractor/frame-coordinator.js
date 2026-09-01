@@ -44,9 +44,18 @@ export class FrameCoordinator {
   }
 
   setFrameCount(frameCount) {
-    this.frameCount = Math.max(0, Math.floor(Number(frameCount) || 0));
+    const next = Math.max(0, Math.floor(Number(frameCount) || 0));
+    if (next === this.frameCount) return this.frameCount;
+    this.frameCount = next;
     this.media?.setFrameCount?.(this.frameCount);
+    this.dispatch({ type: "FRAME_COUNT", frameCount: this.frameCount });
+    if (!this.frameCount) this.pause();
     return this.frameCount;
+  }
+
+  reconcileFrameCount(payload) {
+    const reported = Number(payload?.frame_count);
+    return this.setFrameCount(Number.isFinite(reported) ? reported : this.frameCount);
   }
 
   setRate(fps) {
@@ -78,7 +87,7 @@ export class FrameCoordinator {
   }
 
   play() {
-    if (this.disposed || this.playing) return this.playing;
+    if (this.disposed || this.playing || this.frameCount < 1) return false;
     this.playing = true;
     this.playbackStartFrame = this.frame;
     this.playbackStartTime = null;
@@ -113,6 +122,10 @@ export class FrameCoordinator {
     const elapsed = Math.max(0, now - this.playbackStartTime);
     const advance = Math.floor((elapsed * this.fps) / 1000);
     const total = this.frameCount;
+    if (total < 1) {
+      this.pause();
+      return;
+    }
     const last = Math.max(0, total - 1);
     let next = this.playbackStartFrame + advance;
     if (next > last) {
@@ -123,7 +136,7 @@ export class FrameCoordinator {
         return;
       }
     }
-    this.seek(next, "playback");
+    if (next !== this.frame) this.seek(next, "playback");
     this.schedule();
   }
 

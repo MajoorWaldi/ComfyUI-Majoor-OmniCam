@@ -439,12 +439,23 @@ test("a failure carries its message and colours the pill", () => {
 test("the serializable FRAME action owns the progress readout frame", () => {
   const state = stateAfter(
     { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
+    { type: "FRAME_COUNT", frameCount: 121 },
     { type: "FRAME", frame: 64 },
     { type: "PROGRESS", progress: { state: "TRACKING", frame: 99, frame_count: 121, progress: 0.53 } },
   );
   assert.equal(progressLabel(state), "64 / 121 frames");
   assert.equal(statusLabel(state), "TRACKING 53%");
   assert.doesNotMatch(progressLabel(state), /remaining|eta|seconds/i);
+});
+
+test("status and progress cannot change the coordinator-owned frame count", () => {
+  const state = stateAfter(
+    { type: "FRAME_COUNT", frameCount: 3 },
+    { type: "PROGRESS", progress: { frame_count: 8 } },
+    { type: "STATUS", status: { frame_count: 12 } },
+  );
+
+  assert.equal(state.frameCount, 3);
 });
 
 test("quality samples accumulate as they stream in", () => {
@@ -688,6 +699,7 @@ test("a partial status never erases what the panel already knows", () => {
   // used to reset a finished solve's progress bar to 0%.
   let state = stateAfter(
     { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
+    { type: "FRAME_COUNT", frameCount: 121 },
     { type: "FRAME", frame: 120 },
     { type: "PROGRESS", progress: { state: "TRACKING", frame: 1, frame_count: 121, progress: 0.95 } },
     { type: "COMPLETED", result: { fingerprint: "fp-1" } },

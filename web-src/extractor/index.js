@@ -299,7 +299,7 @@ class ExtractorUI {
       this.overlay.clear();
       this.diagnostics.clear();
       this.dispatch({ type: "JOB_STARTED", status });
-      this.coordinator.setFrameCount(this.state.frameCount);
+      this.coordinator.reconcileFrameCount(status);
       this.coordinator.seek(0, "backend");
     } catch (error) {
       this.dispatch({ type: "FAILED", error: String(error?.message || error) });
@@ -311,6 +311,7 @@ class ExtractorUI {
     try {
       const status = await this.client[method](this.state.jobId);
       this.dispatch({ type: "STATUS", status });
+      this.coordinator.reconcileFrameCount(status);
     } catch (error) {
       this.dispatch({ type: "FAILED", error: String(error?.message || error) });
     }
@@ -322,6 +323,7 @@ class ExtractorUI {
     try {
       const status = await this.client.getSolveStatus(this.state.jobId);
       this.dispatch({ type: "STATUS", status });
+      this.coordinator.reconcileFrameCount(status);
       if (status.state === "COMPLETED") await this.loadResult();
       return status;
     } catch {
@@ -331,7 +333,7 @@ class ExtractorUI {
 
   onProgress(payload) {
     this.dispatch({ type: "PROGRESS", progress: payload });
-    this.coordinator.setFrameCount(this.state.frameCount);
+    this.coordinator.reconcileFrameCount(payload);
     if (this.sourceViewer.follow) this.coordinator.seek(Number(payload.frame) || 0, "backend");
   }
 

@@ -11,10 +11,10 @@ export function refreshExtractorSource(ui) {
     const priorJobId = ui.state.jobId;
     ui.sourceKey = sourceKey;
     ui.describing = "";
-    ui.coordinator.setRate(24);
-    ui.coordinator.setFrameCount(0);
     if (priorJobId) void ui.client.stopSolve(priorJobId).catch(() => {});
     ui.dispatch({ type: "SOURCE_RESET", source: { ...resolved, playbackError: "" } });
+    ui.coordinator.setRate(24);
+    ui.coordinator.setFrameCount(0);
   }
   const reloaded = ui.sourceViewer.setSource(
     resolved.available && resolved.ref ? annotatedAssetUrl(api, resolved.ref.value) : "",

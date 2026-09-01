@@ -21,6 +21,7 @@ import {
 } from "../../web-src/extractor/track-timeline.js";
 import { SourceViewer, mediaErrorMessage } from "../../web-src/extractor/source-viewer.js";
 import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
+import { FrameCoordinator } from "../../web-src/extractor/frame-coordinator.js";
 import { renderSourceStageMedia } from "../../web-src/extractor/source-stage.js";
 
 const BASE = { fov: 53, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
@@ -309,6 +310,35 @@ test("a coordinator seek loads the decoded fallback rather than seeking failed n
 
   assert.deepEqual(fallbackFrames, [6]);
   assert.equal(video.currentTime, 0, "a failed native player must not be sought by the coordinator");
+});
+
+test("fallback playback loads each advanced frame once and wraps only during playback", () => {
+  const video = new FakeVideo();
+  const fallbackFrames = [];
+  const scheduled = [];
+  const viewer = new SourceViewer(video, {
+    fallbackViewer: { load: async (_source, frame) => { fallbackFrames.push(frame); return true; }, dispose() {} },
+  });
+  viewer.setSource("/view?filename=shot.mov", {
+    source: { kind: "managed", value: "omnicam/extractor_sources/shot.mov" },
+  });
+  viewer.setMode("fallback");
+  const coordinator = new FrameCoordinator({
+    media: viewer,
+    frameCount: 3,
+    fps: 2,
+    loop: true,
+    requestAnimationFrame: (callback) => { scheduled.push(callback); return scheduled.length; },
+  });
+
+  coordinator.seek(0, "backend");
+  coordinator.play();
+  scheduled.shift()(100);
+  scheduled.shift()(600);
+  scheduled.shift()(1100);
+  scheduled.shift()(1600);
+
+  assert.deepEqual(fallbackFrames, [0, 1, 2, 0]);
 });
 
 test("source mode exposes exactly one native, fallback, or upstream visual", () => {

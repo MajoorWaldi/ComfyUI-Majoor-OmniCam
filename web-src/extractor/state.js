@@ -49,7 +49,7 @@ export function reduceExtractorState(state, action) {
       return {
         ...state,
         solveState: "IDLE", jobId: "", progress: 0, stageProgress: 0,
-        frameCount: 0, backend: "", poseCount: 0, error: "",
+        backend: "", poseCount: 0, error: "",
         warnings: [], anomalies: [], quality: [], refinedFingerprint: "",
         source: { ...state.source, ...action.source, info: null },
       };
@@ -61,7 +61,6 @@ export function reduceExtractorState(state, action) {
       return {
         ...state, jobId: action.status.job_id, solveState: action.status.state,
         progress: 0, stageProgress: 0,
-        frameCount: Number(action.status.frame_count) || 0,
         error: "", warnings: [], anomalies: [], quality: [], poseCount: 0,
         refinedFingerprint: "",
       };
@@ -73,7 +72,6 @@ export function reduceExtractorState(state, action) {
         solveState: action.progress.state || state.solveState,
         progress: Number(action.progress.progress) || 0,
         stageProgress: Number(action.progress.stage_progress) || 0,
-        frameCount: Number(action.progress.frame_count) || state.frameCount,
         backend: action.progress.backend || state.backend,
       };
     case "QUALITY":
@@ -100,7 +98,6 @@ export function reduceExtractorState(state, action) {
         solveState: status.state || state.solveState,
         jobId: status.job_id || state.jobId,
         progress: keep(status.progress, state.progress),
-        frameCount: keep(status.frame_count, state.frameCount),
         backend: status.backend || state.backend,
         poseCount: keep(status.pose_count, state.poseCount),
         warnings: Array.isArray(status.warnings) ? status.warnings : state.warnings,
