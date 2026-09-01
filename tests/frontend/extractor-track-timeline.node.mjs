@@ -20,6 +20,7 @@ import {
   trackHealth,
 } from "../../web-src/extractor/track-timeline.js";
 import { SourceViewer, mediaErrorMessage } from "../../web-src/extractor/source-viewer.js";
+import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
 import { renderSourceStageMedia } from "../../web-src/extractor/source-stage.js";
 
 const BASE = { fov: 53, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
@@ -216,7 +217,7 @@ test("a decode error switches to a decoded fallback frame without rejecting the 
 });
 
 
-test("a fetch error remains an error instead of claiming fallback playback", () => {
+test("a fetch error promotes a fallback frame when the managed source remains readable", async () => {
   const video = new FakeVideo();
   const failures = [];
   const fallbackViewer = { load: async () => true, dispose() {} };
@@ -227,10 +228,70 @@ test("a fetch error remains an error instead of claiming fallback playback", () 
 
   video.error = { code: 2 };
   video.emit("error");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(viewer.mode, "fallback");
+  assert.deepEqual(failures, []);
+});
+
+test("a fetch error remains an error only when fallback frame loading fails", async () => {
+  const video = new FakeVideo();
+  const failures = [];
+  const fallbackViewer = { load: async () => { throw new Error("frame route unavailable"); }, dispose() {} };
+  const viewer = new SourceViewer(video, { fallbackViewer, onError: (message) => failures.push(message) });
+  viewer.setSource("/view?filename=missing.mov", {
+    source: { kind: "managed", value: "omnicam/extractor_sources/missing.mov" },
+  });
+
+  video.error = { code: 2 };
+  video.emit("error");
+  await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(viewer.mode, "error");
   assert.equal(failures.length, 1);
   assert.match(failures[0], /could not be fetched/);
+  assert.match(failures[0], /frame route unavailable/);
+});
+
+test("an immediate scrub replaces the initial fallback frame request", async () => {
+  const video = new FakeVideo();
+  const pending = [];
+  const paints = [];
+  const canvas = {
+    width: 160,
+    height: 90,
+    getContext() {
+      return {
+        clearRect() {},
+        drawImage: (image) => paints.push(image.frame),
+      };
+    },
+  };
+  const api = {
+    fetchApi(_path, options) {
+      return new Promise((resolve) => pending.push({ options, resolve }));
+    },
+  };
+  const fallbackViewer = new FallbackFrameViewer(canvas, {
+    api,
+    decodeImage: async (blob) => ({ width: 160, height: 90, frame: blob.frame, close() {} }),
+  });
+  const viewer = new SourceViewer(video, { fallbackViewer });
+  const source = { kind: "managed", value: "omnicam/extractor_sources/shot.mov" };
+  viewer.setSource("/view?filename=shot.mov", { source });
+
+  video.error = { code: 3 };
+  video.emit("error");
+  viewer.scrubTo(9);
+
+  assert.equal(pending.length, 2);
+  assert.equal(pending[0].options.signal.aborted, true);
+  pending[0].resolve({ ok: true, blob: async () => ({ frame: 0 }), headers: new Headers() });
+  pending[1].resolve({ ok: true, blob: async () => ({ frame: 9 }), headers: new Headers() });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(viewer.mode, "fallback");
+  assert.deepEqual(paints, [9]);
 });
 
 test("source mode exposes exactly one native, fallback, or upstream visual", () => {

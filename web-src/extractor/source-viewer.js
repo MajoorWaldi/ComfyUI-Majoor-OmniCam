@@ -73,7 +73,10 @@ export class SourceViewer extends ManagedVideoPlayer {
 
   handleMediaError(message) {
     const code = Number(this.video?.error?.code) || 0;
-    if ((code === 3 || code === 4) && this.fallbackViewer && this.source) {
+    if ((code === 2 || code === 3 || code === 4) && this.fallbackViewer && this.source) {
+      // Set this before the first request settles. A scrub in the same event
+      // turn must replace that request instead of seeking the failed video.
+      this.setMode("fallback");
       void this.loadFallback(this.currentFrame(), message);
       return;
     }
