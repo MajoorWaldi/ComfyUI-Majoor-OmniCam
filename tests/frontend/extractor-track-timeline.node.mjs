@@ -23,6 +23,7 @@ import { SourceViewer, mediaErrorMessage } from "../../web-src/extractor/source-
 import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
 import { FrameCoordinator } from "../../web-src/extractor/frame-coordinator.js";
 import { renderSourceStageMedia } from "../../web-src/extractor/source-stage.js";
+import { TimelinePanelHost } from "../../web-src/extractor/timeline-panel.js";
 
 const BASE = { fov: 53, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
 
@@ -104,6 +105,43 @@ test("scrubbing spans the whole clip and never runs past the last frame", () => 
   assert.equal(frameAtTimelineX(5000, 900, 100), 99);
   const middle = frameAtTimelineX((900 + 78) / 2, 900, 100);
   assert.ok(middle > 20 && middle < 80, `expected a mid-clip frame, got ${middle}`);
+});
+
+test("one dope-track pointer capture scrubs ruler, health, and channel lanes across their real track area", () => {
+  const handlers = new Map();
+  const captures = [];
+  const tracks = {
+    addEventListener(name, handler) { handlers.set(name, handler); },
+    removeEventListener() {},
+    setPointerCapture(pointerId) { captures.push(pointerId); },
+    releasePointerCapture() {},
+    getBoundingClientRect() { return { left: 200, width: 400 }; },
+  };
+  const children = {
+    "extractor-ruler": {},
+    "quality-timeline": {},
+    "track-timeline": {},
+  };
+  const root = {
+    querySelector(selector) {
+      const role = selector.match(/data-role="([^"]+)"/)?.[1];
+      return role === "extractor-dope-tracks" ? tracks : children[role] || null;
+    },
+  };
+  const seeks = [];
+  const panel = new TimelinePanelHost(root, { onSeek: (frame) => seeks.push(frame) });
+  panel.bind((target, name, handler) => target.addEventListener(name, handler), () => 101);
+
+  for (const [role, x] of [["extractor-ruler", 200], ["quality-timeline", 360], ["track-timeline", 600]]) {
+    handlers.get("pointerdown")({ pointerId: 7, clientX: x, target: children[role] });
+    handlers.get("pointermove")({ pointerId: 7, clientX: x + 20, target: children[role] });
+    handlers.get("pointerup")({ pointerId: 7, clientX: x + 20, target: children[role] });
+  }
+
+  assert.deepEqual(captures, [7, 7, 7]);
+  assert.equal(seeks.length, 6, "each drag seeks on down and move through the single track surface");
+  assert.equal(seeks.at(-1), 100, "the final pointer position maps to the final source frame");
+  assert.deepEqual(seeks.slice(0, 2), [0, 5], "the track-area left edge is frame zero, not an internal label gutter");
 });
 
 test("drawing without a canvas still reports the lanes it would have drawn", () => {

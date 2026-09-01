@@ -51,28 +51,34 @@ export class TimelinePanelHost {
 
   /** Which frame a pointer event over the strip refers to, or null. */
   frameAt(event, frameCount) {
-    const canvas = this.$("track-timeline");
-    if (!canvas?.getBoundingClientRect) return null;
-    const rect = canvas.getBoundingClientRect();
-    // The canvas is stretched by CSS, so a client x has to be scaled back into
-    // the coordinate space the layout was actually drawn in.
-    const x = ((event.clientX - rect.left) * canvas.width) / Math.max(1, rect.width);
-    return frameAtTimelineX(x, canvas.width, frameCount, DOPE_LAYOUT.labelWidth);
+    const tracks = this.$("extractor-dope-tracks");
+    if (!tracks?.getBoundingClientRect) return null;
+    // This is already the grid's track column: the label gutter is its sibling,
+    // so client X is measured against the real usable track area, not a canvas
+    // with an invented internal gutter.
+    const rect = tracks.getBoundingClientRect();
+    return frameAtTimelineX(event.clientX - rect.left, rect.width, frameCount, 0);
   }
 
   /** Wire scrubbing. `listen` is the panel's own disposal-tracked binder. */
   bind(listen, frameCount) {
-    const canvas = this.$("track-timeline");
-    listen(canvas, "pointerdown", (event) => {
-      canvas.setPointerCapture?.(event.pointerId);
+    const tracks = this.$("extractor-dope-tracks");
+    listen(tracks, "pointerdown", (event) => {
+      tracks.setPointerCapture?.(event.pointerId);
       this.scrubbing = true;
+      this.pointerId = event.pointerId;
       this.seek(event, frameCount());
     });
-    listen(canvas, "pointermove", (event) => {
-      if (this.scrubbing) this.seek(event, frameCount());
+    listen(tracks, "pointermove", (event) => {
+      if (this.scrubbing && event.pointerId === this.pointerId) this.seek(event, frameCount());
     });
     for (const name of ["pointerup", "pointercancel"]) {
-      listen(canvas, name, () => { this.scrubbing = false; });
+      listen(tracks, name, (event) => {
+        if (event.pointerId !== this.pointerId) return;
+        tracks.releasePointerCapture?.(event.pointerId);
+        this.scrubbing = false;
+        this.pointerId = null;
+      });
     }
   }
 

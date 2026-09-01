@@ -90,6 +90,22 @@ Playback in / out points are set with the two range buttons in the transport
 bar (`web-src/event-bindings/transport-media.js`); there is no keyboard
 shortcut for them.
 
+## Extractor transport
+
+When focus is inside the **OmniCam Extractor** timeline (and not in a text or
+number field), its read-only transport uses the source-frame clock:
+
+| Shortcut | Action |
+|---|---|
+| `Space` | Play / stop source playback |
+| `←` / `→` | Previous / next frame |
+| `Home` / `End` | First / last source frame |
+
+The Extractor transport's previous/next-key buttons visit detected anomaly
+frames first, then solved camera keyframes. Drag anywhere across its ruler,
+solve-health band, or channel lanes to scrub; the fixed lane-label gutter is
+not part of the scrub range.
+
 ## Timeline and Curve Editor
 
 | Control | Action |

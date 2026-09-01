@@ -6,7 +6,6 @@ import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
 import { RefineController } from "./refine-controls.js";
 import {
   drawQualityTimeline,
-  frameAtPosition,
 } from "./quality-timeline.js";
 import {
   FINGERPRINT_WIDGET,
@@ -37,6 +36,7 @@ import {
 } from "./state.js";
 import { buildExtractorRoot } from "./template.js";
 import { TimelinePanelHost } from "./timeline-panel.js";
+import { bindExtractorTransport } from "./transport.js";
 import { TrackingOverlay } from "./tracking-overlay.js";
 import { renderAnomalies } from "./views.js";
 import { loadTrackViewer } from "./track-viewer-host.js";
@@ -117,6 +117,12 @@ class ExtractorUI {
     this.timeline = new TimelinePanelHost(this.root, {
       onSeek: (frame) => this.coordinator.seek(frame, "timeline"),
     });
+    this.transport = bindExtractorTransport(this.root, {
+      coordinator: this.coordinator,
+      getState: () => this.state,
+      getTrack: () => this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
+      listen: (target, event, handler) => this.listen(target, event, handler),
+    });
     this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
     this.viewer = null;
     this.viewerLoad = null;
@@ -171,25 +177,9 @@ class ExtractorUI {
     this.listen(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
     this.listen(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
     this.listen(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
-    this.listen(this.root.querySelector('[data-act="play"]'), "click", () => this.coordinator.toggle());
-    this.listen(this.root.querySelector('[data-act="first-frame"]'), "click", () => this.coordinator.seek(0, "transport"));
-    this.listen(this.root.querySelector('[data-act="previous-frame"]'), "click", () => this.coordinator.seek(this.state.frame - 1, "transport"));
-    this.listen(this.root.querySelector('[data-act="next-frame"]'), "click", () => this.coordinator.seek(this.state.frame + 1, "transport"));
-    this.listen(this.root.querySelector('[data-act="last-frame"]'), "click",
-      () => this.coordinator.seek(Math.max(0, this.state.frameCount - 1), "transport"));
-    this.listen(this.root.querySelector('[data-act="toggle-loop"]'), "click", () => {
-      const loop = this.$("loop");
-      if (!loop) return;
-      loop.checked = !loop.checked;
-      this.coordinator.setLoop(loop.checked);
-      this.root.querySelector('[data-act="toggle-loop"]')?.setAttribute("aria-pressed", String(loop.checked));
-    });
-
     this.listen(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
     this.listen(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
     this.listen(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
-    this.listen(this.$("loop"), "change", (event) => this.coordinator.setLoop(event.target.checked));
-    this.listen(this.$("quality-timeline"), "click", (event) => this.seekFromTimeline(event));
     this.timeline.bind((target, event, handler) => this.listen(target, event, handler),
       () => this.state.frameCount);
     this.bindRefineControls();
@@ -526,13 +516,6 @@ class ExtractorUI {
     this.viewer?.setMode(mode);
   }
 
-  seekFromTimeline(event) {
-    const canvas = this.$("quality-timeline");
-    const rect = canvas.getBoundingClientRect();
-    const frame = frameAtPosition(event.clientX - rect.left, rect.width, this.state.frameCount);
-    this.coordinator.seek(frame, "quality");
-  }
-
   showDiagnostics(frame) {
     const diagnostics = this.diagnostics.get(frame);
     if (diagnostics) this.overlay.setDiagnostics(diagnostics);
@@ -610,6 +593,7 @@ class ExtractorUI {
     });
     this.renderQuality();
     this.renderTimeline();
+    this.transport.render();
     renderFrameReadouts(this);
     renderExtractorRuler(this);
 
