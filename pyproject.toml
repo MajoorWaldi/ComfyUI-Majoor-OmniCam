@@ -1,10 +1,15 @@
 [project]
 name = "majoor-omnicam"
-version = "0.3.0"
+version = "0.1.0"
 description = "Interactive camera authoring and proxy-reference playblasts for ComfyUI video models."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
+# The Registry specification declares frontend compatibility through this
+# dependency, not through requires-comfyui:
+# https://docs.comfy.org/registry/specifications
+# A `>=` only pulls an upgrade when the host is actually below the minimum this
+# node needs, which is precisely when the user should be told.
 dependencies = ["comfyui-frontend-package>=1.48.7"]
 classifiers = [
   "Operating System :: OS Independent",
@@ -25,10 +30,73 @@ requires-comfyui = ">=0.31.0"
 [tool.ruff]
 line-length = 110
 target-version = "py310"
+# Local scratch, not OmniCam source. A DPVO checkout under .dpvo-install/ ships
+# Python 2 files that ruff cannot even parse, and linting a vendored upstream
+# would be meaningless anyway.
+extend-exclude = [".dpvo-install"]
 
 [tool.ruff.lint]
-ignore = ["N999"] # The required ComfyUI custom-node directory contains hyphens.
+# Pinned explicitly: relying on ruff's default selection made the enforced rule
+# set drift silently between ruff releases.
+# E501 stays out on purpose: this codebase deliberately writes dense long
+# lines and caps complexity by file length instead (AGENTS.md §14).
+select = ["E4", "E7", "E9", "F", "W", "I", "N", "UP", "B", "SIM", "BLE", "TRY", "S", "RUF"]
+ignore = [
+  "N999",   # The required ComfyUI custom-node directory contains hyphens.
+  "TRY003", # Long messages inline in raise are the house style here.
+  "TRY300", # `return` in `try` is idiomatic in the route handlers.
+  "S105",   # "pass_type"/"*_token" identifiers are camera data, never secrets.
+  "S106",
+  "S107",
+  "S311",   # Camera shake uses `random` for dithering, not for cryptography.
+  "TRY004", # Validators report every failure as ValueError, type included.
+  "TRY301", # Upload handlers raise inside `try` so one `except` cleans up.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "S101",   # assert is the point of a test suite.
+  "S102",   # The parity harness execs a slice of an upstream module on purpose.
+  "S108",   # Tests build temp paths deliberately.
+  "S301",   # A pickle round-trip is the assertion in the DPVO worker contract.
+  "S603",   # The parity harness shells out to node on purpose.
+  "S607",   # ... and resolves `node` from PATH on purpose.
+  "N802",   # ComfyUI's INPUT_TYPES contract is upper-case.
+  "B905",   # zip(x, x[1:]) pairwise in assertions; the lengths are known.
+  "RUF007", # ... and itertools.pairwise adds nothing to a one-line test check.
+]
+"scripts/**" = ["S101"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.mypy]
+# Scoped on purpose: the pure camera math and track serialization are where a
+# type error means broken output. The ComfyUI-facing node/route layers deal in
+# untyped third-party payloads and are covered by tests instead.
+python_version = "3.10"
+files = [
+  "omnicam/core/camera_math.py",
+  "omnicam/core/camera_pose.py",
+  "omnicam/core/upstream_track.py",
+  "omnicam/core/director_shot.py",
+  "omnicam/core/editor_state.py",
+  "omnicam/core/migrations.py",
+  "omnicam/core/projection.py",
+  "omnicam/core/track.py",
+  "omnicam/core/validation.py",
+  "omnicam/core/video_sampling.py",
+  "omnicam/extractor/fingerprint.py",
+  "omnicam/extractor/intrinsics.py",
+  "omnicam/extractor/transforms.py",
+  "omnicam/extractor/types.py",
+]
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "."
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+show_error_codes = true
