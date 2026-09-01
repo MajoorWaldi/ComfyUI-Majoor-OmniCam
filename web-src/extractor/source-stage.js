@@ -4,6 +4,27 @@
 import { drawUpstreamPreview } from "../shared/upstream-preview.js";
 
 /**
+ * Pick the single visual source the SOURCE stage may expose.
+ *
+ * An upstream thumbnail is evidence of an untrackable connection, so it wins
+ * over both managed-source players. Otherwise native video is preferred until
+ * its decoder fails and SourceViewer promotes its decoded-frame fallback.
+ */
+export function renderSourceStageMedia(ui, showingSource) {
+  const upstream = Boolean(ui.upstreamPreviewActive);
+  const mode = ui.sourceViewer?.mode || "native";
+  const visible = !showingSource ? "none" : upstream ? "upstream" : mode === "fallback" ? "fallback" : "native";
+  const setHidden = (role, isVisible) => {
+    const element = ui.$(role);
+    if (element) element.hidden = !isVisible;
+  };
+  setHidden("source-video", visible === "native");
+  setHidden("fallback-preview", visible === "fallback");
+  setHidden("upstream-preview", visible === "upstream");
+  return visible;
+}
+
+/**
  * Match the overlay's pixel grid to the footage.
  *
  * `object-fit: contain` only letterboxes the canvas the same way as the video

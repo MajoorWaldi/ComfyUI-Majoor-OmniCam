@@ -1,5 +1,5 @@
 import { api } from "../comfy-runtime.js";
-import { showExtractorFrame } from "./source-stage.js";
+import { renderSourceStageMedia, showExtractorFrame } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
@@ -22,6 +22,7 @@ import {
 import { FrameDiagnosticsStore } from "./diagnostics-store.js";
 import { ResultApplyError, applyRefinedTrack } from "./result-sync.js";
 import { SourceViewer } from "./source-viewer.js";
+import { FallbackFrameViewer } from "./fallback-frame-viewer.js";
 import { describeSource } from "./source-resolver.js";
 import { adoptExtractorSourceLength, describeExtractorSource, refreshExtractorSource } from "./source-lifecycle.js";
 import {
@@ -94,10 +95,13 @@ class ExtractorUI {
 
     this.client = new SolveJobClient(api);
     this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
+    this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
     this.sourceViewer = new SourceViewer(this.$("source-video"), {
       onFrame: (frame) => this.showFrame(frame, { fromVideo: true }),
       onMetadata: ({ frameCount }) => this.adoptSourceLength(frameCount),
       onError: (message) => this.dispatch({ type: "SOURCE", source: { playbackError: message } }),
+      onMode: () => this.render(),
+      fallbackViewer: this.fallbackViewer,
     });
     this.timeline = new TimelinePanelHost(this.root, {
       onSeek: (frame) => this.sourceViewer.scrubTo(frame),
@@ -565,8 +569,7 @@ class ExtractorUI {
     const showingDiagnostics = false;
     const stage = this.$("stage");
     if (stage) stage.dataset.mode = mode;
-    this.$("source-video").hidden = showingTrack && !showingDiagnostics;
-    this.$("upstream-preview").hidden = !this.upstreamPreviewActive || !showingSource;
+    renderSourceStageMedia(this, showingSource);
     this.$("tracking-overlay").hidden = !showingDiagnostics;
     this.$("track-canvas").hidden = !showingTrack;
     this.root.querySelector('[data-role="views"]').hidden = !showingTrack;

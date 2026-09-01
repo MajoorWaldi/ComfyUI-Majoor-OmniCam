@@ -35,6 +35,7 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
      and every tracked point on non-16:9 footage lands off the feature it marks. */
   .oc-extractor .oc-stage canvas{display:block}
   .oc-extractor .oc-stage canvas[data-role="tracking-overlay"]{object-fit:contain}
+  .oc-extractor .oc-stage canvas[data-role="fallback-preview"]{object-fit:contain;background:#08080b}
   .oc-extractor .oc-stage canvas[data-role="upstream-preview"]{object-fit:contain;background:#08080b;filter:saturate(.7) brightness(.85)}
   .oc-extractor .oc-stage [hidden]{display:none}
   .oc-extractor .oc-stage[data-mode="source"] .oc-track-pane,.oc-extractor .oc-stage[data-mode="track3d"] .oc-diagnostic-pane{display:none}

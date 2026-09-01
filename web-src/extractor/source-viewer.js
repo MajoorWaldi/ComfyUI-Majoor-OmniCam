@@ -33,26 +33,82 @@ export function mediaErrorMessage(error, url = "") {
 export class SourceViewer extends ManagedVideoPlayer {
   constructor(video, {
     fps = 24, onFrame = () => {}, onMetadata = () => {}, onError = () => {},
+    onMode = () => {}, fallbackViewer = null,
   } = {}) {
     super(video, {
-      fps, durationFrames: 1, onFrame, onMetadata, onError,
+      fps, durationFrames: 1, onFrame, onMetadata,
+      onError: (message) => this.handleMediaError(message),
       errorMessage: mediaErrorMessage, loop: true, muted: true,
     });
     this.frameCount = 0;
     this.follow = true;
+    this.mode = "native";
+    this.source = null;
+    this.onMode = onMode;
+    this.fallbackViewer = fallbackViewer;
+    this.onPlaybackError = onError;
+  }
+
+  setSource(url, { source, ...options } = {}) {
+    const nextSource = source || null;
+    const sourceChanged = this.source?.kind !== nextSource?.kind || this.source?.value !== nextSource?.value;
+    const changed = super.setSource(url, options);
+    if (changed || sourceChanged) {
+      this.source = nextSource;
+      this.fallbackViewer?.clear?.();
+      this.setMode("native");
+    } else if (nextSource) {
+      this.source = nextSource;
+    }
+    return changed;
+  }
+
+  setMode(mode) {
+    const next = ["native", "fallback", "error"].includes(mode) ? mode : "error";
+    if (this.mode === next) return false;
+    this.mode = next;
+    this.onMode(next);
+    return true;
+  }
+
+  handleMediaError(message) {
+    const code = Number(this.video?.error?.code) || 0;
+    if ((code === 3 || code === 4) && this.fallbackViewer && this.source) {
+      void this.loadFallback(this.currentFrame(), message);
+      return;
+    }
+    this.setMode("error");
+    this.onPlaybackError(message);
+  }
+
+  async loadFallback(frame, nativeMessage = "") {
+    try {
+      const loaded = await this.fallbackViewer.load(this.source, frame);
+      if (!loaded) return false;
+      this.error = "";
+      this.setMode("fallback");
+      return true;
+    } catch (error) {
+      this.setMode("error");
+      this.onPlaybackError(`${nativeMessage} Fallback preview failed: ${String(error?.message || error)}`);
+      return false;
+    }
   }
 
   /** A user gesture: seek, and stop following the solver until re-enabled. */
   scrubTo(frame) {
     this.setFollow(false);
-    this.seekFrame(frame);
-    this.onFrame(Math.max(0, Number(frame) || 0));
+    const next = Math.max(0, Number(frame) || 0);
+    if (this.mode === "fallback") void this.loadFallback(next);
+    else this.seekFrame(next);
+    this.onFrame(next);
   }
 
   /** The solver moved: follow it only if the user has not taken over. */
   followSolveFrame(frame) {
     if (!this.follow) return false;
-    this.seekFrame(frame);
+    if (this.mode === "fallback") void this.loadFallback(frame);
+    else this.seekFrame(frame);
     return true;
   }
 
@@ -63,6 +119,12 @@ export class SourceViewer extends ManagedVideoPlayer {
 
   setLoop(enabled) {
     super.setLoop(enabled);
+  }
+
+  dispose() {
+    this.fallbackViewer?.dispose?.();
+    this.fallbackViewer = null;
+    super.dispose();
   }
 }
 

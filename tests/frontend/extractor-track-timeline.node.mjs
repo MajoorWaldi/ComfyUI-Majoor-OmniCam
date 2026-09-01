@@ -20,6 +20,7 @@ import {
   trackHealth,
 } from "../../web-src/extractor/track-timeline.js";
 import { SourceViewer, mediaErrorMessage } from "../../web-src/extractor/source-viewer.js";
+import { renderSourceStageMedia } from "../../web-src/extractor/source-stage.js";
 
 const BASE = { fov: 53, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
 
@@ -188,6 +189,63 @@ test("a video the browser cannot decode is reported, not left black", () => {
   // Setting the same URL again after a failure has to retry rather than be
   // deduplicated away, or a transient fetch error would be permanent.
   assert.equal(viewer.setSource("/view?filename=prores.mov"), true);
+});
+
+test("a decode error switches to a decoded fallback frame without rejecting the source", async () => {
+  const video = new FakeVideo();
+  const failures = [];
+  const loads = [];
+  const fallbackViewer = {
+    async load(source, frame) {
+      loads.push({ source, frame });
+      return true;
+    },
+    dispose() {},
+  };
+  const viewer = new SourceViewer(video, { fallbackViewer, onError: (message) => failures.push(message) });
+  const source = { kind: "managed", value: "omnicam/extractor_sources/prores.mov" };
+  viewer.setSource("/view?filename=prores.mov", { source });
+
+  video.error = { code: 3 };
+  video.emit("error");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(viewer.mode, "fallback");
+  assert.deepEqual(loads, [{ source, frame: 0 }]);
+  assert.deepEqual(failures, []);
+});
+
+
+test("a fetch error remains an error instead of claiming fallback playback", () => {
+  const video = new FakeVideo();
+  const failures = [];
+  const fallbackViewer = { load: async () => true, dispose() {} };
+  const viewer = new SourceViewer(video, { fallbackViewer, onError: (message) => failures.push(message) });
+  viewer.setSource("/view?filename=missing.mov", {
+    source: { kind: "managed", value: "omnicam/extractor_sources/missing.mov" },
+  });
+
+  video.error = { code: 2 };
+  video.emit("error");
+
+  assert.equal(viewer.mode, "error");
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /could not be fetched/);
+});
+
+test("source mode exposes exactly one native, fallback, or upstream visual", () => {
+  const elements = Object.fromEntries(["source-video", "fallback-preview", "upstream-preview"].map((role) => [role, {}]));
+  const ui = { upstreamPreviewActive: false, sourceViewer: { mode: "native" }, $: (role) => elements[role] };
+  assert.equal(renderSourceStageMedia(ui, true), "native");
+  assert.deepEqual(Object.values(elements).map(({ hidden }) => hidden), [false, true, true]);
+
+  ui.sourceViewer.mode = "fallback";
+  assert.equal(renderSourceStageMedia(ui, true), "fallback");
+  assert.deepEqual(Object.values(elements).map(({ hidden }) => hidden), [true, false, true]);
+
+  ui.upstreamPreviewActive = true;
+  assert.equal(renderSourceStageMedia(ui, true), "upstream");
+  assert.deepEqual(Object.values(elements).map(({ hidden }) => hidden), [true, true, false]);
 });
 
 test("every MediaError code says something a user can act on", () => {

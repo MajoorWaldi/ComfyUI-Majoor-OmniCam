@@ -38,6 +38,7 @@ export function extractorMarkup() {
       <div class="oc-stage" data-role="stage">
         <section class="oc-pane oc-diagnostic-pane">
           <video data-role="source-video" playsinline muted preload="auto" aria-label="Extractor source footage"></video>
+          <canvas data-role="fallback-preview" width="960" height="540" hidden aria-label="Browser-safe decoded source frame"></canvas>
           <canvas data-role="upstream-preview" width="960" height="540" hidden aria-label="Connected source, not yet a trackable file"></canvas>
           <canvas data-role="tracking-overlay" width="960" height="540"></canvas>
           <div class="oc-stage-notice" data-role="stage-notice" hidden></div>

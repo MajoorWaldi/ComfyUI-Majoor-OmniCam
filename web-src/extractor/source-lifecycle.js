@@ -17,6 +17,7 @@ export function refreshExtractorSource(ui) {
   }
   const reloaded = ui.sourceViewer.setSource(
     resolved.available && resolved.ref ? annotatedAssetUrl(api, resolved.ref.value) : "",
+    { source: resolved.available ? resolved.ref : null },
   );
   ui.dispatch({ type: "SOURCE", source: reloaded ? { ...resolved, playbackError: "" } : resolved });
   if (resolved.available && resolved.ref) void describeExtractorSource(ui, resolved);

@@ -199,6 +199,7 @@ envelope carries only the annotated reference, never an absolute path.
 
 ```text
 POST   /majoor/omnicam/extractor/source
+POST   /majoor/omnicam/extractor/frame
 POST   /majoor/omnicam/extractor/jobs
 GET    /majoor/omnicam/extractor/jobs/{job_id}
 POST   /majoor/omnicam/extractor/jobs/{job_id}/pause
@@ -216,6 +217,11 @@ range. WebSocket events
 `majoor.omnicam.extractor.{job,progress,pose,quality,features,completed,failed}`
 are rate-limited to ~10 Hz **per channel**. The WebSocket is transport, not
 state: `GET /jobs/{id}` stays the source of truth after a disconnect.
+
+`/extractor/frame` is a read-only, managed-source JPEG preview route. The
+panel uses native browser video first; only an unsupported or undecodable
+container switches to this per-frame fallback, so the source scrubber remains
+usable without changing what the solver reads.
 
 ### Track timeline
 

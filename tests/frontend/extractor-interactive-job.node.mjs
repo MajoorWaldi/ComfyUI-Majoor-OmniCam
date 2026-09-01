@@ -15,6 +15,7 @@ globalThis.HTMLVideoElement ??= class FakeVideoElement {};
 globalThis.HTMLCanvasElement ??= class FakeCanvasElement {};
 
 import { SolveJobClient, stopActiveSolveOnDispose } from "../../web-src/extractor/job-client.js";
+import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
 import { SOLVE_EVENTS, SolveEventSubscription, solveEventMatcher } from "../../web-src/extractor/job-events.js";
 import { RefineController, alignmentQuaternion } from "../../web-src/extractor/refine-controls.js";
 import { ResultApplyError, appliedStatus, applyRefinedTrack } from "../../web-src/extractor/result-sync.js";
@@ -93,6 +94,44 @@ function fakeApi(handler) {
     removeEventListener() {},
   };
 }
+
+test("a newer fallback scrub aborts and ignores an older frame response", async () => {
+  const calls = [];
+  const pending = [];
+  const paints = [];
+  const canvas = {
+    width: 160,
+    height: 90,
+    getContext() {
+      return {
+        clearRect: (...args) => paints.push(["clear", ...args]),
+        drawImage: (image, ...args) => paints.push(["draw", image.frame, ...args]),
+      };
+    },
+  };
+  const api = {
+    fetchApi(_path, options) {
+      calls.push(options);
+      return new Promise((resolve) => pending.push(resolve));
+    },
+  };
+  const viewer = new FallbackFrameViewer(canvas, {
+    api,
+    decodeImage: async (blob) => ({ width: 160, height: 90, frame: blob.frame, close() {} }),
+  });
+  const source = { kind: "managed", value: "omnicam/extractor_sources/shot.mov" };
+  const first = viewer.load(source, 4);
+  const second = viewer.load(source, 9);
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].signal.aborted, true, "the old frame request must be cancelled");
+  pending[0]({ ok: true, blob: async () => ({ frame: 4 }), headers: new Headers() });
+  pending[1]({ ok: true, blob: async () => ({ frame: 9 }), headers: new Headers() });
+  await Promise.all([first, second]);
+
+  assert.deepEqual(paints.filter(([kind]) => kind === "draw"), [["draw", 9, 0, 0, 160, 90]]);
+  assert.equal(viewer.frame, 9);
+});
 
 // --- source resolution -----------------------------------------------------
 
