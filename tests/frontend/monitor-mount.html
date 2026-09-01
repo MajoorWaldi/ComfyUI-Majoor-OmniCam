@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><title>OmniCam Monitor test</title>
+    <style>body{margin:0;background:#09090d}#host{width:760px;margin:10px}</style>
+  </head>
+  <body>
+    <div id="status">loading</div>
+    <div id="director-host"></div>
+    <div id="host"></div>
+    <script type="module">
+      // Mounts the Monitor panel from its real modules, with a fixed execution
+      // payload standing in for a queued run. Deliberately not the ComfyUI node
+      // lifecycle: this harness exists to check the rendered surface, and the
+      // live ComfyUI browser lane covers the wiring.
+      import { buildMonitorRoot } from "/web-src/monitor/template.js";
+      import { headerMarkup } from "/web-src/template/header.js";
+      import { renderMonitorExecution } from "/web-src/monitor/execution-view.js";
+      import { renderMonitorProfileInfo } from "/web-src/monitor/profile-info.js";
+
+      try {
+        const root = buildMonitorRoot();
+        document.querySelector("#host").appendChild(root);
+
+        const director = document.querySelector("#director-host");
+        director.className = "majoor-omnicam";
+        director.innerHTML = headerMarkup();
+
+        renderMonitorExecution(root, {
+          ui: {
+            target_profile: "wanvideo_ati",
+            preflight: [
+              { id: "motion_layers", label: "Enabled motion layers: 2", state: "PASS", message: "" },
+              { id: "multi_shot", label: "Single-camera scene", state: "PASS", message: "" },
+              {
+                id: "track_encoding",
+                label: "Encodable trajectories: 1 (1 affected)",
+                state: "WARNING",
+                message: "'Hero Face' is not visible on the first sample, so it is dropped entirely.",
+              },
+              {
+                id: "downstream_contract",
+                label: "Downstream contract verified: WanVideoATITracks",
+                state: "PASS",
+                message: "",
+              },
+            ],
+            capabilities: {
+              capabilities: [
+                { adapter: "wanvideo_ati", display: "Wan 2.1 ATI - WanVideoWrapper", state: "verified" },
+                { adapter: "ltx25_motion_track", display: "LTX 2.5 Motion Track", state: "missing" },
+              ],
+            },
+          },
+        });
+
+        renderMonitorProfileInfo(root, {
+          profiles: [
+            {
+              id: "wanvideo_ati",
+              display_name: "WanVideoWrapper ATI",
+              semantic: "screen_tracks",
+              frame_policy: "fixed_121",
+              capability: { adapter: "wanvideo_ati", state: "verified" },
+            },
+          ],
+          capabilities: { capabilities: [] },
+        });
+
+        const badge = root.querySelector('[data-role="monitor-status"]');
+        badge.dataset.state = "WARNING";
+        badge.lastChild.textContent = " WARNING";
+
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        window.monitorError = String(error?.stack || error);
+        document.querySelector("#status").textContent = "failed";
+      }
+    </script>
+  </body>
+</html>

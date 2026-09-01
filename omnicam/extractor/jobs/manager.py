@@ -7,7 +7,10 @@ Three rules, each of which exists because breaking it is expensive:
   slot is a hard global limit, and a second request is refused with a message
   rather than queued into an unbounded backlog.
 * **jobs belong to whoever started them.** A second browser tab must not be
-  able to stop someone else's forty-minute solve.
+  able to stop someone else's forty-minute solve. This is scoping, not
+  authentication: ComfyUI has no notion of an authenticated caller, so the
+  client id is what the browser reports. It stops honest tabs from colliding;
+  it does not stop anyone who can already reach this server.
 * **nothing lives forever.** A finished job holds pose arrays and quality
   samples; the TTL sweep drops them. It never touches the user's video.
 """

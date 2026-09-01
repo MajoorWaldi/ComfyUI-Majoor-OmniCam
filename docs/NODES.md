@@ -59,7 +59,7 @@ model-independent MotionScene.
 **Inputs.** `width`, `height`, `fps`, `duration_seconds`, `render_mode`
 (`omni_ref`, `graybox`, `grid`, `point_field`, `wireframe`, `card_grid`,
 `beauty`), optional `image` / `video` (either media type) and `audio`, an
-optional `scene_3d`, and an optional upstream `motion_scene` (an OmniCam
+optional `scene_3d`, and an optional upstream `solved_scene` (an OmniCam
 Extractor connects here). `state_json`, `recording_path` and `card_asset` are
 advanced fields the interface manages.
 
@@ -108,9 +108,9 @@ to the playback range. The authored layers serialize in `state_json` and compile
 into `OMNICAM_MOTION_SCENE`. Their editor overlay is excluded from playblast
 capture.
 
-### Upstream `motion_scene` import
+### Upstream `solved_scene` import
 
-The Director's optional `motion_scene` input selects the scene's playblast
+The Director's optional `solved_scene` input selects the scene's playblast
 camera and imports it by fingerprint
 (`extractor_fingerprint`):
 
@@ -121,6 +121,10 @@ camera and imports it by fingerprint
 
 Resolution, render mode, objects, constraints and scene metadata always stay
 with the Director. Disconnect the cable to freeze the imported trajectory.
+
+The input is called `solved_scene` rather than `motion_scene` because only
+that one camera is imported: motion layers, objects, cuts and other cameras
+on the upstream scene are not merged.
 
 ---
 
@@ -314,83 +318,89 @@ for the DPVO runtime and Windows-portable build notes.
 
 ## OmniCam Monitor — `MajoorOmniCamMonitor`
 
-![OmniCam Monitor](assets/monitor-panel.png)
+The model compiler, and the single exit point from OmniCam into the rest of the
+graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
+selected profile requires, compiles the scene into that model's representation,
+and reports what survived.
 
-The QC, preflight and delivery stage for the canonical track, and the single
-exit point from OmniCam into the rest of the graph. Monitor watches the
-Director without running the graph: an upstream change moves the state to
-`OUTDATED`, then Live Sync calls the bounded
-`POST /majoor/omnicam/monitor/snapshot` route after 250 ms; Refresh calls the
-same route. Neither loads a model, builds `WAN_CAMERA_EMBEDDING` or
-materialises the LTX IMAGE batch.
-
-The watcher follows the **sockets**, not the upstream node class. Any source of
-`MAJOOR_OMNICAM_TRACK` is accepted — Director, Extractor or a third-party node.
-A source that does not expose its track in a widget (Extractor) is `CONNECTED`,
-not `OFFLINE`. Proxy availability follows the `proxy_video` socket;
-`recording_path` is just the Director playblast special case.
+The watcher follows the **sockets**, not the upstream node class: any source of
+`OMNICAM_MOTION_SCENE` is accepted — Director, Extractor or a third-party node.
 
 **Inputs.**
 
 | Input | Default | Role |
 |---|---|---|
-| `camera_track` | — | canonical track |
-| `proxy_video` | optional | the shot the track describes, `VIDEO` or `IMAGE` batch |
-| `adapter` | `h3` | `h3`, `h3_native`, `wan_native`, `wan_ati`, `wan_tracks_native`, `ltx_motion_track`, `ltx` |
-| `base_prompt` | empty | user intent kept in the final prompt |
-| `video_ref_token` | `auto` | deprecated; the H3 dialect is inferred from the installed node, hidden in the UI |
-| `width`, `height`, `length` | `832`, `480`, `81` | adapter dimensions and length |
-| `point_count`, `distribution` | `16`, `balanced` | ATI trajectory projection |
-| `ltx_max_frames`, `ltx_sampling_mode` | `121`, `contiguous` | bounded legacy LTX sampling plan |
+| `motion_scene` | — | the canonical scene to compile |
+| `playblast_video` | optional | the shot the scene describes, `VIDEO` or `IMAGE` batch |
+| `base_prompt` | empty | user intent, kept at the head of `final_prompt` |
+| `target_profile` | `h3_api` | one of the seven profiles below |
+| `target_width`, `target_height` | `832`, `480` | target frame size |
+| `duration_seconds`, `target_fps` | `2.0`, `24.0` | the shot being compiled |
 
-**Outputs**, in schema order: `reference_video`, `camera_prompt`,
-`cinematic_prompt`, `final_prompt`, `camera_data_json`, `wan_camera`, `tracks`,
-`adapter_width`, `adapter_height`, `adapter_length`, `guide_frames`,
-`adapter_profile_json`, `reference_frames` (bounded IMAGE twin of
-`reference_video`). Only the selected adapter's outputs are computed; inactive
-heavy outputs are `None`.
+**Outputs**, in schema order: `final_prompt`, `reference_video`,
+`reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,
+`target_width`, `target_height`, `target_length`.
 
-The preview reuses the real proxy for `h3`. ATI, Wan tracks and LTX Motion
-Track show the exact delivered coordinates. Legacy LTX shows the exact sampling
-indices. Wan Camera shows only a camera path marked **DIAGNOSTIC**, because the
-final embedding only exists after node execution.
+Only the selected profile's outputs are computed; the rest are `None`. Which one
+carries the payload is decided by the profile's **semantic**, not by its model.
 
-The global setup diagnostic distinguishes core readiness from optional adapter
-issues. An incompatible adapter that is not selected is a warning and does not
-make the model-agnostic core unhealthy. The selected adapter is checked again
-by Monitor preflight; any incompatible required stage or socket contract is
-blocking for that workflow.
+### The seven profiles, by semantic
 
-### The seven adapters, by family
+| Profile | Semantic | Output | Downstream |
+|---|---|---|---|
+| `wan_camera_native` | `camera_embedding` | `camera_embedding` | `WanCameraImageToVideo.camera_conditions`; real extrinsics and intrinsics, the highest-fidelity path; length 4n+1 |
+| `wan_move_native` | `screen_tracks` | `native_tracks` | `WanMoveTrackToVideo.tracks`; `comfy_api.latest.io.Tracks`, i.e. `track_path` `[frames, tracks, 2]` and `track_visibility` `[frames, tracks]` |
+| `wan_track_native` | `screen_tracks` | `tracks_json` | `WanTrackToVideo.tracks`; a 121-sample source grid resampled upstream to the generation length |
+| `wanvideo_ati` | `screen_tracks` | `tracks_json` | `WanVideoATITracks.tracks` (WanVideoWrapper); fixed 121 samples |
+| `ltx25_motion_track` | `screen_tracks` | `tracks_json` | `LTXVDrawTracks.tracks`, then IC-LoRA Motion Track; length 8n+1 |
+| `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos`; resampled to 24 fps, length 17n+5 |
+| `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
 
-| Adapter | Family | Control path |
-|---|---|---|
-| `h3` | video reference | reference video + prompt, `Video 1` dialect (`MinimaxHailuo03ReferenceNode`) |
-| `h3_native` | video reference | supplied reference resampled to 24 FPS as IMAGE frames + prompt, `<Video 1>` dialect (`MiniMaxH3ReferenceToVideo`); decoding is capped at the aligned generation length, not at an arbitrary duration |
-| `wan_native` | camera conditioning | a true digital camera: extrinsics/intrinsics → `WAN_CAMERA_EMBEDDING`; the fidelity reference; `length` = 4n+1 |
-| `wan_tracks_native` | trajectory | projected 2D trajectories → `WanTrackToVideo`; an approximation of a camera |
-| `wan_ati` | trajectory | projected 2D trajectories → `WanVideoATITracks` (Wan 2.1 ATI, WanVideoWrapper) |
-| `ltx_motion_track` | trajectory | projected 2D trajectories → `LTXVDrawTracks` → IC-LoRA Motion Track; `length` = 8n+1 |
-| `ltx` | proxy guide | legacy: sampled proxy frames; does not carry the authored camera |
+### Timeline resolution
 
-### Preflight vs track validity vs motion risk
+Trajectories are sampled on the shot's real frame times, `[0, (n-1)/fps]`, not
+across its playing duration `[0, n/fps]`. A 5-frame shot at 5 fps runs
+0, 0.2, 0.4, 0.6, 0.8 s — the last frame is at 0.8 s, not 1.0 s. Sampling across
+the duration instead stretches every track by one frame, and a key authored
+exactly at the end of the timeline lands one frame past the final image and is
+never displayed, the same as in any NLE.
 
-Three deliberately separate ideas:
+Profiles that pad to a fixed grid (ATI's 121 samples) or round the length up
+(LTX, H3) still sample the *source shot's* span, so every generated frame lands
+exactly on a grid sample.
 
-1. **Adapter contract** — the only facts that decide `READY` / `WARNING` /
-   `BLOCKED`, each read from the downstream node: 23.976–60 FPS and a 2–15 s
-   duration and the H3 API prompt-character budget for `h3`; for `h3_native`,
-   fewer than five reference frames blocks while the 2–15 s duration and
-   `length = 17n+5` guidance warn; `length = 4n+1` for `wan_native`, `length =
-   8n+1` for `ltx_motion_track`; the detected socket contract for every
-   required adapter stage.
-2. **Track validity** — non-finite values (blocking) and framing loss
-   (warning). Objective properties of the track.
-3. **Motion risk** — `LOW` / `MEDIUM` / `HIGH`, an OmniCam empirical estimate
-   in world units with no metric meaning, graded against tables no upstream
-   project publishes. Shown, never counted in the verdict.
+### Preflight
 
----
+Preflight is binding. Anything `BLOCKED` stops compilation rather than colouring
+a panel. Four kinds of check, deliberately separate:
+
+1. **Scene requirements** — a playblast camera that exists and is enabled, at
+   least one enabled motion layer, a connected playblast where one is needed.
+2. **The multi-shot gate** — a MotionScene can describe an edit. Profiles with
+   `camera_embedding` or `screen_tracks` semantics carry one camera basis and
+   are `BLOCKED` on an edit that cuts to a second camera, because the output
+   would be wrong from the first cut and wrong *silently*. `reference_video`
+   profiles accept it: the playblast already contains the cuts frame for frame.
+   Their camera prompt is replaced by a neutral one, since no single trajectory
+   describes the edit and a prompt claiming otherwise contradicts the video.
+3. **Track encodability** — the JSON track formats mark every supplied point
+   visible and zero-pad the tail, so they cannot express "appears later" or
+   "disappears and returns". A layer hidden on the first sample is dropped; one
+   with a visibility gap is cut there. Monitor names the affected layers instead
+   of encoding less than you authored. Nothing encodable at all is `BLOCKED`.
+4. **The downstream contract** — the capability registry checks the node the
+   selected profile targets. `missing` and `incompatible` are `BLOCKED`,
+   `detected_unverified` is a `WARNING`, `verified` passes. Only the selected
+   profile is binding: a missing LTX install never blocks a Wan Camera compile.
+   Outside a running ComfyUI there are no node mappings to read, and no check is
+   emitted rather than a false failure.
+
+Capability contracts are keyed by profile id — the same seven names used by the
+backend, the routes, the frontend and the tests. Each is pinned to an upstream
+ref and commit in `omnicam/adapters/registry.py`, and
+`tests/fixtures/upstream_contracts/` records the exact source literals the
+contract depends on, verified against the installed ComfyUI by
+`tests/test_upstream_contract_fixtures.py`.
 
 ## Camera interchange
 

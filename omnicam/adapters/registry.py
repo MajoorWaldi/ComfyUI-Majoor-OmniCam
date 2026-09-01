@@ -63,7 +63,7 @@ def _contract(
 # release commit. External adapter commits are pinned rather than inferred from
 # their `master`.
 ADAPTER_INFO = {
-    "wan_native": _contract(
+    "wan_camera_native": _contract(
         display_name="Wan Camera",
         target="WAN_CAMERA_EMBEDDING",
         node_classes=[["WanCameraImageToVideo"]],
@@ -75,7 +75,7 @@ ADAPTER_INFO = {
         motion_limits={"length": "4n+1"},
         connection_recipe="Connect camera_embedding to Wan Camera Image to Video.camera_conditions.",
     ),
-    "wan_tracks_native": _contract(
+    "wan_track_native": _contract(
         display_name="Wan Motion Tracks",
         target="WanTrackToVideo tracks STRING",
         node_classes=[["WanTrackToVideo"]],
@@ -86,7 +86,24 @@ ADAPTER_INFO = {
         docs="https://github.com/Comfy-Org/ComfyUI",
         connection_recipe="Connect the OmniCam tracks STRING to WanTrackToVideo.tracks.",
     ),
-    "h3": _contract(
+    "wan_move_native": _contract(
+        display_name="Wan Move Native",
+        target="WanMoveTrackToVideo TRACKS",
+        node_classes=[["WanMoveTrackToVideo"]],
+        inputs=["tracks"],
+        widgets=["width", "height", "length"],
+        repository="https://github.com/Comfy-Org/ComfyUI",
+        tested_ref="v0.34.0",
+        tested_commit="12d5279438bfefc058a269eae805ceab6047777f",
+        docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.34.0/comfy_extras/nodes_wanmove.py",
+        motion_limits={"length": "4n+1"},
+        connection_recipe=(
+            "Connect native_tracks to WanMoveTrackToVideo.tracks. The TRACKS type is "
+            "comfy_api.latest.io.Tracks: a dict of track_path [frames, tracks, 2] and "
+            "track_visibility [frames, tracks], which is exactly what this profile emits."
+        ),
+    ),
+    "h3_api": _contract(
         display_name="MiniMax H3 - Comfy API",
         target="reference video and prompt",
         node_classes=[["MinimaxHailuo03ReferenceNode"]],
@@ -96,17 +113,6 @@ ADAPTER_INFO = {
         tested_commit="12d5279438bfefc058a269eae805ceab6047777f",
         docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.34.0/comfy_api_nodes/nodes_minimax.py",
         connection_recipe="Use the playblast as Omni Reference and the generated prompt as camera-motion guidance.",
-    ),
-    "ltx": _contract(
-        display_name="LTX Proxy Guide (legacy)",
-        target="IMAGE guide frames",
-        node_classes=[["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"]],
-        inputs=["image"],
-        repository="https://github.com/Lightricks/ComfyUI-LTXVideo",
-        tested_ref="ac4d99839020b983e956a8ab67ec38aec1b6e65a",
-        tested_commit="ac4d99839020b983e956a8ab67ec38aec1b6e65a",
-        docs="https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/iclora.py",
-        connection_recipe="Connect guide_frames after verifying the installed LTX node inputs.",
     ),
     "h3_native": _contract(
         display_name="MiniMax H3 - Native",
@@ -120,7 +126,7 @@ ADAPTER_INFO = {
         motion_limits={"length": "17n+5"},
         connection_recipe="Wire reference_frames into ref_video_1 and use the generated <Video 1> prompt.",
     ),
-    "ltx_motion_track": _contract(
+    "ltx25_motion_track": _contract(
         display_name="LTX 2.5 Motion Track",
         target="LTXVDrawTracks tracks STRING",
         node_classes=[["LTXVDrawTracks"], ["LTXAddVideoICLoRAGuide", "LTXAddVideoICLoRAGuideAdvanced", "LTXVAddGuide"]],
@@ -140,7 +146,7 @@ ADAPTER_INFO = {
         motion_limits={"length": "8n+1"},
         connection_recipe="Connect tracks to LTXVDrawTracks, then its IMAGE into LTX Add Video IC-LoRA Guide.",
     ),
-    "wan_ati": _contract(
+    "wanvideo_ati": _contract(
         display_name="Wan 2.1 ATI - WanVideoWrapper",
         target="WanVideoATITracks tracks STRING",
         node_classes=[["WanVideoATITracks"]],

@@ -119,7 +119,7 @@ def test_wan_camera_profile_compiles_the_authored_playblast_camera(monkeypatch):
     assert result.final_prompt == "A stone tower at blue hour."
     assert result.profile_id == "wan_camera_native"
     assert result.semantic == "camera_embedding"
-    assert [check.state for check in result.checks] == ["PASS", "PASS"]
+    assert [check.state for check in result.checks] == ["PASS", "PASS", "PASS"]
 
 
 def test_wan_camera_profile_rejects_a_disabled_playblast_camera():
@@ -129,6 +129,7 @@ def test_wan_camera_profile_rejects_a_disabled_playblast_camera():
     assert [(check.id, check.state) for check in checks] == [
         ("playblast_camera", "BLOCKED"),
         ("target_length", "PASS"),
+        ("multi_shot", "PASS"),
     ]
 
     with pytest.raises(ValueError, match=r"playblast camera.*disabled"):

@@ -1,61 +1,72 @@
 # Validation report
 
-Last updated: 31 August 2026
+**Status: working tree, not a released commit.**
 
-## Results observed locally
+| | |
+|---|---|
+| Base commit | `6c6599a78c3d0cc658c7a383749bb19cc7305c71` (*refactor: modernize OmniCam workflow and Monitor*) |
+| Validated | uncommitted working tree on top of that commit |
+| Date | 1 September 2026 |
+| ComfyUI | 0.34.1, local install |
+| GitHub Actions run | none — these are local results |
 
-- [x] Core Python suite without ComfyUI on `PYTHONPATH`: **681 passed, 8
-      skipped** (`pytest -q`).
-- [x] Full Python suite with the local ComfyUI runtime on `PYTHONPATH`: **724
-      passed, 3 skipped** (`pytest -q`).
-- [x] Python quality gates: `ruff check .` passed; scoped `mypy` passed for 14
-      source files.
-- [x] Python 3.10 dependency resolution selected
-      `numpy-2.2.6-cp310-cp310-win_amd64.whl` in a targeted pip dry run.
-- [x] Fresh frontend production build completed with Vite (245 modules).
-- [x] Frontend static and contract checks passed (`npm run check`): line limit,
-      UTF-8/mojibake guard, three.js surface, locale coverage, template
-      contract, notices and bundle syntax.
-- [x] Frontend unit discovery ran every `tests/frontend/*.node.mjs` module:
-      **377 passed**.
-- [x] Playwright viewport suite: **58 passed**.
-- [x] Live ComfyUI browser gate: **6 passed** against local ComfyUI 0.34.1,
-      covering Director creation/reload/recreation/queue, Extractor attachment,
-      TRACK 3D, subgraph FPS, v1 workflow loading and diagnostics.
-- [x] Hand-written source ceiling: 376 files checked, maximum 800 lines.
-- [x] UTF-8/encoding gate: 421 files checked.
-- [x] Three.js API contract: 58 symbols checked.
-- [x] French locale coverage: 100% of 479 source messages.
+This file records what was *observed*, not what is expected. It must be
+regenerated against a committed SHA with a green Actions run before it can be
+cited as release evidence; until then the row above says so plainly, because
+the previous version of this file reported a green suite for a commit whose CI
+was red.
 
-The live run also reported local environment warnings for an older installed
-frontend package, a missing optional `comfy_angle` package and an already locked
-ComfyUI database. OmniCam still imported in 0.0 seconds and all six live tests
-passed; those warnings were not hidden or counted as OmniCam failures.
+## Gates
 
-## Coverage configured in CI
+- [x] **Model-agnostic Python lane** — `pytest -q` with numpy, jsonschema and
+      pytest-asyncio only, no torch and no ComfyUI: **614 passed, 59 skipped**.
+      This is the lane CI runs on 3.10 / 3.12 / 3.13, and the one that was red
+      at the base commit: three suites imported torch or `comfy_api` at module
+      scope and failed collection for the whole run.
+- [x] **Full Python lane** — same suite with the ComfyUI runtime and torch
+      present: **820 passed, 3 skipped**.
+- [x] **`ruff check .`** — clean.
+- [x] **`mypy`** — clean across the 29 scoped source files.
+- [x] **`npm run build`** — Vite production build; the committed bundle in
+      `web-chunks/` matches the source.
+- [x] **`npm run check`** — 412 files under the 800-line ceiling, 466 files
+      UTF-8 clean, 58 three.js symbols all used, template contract across 14
+      template sources, third-party notices current.
+- [x] **French locale** — 100.0% of 502 source messages (was 95.4%).
+- [x] **Frontend unit modules** — **422 passed**.
+- [x] **Playwright viewport suite** — **59 passed**. The three Monitor specs
+      that were failing pointed at a harness deleted in the base commit and at
+      four view modules replaced during the Monitor refactor; both the harness
+      and the specs are rewritten against the shipped UI.
+- [x] **`scripts/verify_package.py`** — OK.
+- [x] **Upstream contract parity** — every literal pinned in
+      `tests/fixtures/upstream_contracts/` verified against the installed
+      ComfyUI 0.34.1 source.
 
-The following are configured GitHub Actions lanes. They describe expected
-remote coverage; they are not presented as locally observed runs:
+## Not covered here
 
-- `python-core` on Python 3.10, 3.12 and 3.13, with `fail-fast: false`;
-- `python-full` on Python 3.12 with the runtime video/route dependencies;
-- blocking ComfyUI integration lanes for `v0.31.0` (minimum) and `v0.34.0`;
-- non-blocking ComfyUI `master` canary;
-- blocking live browser integration against ComfyUI `v0.34.0`;
-- frontend build, static checks, automatic unit discovery, generated-bundle
-  parity and Playwright browser tests.
+- **GitHub Actions.** Nothing in this file was produced by CI. The
+      `comfyui-integration` (0.31 / 0.34 / master) and `comfyui-browser` lanes
+      were not run locally.
+- **Live ComfyUI browser gate** (`npm run test:live`) — not re-run.
+- **Generation.** No model was loaded. Every profile claim here is about the
+      payload OmniCam compiles and the socket contract it targets, not about
+      the video a model produces from it.
 
-The exact required branch-protection contexts are documented in
-[BRANCH_PROTECTION.md](BRANCH_PROTECTION.md).
+## Known state of the working tree
 
-## Manual checks still required before a public release
+The base commit's CI was red. What was fixed on top of it:
 
-- [ ] Complete workflow save and reload in the intended release installation.
-- [ ] Full playblast recording with every supported production browser.
-- [ ] Real model generations with installed third-party integrations (MiniMax
-      H3, Wan native camera, WanVideoWrapper ATI and LTX IC-LoRA).
-- [ ] Camera interchange round-trip (`.glb`, `.usda`, `.chan`) in a target DCC
-      such as Blender, Maya, Nuke or Houdini.
-
-Passing automated checks confirms code integrity. It does not replace the
-manual generation, recording and DCC checks above.
+| Was | Now |
+|---|---|
+| 3 suites failed collection on the core lane | torch is an `importorskip`; the MotionScene socket name lives in the pure domain |
+| Trajectories sampled across `[0, duration]` | sampled across the shot's real frame span `[0, (n-1)/fps]` |
+| Multi-shot edits compiled silently to one camera | BLOCKED on single-camera profiles; neutral prompt on reference-video profiles |
+| H3 Native's five-frame minimum was a comment | enforced against the decoded playblast |
+| H3 API media limits lost in the profile migration | fps and duration checked against the documented contract |
+| Capability and profile registries used different ids | one vocabulary; the translation table is gone |
+| Capability detection was advisory | the selected profile's downstream contract blocks the compile |
+| Non-encodable tracks dropped silently | reported per layer before encoding |
+| `cuts` and scene objects were untyped dicts | `CutEvent` is typed and validated; objects go through canonical validation |
+| 4 of 5 example workflows wired removed nodes | 3 rebuilt, one per semantic, checked against the live schemas |
+| README and NODES described the pre-MotionScene product | rewritten |

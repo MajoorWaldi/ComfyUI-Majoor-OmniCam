@@ -110,8 +110,14 @@ def _managed_root() -> Path:
 def _folder_size(directory: Path) -> int:
     total = 0
     for entry in directory.rglob("*"):
-        if entry.is_file():
-            total += entry.stat().st_size
+        # A file deleted between rglob and stat is a race, not a server error.
+        # asset_index._scan() already skips these; the quota scan must agree,
+        # or a concurrent cleanup turns an upload into a 500.
+        try:
+            if entry.is_file():
+                total += entry.stat().st_size
+        except OSError:
+            continue
     return total
 
 
@@ -378,18 +384,13 @@ async def monitor_profiles(_request: web.Request):
     from .profiles.catalog import PROFILE_REGISTRY
 
     capabilities = detect_capabilities()
-    capability_by_adapter = {
+    # Capability contracts are keyed by profile id, so there is nothing to map.
+    # The hand-written translation table that used to live here bridged two
+    # vocabularies and got two of its seven entries wrong -- both Wan track
+    # profiles pointed at the same contract, and LTX had no entry at all.
+    capability_by_profile = {
         str(entry.get("adapter")): entry
         for entry in capabilities.get("capabilities", [])
-    }
-    profile_adapters = {
-        "wan_camera_native": "wan_native",
-        "wan_move_native": "wan_tracks_native",
-        "wan_track_native": "wan_tracks_native",
-        "wanvideo_ati": "wan_ati",
-        "h3_native": "h3_native",
-        "h3_api": "h3",
-        "ltx25_motion_track": "ltx_motion_track",
     }
     profiles = [
         {
@@ -397,7 +398,7 @@ async def monitor_profiles(_request: web.Request):
             "display_name": profile.display_name,
             "semantic": profile.semantic,
             "frame_policy": profile.frame_policy,
-            "capability": capability_by_adapter.get(profile_adapters.get(profile.id, ""), {}),
+            "capability": capability_by_profile.get(profile.id, {}),
         }
         for profile in (PROFILE_REGISTRY.require(profile_id) for profile_id in PROFILE_REGISTRY.ids)
     ]

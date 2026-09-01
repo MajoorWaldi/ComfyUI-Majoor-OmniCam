@@ -55,3 +55,16 @@ async def test_declared_oversize_is_rejected_before_streaming():
         await read_bounded_json_object(request, max_bytes=16)
 
     assert request.content.yielded == 0
+
+
+@pytest.mark.asyncio
+async def test_a_deeply_nested_body_is_a_bad_request_not_a_server_error():
+    """json.loads recurses per level, so deep nesting raises before it can parse."""
+    depth = 20_000
+    body = b'{"n":' * depth + b"{}" + b"}" * depth
+    request = Request([body])
+
+    with pytest.raises(web.HTTPBadRequest) as exc_info:
+        await read_bounded_json_object(request, max_bytes=len(body) + 1)
+
+    assert exc_info.value.text == "JSON body is nested too deeply"

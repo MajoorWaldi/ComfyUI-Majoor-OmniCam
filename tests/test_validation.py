@@ -6,9 +6,11 @@ from omnicam.core.editor_state import editor_state_to_track, select_track_camera
 from omnicam.core.migrations import SEQUENCE_SCHEMA, TRACK_SCHEMA, migrate_payload
 from omnicam.core.track import OmniCamTrack
 from omnicam.core.validation import (
+    MAX_METADATA_DEPTH,
     TrackLimits,
     ValidationError,
     validate_editor_state,
+    validate_metadata,
     validate_track_payload,
 )
 
@@ -350,3 +352,34 @@ def test_sequence_is_a_valid_playblast_target():
                 "playblast_camera_id": "cam_typo",
             }
         )
+
+
+def test_metadata_nesting_is_bounded_rather_than_recursed_into():
+    """Deep nesting is a malformed payload, not a RecursionError at the route."""
+    deep: dict = {"leaf": "kept"}
+    for _ in range(MAX_METADATA_DEPTH + 5):
+        deep = {"nested": deep}
+
+    bounded = validate_metadata(deep)
+
+    depth = 0
+    cursor = bounded
+    while isinstance(cursor, dict) and "nested" in cursor:
+        cursor = cursor["nested"]
+        depth += 1
+    assert depth == MAX_METADATA_DEPTH
+    assert cursor == {}
+
+
+def test_a_payload_too_nested_to_encode_is_a_validation_error():
+    """json.dumps recurses while measuring, so the 500 has to become a 400."""
+    # json's C encoder has its own stack budget, well above sys.getrecursionlimit();
+    # this is comfortably past it while staying far below the route body cap.
+    payload: dict = {"metadata": {}}
+    cursor = payload["metadata"]
+    for _ in range(20_000):
+        cursor["nested"] = {}
+        cursor = cursor["nested"]
+
+    with pytest.raises(ValidationError, match="nested too deeply"):
+        validate_track_payload(payload)

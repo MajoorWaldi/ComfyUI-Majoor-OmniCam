@@ -186,7 +186,7 @@ function linkedPair() {
   const graph = new FakeGraph();
   const extractor = graph.add(1, "MajoorOmniCamExtractor");
   const director = graph.add(2, "MajoorOmniCamDirector");
-  graph.connect(extractor, director, "motion_scene");
+  graph.connect(extractor, director, "solved_scene");
   return { graph, extractor, director, ui: makeDirectorUi(director) };
 }
 
@@ -297,7 +297,7 @@ test("an empty track is refused rather than clearing the camera", () => {
 
 // --- link ------------------------------------------------------------------
 
-test("the linked extractor node is found through the motion_scene input", () => {
+test("the linked extractor node is found through the solved_scene input", () => {
   const { extractor, ui } = linkedPair();
   assert.equal(upstreamExtractorNode(ui), extractor);
 });
@@ -306,7 +306,7 @@ test("a foreign node on motion_scene is not treated as an extractor", () => {
   const graph = new FakeGraph();
   const other = graph.add(1, "SomeOtherTrackSource");
   const director = graph.add(2, "MajoorOmniCamDirector");
-  graph.connect(other, director, "motion_scene");
+  graph.connect(other, director, "solved_scene");
   assert.equal(upstreamExtractorNode(makeDirectorUi(director)), null);
 });
 

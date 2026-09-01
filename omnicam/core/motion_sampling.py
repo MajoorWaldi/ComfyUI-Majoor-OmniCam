@@ -12,10 +12,27 @@ from .validation import ValidationError
 
 @dataclass(slots=True)
 class SampledTrack:
+    """One layer resolved onto a sample grid.
+
+    ``xy`` is normalized but deliberately *not* clamped to 0..1: a point that
+    leaves frame still has a real position, and an adapter that understands
+    re-entry or occlusion needs it. Only ``visible`` says whether it is on
+    screen.
+
+    ``defined`` is narrower and says whether ``xy`` is a projection at all. A
+    point behind the camera has no screen position, and the placeholder written
+    for it would otherwise be indistinguishable from a real coordinate at the
+    top-left corner.
+    """
+
     id: str
     label: str
     xy: list[tuple[float, float]]
     visible: list[bool]
+    defined: list[bool] | None = None
+
+    def is_defined(self, index: int) -> bool:
+        return True if self.defined is None else bool(self.defined[index])
 
 
 def _finite(value: float, path: str) -> float:
@@ -28,6 +45,46 @@ def _finite(value: float, path: str) -> float:
     if not math.isfinite(number):
         raise ValidationError(f"{path} must be finite")
     return number
+
+
+def media_duration_seconds(frame_count: int, fps: float) -> float:
+    """How long the clip *plays*: every frame is shown for 1/fps.
+
+    This is the media convention -- 120 frames at 24 fps is a 5 second clip --
+    and it is the right number for a duration widget or a container header.
+    It is NOT the timestamp of the last frame.
+    """
+    return _positive_frame_count(frame_count) / _positive_fps(fps)
+
+
+def last_frame_time_seconds(frame_count: int, fps: float) -> float:
+    """When the *last* frame is shown: (frame_count - 1) / fps.
+
+    Frame i is displayed at i/fps, so the final frame of a 120-frame 24 fps clip
+    sits at 4.958333s, not 5.0. Sampling a trajectory across [0, media_duration]
+    therefore stretches it by one frame -- a systematic ~0.8% temporal dilation
+    at 120 frames, and the reason every profile samples on this span instead.
+    """
+    return (_positive_frame_count(frame_count) - 1) / _positive_fps(fps)
+
+
+def frame_times(frame_count: int, fps: float) -> list[float]:
+    """The exact presentation timestamp of every frame."""
+    rate = _positive_fps(fps)
+    return [index / rate for index in range(_positive_frame_count(frame_count))]
+
+
+def _positive_frame_count(frame_count: int) -> int:
+    if isinstance(frame_count, bool) or not isinstance(frame_count, int) or frame_count < 1:
+        raise ValidationError("frame_count must be a positive integer")
+    return frame_count
+
+
+def _positive_fps(fps: float) -> float:
+    rate = _finite(fps, "fps")
+    if rate <= 0:
+        raise ValidationError("fps must be greater than zero")
+    return rate
 
 
 def sample_times(sample_count: int, in_seconds: float, out_seconds: float) -> list[float]:

@@ -38,6 +38,11 @@ async def read_bounded_json_object(
         payload = json.loads(bytes(raw))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise web.HTTPBadRequest(text="Expected a JSON object") from exc
+    except RecursionError as exc:
+        # json.loads recurses per nesting level, so a deeply nested body raises
+        # here rather than failing to parse. That is a malformed request, and
+        # letting it escape would turn it into a 500.
+        raise web.HTTPBadRequest(text="JSON body is nested too deeply") from exc
     if payload is None and allow_empty:
         return {}
     if not isinstance(payload, dict):

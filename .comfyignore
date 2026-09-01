@@ -1,3 +1,6 @@
+# Files the Registry should not ship to users. The runtime needs omnicam/,
+# web/, web-chunks/ and the packaging metadata; everything below is
+# development-only and only makes the download bigger.
 .venv/
 venv/
 .pytest_cache/
@@ -6,3 +9,16 @@ __pycache__/
 node_modules/
 test-results/
 *.log
+
+# Development-only sources and suites. web-src/ is the input to `npm run build`;
+# what ships is the built bundle in web-chunks/, which is committed.
+tests/
+web-src/
+scripts/
+playwright.config.mjs
+playwright.live.config.mjs
+vite.config.mjs
+vite.test.config.mjs
+package.json
+package-lock.json
+requirements-dev.txt

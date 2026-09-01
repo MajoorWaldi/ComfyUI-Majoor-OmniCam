@@ -32,19 +32,22 @@ import { t } from "../i18n.js";
 import { EXTRACTOR_NODE_CLASS, readCachedResult } from "./result-cache.js";
 import { graphLink, linkedOrigin } from "../graph-links.js";
 
-export const MOTION_SCENE_INPUT = "motion_scene";
+//: The Director input an Extractor connects to. Named for what it carries --
+//: a solved camera -- rather than for the socket type, because the Director
+//: imports only that camera and not the rest of the upstream scene.
+export const SOLVED_SCENE_INPUT = "solved_scene";
 
 function nodeClassOf(node) {
   return String(node?.comfyClass || node?.type || node?.constructor?.type || "");
 }
 
-/** The Extractor node feeding this Director's motion_scene input, if any. */
+/** The Extractor node feeding this Director's solved_scene input, if any. */
 export function upstreamExtractorNode(ui) {
   const node = ui?.node;
   const graph = node?.graph;
   if (!graph) return null;
   for (const input of node.inputs || []) {
-    if (String(input?.name || "").toLowerCase() !== MOTION_SCENE_INPUT) continue;
+    if (String(input?.name || "").toLowerCase() !== SOLVED_SCENE_INPUT) continue;
     if (input.link == null) continue;
     const origin = linkedOrigin(graph, input.link);
     if (origin && nodeClassOf(origin) === EXTRACTOR_NODE_CLASS) return origin;

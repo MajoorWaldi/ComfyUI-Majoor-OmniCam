@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 
 import pytest
 
@@ -98,7 +97,7 @@ def test_ltx_motion_profile_compiles_json():
     result = LTX_MOTION_PROFILE.compile(_request())
     assert result.profile_id == "ltx25_motion_track"
     assert result.semantic == "screen_tracks"
-    
+
     tracks = json.loads(result.tracks_json)
     assert len(tracks) == 1
     points = tracks[0]
@@ -107,7 +106,7 @@ def test_ltx_motion_profile_compiles_json():
     # start is 0.1, 0.2. target_width=832, target_height=480
     assert points[0]["x"] == pytest.approx(0.1 * 832)
     assert points[0]["y"] == pytest.approx(0.2 * 480)
-    
+
     # Prompt should be base prompt, no duplicated motion logic
     assert result.final_prompt == "A testing prompt."
 

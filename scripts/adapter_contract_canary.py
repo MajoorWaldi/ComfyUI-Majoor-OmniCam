@@ -64,9 +64,11 @@ def _verify_requirement(
 def verify(source_roots: dict[str, Path]) -> list[str]:
     """Return deviations in the external sources from pinned OmniCam contracts."""
     errors: list[str] = []
-    for adapter in ("ltx", "ltx_motion_track", "wan_ati"):
+    # Driven by what the caller supplied rather than a hardcoded list: the
+    # contract ids are profile ids now, and a stale tuple here silently stopped
+    # checking a contract when one was renamed.
+    for adapter, source_root in source_roots.items():
         contract: dict[str, Any] = ADAPTER_INFO[adapter]
-        source_root = source_roots[adapter]
         if not source_root.is_dir():
             errors.append(f"{adapter}: source directory missing: {source_root}")
             continue
@@ -82,9 +84,8 @@ def main(argv: list[str]) -> int:
         print("usage: adapter_contract_canary.py <ltx-source> <wan-video-wrapper-source>")
         return 2
     roots = {
-        "ltx": Path(argv[1]),
-        "ltx_motion_track": Path(argv[1]),
-        "wan_ati": Path(argv[2]),
+        "ltx25_motion_track": Path(argv[1]),
+        "wanvideo_ati": Path(argv[2]),
     }
     errors = verify(roots)
     if errors:

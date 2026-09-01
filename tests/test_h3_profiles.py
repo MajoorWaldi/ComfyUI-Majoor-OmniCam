@@ -1,13 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import replace
+import copy
 
 import pytest
+
+# torch is optional: the model-agnostic lane installs numpy and nothing else.
+# A bare ``import torch`` here fails collection for the whole run, which is how
+# three green suites turned the core lane red.
+pytest.importorskip("torch")
+
 import torch
 
 from omnicam.core.motion_scene import MotionScene
 from omnicam.profiles import CompileRequest
 from omnicam.profiles.h3 import H3_API_PROFILE, H3_NATIVE_PROFILE
+from omnicam.profiles.shots import MULTI_SHOT_PROMPT
 
 
 def _scene(*, camera_enabled: bool = True) -> MotionScene:
@@ -148,3 +155,105 @@ def test_h3_profiles_require_playblast_video():
         H3_API_PROFILE.compile(request)
 
 
+
+
+# ---------------------------------------------------------------------------
+# Reference-media contract and multi-shot handling
+# ---------------------------------------------------------------------------
+
+class ShortVideo(MockVideo):
+    """A reference far below H3's two-second minimum."""
+
+    def get_frame_count(self) -> int:
+        return 12  # 0.5 s at 24 fps
+
+
+class OffRateVideo(MockVideo):
+    """A reference outside the 23.9-60.5 fps window the API accepts."""
+
+    def get_frame_rate(self) -> float:
+        return 12.0
+
+
+def _check(checks, check_id):
+    return next(check for check in checks if check.id == check_id)
+
+
+def test_h3_api_blocks_a_reference_shorter_than_the_documented_minimum():
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())
+
+    check = _check(H3_API_PROFILE.preflight(request), "reference_media")
+
+    assert check.state == "BLOCKED"
+    assert "below the 2.0s minimum" in check.message
+
+
+def test_h3_api_blocks_a_reference_frame_rate_the_api_rejects():
+    request = _request()
+    object.__setattr__(request, "playblast_video", OffRateVideo())
+
+    check = _check(H3_API_PROFILE.preflight(request), "reference_media")
+
+    assert check.state == "BLOCKED"
+    assert "frame rate" in check.message
+
+
+def test_h3_native_warns_rather_than_blocks_on_a_short_reference():
+    """Native has recommendations where the API has hard limits."""
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())
+
+    check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_media")
+
+    assert check.state == "WARNING"
+
+
+def test_h3_native_refuses_a_playblast_that_decodes_below_five_frames():
+    class TinyVideo(MockVideo):
+        # The decoded length follows the source frame count, so that is what a
+        # too-short reference actually looks like.
+        def get_frame_count(self) -> int:
+            return 3
+
+    request = _request()
+    object.__setattr__(request, "playblast_video", TinyVideo())
+
+    with pytest.raises(ValueError, match="at least 5 reference frames"):
+        H3_NATIVE_PROFILE.compile(request)
+
+
+def _multi_shot_request() -> CompileRequest:
+    payload = _scene().to_dict()
+    second = copy.deepcopy(payload["cameras"][0])
+    second["id"] = "wide_camera"
+    second["label"] = "Wide Camera"
+    payload["cameras"].append(second)
+    # Cuts are expressed in seconds, like everything else in a MotionScene.
+    payload["cuts"] = [
+        {"camera_id": "hero_camera", "time_seconds": 0.0, "end_time_seconds": 1.0},
+        {"camera_id": "wide_camera", "time_seconds": 1.0, "end_time_seconds": 2.0},
+    ]
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    return request
+
+
+def test_h3_reports_a_multi_shot_edit_and_stops_describing_one_camera():
+    """The playblast carries the cuts, so the video stays valid; the prompt must not."""
+    request = _multi_shot_request()
+
+    assert request.motion_scene.is_multi_shot
+    check = _check(H3_API_PROFILE.preflight(request), "multi_shot")
+    assert check.state == "WARNING"
+
+    result = H3_API_PROFILE.compile(request)
+    assert MULTI_SHOT_PROMPT in result.final_prompt
+    assert result.final_prompt.startswith("A stone tower at blue hour.")
+
+
+def test_a_single_camera_scene_is_not_reported_as_an_edit():
+    check = _check(H3_API_PROFILE.preflight(_request()), "multi_shot")
+
+    assert check.state == "PASS"
+    assert MULTI_SHOT_PROMPT not in H3_API_PROFILE.compile(_request()).final_prompt

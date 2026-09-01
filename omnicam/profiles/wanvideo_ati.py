@@ -5,7 +5,8 @@ from __future__ import annotations
 from ..core.motion_resolution import resolve_motion_scene_tracks
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
-from .track_json import tracks_json, visible_prefix_tracks
+from .shots import multi_shot_check, multi_shot_error
+from .track_json import encoding_check, tracks_json, visible_prefix_tracks
 
 ATI_LENGTH = 121
 
@@ -26,7 +27,19 @@ class WanVideoAtiProfile:
             frame_policy=self.frame_policy,
         )
 
+    def _sampled_tracks(self, request: CompileRequest):
+        """Resolve the layers once, so preflight judges what compile encodes."""
+        timeline = self.resolve_timeline(request)
+        return resolve_motion_scene_tracks(
+            request.motion_scene,
+            sample_count=ATI_LENGTH,
+            out_seconds=request.source_last_frame_time,
+            width=timeline.width,
+            height=timeline.height,
+        )
+
     def preflight(self, request: CompileRequest) -> list[Check]:
+        tracks = self._sampled_tracks(request)
         enabled_count = sum(layer.enabled for layer in request.motion_scene.motion_layers)
         return [
             Check(
@@ -42,20 +55,23 @@ class WanVideoAtiProfile:
                 label="WanVideo ATI grid: exactly 121 samples",
                 state="PASS",
             ),
+            multi_shot_check(
+                request.motion_scene,
+                display_name="WanVideoWrapper ATI",
+                can_represent=False,
+            ),
+            encoding_check(tracks, display_name="WanVideoWrapper ATI"),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
+        # A blocked gate has to stop compilation, not just colour the panel.
+        if request.motion_scene.is_multi_shot:
+            raise ValueError(multi_shot_error(request.motion_scene, "WanVideoWrapper ATI"))
         if checks[0].state == "BLOCKED":
             raise ValueError("WanVideo ATI requires at least one enabled motion layer")
         timeline = self.resolve_timeline(request)
-        sampled = resolve_motion_scene_tracks(
-            request.motion_scene,
-            sample_count=ATI_LENGTH,
-            out_seconds=request.duration_seconds,
-            width=timeline.width,
-            height=timeline.height,
-        )
+        sampled = self._sampled_tracks(request)
         encoded = visible_prefix_tracks(sampled, width=timeline.width, height=timeline.height)
         if not encoded:
             raise ValueError("WanVideo ATI has no trajectory visible on its first sample")

@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from ..core.motion_sampling import last_frame_time_seconds
 from ..core.motion_scene import MotionScene
 
 if TYPE_CHECKING:
@@ -90,6 +91,26 @@ class CompileRequest:
             _positive_finite(self.duration_seconds, "duration_seconds"),
         )
         object.__setattr__(self, "target_fps", _positive_finite(self.target_fps, "target_fps"))
+
+    @property
+    def source_frame_count(self) -> int:
+        """How many frames the authored shot actually has."""
+        return max(1, math.ceil(self.duration_seconds * self.target_fps))
+
+    @property
+    def source_last_frame_time(self) -> float:
+        """Timestamp of the shot's final frame: (frame_count - 1) / fps.
+
+        Every trajectory is sampled across [0, source_last_frame_time]. Sampling
+        across [0, duration_seconds] instead spans one frame too many and dilates
+        the whole track -- 1/23.5 s per step instead of 1/24 s on a 2 second,
+        24 fps shot.
+
+        Deliberately derived from the *request*, never from a profile's resolved
+        timeline: ATI pads to a fixed 121-sample grid and LTX rounds its length
+        up, so their frame_count is a target grid, not the shot.
+        """
+        return last_frame_time_seconds(self.source_frame_count, self.target_fps)
 
 
 @runtime_checkable

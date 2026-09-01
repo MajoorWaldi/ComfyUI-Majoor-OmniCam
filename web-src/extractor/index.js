@@ -1,4 +1,5 @@
 import { api } from "../comfy-runtime.js";
+import { RequestLifetime } from "../request-lifetime.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
@@ -88,6 +89,10 @@ class ExtractorUI {
     this.state = createExtractorState();
     this.disposed = false;
     this.disposers = [];
+    // Requests belong to this panel. When the node is removed they are
+    // cancelled, so a destroyed panel never reports its own teardown as a
+    // network failure.
+    this.requests = new RequestLifetime();
     this.result = { raw: null, refined: null };
     this.landmarks = [];
     this.diagnostics = new FrameDiagnosticsStore();
@@ -165,9 +170,11 @@ class ExtractorUI {
 
   async loadMotionLimits() {
     try {
-      const response = await api.fetchApi?.("/majoor/omnicam/motion_profiles");
-      if (!response?.ok) return;
-      const payload = await response.json();
+      const payload = await this.requests.run(async (signal) => {
+        const response = await api.fetchApi?.("/majoor/omnicam/motion_profiles", { signal });
+        return response?.ok ? response.json() : undefined;
+      });
+      if (payload === undefined) return;
       this.motionLimits = payload?.profiles?.find((profile) => profile.id === "generic")?.limits || null;
       if (!this.disposed) this.render();
     } catch {
@@ -690,6 +697,7 @@ class ExtractorUI {
   dispose() {
     stopActiveSolveOnDispose(this.client, this.state);
     this.disposed = true;
+    this.requests.dispose();
     this.events.dispose();
     this.refine.dispose();
     this.coordinator.dispose();

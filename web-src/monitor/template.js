@@ -38,6 +38,7 @@ export function monitorMarkup() {
           <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0.1" max="600" step="0.1"></label>
           <label>FPS<input data-setting="target_fps" type="number" min="1" max="120" step="1"></label>
         </div></div>
+        <div class="oc-card"><div class="oc-section">Profiles</div><div data-role="profile-catalogue" class="oc-empty">Loading the Monitor profile catalogue.</div></div>
         <div class="oc-card"><div class="oc-section">Installed capabilities</div><div data-role="profile-capabilities" class="oc-empty">Capability report available after execution.</div></div>
         <div class="oc-card"><div class="oc-section">Execution output</div><div data-role="output-status" class="oc-empty">OUTPUT NOT EXECUTED</div></div>
       </aside>

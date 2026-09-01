@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import math
-from typing import Any
 
-from ..adapters.h3 import build_h3_prompt, h3_native_aligned_length
+from ..adapters.h3 import (
+    H3_API_MEDIA_LIMITS,
+    H3_NATIVE_MEDIA_LIMITS,
+    build_h3_prompt,
+    h3_native_aligned_length,
+)
 from ..core.motion_scene import CameraSceneItem, MotionScene
-from ..core.video_sampling import resample_video_frames
+from ..core.video_sampling import inspect_video, resample_video_frames
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
+from .shots import MULTI_SHOT_PROMPT, multi_shot_check
 
 
 def _playblast_camera(scene: MotionScene) -> CameraSceneItem | None:
@@ -17,6 +22,77 @@ def _playblast_camera(scene: MotionScene) -> CameraSceneItem | None:
         (camera for camera in scene.cameras if camera.id == scene.playblast_camera_id),
         None,
     )
+
+
+def _reference_media_checks(request: CompileRequest, limits: dict) -> list[Check]:
+    """Validate the connected playblast against the target's own media contract.
+
+    These limits come from the upstream node, not from OmniCam. Losing them in
+    the move to profiles meant a reference the API will reject only failed once
+    it had been uploaded.
+    """
+    if request.playblast_video is None:
+        return []
+    try:
+        metadata = inspect_video(request.playblast_video)
+    except Exception:  # noqa: BLE001 - an unreadable reference is reported, not raised
+        return [Check(
+            id="reference_media",
+            label="Reference media",
+            state="WARNING",
+            message="The connected playblast could not be inspected, so its duration and "
+                    "frame rate were not checked against the target contract.",
+        )]
+
+    duration = metadata.frame_count / metadata.frame_rate if metadata.frame_rate > 0 else 0.0
+    problems: list[str] = []
+    state = "PASS"
+
+    minimum_fps = limits.get("min_fps")
+    maximum_fps = limits.get("max_fps")
+    if minimum_fps is not None and maximum_fps is not None and not (
+        minimum_fps <= metadata.frame_rate <= maximum_fps
+    ):
+        problems.append(
+            f"frame rate {metadata.frame_rate:.3f} fps is outside the accepted "
+            f"{minimum_fps}-{maximum_fps} fps range"
+        )
+        state = "BLOCKED"
+
+    minimum = limits.get("min_duration_seconds") or limits.get("recommended_min_duration_seconds")
+    hard_minimum = "min_duration_seconds" in limits
+    if minimum is not None and duration < minimum:
+        problems.append(f"reference is {duration:.2f}s, below the {minimum}s minimum")
+        state = "BLOCKED" if hard_minimum else ("WARNING" if state == "PASS" else state)
+
+    maximum = limits.get("max_total_duration_seconds") or limits.get(
+        "recommended_max_duration_seconds"
+    )
+    hard_maximum = "max_total_duration_seconds" in limits
+    if maximum is not None and duration > maximum:
+        problems.append(f"reference is {duration:.2f}s, above the {maximum}s maximum")
+        state = "BLOCKED" if hard_maximum else ("WARNING" if state == "PASS" else state)
+
+    return [Check(
+        id="reference_media",
+        label=f"Reference media: {duration:.2f}s at {metadata.frame_rate:.3f} fps",
+        state=state,
+        message="; ".join(problems),
+    )]
+
+
+def _h3_prompt(request: CompileRequest, camera, *, adapter: str) -> str:
+    """The camera fragment, or a neutral one when the edit has cuts.
+
+    Describing one camera's move next to a reference video that cuts between
+    several is worse than saying nothing: the two disagree, and the model has
+    no way to know which half is accurate.
+    """
+    if request.motion_scene.is_multi_shot:
+        fragment = MULTI_SHOT_PROMPT
+    else:
+        fragment = build_h3_prompt(camera.track, adapter=adapter)
+    return f"{request.base_prompt}\n\n{fragment}".strip()
 
 
 class H3NativeProfile:
@@ -69,6 +145,12 @@ class H3NativeProfile:
                 label=f"H3 Native target length: {timeline.frame_count} (17n+5)",
                 state="PASS",
             ),
+            *_reference_media_checks(request, H3_NATIVE_MEDIA_LIMITS),
+            multi_shot_check(
+                request.motion_scene,
+                display_name="MiniMax H3 Native",
+                can_represent=True,
+            ),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
@@ -84,18 +166,29 @@ class H3NativeProfile:
                 raise ValueError(f"playblast camera {camera.id!r} is disabled")
 
         camera = _playblast_camera(request.motion_scene)
-        assert camera is not None  # checked by preflight
-        
-        timeline = self.resolve_timeline(request)
-        prompt_fragment = build_h3_prompt(camera.track, adapter="h3_native")
-        final_prompt = f"{request.base_prompt}\n\n{prompt_fragment}".strip()
+        if camera is None:  # preflight models this; an assert vanishes under -O
+            raise ValueError("MotionScene has no usable playblast camera")
 
-        # Enforce five-frame minimum and decode at most the target length
+        timeline = self.resolve_timeline(request)
+        final_prompt = _h3_prompt(request, camera, adapter="h3_native")
+
         frames = resample_video_frames(
             request.playblast_video,
             target_fps=24.0,
             max_frames=timeline.frame_count,
         )
+        # H3 Native needs at least five reference frames. resolve_timeline only
+        # guarantees the *target* is 17n+5; the decoded playblast can still be
+        # shorter. Until now the comment claiming this was enforced was the only
+        # enforcement there was.
+        minimum = int(H3_NATIVE_MEDIA_LIMITS["min_reference_frames"])
+        shape = getattr(frames, "shape", None)
+        decoded = int(shape[0]) if shape is not None else len(frames)
+        if decoded < minimum:
+            raise ValueError(
+                f"MiniMax H3 Native needs at least {minimum} reference frames; the "
+                f"connected playblast decoded to {decoded}."
+            )
 
         return CompiledMotion(
             profile_id=self.id,
@@ -156,6 +249,12 @@ class H3ApiProfile:
                 state="PASS",
                 message="Video transport required for API",
             ),
+            *_reference_media_checks(request, H3_API_MEDIA_LIMITS),
+            multi_shot_check(
+                request.motion_scene,
+                display_name="MiniMax H3 API",
+                can_represent=True,
+            ),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
@@ -170,11 +269,11 @@ class H3ApiProfile:
                 raise ValueError(f"playblast camera {camera.id!r} is disabled")
 
         camera = _playblast_camera(request.motion_scene)
-        assert camera is not None
+        if camera is None:  # preflight models this; an assert vanishes under -O
+            raise ValueError("MotionScene has no usable playblast camera")
 
         timeline = self.resolve_timeline(request)
-        prompt_fragment = build_h3_prompt(camera.track, adapter="comfy_api")
-        final_prompt = f"{request.base_prompt}\n\n{prompt_fragment}".strip()
+        final_prompt = _h3_prompt(request, camera, adapter="comfy_api")
 
         return CompiledMotion(
             profile_id=self.id,

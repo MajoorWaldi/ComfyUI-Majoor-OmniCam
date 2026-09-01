@@ -3,9 +3,14 @@ from __future__ import annotations
 import json
 
 import pytest
-import torch
 
+# torch is optional: the model-agnostic lane installs numpy and nothing else.
+# A bare ``import torch`` here fails collection for the whole run, which is how
+# three green suites turned the core lane red.
+pytest.importorskip("torch")
 pytest.importorskip("comfy_api.latest")
+
+import torch
 
 from omnicam.nodes.director import MajoorOmniCamDirector
 from omnicam.nodes.monitor import MajoorOmniCamMonitor
@@ -130,16 +135,25 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id):
     assert monitor_outputs[7] == 480
     assert monitor_outputs[8] > 0
 
+    # Which Monitor socket each profile is required to fill. The two Wan track
+    # profiles publish the ``tracks`` STRING their contracts name in
+    # omnicam/adapters/registry.py (WanTrackToVideo.tracks and
+    # WanVideoATITracks.tracks), not the native TRACKS tensor socket, which
+    # only Wan Move consumes.
     payload_index = {
         "wan_camera_native": 3,
         "wan_move_native": 4,
-        "wan_track_native": 4,
-        "wanvideo_ati": 4,
+        "wan_track_native": 5,
+        "wanvideo_ati": 5,
         "h3_native": 2,
         "h3_api": 1,
         "ltx25_motion_track": 5,
     }[profile_id]
-    assert monitor_outputs[payload_index] is not None
+    payload = monitor_outputs[payload_index]
+    assert payload is not None
+    if payload_index == 5:
+        # An empty tracks string is a socket that is present but says nothing.
+        assert json.loads(payload), "the tracks JSON socket must carry a trajectory"
 
 
 def test_director_monitor_motion_scene_round_trip_preserves_selected_camera():

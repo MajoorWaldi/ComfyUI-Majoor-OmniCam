@@ -37,7 +37,7 @@ class MonitorUI {
   }
 
   async loadProfileInfo() {
-    const target = this.root.querySelector('[data-role="profile-capabilities"]');
+    const target = this.root.querySelector('[data-role="profile-catalogue"]');
     try {
       const payload = await loadMonitorProfileInfo(api);
       renderMonitorProfileInfo(this.root, payload);

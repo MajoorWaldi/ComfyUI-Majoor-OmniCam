@@ -9,6 +9,7 @@ from ..core.motion_resolution import resolve_motion_scene_tracks
 from ..core.motion_sampling import SampledTrack
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
+from .shots import multi_shot_check, multi_shot_error
 
 
 def _native_tracks(
@@ -68,17 +69,25 @@ class WanMoveProfile:
                 label=f"Native track length: {timeline.frame_count}",
                 state="PASS",
             ),
+            multi_shot_check(
+                request.motion_scene,
+                display_name="Wan Move Native",
+                can_represent=False,
+            ),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
+        # A blocked gate has to stop compilation, not just colour the panel.
+        if request.motion_scene.is_multi_shot:
+            raise ValueError(multi_shot_error(request.motion_scene, "Wan Move Native"))
         if checks[0].state == "BLOCKED":
             raise ValueError("Wan Move requires at least one enabled motion layer")
         timeline = self.resolve_timeline(request)
         tracks = resolve_motion_scene_tracks(
             request.motion_scene,
             sample_count=timeline.frame_count,
-            out_seconds=request.duration_seconds,
+            out_seconds=request.source_last_frame_time,
             width=timeline.width,
             height=timeline.height,
         )

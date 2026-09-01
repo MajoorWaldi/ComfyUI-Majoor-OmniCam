@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from omnicam.core.compiler import compile_editor_scene
+from omnicam.core.motion_scene import CutEvent
 from omnicam.core.sequence import SEQUENCE_TARGET
 from omnicam.core.validation import ValidationError
 
@@ -96,7 +97,13 @@ def test_compile_editor_scene_preserves_multicamera_scene_and_converts_cuts():
     assert scene.playblast_camera_id == "wide"
     assert scene.objects[0]["id"] == "subject"
     assert scene.motion_layers[0].source == {"object_id": "subject"}
+    # Cuts are typed now, and the exclusive end is what lets two shots meet at
+    # 1.0s without overlapping.
     assert scene.cuts == [
+        CutEvent(camera_id="wide", time_seconds=0.0, end_time_seconds=1.0),
+        CutEvent(camera_id="close", time_seconds=1.0, end_time_seconds=2.0),
+    ]
+    assert [cut.to_dict() for cut in scene.cuts] == [
         {"camera_id": "wide", "time_seconds": 0.0, "end_time_seconds": 1.0},
         {"camera_id": "close", "time_seconds": 1.0, "end_time_seconds": 2.0},
     ]

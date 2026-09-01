@@ -522,7 +522,7 @@ test("applying a completed solve caches it and notifies the Director", () => {
   const graph = new FakeGraph();
   const extractor = graph.add(1, "MajoorOmniCamExtractor");
   const director = graph.add(2, "MajoorOmniCamDirector");
-  graph.connect(extractor, director, "motion_scene");
+  graph.connect(extractor, director, "solved_scene");
   let synced = 0;
   director.__majoorOmniCam = { syncUpstreamInputs: () => { synced += 1; } };
 

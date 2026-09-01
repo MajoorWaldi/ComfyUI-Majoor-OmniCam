@@ -41,6 +41,8 @@ MAX_TEXT_LENGTH = 4096
 """Documented in docs/SECURITY.md. Metadata rides in every workflow and every
 adapter payload, so an unbounded string there is unbounded everywhere."""
 MAX_METADATA_ENTRIES = 64
+#: Nesting ceiling for metadata objects. Deeper levels are dropped, not raised on.
+MAX_METADATA_DEPTH = 16
 MIN_NEAR = 1e-4
 
 
@@ -268,14 +270,27 @@ def validate_object_hierarchy(objects: list[dict[str, Any]]) -> None:
         resolved.update(chain)
 
 
+def _encoded_size(payload: Any, what: str) -> int:
+    """Measure a payload, reporting pathological nesting as a client error.
+
+    ``json.dumps`` recurses, so a deeply nested document raises RecursionError
+    here -- before any depth guard downstream can apply. That is a malformed
+    payload, not a server fault, so it has to surface as a ValidationError.
+    """
+    try:
+        return len(json.dumps(payload, default=str).encode("utf-8"))
+    except RecursionError as exc:
+        raise ValidationError(f"{what} is nested too deeply to validate") from exc
+
+
 def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None = None) -> dict[str, Any]:
     """Validate and clamp a canonical MAJOOR_OMNICAM_TRACK payload. Returns a cleaned copy."""
     limits = limits or DEFAULT_LIMITS
     if not isinstance(payload, dict):
         raise ValidationError("OmniCam track must be a JSON object")
-    encoded = json.dumps(payload, default=str).encode("utf-8")
-    if len(encoded) > limits.max_state_bytes:
-        raise ValidationError(f"track payload is {len(encoded)} bytes, above the {limits.max_state_bytes} limit")
+    encoded_size = _encoded_size(payload, "track payload")
+    if encoded_size > limits.max_state_bytes:
+        raise ValidationError(f"track payload is {encoded_size} bytes, above the {limits.max_state_bytes} limit")
     track = dict(payload)
     track["fps"] = _clamp_int(track.get("fps", 24), *FPS_RANGE, "fps")
     track["duration_frames"] = _clamp_int(track.get("duration_frames", track["fps"] * 5), 1, limits.max_duration_frames, "duration_frames")
@@ -321,13 +336,17 @@ def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None =
     return track
 
 
-def validate_metadata(metadata: Any) -> dict[str, Any]:
+def validate_metadata(metadata: Any, depth: int = 0) -> dict[str, Any]:
     """Bound free-form metadata to the limits SECURITY.md advertises.
 
     Values are truncated rather than rejected: metadata is descriptive, and
     losing the tail of an over-long note is friendlier than refusing to queue.
+
+    ``depth`` bounds nesting. Without it a deeply nested object recursed until
+    Python raised RecursionError, which reaches the route layer as a 500 -- the
+    wrong answer for a payload the client got wrong.
     """
-    if not isinstance(metadata, dict):
+    if not isinstance(metadata, dict) or depth >= MAX_METADATA_DEPTH:
         return {}
     bounded: dict[str, Any] = {}
     for key, value in list(metadata.items())[:MAX_METADATA_ENTRIES]:
@@ -339,7 +358,7 @@ def validate_metadata(metadata: Any) -> dict[str, Any]:
         elif isinstance(value, (int, float)):
             bounded[name] = value if math.isfinite(value) else 0.0
         elif isinstance(value, dict):
-            bounded[name] = validate_metadata(value)
+            bounded[name] = validate_metadata(value, depth + 1)
         elif isinstance(value, (list, tuple)):
             bounded[name] = [
                 item[:MAX_TEXT_LENGTH] if isinstance(item, str) else item
@@ -391,7 +410,7 @@ def validate_editor_state(payload: dict[str, Any], limits: TrackLimits | None = 
                 continue
             if role in state and state[role] not in ids:
                 raise ValidationError(f"{role} references an unknown camera {state[role]!r}")
-    encoded = json.dumps(state, default=str).encode("utf-8")
-    if len(encoded) > limits.max_state_bytes:
-        raise ValidationError(f"editor state is {len(encoded)} bytes, above the {limits.max_state_bytes} limit")
+    encoded_size = _encoded_size(state, "editor state")
+    if encoded_size > limits.max_state_bytes:
+        raise ValidationError(f"editor state is {encoded_size} bytes, above the {limits.max_state_bytes} limit")
     return state

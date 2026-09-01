@@ -1,8 +1,8 @@
 """Concrete profile roster, imported only by compilation entry points."""
 
-from .registry import ProfileRegistry
 from .h3 import H3_API_PROFILE, H3_NATIVE_PROFILE
 from .ltx_motion import LTX_MOTION_PROFILE
+from .registry import ProfileRegistry
 from .wan_camera import WAN_CAMERA_PROFILE
 from .wan_move import WAN_MOVE_PROFILE
 from .wan_track import WAN_TRACK_PROFILE

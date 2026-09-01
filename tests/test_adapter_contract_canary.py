@@ -17,7 +17,7 @@ def test_adapter_contract_canary_accepts_current_required_surfaces(tmp_path):
     _write_node(ltx / "guide.py", "LTXAddVideoICLoRAGuide", ["image"])
     _write_node(wan / "nodes.py", "WanVideoATITracks", ["tracks", "width", "height"])
 
-    assert verify({"ltx": ltx, "ltx_motion_track": ltx, "wan_ati": wan}) == []
+    assert verify({"ltx25_motion_track": ltx, "wanvideo_ati": wan}) == []
 
 
 def test_adapter_contract_canary_reports_missing_required_socket(tmp_path):
@@ -29,6 +29,6 @@ def test_adapter_contract_canary_reports_missing_required_socket(tmp_path):
     _write_node(ltx / "guide.py", "LTXAddVideoICLoRAGuide", ["image"])
     _write_node(wan / "nodes.py", "WanVideoATITracks", ["tracks", "width", "height"])
 
-    errors = verify({"ltx": ltx, "ltx_motion_track": ltx, "wan_ati": wan})
+    errors = verify({"ltx25_motion_track": ltx, "wanvideo_ati": wan})
 
-    assert any("ltx_motion_track" in error and "height" in error for error in errors)
+    assert any("ltx25_motion_track" in error and "height" in error for error in errors)

@@ -1,6 +1,5 @@
 """The VIDEO-or-IMAGE socket and the coercions behind it."""
 
-import json
 
 import pytest
 

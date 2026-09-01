@@ -2,6 +2,15 @@ import { SEQUENCE_TARGET, defaultSequence, sanitizeSequence } from "./sequence.j
 import { sanitizeMotionState } from "../motion-tracks/state.js";
 
 export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
+
+// Colours reach CSS custom properties that feed url()-capable shorthands such as
+// `background: var(--shot-color)`, so a workflow could otherwise smuggle a
+// remote fetch into the viewport -- exactly what AGENTS.md 11 forbids. Every
+// producer in this codebase is an <input type="color"> or a hex palette, so a
+// strict hex whitelist rejects nothing the editor can actually author.
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+export const sanitizeColor = (value, fallback = null) =>
+  (typeof value === "string" && HEX_COLOR.test(value.trim()) ? value.trim() : fallback);
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const v3 = (x = 0, y = 0, z = 0) => [x, y, z];
 export const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -455,7 +464,7 @@ export function sanitizeState(raw) {
     return {
       id,
       name: String(item?.name || `Camera ${index + 1}`),
-      color: typeof item?.color === "string" ? item.color : null,
+      color: sanitizeColor(item?.color),
       camera,
       keyframes,
       target_object_id: typeof item?.target_object_id === "string" ? item.target_object_id : (typeof out.target_object_id === "string" ? out.target_object_id : null),
@@ -483,7 +492,7 @@ export function sanitizeState(raw) {
     .slice(0, STATE_LIMITS.maxObjects)
     .map((object) => ({
     ...object,
-    color: typeof object?.color === "string" ? object.color : null,
+    color: sanitizeColor(object?.color),
     locked: Boolean(object.locked),
     parent_id: typeof object.parent_id === "string" ? object.parent_id : null,
     position: Array.isArray(object.position) ? object.position.map(Number) : [0, 0, 0],
@@ -509,14 +518,14 @@ export function sanitizeState(raw) {
   out.show_vertices = Boolean(out.show_vertices);
   out.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(out.point_density) ? out.point_density : "balanced";
   out.point_spread = ["all_views", "ground_focus", "dome"].includes(out.point_spread) ? out.point_spread : "all_views";
-  out.point_color = typeof out.point_color === "string" ? out.point_color : "#cbd5e1";
-  out.viewport_bg_color = typeof out.viewport_bg_color === "string" ? out.viewport_bg_color : "#121212";
+  out.point_color = sanitizeColor(out.point_color, "#cbd5e1");
+  out.viewport_bg_color = sanitizeColor(out.viewport_bg_color, "#121212");
   out.viewport_bg_image = typeof out.viewport_bg_image === "string" ? out.viewport_bg_image : "";
   out.viewport_bg_sequence = Array.isArray(out.viewport_bg_sequence) ? out.viewport_bg_sequence.map(String) : [];
   out.snap_enabled = out.snap_enabled !== false; out.snap_frames = Math.max(1, Math.round(Number(out.snap_frames) || 1)); out.timecode_mode = ["time", "timecode"].includes(out.timecode_mode) ? out.timecode_mode : "time"; out.loop_playback = Boolean(out.loop_playback);
   out.playback_range = Array.isArray(out.playback_range) && out.playback_range.length === 2 ? [clamp(Math.round(Number(out.playback_range[0]) || 0), 0, out.duration_frames - 1), clamp(Math.round(Number(out.playback_range[1]) || out.duration_frames - 1), 0, out.duration_frames - 1)] : null;
   // Markers survive a shortened timeline for the same reason keyframes do.
-  out.markers = (Array.isArray(out.markers) ? out.markers : []).filter((m) => m && Number.isFinite(Number(m.frame))).map((m, i) => ({ frame: Math.max(0, Math.round(Number(m.frame))), name: String(m.name || `Marker ${i + 1}`).slice(0, 40), color: String(m.color || "#f2d06b") }));
+  out.markers = (Array.isArray(out.markers) ? out.markers : []).filter((m) => m && Number.isFinite(Number(m.frame))).map((m, i) => ({ frame: Math.max(0, Math.round(Number(m.frame))), name: String(m.name || `Marker ${i + 1}`).slice(0, 40), color: sanitizeColor(m.color, "#f2d06b") }));
   out.preview_layout = ["auto", "1", "2", "4"].includes(String(out.preview_layout)) ? String(out.preview_layout) : "auto";
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);

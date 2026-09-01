@@ -1,8 +1,8 @@
 import { l as v, S as x, u as w, d as C } from "./chunk-CYXHK_as.js";
 import "../../scripts/app.js";
 import { api as k } from "../../scripts/api.js";
-import { M as _ } from "./chunk-Jm0vAvYx.js";
-import { b as S } from "./chunk-D2Hci8OZ.js";
+import { M as S } from "./chunk-Jm0vAvYx.js";
+import { b as M } from "./chunk-D2Hci8OZ.js";
 function n(o) {
   return String(o ?? "").replace(/[&<>"']/g, (t) => ({
     "&": "&amp;",
@@ -12,37 +12,43 @@ function n(o) {
     "'": "&#39;"
   })[t]);
 }
+const p = {
+  verified: "pass",
+  detected_unverified: "warning",
+  incompatible: "blocked",
+  missing: "blocked"
+};
 function b(o) {
   const t = String(o || "").toLowerCase();
-  return ["ready", "warning", "blocked", "risk", "pass", "connected", "unknown"].includes(t) ? t : "unknown";
+  return t in p ? p[t] : ["ready", "warning", "blocked", "risk", "pass", "connected", "unknown"].includes(t) ? t : "unknown";
 }
 function u(o) {
   return Array.isArray(o) && o.length === 1 ? o[0] : o;
 }
-function M(o) {
-  const t = o?.ui && typeof o.ui == "object" ? o.ui : o || {}, e = Array.isArray(t.preflight) && t.preflight.length === 1 && Array.isArray(t.preflight[0]) ? t.preflight[0] : t.preflight, a = u(t.capabilities), r = u(t.target_profile);
+function _(o) {
+  const t = o?.ui && typeof o.ui == "object" ? o.ui : o || {}, e = Array.isArray(t.preflight) && t.preflight.length === 1 && Array.isArray(t.preflight[0]) ? t.preflight[0] : t.preflight, a = u(t.capabilities), i = u(t.target_profile);
   return {
-    targetProfile: typeof r == "string" ? r : "",
+    targetProfile: typeof i == "string" ? i : "",
     preflight: Array.isArray(e) ? e : [],
     capabilities: a && typeof a == "object" ? a : { capabilities: [] }
   };
 }
-function O(o) {
+function E(o) {
   const t = b(o.state), e = o.message ? `<br><small>${n(o.message)}</small>` : "";
   return `<div class="oc-row"><span><strong>${n(o.label || o.id)}</strong>${e}</span><span class="oc-state" data-state="${t}">${n(o.state || "UNKNOWN")}</span></div>`;
 }
-function E(o, t) {
-  const e = M(t), a = o.querySelector('[data-role="profile-preflight"]');
-  a.innerHTML = e.preflight.length ? e.preflight.map(O).join("") : '<div class="oc-empty">No preflight checks returned.</div>';
-  const r = Array.isArray(e.capabilities.capabilities) ? e.capabilities.capabilities : [], c = o.querySelector('[data-role="profile-capabilities"]');
-  c.innerHTML = r.length ? r.map((l) => `<div class="oc-row"><span>${n(l.display || l.adapter)}</span><span class="oc-state" data-state="${b(l.state)}">${n(l.state)}</span></div>`).join("") : '<div class="oc-empty">No optional downstream capability detected.</div>';
-  const s = e.preflight.some((l) => String(l.state).toUpperCase() === "BLOCKED"), i = o.querySelector('[data-role="monitor-status"]');
-  return i.dataset.state = s ? "BLOCKED" : "READY", i.lastChild.textContent = s ? " BLOCKED" : " READY", o.querySelector('[data-role="output-status"]').textContent = e.targetProfile ? `OUTPUT GENERATED · ${e.targetProfile}` : "OUTPUT GENERATED", e;
+function O(o, t) {
+  const e = _(t), a = o.querySelector('[data-role="profile-preflight"]');
+  a.innerHTML = e.preflight.length ? e.preflight.map(E).join("") : '<div class="oc-empty">No preflight checks returned.</div>';
+  const i = Array.isArray(e.capabilities.capabilities) ? e.capabilities.capabilities : [], c = o.querySelector('[data-role="profile-capabilities"]');
+  c.innerHTML = i.length ? i.map((s) => `<div class="oc-row"><span>${n(s.display || s.adapter)}</span><span class="oc-state" data-state="${b(s.state)}">${n(s.state)}</span></div>`).join("") : '<div class="oc-empty">No optional downstream capability detected.</div>';
+  const r = e.preflight.some((s) => String(s.state).toUpperCase() === "BLOCKED"), l = o.querySelector('[data-role="monitor-status"]');
+  return l.dataset.state = r ? "BLOCKED" : "READY", l.lastChild.textContent = r ? " BLOCKED" : " READY", o.querySelector('[data-role="output-status"]').textContent = e.targetProfile ? `OUTPUT GENERATED · ${e.targetProfile}` : "OUTPUT GENERATED", e;
 }
-class N extends _ {
-  constructor(t, { fps: e = 24, durationFrames: a = 1, onFrame: r = () => {
+class T extends S {
+  constructor(t, { fps: e = 24, durationFrames: a = 1, onFrame: i = () => {
   } } = {}) {
-    super(t, { fps: e, durationFrames: a, onFrame: r, loop: !0, muted: !0 });
+    super(t, { fps: e, durationFrames: a, onFrame: i, loop: !0, muted: !0 });
   }
 }
 function m(o) {
@@ -52,7 +58,7 @@ function h(o, t) {
   const e = o?.inputs?.find((a) => a.name === t);
   return e?.link == null || !o?.graph ? null : v(o.graph, e.link);
 }
-function T(o) {
+function N(o) {
   const t = h(o, "motion_scene"), e = h(o, "playblast_video");
   return {
     sceneConnected: !!t,
@@ -68,7 +74,7 @@ class P {
     this.node = t, this.onChange = e, this.initialized = !1, this.last = "", this.timer = setInterval(() => this.poll(), a), this.poll();
   }
   poll() {
-    const t = T(this.node), e = JSON.stringify([
+    const t = N(this.node), e = JSON.stringify([
       t.sceneOrigin?.id ?? null,
       t.playblastOrigin?.id ?? null,
       t.playblastOrigin?.imageIndex ?? null
@@ -79,24 +85,18 @@ class P {
     clearInterval(this.timer), this.timer = null;
   }
 }
-async function I(o) {
+async function A(o) {
   const t = await o.fetchApi("/majoor/omnicam/monitor/profiles");
   if (!t.ok) throw new Error(`Monitor profile catalog failed (${t.status})`);
   return t.json();
 }
-function A(o, t) {
-  const e = o.querySelector('[data-role="profile-capabilities"]');
+function I(o, t) {
+  const e = o.querySelector('[data-role="profile-catalogue"]');
   if (!e) return;
-  const a = Array.isArray(t?.profiles) ? t.profiles : [], r = Array.isArray(t?.capabilities?.capabilities) ? t.capabilities.capabilities : [], c = new Map(r.map((i) => [String(i.adapter), i])), s = {
-    wan_camera_native: "wan_native",
-    wan_move_native: "wan_tracks_native",
-    wan_track_native: "wan_tracks_native",
-    wanvideo_ati: "wan_ati",
-    h3_api: "h3"
-  };
-  e.innerHTML = a.length ? a.map((i) => {
-    const p = (i.capability || c.get(s[i.id] || String(i.id)))?.state || "available";
-    return `<div class="oc-row"><span><strong>${n(i.display_name)}</strong><br><small>${n(i.semantic)} · ${n(i.frame_policy)}</small></span><span class="oc-state" data-state="${n(p)}">${n(p)}</span></div>`;
+  const a = Array.isArray(t?.profiles) ? t.profiles : [], i = Array.isArray(t?.capabilities?.capabilities) ? t.capabilities.capabilities : [], c = new Map(i.map((r) => [String(r.adapter), r]));
+  e.innerHTML = a.length ? a.map((r) => {
+    const s = (r.capability || c.get(String(r.id)))?.state || "missing";
+    return `<div class="oc-row"><span><strong>${n(r.display_name)}</strong><br><small>${n(r.semantic)} · ${n(r.frame_policy)}</small></span><span class="oc-state" data-state="${n(s)}">${n(s)}</span></div>`;
   }).join("") : '<div class="oc-empty">No Monitor profile is available.</div>';
 }
 const $ = `${x}
@@ -142,7 +142,7 @@ function L() {
 function D() {
   return `<div class="majoor-omnicam oc-monitor">
     <style>${$}</style>
-    <header class="oc-header">${S("OmniCam Monitor")}
+    <header class="oc-header">${M("OmniCam Monitor")}
       <div class="oc-header-actions"><span class="oc-status-pill" data-role="monitor-status" data-state="OFFLINE"><i class="oc-status-dot"></i> WAITING</span></div>
     </header>
     <div class="oc-source" data-role="source-status">Connect a MotionScene and queue the workflow.</div>
@@ -160,6 +160,7 @@ function D() {
           <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0.1" max="600" step="0.1"></label>
           <label>FPS<input data-setting="target_fps" type="number" min="1" max="120" step="1"></label>
         </div></div>
+        <div class="oc-card"><div class="oc-section">Profiles</div><div data-role="profile-catalogue" class="oc-empty">Loading the Monitor profile catalogue.</div></div>
         <div class="oc-card"><div class="oc-section">Installed capabilities</div><div data-role="profile-capabilities" class="oc-empty">Capability report available after execution.</div></div>
         <div class="oc-card"><div class="oc-section">Execution output</div><div data-role="output-status" class="oc-empty">OUTPUT NOT EXECUTED</div></div>
       </aside>
@@ -201,7 +202,7 @@ function F(o) {
 }
 class H {
   constructor(t) {
-    this.node = t, this.root = W(), this.disposers = [], this.source = null, this.player = new N(
+    this.node = t, this.root = W(), this.disposers = [], this.source = null, this.player = new T(
       this.root.querySelector('[data-role="proxy-player"]'),
       {
         onFrame: (e) => this.showFrame(e),
@@ -210,10 +211,10 @@ class H {
     ), this.bindControls(), this.syncControlsFromWidgets(), this.loadProfileInfo(), this.watcher = new P(t, (e) => this.sourceChanged(e));
   }
   async loadProfileInfo() {
-    const t = this.root.querySelector('[data-role="profile-capabilities"]');
+    const t = this.root.querySelector('[data-role="profile-catalogue"]');
     try {
-      const e = await I(k);
-      A(this.root, e);
+      const e = await A(k);
+      I(this.root, e);
     } catch (e) {
       t && (t.textContent = "Monitor profile information unavailable."), console.warn("OmniCam: Monitor profile catalog unavailable", e);
     }
@@ -235,8 +236,8 @@ class H {
     t.target_profile != null && (e.value = String(t.target_profile));
     for (const a of d) {
       if (a === "target_profile") continue;
-      const r = this.root.querySelector(`[data-setting="${a}"]`);
-      r && t[a] != null && (r.value = t[a]);
+      const i = this.root.querySelector(`[data-setting="${a}"]`);
+      i && t[a] != null && (i.value = t[a]);
     }
   }
   markOutdated() {
@@ -260,8 +261,8 @@ class H {
       t.hidden = !0, e.hidden = !0, this.player.setSource(c);
       return;
     }
-    this.player.setSource(""), C(a, t, 640).then((s) => {
-      t.hidden = !s, e.hidden = s;
+    this.player.setSource(""), C(a, t, 640).then((r) => {
+      t.hidden = !r, e.hidden = r;
     });
   }
   setFrameCount(t) {
@@ -273,7 +274,7 @@ class H {
     this.root.querySelector('[data-role="proxy-scrubber"]').value = t, this.root.querySelector('[data-role="proxy-frame"]').textContent = `${t} / ${e}`;
   }
   executed(t) {
-    const e = E(this.root, t);
+    const e = O(this.root, t);
     e.targetProfile && g(this.node).target_profile !== e.targetProfile && this.markOutdated();
   }
   dispose() {
@@ -298,17 +299,17 @@ function G(o) {
   o.onRemoved = function() {
     t.dispose(), a?.apply(this, arguments);
   };
-  const r = o.onExecuted;
-  o.onExecuted = function(i) {
-    r?.apply(this, arguments), t.executed(i);
+  const i = o.onExecuted;
+  o.onExecuted = function(l) {
+    i?.apply(this, arguments), t.executed(l);
   };
   const c = o.onConfigure;
   o.onConfigure = function() {
     c?.apply(this, arguments), t.syncControlsFromWidgets();
   };
-  const s = o.onConnectionsChange;
+  const r = o.onConnectionsChange;
   o.onConnectionsChange = function() {
-    s?.apply(this, arguments), t.watcher?.poll(), t.refreshPlayblastPreview(), setTimeout(() => t.refreshPlayblastPreview(), 400);
+    r?.apply(this, arguments), t.watcher?.poll(), t.refreshPlayblastPreview(), setTimeout(() => t.refreshPlayblastPreview(), 400);
   };
 }
 export {

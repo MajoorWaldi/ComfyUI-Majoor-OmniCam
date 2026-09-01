@@ -5,8 +5,11 @@ import math
 
 import pytest
 
-from omnicam.core.motion_scene import MotionScene, motion_scene_from_camera_track
-from omnicam.nodes import OMNICAM_MOTION_SCENE
+from omnicam.core.motion_scene import (
+    MOTION_SCENE_IO_TYPE,
+    MotionScene,
+    motion_scene_from_camera_track,
+)
 
 
 def _scene_payload() -> dict:
@@ -81,13 +84,28 @@ def _scene_payload() -> dict:
     }
 
 
-def test_motion_scene_round_trip_is_lossless():
+def test_motion_scene_round_trip_is_stable_and_preserves_what_was_authored():
+    """The canonical form is the validated form, so the property is idempotence.
+
+    Objects are normalized on the way in -- defaults filled, transforms
+    completed -- because a scene now validates them instead of waving them
+    through. Parsing the canonical output again must therefore change nothing.
+    """
     payload = _scene_payload()
 
     scene = MotionScene.from_dict(payload)
+    canonical = scene.to_dict()
 
-    assert scene.to_dict() == payload
-    assert MotionScene.from_json(scene.to_json()).to_dict() == payload
+    assert MotionScene.from_dict(canonical).to_dict() == canonical
+    assert MotionScene.from_json(scene.to_json()).to_dict() == canonical
+
+    # Everything the author actually wrote survives untouched.
+    for key in ("version", "timeline", "canvas", "active_camera_id",
+                "playblast_camera_id", "motion_layers", "cuts", "metadata"):
+        assert canonical[key] == payload[key], key
+    assert canonical["objects"][0]["id"] == "subject"
+    assert canonical["objects"][0]["type"] == "null"
+    assert canonical["objects"][0]["position"] == [0.0, 1.5, 0.0]
     assert scene.motion_layers[0].keys[1].visible is False
 
 
@@ -164,7 +182,20 @@ def test_motion_scene_enforces_camera_timeline_and_canvas_invariants():
 
 
 def test_motion_scene_comfy_type_is_stable():
-    assert OMNICAM_MOTION_SCENE.io_type == "OMNICAM_MOTION_SCENE"
+    """The wire name is frozen: renaming it silently breaks every saved workflow."""
+    assert MOTION_SCENE_IO_TYPE == "OMNICAM_MOTION_SCENE"
+
+
+def test_the_comfy_socket_is_built_from_the_domain_constant():
+    """Guards the binding itself, but only where ComfyUI is actually installed.
+
+    Keeping this out of the module-level imports is what lets the model-agnostic
+    lane -- numpy and nothing else -- collect and run this file at all.
+    """
+    pytest.importorskip("comfy_api.latest")
+    from omnicam.nodes import OMNICAM_MOTION_SCENE
+
+    assert OMNICAM_MOTION_SCENE.io_type == MOTION_SCENE_IO_TYPE
 
 
 def test_camera_track_wraps_into_a_one_camera_motion_scene_without_changing_the_solve():
@@ -188,3 +219,115 @@ def test_camera_track_wraps_into_a_one_camera_motion_scene_without_changing_the_
         "source": "omnicam_extractor",
         "extractor_fingerprint": "solve-fingerprint",
     }
+
+
+# ---------------------------------------------------------------------------
+# Typed cuts
+# ---------------------------------------------------------------------------
+
+def _scene_with_cuts(cuts: list[dict]) -> dict:
+    payload = _scene_payload()
+    second = copy.deepcopy(payload["cameras"][0])
+    second["id"] = "camera_2"
+    second["label"] = "Camera 2"
+    payload["cameras"].append(second)
+    payload["cuts"] = cuts
+    return payload
+
+
+def test_a_cut_naming_an_unknown_camera_is_rejected():
+    payload = _scene_with_cuts([{"camera_id": "ghost", "time_seconds": 0.0}])
+
+    with pytest.raises(ValueError, match="unknown camera 'ghost'"):
+        MotionScene.from_dict(payload)
+
+
+def test_cuts_must_be_ordered_by_start_time():
+    payload = _scene_with_cuts([
+        {"camera_id": "camera_1", "time_seconds": 2.0},
+        {"camera_id": "camera_2", "time_seconds": 1.0},
+    ])
+
+    with pytest.raises(ValueError, match="ordered by start time"):
+        MotionScene.from_dict(payload)
+
+
+def test_overlapping_shots_are_rejected():
+    payload = _scene_with_cuts([
+        {"camera_id": "camera_1", "time_seconds": 0.0, "end_time_seconds": 3.0},
+        {"camera_id": "camera_2", "time_seconds": 1.0},
+    ])
+
+    with pytest.raises(ValueError, match="inside the previous shot"):
+        MotionScene.from_dict(payload)
+
+
+def test_shots_may_meet_exactly_because_the_end_is_exclusive():
+    payload = _scene_with_cuts([
+        {"camera_id": "camera_1", "time_seconds": 0.0, "end_time_seconds": 2.0},
+        {"camera_id": "camera_2", "time_seconds": 2.0},
+    ])
+
+    scene = MotionScene.from_dict(payload)
+
+    assert scene.is_multi_shot
+    assert scene.shot_camera_ids == ["camera_1", "camera_2"]
+
+
+def test_a_cut_past_the_end_of_the_timeline_is_rejected():
+    payload = _scene_with_cuts([{"camera_id": "camera_1", "time_seconds": 99.0}])
+
+    with pytest.raises(ValueError, match="past the"):
+        MotionScene.from_dict(payload)
+
+
+def test_a_cut_that_ends_before_it_starts_is_rejected():
+    payload = _scene_with_cuts([
+        {"camera_id": "camera_1", "time_seconds": 2.0, "end_time_seconds": 1.0},
+    ])
+
+    with pytest.raises(ValueError, match="at or before its"):
+        MotionScene.from_dict(payload)
+
+
+def test_repeated_cuts_to_one_camera_are_a_single_shot_camera():
+    """Cutting back to the same camera is not a multi-camera edit."""
+    payload = _scene_with_cuts([
+        {"camera_id": "camera_1", "time_seconds": 0.0, "end_time_seconds": 1.0},
+        {"camera_id": "camera_1", "time_seconds": 1.0},
+    ])
+
+    scene = MotionScene.from_dict(payload)
+
+    assert scene.shot_camera_ids == ["camera_1"]
+    assert scene.is_multi_shot is False
+
+
+def test_a_duplicate_object_id_is_rejected():
+    payload = _scene_payload()
+    payload["objects"] = [
+        {"id": "subject", "type": "null", "position": [0.0, 0.0, 0.0]},
+        {"id": "subject", "type": "cube", "position": [1.0, 0.0, 0.0]},
+    ]
+
+    with pytest.raises(ValueError, match="duplicates 'subject'"):
+        MotionScene.from_dict(payload)
+
+
+def test_an_object_parent_cycle_is_rejected():
+    payload = _scene_payload()
+    payload["objects"] = [
+        {"id": "a", "type": "null", "parent_id": "b"},
+        {"id": "b", "type": "null", "parent_id": "a"},
+    ]
+
+    with pytest.raises(ValueError, match="cycle"):
+        MotionScene.from_dict(payload)
+
+
+def test_an_unknown_object_type_is_rejected():
+    payload = _scene_payload()
+    payload["objects"] = [{"id": "subject", "type": "teapot"}]
+
+    with pytest.raises(ValueError, match=r"objects\[0\]\.type"):
+        MotionScene.from_dict(payload)

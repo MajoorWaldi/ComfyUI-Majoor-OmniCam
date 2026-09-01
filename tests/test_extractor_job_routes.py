@@ -31,6 +31,21 @@ def manager(runner=lambda job, mgr, pub: None, **kwargs):
 SOURCE = {"kind": "annotated_input", "value": "shot.mov"}
 
 
+@pytest.fixture(autouse=True)
+def resolvable_source(monkeypatch, tmp_path):
+    """Make SOURCE resolve, the way it would inside a running ComfyUI.
+
+    ``start_job`` refuses an unresolvable source with a 400 before it creates a
+    job, so every test that starts one needs a source the resolver accepts.
+    Patching the same seam ``describe_source`` is tested through keeps these
+    tests free of a ComfyUI ``folder_paths``.
+    """
+    clip = tmp_path / "shot.mov"
+    clip.write_bytes(b"omnicam-test-clip")
+    monkeypatch.setattr(api, "resolve_interactive_video_source", lambda source, **_: clip)
+    return clip
+
+
 def start(mgr, *, client_id="client-a", source=None, settings=None, node_id="12"):
     return api.start_job(
         mgr,
@@ -150,6 +165,21 @@ def test_an_unsupported_source_kind_is_refused():
 def test_a_source_without_a_value_is_refused():
     with pytest.raises(ApiError, match="needs a reference value"):
         start(manager(), source={"kind": "annotated_input", "value": "  "})
+
+
+def test_a_source_the_server_cannot_resolve_is_refused_before_a_job_exists(monkeypatch):
+    """An unusable source is a bad request, not a job that fails a second later."""
+    from omnicam.extractor.source_resolver import SourceResolutionError
+
+    def refuse(_source, **_kwargs):
+        raise SourceResolutionError("Video source not found: gone.mov")
+
+    monkeypatch.setattr(api, "resolve_interactive_video_source", refuse)
+    mgr = manager()
+    with pytest.raises(ApiError, match="Video source not found") as caught:
+        start(mgr)
+    assert caught.value.status == 400
+    assert mgr.jobs() == []
 
 
 def test_a_missing_source_is_refused():

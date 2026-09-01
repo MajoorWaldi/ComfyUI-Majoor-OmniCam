@@ -113,7 +113,7 @@ def run_solve_job(job, manager, publisher) -> None:
             fov_degrees=float(job.settings.get("fov_degrees", 53.0)),
             focal_length_mm=float(job.settings.get("focal_length_mm", 24.0)),
             sensor_width_mm=float(job.settings.get("sensor_width_mm", 36.0)),
-            max_dimension=int(job.settings.get("max_dimension", 960)),
+            max_dimension=int(job.settings.get("max_dimension", 640)),
             frame_step=int(job.settings.get("frame_step", 1)),
             progress=lambda done, total: _report(job, publisher, done, total),
             control=control,

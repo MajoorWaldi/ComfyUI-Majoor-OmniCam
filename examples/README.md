@@ -1,29 +1,26 @@
-# Examples & Workflows
+# Examples
 
-## Canonical Payload Examples
-- `omnicam_track.example.json`: Format canonique V1 d'une piste de caméra 3D.
-- `omnicam_sequence.example.json`: Composition multi-plans de pistes V1 avec raccords et métadonnées.
+## Canonical payloads
 
-## Workflows ComfyUI Prêts à l'Emploi (`examples/workflows/`)
+- `omnicam_track.example.json` — a single V1 camera track.
+- `omnicam_sequence.example.json` — a multi-shot V1 composition with cuts and metadata.
 
-Glissez-déposez directement ces fichiers JSON dans votre interface ComfyUI pour démarrer :
+## Workflows (`examples/workflows/`)
 
-1. **`01_minimax_h3_omni_reference.json`** :
-   - Pipeline officiel MiniMax Hailuo 03 Omni Reference.
-   - Génère la vidéo de référence proxy + le prompt textuel dissociant géométrie et style.
+Drag one into ComfyUI to start. Each is a Director wired to a Monitor, with a
+note explaining where the Monitor output goes. There is one per Monitor
+semantic rather than one per model, because the wiring is the same for every
+profile that shares a semantic.
 
-2. **`02_wan21_native_camera_plucker.json`** :
-   - Pipeline Wan 2.1 Native avec injection de rayons Plücker (`WAN_CAMERA_EMBEDDING`).
-   - Format `4n+1` (81 frames) et résolution native (832×480).
+| File | Semantic | Monitor output to connect |
+|---|---|---|
+| `01_wan_camera_embedding.json` | `camera_embedding` | `camera_embedding` -> `WanCameraImageToVideo.camera_conditions` |
+| `02_wan_ati_motion_tracks.json` | `screen_tracks` | `tracks_json` -> the target's `tracks` input, or `native_tracks` for Wan Move |
+| `03_minimax_h3_reference.json` | `reference_video` | `reference_video` (API) or `reference_frames` (native), plus `final_prompt` |
 
-3. **`03_wan21_ati_trajectory_control.json`** :
-   - Pipeline Wan 2.1 VideoWrapper ATI (Any Trajectory Instruction).
-   - Projection de trajectoires 2D spline avec preview sur l'image de départ.
+Switching profile inside a semantic is a widget change, not a rewiring: pick
+`wan_track_native`, `wanvideo_ati` or `ltx25_motion_track` in workflow 2 and
+connect `tracks_json` to whichever node that profile names.
 
-4. **`04_ltx_video_ic_lora_guide.json`** :
-   - Pipeline LTX-Video avec IC-LoRA Cameraman Guide.
-   - Décodage des frames playblast et prompt cinématique universel.
-
-5. **`05_universal_cinematic_director.json`** :
-   - Pipeline Universel multi-modèles (Kling, Luma, Hunyuan, Wan, H3).
-   - Extraction des passes de contrôle 3D (Depth, Normals, Optical Flow) et analyse dynamique JSON.
+`tests/test_example_workflows.py` checks these against the live node schemas, so
+a workflow cannot quietly go stale the way the previous set did.

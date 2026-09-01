@@ -1,13 +1,14 @@
 import { escapeHtml } from "./html.js";
 
+// Keyed by profile id, the single vocabulary shared with the backend registry.
 export const ADAPTER_LABELS = {
-  h3: "MiniMax H3 · Comfy API",
+  h3_api: "MiniMax H3 · Comfy API",
   h3_native: "MiniMax H3 · Native",
-  wan_native: "Wan Camera",
-  wan_ati: "Wan 2.1 ATI · WanVideoWrapper",
-  wan_tracks_native: "Wan Motion Tracks",
-  ltx_motion_track: "LTX 2.5 Motion Track",
-  ltx: "LTX Proxy Guide (legacy)",
+  wan_camera_native: "Wan Camera",
+  wan_move_native: "Wan Move Native",
+  wan_track_native: "Wan Motion Tracks",
+  wanvideo_ati: "Wan 2.1 ATI · WanVideoWrapper",
+  ltx25_motion_track: "LTX 2.5 Motion Track",
 };
 
 /**

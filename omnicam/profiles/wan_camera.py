@@ -8,6 +8,7 @@ from ..adapters.wan_native import build_wan_camera_embedding
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
+from .shots import multi_shot_check, multi_shot_error
 
 
 def wan_camera_length(requested_frames: int) -> int:
@@ -63,10 +64,18 @@ class WanCameraProfile:
                 label=f"Wan target length: {timeline.frame_count} (4n+1)",
                 state="PASS",
             ),
+            multi_shot_check(
+                request.motion_scene,
+                display_name="Wan Camera Native",
+                can_represent=False,
+            ),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
+        # A blocked gate has to stop compilation, not just colour the panel.
+        if request.motion_scene.is_multi_shot:
+            raise ValueError(multi_shot_error(request.motion_scene, "Wan Camera Native"))
         camera = _playblast_camera(request.motion_scene)
         if camera is None:
             raise ValueError("MotionScene has no usable playblast camera")

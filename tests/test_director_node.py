@@ -234,7 +234,7 @@ def _run_with_upstream(state, upstream):
     out = MajoorOmniCamDirector.execute(
         state_json=json.dumps(state), recording_path="", card_asset="",
         width=1280, height=720, fps=24, duration_seconds=2.0, render_mode="omni_ref",
-        motion_scene=upstream,
+        solved_scene=upstream,
     )
     outputs = out.outputs if hasattr(out, "outputs") else tuple(out)
     scene = outputs[0]
@@ -245,12 +245,19 @@ def _run_with_upstream(state, upstream):
     return selected["track"]
 
 
-def test_director_schema_exposes_an_optional_motion_scene_input():
+def test_director_schema_exposes_an_optional_solved_scene_input():
+    """Named for what it imports, not for its socket type.
+
+    The Director takes only the playblast camera off an upstream scene; calling
+    the input motion_scene promised a merge of layers, objects and cuts that it
+    does not perform.
+    """
     schema = MajoorOmniCamDirector.define_schema()
-    motion_scene = next(item for item in schema.inputs if item.id == "motion_scene")
-    assert motion_scene.io_type == "OMNICAM_MOTION_SCENE"
-    assert motion_scene.optional is True
+    solved_scene = next(item for item in schema.inputs if item.id == "solved_scene")
+    assert solved_scene.io_type == "OMNICAM_MOTION_SCENE"
+    assert solved_scene.optional is True
     assert all(item.id != "camera_track" for item in schema.inputs)
+    assert all(item.id != "motion_scene" for item in schema.inputs)
 
 
 def test_director_adopts_an_unimported_extractor_scene():

@@ -1,27 +1,64 @@
 import "../../scripts/app.js";
 import { api as N } from "../../scripts/api.js";
 import { d as ut, u as ht, l as pt, S as mt } from "./chunk-CYXHK_as.js";
-import { m as ft, g as ot, n as bt, L as gt, h as vt, S as H, i as xt, j as yt, r as wt, p as kt, k as St, F as Et } from "./chunk-BS9OBHCL.js";
+import { m as ft, g as ot, n as bt, L as gt, h as vt, S as H, i as yt, j as xt, r as wt, p as kt, k as St, F as Et } from "./chunk-gjZF3Gof.js";
 import { M as Ct } from "./chunk-Jm0vAvYx.js";
-import { a0 as Mt, a1 as Tt } from "./chunk-Q1Odh_h6.js";
-function Nt(r, t) {
+import { a0 as Mt, a1 as Tt } from "./chunk-Bjzezi9A.js";
+function Nt(r) {
+  return r?.name === "AbortError" || r?.code === 20;
+}
+class _t {
+  constructor() {
+    this.controller = typeof AbortController == "function" ? new AbortController() : null, this.disposed = !1;
+  }
+  /** The signal to pass to fetch, or undefined where AbortController is absent. */
+  get signal() {
+    return this.controller?.signal;
+  }
+  get aborted() {
+    return !!this.controller?.signal?.aborted;
+  }
+  /** Merge the signal into fetch options without clobbering what the caller set. */
+  options(t = {}) {
+    return this.signal ? { ...t, signal: this.signal } : { ...t };
+  }
+  /**
+   * Run a request, returning `undefined` when it was cancelled rather than throwing.
+   *
+   * Real failures still propagate: a dead network while the panel is alive is a
+   * genuine error the caller has to see.
+   */
+  async run(t) {
+    try {
+      const e = await t(this.signal);
+      return this.aborted ? void 0 : e;
+    } catch (e) {
+      if (this.aborted || Nt(e)) return;
+      throw e;
+    }
+  }
+  dispose() {
+    this.disposed || (this.disposed = !0, this.controller?.abort());
+  }
+}
+function At(r, t) {
   const e = !!r.upstreamPreviewActive, a = r.sourceViewer?.mode || "native", o = t ? e ? "upstream" : a === "fallback" ? "fallback" : "native" : "none", i = (s, n) => {
     const c = r.$(s);
     c && (c.hidden = !n);
   };
   return i("source-video", o === "native"), i("fallback-preview", o === "fallback"), i("upstream-preview", o === "upstream"), o;
 }
-function _t(r, t) {
+function Rt(r, t) {
   const e = r.$("tracking-overlay"), a = Math.round(Number(t?.width) || 0), o = Math.round(Number(t?.height) || 0);
   return !e || a < 1 || o < 1 || e.width === a && e.height === o ? !1 : (e.width = a, e.height = o, r.overlay.draw(), !0);
 }
-async function At(r, t) {
+async function It(r, t) {
   const e = r.$("upstream-preview");
   if (!e) return;
   const a = t.available ? null : t.previewMedia;
   r.upstreamPreviewActive = a ? await ut(a, e, 960) : !1, r.disposed || r.render();
 }
-const Rt = {
+const Ft = {
   job: "majoor.omnicam.extractor.job",
   progress: "majoor.omnicam.extractor.progress",
   pose: "majoor.omnicam.extractor.pose",
@@ -30,7 +67,7 @@ const Rt = {
   completed: "majoor.omnicam.extractor.completed",
   failed: "majoor.omnicam.extractor.failed"
 };
-class It {
+class $t {
   /**
    * @param api ComfyUI api object
    * @param handlers one callback per SOLVE_EVENTS key
@@ -38,7 +75,7 @@ class It {
    */
   constructor(t, e = {}, a = () => !0) {
     this.api = t, this.match = a, this.bound = [];
-    for (const [o, i] of Object.entries(Rt)) {
+    for (const [o, i] of Object.entries(Ft)) {
       const s = e[o];
       if (typeof s != "function") continue;
       const n = (c) => {
@@ -53,13 +90,13 @@ class It {
       this.api?.removeEventListener?.(t, e);
   }
 }
-function Ft(r) {
+function Lt(r) {
   return (t) => {
     const e = r() || {};
     return !(e.jobId && t.job_id && t.job_id !== e.jobId || t.node_id != null && String(t.node_id) !== String(e.nodeId));
   };
 }
-const M = "/majoor/omnicam/extractor/jobs", $t = /* @__PURE__ */ new Set([
+const M = "/majoor/omnicam/extractor/jobs", Pt = /* @__PURE__ */ new Set([
   "IDLE",
   "PREPARING",
   "TRACKING",
@@ -67,9 +104,9 @@ const M = "/majoor/omnicam/extractor/jobs", $t = /* @__PURE__ */ new Set([
   "REFINING",
   "STOPPING"
 ]);
-function Lt(r, t = {}) {
+function Ot(r, t = {}) {
   const e = String(t.jobId || "");
-  return !e || !$t.has(String(t.solveState || "")) ? !1 : (r.stopSolve(e).catch(() => {
+  return !e || !Pt.has(String(t.solveState || "")) ? !1 : (r.stopSolve(e).catch(() => {
   }), !0);
 }
 async function B(r) {
@@ -79,7 +116,7 @@ async function B(r) {
     return `Request failed (${r.status})`;
   }
 }
-class Pt {
+class Dt {
   constructor(t, { clientId: e = "" } = {}) {
     this.api = t, this.clientId = e, this.abort = null;
   }
@@ -138,7 +175,7 @@ class Pt {
     return a.json();
   }
 }
-const Ot = 200, K = {
+const Vt = 200, K = {
   position_smoothing: 0.15,
   rotation_smoothing: 0.1,
   motion_scale: 1,
@@ -155,8 +192,8 @@ const Ot = 200, K = {
 function O() {
   return { pitch: 0, yaw: 0, roll: 0 };
 }
-class Dt {
-  constructor({ onRefine: t, delay: e = Ot, setTimer: a, clearTimer: o } = {}) {
+class jt {
+  constructor({ onRefine: t, delay: e = Vt, setTimer: a, clearTimer: o } = {}) {
     this.settings = { ...K }, this.alignment = O(), this.onRefine = t || (() => {
     }), this.delay = e, this.setTimer = a || ((i, s) => setTimeout(i, s)), this.clearTimer = o || ((i) => clearTimeout(i)), this.timer = null, this.lastSent = "";
   }
@@ -166,7 +203,7 @@ class Dt {
   }
   setAlignment(t) {
     return this.alignment = { ...this.alignment, ...t }, this.update({
-      global_rotation_xyzw: Vt(this.alignment),
+      global_rotation_xyzw: qt(this.alignment),
       estimate_up: !1
     });
   }
@@ -197,7 +234,7 @@ class Dt {
     this.clearTimer(this.timer), this.timer = null;
   }
 }
-function Vt({ pitch: r = 0, yaw: t = 0, roll: e = 0 } = {}) {
+function qt({ pitch: r = 0, yaw: t = 0, roll: e = 0 } = {}) {
   if (!r && !t && !e) return null;
   const [a, o, i] = [r, t, e].map((d) => (Number(d) || 0) * (Math.PI / 180) * 0.5), [s, n, c, l, h, p] = [
     Math.cos(a),
@@ -214,7 +251,7 @@ function Vt({ pitch: r = 0, yaw: t = 0, roll: e = 0 } = {}) {
     s * c * h - n * l * p
   ];
 }
-class jt {
+class Ut {
   constructor({ maxFrames: t = 180 } = {}) {
     this.maxFrames = Math.max(1, Math.floor(Number(t) || 180)), this.frames = /* @__PURE__ */ new Map();
   }
@@ -238,14 +275,14 @@ class jt {
     this.clear();
   }
 }
-function qt(r, t) {
+function Gt(r, t) {
   const e = Math.max(0, Math.floor(Number(t) || 0) - 1);
   return Math.max(0, Math.min(e, Math.round(Number(r) || 0)));
 }
-function Ut(r) {
+function Ht(r) {
   return ["manual", "transport", "timeline", "quality", "input"].includes(r);
 }
-class Gt {
+class Wt {
   constructor({
     media: t = null,
     getViewer: e = () => null,
@@ -282,8 +319,8 @@ class Gt {
   }
   seek(t, e = "manual") {
     if (this.disposed) return this.frame;
-    const a = qt(t, this.frameCount);
-    return Ut(e) && this.setFollow(!1), e !== "media" && this.media?.seekFrame?.(a), this.getViewer?.()?.setFrame?.(a), this.showDiagnostics(a), this.frame = a, this.dispatch({ type: "FRAME", frame: a }), e !== "playback" && (this.playbackStartFrame = a, this.playbackStartTime = null), a;
+    const a = Gt(t, this.frameCount);
+    return Ht(e) && this.setFollow(!1), e !== "media" && this.media?.seekFrame?.(a), this.getViewer?.()?.setFrame?.(a), this.showDiagnostics(a), this.frame = a, this.dispatch({ type: "FRAME", frame: a }), e !== "playback" && (this.playbackStartFrame = a, this.playbackStartTime = null), a;
   }
   play() {
     return this.disposed || this.playing || this.frameCount < 1 ? !1 : (this.playing = !0, this.onPlaybackState(this.playing), this.playbackStartFrame = this.frame, this.playbackStartTime = null, this.schedule(), !0);
@@ -322,7 +359,7 @@ class Gt {
 }
 class _ extends Error {
 }
-function Ht(r, { track: t, state: e } = {}) {
+function zt(r, { track: t, state: e } = {}) {
   if (e !== "COMPLETED")
     throw new _("Only a completed solve can be applied to the Director.");
   const a = t?.keyframes;
@@ -342,7 +379,7 @@ function Ht(r, { track: t, state: e } = {}) {
   const s = bt(r);
   return { fingerprint: o, notified: s };
 }
-function Wt(r, t = "") {
+function Bt(r, t = "") {
   const e = Number(r?.code) || 0, a = t ? "" : " (no source URL was set)";
   switch (e) {
     case 1:
@@ -357,7 +394,7 @@ function Wt(r, t = "") {
       return `The footage could not be played${a}.`;
   }
 }
-class zt extends Ct {
+class Kt extends Ct {
   constructor(t, {
     fps: e = 24,
     onFrame: a = () => {
@@ -376,7 +413,7 @@ class zt extends Ct {
       onFrame: (c) => this.reportFrame(c),
       onMetadata: o,
       onError: (c) => this.handleMediaError(c),
-      errorMessage: Wt,
+      errorMessage: Bt,
       loop: !0,
       muted: !0
     }), this.frameCount = 0, this.onExternalFrame = a, this.ignoredFrame = null, this.follow = !0, this.mode = "native", this.source = null, this.onMode = s, this.fallbackViewer = n, this.onPlaybackError = i;
@@ -447,32 +484,32 @@ function X(r, t) {
   const e = Math.max(1, Number(t) || 24), a = Math.max(0, Number(r) || 0), o = Math.floor(a / e), i = (s, n = 2) => String(s).padStart(n, "0");
   return `${i(Math.floor(o / 60))}:${i(o % 60)}:${i(a % e)}`;
 }
-const Bt = "/majoor/omnicam/extractor/frame";
-function Kt(r) {
+const Xt = "/majoor/omnicam/extractor/frame";
+function Yt(r) {
   return Math.max(0, Math.round(Number(r) || 0));
 }
 function I(r, t, e = 0) {
   const a = Number(r?.get?.(t));
   return Number.isFinite(a) && a > 0 ? Math.round(a) : e;
 }
-async function Xt(r) {
+async function Jt(r) {
   try {
     return await r?.text?.() || `Preview frame request failed (${r?.status || "unknown"})`;
   } catch {
     return `Preview frame request failed (${r?.status || "unknown"})`;
   }
 }
-function Yt(r) {
+function Qt(r) {
   return r?.name === "AbortError";
 }
-function Jt(r, t, e = t?.width, a = t?.height) {
+function Zt(r, t, e = t?.width, a = t?.height) {
   const o = r?.getContext?.("2d"), i = Math.max(1, Number(t?.width) || 1), s = Math.max(1, Number(t?.height) || 1), n = Math.max(1, Math.round(Number(e) || i)), c = Math.max(1, Math.round(Number(a) || s));
   if (!o) return !1;
   r.width !== n && (r.width = n), r.height !== c && (r.height = c);
   const l = Math.min(n / i, c / s), h = Math.round(i * l), p = Math.round(s * l);
   return o.clearRect(0, 0, n, c), o.drawImage(t, Math.round((n - h) / 2), Math.round((c - p) / 2), h, p), !0;
 }
-class Qt {
+class te {
   constructor(t, { api: e, decodeImage: a = (o) => globalThis.createImageBitmap(o) } = {}) {
     this.canvas = t, this.api = e, this.decodeImage = a, this.abortController = null, this.generation = 0, this.frame = 0, this.frameCount = 0, this.error = "";
   }
@@ -484,29 +521,29 @@ class Qt {
     this.abort();
     const o = ++this.generation, i = new AbortController();
     this.abortController = i;
-    const s = Kt(e);
+    const s = Yt(e);
     try {
-      const n = await this.api?.fetchApi?.(Bt, {
+      const n = await this.api?.fetchApi?.(Xt, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: t, frame: s, max_dimension: a }),
         signal: i.signal
       });
-      if (!n?.ok) throw new Error(await Xt(n));
+      if (!n?.ok) throw new Error(await Jt(n));
       const c = await n.blob(), l = await this.decodeImage(c);
       if (o !== this.generation || i.signal.aborted)
         return l?.close?.(), !1;
       const h = I(n.headers, "X-OmniCam-Width", l?.width), p = I(n.headers, "X-OmniCam-Height", l?.height);
       let d = !1;
       try {
-        d = Jt(this.canvas, l, h, p);
+        d = Zt(this.canvas, l, h, p);
       } finally {
         l?.close?.();
       }
       if (!d) throw new Error("The fallback preview canvas is unavailable.");
       return this.frame = I(n.headers, "X-OmniCam-Frame", s), this.frameCount = I(n.headers, "X-OmniCam-Frame-Count", this.frameCount), this.error = "", !0;
     } catch (n) {
-      if (o !== this.generation || i.signal.aborted || Yt(n)) return !1;
+      if (o !== this.generation || i.signal.aborted || Qt(n)) return !1;
       throw this.error = String(n?.message || n), n;
     } finally {
       o === this.generation && (this.abortController = null);
@@ -521,12 +558,12 @@ class Qt {
     this.clear(), this.canvas = null, this.api = null;
   }
 }
-const Zt = {
+const ee = {
   LoadVideo: ["file", "video"],
   VHS_LoadVideo: ["video"],
   VHS_LoadVideoPath: ["video"],
   LoadVideoFFmpeg: ["file", "video"]
-}, te = /\.(mp4|mov|webm|mkv|m4v|avi)(\s|$)/i, F = {
+}, re = /\.(mp4|mov|webm|mkv|m4v|avi)(\s|$)/i, F = {
   available: !1,
   ref: null,
   label: "",
@@ -535,14 +572,14 @@ const Zt = {
 function Y(r) {
   return String(r?.comfyClass || r?.type || r?.constructor?.type || "");
 }
-function ee(r, t) {
+function ae(r, t) {
   for (const e of t) {
     const a = r?.widgets?.find((o) => String(o.name).toLowerCase() === e);
     if (a && a.value) return String(a.value);
   }
   return "";
 }
-function re(r, t) {
+function oe(r, t) {
   const e = (r?.inputs || []).find((a) => String(a?.name).toLowerCase() === "video");
   return !e || e.link == null || !t ? null : pt(t, e.link);
 }
@@ -552,10 +589,10 @@ function J(r) {
   );
   return t ? { kind: /\s\[(input|output|temp)\]$/.test(t) ? "annotated_input" : "managed", value: t } : null;
 }
-function ae(r, t = r?.graph) {
-  const e = re(r, t);
+function ie(r, t = r?.graph) {
+  const e = oe(r, t);
   if (e) {
-    const o = Zt[Y(e)];
+    const o = ee[Y(e)];
     if (!o) {
       const s = J(r);
       return s ? {
@@ -574,8 +611,8 @@ function ae(r, t = r?.graph) {
         previewMedia: ht(e)
       };
     }
-    const i = ee(e, o);
-    return i ? te.test(i) ? {
+    const i = ae(e, o);
+    return i ? re.test(i) ? {
       available: !0,
       reason: "",
       label: i,
@@ -592,15 +629,15 @@ function ae(r, t = r?.graph) {
     originNodeId: null
   } : { ...F, reason: "Connect Load Video, or choose a source file, to track." };
 }
-function oe(r) {
+function se(r) {
   if (!r?.available) return r?.reason || "No source";
   const t = r.info;
   if (!t) return r.label;
   const e = [r.label];
   return t.width && t.height && e.push(`${t.width}x${t.height}`), t.fps && e.push(`${Number(t.fps).toFixed(2).replace(/\.?0+$/, "")}fps`), t.frame_count && e.push(`${t.frame_count} frames`), e.join(" · ");
 }
-function ie(r) {
-  const t = ae(r.node, r.node.graph), e = t.ref ? `${t.ref.kind}:${t.ref.value}` : "", a = e !== (r.sourceKey || "");
+function ne(r) {
+  const t = ie(r.node, r.node.graph), e = t.ref ? `${t.ref.kind}:${t.ref.value}` : "", a = e !== (r.sourceKey || "");
   if (a) {
     const i = r.state.jobId;
     r.sourceKey = e, r.describing = "", i && r.client.stopSolve(i).catch(() => {
@@ -610,7 +647,7 @@ function ie(r) {
     t.available && t.ref ? Mt(N, t.ref.value) : "",
     { source: t.available ? t.ref : null }
   );
-  return a && r.coordinator.seek(0, "source"), r.dispatch({ type: "SOURCE", source: o ? { ...t, playbackError: "" } : t }), t.available && t.ref ? it(r, t) : W(r, 0), At(r, t), t;
+  return a && r.coordinator.seek(0, "source"), r.dispatch({ type: "SOURCE", source: o ? { ...t, playbackError: "" } : t }), t.available && t.ref ? it(r, t) : W(r, 0), It(r, t), t;
 }
 async function it(r, t) {
   if (r.describing === t.ref?.value) return null;
@@ -619,7 +656,7 @@ async function it(r, t) {
     const e = await r.client.describeSource(t.ref);
     if (r.disposed || r.sourceKey !== `${t.ref.kind}:${t.ref.value}`) return null;
     const a = e?.info || null;
-    return r.dispatch({ type: "SOURCE", source: { info: a } }), a && (r.coordinator.setRate(Number(a.fps) || r.sourceViewer.fps), W(r, Number(a.frame_count) || 0), _t(r, a)), a;
+    return r.dispatch({ type: "SOURCE", source: { info: a } }), a && (r.coordinator.setRate(Number(a.fps) || r.sourceViewer.fps), W(r, Number(a.frame_count) || 0), Rt(r, a)), a;
   } catch (e) {
     return console.warn("[OmniCam] could not describe the extractor source", e), null;
   }
@@ -628,7 +665,7 @@ function W(r, t) {
   const e = Math.max(0, Math.round(Number(t) || 0));
   r.coordinator.setFrameCount(e), e !== r.state.frameCount && (r.dispatch({ type: "FRAME_COUNT", frameCount: e }), r.coordinator.seek(r.coordinator.frame, "source"));
 }
-const se = /* @__PURE__ */ new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]), ne = {
+const ce = /* @__PURE__ */ new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]), le = {
   IDLE: "neutral",
   PREPARING: "info",
   TRACKING: "active",
@@ -639,7 +676,7 @@ const se = /* @__PURE__ */ new Set(["PREPARING", "TRACKING", "SOLVING", "REFININ
   COMPLETED: "ok",
   FAILED: "danger"
 };
-function ce() {
+function de() {
   return {
     solveState: "IDLE",
     jobId: "",
@@ -756,8 +793,8 @@ function D(r, t) {
       return r;
   }
 }
-function le(r) {
-  const t = r.solveState, e = se.has(t), a = t === "COMPLETED";
+function ue(r) {
+  const t = r.solveState, e = ce.has(t), a = t === "COMPLETED";
   return {
     track: !e && r.source.available,
     stop: e,
@@ -767,10 +804,10 @@ function le(r) {
     retry: t === "STOPPED" || t === "FAILED"
   };
 }
-function de(r) {
-  return ne[r] || "neutral";
+function he(r) {
+  return le[r] || "neutral";
 }
-function ue(r) {
+function pe(r) {
   const t = Math.round(Math.max(0, Math.min(1, r.progress)) * 100);
   switch (r.solveState) {
     case "TRACKING":
@@ -782,13 +819,13 @@ function ue(r) {
       return r.solveState;
   }
 }
-function he(r) {
+function me(r) {
   return r.frameCount ? `${r.frame} / ${r.frameCount} frames` : r.solveState === "IDLE" ? "Ready to track" : r.solveState;
 }
-function pe(r) {
+function fe(r) {
   return r.applied.fingerprint ? r.applied.outdated ? "OUTDATED" : "APPLIED" : "NOT APPLIED";
 }
-const me = `${mt}${gt}
+const be = `${mt}${gt}
   .oc-extractor{width:100%;min-height:700px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--oc-line);border-radius:var(--oc-radius);background:var(--oc-bg)}
   .oc-extractor .oc-header{justify-content:space-between}.oc-extractor .oc-heading{display:flex;align-items:center;gap:9px}
   .oc-extractor button,.oc-extractor select,.oc-extractor input{font:inherit;color:var(--oc-text);background:var(--oc-panel-2);border:1px solid var(--oc-line);border-radius:6px}
@@ -902,17 +939,17 @@ const me = `${mt}${gt}
   .oc-extractor [hidden]{display:none}
   .oc-extractor .oc-views[hidden]{display:none}
   @media(max-width:720px){.oc-extractor .oc-columns{grid-template-columns:1fr}}
-`, fe = '<svg class="oc-mark" viewBox="0 0 24 24" aria-hidden="true"><circle class="oc-mark-ring" cx="12" cy="12" r="8"/><circle class="oc-mark-core" cx="12" cy="12" r="3"/></svg>';
+`, ge = '<svg class="oc-mark" viewBox="0 0 24 24" aria-hidden="true"><circle class="oc-mark-ring" cx="12" cy="12" r="8"/><circle class="oc-mark-core" cx="12" cy="12" r="3"/></svg>';
 function S(r, t, { min: e = 0, max: a = 1, step: o = 0.01, value: i = 0 } = {}) {
   return `<label for="oc-${r}">${t}</label>
     <input id="oc-${r}" data-role="${r}" type="range" min="${e}" max="${a}" step="${o}" value="${i}">
     <output data-role="${r}-out"></output>`;
 }
-function be() {
+function ve() {
   return `<div class="majoor-omnicam oc-extractor">
-    <style>${me}</style>
+    <style>${be}</style>
     <header class="oc-header">
-      <div class="oc-heading"><span class="oc-brand">${fe}</span>
+      <div class="oc-heading"><span class="oc-brand">${ge}</span>
         <div><div class="oc-title">OmniCam Extractor</div><small>Solve · inspect · clean</small></div>
       </div>
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
@@ -1060,9 +1097,9 @@ function be() {
     </main>
   </div>`;
 }
-function ge(r = document) {
+function ye(r = document) {
   const t = r.createElement("div");
-  return t.innerHTML = be(), t.firstElementChild;
+  return t.innerHTML = ve(), t.firstElementChild;
 }
 const st = {
   good: "#46a758",
@@ -1077,11 +1114,11 @@ function z(r) {
   const e = Number(r.coverage);
   return Number.isFinite(e) ? e >= 0.7 ? "good" : e >= 0.35 ? "weak" : "bad" : "unknown";
 }
-function ve(r, t) {
+function xe(r, t) {
   const e = (r || []).find((o) => Number(o.frame) === Number(t)), a = [["Frame", String(t)]];
   return e ? (a.push(["Tracking state", z(e).toUpperCase()]), Number.isFinite(Number(e.coverage)) && a.push(["Coverage", `${Math.round(Number(e.coverage) * 100)}%`]), e.inliers != null && a.push(["Inliers", String(e.inliers)]), a) : (a.push(["Tracking state", "UNKNOWN"]), a);
 }
-const xe = {
+const we = {
   position: "#8b7bd8",
   target: "#e5a23c",
   roll: "#e2649a"
@@ -1089,14 +1126,14 @@ const xe = {
   { key: "position", label: "Camera" },
   { key: "target", label: "Look At" },
   { key: "roll", label: "Roll" }
-], ye = 18, we = 9, Q = 2, nt = 78, ke = { solve: "SOLVE HEALTH" }, L = {
+], ke = 18, Se = 9, Q = 2, nt = 78, Ee = { solve: "SOLVE HEALTH" }, L = {
   bands: ["solve"],
   labels: !0,
   labelWidth: nt,
-  bandHeight: we,
+  bandHeight: Se,
   bandGap: Q,
   laneTopGap: Q + 2,
-  laneHeight: ye,
+  laneHeight: ke,
   laneGap: 0,
   rowChrome: !1,
   ruler: !0,
@@ -1125,7 +1162,7 @@ function ct(r = P, t = L) {
     a.length && (o += e.bandGap), a.push({
       kind: "band",
       key: i,
-      label: ke[i] || String(i).toUpperCase(),
+      label: Ee[i] || String(i).toUpperCase(),
       top: o,
       height: e.bandHeight
     }), o += e.bandHeight;
@@ -1133,10 +1170,10 @@ function ct(r = P, t = L) {
     a.length && (o += a[a.length - 1].kind === "band" ? e.laneTopGap : e.laneGap), a.push({ kind: "lane", key: i.key, label: i.label, top: o, height: e.laneHeight }), o += e.laneHeight;
   return { rows: a, style: e, height: o + e.bottomPad };
 }
-function Se(r = P, t = L) {
+function Ce(r = P, t = L) {
   return ct(r, t).height;
 }
-function Ee(r, t) {
+function Me(r, t) {
   if (!r) return null;
   if (t === "position" || t === "target") {
     const a = r[t];
@@ -1145,7 +1182,7 @@ function Ee(r, t) {
   const e = Number(r.roll);
   return Number.isFinite(e) ? [e] : null;
 }
-function Ce(r, t, e = 1e-4) {
+function Te(r, t, e = 1e-4) {
   return !r || !t || r.length !== t.length ? !1 : r.every((a, o) => Math.abs(a - t[o]) <= e);
 }
 function lt(r, t = P) {
@@ -1154,14 +1191,14 @@ function lt(r, t = P) {
     const i = [];
     let s = null;
     for (const n of e) {
-      const c = Ee(n?.camera, o);
-      c && ((s === null || !Ce(c, s)) && i.push(Number(n.frame) || 0), s = c);
+      const c = Me(n?.camera, o);
+      c && ((s === null || !Te(c, s)) && i.push(Number(n.frame) || 0), s = c);
     }
     a[o] = i;
   }
   return a;
 }
-function Me(r, t = null, e = "generic") {
+function Ne(r, t = null, e = "generic") {
   if (!r?.keyframes?.length || !t) return null;
   try {
     const o = Array.isArray(r.objects) && r.objects.some((i) => i?.id === "subject" && Array.isArray(i.position)) ? t : { ...t, allow_framing_loss: !0 };
@@ -1170,7 +1207,7 @@ function Me(r, t = null, e = "generic") {
     return null;
   }
 }
-function Te(r, t, e, a = nt) {
+function _e(r, t, e, a = nt) {
   const o = Math.max(1, Number(e) || 0), i = Math.max(1, (Number(t) || 1) - a), s = Math.max(0, Math.min(1, (Number(r) - a) / i));
   return Math.max(0, Math.min(o - 1, Math.round(s * (o - 1))));
 }
@@ -1181,27 +1218,27 @@ function E(r, t, e, a) {
   const o = Math.max(1, (Number(e) || 1) - 1), i = dt(t, a);
   return a.labelWidth + Math.max(0, Math.min(o, r)) / o * i;
 }
-function Ne(r, t) {
+function Ae(r, t) {
   const e = Math.max(0, Number(t) - 1);
   return (r || []).map((a) => {
     const o = Math.max(0, Math.min(e, Number(a?.start_frame ?? a?.frame) || 0)), i = Math.max(o, Math.min(e, Number(a?.end_frame ?? a?.frame) || o));
     return { start: o, end: i, level: a?.level === "error" ? "error" : "warn" };
   });
 }
-function _e(r, t, e, a, o, i) {
+function Re(r, t, e, a, o, i) {
   for (const s of t) {
     const n = E(s.start, a, o, i), c = E(s.end, a, o, i), l = Math.max(2, c - n + 2);
     r.fillStyle = "#101014", r.fillRect(Math.round(n - 1), e.top + 2, Math.ceil(l + 2), e.height - 4), r.fillStyle = s.level === "error" ? "#ffffff" : "#f2c66d", r.fillRect(Math.round(n), e.top + 3, Math.ceil(l), e.height - 6);
   }
 }
-function Ae(r, { y: t, height: e, width: a, frameCount: o, colorAt: i, style: s }) {
+function Ie(r, { y: t, height: e, width: a, frameCount: o, colorAt: i, style: s }) {
   const n = Math.max(1, Number(o) || 0), c = dt(a, s), l = Math.max(1, Math.ceil(n / c)), h = Math.max(1, c / Math.ceil(n / l));
   for (let p = 0; p < n; p += l) {
     const d = i(p, Math.min(n, p + l));
     d && (r.fillStyle = d, r.fillRect(s.labelWidth + p / n * c, t, h, e));
   }
 }
-function Re(r, t, e, a) {
+function Fe(r, t, e, a) {
   const o = new Map((r || []).map((s) => [Number(s.frame), s]));
   let i = "unknown";
   for (let s = Math.max(0, Number(e) || 0); s < Math.max(0, Number(a) || 0); s += 1) {
@@ -1210,7 +1247,7 @@ function Re(r, t, e, a) {
   }
   return i;
 }
-function Ie(r, t, e) {
+function $e(r, t, e) {
   const a = Number(e) || 0, o = (r || []).find((n) => Number(n.frame) === a), i = String(t?.frame_grades?.[a] || "unknown").toUpperCase(), s = [["Solve state", z(o).toUpperCase()], ["Motion grade", i]];
   o && Number.isFinite(Number(o.coverage)) && s.push(["Coverage", `${Math.round(Number(o.coverage) * 100)}%`]), o?.inliers != null && s.push(["Inliers", String(o.inliers)]);
   for (const n of ["speed", "angular_speed", "acceleration", "jerk"]) {
@@ -1219,18 +1256,18 @@ function Ie(r, t, e) {
   }
   return t?.framing?.[a] === !1 && !t?.limits?.allow_framing_loss && s.push(["Framing", "LOSS"]), s;
 }
-function Fe(r, t, e, a) {
+function Le(r, t, e, a) {
   r.fillStyle = a, r.font = "9px system-ui, sans-serif", r.textBaseline = "middle", r.fillText(t, 2, e);
 }
-function $e(r, t, e, a, o, i) {
+function Pe(r, t, e, a, o, i) {
   const s = Math.max(0, Math.min(i, a / 2, o / 2));
   r.beginPath(), r.moveTo(t + s, e), r.arcTo(t + a, e, t + a, e + o, s), r.arcTo(t + a, e + o, t, e + o, s), r.arcTo(t, e + o, t, e, s), r.arcTo(t, e, t + a, e, s), r.closePath();
 }
-function Le(r, { row: t, width: e, style: a }) {
+function Oe(r, { row: t, width: e, style: a }) {
   const o = a.labelWidth, i = Math.max(2, e - o);
-  $e(r, o + 0.5, t.top + 0.5, i - 1, t.height - 1, 6), r.fillStyle = "#20202a", r.fill(), r.strokeStyle = "#26262f", r.lineWidth = 1, r.stroke(), t.kind === "lane" && (r.fillStyle = "#2c2c38", r.fillRect(o + 1, Math.round(t.top + t.height / 2), i - 2, 1));
+  Pe(r, o + 0.5, t.top + 0.5, i - 1, t.height - 1, 6), r.fillStyle = "#20202a", r.fill(), r.strokeStyle = "#26262f", r.lineWidth = 1, r.stroke(), t.kind === "lane" && (r.fillStyle = "#2c2c38", r.fillRect(o + 1, Math.round(t.top + t.height / 2), i - 2, 1));
 }
-function Pe(r, {
+function De(r, {
   track: t = null,
   health: e = null,
   quality: a = [],
@@ -1249,32 +1286,32 @@ function Pe(r, {
       bottom: m.top + m.height,
       keys: h[m.key] || []
     })),
-    anomalies: Ne(o, l)
+    anomalies: Ae(o, l)
   }, u = r?.getContext?.("2d"), f = r?.width || 0, b = r?.height || 0;
   if (!u || !f || !b) return { ...g, keys: h };
   u.clearRect(0, 0, f, b);
-  const y = Array.isArray(e?.frame_grades) ? e.frame_grades : [], x = {
-    solve: (m, v) => st[Re(a, y, m, v)]
+  const x = Array.isArray(e?.frame_grades) ? e.frame_grades : [], y = {
+    solve: (m, v) => st[Fe(a, x, m, v)]
   };
   for (const m of p) {
-    d.rowChrome && Le(u, { row: m, width: f, style: d });
+    d.rowChrome && Oe(u, { row: m, width: f, style: d });
     const v = m.top + m.height / 2;
-    if (d.labels && Fe(u, m.label, v, "#9a9aad"), m.kind === "band") {
-      const R = x[m.key];
+    if (d.labels && Le(u, m.label, v, "#9a9aad"), m.kind === "band") {
+      const R = y[m.key];
       if (!R) continue;
       const k = d.rowChrome ? 2 : 0;
-      Ae(u, {
+      Ie(u, {
         y: m.top + k,
         height: m.height - k * 2,
         width: f,
         frameCount: l,
         colorAt: R,
         style: d
-      }), m.key === "solve" && _e(u, g.anomalies, m, f, l, d);
+      }), m.key === "solve" && Re(u, g.anomalies, m, f, l, d);
       continue;
     }
     const w = h[m.key] || [];
-    w.length > 1 && !d.rowChrome && (u.strokeStyle = "#2c2c38", u.lineWidth = 1, u.beginPath(), u.moveTo(E(w[0], f, l, d), v), u.lineTo(E(w[w.length - 1], f, l, d), v), u.stroke()), u.fillStyle = xe[m.key] || "#8b7bd8";
+    w.length > 1 && !d.rowChrome && (u.strokeStyle = "#2c2c38", u.lineWidth = 1, u.beginPath(), u.moveTo(E(w[0], f, l, d), v), u.lineTo(E(w[w.length - 1], f, l, d), v), u.stroke()), u.fillStyle = we[m.key] || "#8b7bd8";
     const C = d.rowChrome ? 5.5 : 3.5;
     for (const R of w) {
       const k = Math.max(
@@ -1301,7 +1338,7 @@ function Pe(r, {
 function $(r) {
   return { unknown: 0, good: 1, weak: 2, bad: 3 }[r] ?? 0;
 }
-class Oe {
+class Ve {
   /**
    * @param root the panel root, queried for its own `data-role` elements
    * @param onSeek called with a frame when the user scrubs the strip
@@ -1322,8 +1359,8 @@ class Oe {
   render({ track: t = null, health: e = null, quality: a = [], anomalies: o = [], frame: i = 0, frameCount: s = 0 } = {}) {
     const n = this.$("track-timeline");
     if (!n) return null;
-    const c = Se(void 0, Z);
-    return n.height !== c && (n.height = c), Pe(n, {
+    const c = Ce(void 0, Z);
+    return n.height !== c && (n.height = c), De(n, {
       track: t,
       health: e,
       quality: a,
@@ -1338,7 +1375,7 @@ class Oe {
     const a = this.$("extractor-dope-tracks");
     if (!a?.getBoundingClientRect) return null;
     const o = a.getBoundingClientRect();
-    return Te(t.clientX - o.left, o.width, e, 0);
+    return _e(t.clientX - o.left, o.width, e, 0);
   }
   /** Wire scrubbing. `listen` is the panel's own disposal-tracked binder. */
   bind(t, e) {
@@ -1358,7 +1395,7 @@ class Oe {
     return a !== null && this.onSeek(a), a;
   }
 }
-const De = [
+const je = [
   "first-frame",
   "previous-key",
   "previous-frame",
@@ -1367,7 +1404,7 @@ const De = [
   "next-key",
   "last-frame",
   "toggle-loop"
-], Ve = {
+], qe = {
   "first-frame": '[data-act="first-frame"]',
   "previous-key": '[data-act="previous-key"]',
   "previous-frame": '[data-act="previous-frame"]',
@@ -1380,7 +1417,7 @@ const De = [
 function V(r) {
   return [...new Set((r || []).map((t) => Number(typeof t == "object" ? t?.frame : t)).filter(Number.isFinite).map((t) => Math.max(0, Math.round(t))))].sort((t, e) => t - e);
 }
-function je(r, t) {
+function Ue(r, t) {
   const e = V(r?.anomalies), a = V(Object.values(lt(t)).flat()), o = a.length ? a : V(t?.keyframes);
   return { anomalies: e, solved: o };
 }
@@ -1391,20 +1428,20 @@ function j(r, t, { anomalies: e, solved: a }) {
   };
   return i(e) ?? i(a) ?? null;
 }
-function qe(r) {
+function Ge(r) {
   const t = String(r?.tagName || "").toLowerCase();
   return r?.isContentEditable || t === "textarea" || t === "select" ? !0 : t === "input" && ["text", "number"].includes(String(r.type || "text").toLowerCase());
 }
 function q(r) {
   return Math.max(0, Math.round(Number(r?.frameCount) || 0));
 }
-function Ue(r, {
+function He(r, {
   coordinator: t,
   getState: e = () => ({}),
   getTrack: a = () => null,
   listen: o = (i, s, n) => i?.addEventListener?.(s, n)
 } = {}) {
-  const i = (d) => r?.querySelector?.(Ve[d]) || null, s = () => e() || {}, n = () => je(s(), a()), c = (d) => q(s()) < 1 ? !1 : (t?.seek?.(d, "transport"), !0), l = (d) => {
+  const i = (d) => r?.querySelector?.(qe[d]) || null, s = () => e() || {}, n = () => Ue(s(), a()), c = (d) => q(s()) < 1 ? !1 : (t?.seek?.(d, "transport"), !0), l = (d) => {
     const g = j(Number(s().frame) || 0, d, n());
     return g === null ? !1 : c(g);
   }, h = {
@@ -1417,12 +1454,12 @@ function Ue(r, {
     "last-frame": () => c(q(s()) - 1),
     "toggle-loop": () => (t?.setLoop?.(!t?.loop), p(), !0)
   };
-  for (const d of De) {
+  for (const d of je) {
     const g = i(d);
     g && o(g, "click", () => h[d]());
   }
   o(r, "keydown", (d) => {
-    if (qe(d.target)) return;
+    if (Ge(d.target)) return;
     const g = {
       " ": "play",
       Spacebar: "play",
@@ -1441,16 +1478,16 @@ function Ue(r, {
     f && (f.disabled = j(d, 1, g) === null);
     const b = i("toggle-loop");
     b && b.setAttribute("aria-pressed", String(!!t?.loop));
-    const y = i("play");
-    if (y) {
-      y.classList?.toggle?.("playing", !!t?.playing);
-      const x = y.querySelector?.("i");
-      x && (x.className = t?.playing ? "pi pi-pause" : "pi pi-play"), y.setAttribute("aria-label", t?.playing ? "Pause playback" : "Play playback");
+    const x = i("play");
+    if (x) {
+      x.classList?.toggle?.("playing", !!t?.playing);
+      const y = x.querySelector?.("i");
+      y && (y.className = t?.playing ? "pi pi-pause" : "pi pi-play"), x.setAttribute("aria-label", t?.playing ? "Pause playback" : "Play playback");
     }
   }
   return { render: p };
 }
-const Ge = 300, He = 300, T = {
+const We = 300, ze = 300, T = {
   accepted: "#46a758",
   weak: "#e5a23c",
   rejected: "#e5484d",
@@ -1467,12 +1504,12 @@ function U(r, { sourceWidth: t, sourceHeight: e, width: a, height: o }) {
   const i = Number(r?.x ?? r?.[0]) || 0, s = Number(r?.y ?? r?.[1]) || 0, n = i <= 1 && s <= 1 && i >= 0 && s >= 0, c = n ? a : a / Math.max(1, t || a), l = n ? o : o / Math.max(1, e || o);
   return [i * c, s * l];
 }
-class We {
+class Be {
   constructor(t) {
     this.canvas = t, this.points = [], this.vectors = [], this.frame = 0, this.state = "unknown";
   }
   setDiagnostics({ points: t = [], vectors: e = [], frame: a = 0, state: o = "unknown" } = {}) {
-    this.points = tt(t, Ge), this.vectors = tt(e, He), this.frame = Number(a) || 0, this.state = String(o || "unknown"), this.draw();
+    this.points = tt(t, We), this.vectors = tt(e, ze), this.frame = Number(a) || 0, this.state = String(o || "unknown"), this.draw();
   }
   clear() {
     this.points = [], this.vectors = [];
@@ -1498,7 +1535,7 @@ class We {
     this.clear(), this.canvas = null;
   }
 }
-function ze(r, t, e) {
+function Ke(r, t, e) {
   const a = r.createElement("div");
   a.className = "oc-row";
   const o = r.createElement("span");
@@ -1506,17 +1543,17 @@ function ze(r, t, e) {
   const i = r.createElement("span");
   return i.textContent = e, a.append(o, i), a;
 }
-function Be(r, t, e = "Nothing to show") {
+function Xe(r, t, e = "Nothing to show") {
   if (!r) return 0;
   const a = r.ownerDocument;
   if (r.replaceChildren(), !t.length) {
     const o = a.createElement("div");
     return o.className = "oc-empty", o.textContent = e, r.append(o), 0;
   }
-  for (const [o, i] of t) r.append(ze(a, o, i));
+  for (const [o, i] of t) r.append(Ke(a, o, i));
   return t.length;
 }
-function Ke(r, t, { onAction: e = () => {
+function Ye(r, t, { onAction: e = () => {
 }, onFrame: a = () => {
 }, actions: o = {} } = {}) {
   if (!r) return 0;
@@ -1545,11 +1582,11 @@ function Ke(r, t, { onAction: e = () => {
   }
   return t.length;
 }
-function Xe(r) {
+function Je(r) {
   return (r || []).map((t, e) => [`Note ${e + 1}`, String(t)]);
 }
-function Ye(r) {
-  return import("./chunk-B7I2K63a.js").then(({ TrackViewer: t }) => (r.viewerLoad = null, r.disposed || r.viewer || (r.viewer = new t(r.$("track-canvas")), r.pushTracksToViewer()), r.viewer)).catch((t) => (r.viewerLoad = null, console.warn("OmniCam track viewer unavailable", t), null));
+function Qe(r) {
+  return import("./chunk-D9fY_Tit.js").then(({ TrackViewer: t }) => (r.viewerLoad = null, r.disposed || r.viewer || (r.viewer = new t(r.$("track-canvas")), r.pushTracksToViewer()), r.viewer)).catch((t) => (r.viewerLoad = null, console.warn("OmniCam track viewer unavailable", t), null));
 }
 function et(r) {
   const t = r.$("frame");
@@ -1558,8 +1595,8 @@ function et(r) {
   e && (e.textContent = X(r.state.frame, r.sourceViewer.fps));
   const a = r.$("frame-readout");
   a && (a.textContent = `${r.state.frame} / ${Math.max(0, r.state.frameCount - 1)} · ${X(r.state.frame, r.sourceViewer.fps)}`);
-  const o = ve(r.state.quality, r.state.frame), i = Ie(r.state.quality, r.currentHealth, r.state.frame);
-  Be(r.$("quality-details"), [...o, ...i, ...Xe(r.state.warnings)], "No solve yet");
+  const o = xe(r.state.quality, r.state.frame), i = $e(r.state.quality, r.currentHealth, r.state.frame);
+  Xe(r.$("quality-details"), [...o, ...i, ...Je(r.state.warnings)], "No solve yet");
 }
 function rt(r) {
   const t = r.$("extractor-ruler"), e = r.$("extractor-playhead"), a = Math.max(1, r.state.frameCount);
@@ -1575,7 +1612,7 @@ function rt(r) {
   }
   e.style.left = `${Math.max(0, Math.min(a - 1, r.state.frame)) / Math.max(1, a - 1) * 100}%`;
 }
-const Je = [
+const Ze = [
   "method",
   "lens_mode",
   "fov_degrees",
@@ -1595,27 +1632,27 @@ const Je = [
 function A(r, t) {
   return r?.widgets?.find((e) => e.name === t) || null;
 }
-const Qe = [St, Et, H];
+const tr = [St, Et, H];
 function G(r) {
-  for (const t of Qe) {
+  for (const t of tr) {
     const e = A(r, t);
     e && (e.computeSize = () => [0, -4], e.draw = () => {
     }, e.hidden = !0, e.type = "hidden", e.options = { ...e.options || {}, hideInVueNodes: !0, serialize: !0 });
   }
   r.setDirtyCanvas?.(!0, !0);
 }
-function Ze(r) {
+function er(r) {
   G(r), globalThis.requestAnimationFrame?.(() => G(r)), setTimeout(() => G(r), 250);
 }
-class tr {
+class rr {
   constructor(t) {
-    this.node = t, this.root = ge(), this.state = ce(), this.disposed = !1, this.disposers = [], this.result = { raw: null, refined: null }, this.landmarks = [], this.diagnostics = new jt(), this.upstreamPreviewActive = !1, this.motionLimits = null, this.client = new Pt(N), this.refine = new Dt({ onRefine: (e) => this.requestRefine(e) }), this.fallbackViewer = new Qt(this.$("fallback-preview"), { api: N }), this.sourceViewer = new zt(this.$("source-video"), {
+    this.node = t, this.root = ye(), this.state = de(), this.disposed = !1, this.disposers = [], this.requests = new _t(), this.result = { raw: null, refined: null }, this.landmarks = [], this.diagnostics = new Ut(), this.upstreamPreviewActive = !1, this.motionLimits = null, this.client = new Dt(N), this.refine = new jt({ onRefine: (e) => this.requestRefine(e) }), this.fallbackViewer = new te(this.$("fallback-preview"), { api: N }), this.sourceViewer = new Kt(this.$("source-video"), {
       onFrame: (e) => this.coordinator.seek(e, "media"),
       onMetadata: ({ frameCount: e }) => this.adoptSourceLength(e),
       onError: (e) => this.dispatch({ type: "SOURCE", source: { playbackError: e } }),
       onMode: () => this.render(),
       fallbackViewer: this.fallbackViewer
-    }), this.coordinator = new Gt({
+    }), this.coordinator = new Wt({
       media: this.sourceViewer,
       getViewer: () => this.viewer,
       showDiagnostics: (e) => this.showDiagnostics(e),
@@ -1625,14 +1662,14 @@ class tr {
       fps: this.sourceViewer.fps,
       loop: !0,
       onPlaybackState: () => this.transport?.render()
-    }), this.timeline = new Oe(this.root, {
+    }), this.timeline = new Ve(this.root, {
       onSeek: (e) => this.coordinator.seek(e, "timeline")
-    }), this.transport = Ue(this.root, {
+    }), this.transport = He(this.root, {
       coordinator: this.coordinator,
       getState: () => this.state,
       getTrack: () => this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
       listen: (e, a, o) => this.listen(e, a, o)
-    }), this.overlay = new We(this.$("tracking-overlay")), this.viewer = null, this.viewerLoad = null, this.events = new It(N, {
+    }), this.overlay = new Be(this.$("tracking-overlay")), this.viewer = null, this.viewerLoad = null, this.events = new $t(N, {
       job: (e) => this.dispatch({ type: "JOB_STATE", state: e.state }),
       progress: (e) => this.onProgress(e),
       pose: (e) => this.onPose(e),
@@ -1640,7 +1677,7 @@ class tr {
       features: (e) => this.onFeatures(e),
       completed: (e) => this.onCompleted(e),
       failed: (e) => this.dispatch({ type: "FAILED", error: e.error })
-    }, Ft(() => ({ jobId: this.state.jobId, nodeId: this.node.id }))), this.bind(), this.loadMotionLimits(), this.refreshSource(), this.restoreCachedResult(), this.render();
+    }, Lt(() => ({ jobId: this.state.jobId, nodeId: this.node.id }))), this.bind(), this.loadMotionLimits(), this.refreshSource(), this.restoreCachedResult(), this.render();
   }
   // -- plumbing ----------------------------------------------------------
   $(t) {
@@ -1654,10 +1691,12 @@ class tr {
   }
   async loadMotionLimits() {
     try {
-      const t = await N.fetchApi?.("/majoor/omnicam/motion_profiles");
-      if (!t?.ok) return;
-      const e = await t.json();
-      this.motionLimits = e?.profiles?.find((a) => a.id === "generic")?.limits || null, this.disposed || this.render();
+      const t = await this.requests.run(async (e) => {
+        const a = await N.fetchApi?.("/majoor/omnicam/motion_profiles", { signal: e });
+        return a?.ok ? a.json() : void 0;
+      });
+      if (t === void 0) return;
+      this.motionLimits = t?.profiles?.find((e) => e.id === "generic")?.limits || null, this.disposed || this.render();
     } catch {
     }
   }
@@ -1732,7 +1771,7 @@ class tr {
   }
   // -- source ------------------------------------------------------------
   refreshSource() {
-    return ie(this);
+    return ne(this);
   }
   /**
    * Ask the server what this footage is, before anything is solved.
@@ -1749,7 +1788,7 @@ class tr {
   }
   solveSettings() {
     const t = {};
-    for (const a of Je) {
+    for (const a of Ze) {
       const o = A(this.node, a);
       if (!o) continue;
       const i = ["fov_degrees", "focal_length_mm", "sensor_width_mm", "max_dimension", "frame_step"];
@@ -1851,7 +1890,7 @@ class tr {
     }), this.dispatch({ type: "REFINED", fingerprint: i }), this.pushTracksToViewer(), e === "queued" && (ot(this.node, {
       fingerprint: i,
       confidence: Number(t?.confidence ?? o?.metadata?.confidence) || 0
-    }), t?.source && xt(this.node, t.source), this.node.__majoorOmniCamStatus = yt({
+    }), t?.source && yt(this.node, t.source), this.node.__majoorOmniCamStatus = xt({
       track: o,
       confidence: Number(t?.confidence ?? o?.metadata?.confidence) || 0
     }), this.dispatch({ type: "APPLIED", fingerprint: i }), t?.source && this.refreshSource()), !0;
@@ -1914,7 +1953,7 @@ class tr {
   }
   applyRefined() {
     try {
-      const { fingerprint: t } = Ht(this.node, {
+      const { fingerprint: t } = zt(this.node, {
         track: this.result.refined,
         state: this.state.solveState
       });
@@ -1926,7 +1965,7 @@ class tr {
   }
   // -- viewer ------------------------------------------------------------
   ensureViewer() {
-    return this.viewer || this.disposed ? Promise.resolve(this.viewer) : (this.viewerLoad ||= Ye(this), this.viewerLoad);
+    return this.viewer || this.disposed ? Promise.resolve(this.viewer) : (this.viewerLoad ||= Qe(this), this.viewerLoad);
   }
   pushTracksToViewer() {
     this.viewer && (this.viewer.setRawTrack(this.result.raw), this.viewer.setRefinedTrack(this.result.refined), this.viewer.setLandmarks(this.landmarks), this.viewer.setMode(this.state.trackMode), this.coordinator.seek(this.state.frame, "sync"));
@@ -1944,29 +1983,29 @@ class tr {
   // -- rendering ---------------------------------------------------------
   render() {
     const t = this.$("solve-status");
-    t && (t.dataset.tone = de(this.state.solveState), this.$("solve-status-text").textContent = ue(this.state));
+    t && (t.dataset.tone = he(this.state.solveState), this.$("solve-status-text").textContent = pe(this.state));
     const e = this.$("source-strip");
-    e && (e.dataset.available = String(!!this.state.source.available), this.$("source-label").textContent = oe(this.state.source));
-    const a = le(this.state);
-    for (const [b, y] of Object.entries({
+    e && (e.dataset.available = String(!!this.state.source.available), this.$("source-label").textContent = se(this.state.source));
+    const a = ue(this.state);
+    for (const [b, x] of Object.entries({
       track: a.track,
       stop: a.stop,
       apply: a.apply
     })) {
-      const x = this.root.querySelector(`[data-act="${b}"]`);
-      x && (x.disabled = !y);
+      const y = this.root.querySelector(`[data-act="${b}"]`);
+      y && (y.disabled = !x);
     }
-    this.$("solve-detail").textContent = he(this.state), this.$("solve-percent").textContent = `${Math.round(this.state.progress * 100)}%`, this.$("progress-bar").style.width = `${Math.round(this.state.progress * 100)}%`;
+    this.$("solve-detail").textContent = me(this.state), this.$("solve-percent").textContent = `${Math.round(this.state.progress * 100)}%`, this.$("progress-bar").style.width = `${Math.round(this.state.progress * 100)}%`;
     const o = this.$("solve-error");
     o.hidden = !this.state.error, o.textContent = this.state.error || "";
-    const i = pe(this.state), s = this.$("applied-state");
+    const i = fe(this.state), s = this.$("applied-state");
     s.dataset.state = i, s.textContent = i;
     for (const b of this.root.querySelectorAll("[data-tab]"))
       b.setAttribute("aria-selected", String(b.dataset.tab === this.state.viewerMode));
     for (const b of this.root.querySelectorAll("[data-track-mode]"))
       b.setAttribute("aria-selected", String(b.dataset.trackMode === this.state.trackMode));
     const n = this.state.viewerMode, c = n === "source", l = n === "track3d", h = this.$("stage");
-    h && (h.dataset.mode = n), Nt(this, c), this.$("tracking-overlay").hidden = !0, this.$("track-canvas").hidden = !l, this.root.querySelector('[data-role="views"]').hidden = !l;
+    h && (h.dataset.mode = n), At(this, c), this.$("tracking-overlay").hidden = !0, this.$("track-canvas").hidden = !l, this.root.querySelector('[data-role="views"]').hidden = !l;
     const p = this.$("scrubber");
     p && (p.max = String(Math.max(0, this.state.frameCount - 1)));
     const d = this.$("frame");
@@ -1974,12 +2013,12 @@ class tr {
     const g = this.$("frame-total");
     g && (g.textContent = `/ ${Math.max(0, this.state.frameCount - 1)}`);
     const u = this.$("extractor-fps");
-    u && (u.textContent = String(this.sourceViewer.fps || 24)), Ke(this.$("anomalies"), this.state.anomalies, {
+    u && (u.textContent = String(this.sourceViewer.fps || 24)), Ye(this.$("anomalies"), this.state.anomalies, {
       actions: this.refine.settings.spike_actions,
       onFrame: (b) => this.coordinator.seek(b, "anomaly"),
-      onAction: (b, y) => {
-        const x = Number(b.start_frame ?? b.frame) || 0, m = Math.max(x, Number(b.end_frame ?? b.frame) || x);
-        for (let v = x; v <= m; v += 1) this.refine.setSpikeAction(v, y);
+      onAction: (b, x) => {
+        const y = Number(b.start_frame ?? b.frame) || 0, m = Math.max(y, Number(b.end_frame ?? b.frame) || y);
+        for (let v = y; v <= m; v += 1) this.refine.setSpikeAction(v, x);
         this.render();
       }
     }), this.renderTimeline(), this.transport.render(), et(this), rt(this);
@@ -1994,7 +2033,7 @@ class tr {
    */
   renderTimeline() {
     const t = this.state.trackMode === "raw" ? this.result.raw : this.result.refined;
-    return this.currentHealth = Me(t, this.motionLimits), this.timeline.render({
+    return this.currentHealth = Ne(t, this.motionLimits), this.timeline.render({
       track: t,
       health: this.currentHealth,
       quality: this.state.quality,
@@ -2034,12 +2073,12 @@ class tr {
     e && this.acceptSolvedResult(e, "queued");
   }
   dispose() {
-    Lt(this.client, this.state), this.disposed = !0, this.events.dispose(), this.refine.dispose(), this.coordinator.dispose(), this.sourceViewer.dispose(), this.overlay.dispose(), this.diagnostics.dispose(), this.viewer?.dispose(), this.viewer = null, this.viewerLoad = null;
+    Ot(this.client, this.state), this.disposed = !0, this.requests.dispose(), this.events.dispose(), this.refine.dispose(), this.coordinator.dispose(), this.sourceViewer.dispose(), this.overlay.dispose(), this.diagnostics.dispose(), this.viewer?.dispose(), this.viewer = null, this.viewerLoad = null;
     for (const t of this.disposers.splice(0)) t();
     this.result = { raw: null, refined: null };
   }
 }
-function nr(r) {
+function lr(r) {
   if (r.__majoorOmniCamExtractor) return;
   if (vt(r), !A(r, H)) {
     const n = r.addWidget?.("text", H, "", () => {
@@ -2047,8 +2086,8 @@ function nr(r) {
     n && (n.computeSize = () => [0, -4], n.draw = () => {
     }, n.hidden = !0);
   }
-  Ze(r);
-  const t = new tr(r);
+  er(r);
+  const t = new rr(r);
   r.__majoorOmniCamExtractor = t;
   const e = () => Math.max(700, t.root.scrollHeight || 0);
   r.addDOMWidget("majoor_omnicam_extractor", "omnicam", t.root, {
@@ -2078,5 +2117,5 @@ function nr(r) {
   };
 }
 export {
-  nr as attachExtractor
+  lr as attachExtractor
 };

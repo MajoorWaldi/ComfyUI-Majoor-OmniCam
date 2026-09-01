@@ -44,11 +44,12 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 IO.Audio.Input("audio", optional=True),
                 IO.Custom("*").Input("scene_3d", optional=True),
                 OMNICAM_MOTION_SCENE.Input(
-                    "motion_scene",
+                    "solved_scene",
                     optional=True,
                     tooltip=(
-                        "Optional upstream canonical motion scene. OmniCam Extractor can connect "
-                        "here. The Director imports each new extractor fingerprint once and then "
+                        "A solved scene from OmniCam Extractor. Only its playblast camera is "
+                        "imported: motion layers, objects and cuts on the upstream scene are not "
+                        "merged. The Director imports each new extractor fingerprint once and then "
                         "leaves your edits alone; disconnect the cable to freeze what you imported."
                     ),
                 ),
@@ -75,7 +76,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         video=None,
         audio=None,
         scene_3d=None,
-        motion_scene=None,
+        solved_scene=None,
     ) -> IO.NodeOutput:
         # Both media sockets take either type: a clip connected to `image` is
         # sampled for stills, and stills connected to `video` become a proxy
@@ -99,8 +100,12 @@ class MajoorOmniCamDirector(IO.ComfyNode):
             "render_mode": str(render_mode),
         }
         upstream_track = None
-        if isinstance(motion_scene, dict):
-            upstream_scene = MotionScene.from_dict(motion_scene)
+        # Deliberately only the camera. The socket is named solved_scene rather
+        # than motion_scene because that is all it imports: a full MotionScene
+        # merge -- layers, objects, cuts, other cameras -- is a feature, not a
+        # cable, and calling it motion_scene promised one.
+        if isinstance(solved_scene, dict):
+            upstream_scene = MotionScene.from_dict(solved_scene)
             upstream_camera = next(
                 camera
                 for camera in upstream_scene.cameras

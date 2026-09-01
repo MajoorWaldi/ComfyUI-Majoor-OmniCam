@@ -5,10 +5,11 @@ import os
 import folder_paths
 
 from ..comfy_compat import IO, InputImpl
+from ..core.motion_scene import MOTION_SCENE_IO_TYPE
 from ..core.track import OmniCamTrack
 from ..core.validation import validate_track_payload
 
-OMNICAM_MOTION_SCENE = IO.Custom("OMNICAM_MOTION_SCENE")
+OMNICAM_MOTION_SCENE = IO.Custom(MOTION_SCENE_IO_TYPE)
 
 
 def resolve_video(path: str | None):

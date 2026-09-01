@@ -10,9 +10,20 @@ from itertools import pairwise
 from typing import Any
 
 from .track import OmniCamTrack
-from .validation import ValidationError, validate_track_payload
+from .validation import (
+    DEFAULT_LIMITS,
+    ValidationError,
+    validate_object,
+    validate_object_hierarchy,
+    validate_track_payload,
+)
 
 MOTION_SCENE_VERSION = 1
+#: The ComfyUI socket type carrying a MotionScene between the product nodes.
+#: Declared here, in the domain, so the model-agnostic test lane can assert the
+#: contract without importing ComfyUI. ``nodes/base.py`` builds its IO.Custom
+#: from this name rather than repeating the string.
+MOTION_SCENE_IO_TYPE = "OMNICAM_MOTION_SCENE"
 MOTION_INTERPOLATIONS = frozenset({"linear", "smooth", "hold"})
 MOTION_SOURCE_KINDS = frozenset(
     {"manual_2d", "static_anchor", "world_point", "object_point", "camera_field"}
@@ -205,6 +216,100 @@ class MotionLayer:
         }
 
 
+
+def _validated_objects(objects: list[Any], duration_frames: int) -> list[dict[str, Any]]:
+    """Apply the canonical object rules the track validator already owns."""
+    validated: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, obj in enumerate(objects):
+        item = validate_object(obj, duration_frames, f"objects[{index}]", DEFAULT_LIMITS)
+        if item["id"] in seen:
+            raise ValidationError(f"objects[{index}].id duplicates {item['id']!r}")
+        seen.add(item["id"])
+        validated.append(item)
+    validate_object_hierarchy(validated)
+    return validated
+
+@dataclass(frozen=True, slots=True)
+class CutEvent:
+    """One shot in the edit: which camera is live, and from when.
+
+    Times, not frames: a MotionScene is resolution- and rate-independent
+    everywhere else, and a cut is no different.
+
+    Typed because the canonical format deserves to be stricter than the adapters
+    reading it. As a bare dict a cut could name a camera that does not exist or
+    overlap its neighbour, and the first symptom would be a silently wrong
+    trajectory several layers downstream.
+    """
+
+    camera_id: str
+    time_seconds: float
+    #: Exclusive end. ``None`` means "until the next cut, or the end of the shot",
+    #: which is how a sequence carrying only start times is authored.
+    end_time_seconds: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.end_time_seconds is not None and self.end_time_seconds <= self.time_seconds:
+            raise ValidationError(
+                f"cut {self.camera_id!r} ends at {self.end_time_seconds}s, "
+                f"at or before its {self.time_seconds}s start"
+            )
+
+    @classmethod
+    def from_dict(cls, payload: Any, path: str) -> CutEvent:
+        data = _object(payload, path)
+        end = data.get("end_time_seconds")
+        return cls(
+            camera_id=_string(data.get("camera_id"), f"{path}.camera_id"),
+            time_seconds=_non_negative(data.get("time_seconds"), f"{path}.time_seconds"),
+            end_time_seconds=(
+                None if end is None else _non_negative(end, f"{path}.end_time_seconds")
+            ),
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "camera_id": self.camera_id,
+            "time_seconds": self.time_seconds,
+        }
+        if self.end_time_seconds is not None:
+            payload["end_time_seconds"] = self.end_time_seconds
+        return payload
+
+
+def _non_negative(value: Any, path: str) -> float:
+    number = _finite(value, path)
+    if number < 0:
+        raise ValidationError(f"{path} must not be negative")
+    return number
+
+
+def validate_cuts(cuts: list[CutEvent], camera_ids: set[str], duration_seconds: float) -> None:
+    """Reject an edit that could not be played back."""
+    previous: CutEvent | None = None
+    for index, cut in enumerate(cuts):
+        if cut.camera_id not in camera_ids:
+            raise ValidationError(f"cuts[{index}] references unknown camera {cut.camera_id!r}")
+        if cut.time_seconds > duration_seconds:
+            raise ValidationError(
+                f"cuts[{index}] starts at {cut.time_seconds}s, past the "
+                f"{duration_seconds}s timeline"
+            )
+        if previous is not None:
+            if cut.time_seconds <= previous.time_seconds:
+                raise ValidationError("cuts must be ordered by start time")
+            if (
+                previous.end_time_seconds is not None
+                and cut.time_seconds < previous.end_time_seconds
+            ):
+                raise ValidationError(
+                    f"cuts[{index}] starts at {cut.time_seconds}s, inside the previous "
+                    f"shot which runs to {previous.end_time_seconds}s"
+                )
+        previous = cut
+
+
 @dataclass(slots=True)
 class CameraSceneItem:
     id: str
@@ -242,8 +347,33 @@ class MotionScene:
     playblast_camera_id: str
     objects: list[dict[str, Any]]
     motion_layers: list[MotionLayer]
-    cuts: list[dict[str, Any]]
+    cuts: list[CutEvent]
     metadata: dict[str, Any]
+
+    @property
+    def shot_camera_ids(self) -> list[str]:
+        """Cameras the edit actually cuts between, in cut order, deduplicated.
+
+        A cut carries ``camera_id``, ``start`` and ``end`` in frames. Repeated
+        cuts back to the same camera are one shot camera, not several.
+        """
+        seen: list[str] = []
+        for cut in self.cuts:
+            if cut.camera_id not in seen:
+                seen.append(cut.camera_id)
+        return seen
+
+    @property
+    def is_multi_shot(self) -> bool:
+        """True when the edit cuts between more than one camera.
+
+        This is the fact that decides whether a profile can honestly represent
+        the scene. A single trajectory, a single camera embedding or a single
+        projection basis cannot describe an edit that changes camera partway
+        through, and producing one anyway is silently wrong output rather than
+        an error the user can see.
+        """
+        return len(self.shot_camera_ids) > 1
 
     @classmethod
     def from_dict(cls, payload: Any) -> MotionScene:
@@ -286,8 +416,19 @@ class MotionScene:
                     f"motion layer {layer.id!r} has a key outside timeline duration"
                 )
 
-        objects = _list(data.get("objects", []), "objects")
-        cuts = _list(data.get("cuts", []), "cuts")
+        # Objects stay dicts because the projection and control-pass code reads
+        # them positionally, but they are no longer waved through unvalidated:
+        # a duplicate id, an unknown type or a parent cycle is a broken scene,
+        # and finding out during a projection is far too late.
+        objects = _validated_objects(
+            _list(data.get("objects", []), "objects"),
+            cameras[0].track.duration_frames,
+        )
+        cuts = [
+            CutEvent.from_dict(cut, f"cuts[{index}]")
+            for index, cut in enumerate(_list(data.get("cuts", []), "cuts"))
+        ]
+        validate_cuts(cuts, camera_ids, timeline.duration_seconds)
         metadata = _object(data.get("metadata", {}), "metadata")
         scene = cls(
             version=version,
@@ -298,7 +439,7 @@ class MotionScene:
             playblast_camera_id=playblast_camera_id,
             objects=_json_value(objects, "objects"),
             motion_layers=motion_layers,
-            cuts=_json_value(cuts, "cuts"),
+            cuts=cuts,
             metadata=_json_value(metadata, "metadata"),
         )
         scene._validate_camera_tracks()
@@ -345,7 +486,7 @@ class MotionScene:
             "playblast_camera_id": self.playblast_camera_id,
             "objects": copy.deepcopy(self.objects),
             "motion_layers": [layer.to_dict() for layer in self.motion_layers],
-            "cuts": copy.deepcopy(self.cuts),
+            "cuts": [cut.to_dict() for cut in self.cuts],
             "metadata": copy.deepcopy(self.metadata),
         }
 

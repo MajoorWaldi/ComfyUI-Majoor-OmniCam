@@ -1,19 +1,19 @@
 import { app as U } from "../../scripts/app.js";
-import { api as _a } from "../../scripts/api.js";
-const va = "MajoorOmniCam", wa = new URL("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20256%20256'%20role='img'%20aria-labelledby='title'%3e%3ctitle%20id='title'%3eMajoor%20OmniCam%3c/title%3e%3cdefs%3e%3cradialGradient%20id='halo'%20cx='50%25'%20cy='50%25'%20r='50%25'%3e%3cstop%20offset='0'%20stop-color='%23e5484d'%20stop-opacity='0.35'/%3e%3cstop%20offset='0.7'%20stop-color='%23e5484d'%20stop-opacity='0.08'/%3e%3cstop%20offset='1'%20stop-color='%23e5484d'%20stop-opacity='0'/%3e%3c/radialGradient%3e%3c/defs%3e%3crect%20width='256'%20height='256'%20rx='56'%20fill='%230f1117'/%3e%3c!--%20Discreet%20halo:%20a%20hint%20at%20rest,%20meant%20to%20be%20brightened%20while%20the%20node%20is%20active.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='104'%20fill='url(%23halo)'/%3e%3c!--%20Sober%20ring.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='72'%20fill='none'%20stroke='%238b95a7'%20stroke-width='12'/%3e%3c!--%20Red%20centre.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='30'%20fill='%23e5484d'/%3e%3ccircle%20cx='119'%20cy='119'%20r='9'%20fill='%23ffffff'%20fill-opacity='0.28'/%3e%3c/svg%3e", import.meta.url).href, G = 20;
-let re = null;
+import { api as va } from "../../scripts/api.js";
+const wa = "MajoorOmniCam", Sa = new URL("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20256%20256'%20role='img'%20aria-labelledby='title'%3e%3ctitle%20id='title'%3eMajoor%20OmniCam%3c/title%3e%3cdefs%3e%3cradialGradient%20id='halo'%20cx='50%25'%20cy='50%25'%20r='50%25'%3e%3cstop%20offset='0'%20stop-color='%23e5484d'%20stop-opacity='0.35'/%3e%3cstop%20offset='0.7'%20stop-color='%23e5484d'%20stop-opacity='0.08'/%3e%3cstop%20offset='1'%20stop-color='%23e5484d'%20stop-opacity='0'/%3e%3c/radialGradient%3e%3c/defs%3e%3crect%20width='256'%20height='256'%20rx='56'%20fill='%230f1117'/%3e%3c!--%20Discreet%20halo:%20a%20hint%20at%20rest,%20meant%20to%20be%20brightened%20while%20the%20node%20is%20active.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='104'%20fill='url(%23halo)'/%3e%3c!--%20Sober%20ring.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='72'%20fill='none'%20stroke='%238b95a7'%20stroke-width='12'/%3e%3c!--%20Red%20centre.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='30'%20fill='%23e5484d'/%3e%3ccircle%20cx='119'%20cy='119'%20r='9'%20fill='%23ffffff'%20fill-opacity='0.28'/%3e%3c/svg%3e", import.meta.url).href, G = 20;
+let oe = null;
 function xa() {
-  return re || typeof Image > "u" || (re = new Image(), re.src = wa), re;
+  return oe || typeof Image > "u" || (oe = new Image(), oe.src = Sa), oe;
 }
-function Sa() {
+function Ma() {
   const t = Date.now() % 2600 / 2600;
   return 0.12 + 0.1 * (0.5 - 0.5 * Math.cos(t * Math.PI * 2));
 }
-function Ma(e) {
+function Ca(e) {
   e.registerExtension({
     name: "MajoorOmniCam.NodeBranding",
     beforeRegisterNodeDef(t, a) {
-      if (!String(a?.name || a?.node_id || t?.comfyClass || t?.type || "").startsWith(va)) return;
+      if (!String(a?.name || a?.node_id || t?.comfyClass || t?.type || "").startsWith(wa)) return;
       const r = t.prototype.onDrawForeground;
       t.prototype.onDrawForeground = function(n) {
         if (r?.apply(this, arguments), this.flags?.collapsed) return;
@@ -21,7 +21,7 @@ function Ma(e) {
         if (!s?.complete || !s.naturalWidth) return;
         const c = Math.max(4, Number(this.size?.[0] || 160) - G - 6), l = -26, m = c + G / 2, i = l + G / 2;
         if (n.save(), this.selected) {
-          const p = Sa(), d = n.createRadialGradient(m, i, G * 0.35, m, i, G * 1.15);
+          const p = Ma(), d = n.createRadialGradient(m, i, G * 0.35, m, i, G * 1.15);
           d.addColorStop(0, `rgba(229, 72, 77, ${p})`), d.addColorStop(1, "rgba(229, 72, 77, 0)"), n.fillStyle = d, n.beginPath(), n.arc(m, i, G * 1.15, 0, Math.PI * 2), n.fill();
         }
         n.globalAlpha = 0.96, n.drawImage(s, c, l, G, G), n.restore();
@@ -29,18 +29,18 @@ function Ma(e) {
     }
   });
 }
-const We = "en", we = /* @__PURE__ */ new Map([[We, {}]]);
-function Ca(e, t) {
+const qe = "en", we = /* @__PURE__ */ new Map([[qe, {}]]);
+function Da(e, t) {
   we.set(e, { ...we.get(e) || {}, ...t || {} });
 }
-let Ne = We;
-function Da(e) {
+let Ne = qe;
+function ja(e) {
   we.has(e) && (Ne = e);
 }
 function _(e) {
-  return Ne === We ? e : we.get(Ne)?.[e] || e;
+  return Ne === qe ? e : we.get(Ne)?.[e] || e;
 }
-const ja = "__sequence__";
+const Ea = "__sequence__";
 function Ta() {
   return { enabled: !1, cuts: [], recording_path: "" };
 }
@@ -55,7 +55,7 @@ function Ia(e, t = []) {
     recording_path: typeof a.recording_path == "string" ? a.recording_path : ""
   };
 }
-function xe(e) {
+function Se(e) {
   const t = Math.max(0, (e?.duration_frames || 1) - 1), a = (e?.sequence?.cuts || []).filter((o) => o.start <= t);
   return a.map((o, r) => ({
     camera_id: o.camera_id,
@@ -63,18 +63,18 @@ function xe(e) {
     end: r + 1 < a.length ? a[r + 1].start - 1 : t
   }));
 }
-function hr(e) {
-  return !!e?.sequence?.enabled && xe(e).length > 0;
+function yr(e) {
+  return !!e?.sequence?.enabled && Se(e).length > 0;
 }
-function lt(e, t) {
-  const a = xe(e);
+function mt(e, t) {
+  const a = Se(e);
   if (!a.length) return null;
   const o = Math.max(0, Math.round(Number(t) || 0));
   for (let r = a.length - 1; r >= 0; r--)
     if (o >= a[r].start) return a[r];
   return a[0];
 }
-function Ea(e) {
+function ka(e) {
   const t = e?.cameras || [], a = Math.max(0, (e?.duration_frames || 1) - 1);
   if (!t.length) return [];
   const o = (a + 1) / t.length, r = t.map((s, c) => ({
@@ -83,7 +83,7 @@ function Ea(e) {
   })), n = /* @__PURE__ */ new Set();
   return r.filter((s) => s.start > a || n.has(s.start) ? !1 : (n.add(s.start), !0));
 }
-function gr(e, t, a) {
+function br(e, t, a) {
   const o = e?.sequence?.cuts || [];
   if (t <= 0 || t >= o.length) return !1;
   const r = o[t - 1].start + 1, n = (t + 1 < o.length ? o[t + 1].start : e.duration_frames || 1) - 1;
@@ -91,38 +91,38 @@ function gr(e, t, a) {
   const s = Math.max(r, Math.min(n, Math.round(Number(a) || 0)));
   return s === o[t].start ? !1 : (o[t].start = s, !0);
 }
-function ka(e, t) {
+function Oa(e, t) {
   const a = e?.cameras || [];
   if (!a.length) return t;
   const o = a.findIndex((r) => r.id === t);
   return a[(o + 1) % a.length].id;
 }
-function Oa(e, t, a = null) {
+function Aa(e, t, a = null) {
   const o = e?.sequence?.cuts || [], r = Math.max(0, Math.round(Number(t) || 0));
   if (!o.length || r <= 0 || o.some((c) => c.start === r)) return !1;
-  const s = lt(e, r)?.camera_id || o[0].camera_id;
-  return o.push({ camera_id: a || ka(e, s), start: r }), o.sort((c, l) => c.start - l.start), !0;
+  const s = mt(e, r)?.camera_id || o[0].camera_id;
+  return o.push({ camera_id: a || Oa(e, s), start: r }), o.sort((c, l) => c.start - l.start), !0;
 }
-function Aa(e, t) {
+function Pa(e, t) {
   const a = e?.sequence?.cuts || [];
   return t < 0 || t >= a.length || a.length === 1 ? !1 : (a.splice(t, 1), a.length && (a[0].start = 0), !0);
 }
-const Pa = Object.freeze(["select", "track", "anchor", "project", "erase"]), za = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), Na = Object.freeze(["linear", "smooth", "hold"]), ie = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, Xe = (e) => Math.max(0, Math.min(1, ie(e)));
-function Fa(e, t) {
+const za = Object.freeze(["select", "track", "anchor", "project", "erase"]), Na = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), Fa = Object.freeze(["linear", "smooth", "hold"]), ie = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, Ye = (e) => Math.max(0, Math.min(1, ie(e)));
+function Ra(e, t) {
   return {
     time_seconds: Math.max(0, Math.min(t, ie(e?.time_seconds))),
-    x: Xe(e?.x),
-    y: Xe(e?.y),
+    x: Ye(e?.x),
+    y: Ye(e?.y),
     visible: e?.visible !== !1,
-    interpolation: Na.includes(e?.interpolation) ? e.interpolation : "linear"
+    interpolation: Fa.includes(e?.interpolation) ? e.interpolation : "linear"
   };
 }
-function Ra(e) {
+function La(e) {
   const t = Math.max(1 / Math.max(1, ie(e.fps, 24)), ie(e.duration_frames, 120) / Math.max(1, ie(e.fps, 24))), a = /* @__PURE__ */ new Set();
   return e.motion_layers = (Array.isArray(e.motion_layers) ? e.motion_layers : []).slice(0, 256).map((o, r) => {
     let n = String(o?.id || `motion_${r + 1}`);
     a.has(n) && (n = `motion_${r + 1}`), a.add(n);
-    const s = za.includes(o?.source_kind) ? o.source_kind : "manual_2d", c = (Array.isArray(o?.keys) ? o.keys : []).slice(0, 1e4).map((l) => Fa(l, t)).sort((l, m) => l.time_seconds - m.time_seconds);
+    const s = Na.includes(o?.source_kind) ? o.source_kind : "manual_2d", c = (Array.isArray(o?.keys) ? o.keys : []).slice(0, 1e4).map((l) => Ra(l, t)).sort((l, m) => l.time_seconds - m.time_seconds);
     return {
       id: n,
       label: String(o?.label || `Motion ${r + 1}`).slice(0, 80),
@@ -132,9 +132,9 @@ function Ra(e) {
       keys: c,
       source: o?.source && typeof o.source == "object" ? { ...o.source } : {}
     };
-  }).filter((o) => o.keys.length), e.motion_tool = Pa.includes(e.motion_tool) ? e.motion_tool : "select", e.selected_motion_layer_id = e.motion_layers.some((o) => o.id === e.selected_motion_layer_id) ? e.selected_motion_layer_id : e.motion_layers[0]?.id || null, e;
+  }).filter((o) => o.keys.length), e.motion_tool = za.includes(e.motion_tool) ? e.motion_tool : "select", e.selected_motion_layer_id = e.motion_layers.some((o) => o.id === e.selected_motion_layer_id) ? e.selected_motion_layer_id : e.motion_layers[0]?.id || null, e;
 }
-function La(e) {
+function Ka(e) {
   const t = String(e || "").trim().replaceAll("\\", "/");
   if (!t || t.length > 1024 || t.includes("\0") || t.includes("://")) return null;
   const a = t.match(/^(.*?)(?:\s+\[(input|output|temp)\])?$/);
@@ -145,20 +145,20 @@ function La(e) {
   return !n || n === "." ? null : { filename: n, subfolder: s, type: a[2] || "input" };
 }
 function Va(e, t) {
-  const a = La(t);
+  const a = Ka(t);
   if (!a) return "";
   const o = `/view?filename=${encodeURIComponent(a.filename)}&subfolder=${encodeURIComponent(a.subfolder)}&type=${encodeURIComponent(a.type)}`;
   return e?.apiURL ? e.apiURL(o) : o;
 }
-function yr(e) {
-  return Va({ apiURL: mt }, e);
+function _r(e) {
+  return Va({ apiURL: dt }, e);
 }
-let mt = (e) => e;
+let dt = (e) => e;
 const Ae = /* @__PURE__ */ new WeakMap();
-function br({ api: e }) {
-  mt = (t) => e.apiURL ? e.apiURL(t) : t;
+function vr({ api: e }) {
+  dt = (t) => e.apiURL ? e.apiURL(t) : t;
 }
-function Ka(e, t, a) {
+function Ga(e, t, a) {
   const o = e.keyframes, r = Ae.get(e);
   if (r?.source === o && a >= r.frame && r.index < t.length - 1) {
     let s = r.index;
@@ -166,24 +166,24 @@ function Ka(e, t, a) {
     if (t[s].frame < a && a < t[s + 1].frame)
       return Ae.set(e, { source: o, frame: a, index: s }), { leftIndex: s, left: t[s], right: t[s + 1] };
   }
-  const n = qe(t, a);
+  const n = We(t, a);
   return Ae.set(e, { source: o, frame: a, index: n?.leftIndex ?? 0 }), n;
 }
 function R(e) {
-  const t = A(e.target, e.position), a = Math.sqrt(ee(t, t)) < 1e-6 ? [0, 0, -1] : le(t);
+  const t = A(e.target, e.position), a = Math.sqrt(J(t, t)) < 1e-6 ? [0, 0, -1] : le(t);
   let o = e.up || [0, 1, 0], r = ce(a, o);
-  Math.sqrt(ee(r, r)) < 1e-6 && (o = Math.abs(a[1]) > 0.9 ? [0, 0, a[1] > 0 ? -1 : 1] : [0, 1, 0], r = ce(a, o)), r = le(r);
+  Math.sqrt(J(r, r)) < 1e-6 && (o = Math.abs(a[1]) > 0.9 ? [0, 0, a[1] > 0 ? -1 : 1] : [0, 1, 0], r = ce(a, o)), r = le(r);
   let n = le(ce(r, a));
   if (Math.abs(e.roll || 0) > 1e-9) {
-    const s = e.roll * Math.PI / 180, c = Math.cos(s), l = Math.sin(s), m = S(C(r, c), C(n, l));
-    n = S(C(n, c), C(r, -l)), r = m;
+    const s = e.roll * Math.PI / 180, c = Math.cos(s), l = Math.sin(s), m = x(C(r, c), C(n, l));
+    n = x(C(n, c), C(r, -l)), r = m;
   }
   return { right: r, up: n, forward: a };
 }
 function L(e, t, a, o) {
-  const { right: r, up: n, forward: s } = R(t), c = A(e, t.position), l = ee(c, s);
+  const { right: r, up: n, forward: s } = R(t), c = A(e, t.position), l = J(c, s);
   if (l <= Math.max(1e-4, t.near || 0.01) || l >= (t.far || 1e4)) return null;
-  const m = ee(c, r), i = ee(c, n);
+  const m = J(c, r), i = J(c, n);
   if (t.camera_type === "orthographic") {
     const d = 5 / Math.max(0.01, t.zoom || 1), u = d * a / Math.max(1, o);
     return [a * (0.5 + m / (2 * u)), o * (0.5 - i / (2 * d)), l];
@@ -191,58 +191,58 @@ function L(e, t, a, o) {
   const p = 0.5 * o / Math.tan(Math.max(1e-3, t.fov) * Math.PI / 360);
   return [a * 0.5 + m * p / l, o * 0.5 - i * p / l, l];
 }
-function Se(e, t, a = null) {
+function xe(e, t, a = null) {
   const o = (e.keyframes || []).map((f) => ({
     ...f,
-    camera: F(f.camera || f || e.camera || te())
+    camera: F(f.camera || f || e.camera || ee())
   }));
-  if (!o.length) return F(e.camera || te());
-  const r = Ka(e, o, t), n = k(o, t, "pos_x", (f) => (f.camera || f).position[0], !1, r), s = k(o, t, "pos_y", (f) => (f.camera || f).position[1], !1, r), c = k(o, t, "pos_z", (f) => (f.camera || f).position[2], !1, r);
+  if (!o.length) return F(e.camera || ee());
+  const r = Ga(e, o, t), n = k(o, t, "pos_x", (f) => (f.camera || f).position[0], !1, r), s = k(o, t, "pos_y", (f) => (f.camera || f).position[1], !1, r), c = k(o, t, "pos_z", (f) => (f.camera || f).position[2], !1, r);
   let l = k(o, t, "target_x", (f) => (f.camera || f).target[0], !1, r), m = k(o, t, "target_y", (f) => (f.camera || f).target[1], !1, r), i = k(o, t, "target_z", (f) => (f.camera || f).target[2], !1, r);
   const p = e.constraints?.look_at, u = p?.status === void 0 || p?.status === "active" ? p?.object_id || e.target_object_id || e.camera?.target_object_id : null, h = a || e.objects;
   if (u && Array.isArray(h)) {
     const f = h.find((M) => M.id === u);
     if (f && f.enabled !== !1) {
-      const M = pt(h, f, t), I = p?.offset || e.target_offset || e.camera?.target_offset || [0, 0, 0];
-      l = (M.position?.[0] ?? 0) + (I[0] || 0), m = (M.position?.[1] ?? 1.5) + (I[1] || 0), i = (M.position?.[2] ?? 0) + (I[2] || 0);
+      const M = ft(h, f, t), T = p?.offset || e.target_offset || e.camera?.target_offset || [0, 0, 0];
+      l = (M.position?.[0] ?? 0) + (T[0] || 0), m = (M.position?.[1] ?? 1.5) + (T[1] || 0), i = (M.position?.[2] ?? 0) + (T[2] || 0);
     }
   }
-  const g = k(o, t, "fov", (f) => Number((f.camera || f).fov ?? 35), !1, r), v = k(o, t, "roll", (f) => Number((f.camera || f).roll ?? 0), !0, r), y = k(o, t, "zoom", (f) => Number((f.camera || f).zoom ?? 1), !1, r), b = k(o, t, "near", (f) => Number((f.camera || f).near ?? 0.01), !1, r), x = k(o, t, "far", (f) => Number((f.camera || f).far ?? 1e4), !1, r), D = o[0]?.camera || o[0] || te();
+  const g = k(o, t, "fov", (f) => Number((f.camera || f).fov ?? 35), !1, r), v = k(o, t, "roll", (f) => Number((f.camera || f).roll ?? 0), !0, r), y = k(o, t, "zoom", (f) => Number((f.camera || f).zoom ?? 1), !1, r), b = k(o, t, "near", (f) => Number((f.camera || f).near ?? 0.01), !1, r), S = k(o, t, "far", (f) => Number((f.camera || f).far ?? 1e4), !1, r), D = o[0]?.camera || o[0] || ee();
   let w = o[0];
   for (const f of o)
     if ((f.frame ?? 0) <= t) w = f;
     else break;
-  const T = (w.camera || w).camera_type;
+  const E = (w.camera || w).camera_type;
   return {
     position: [n, s, c],
     target: [l, m, i],
     fov: j(g, 5, 150),
     roll: v,
-    camera_type: T || "perspective",
+    camera_type: E || "perspective",
     zoom: Math.max(0.01, y),
     near: Math.max(1e-4, b),
-    far: Math.max(b + 1e-4, x),
+    far: Math.max(b + 1e-4, S),
     ...D.up ? { up: [...D.up] } : {}
   };
 }
-const j = (e, t, a) => Math.max(t, Math.min(a, e)), S = (e, t) => [e[0] + t[0], e[1] + t[1], e[2] + t[2]], A = (e, t) => [e[0] - t[0], e[1] - t[1], e[2] - t[2]], C = (e, t) => [e[0] * t, e[1] * t, e[2] * t], ee = (e, t) => e[0] * t[0] + e[1] * t[1] + e[2] * t[2], ce = (e, t) => [e[1] * t[2] - e[2] * t[1], e[2] * t[0] - e[0] * t[2], e[0] * t[1] - e[1] * t[0]], $ = (e) => Math.sqrt(Math.max(1e-12, ee(e, e))), le = (e) => C(e, 1 / $(e));
-function Ga(e, t, a) {
+const j = (e, t, a) => Math.max(t, Math.min(a, e)), Ba = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i, re = (e, t = null) => typeof e == "string" && Ba.test(e.trim()) ? e.trim() : t, x = (e, t) => [e[0] + t[0], e[1] + t[1], e[2] + t[2]], A = (e, t) => [e[0] - t[0], e[1] - t[1], e[2] - t[2]], C = (e, t) => [e[0] * t, e[1] * t, e[2] * t], J = (e, t) => e[0] * t[0] + e[1] * t[1] + e[2] * t[2], ce = (e, t) => [e[1] * t[2] - e[2] * t[1], e[2] * t[0] - e[0] * t[2], e[0] * t[1] - e[1] * t[0]], $ = (e) => Math.sqrt(Math.max(1e-12, J(e, e))), le = (e) => C(e, 1 / $(e));
+function Ha(e, t, a) {
   const o = [a[0] - t[0], a[1] - t[1]], r = [e[0] - t[0], e[1] - t[1]], n = Math.max(1e-9, o[0] * o[0] + o[1] * o[1]), s = j((r[0] * o[0] + r[1] * o[1]) / n, 0, 1);
   return Math.hypot(e[0] - t[0] - o[0] * s, e[1] - t[1] - o[1] * s);
 }
-function Ba(e, t = "ease") {
+function qa(e, t = "ease") {
   return e = j(e, 0, 1), t === "hold" ? 0 : t === "linear" ? e : t === "ease_in" ? e * e : t === "ease_out" ? 1 - (1 - e) * (1 - e) : t === "smooth" ? e * e * e * (e * (e * 6 - 15) + 10) : t === "bezier" ? 0.15 * (1 - e) * (1 - e) * e + 2.85 * (1 - e) * e * e + e * e * e : e * e * (3 - 2 * e);
 }
-const Ha = ["auto", "vector", "free", "aligned", "flat"];
-function Wa(e, t) {
+const Wa = ["auto", "vector", "free", "aligned", "flat"];
+function $a(e, t) {
   const a = e?.tangents;
   return !a || typeof a != "object" ? {} : a.channels && typeof a.channels == "object" && a.channels[t] ? a.channels[t] : a;
 }
-function Ye(e, t, a, o, r) {
-  const n = Wa(e, t), s = Ha.includes(n.mode) ? n.mode : e?.tangents?.mode || "auto", c = r ? r(e) : 0, l = a && r ? r(a) : c, m = o && r ? r(o) : c, i = Math.max(1e-6, e.frame - (a?.frame ?? e.frame - 1)), p = Math.max(1e-6, (o?.frame ?? e.frame + 1) - e.frame), d = () => {
-    const b = (c - l) / i, x = (m - c) / p;
-    let D = (b + x) * 0.5;
-    return a ? o || (D = b) : D = x, b * x <= 0 && a && o && (D = 0), {
+function Ze(e, t, a, o, r) {
+  const n = $a(e, t), s = Wa.includes(n.mode) ? n.mode : e?.tangents?.mode || "auto", c = r ? r(e) : 0, l = a && r ? r(a) : c, m = o && r ? r(o) : c, i = Math.max(1e-6, e.frame - (a?.frame ?? e.frame - 1)), p = Math.max(1e-6, (o?.frame ?? e.frame + 1) - e.frame), d = () => {
+    const b = (c - l) / i, S = (m - c) / p;
+    let D = (b + S) * 0.5;
+    return a ? o || (D = b) : D = S, b * S <= 0 && a && o && (D = 0), {
       out_x: 1 / 3,
       out_y: D * p * (1 / 3),
       in_x: -1 / 3,
@@ -250,10 +250,10 @@ function Ye(e, t, a, o, r) {
     };
   };
   if (s === "vector") {
-    const b = (c - l) / i, x = (m - c) / p;
+    const b = (c - l) / i, S = (m - c) / p;
     return {
       out_x: 1 / 3,
-      out_y: x * p * (1 / 3),
+      out_y: S * p * (1 / 3),
       in_x: -1 / 3,
       in_y: -b * i * (1 / 3),
       mode: s
@@ -266,12 +266,12 @@ function Ye(e, t, a, o, r) {
   const u = d(), h = j(Number(n.out_x ?? u.out_x), 0.01, 0.99), g = Number(n.out_y ?? u.out_y);
   let v = j(Number(n.in_x ?? u.in_x), -0.99, -0.01), y = Number(n.in_y ?? u.in_y);
   if (s === "aligned") {
-    const b = Math.hypot(h, g) || 1e-6, x = Math.hypot(v, y) || 1e-6;
-    v = -h / b * x, y = -g / b * x;
+    const b = Math.hypot(h, g) || 1e-6, S = Math.hypot(v, y) || 1e-6;
+    v = -h / b * S, y = -g / b * S;
   }
   return { out_x: h, out_y: g, in_x: v, in_y: y, mode: s };
 }
-function qe(e, t) {
+function We(e, t) {
   if (!e.length || t <= e[0].frame || t >= e[e.length - 1].frame) return null;
   let a = 0, o = e.length - 1;
   for (; a + 1 < o; ) {
@@ -284,30 +284,30 @@ function k(e, t, a, o, r = !1, n = null) {
   if (!e.length) return 0;
   if (t <= e[0].frame) return o(e[0]);
   if (t >= e[e.length - 1].frame) return o(e[e.length - 1]);
-  const s = n || qe(e, t), { leftIndex: c, left: l, right: m } = s, i = c > 0 ? e[c - 1] : null, p = c + 2 < e.length ? e[c + 2] : null, d = Math.max(1, m.frame - l.frame), u = j((t - l.frame) / d, 0, 1);
+  const s = n || We(e, t), { leftIndex: c, left: l, right: m } = s, i = c > 0 ? e[c - 1] : null, p = c + 2 < e.length ? e[c + 2] : null, d = Math.max(1, m.frame - l.frame), u = j((t - l.frame) / d, 0, 1);
   let h = o(l), g = o(m);
   if (r) {
     const b = ((g - h + 540) % 360 + 360) % 360 - 180;
     g = h + b;
   }
   if (l.interpolation === "bezier" || m.interpolation === "bezier") {
-    const b = Ye(l, a, i, m, o), x = Ye(m, a, l, p, o), D = h, w = h + (b.out_y || 0), T = g + (x.in_y || 0), f = g, M = j(Number(b.out_x ?? 1 / 3), 0, 1), I = j(1 + Number(x.in_x ?? -1 / 3), 0, 1);
-    let N = 0, Y = 1;
-    for (let Ue = 0; Ue < 32; Ue++) {
-      const K = (N + Y) * 0.5, Oe = 1 - K;
-      3 * Oe * Oe * K * M + 3 * Oe * K * K * I + K * K * K < u ? N = K : Y = K;
+    const b = Ze(l, a, i, m, o), S = Ze(m, a, l, p, o), D = h, w = h + (b.out_y || 0), E = g + (S.in_y || 0), f = g, M = j(Number(b.out_x ?? 1 / 3), 0, 1), T = j(1 + Number(S.in_x ?? -1 / 3), 0, 1);
+    let N = 0, X = 1;
+    for (let Xe = 0; Xe < 32; Xe++) {
+      const V = (N + X) * 0.5, Oe = 1 - V;
+      3 * Oe * Oe * V * M + 3 * Oe * V * V * T + V * V * V < u ? N = V : X = V;
     }
-    const W = (N + Y) * 0.5, Z = 1 - W;
-    return Z * Z * Z * D + 3 * Z * Z * W * w + 3 * Z * W * W * T + W * W * W * f;
+    const q = (N + X) * 0.5, Y = 1 - q;
+    return Y * Y * Y * D + 3 * Y * Y * q * w + 3 * Y * q * q * E + q * q * q * f;
   }
-  const y = Ba(u, l.interpolation);
+  const y = qa(u, l.interpolation);
   return h + (g - h) * y;
 }
-function te() {
+function ee() {
   return { position: [6, 4, 6], target: [0, 1.5, 0], fov: 35, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 1e4 };
 }
 function Me() {
-  const e = [0, 1, 0], t = (a, o = [0, 1, 0], r = "orthographic") => ({ ...te(), position: a, target: [...e], up: o, camera_type: r, zoom: 1 });
+  const e = [0, 1, 0], t = (a, o = [0, 1, 0], r = "orthographic") => ({ ...ee(), position: a, target: [...e], up: o, camera_type: r, zoom: 1 });
   return {
     perspective: t([8, 6, 8], [0, 1, 0], "perspective"),
     iso: t([10, 11, 10]),
@@ -319,14 +319,14 @@ function Me() {
     left: t([-14, 1, 0])
   };
 }
-function ae(e) {
+function te(e) {
   const t = e.size || [1, 1, 1], a = t.length === 2 ? [...t, 0.01] : [...t];
   return { position: [...e.position || [0, 0, 0]], rotation: [...e.rotation || [0, 0, 0]], size: a };
 }
-function Te(e, t) {
+function Ee(e, t) {
   const a = e.keyframes || [];
-  if (!a.length) return ae(e);
-  const o = ae(e), r = (y, b) => (y.transform?.position || o.position)[b] ?? 0, n = (y, b) => (y.transform?.rotation || o.rotation)[b] ?? 0, s = (y, b) => (y.transform?.size || o.size)[b] ?? (b === 2 ? 0.01 : 1), c = qe(a, t), l = k(a, t, "pos_x", (y) => r(y, 0), !1, c), m = k(a, t, "pos_y", (y) => r(y, 1), !1, c), i = k(a, t, "pos_z", (y) => r(y, 2), !1, c), p = k(a, t, "rot_x", (y) => n(y, 0), !0, c), d = k(a, t, "rot_y", (y) => n(y, 1), !0, c), u = k(a, t, "rot_z", (y) => n(y, 2), !0, c), h = k(a, t, "scale_x", (y) => s(y, 0), !1, c), g = k(a, t, "scale_y", (y) => s(y, 1), !1, c), v = k(a, t, "scale_z", (y) => s(y, 2), !1, c);
+  if (!a.length) return te(e);
+  const o = te(e), r = (y, b) => (y.transform?.position || o.position)[b] ?? 0, n = (y, b) => (y.transform?.rotation || o.rotation)[b] ?? 0, s = (y, b) => (y.transform?.size || o.size)[b] ?? (b === 2 ? 0.01 : 1), c = We(a, t), l = k(a, t, "pos_x", (y) => r(y, 0), !1, c), m = k(a, t, "pos_y", (y) => r(y, 1), !1, c), i = k(a, t, "pos_z", (y) => r(y, 2), !1, c), p = k(a, t, "rot_x", (y) => n(y, 0), !0, c), d = k(a, t, "rot_y", (y) => n(y, 1), !0, c), u = k(a, t, "rot_z", (y) => n(y, 2), !0, c), h = k(a, t, "scale_x", (y) => s(y, 0), !1, c), g = k(a, t, "scale_y", (y) => s(y, 1), !1, c), v = k(a, t, "scale_z", (y) => s(y, 2), !1, c);
   return {
     position: [Number.isFinite(l) ? l : o.position[0], Number.isFinite(m) ? m : o.position[1], Number.isFinite(i) ? i : o.position[2]],
     rotation: [Number.isFinite(p) ? p : o.rotation[0], Number.isFinite(d) ? d : o.rotation[1], Number.isFinite(u) ? u : o.rotation[2]],
@@ -337,7 +337,7 @@ function Te(e, t) {
     ]
   };
 }
-function _r(e = "balanced", t = "all_views", a = null) {
+function wr(e = "balanced", t = "all_views", a = null) {
   const o = {
     none: 0,
     0: 0,
@@ -357,40 +357,40 @@ function _r(e = "balanced", t = "all_views", a = null) {
   const i = 0.618033988749895, p = 0.324717957244746;
   for (let d = 0; d < r; d++) {
     const u = d * i % 1, h = d * p % 1, g = (d + 0.5) * 0.7548776662466927 % 1;
-    let v = 0, y = 0, b = 0, x = 0.65, D = 0.72, w = 0.82;
+    let v = 0, y = 0, b = 0, S = 0.65, D = 0.72, w = 0.82;
     if (t === "ground_focus")
       if (u < 0.6) {
-        const T = 0.4 + Math.sqrt(h) * 24, f = g * Math.PI * 2 + d * 2.399963229728653;
-        v = Math.cos(f) * T, b = Math.sin(f) * T, y = 0.01 + u * 0.75, x = 0.86, D = 0.9, w = 0.98;
+        const E = 0.4 + Math.sqrt(h) * 24, f = g * Math.PI * 2 + d * 2.399963229728653;
+        v = Math.cos(f) * E, b = Math.sin(f) * E, y = 0.01 + u * 0.75, S = 0.86, D = 0.9, w = 0.98;
       } else {
-        const T = 1 + Math.sqrt(h) * 18, f = g * Math.PI * 2 + d * 2.399963229728653;
-        v = Math.cos(f) * T, b = Math.sin(f) * T, y = 0.75 + (u - 0.6) * 8.5, x = 0.62, D = 0.7, w = 0.82;
+        const E = 1 + Math.sqrt(h) * 18, f = g * Math.PI * 2 + d * 2.399963229728653;
+        v = Math.cos(f) * E, b = Math.sin(f) * E, y = 0.75 + (u - 0.6) * 8.5, S = 0.62, D = 0.7, w = 0.82;
       }
     else if (t === "dome") {
-      const T = u * Math.PI * 2, f = 1 - 2 * h, M = Math.sqrt(Math.max(0, 1 - f * f)), I = 1.5 + Math.cbrt(g) * 20;
-      v = Math.cos(T) * M * I, b = Math.sin(T) * M * I, y = Math.max(0.01, f * I * 0.75 + 2.5), x = 0.72, D = 0.78, w = 0.88;
+      const E = u * Math.PI * 2, f = 1 - 2 * h, M = Math.sqrt(Math.max(0, 1 - f * f)), T = 1.5 + Math.cbrt(g) * 20;
+      v = Math.cos(E) * M * T, b = Math.sin(E) * M * T, y = Math.max(0.01, f * T * 0.75 + 2.5), S = 0.72, D = 0.78, w = 0.88;
     } else {
-      const T = d % 4;
-      if (T === 0) {
+      const E = d % 4;
+      if (E === 0) {
         const f = 0.3 + Math.sqrt(h) * 28, M = d * 2.399963229728653;
-        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.01 + g * 0.34, x = 0.9, D = 0.94, w = 1;
-      } else if (T === 1) {
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.01 + g * 0.34, S = 0.9, D = 0.94, w = 1;
+      } else if (E === 1) {
         const f = 0.6 + Math.sqrt(h) * 18, M = d * 2.399963229728653;
-        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.35 + g * 3.15, x = 0.68, D = 0.76, w = 0.86;
-      } else if (T === 2) {
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.35 + g * 3.15, S = 0.68, D = 0.76, w = 0.86;
+      } else if (E === 2) {
         const f = 2 + Math.sqrt(h) * 24, M = d * 2.399963229728653;
-        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 3.5 + g * 11.5, x = 0.55, D = 0.65, w = 0.78;
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 3.5 + g * 11.5, S = 0.55, D = 0.65, w = 0.78;
       } else {
         const f = 0.5 + h * 6.5, M = d * 2.399963229728653;
-        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.05 + g * 4.95, x = 0.8, D = 0.86, w = 0.94;
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.05 + g * 4.95, S = 0.8, D = 0.86, w = 0.94;
       }
     }
-    n.push(v, y, b), s.push(a ? x * c : x, a ? D * l : D, a ? w * m : w);
+    n.push(v, y, b), s.push(a ? S * c : S, a ? D * l : D, a ? w * m : w);
   }
   return { points: n, colors: s };
 }
-function qa() {
-  const e = te(), t = [{ frame: 0, camera: F(e), interpolation: "ease" }];
+function Ua() {
+  const e = ee(), t = [{ frame: 0, camera: F(e), interpolation: "ease" }];
   return {
     schema_version: 1,
     fps: 24,
@@ -457,7 +457,7 @@ function qa() {
   };
 }
 function F(e) {
-  const t = te();
+  const t = ee();
   if (!e || typeof e != "object") return t;
   const a = Array.isArray(e.position) ? [...e.position] : [...t.position], o = Array.isArray(e.target) ? [...e.target] : [...t.target], r = Math.max(1e-4, Number.isFinite(Number(e.near)) ? Number(e.near) : 0.01), n = Number.isFinite(Number(e.far)) ? Number(e.far) : 1e4;
   return {
@@ -483,8 +483,8 @@ function fe(e, t, a, o) {
   const r = Number(e);
   return Number.isFinite(r) ? j(r, a, o) : t;
 }
-function vr(e) {
-  const t = qa();
+function Sr(e) {
+  const t = Ua();
   if (!e || typeof e != "object") return t;
   const a = { ...t, ...e };
   a.fps = Math.round(fe(a.fps, 24, 1, 120)), a.duration_frames = Math.round(fe(a.duration_frames, 120, 1, pe.maxDurationFrames)), a.width = Math.round(fe(a.width, 1280, 64, 4096)), a.height = Math.round(fe(a.height, 720, 64, 4096));
@@ -506,7 +506,7 @@ function vr(e) {
     return h = [...new Map(h.map((g) => [g.frame, g])).values()].sort((g, v) => g.frame - v.frame), h.length || (h = [{ frame: 0, camera: F(u), interpolation: "ease" }]), {
       id: d,
       name: String(i?.name || `Camera ${p + 1}`),
-      color: typeof i?.color == "string" ? i.color : null,
+      color: re(i?.color),
       camera: u,
       keyframes: h,
       target_object_id: typeof i?.target_object_id == "string" ? i.target_object_id : typeof a.target_object_id == "string" ? a.target_object_id : null,
@@ -518,11 +518,11 @@ function vr(e) {
       solo: !!i?.solo,
       recording_path: typeof i?.recording_path == "string" ? i.recording_path : ""
     };
-  }), a.active_camera_id = a.cameras.some((i) => i.id === a.active_camera_id) ? a.active_camera_id : a.cameras[0].id, a.sequence = Ia(a.sequence, a.cameras.map((i) => i.id)), a.playblast_camera_id = a.playblast_camera_id === ja && a.sequence.cuts.length || a.cameras.some((i) => i.id === a.playblast_camera_id) ? a.playblast_camera_id : a.active_camera_id;
+  }), a.active_camera_id = a.cameras.some((i) => i.id === a.active_camera_id) ? a.active_camera_id : a.cameras[0].id, a.sequence = Ia(a.sequence, a.cameras.map((i) => i.id)), a.playblast_camera_id = a.playblast_camera_id === Ea && a.sequence.cuts.length || a.cameras.some((i) => i.id === a.playblast_camera_id) ? a.playblast_camera_id : a.active_camera_id;
   const l = a.cameras.find((i) => i.id === a.active_camera_id);
   a.camera = l.camera, a.keyframes = l.keyframes, a.target_object_id = l.target_object_id || null, a.target_offset = l.target_offset || [0, 0, 0], a.aim_bone = l.aim_bone || null, a.objects = (Array.isArray(a.objects) ? a.objects : t.objects).slice(0, pe.maxObjects).map((i) => ({
     ...i,
-    color: typeof i?.color == "string" ? i.color : null,
+    color: re(i?.color),
     locked: !!i.locked,
     parent_id: typeof i.parent_id == "string" ? i.parent_id : null,
     position: Array.isArray(i.position) ? i.position.map(Number) : [0, 0, 0],
@@ -531,13 +531,13 @@ function vr(e) {
     material_mode: ["textured", "checker", "neutral", "wireframe"].includes(i.material_mode) ? i.material_mode : "textured",
     keyframes: (Array.isArray(i.keyframes) ? i.keyframes : []).map((p) => ({
       frame: Math.max(0, Math.round(Number(p.frame || 0))),
-      transform: ae(p.transform || i),
+      transform: te(p.transform || i),
       interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(p.interpolation) ? p.interpolation : "ease",
       ...p.tangents && typeof p.tangents == "object" ? { tangents: { ...p.tangents } } : {}
     })).sort((p, d) => p.frame - d.frame)
-  })), a.gizmo_mode = ["translate", "rotate", "scale"].includes(a.gizmo_mode) ? a.gizmo_mode : "translate", a.gizmo_space = a.gizmo_space === "local" ? "local" : "world", a.navigation_profile = a.navigation_profile === "blender" ? "blender" : "maya", a.spatial_snap_mode = ["none", "grid", "vertex"].includes(a.spatial_snap_mode) ? a.spatial_snap_mode : "none", a.spatial_grid_size = j(Number(a.spatial_grid_size) || 0.5, 0.01, 100), a.ui_density = ["basic", "animation", "advanced"].includes(a.ui_density) ? a.ui_density : "advanced", a.select_mode = ["object", "vertex", "edge", "face"].includes(a.select_mode) ? a.select_mode : "object", a.show_grid = a.show_grid !== !1, a.show_camera_paths = a.show_camera_paths !== !1, a.show_camera_gizmos = a.show_camera_gizmos !== !1, a.show_look_at = a.show_look_at !== !1, a.show_helper_axes = a.show_helper_axes !== !1, a.show_gizmo = a.show_gizmo !== !1, a.show_wireframe = !!a.show_wireframe, a.show_vertices = !!a.show_vertices, a.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(a.point_density) ? a.point_density : "balanced", a.point_spread = ["all_views", "ground_focus", "dome"].includes(a.point_spread) ? a.point_spread : "all_views", a.point_color = typeof a.point_color == "string" ? a.point_color : "#cbd5e1", a.viewport_bg_color = typeof a.viewport_bg_color == "string" ? a.viewport_bg_color : "#121212", a.viewport_bg_image = typeof a.viewport_bg_image == "string" ? a.viewport_bg_image : "", a.viewport_bg_sequence = Array.isArray(a.viewport_bg_sequence) ? a.viewport_bg_sequence.map(String) : [], a.snap_enabled = a.snap_enabled !== !1, a.snap_frames = Math.max(1, Math.round(Number(a.snap_frames) || 1)), a.timecode_mode = ["time", "timecode"].includes(a.timecode_mode) ? a.timecode_mode : "time", a.loop_playback = !!a.loop_playback, a.playback_range = Array.isArray(a.playback_range) && a.playback_range.length === 2 ? [j(Math.round(Number(a.playback_range[0]) || 0), 0, a.duration_frames - 1), j(Math.round(Number(a.playback_range[1]) || a.duration_frames - 1), 0, a.duration_frames - 1)] : null, a.markers = (Array.isArray(a.markers) ? a.markers : []).filter((i) => i && Number.isFinite(Number(i.frame))).map((i, p) => ({ frame: Math.max(0, Math.round(Number(i.frame))), name: String(i.name || `Marker ${p + 1}`).slice(0, 40), color: String(i.color || "#f2d06b") })), a.preview_layout = ["auto", "1", "2", "4"].includes(String(a.preview_layout)) ? String(a.preview_layout) : "auto", a.maximized_camera_id = typeof a.maximized_camera_id == "string" ? a.maximized_camera_id : null, a.safe_areas = !!a.safe_areas, a.resolution_gate = !!a.resolution_gate, a.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(a.aspect_ratio) ? a.aspect_ratio : "auto", a.auto_key = !!a.auto_key, a.playblast_grid = !!a.playblast_grid, a.playblast_resolution = ["viewport", "half", "output", "double"].includes(a.playblast_resolution) ? a.playblast_resolution : "viewport", a.reference_index = Math.max(0, Number(a.reference_index || 0)), a.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(a.view_mode) ? a.view_mode : "camera", a.camera_view_visible = a.camera_view_visible !== !1;
+  })), a.gizmo_mode = ["translate", "rotate", "scale"].includes(a.gizmo_mode) ? a.gizmo_mode : "translate", a.gizmo_space = a.gizmo_space === "local" ? "local" : "world", a.navigation_profile = a.navigation_profile === "blender" ? "blender" : "maya", a.spatial_snap_mode = ["none", "grid", "vertex"].includes(a.spatial_snap_mode) ? a.spatial_snap_mode : "none", a.spatial_grid_size = j(Number(a.spatial_grid_size) || 0.5, 0.01, 100), a.ui_density = ["basic", "animation", "advanced"].includes(a.ui_density) ? a.ui_density : "advanced", a.select_mode = ["object", "vertex", "edge", "face"].includes(a.select_mode) ? a.select_mode : "object", a.show_grid = a.show_grid !== !1, a.show_camera_paths = a.show_camera_paths !== !1, a.show_camera_gizmos = a.show_camera_gizmos !== !1, a.show_look_at = a.show_look_at !== !1, a.show_helper_axes = a.show_helper_axes !== !1, a.show_gizmo = a.show_gizmo !== !1, a.show_wireframe = !!a.show_wireframe, a.show_vertices = !!a.show_vertices, a.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(a.point_density) ? a.point_density : "balanced", a.point_spread = ["all_views", "ground_focus", "dome"].includes(a.point_spread) ? a.point_spread : "all_views", a.point_color = re(a.point_color, "#cbd5e1"), a.viewport_bg_color = re(a.viewport_bg_color, "#121212"), a.viewport_bg_image = typeof a.viewport_bg_image == "string" ? a.viewport_bg_image : "", a.viewport_bg_sequence = Array.isArray(a.viewport_bg_sequence) ? a.viewport_bg_sequence.map(String) : [], a.snap_enabled = a.snap_enabled !== !1, a.snap_frames = Math.max(1, Math.round(Number(a.snap_frames) || 1)), a.timecode_mode = ["time", "timecode"].includes(a.timecode_mode) ? a.timecode_mode : "time", a.loop_playback = !!a.loop_playback, a.playback_range = Array.isArray(a.playback_range) && a.playback_range.length === 2 ? [j(Math.round(Number(a.playback_range[0]) || 0), 0, a.duration_frames - 1), j(Math.round(Number(a.playback_range[1]) || a.duration_frames - 1), 0, a.duration_frames - 1)] : null, a.markers = (Array.isArray(a.markers) ? a.markers : []).filter((i) => i && Number.isFinite(Number(i.frame))).map((i, p) => ({ frame: Math.max(0, Math.round(Number(i.frame))), name: String(i.name || `Marker ${p + 1}`).slice(0, 40), color: re(i.color, "#f2d06b") })), a.preview_layout = ["auto", "1", "2", "4"].includes(String(a.preview_layout)) ? String(a.preview_layout) : "auto", a.maximized_camera_id = typeof a.maximized_camera_id == "string" ? a.maximized_camera_id : null, a.safe_areas = !!a.safe_areas, a.resolution_gate = !!a.resolution_gate, a.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(a.aspect_ratio) ? a.aspect_ratio : "auto", a.auto_key = !!a.auto_key, a.playblast_grid = !!a.playblast_grid, a.playblast_resolution = ["viewport", "half", "output", "double"].includes(a.playblast_resolution) ? a.playblast_resolution : "viewport", a.reference_index = Math.max(0, Number(a.reference_index || 0)), a.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(a.view_mode) ? a.view_mode : "camera", a.camera_view_visible = a.camera_view_visible !== !1;
   const m = Me();
-  return a.editor_views = Object.fromEntries(Object.entries(m).map(([i, p]) => [i, F(a.editor_views?.[i] || p)])), Ra(a);
+  return a.editor_views = Object.fromEntries(Object.entries(m).map(([i, p]) => [i, F(a.editor_views?.[i] || p)])), La(a);
 }
 function Ce(e, t) {
   const [a, o, r] = (t || [0, 0, 0]).map((l) => l * Math.PI / 180);
@@ -548,49 +548,49 @@ function Fe(e = [0, 0, 0]) {
   const [t, a, o] = e.map((i) => i * Math.PI / 360), r = Math.cos(t), n = Math.sin(t), s = Math.cos(a), c = Math.sin(a), l = Math.cos(o), m = Math.sin(o);
   return [n * s * l + r * c * m, r * c * l - n * s * m, r * s * m + n * c * l, r * s * l - n * c * m];
 }
-function $a(e, t) {
+function Xa(e, t) {
   return [e[3] * t[0] + e[0] * t[3] + e[1] * t[2] - e[2] * t[1], e[3] * t[1] - e[0] * t[2] + e[1] * t[3] + e[2] * t[0], e[3] * t[2] + e[0] * t[1] - e[1] * t[0] + e[2] * t[3], e[3] * t[3] - e[0] * t[0] - e[1] * t[1] - e[2] * t[2]];
 }
-function Ua(e, [t, a, o, r]) {
+function Ya(e, [t, a, o, r]) {
   const [n, s, c] = e, l = r * n + a * c - o * s, m = r * s + o * n - t * c, i = r * c + t * s - a * n, p = -t * n - a * s - o * c;
   return [l * r - p * t - m * o + i * a, m * r - p * a - i * t + l * o, i * r - p * o - l * a + m * t];
 }
-function Xa([e, t, a, o]) {
+function Za([e, t, a, o]) {
   const r = 1 - 2 * (t * t + a * a), n = 2 * (e * t - a * o), s = 2 * (e * a + t * o), c = 1 - 2 * (e * e + a * a), l = 2 * (t * a - e * o), m = 2 * (t * a + e * o), i = 1 - 2 * (e * e + t * t), p = Math.asin(Math.max(-1, Math.min(1, s))), [d, u] = Math.abs(s) < 0.9999999 ? [Math.atan2(-l, i), Math.atan2(-n, r)] : [Math.atan2(m, c), 0];
   return [d, p, u].map((h) => h * 180 / Math.PI);
 }
-function dt(e, t) {
-  const a = t.quaternion || Fe(t.rotation), o = $a(a, e.quaternion || Fe(e.rotation));
-  return { position: S(Ua(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: Xa(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
+function pt(e, t) {
+  const a = t.quaternion || Fe(t.rotation), o = Xa(a, e.quaternion || Fe(e.rotation));
+  return { position: x(Ya(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: Za(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
 }
-function wr(e, t) {
+function xr(e, t) {
   const a = new Map(e.map((r) => [r.id, r])), o = (r, n = /* @__PURE__ */ new Set()) => {
-    const s = { ...ae(r), quaternion: Fe(r.rotation) };
+    const s = { ...te(r), quaternion: Fe(r.rotation) };
     if (!r?.id || n.has(r.id)) return s;
     const c = r.parent_id ? a.get(r.parent_id) : null;
     if (!c) return s;
     const l = new Set(n);
-    return l.add(r.id), dt(s, o(c, l));
+    return l.add(r.id), pt(s, o(c, l));
   };
   return o(t);
 }
-function pt(e, t, a, o = /* @__PURE__ */ new Set()) {
-  const r = Te(t, a);
+function ft(e, t, a, o = /* @__PURE__ */ new Set()) {
+  const r = Ee(t, a);
   if (!t?.id || o.has(t.id)) return r;
   const n = new Set(o);
   n.add(t.id);
   const s = t.parent_id ? e.find((l) => l.id === t.parent_id) : null;
   if (!s) return r;
-  const c = pt(e, s, a, n);
-  return dt(r, c);
+  const c = ft(e, s, a, n);
+  return pt(r, c);
 }
-const Ze = ["speed", "angular_speed", "acceleration", "jerk"], Pe = ["ok", "warn", "over"], ft = 0.8, Ya = [0, 1.5, 0];
-function Qe(e, t) {
+const Qe = ["speed", "angular_speed", "acceleration", "jerk"], Pe = ["ok", "warn", "over"], ut = 0.8, Qa = [0, 1.5, 0];
+function Je(e, t) {
   const a = [0];
   for (let o = 1; o < e.length; o++) a.push(Math.abs(e[o] - e[o - 1]) * t);
   return a;
 }
-function Za(e, t) {
+function Ja(e, t) {
   const a = [0];
   for (let o = 1; o < e.length; o++) {
     const r = e[o - 1].position, n = e[o].position;
@@ -598,7 +598,7 @@ function Za(e, t) {
   }
   return a;
 }
-function Qa(e, t) {
+function eo(e, t) {
   const a = [0];
   for (let o = 1; o < e.length; o++) {
     const r = R(e[o - 1]), n = R(e[o]), s = ["right", "up", "forward"].reduce(
@@ -609,32 +609,32 @@ function Qa(e, t) {
   }
   return a;
 }
-function Ja(e, t = null) {
+function to(e, t = null) {
   if (t) return t.map(Number);
   const a = (e.objects || []).find((o) => o?.id === "subject");
-  return Array.isArray(a?.position) ? a.position.slice(0, 3).map(Number) : [...Ya];
+  return Array.isArray(a?.position) ? a.position.slice(0, 3).map(Number) : [...Qa];
 }
-function eo(e, t, a, o) {
+function ao(e, t, a, o) {
   return e.map((r) => {
     const n = L(t, r, a, o);
     return !!(n && n[0] >= 0 && n[0] < a && n[1] >= 0 && n[1] < o);
   });
 }
-function Je(e, t) {
-  return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * ft ? "warn" : "ok";
+function et(e, t) {
+  return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * ut ? "warn" : "ok";
 }
-function et(e) {
+function tt(e) {
   for (let t = Pe.length - 1; t >= 0; t--) if (e.includes(Pe[t])) return Pe[t];
   return "ok";
 }
-function to(e, t) {
+function oo(e, t) {
   return e.length === t.length && e.every((a, o) => a === t[o]);
 }
-function ao(e, t) {
+function ro(e, t) {
   const a = [];
   for (let o = 0; o < e.length; o++) {
     const r = [...t[o]].sort(), n = a[a.length - 1];
-    if (n && n.grade === e[o] && to(n.metrics, r)) {
+    if (n && n.grade === e[o] && oo(n.metrics, r)) {
       n.end = o;
       continue;
     }
@@ -642,21 +642,21 @@ function ao(e, t) {
   }
   return a;
 }
-function ut(e, t = {}, a = null, o = "generic") {
+function ht(e, t = {}, a = null, o = "generic") {
   const r = Math.max(1, Number(e.fps) || 24), n = Math.max(1, Number(e.duration_frames) || 1), s = Math.max(1, Number(e.width) || 1280), c = Math.max(1, Number(e.height) || 720), l = [];
-  for (let f = 0; f < n; f++) l.push(Se(e, f, e.objects));
-  const m = Za(l, r), i = Qa(l, r), p = Qe(m, r), d = Qe(p, r), u = { speed: m, angular_speed: i, acceleration: p, jerk: d }, h = Ja(e, a), g = eo(l, h, s, c), v = l.map((f) => f.fov), y = t.allow_framing_loss === !0, b = [], x = [];
+  for (let f = 0; f < n; f++) l.push(xe(e, f, e.objects));
+  const m = Ja(l, r), i = eo(l, r), p = Je(m, r), d = Je(p, r), u = { speed: m, angular_speed: i, acceleration: p, jerk: d }, h = to(e, a), g = ao(l, h, s, c), v = l.map((f) => f.fov), y = t.allow_framing_loss === !0, b = [], S = [];
   for (let f = 0; f < n; f++) {
-    const M = [], I = [];
-    for (const N of Ze) {
-      const Y = Je(u[N][f], t[`max_${N}`]);
-      M.push(Y), Y !== "ok" && I.push(N);
+    const M = [], T = [];
+    for (const N of Qe) {
+      const X = et(u[N][f], t[`max_${N}`]);
+      M.push(X), X !== "ok" && T.push(N);
     }
-    !g[f] && !y && (M.push("over"), I.push("framing_loss")), b.push(et(M)), x.push(I);
+    !g[f] && !y && (M.push("over"), T.push("framing_loss")), b.push(tt(M)), S.push(T);
   }
   const D = g.filter((f) => !f).length, w = {
     profile: o,
-    warn_ratio: ft,
+    warn_ratio: ut,
     limits: t,
     subject: h,
     duration_frames: n,
@@ -670,29 +670,29 @@ function ut(e, t = {}, a = null, o = "generic") {
     series: u,
     framing: g,
     frame_grades: b,
-    segments: ao(b, x),
+    segments: ro(b, S),
     violations: []
   };
-  for (const f of [...Ze, "fov_drift"]) {
-    const M = f === "fov_drift" ? "max_fov_change" : `max_${f}`, I = t[M];
-    I != null && w[M] > Number(I) && w.violations.push({ metric: M, value: w[M], recommended_max: Number(I) });
+  for (const f of [...Qe, "fov_drift"]) {
+    const M = f === "fov_drift" ? "max_fov_change" : `max_${f}`, T = t[M];
+    T != null && w[M] > Number(T) && w.violations.push({ metric: M, value: w[M], recommended_max: Number(T) });
   }
   D && !y && w.violations.push({ metric: "framing_loss_frames", value: D, recommended_max: 0 });
-  const T = Je(w.max_fov_change, t.max_fov_change);
-  return w.track_grades = { fov_drift: T }, w.grade = et([...b, T]), w.trajectory_valid = w.violations.length === 0, w.ok = w.trajectory_valid, w;
+  const E = et(w.max_fov_change, t.max_fov_change);
+  return w.track_grades = { fov_drift: E }, w.grade = tt([...b, E]), w.trajectory_valid = w.violations.length === 0, w.ok = w.trajectory_valid, w;
 }
-function oo(e) {
+function no(e) {
   return e.segments.filter((t) => t.grade !== "ok").sort((t, a) => (a.grade === "over") - (t.grade === "over") || a.end - a.start - (t.end - t.start));
 }
 function Re(e, t) {
   const a = Math.max(1, e.state.duration_frames - 1), o = j(Number(e.timelineZoom) || 1, 0.1, 50), r = Number(e.timelinePan) || 0, n = a / o;
   return (t - r) / Math.max(1e-6, n) * 100;
 }
-function ht(e, t, a) {
+function gt(e, t, a) {
   const o = a.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = j(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, c = r / n, l = (t.clientX - o.left) / Math.max(1, o.width);
   return j(Math.round(s + l * c), 0, r);
 }
-function xr(e, t) {
+function Mr(e, t) {
   t.preventDefault(), t.stopPropagation();
   const a = Math.max(1, e.state.duration_frames - 1), o = t.deltaY < 0 ? 1.18 : 0.85;
   if (t.shiftKey)
@@ -703,10 +703,10 @@ function xr(e, t) {
   }
   e.refreshKeys(), e.setStatus(_(`Timeline zoom: ${(e.timelineZoom * 100).toFixed(0)}%`));
 }
-function Sr(e) {
+function Cr(e) {
   e.timelineZoom = 1, e.timelinePan = 0, e.refreshKeys(), e.setStatus(_("Timeline view fitted"));
 }
-function Mr(e, t) {
+function Dr(e, t) {
   if (t.target.closest?.(".key")) return;
   t.preventDefault(), t.stopPropagation(), e.exitKeyEdit(!0);
   const a = t.currentTarget;
@@ -723,9 +723,9 @@ function Mr(e, t) {
     e.boxSelect = { box: a, pointerId: t.pointerId, startX: t.clientX - o.left, currentX: t.clientX - o.left };
     return;
   }
-  e.selectedKeyFrames = null, e.timelineDrag = { box: a, pointerId: t.pointerId }, e.setFrame(ht(e, t, a));
+  e.selectedKeyFrames = null, e.timelineDrag = { box: a, pointerId: t.pointerId }, e.setFrame(gt(e, t, a));
 }
-function Cr(e, t) {
+function jr(e, t) {
   if (e.timelinePanDrag && t.pointerId === e.timelinePanDrag.pointerId) {
     t.preventDefault(), t.stopPropagation();
     const a = t.clientX - e.timelinePanDrag.startX, o = e.timelineDrag?.box || e.root.querySelector('[data-role="dope-tracks"]'), n = Math.max(1, e.state.duration_frames - 1) / (Number(e.timelineZoom) || 1);
@@ -742,9 +742,9 @@ function Cr(e, t) {
     o.style.left = `${r}px`, o.style.width = `${Math.abs(e.boxSelect.currentX - e.boxSelect.startX)}px`, o.style.top = "0", o.style.bottom = "0";
     return;
   }
-  !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.setFrame(ht(e, t, e.timelineDrag.box)));
+  !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.setFrame(gt(e, t, e.timelineDrag.box)));
 }
-function Dr(e, t) {
+function Er(e, t) {
   if (e.timelinePanDrag && t.pointerId === e.timelinePanDrag.pointerId) {
     e.timelinePanDrag = null;
     return;
@@ -759,12 +759,12 @@ function Dr(e, t) {
   }
   !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.timelineDrag.box.hasPointerCapture?.(t.pointerId) && e.timelineDrag.box.releasePointerCapture(t.pointerId), e.timelineDrag = null);
 }
-const ro = 4;
-function no(e, t) {
+const so = 4;
+function io(e, t) {
   const a = e.keyDrag;
   if (!a) return;
   if (!a.engaged) {
-    if (Math.hypot(t.clientX - (a.startClientX ?? t.clientX), t.clientY - (a.startClientY ?? t.clientY)) < ro) return;
+    if (Math.hypot(t.clientX - (a.startClientX ?? t.clientX), t.clientY - (a.startClientY ?? t.clientY)) < so) return;
     a.engaged = !0;
   }
   const o = a.box.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = j(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, c = r / n;
@@ -788,7 +788,7 @@ function no(e, t) {
   }
   l !== a.key.frame && (e.editingKeyFrame = a.key.frame, e.retimeSelectedKey(l, !0));
 }
-function so(e, t) {
+function co(e, t) {
   const a = e.camera?.position || [0, 0, 0], o = t.camera?.position || [0, 0, 0];
   return Math.sqrt((o[0] - a[0]) ** 2 + (o[1] - a[1]) ** 2 + (o[2] - a[2]) ** 2);
 }
@@ -798,12 +798,12 @@ function De(e) {
     camera: { ...t.camera || {}, position: [...t.camera?.position || []], target: [...t.camera?.target || []] }
   }));
 }
-function io(e, t) {
+function lo(e, t) {
   const a = De(e);
   if (a.length < 3 || t < 2) return a;
   const o = [0];
   for (let l = 1; l < a.length; l++)
-    o.push(o[l - 1] + so(a[l - 1], a[l]));
+    o.push(o[l - 1] + co(a[l - 1], a[l]));
   const r = o[o.length - 1];
   if (r <= 1e-9) return a;
   const n = a[0].frame ?? 0, s = (a[a.length - 1].frame ?? t) - n;
@@ -815,15 +815,15 @@ function io(e, t) {
   }
   return a;
 }
-function gt(e, t) {
+function yt(e, t) {
   return t.some((a) => e >= a.start && e <= a.end);
 }
-function co(e, t, a = 0.6) {
+function mo(e, t, a = 0.6) {
   const o = De(e), r = Math.min(1, Math.max(0, Number(a) || 0));
   if (!r || o.length < 3 || !t?.length) return o;
   const n = De(o);
   for (let s = 1; s < o.length - 1; s++)
-    if (gt(o[s].frame ?? 0, t))
+    if (yt(o[s].frame ?? 0, t))
       for (const c of ["position", "target"]) {
         const l = [o[s - 1], o[s], o[s + 1]].map((p) => p.camera?.[c]).filter((p) => Array.isArray(p) && p.length >= 3), m = o[s].camera?.[c];
         if (l.length < 3 || !Array.isArray(m)) continue;
@@ -832,21 +832,21 @@ function co(e, t, a = 0.6) {
       }
   return n;
 }
-function lo(e, t, a) {
+function po(e, t, a) {
   const o = De(e);
   if (!t?.length || !Array.isArray(a)) return o;
   const r = a.slice(0, 3).map(Number);
   for (const n of o)
-    gt(n.frame ?? 0, t) && (n.camera.target = [...r]);
+    yt(n.frame ?? 0, t) && (n.camera.target = [...r]);
   return o;
 }
-function mo(e, t) {
+function fo(e, t) {
   return e.segments.filter((a) => a.grade !== "ok" && a.metrics.includes(t)).map((a) => ({ start: a.start, end: a.end }));
 }
-function po(e) {
+function uo(e) {
   return e.segments.filter((t) => t.grade !== "ok").map((t) => ({ start: t.start, end: t.end }));
 }
-function Ie(e) {
+function Te(e) {
   return {
     speed: _("Travel speed"),
     angular_speed: _("Rotation speed"),
@@ -856,7 +856,7 @@ function Ie(e) {
     fov_drift: _("FOV change")
   }[e] || e;
 }
-function fo(e) {
+function ho(e) {
   return {
     ok: _("Within limits"),
     warn: _("Near the limit"),
@@ -864,10 +864,10 @@ function fo(e) {
   }[e] || e;
 }
 let ue = null, Le = null;
-function uo(e) {
+function go(e) {
   Le = e;
 }
-async function jr() {
+async function Tr() {
   if (ue) return ue;
   try {
     if (!Le) return null;
@@ -877,36 +877,36 @@ async function jr() {
     return null;
   }
 }
-function ho(e) {
+function yo(e) {
   return e.root.querySelector('[data-role="health-profile"]')?.value || e.state?.health_profile || "generic";
 }
-function go(e, t) {
+function bo(e, t) {
   const a = e.motionProfiles?.profiles?.find((o) => o.id === t);
   return a ? a.limits : null;
 }
 function de(e) {
-  const t = ho(e), a = go(e, t);
-  return a ? ut(e.state, a, null, t) : null;
+  const t = yo(e), a = bo(e, t);
+  return a ? ht(e.state, a, null, t) : null;
 }
-function tt(e) {
+function at(e) {
   return Number(e).toFixed(Math.abs(e) >= 100 ? 0 : 1);
 }
 function ne(e, t, a, o) {
-  const r = a == null ? _("no limit") : `${tt(t)} / ${tt(a)}`;
+  const r = a == null ? _("no limit") : `${at(t)} / ${at(a)}`;
   return `
     <div class="oc-health-metric" data-grade="${o}">
       <span class="oc-health-dot"></span>
-      <span class="oc-health-metric-name">${Ie(e)}</span>
+      <span class="oc-health-metric-name">${Te(e)}</span>
       <span class="oc-health-metric-value">${r}</span>
     </div>`;
 }
 function he(e, t, a) {
   return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * a ? "warn" : "ok";
 }
-function yo(e) {
-  const t = oo(e);
+function _o(e) {
+  const t = no(e);
   return t.length ? t.slice(0, 6).map((a) => {
-    const o = a.metrics.map((n) => Ie(n)).join(", "), r = a.start === a.end ? _("Frame {frame}").replace("{frame}", String(a.start)) : _("Frames {start}-{end}").replace("{start}", String(a.start)).replace("{end}", String(a.end));
+    const o = a.metrics.map((n) => Te(n)).join(", "), r = a.start === a.end ? _("Frame {frame}").replace("{frame}", String(a.start)) : _("Frames {start}-{end}").replace("{start}", String(a.start)).replace("{end}", String(a.end));
     return `
       <button type="button" class="oc-health-zone" data-grade="${a.grade}" data-zone-start="${a.start}"
               title="${_("Jump the playhead to this zone")}">
@@ -915,7 +915,7 @@ function yo(e) {
       </button>`;
   }).join("") : `<div class="oc-health-empty">${_("No problem zone on this shot.")}</div>`;
 }
-function bo(e) {
+function vo(e) {
   const t = e.root.querySelector('[data-role="health-body"]'), a = e.root.querySelector('[data-role="health-badge"]');
   if (!t || !a) return;
   if (!e.motionProfiles) {
@@ -926,7 +926,7 @@ function bo(e) {
   if (!o) return;
   e.healthReport = o;
   const { warn_ratio: r } = o;
-  a.className = `oc-health-badge ${o.grade}`, a.textContent = fo(o.grade);
+  a.className = `oc-health-badge ${o.grade}`, a.textContent = ho(o.grade);
   const n = [
     ne(
       "speed",
@@ -954,13 +954,13 @@ function bo(e) {
     ),
     ne("fov_drift", o.max_fov_change, o.limits.max_fov_change, o.track_grades.fov_drift)
   ].join(""), s = o.framing_loss_frames ? `<div class="oc-health-metric" data-grade="over"><span class="oc-health-dot"></span>
-         <span class="oc-health-metric-name">${Ie("framing_loss")}</span>
+         <span class="oc-health-metric-name">${Te("framing_loss")}</span>
          <span class="oc-health-metric-value">${_("{count} frames").replace("{count}", String(o.framing_loss_frames))}</span>
        </div>` : "";
   t.innerHTML = `
     <div class="oc-health-metrics">${n}${s}</div>
     <div class="oc-section">${_("Problem zones")}</div>
-    <div class="oc-health-zones" data-role="health-zones">${yo(o)}</div>
+    <div class="oc-health-zones" data-role="health-zones">${_o(o)}</div>
     <div class="oc-card-actions oc-health-actions">
       <button data-act="health-slow" title="${_("Respace the keys so the shot travels at a constant speed")}"><i class="pi pi-clock"></i> ${_("Slow to limits")}</button>
       <button data-act="health-smooth" title="${_("Blend the keys inside the flagged zones only")}"><i class="pi pi-chart-line"></i> ${_("Smooth flagged")}</button>
@@ -968,7 +968,7 @@ function bo(e) {
     </div>
     <p class="oc-health-note">${_("A valid trajectory stays inside the limits recommended for this model. It is not a guarantee about the generated video.")}</p>`;
 }
-function Tr(e, t) {
+function Ir(e, t) {
   if (!t || !e.motionProfiles) return;
   const a = de(e);
   if (a) {
@@ -978,15 +978,15 @@ function Tr(e, t) {
       const r = Re(e, o.start), n = Re(e, o.end + 1);
       if (n < -5 || r > 105) continue;
       const s = document.createElement("div");
-      s.className = "oc-health-band", s.dataset.grade = o.grade, s.style.left = `${r}%`, s.style.width = `${Math.max(0.4, n - r)}%`, s.title = o.metrics.map((c) => Ie(c)).join(", "), t.appendChild(s);
+      s.className = "oc-health-band", s.dataset.grade = o.grade, s.style.left = `${r}%`, s.style.width = `${Math.max(0.4, n - r)}%`, s.title = o.metrics.map((c) => Te(c)).join(", "), t.appendChild(s);
     }
   }
 }
 function je(e, t, a, o) {
   const r = e.activeCameraTrack();
-  r && (e.checkpoint(a), r.keyframes = t, e.state.keyframes = t, e.syncActiveCameraTrack(), e.refreshKeys(), e.setFrame(e.frame, !1, !1), e.setStatus(o), bo(e));
+  r && (e.checkpoint(a), r.keyframes = t, e.state.keyframes = t, e.syncActiveCameraTrack(), e.refreshKeys(), e.setFrame(e.frame, !1, !1), e.setStatus(o), vo(e));
 }
-function Ir(e) {
+function kr(e) {
   const t = de(e);
   if (!t) return;
   const a = t.limits.max_speed;
@@ -994,7 +994,7 @@ function Ir(e) {
     e.setStatus(_("This profile sets no speed limit."));
     return;
   }
-  const o = Math.max(1, e.state.duration_frames - 1), r = io(e.state.keyframes, o), n = ut({ ...e.state, keyframes: r }, t.limits, null, t.profile);
+  const o = Math.max(1, e.state.duration_frames - 1), r = lo(e.state.keyframes, o), n = ht({ ...e.state, keyframes: r }, t.limits, null, t.profile);
   if (n.max_speed <= a) {
     je(e, r, "Slow to limits", _("Speed flattened; the shot keeps its length."));
     return;
@@ -1002,15 +1002,15 @@ function Ir(e) {
   const s = n.max_speed / a * (e.state.duration_frames / Math.max(1, e.state.fps));
   je(e, r, "Slow to limits", _("Speed flattened, still over: this path needs about {seconds}s to fit the limit.").replace("{seconds}", s.toFixed(1)));
 }
-function Er(e) {
+function Or(e) {
   const t = de(e);
   if (!t) return;
-  const a = po(t);
+  const a = uo(t);
   if (!a.length) {
     e.setStatus(_("Nothing is flagged on this shot."));
     return;
   }
-  const o = co(e.state.keyframes, a, 0.6);
+  const o = mo(e.state.keyframes, a, 0.6);
   je(
     e,
     o,
@@ -1018,15 +1018,15 @@ function Er(e) {
     _("Smoothed {count} flagged zone(s).").replace("{count}", String(a.length))
   );
 }
-function kr(e) {
+function Ar(e) {
   const t = de(e);
   if (!t) return;
-  const a = mo(t, "framing_loss");
+  const a = fo(t, "framing_loss");
   if (!a.length) {
     e.setStatus(_("The subject stays in frame on this shot."));
     return;
   }
-  const o = lo(e.state.keyframes, a, t.subject);
+  const o = po(e.state.keyframes, a, t.subject);
   je(
     e,
     o,
@@ -1034,7 +1034,30 @@ function kr(e) {
     _("Recentred {count} zone(s) on the subject.").replace("{count}", String(a.length))
   );
 }
-const _o = {
+const wo = {
+  "Add static screen anchor": "Ajouter une ancre écran fixe",
+  "Balanced camera field": "Champ caméra équilibré",
+  "Camera field presets": "Préréglages de champ caméra",
+  "Delete motion layer": "Supprimer le calque de mouvement",
+  Depth: "Profondeur",
+  "Depth layers camera field": "Champ caméra par plans de profondeur",
+  "Draw motion track": "Dessiner un motion track",
+  "Enable or disable motion layer": "Activer ou désactiver le calque de mouvement",
+  "Erase motion track": "Effacer un motion track",
+  Foreground: "Premier plan",
+  "Foreground camera field": "Champ caméra premier plan",
+  "Ground parallax camera field": "Champ caméra parallaxe au sol",
+  "Motion Tracks": "Motion tracks",
+  "Motion interpolation": "Interpolation du mouvement",
+  "Motion key visibility": "Visibilité des clés de mouvement",
+  "Motion track timeline": "Timeline des motion tracks",
+  "Motion track tools": "Outils motion track",
+  "No motion tracks": "Aucun motion track",
+  "Project selected object or world point": "Projeter l’objet sélectionné ou un point monde",
+  "Retime motion keys to playback range": "Recaler les clés de mouvement sur la plage de lecture",
+  "Select motion track": "Sélectionner un motion track",
+  "Subject camera field": "Champ caméra sujet",
+  Visible: "Visible",
   "1 optional adapter issue": "1 problème d’adaptateur optionnel",
   "1 key": "1 clé",
   "2D Radar Mini-Map": "Mini-carte radar 2D",
@@ -1516,21 +1539,21 @@ const _o = {
   "More viewport views": "Plus de vues",
   "World axis navigation": "Navigation des axes monde",
   "View: {axis} axis": "Vue : axe {axis}"
-}, q = ["OmniCam", "Director"], yt = "MajoorOmniCam.Locale", bt = "MajoorOmniCam.Defaults.Fps", _t = "MajoorOmniCam.Defaults.DurationSeconds", vt = "MajoorOmniCam.Defaults.Width", wt = "MajoorOmniCam.Defaults.Height", xt = "MajoorOmniCam.Defaults.RenderMode", St = "MajoorOmniCam.Defaults.Encoder", Mt = "MajoorOmniCam.Defaults.PlayblastResolution", Ct = "MajoorOmniCam.Defaults.PlayblastGrid", Dt = "MajoorOmniCam.Proxy.PointDensity", jt = "MajoorOmniCam.Proxy.PointSpread", Tt = "MajoorOmniCam.Proxy.PointColor", It = "MajoorOmniCam.Proxy.CardFit", Et = "MajoorOmniCam.Viewport.Quality", kt = "MajoorOmniCam.Viewport.Adaptive", Ot = "MajoorOmniCam.Viewport.BackgroundColor", At = "MajoorOmniCam.Display.Grid", Pt = "MajoorOmniCam.Display.Radar", zt = "MajoorOmniCam.Display.CameraPaths", Nt = "MajoorOmniCam.Display.CameraGizmos", Ft = "MajoorOmniCam.Display.LookAt", Rt = "MajoorOmniCam.Display.HelperAxes", Lt = "MajoorOmniCam.Display.Gizmo", Vt = "MajoorOmniCam.Display.Guides", Kt = "MajoorOmniCam.Display.SafeAreas", Gt = "MajoorOmniCam.Display.ResolutionGate", Bt = "MajoorOmniCam.Display.AspectRatio", Ht = "MajoorOmniCam.Display.BurnIn", Wt = "MajoorOmniCam.Display.SpeedHeatmap", qt = "MajoorOmniCam.Display.Wireframe", $t = "MajoorOmniCam.Display.Vertices", Ut = "MajoorOmniCam.Tools.SelectMode", Xt = "MajoorOmniCam.Tools.GizmoMode", Yt = "MajoorOmniCam.Tools.GizmoSpace", Zt = "MajoorOmniCam.Tools.SpatialSnapMode", Qt = "MajoorOmniCam.Tools.SpatialGridSize", Jt = "MajoorOmniCam.Navigation.Profile", ea = "MajoorOmniCam.Navigation.FlySpeed", ta = "MajoorOmniCam.Navigation.ViewMode", aa = "MajoorOmniCam.Timeline.SnapEnabled", oa = "MajoorOmniCam.Timeline.SnapFrames", ra = "MajoorOmniCam.Timeline.AutoKey", na = "MajoorOmniCam.Timeline.TimecodeMode", sa = "MajoorOmniCam.Timeline.LoopPlayback", ia = "MajoorOmniCam.Interface.Density", ca = "MajoorOmniCam.Interface.PreviewLayout", la = "MajoorOmniCam.Interface.CameraPreviews", ma = "MajoorOmniCam.History.Limit";
-function E(e, t, a, o, r) {
-  return { id: e, category: [...q, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
+}, W = ["OmniCam", "Director"], bt = "MajoorOmniCam.Locale", _t = "MajoorOmniCam.Defaults.Fps", vt = "MajoorOmniCam.Defaults.DurationSeconds", wt = "MajoorOmniCam.Defaults.Width", St = "MajoorOmniCam.Defaults.Height", xt = "MajoorOmniCam.Defaults.RenderMode", Mt = "MajoorOmniCam.Defaults.Encoder", Ct = "MajoorOmniCam.Defaults.PlayblastResolution", Dt = "MajoorOmniCam.Defaults.PlayblastGrid", jt = "MajoorOmniCam.Proxy.PointDensity", Et = "MajoorOmniCam.Proxy.PointSpread", Tt = "MajoorOmniCam.Proxy.PointColor", It = "MajoorOmniCam.Proxy.CardFit", kt = "MajoorOmniCam.Viewport.Quality", Ot = "MajoorOmniCam.Viewport.Adaptive", At = "MajoorOmniCam.Viewport.BackgroundColor", Pt = "MajoorOmniCam.Display.Grid", zt = "MajoorOmniCam.Display.Radar", Nt = "MajoorOmniCam.Display.CameraPaths", Ft = "MajoorOmniCam.Display.CameraGizmos", Rt = "MajoorOmniCam.Display.LookAt", Lt = "MajoorOmniCam.Display.HelperAxes", Kt = "MajoorOmniCam.Display.Gizmo", Vt = "MajoorOmniCam.Display.Guides", Gt = "MajoorOmniCam.Display.SafeAreas", Bt = "MajoorOmniCam.Display.ResolutionGate", Ht = "MajoorOmniCam.Display.AspectRatio", qt = "MajoorOmniCam.Display.BurnIn", Wt = "MajoorOmniCam.Display.SpeedHeatmap", $t = "MajoorOmniCam.Display.Wireframe", Ut = "MajoorOmniCam.Display.Vertices", Xt = "MajoorOmniCam.Tools.SelectMode", Yt = "MajoorOmniCam.Tools.GizmoMode", Zt = "MajoorOmniCam.Tools.GizmoSpace", Qt = "MajoorOmniCam.Tools.SpatialSnapMode", Jt = "MajoorOmniCam.Tools.SpatialGridSize", ea = "MajoorOmniCam.Navigation.Profile", ta = "MajoorOmniCam.Navigation.FlySpeed", aa = "MajoorOmniCam.Navigation.ViewMode", oa = "MajoorOmniCam.Timeline.SnapEnabled", ra = "MajoorOmniCam.Timeline.SnapFrames", na = "MajoorOmniCam.Timeline.AutoKey", sa = "MajoorOmniCam.Timeline.TimecodeMode", ia = "MajoorOmniCam.Timeline.LoopPlayback", ca = "MajoorOmniCam.Interface.Density", la = "MajoorOmniCam.Interface.PreviewLayout", ma = "MajoorOmniCam.Interface.CameraPreviews", da = "MajoorOmniCam.History.Limit";
+function I(e, t, a, o, r) {
+  return { id: e, category: [...W, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
 }
 function P(e, t, a, o, r, n) {
-  return { id: e, category: [...q, t], name: a, tooltip: o, type: "combo", options: r, defaultValue: n };
+  return { id: e, category: [...W, t], name: a, tooltip: o, type: "combo", options: r, defaultValue: n };
 }
 function B(e, t, a, o, r, n) {
-  return { id: e, category: [...q, t], name: a, tooltip: o, type: "slider", attrs: r, defaultValue: n };
+  return { id: e, category: [...W, t], name: a, tooltip: o, type: "slider", attrs: r, defaultValue: n };
 }
-function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
+function So({ onLocaleChange: e, onQualityChange: t } = {}) {
   return [
     {
-      id: yt,
-      category: [...q, "Language"],
+      id: bt,
+      category: [...W, "Language"],
       name: "Viewport language",
       tooltip: "Language of the OmniCam Director viewport. 'Follow ComfyUI' uses the ComfyUI locale.",
       type: "combo",
@@ -1543,7 +1566,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       onChange: () => e?.()
     },
     B(
-      bt,
+      _t,
       "Defaults",
       "Default FPS",
       "Frame rate applied to newly created Director nodes.",
@@ -1551,7 +1574,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       24
     ),
     B(
-      _t,
+      vt,
       "Defaults",
       "Default duration (seconds)",
       "Timeline duration applied to newly created Director nodes.",
@@ -1559,7 +1582,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       5
     ),
     B(
-      vt,
+      wt,
       "Defaults",
       "Default width",
       "Output width applied to newly created Director nodes.",
@@ -1567,7 +1590,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       1280
     ),
     B(
-      wt,
+      St,
       "Defaults",
       "Default height",
       "Output height applied to newly created Director nodes.",
@@ -1583,7 +1606,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "omni_ref"
     ),
     P(
-      St,
+      Mt,
       "Defaults",
       "Default playblast encoder",
       "WebCodecs is deterministic; realtime is the MediaRecorder fallback.",
@@ -1594,7 +1617,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "auto"
     ),
     P(
-      Mt,
+      Ct,
       "Defaults",
       "Default playblast resolution",
       "Drawing-buffer size of the recorded playblast. 'Match node output' locks it to the node's width x height.",
@@ -1606,15 +1629,15 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "viewport"
     ),
-    E(
-      Ct,
+    I(
+      Dt,
       "Defaults",
       "Keep the grid in the playblast",
       "Records the floor grid into the playblast instead of hiding it for the capture.",
       !1
     ),
     P(
-      Dt,
+      jt,
       "Proxy",
       "Default point density",
       "Point count of the omni-reference point field.",
@@ -1622,7 +1645,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "balanced"
     ),
     P(
-      jt,
+      Et,
       "Proxy",
       "Default point spread",
       "How the reference points are distributed around the scene.",
@@ -1635,7 +1658,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
     ),
     {
       id: Tt,
-      category: [...q, "Proxy"],
+      category: [...W, "Proxy"],
       name: "Default point colour",
       tooltip: "Colour of the reference point field.",
       type: "color",
@@ -1654,8 +1677,8 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "contain"
     ),
     {
-      id: Et,
-      category: [...q, "Viewport"],
+      id: kt,
+      category: [...W, "Viewport"],
       name: "Studio quality",
       tooltip: "Image-based lighting and soft shadows in the editing viewport. Lower it on a modest GPU.",
       type: "combo",
@@ -1667,129 +1690,129 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       defaultValue: "balanced",
       onChange: (a) => t?.(a)
     },
-    E(
-      kt,
+    I(
+      Ot,
       "Viewport",
       "Drop quality when the viewport stutters",
       "Steps the studio quality down automatically if navigation falls below ~40fps, and leaves it there for the session.",
       !0
     ),
     {
-      id: Ot,
-      category: [...q, "Viewport"],
+      id: At,
+      category: [...W, "Viewport"],
       name: "Default background colour",
       tooltip: "Viewport background. Leave it at the default to keep the studio sky.",
       type: "color",
       defaultValue: "121212"
     },
-    E(
-      At,
+    I(
+      Pt,
       "Display",
       "Show grid by default",
       "Shows the viewport floor grid on newly created Director nodes.",
       !0
     ),
-    E(
-      Pt,
+    I(
+      zt,
       "Display",
       "Show camera mini-map by default",
       "Shows the radar mini-map on newly created Director nodes.",
       !1
     ),
-    E(
-      zt,
+    I(
+      Nt,
       "Display",
       "Show camera paths by default",
       "Shows camera trajectories on newly created Director nodes.",
       !0
     ),
-    E(
-      Nt,
+    I(
+      Ft,
       "Display",
       "Show camera gizmos by default",
       "Shows camera bodies and frustums on newly created Director nodes.",
       !0
     ),
-    E(
-      Ft,
+    I(
+      Rt,
       "Display",
       "Show look-at targets by default",
       "Shows camera look-at lines and target crosshairs on newly created Director nodes.",
       !0
     ),
-    E(
-      Rt,
+    I(
+      Lt,
       "Display",
       "Show helper axes by default",
       "Shows null-object axis helpers on newly created Director nodes.",
       !0
     ),
-    E(
-      Lt,
+    I(
+      Kt,
       "Display",
       "Show transform gizmo by default",
       "Shows transform and axis gizmos on newly created Director nodes.",
       !0
     ),
-    E(
+    I(
       Vt,
       "Display",
       "Show rule-of-thirds guides by default",
       "Shows the rule-of-thirds grid and centre crosshair in camera view.",
       !0
     ),
-    E(
-      Kt,
+    I(
+      Gt,
       "Display",
       "Show safe areas by default",
       "Shows the 90% action-safe and 80% title-safe rectangles.",
       !1
     ),
-    E(
-      Gt,
+    I(
+      Bt,
       "Display",
       "Show resolution gate by default",
       "Masks the viewport down to the node's output width x height.",
       !1
     ),
     P(
-      Bt,
+      Ht,
       "Display",
       "Default aspect ratio",
       "Framing ratio used by the resolution gate. 'Auto' follows the node output.",
       ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"],
       "auto"
     ),
-    E(
-      Ht,
+    I(
+      qt,
       "Display",
       "Show burn-in data by default",
       "Overlays frame, fps, FOV and render mode along the bottom of the viewport.",
       !1
     ),
-    E(
+    I(
       Wt,
       "Display",
       "Show speed map by default",
       "Colours the camera path by travel speed.",
       !1
     ),
-    E(
-      qt,
+    I(
+      $t,
       "Display",
       "Show wireframe by default",
       "Draws mesh edges over scene objects. Skinned models follow their animation.",
       !1
     ),
-    E(
-      $t,
+    I(
+      Ut,
       "Display",
       "Show mesh vertices by default",
       "Draws mesh vertices as points over scene objects.",
       !1
     ),
     P(
-      Ut,
+      Xt,
       "Tools",
       "Default selection mode",
       "Component level the viewport selects at.",
@@ -1797,7 +1820,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "object"
     ),
     P(
-      Xt,
+      Yt,
       "Tools",
       "Default transform mode",
       "Transform the gizmo starts in.",
@@ -1805,7 +1828,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "translate"
     ),
     P(
-      Yt,
+      Zt,
       "Tools",
       "Default gizmo space",
       "World-aligned axes, or the selected object's own orientation.",
@@ -1813,7 +1836,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "world"
     ),
     P(
-      Zt,
+      Qt,
       "Tools",
       "Default spatial snapping",
       "Snap dragged transforms to a grid increment or to nearby vertices.",
@@ -1825,7 +1848,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "none"
     ),
     B(
-      Qt,
+      Jt,
       "Tools",
       "Default snap grid size",
       "Grid increment used by spatial grid snapping, in scene units.",
@@ -1833,7 +1856,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       0.5
     ),
     P(
-      Jt,
+      ea,
       "Navigation",
       "Default navigation profile",
       "Viewport navigation profile applied to newly created Director nodes.",
@@ -1844,7 +1867,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "maya"
     ),
     B(
-      ea,
+      ta,
       "Navigation",
       "Default fly speed",
       "WASD / QE fly speed applied to newly created Director nodes.",
@@ -1852,37 +1875,37 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       1
     ),
     P(
-      ta,
+      aa,
       "Navigation",
       "Default view",
       "View a newly created Director node opens in.",
       ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"],
       "camera"
     ),
-    E(
-      aa,
+    I(
+      oa,
       "Timeline",
       "Enable timeline snapping by default",
       "Snaps dragged keyframes to the frame increment below.",
       !0
     ),
     B(
-      oa,
+      ra,
       "Timeline",
       "Default timeline snap",
       "Frame increment used by timeline snapping on newly created Director nodes.",
       { min: 1, max: 24, step: 1 },
       1
     ),
-    E(
-      ra,
+    I(
+      na,
       "Timeline",
       "Enable Auto Key by default",
       "Enables Auto Key on newly created Director nodes.",
       !1
     ),
     P(
-      na,
+      sa,
       "Timeline",
       "Default time display",
       "Elapsed time, or HH:MM:SS:FF timecode.",
@@ -1892,15 +1915,15 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "time"
     ),
-    E(
-      sa,
+    I(
+      ia,
       "Timeline",
       "Loop playback by default",
       "Restarts playback at the first frame instead of stopping at the last.",
       !1
     ),
     P(
-      ia,
+      ca,
       "Interface",
       "Default interface density",
       "How much of the editor chrome is shown.",
@@ -1912,7 +1935,7 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       "advanced"
     ),
     P(
-      ca,
+      la,
       "Interface",
       "Default camera preview layout",
       "How the camera preview tiles are arranged.",
@@ -1924,15 +1947,15 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "auto"
     ),
-    E(
-      la,
+    I(
+      ma,
       "Interface",
       "Show camera previews by default",
       "Opens newly created Director nodes with the camera preview strip visible.",
       !0
     ),
     B(
-      ma,
+      da,
       "History",
       "Undo history limit",
       "Maximum number of Undo steps held by each Director editor.",
@@ -1941,126 +1964,126 @@ function vo({ onLocaleChange: e, onQualityChange: t } = {}) {
     )
   ];
 }
-const wo = vo({
-  onLocaleChange: () => pa(),
-  onQualityChange: (e) => Co(e)
+const xo = So({
+  onLocaleChange: () => fa(),
+  onQualityChange: (e) => jo(e)
 });
-let da = null;
-function V(e, t) {
+let pa = null;
+function K(e, t) {
   try {
-    const a = da?.extensionManager?.setting?.get(e);
+    const a = pa?.extensionManager?.setting?.get(e);
     return a ?? t;
   } catch {
     return t;
   }
 }
 function H(e, t, a, o, r = !1) {
-  const n = Number(V(e, t)), s = Number.isFinite(n) ? Math.min(o, Math.max(a, n)) : t;
+  const n = Number(K(e, t)), s = Number.isFinite(n) ? Math.min(o, Math.max(a, n)) : t;
   return r ? Math.round(s) : s;
 }
 function O(e, t) {
-  const a = V(e, t);
+  const a = K(e, t);
   return typeof a == "boolean" ? a : t;
 }
 function z(e, t, a) {
-  const o = String(V(e, t));
+  const o = String(K(e, t));
   return a.includes(o) ? o : t;
 }
-function at(e, t) {
-  const a = String(V(e, t) || "").trim(), o = a.startsWith("#") ? a.slice(1) : a;
+function ot(e, t) {
+  const a = String(K(e, t) || "").trim(), o = a.startsWith("#") ? a.slice(1) : a;
   return /^[0-9a-fA-F]{6}$/.test(o) ? `#${o.toLowerCase()}` : t;
 }
-function pa() {
-  const e = String(V(yt, "auto")), t = String(V("Comfy.Locale", "en") || "en").slice(0, 2).toLowerCase();
-  Da(e === "auto" ? t : e);
+function fa() {
+  const e = String(K(bt, "auto")), t = String(K("Comfy.Locale", "en") || "en").slice(0, 2).toLowerCase();
+  ja(e === "auto" ? t : e);
 }
-const Ee = /* @__PURE__ */ new Set();
-function xo(e) {
-  Ee.add(e);
+const Ie = /* @__PURE__ */ new Set();
+function Mo(e) {
+  Ie.add(e);
 }
-function Or(e) {
-  Ee.delete(e);
+function Pr(e) {
+  Ie.delete(e);
 }
-function So(e) {
+function Co(e) {
   if (!(e instanceof Node)) return null;
-  for (const t of Ee)
+  for (const t of Ie)
     if (!t.disposed && t.root?.contains(e)) return t;
   return null;
 }
-function fa() {
-  return String(V(Et, "balanced"));
-}
-function Mo() {
-  return V(kt, !0) !== !1;
-}
-function Co(e = fa()) {
-  for (const t of Ee)
-    t.webgl?.setViewportQuality?.(e), t.cameraWebgl?.setViewportQuality?.(e), t.invalidate?.();
+function ua() {
+  return String(K(kt, "balanced"));
 }
 function Do() {
+  return K(Ot, !0) !== !1;
+}
+function jo(e = ua()) {
+  for (const t of Ie)
+    t.webgl?.setViewportQuality?.(e), t.cameraWebgl?.setViewportQuality?.(e), t.invalidate?.();
+}
+function Eo() {
   return {
-    fps: H(bt, 24, 1, 120, !0),
-    durationSeconds: H(_t, 5, 1, 120, !0),
-    width: H(vt, 1280, 64, 4096, !0),
-    height: H(wt, 720, 64, 4096, !0),
-    renderMode: String(V(xt, "omni_ref")),
-    encoder: String(V(St, "auto")),
-    playblastResolution: z(Mt, "viewport", ["viewport", "half", "output", "double"]),
-    playblastGrid: O(Ct, !1),
-    pointDensity: z(Dt, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
-    pointSpread: z(jt, "all_views", ["all_views", "ground_focus", "dome"]),
-    pointColor: at(Tt, "#cbd5e1"),
+    fps: H(_t, 24, 1, 120, !0),
+    durationSeconds: H(vt, 5, 1, 120, !0),
+    width: H(wt, 1280, 64, 4096, !0),
+    height: H(St, 720, 64, 4096, !0),
+    renderMode: String(K(xt, "omni_ref")),
+    encoder: String(K(Mt, "auto")),
+    playblastResolution: z(Ct, "viewport", ["viewport", "half", "output", "double"]),
+    playblastGrid: O(Dt, !1),
+    pointDensity: z(jt, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
+    pointSpread: z(Et, "all_views", ["all_views", "ground_focus", "dome"]),
+    pointColor: ot(Tt, "#cbd5e1"),
     cardFit: z(It, "contain", ["contain", "cover", "stretch"]),
-    backgroundColor: at(Ot, "#121212"),
-    showGrid: O(At, !0),
-    showRadar: O(Pt, !1),
-    showCameraPaths: O(zt, !0),
-    showCameraGizmos: O(Nt, !0),
-    showLookAt: O(Ft, !0),
-    showHelperAxes: O(Rt, !0),
-    showGizmo: O(Lt, !0),
+    backgroundColor: ot(At, "#121212"),
+    showGrid: O(Pt, !0),
+    showRadar: O(zt, !1),
+    showCameraPaths: O(Nt, !0),
+    showCameraGizmos: O(Ft, !0),
+    showLookAt: O(Rt, !0),
+    showHelperAxes: O(Lt, !0),
+    showGizmo: O(Kt, !0),
     guides: O(Vt, !0),
-    safeAreas: O(Kt, !1),
-    resolutionGate: O(Gt, !1),
-    aspectRatio: z(Bt, "auto", ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"]),
-    burnIn: O(Ht, !1),
+    safeAreas: O(Gt, !1),
+    resolutionGate: O(Bt, !1),
+    aspectRatio: z(Ht, "auto", ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"]),
+    burnIn: O(qt, !1),
     speedHeatmap: O(Wt, !1),
-    showWireframe: O(qt, !1),
-    showVertices: O($t, !1),
-    selectMode: z(Ut, "object", ["object", "vertex", "edge", "face"]),
-    gizmoMode: z(Xt, "translate", ["translate", "rotate", "scale"]),
-    gizmoSpace: z(Yt, "world", ["world", "local"]),
-    spatialSnapMode: z(Zt, "none", ["none", "grid", "vertex"]),
-    spatialGridSize: H(Qt, 0.5, 0.01, 100),
-    navigationProfile: z(Jt, "maya", ["maya", "blender"]),
-    flySpeed: H(ea, 1, 0.05, 5),
-    viewMode: z(ta, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
-    snapEnabled: O(aa, !0),
-    snapFrames: H(oa, 1, 1, 24, !0),
-    autoKey: O(ra, !1),
-    timecodeMode: z(na, "time", ["time", "timecode"]),
-    loopPlayback: O(sa, !1),
-    uiDensity: z(ia, "advanced", ["basic", "animation", "advanced"]),
-    previewLayout: z(ca, "auto", ["auto", "1", "2", "4"]),
-    cameraViewVisible: O(la, !0),
-    undoLimit: H(ma, 100, 10, 500, !0)
+    showWireframe: O($t, !1),
+    showVertices: O(Ut, !1),
+    selectMode: z(Xt, "object", ["object", "vertex", "edge", "face"]),
+    gizmoMode: z(Yt, "translate", ["translate", "rotate", "scale"]),
+    gizmoSpace: z(Zt, "world", ["world", "local"]),
+    spatialSnapMode: z(Qt, "none", ["none", "grid", "vertex"]),
+    spatialGridSize: H(Jt, 0.5, 0.01, 100),
+    navigationProfile: z(ea, "maya", ["maya", "blender"]),
+    flySpeed: H(ta, 1, 0.05, 5),
+    viewMode: z(aa, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
+    snapEnabled: O(oa, !0),
+    snapFrames: H(ra, 1, 1, 24, !0),
+    autoKey: O(na, !1),
+    timecodeMode: z(sa, "time", ["time", "timecode"]),
+    loopPlayback: O(ia, !1),
+    uiDensity: z(ca, "advanced", ["basic", "animation", "advanced"]),
+    previewLayout: z(la, "auto", ["auto", "1", "2", "4"]),
+    cameraViewVisible: O(ma, !0),
+    undoLimit: H(da, 100, 10, 500, !0)
   };
 }
-function jo(e) {
-  da = e, Ca("fr", _o), pa();
-}
 function To(e) {
-  const t = fa(), a = Mo();
+  pa = e, Da("fr", wo), fa();
+}
+function Io(e) {
+  const t = ua(), a = Do();
   for (const o of [e.webgl, e.cameraWebgl])
     o && (o.adaptiveQuality = a, o.onQualityDowngrade = (r) => e.setStatus?.(
       _("Studio quality lowered to {level} to keep the viewport responsive").replace("{level}", r)
     ), o.setViewportQuality?.(t));
 }
-function Io(e) {
-  xo(e), To(e);
+function ko(e) {
+  Mo(e), Io(e);
 }
-function Eo(e) {
-  const t = Do();
+function Oo(e) {
+  const t = Eo();
   e.fpsWidget && (e.fpsWidget.value = t.fps), e.durationWidget && (e.durationWidget.value = t.durationSeconds), e.widthWidget && (e.widthWidget.value = t.width), e.heightWidget && (e.heightWidget.value = t.height), e.modeWidget && (e.modeWidget.value = t.renderMode);
   const a = e.root?.querySelector('[data-role="encoder"]');
   a && (a.value = t.encoder), e.cameraSpeed = t.flySpeed, e.history && (e.history.limit = t.undoLimit), Object.assign(e.state, {
@@ -2103,11 +2126,11 @@ function Eo(e) {
     camera_view_visible: t.cameraViewVisible
   }), e.syncFromWidgets?.();
 }
-function ko(e, t) {
+function Ao(e, t) {
   return e[0] * t[0] + e[1] * t[1] + e[2] * t[2];
 }
-function Oo(e, t, a, o, r) {
-  const { right: n, up: s, forward: c } = R(t), l = t.position, m = [a[0] - l[0], a[1] - l[1], a[2] - l[2]], i = ko(m, c);
+function Po(e, t, a, o, r) {
+  const { right: n, up: s, forward: c } = R(t), l = t.position, m = [a[0] - l[0], a[1] - l[1], a[2] - l[2]], i = Ao(m, c);
   let p, d;
   if (t.camera_type === "orthographic") {
     const u = 5 / Math.max(0.01, t.zoom || 1), h = u * o / Math.max(1, r);
@@ -2118,26 +2141,26 @@ function Oo(e, t, a, o, r) {
   }
   return [0, 1, 2].map((u) => l[u] + c[u] * i + n[u] * p + s[u] * d);
 }
-function Ao(e) {
+function zo(e) {
   return e === "bezier" ? "bezier" : "smooth";
 }
-function Ar(e) {
+function zr(e) {
   for (let t = e?.object; t; t = t.parent)
     if (t.userData?.omnicamPathKey) return t.userData.omnicamPathKey;
   return null;
 }
-function oe(e) {
+function ae(e) {
   return e.recording ? e.playblastCameraAtFrame() : e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode];
 }
-function Po(e, t, a) {
+function No(e, t, a) {
   const o = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], r = a?.rotation || t?.rotation || [0, 0, 0];
   return e.state.gizmo_space === "local" ? o.map((n) => Ce(n, r)) : o;
 }
-function zo(e) {
+function Fo(e) {
   if (e.selectedEntity === "object") {
     const t = e.selectedObject();
     if (!t || t.locked) return null;
-    const a = t.type === "model" || t.type === "glb" ? e.webgl?.getObjectWorldCenter?.(t.id) : null, o = t.keyframes?.length ? Te(t, e.frame) : t, r = a || o.position || [0, 0, 0];
+    const a = t.type === "model" || t.type === "glb" ? e.webgl?.getObjectWorldCenter?.(t.id) : null, o = t.keyframes?.length ? Ee(t, e.frame) : t, r = a || o.position || [0, 0, 0];
     return {
       type: "object",
       object: t,
@@ -2149,42 +2172,42 @@ function zo(e) {
   if (e.state.view_mode !== "camera") {
     if (e.selectedEntity === "camera_target") {
       const t = e.activeCameraTrack();
-      return { type: "camera_target", position: Se(t, e.frame, e.state.objects).target || e.camera.target || [0, 1.5, 0], rotation: [0, 0, 0] };
+      return { type: "camera_target", position: xe(t, e.frame, e.state.objects).target || e.camera.target || [0, 1.5, 0], rotation: [0, 0, 0] };
     }
     if (e.selectedEntity === "camera") {
       const t = e.activeCameraTrack();
-      return { type: "camera", position: Se(t, e.frame, e.state.objects).position || e.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
+      return { type: "camera", position: xe(t, e.frame, e.state.objects).position || e.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
     }
   }
   return null;
 }
-function No(e) {
-  const t = zo(e);
+function Ro(e) {
+  const t = Fo(e);
   if (!t) return null;
-  const a = oe(e), o = t.position;
+  const a = ae(e), o = t.position;
   if (!o || !Number.isFinite(o[0]) || !Number.isFinite(o[1]) || !Number.isFinite(o[2])) return null;
   const r = L(o, a, e.canvas.width, e.canvas.height);
   if (!r || !Number.isFinite(r[0]) || !Number.isFinite(r[1])) return null;
-  const n = Math.max(0.7, $(A(a.position, o)) * 0.12), s = t.type === "object" ? Po(e, t.object, t) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const n = Math.max(0.7, $(A(a.position, o)) * 0.12), s = t.type === "object" ? No(e, t.object, t) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
   if (e.state.gizmo_mode !== "rotate" || t.type === "camera_target")
     return {
       entity: t,
       center: r,
       worldLength: n,
-      handles: s.map((l, m) => ({ index: m, axis: l, points: [r, L(S(o, C(l, n)), a, e.canvas.width, e.canvas.height)] })).filter((l) => l.points[1] && Number.isFinite(l.points[1][0]) && Number.isFinite(l.points[1][1]))
+      handles: s.map((l, m) => ({ index: m, axis: l, points: [r, L(x(o, C(l, n)), a, e.canvas.width, e.canvas.height)] })).filter((l) => l.points[1] && Number.isFinite(l.points[1][0]) && Number.isFinite(l.points[1][1]))
     };
   const c = s.map((l, m) => {
     const i = Math.abs(l[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], p = le(ce(l, i)), d = le(ce(l, p)), u = [];
     for (let h = 0; h <= 48; h++) {
-      const g = h / 48 * Math.PI * 2, v = L(S(o, S(C(p, Math.cos(g) * n), C(d, Math.sin(g) * n))), a, e.canvas.width, e.canvas.height);
+      const g = h / 48 * Math.PI * 2, v = L(x(o, x(C(p, Math.cos(g) * n), C(d, Math.sin(g) * n))), a, e.canvas.width, e.canvas.height);
       v && Number.isFinite(v[0]) && Number.isFinite(v[1]) && u.push(v);
     }
     return { index: m, axis: l, points: u };
   });
   return { entity: t, center: r, worldLength: n, handles: c };
 }
-function ua(e, t) {
-  const a = No(e);
+function ha(e, t) {
+  const a = Ro(e);
   if (!a) return null;
   const o = Math.min(2, window.devicePixelRatio || 1), r = Math.hypot(t[0] - a.center[0], t[1] - a.center[1]);
   if (a.entity.type === "object" && (e.state.gizmo_mode === "translate" || e.state.gizmo_mode === "scale") && r <= 11 * o) {
@@ -2202,12 +2225,12 @@ function ua(e, t) {
   let s = null;
   for (const c of a.handles)
     for (let l = 0; l < c.points.length - 1; l++) {
-      const m = c.points[l], i = c.points[l + 1], p = Ga(t, m, i);
+      const m = c.points[l], i = c.points[l + 1], p = Ha(t, m, i);
       (!s || p < s.distance) && (s = { ...c, distance: p, segment: [m, i], worldLength: a.worldLength, entity: a.entity });
     }
   return s?.distance <= 18 * o ? s : null;
 }
-function Fo(e, t) {
+function Lo(e, t) {
   const a = e.webgl?.pick?.(t[0], t[1], e.canvas.width, e.canvas.height);
   if (a) {
     if (typeof a == "string") {
@@ -2221,7 +2244,7 @@ function Fo(e, t) {
     const s = e.state.objects.find((c) => c.id === a.id);
     return s ? { type: "object", object: s } : null;
   }
-  const o = oe(e);
+  const o = ae(e);
   if (e.state.view_mode !== "camera") {
     for (const s of e.state.cameras) {
       for (const i of s.keyframes || []) {
@@ -2231,7 +2254,7 @@ function Fo(e, t) {
         if (d && Math.hypot(t[0] - d[0], t[1] - d[1]) <= 16 * Math.min(2, window.devicePixelRatio || 1))
           return { type: "camera_keyframe", camera: s, keyframe: i };
       }
-      const c = Se(s, e.frame, e.state.objects), l = L(c.target || [0, 1.5, 0], o, e.canvas.width, e.canvas.height);
+      const c = xe(s, e.frame, e.state.objects), l = L(c.target || [0, 1.5, 0], o, e.canvas.width, e.canvas.height);
       if (l && Math.hypot(t[0] - l[0], t[1] - l[1]) <= 18 * Math.min(2, window.devicePixelRatio || 1))
         return { type: "camera_target", camera: s };
       const m = L(c.position || [6, 4, 6], o, e.canvas.width, e.canvas.height);
@@ -2251,42 +2274,42 @@ function Fo(e, t) {
   let n = null;
   for (const s of e.state.objects) {
     if (s.enabled === !1) continue;
-    const c = s.keyframes?.length ? Te(s, e.frame) : s, l = L(c.position || [0, 0, 0], o, e.canvas.width, e.canvas.height);
+    const c = s.keyframes?.length ? Ee(s, e.frame) : s, l = L(c.position || [0, 0, 0], o, e.canvas.width, e.canvas.height);
     if (!l) continue;
     const m = Math.hypot(t[0] - l[0], t[1] - l[1]);
     (!n || m < n.distance) && (n = { object: s, distance: m });
   }
   return n?.distance <= 22 * Math.min(2, window.devicePixelRatio || 1) ? { type: "object", object: n.object } : null;
 }
-const Ve = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, Ke = (e, t) => Math.round(e / t) * t;
-function ha(e) {
+const Ke = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, Ve = (e, t) => Math.round(e / t) * t;
+function ga(e) {
   const t = e.selectedObjectIds instanceof Set && e.selectedObjectIds.size ? e.selectedObjectIds : new Set(e.selectedObjectId ? [e.selectedObjectId] : []);
   return e.state.objects.filter((a) => t.has(a.id) && !a.locked);
 }
-function Ro(e, t) {
-  const a = ha(e);
+function Ko(e, t) {
+  const a = ga(e);
   if (!a.length || !["translate", "rotate", "scale"].includes(t)) return !1;
   e.checkpoint(`${t[0].toUpperCase()}${t.slice(1)} selection`);
   for (const m of a) e.beginObjectEdit(m);
-  const o = a.map((m) => ({ object: m, transform: ae(m) })), r = o.reduce((m, i) => S(m, i.transform.position), [0, 0, 0]).map((m) => m / o.length), n = [e.canvas.width * 0.5, e.canvas.height * 0.5], s = e.lastViewportPointer || n, c = e.interactionElement.getBoundingClientRect(), l = e.lastPointerEvent || { clientX: c.left + s[0] * c.width / e.canvas.width, clientY: c.top + s[1] * c.height / e.canvas.height };
+  const o = a.map((m) => ({ object: m, transform: te(m) })), r = o.reduce((m, i) => x(m, i.transform.position), [0, 0, 0]).map((m) => m / o.length), n = [e.canvas.width * 0.5, e.canvas.height * 0.5], s = e.lastViewportPointer || n, c = e.interactionElement.getBoundingClientRect(), l = e.lastPointerEvent || { clientX: c.left + s[0] * c.width / e.canvas.width, clientY: c.top + s[1] * c.height / e.canvas.height };
   return e.modalTransform = { mode: t, axis: null, numeric: "", start: s, lastEvent: l, snapshots: o, pivot: r }, e.setTransformMode(t), e.setStatus(`${t.toUpperCase()} · move mouse · X/Y/Z constrain · type value · Enter confirm · Esc cancel`), e.render(), !0;
 }
-function Lo(e) {
+function Vo(e) {
   if (!e.numeric || e.numeric === "-" || e.numeric === ".") return null;
   const t = Number(e.numeric);
   return Number.isFinite(t) ? t : null;
 }
-function Vo(e, t, a, o, r) {
+function Go(e, t, a, o, r) {
   const n = r ? "grid" : e.state.spatial_snap_mode;
   if (n === "grid") {
     const s = e.state.spatial_grid_size || 0.5;
-    return a.map((c) => c.map((l) => Ke(l, s)));
+    return a.map((c) => c.map((l) => Ve(l, s)));
   }
   if (n === "vertex" && o) {
     const s = e.webgl?.pickSubElement?.(o[0], o[1], e.canvas.width, e.canvas.height, "vertex");
     if (s?.point && !t.snapshots.some((c) => c.object.id === s.objectId)) {
-      const c = a.reduce((m, i) => S(m, i), [0, 0, 0]).map((m) => m / a.length), l = A(s.point, c);
-      return a.map((m) => S(m, l));
+      const c = a.reduce((m, i) => x(m, i), [0, 0, 0]).map((m) => m / a.length), l = A(s.point, c);
+      return a.map((m) => x(m, l));
     }
   }
   return a;
@@ -2300,60 +2323,60 @@ function _e(e, t) {
     (t.clientY - o.top) * e.canvas.height / Math.max(1, o.height)
   ];
   e.lastViewportPointer = r;
-  const n = r[0] - a.start[0], s = r[1] - a.start[1], c = t.shiftKey ? 0.1 : 1, l = Lo(a), m = a.axis ? Ve[a.axis] : null, i = e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode], p = R(i), d = i.camera_type === "orthographic" ? 10 / (Math.max(0.01, i.zoom || 1) * Math.max(1, e.canvas.height)) : Math.hypot(...A(i.position, i.target)) * 25e-4;
-  let u = a.snapshots.map((x) => [...x.transform.position]);
+  const n = r[0] - a.start[0], s = r[1] - a.start[1], c = t.shiftKey ? 0.1 : 1, l = Vo(a), m = a.axis ? Ke[a.axis] : null, i = e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode], p = R(i), d = i.camera_type === "orthographic" ? 10 / (Math.max(0.01, i.zoom || 1) * Math.max(1, e.canvas.height)) : Math.hypot(...A(i.position, i.target)) * 25e-4;
+  let u = a.snapshots.map((S) => [...S.transform.position]);
   if (a.mode === "translate") {
-    const x = l ?? (n - s) * d * c, D = m ? C(m, x) : S(C(p.right, n * d * c), C(p.up, -s * d * c));
-    u = u.map((w) => S(w, D)), u = Vo(e, a, u, r, t.ctrlKey || t.metaKey);
+    const S = l ?? (n - s) * d * c, D = m ? C(m, S) : x(C(p.right, n * d * c), C(p.up, -s * d * c));
+    u = u.map((w) => x(w, D)), u = Go(e, a, u, r, t.ctrlKey || t.metaKey);
   }
-  const h = a.mode === "rotate" ? l ?? (n - s) * 0.5 * c : 0, g = a.mode === "scale" ? Math.max(0.01, l ?? 1 + (n - s) * 0.01 * c) : 1, v = m || Ve.z, y = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
-  a.snapshots.forEach((x, D) => {
-    const w = x.object;
+  const h = a.mode === "rotate" ? l ?? (n - s) * 0.5 * c : 0, g = a.mode === "scale" ? Math.max(0.01, l ?? 1 + (n - s) * 0.01 * c) : 1, v = m || Ke.z, y = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
+  a.snapshots.forEach((S, D) => {
+    const w = S.object;
     if (a.mode === "translate" && (w.position = u[D]), a.mode === "rotate") {
-      const T = y ? Ke(h, 15) : h, f = C(v, T);
-      w.position = S(a.pivot, Ce(A(x.transform.position, a.pivot), f)), w.rotation = S(x.transform.rotation, f);
+      const E = y ? Ve(h, 15) : h, f = C(v, E);
+      w.position = x(a.pivot, Ce(A(S.transform.position, a.pivot), f)), w.rotation = x(S.transform.rotation, f);
     }
     if (a.mode === "scale") {
-      const T = y ? Ke(g, 0.1) : g, f = m ? m.map((I) => I ? T : 1) : [T, T, T], M = A(x.transform.position, a.pivot);
-      w.position = S(a.pivot, M.map((I, N) => I * f[N])), w.size = x.transform.size.map((I, N) => Math.max(0.01, I * f[N]));
+      const E = y ? Ve(g, 0.1) : g, f = m ? m.map((T) => T ? E : 1) : [E, E, E], M = A(S.transform.position, a.pivot);
+      w.position = x(a.pivot, M.map((T, N) => T * f[N])), w.size = S.transform.size.map((T, N) => Math.max(0.01, T * f[N]));
     }
     e.commitObjectEdit(w);
   }), e.refreshInspector(), e.render();
   const b = `${a.axis ? ` ${a.axis.toUpperCase()}` : ""}${a.numeric ? ` = ${a.numeric}` : ""}`;
   return e.setStatus(`${a.mode.toUpperCase()}${b}`), !0;
 }
-function ga(e) {
+function ya(e) {
   return e.modalTransform ? (e.modalTransform = null, e.editingKeyFrame = null, e.scheduleSerialize(), e.refreshKeys(), e.drawCurveEditor(), e.render(), e.setStatus("Transform confirmed"), !0) : !1;
 }
-function ya(e) {
+function ba(e) {
   return e.modalTransform ? (e.modalTransform = null, e.undo(), e.setStatus("Transform cancelled"), !0) : !1;
 }
-function Ko(e, t) {
+function Bo(e, t) {
   const a = e.modalTransform;
   if (!a) return !1;
   const o = t.key.toLowerCase();
-  return o === "escape" ? ya(e) : o === "enter" || o === " " ? ga(e) : Ve[o] ? (a.axis = a.axis === o ? null : o, _e(e, a.lastEvent), !0) : /^[0-9]$/.test(o) || o === "." || o === "," || o === "-" && !a.numeric ? (a.numeric += o === "," ? "." : o, _e(e, a.lastEvent), !0) : (o === "backspace" && (a.numeric = a.numeric.slice(0, -1), _e(e, a.lastEvent)), !0);
+  return o === "escape" ? ba(e) : o === "enter" || o === " " ? ya(e) : Ke[o] ? (a.axis = a.axis === o ? null : o, _e(e, a.lastEvent), !0) : /^[0-9]$/.test(o) || o === "." || o === "," || o === "-" && !a.numeric ? (a.numeric += o === "," ? "." : o, _e(e, a.lastEvent), !0) : (o === "backspace" && (a.numeric = a.numeric.slice(0, -1), _e(e, a.lastEvent)), !0);
 }
 function ge(e, t, a) {
   !t || t.historyCheckpointed || (e.checkpoint(a), t.historyCheckpointed = !0);
 }
-function Go(e) {
+function Ho(e) {
   const t = globalThis.performance?.now?.() ?? Date.now();
   (!Number.isFinite(e.lastViewportWheelAt) || t - e.lastViewportWheelAt > 300) && e.checkpoint("Dolly viewport"), e.lastViewportWheelAt = t;
 }
-const se = (e, t) => Math.round(e / t) * t, Bo = (e, t) => e.map((a) => se(a, t)), Ge = (e, t) => e.camera_type === "orthographic" ? 10 / (Math.max(0.01, e.zoom || 1) * Math.max(1, t)) : $(A(e.position, e.target)) * 25e-4;
-function Q(e, t, a, o = []) {
+const se = (e, t) => Math.round(e / t) * t, qo = (e, t) => e.map((a) => se(a, t)), Ge = (e, t) => e.camera_type === "orthographic" ? 10 / (Math.max(0.01, e.zoom || 1) * Math.max(1, t)) : $(A(e.position, e.target)) * 25e-4;
+function Z(e, t, a, o = []) {
   const n = e.currentTransformEvent?.ctrlKey || e.currentTransformEvent?.metaKey ? "grid" : e.state.spatial_snap_mode;
-  if (n === "grid") return Bo(t, e.state.spatial_grid_size || 0.5);
+  if (n === "grid") return qo(t, e.state.spatial_grid_size || 0.5);
   if (n === "vertex" && a) {
     const s = e.webgl?.pickSubElement?.(a[0], a[1], e.canvas.width, e.canvas.height, "vertex");
     if (s?.point && !o.includes(s.objectId)) return [...s.point];
   }
   return t;
 }
-function Pr(e, t) {
+function Nr(e, t) {
   if (e.modalTransform) {
-    t.preventDefault?.(), t.stopPropagation?.(), t.button === 0 ? ga(e) : t.button === 2 && ya(e);
+    t.preventDefault?.(), t.stopPropagation?.(), t.button === 0 ? ya(e) : t.button === 2 && ba(e);
     return;
   }
   if (t.target?.closest?.("button,input,select")) return;
@@ -2362,7 +2385,7 @@ function Pr(e, t) {
     return;
   }
   t.preventDefault?.(), t.stopPropagation?.(), e.closeMenus(), e.interactionElement.focus({ preventScroll: !0 }), e.interactionElement.setPointerCapture?.(t.pointerId), e.activePointerId = t.pointerId, e.canvas.classList.add("dragging");
-  const a = e.interactionElement.getBoundingClientRect(), o = (t.clientX - a.left) * e.canvas.width / Math.max(1, a.width), r = (t.clientY - a.top) * e.canvas.height / Math.max(1, a.height), n = oe(e), s = e.state.view_mode !== "camera", c = t.button === 0, l = c && !t.altKey && !t.shiftKey;
+  const a = e.interactionElement.getBoundingClientRect(), o = (t.clientX - a.left) * e.canvas.width / Math.max(1, a.width), r = (t.clientY - a.top) * e.canvas.height / Math.max(1, a.height), n = ae(e), s = e.state.view_mode !== "camera", c = t.button === 0, l = c && !t.altKey && !t.shiftKey;
   if (l && e.webgl?.pickPathKey) {
     const g = e.webgl.pickPathKey([o, r]);
     if (g) {
@@ -2373,7 +2396,7 @@ function Pr(e, t) {
       }
     }
   }
-  const m = l ? ua(e, [o, r]) : null;
+  const m = l ? ha(e, [o, r]) : null;
   if (m) {
     const [g, v] = m.segment, y = Math.max(1, Math.hypot(v[0] - g[0], v[1] - g[1])), b = {
       pointer: [o, r],
@@ -2404,18 +2427,18 @@ function Pr(e, t) {
       return;
     }
     if (m.entity.type === "object") {
-      const x = m.entity.object;
+      const S = m.entity.object;
       e.checkpoint("Transform object");
-      const D = ha(e), w = (D.length ? D : [x]).map((f) => ({ object: f, transform: ae(f) }));
+      const D = ga(e), w = (D.length ? D : [S]).map((f) => ({ object: f, transform: te(f) }));
       for (const f of w) e.beginObjectEdit(f.object);
-      const T = w.reduce((f, M) => S(f, M.transform.position), [0, 0, 0]).map((f) => f / w.length);
+      const E = w.reduce((f, M) => x(f, M.transform.position), [0, 0, 0]).map((f) => f / w.length);
       e.gizmoDrag = {
         ...b,
         type: "object",
         historyCheckpointed: !0,
-        object: x,
+        object: S,
         group: w,
-        groupPivot: T,
+        groupPivot: E,
         position: [...m.entity.position],
         rotation: [...m.entity.rotation],
         size: [...m.entity.size],
@@ -2426,7 +2449,7 @@ function Pr(e, t) {
       return;
     }
   }
-  const i = c ? Fo(e, [o, r]) : null;
+  const i = c ? Lo(e, [o, r]) : null;
   if (e.pointerHit = !!(m || i), i) {
     if (i.type === "camera_keyframe") {
       e.finishCameraEdit(), e.selectedEntity = "camera", e.selectedObjectId = null, e.editingKeyFrame = null, e.activateCamera(i.camera.id), e.setFrame(i.keyframe.frame), e.selectKeyframe(i.keyframe), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${i.camera.name} · Keyframe @ F${i.keyframe.frame} selected`));
@@ -2438,13 +2461,13 @@ function Pr(e, t) {
     }
     if (i.type === "camera_target") {
       e.finishCameraEdit(), e.selectedEntity = "camera_target", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.editingKeyFrame = null, e.activateCamera(i.camera.id), e.checkpoint("Move camera target"), e.beginCameraEdit();
-      const { right: g, up: v } = R(n), y = [...e.camera.target], b = $(A(n.position, y)), x = (n.fov || 35) * Math.PI / 360;
+      const { right: g, up: v } = R(n), y = [...e.camera.target], b = $(A(n.position, y)), S = (n.fov || 35) * Math.PI / 360;
       e.targetFreeDrag = {
         pointer: [o, r],
         target: y,
         right: g,
         up: v,
-        scale: b * (n.camera_type === "orthographic" ? 25e-4 : 2 * Math.tan(x) / e.canvas.height),
+        scale: b * (n.camera_type === "orthographic" ? 25e-4 : 2 * Math.tan(S) / e.canvas.height),
         historyCheckpointed: !0
       }, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${i.camera.name} · Target aim selected`));
       return;
@@ -2485,20 +2508,20 @@ function Pr(e, t) {
     historyCheckpointed: !s
   }, e.interactionElement.style && (e.interactionElement.style.cursor = u ? "ns-resize" : d ? "move" : "grabbing");
 }
-function zr(e, t) {
+function Fr(e, t) {
   if (e.lastPointerEvent = t, e.modalTransform) {
     _e(e, t);
     return;
   }
   if (e.pathDrag) {
     const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), c = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), m = ((e.state.cameras || []).find((i) => i.id === e.pathDrag.cameraId)?.keyframes || []).find((i) => i.frame === e.pathDrag.frame);
-    m && (m.camera.position = Oo(
+    m && (m.camera.position = Po(
       [s, c],
-      oe(e),
+      ae(e),
       e.pathDrag.anchor,
       e.canvas.width,
       e.canvas.height
-    ), m.interpolation = Ao(m.interpolation), e.webgl && (e.webgl.pathKey = ""), e.setFrame(e.frame, !1, !1), e.render());
+    ), m.interpolation = zo(m.interpolation), e.webgl && (e.webgl.pathKey = ""), e.setFrame(e.frame, !1, !1), e.render());
     return;
   }
   if (e.boxSelection) {
@@ -2510,13 +2533,13 @@ function zr(e, t) {
     return;
   }
   if (e.currentTransformEvent = t, e.keyDrag) {
-    no(e, t);
+    io(e, t);
     return;
   }
   if (e.targetFreeDrag) {
     ge(e, e.targetFreeDrag, "Move camera target");
-    const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), c = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), l = s - e.targetFreeDrag.pointer[0], m = c - e.targetFreeDrag.pointer[1], i = t.shiftKey ? 0.1 : 1, p = S(C(e.targetFreeDrag.right, l * e.targetFreeDrag.scale * i), C(e.targetFreeDrag.up, -m * e.targetFreeDrag.scale * i)), d = S(e.targetFreeDrag.target, p);
-    e.camera.target = Q(e, d, [s, c]), e.commitCameraEdit(), e.refreshInspector(), e.render();
+    const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), c = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), l = s - e.targetFreeDrag.pointer[0], m = c - e.targetFreeDrag.pointer[1], i = t.shiftKey ? 0.1 : 1, p = x(C(e.targetFreeDrag.right, l * e.targetFreeDrag.scale * i), C(e.targetFreeDrag.up, -m * e.targetFreeDrag.scale * i)), d = x(e.targetFreeDrag.target, p);
+    e.camera.target = Z(e, d, [s, c]), e.commitCameraEdit(), e.refreshInspector(), e.render();
     return;
   }
   if (e.gizmoDrag) {
@@ -2526,31 +2549,31 @@ function zr(e, t) {
       (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height)
     ], c = t.shiftKey ? 0.1 : 1, l = ((s[0] - e.gizmoDrag.pointer[0]) * e.gizmoDrag.screen[0] + (s[1] - e.gizmoDrag.pointer[1]) * e.gizmoDrag.screen[1]) * c, m = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
     if (e.gizmoDrag.type === "camera_target") {
-      const d = S(e.gizmoDrag.target, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
-      e.camera.target = Q(e, d, s), e.commitCameraEdit(), e.refreshInspector(), e.render();
+      const d = x(e.gizmoDrag.target, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+      e.camera.target = Z(e, d, s), e.commitCameraEdit(), e.refreshInspector(), e.render();
       return;
     }
     if (e.gizmoDrag.type === "camera") {
       if (e.state.gizmo_mode === "translate") {
-        const d = S(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
-        e.camera.position = Q(e, d, s);
+        const d = x(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+        e.camera.position = Z(e, d, s);
       } else {
         const d = m ? se(l * 0.015, Math.PI / 12) : l * 0.015, u = A(e.gizmoDrag.target, e.gizmoDrag.position), h = Ce(u, C(e.gizmoDrag.axis, d * (180 / Math.PI)));
-        e.camera.target = S(e.gizmoDrag.position, h);
+        e.camera.target = x(e.gizmoDrag.position, h);
       }
       e.commitCameraEdit(), e.refreshInspector(), e.render();
       return;
     }
     if (e.state.gizmo_mode === "translate")
       if (e.gizmoDrag.free) {
-        const d = (s[0] - e.gizmoDrag.pointer[0]) * c, u = (s[1] - e.gizmoDrag.pointer[1]) * c, h = S(
+        const d = (s[0] - e.gizmoDrag.pointer[0]) * c, u = (s[1] - e.gizmoDrag.pointer[1]) * c, h = x(
           e.gizmoDrag.position,
-          S(C(e.gizmoDrag.viewRight, d * e.gizmoDrag.freeScale), C(e.gizmoDrag.viewUp, -u * e.gizmoDrag.freeScale))
+          x(C(e.gizmoDrag.viewRight, d * e.gizmoDrag.freeScale), C(e.gizmoDrag.viewUp, -u * e.gizmoDrag.freeScale))
         );
-        e.gizmoDrag.object.position = Q(e, h, s, [e.gizmoDrag.object.id]);
+        e.gizmoDrag.object.position = Z(e, h, s, [e.gizmoDrag.object.id]);
       } else {
-        const d = S(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
-        e.gizmoDrag.object.position = Q(e, d, s, [e.gizmoDrag.object.id]);
+        const d = x(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+        e.gizmoDrag.object.position = Z(e, d, s, [e.gizmoDrag.object.id]);
       }
     else if (e.state.gizmo_mode === "scale")
       if (e.gizmoDrag.free) {
@@ -2571,16 +2594,16 @@ function zr(e, t) {
     if (i.length > 1 && p)
       if (e.state.gizmo_mode === "translate") {
         const d = A(e.gizmoDrag.object.position, p.position);
-        for (const u of i) u.object.position = S(u.transform.position, d);
+        for (const u of i) u.object.position = x(u.transform.position, d);
       } else if (e.state.gizmo_mode === "rotate") {
         const d = A(e.gizmoDrag.object.rotation, p.rotation);
         for (const u of i)
-          u.object.position = S(e.gizmoDrag.groupPivot, Ce(A(u.transform.position, e.gizmoDrag.groupPivot), d)), u.object.rotation = S(u.transform.rotation, d);
+          u.object.position = x(e.gizmoDrag.groupPivot, Ce(A(u.transform.position, e.gizmoDrag.groupPivot), d)), u.object.rotation = x(u.transform.rotation, d);
       } else {
         const d = e.gizmoDrag.object.size.map((u, h) => u / Math.max(0.01, p.size[h]));
         for (const u of i) {
           const h = A(u.transform.position, e.gizmoDrag.groupPivot);
-          u.object.position = S(e.gizmoDrag.groupPivot, h.map((g, v) => g * d[v])), u.object.size = u.transform.size.map((g, v) => Math.max(0.01, g * d[v]));
+          u.object.position = x(e.gizmoDrag.groupPivot, h.map((g, v) => g * d[v])), u.object.size = u.transform.size.map((g, v) => Math.max(0.01, g * d[v]));
         }
       }
     for (const d of i.length ? i : [{ object: e.gizmoDrag.object }]) e.commitObjectEdit(d.object);
@@ -2589,12 +2612,12 @@ function zr(e, t) {
   }
   if (e.objectDrag) {
     ge(e, e.objectDrag, "Move object");
-    const n = t.clientX - e.objectDrag.x, s = t.clientY - e.objectDrag.y, { right: c, up: l } = R(e.objectDrag.camera), m = Ge(e.objectDrag.camera, e.canvas.height) * (t.shiftKey ? 0.1 : 1), i = S(e.objectDrag.position, S(C(c, n * m), C(l, -s * m)));
-    e.objectDrag.object.position = Q(e, i, null, [e.objectDrag.object.id]), e.commitObjectEdit(e.objectDrag.object), e.refreshInspector(), e.render();
+    const n = t.clientX - e.objectDrag.x, s = t.clientY - e.objectDrag.y, { right: c, up: l } = R(e.objectDrag.camera), m = Ge(e.objectDrag.camera, e.canvas.height) * (t.shiftKey ? 0.1 : 1), i = x(e.objectDrag.position, x(C(c, n * m), C(l, -s * m)));
+    e.objectDrag.object.position = Z(e, i, null, [e.objectDrag.object.id]), e.commitObjectEdit(e.objectDrag.object), e.refreshInspector(), e.render();
     return;
   }
   if (!e.drag) {
-    const n = e.interactionElement.getBoundingClientRect(), s = ua(e, [
+    const n = e.interactionElement.getBoundingClientRect(), s = ha(e, [
       (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width),
       (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height)
     ]), c = s ? s.free ? "free" : s.index : null;
@@ -2605,7 +2628,7 @@ function zr(e, t) {
   const a = t.clientX - e.drag.x, o = t.clientY - e.drag.y, r = e.drag.camera;
   if (e.drag.dolly) {
     const n = Math.exp(o * 5e-3), s = A(r.position, r.target);
-    e.drag.target.position = S(r.target, C(s, n)), e.drag.target.camera_type === "orthographic" && (e.drag.target.zoom = Math.max(0.01, (r.zoom || 1) / n));
+    e.drag.target.position = x(r.target, C(s, n)), e.drag.target.camera_type === "orthographic" && (e.drag.target.zoom = Math.max(0.01, (r.zoom || 1) / n));
   } else if (e.drag.fly) {
     const n = A(r.target, r.position), s = $(n);
     let c = Math.atan2(n[0], n[2]), l = Math.asin(j(n[1] / s, -0.999, 0.999));
@@ -2615,8 +2638,8 @@ function zr(e, t) {
       r.position[2] + s * Math.cos(c) * Math.cos(l)
     ];
   } else if (e.drag.shift) {
-    const { right: n, up: s } = R(r), c = Ge(r, e.canvas.height), l = S(C(n, -a * c), C(s, o * c));
-    e.drag.target.position = S(r.position, l), e.drag.target.target = S(r.target, l);
+    const { right: n, up: s } = R(r), c = Ge(r, e.canvas.height), l = x(C(n, -a * c), C(s, o * c));
+    e.drag.target.position = x(r.position, l), e.drag.target.target = x(r.target, l);
   } else {
     const n = A(r.position, r.target), s = $(n);
     let c = Math.atan2(n[0], n[2]), l = Math.asin(j(n[1] / s, -0.999, 0.999));
@@ -2628,19 +2651,19 @@ function zr(e, t) {
   }
   e.drag.editorView ? (e.serialize(), e.render()) : e.commitCameraEdit();
 }
-function Ho(e) {
+function Wo(e) {
   return !e.drag && !e.gizmoDrag && !e.objectDrag && !e.targetFreeDrag ? !1 : (e.undo(), e.activePointerId !== null && e.interactionElement.hasPointerCapture?.(e.activePointerId) && e.interactionElement.releasePointerCapture(e.activePointerId), e.activePointerId = null, e.drag = null, e.objectDrag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), e.finishCameraEdit(), e.refreshInspector(), e.render(), e.setStatus(_("Interaction cancelled")), !0);
 }
-function Nr(e, t) {
+function Rr(e, t) {
   if (e.pathDrag) {
     e.pathDrag = null, e.interactionElement.style && (e.interactionElement.style.cursor = ""), e.interactionElement.releasePointerCapture?.(t.pointerId), e.activePointerId = null, e.canvas.classList.remove("dragging"), e.scheduleSerialize(), e.refreshKeys(), e.setStatus(_("Path key moved"));
     return;
   }
   if (e.boxSelection) {
-    const n = e.boxSelection, s = oe(e), c = Math.min(n.start[0], n.current[0]), l = Math.max(n.start[0], n.current[0]), m = Math.min(n.start[1], n.current[1]), i = Math.max(n.start[1], n.current[1]), p = n.additive ? new Set(n.initial) : /* @__PURE__ */ new Set();
+    const n = e.boxSelection, s = ae(e), c = Math.min(n.start[0], n.current[0]), l = Math.max(n.start[0], n.current[0]), m = Math.min(n.start[1], n.current[1]), i = Math.max(n.start[1], n.current[1]), p = n.additive ? new Set(n.initial) : /* @__PURE__ */ new Set();
     for (const d of e.state.objects) {
       if (d.enabled === !1) continue;
-      const u = d.keyframes?.length ? Te(d, e.frame) : d, h = L(u.position || [0, 0, 0], s, e.canvas.width, e.canvas.height);
+      const u = d.keyframes?.length ? Ee(d, e.frame) : d, h = L(u.position || [0, 0, 0], s, e.canvas.width, e.canvas.height);
       h && h[0] >= c && h[0] <= l && h[1] >= m && h[1] <= i && p.add(d.id);
     }
     e.selectedObjectIds = p, e.selectedObjectId = [...p].at(-1) || null, e.selectedEntity = p.size ? "object" : "camera", e.boxSelection = null, e.interactionElement.style && (e.interactionElement.style.cursor = "default"), e.refreshObjects(), e.refreshInspector(), e.render(), e.setStatus(_(`${p.size} object(s) selected`));
@@ -2649,75 +2672,75 @@ function Nr(e, t) {
   const a = e.keyDrag, o = !!(e.drag && !e.drag.editorView || e.targetFreeDrag), r = !!(e.gizmoDrag || e.objectDrag);
   !e.pointerHit && !e.gizmoDrag && !e.objectDrag && !e.targetFreeDrag && e.drag && t && Math.hypot(t.clientX - e.drag.x, t.clientY - e.drag.y) < 5 && (t.button === 0 || t.button === void 0) && (e.selectedEntity === "object" || e.selectedObjectId !== null || e.selectedEntity === "camera_target") && (e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.selectedKeyFrame = null, e.subSelection = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_("Deselected"))), t?.pointerId === e.activePointerId && e.interactionElement.hasPointerCapture?.(t.pointerId) && e.interactionElement.releasePointerCapture(t.pointerId), e.activePointerId = null, e.drag = null, e.objectDrag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.keyDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), a && (a.badge?.remove(), e.editingKeyFrame = null, e.updateKeyVisualState(), e.root.focus({ preventScroll: !0 })), o && e.finishCameraEdit(), r && (e.editingKeyFrame = null, e.updateKeyVisualState(), e.drawCurveEditor());
 }
-function Fr(e, t) {
+function Lr(e, t) {
   if (t.target.closest?.(".viewport-inspector, .scene-tree, .menu-panel, .context-menu, .viewport-quick-bar"))
     return;
   if (t.preventDefault(), t.stopPropagation(), e.closeMenus(), e.isNavigatingFly) {
     e.cameraSpeed = j(e.cameraSpeed * Math.exp(-t.deltaY * 1e-3), 0.05, 20), e.setStatus(_(`Fly speed: ${e.cameraSpeed.toFixed(2)}x`));
     return;
   }
-  Go(e);
-  const a = e.state.view_mode !== "camera", o = oe(e);
+  Ho(e);
+  const a = e.state.view_mode !== "camera", o = ae(e);
   a || e.beginCameraEdit();
   const r = j(t.deltaY * 1e-3, -0.4, 0.4), n = A(o.position, o.target);
-  o.position = S(o.target, C(n, Math.exp(r))), o.camera_type === "orthographic" && (o.zoom = Math.max(0.01, (o.zoom || 1) * Math.exp(-r))), a ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
+  o.position = x(o.target, C(n, Math.exp(r))), o.camera_type === "orthographic" && (o.zoom = Math.max(0.01, (o.zoom || 1) * Math.exp(-r))), a ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
 }
-const ot = { t: "translate", r: "rotate", s: "scale" }, Wo = [
+const rt = { t: "translate", r: "rotate", s: "scale" }, $o = [
   ["viewport", ".viewport-wrap"],
   ["sequence", '[data-role="graph-sequence"]'],
   ["graph", ".oc-graph"],
   ["timeline", ".oc-timeline"]
 ];
-function qo(e) {
+function Uo(e) {
   return !(e instanceof HTMLElement) || ["INPUT", "SELECT", "TEXTAREA"].includes(e.tagName) || e.isContentEditable || !!e.closest?.('[contenteditable="true"],span.property_value');
 }
-function $o(e) {
+function Xo(e) {
   const t = e instanceof HTMLElement ? e : null;
-  for (const [a, o] of Wo)
+  for (const [a, o] of $o)
     if (t?.closest?.(o)) return a;
   return null;
 }
-function Uo(e, t) {
-  return $o(e) || t?.lastKeyZone || "viewport";
+function Yo(e, t) {
+  return Xo(e) || t?.lastKeyZone || "viewport";
 }
-let rt = !1;
-function Xo() {
-  rt || typeof window > "u" || (rt = !0, window.addEventListener("keydown", (e) => {
-    const t = e.composedPath?.()[0] || e.target, a = So(t);
-    !a || a.disposed || Yo(a, e) && (e.preventDefault(), e.stopImmediatePropagation?.(), e.stopPropagation());
+let nt = !1;
+function Zo() {
+  nt || typeof window > "u" || (nt = !0, window.addEventListener("keydown", (e) => {
+    const t = e.composedPath?.()[0] || e.target, a = Co(t);
+    !a || a.disposed || Qo(a, e) && (e.preventDefault(), e.stopImmediatePropagation?.(), e.stopPropagation());
   }, { capture: !0 }));
 }
-function Yo(e, t) {
+function Qo(e, t) {
   const a = t.composedPath?.()[0] || t.target;
-  if (qo(a) || a.tagName === "BUTTON" && (t.code === "Space" || t.key === "Enter")) return !1;
+  if (Uo(a) || a.tagName === "BUTTON" && (t.code === "Space" || t.key === "Enter")) return !1;
   if (e.contextMenu.onKey(t)) return !0;
   if (e.modalTransform)
-    return Ko(e, t), !0;
-  if (Zo(e, t)) return !0;
+    return Bo(e, t), !0;
+  if (Jo(e, t)) return !0;
   const o = t.code;
   if ((t.ctrlKey || t.metaKey) && !o.startsWith("Numpad") || t.altKey) return !1;
-  switch (Uo(a, e)) {
+  switch (Yo(a, e)) {
     case "viewport":
-      return Qo(e, t);
-    case "sequence":
       return er(e, t);
+    case "sequence":
+      return ar(e, t);
     case "timeline":
     case "graph":
-      return Jo(e, t);
+      return tr(e, t);
     default:
       return !1;
   }
 }
-function Zo(e, t) {
+function Jo(e, t) {
   const a = t.key.toLowerCase(), o = t.ctrlKey || t.metaKey;
-  return a === "escape" ? Ho(e) ? !0 : e.isNavigatingFly ? (e.isNavigatingFly = !1, e.setStatus("Fly Mode OFF"), !0) : !1 : o && a === "z" ? (t.repeat || (t.shiftKey ? e.redo() : e.undo()), !0) : o && a === "y" ? (t.repeat || e.redo(), !0) : o && a === "c" ? (e.copyKeyframe(), !0) : o && a === "v" ? (e.pasteKeyframe(), !0) : o && a === "d" ? (t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.duplicateObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.duplicateCamera(e.state.active_camera_id)), !0) : t.altKey && a === "h" ? (t.repeat || e.showAllObjects(), !0) : t.code === "Space" ? (t.repeat || e.togglePlay(), !0) : !1;
+  return a === "escape" ? Wo(e) ? !0 : e.isNavigatingFly ? (e.isNavigatingFly = !1, e.setStatus("Fly Mode OFF"), !0) : !1 : o && a === "z" ? (t.repeat || (t.shiftKey ? e.redo() : e.undo()), !0) : o && a === "y" ? (t.repeat || e.redo(), !0) : o && a === "c" ? (e.copyKeyframe(), !0) : o && a === "v" ? (e.pasteKeyframe(), !0) : o && a === "d" ? (t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.duplicateObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.duplicateCamera(e.state.active_camera_id)), !0) : t.altKey && a === "h" ? (t.repeat || e.showAllObjects(), !0) : t.code === "Space" ? (t.repeat || e.togglePlay(), !0) : !1;
 }
-function Qo(e, t) {
+function er(e, t) {
   const a = t.key.toLowerCase(), o = t.code;
   if (t.shiftKey && a === "g" && !e.isNavigatingFly)
     return e.selectHierarchy(), !0;
-  if (ot[a] && !e.isNavigatingFly)
-    return t.repeat || Ro(e, ot[a]), !0;
+  if (rt[a] && !e.isNavigatingFly)
+    return t.repeat || Ko(e, rt[a]), !0;
   if (a === "tab") {
     const n = e.state.select_mode === "object" ? "vertex" : "object";
     return e.setSelectMode(n), e.setStatus(n === "object" ? "Object Mode" : "Component Mode: Vertex"), !0;
@@ -2749,11 +2772,11 @@ function Qo(e, t) {
     return t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.deleteObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.deleteCamera(e.state.active_camera_id)), !0;
   if (["w", "a", "s", "d", "q", "e"].includes(a) && e.isNavigatingFly) {
     const n = e.viewportCamera(), s = e.state.view_mode !== "camera", { right: c, up: l, forward: m } = R(n), i = (t.shiftKey ? 0.6 : 0.18) * e.cameraSpeed, p = { w: C(m, i), s: C(m, -i), d: C(c, i), a: C(c, -i), e: C(l, i), q: C(l, -i) }[a];
-    return s || e.beginCameraEdit(), n.position = S(n.position, p), n.target = S(n.target, p), s ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit()), !0;
+    return s || e.beginCameraEdit(), n.position = x(n.position, p), n.target = x(n.target, p), s ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit()), !0;
   }
   return !1;
 }
-function Jo(e, t) {
+function tr(e, t) {
   const a = t.key.toLowerCase(), o = t.code;
   if (a === "i" || a === "k")
     return t.repeat || e.insertKeyframe(), !0;
@@ -2778,7 +2801,7 @@ function Jo(e, t) {
 function ze(e) {
   e.scheduleSerialize(), e.refreshKeys(), e.refreshCameraSelectors(), e.render();
 }
-function er(e, t) {
+function ar(e, t) {
   const a = t.key.toLowerCase();
   if (t.key === "ArrowLeft")
     return e.setFrame(e.frame - 1), !0;
@@ -2789,11 +2812,11 @@ function er(e, t) {
   if (t.key === "End")
     return e.setFrame(e.state.duration_frames - 1), !0;
   if (a === "s" || a === "a")
-    return t.repeat || (!xe(e.state).length || a === "a" ? (e.checkpoint("Auto-split shots"), e.state.sequence = { ...e.state.sequence || { recording_path: "" }, enabled: !0, cuts: Ea(e.state) }, ze(e)) : (e.checkpoint("Split shot"), Oa(e.state, e.frame, null) ? ze(e) : e.setStatus("Move the playhead inside a shot first"))), !0;
+    return t.repeat || (!Se(e.state).length || a === "a" ? (e.checkpoint("Auto-split shots"), e.state.sequence = { ...e.state.sequence || { recording_path: "" }, enabled: !0, cuts: ka(e.state) }, ze(e)) : (e.checkpoint("Split shot"), Aa(e.state, e.frame, null) ? ze(e) : e.setStatus("Move the playhead inside a shot first"))), !0;
   if (t.key === "Delete" || t.key === "Backspace") {
     if (t.repeat) return !0;
-    const o = xe(e.state), r = lt(e.state, e.frame), n = r ? o.findIndex((s) => s.start === r.start) : -1;
-    return n >= 0 && (e.checkpoint("Remove shot"), Aa(e.state, n) && ze(e)), !0;
+    const o = Se(e.state), r = mt(e.state, e.frame), n = r ? o.findIndex((s) => s.start === r.start) : -1;
+    return n >= 0 && (e.checkpoint("Remove shot"), Pa(e.state, n) && ze(e)), !0;
   }
   return !1;
 }
@@ -2812,18 +2835,18 @@ function $e(e, t) {
     n(), console.error("OmniCam: node UI failed to load", s);
   });
 }
-const tr = "MajoorOmniCamDirector", ar = "MajoorOmniCamExtractor", or = "MajoorOmniCamMonitor";
+const or = "MajoorOmniCamDirector", rr = "MajoorOmniCamExtractor", nr = "MajoorOmniCamMonitor";
 function ke(e) {
   return String(e?.comfyClass || e?.type || e?.constructor?.type || "");
 }
-const nt = "oc-help-css", ye = "#8b7bd8", ba = /* @__PURE__ */ new Map();
-function X(e, t) {
-  e && t && ba.set(e, t);
+const st = "oc-help-css", ye = "#8b7bd8", _a = /* @__PURE__ */ new Map();
+function Ue(e, t) {
+  e && t && _a.set(e, t);
 }
 function Be(e) {
-  return e && ba.get(e) || null;
+  return e && _a.get(e) || null;
 }
-const rr = `
+const sr = `
 .oc-help-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;
   align-items:center;justify-content:center;z-index:10000;font:12px/1.35 system-ui,
   -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -2858,15 +2881,15 @@ const rr = `
 .oc-help-tip{margin-top:2px;padding:8px 10px;background:rgba(139,123,216,.12);
   border-left:2px solid ${ye};border-radius:3px;color:#ddd;font-size:11.5px}
 `;
-function nr() {
-  if (document.getElementById(nt)) return;
+function ir() {
+  if (document.getElementById(st)) return;
   const e = document.createElement("style");
-  e.id = nt, e.textContent = rr, document.head.appendChild(e);
+  e.id = st, e.textContent = sr, document.head.appendChild(e);
 }
-function J(e) {
+function Q(e) {
   return String(e ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, (a, o) => `<code>${o}</code>`);
 }
-function sr(e) {
+function cr(e) {
   const t = document.createElement("div");
   if (t.className = "oc-help-section", e.heading) {
     const a = document.createElement("div");
@@ -2875,14 +2898,14 @@ function sr(e) {
   if (e.body)
     for (const a of String(e.body).split(/\n\s*\n/)) {
       const o = document.createElement("p");
-      o.className = "oc-help-p", o.innerHTML = J(a), t.appendChild(o);
+      o.className = "oc-help-p", o.innerHTML = Q(a), t.appendChild(o);
     }
   if (Array.isArray(e.bullets) && e.bullets.length) {
     const a = document.createElement("ul");
     a.className = "oc-help-ul";
     for (const o of e.bullets) {
       const r = document.createElement("li");
-      r.innerHTML = J(o), a.appendChild(r);
+      r.innerHTML = Q(o), a.appendChild(r);
     }
     t.appendChild(a);
   }
@@ -2891,20 +2914,20 @@ function sr(e) {
     a.className = "oc-help-defs";
     for (const o of e.defs) {
       const [r, n] = Array.isArray(o) ? o : [o, ""], s = document.createElement("dt");
-      s.innerHTML = J(r);
+      s.innerHTML = Q(r);
       const c = document.createElement("dd");
-      c.innerHTML = J(n), a.appendChild(s), a.appendChild(c);
+      c.innerHTML = Q(n), a.appendChild(s), a.appendChild(c);
     }
     t.appendChild(a);
   }
   return t;
 }
 let me = null;
-function ir() {
+function lr() {
   me && me();
 }
-function st(e) {
-  e = e || {}, nr(), ir();
+function it(e) {
+  e = e || {}, ir(), lr();
   const t = document.createElement("div");
   t.className = "oc-help-backdrop";
   const a = document.createElement("div");
@@ -2920,18 +2943,18 @@ function st(e) {
   const c = document.createElement("div");
   if (c.className = "oc-help-body", e.tagline) {
     const d = document.createElement("p");
-    d.className = "oc-help-p", d.style.color = "#e6e6e6", d.innerHTML = J(e.tagline), c.appendChild(d);
+    d.className = "oc-help-p", d.style.color = "#e6e6e6", d.innerHTML = Q(e.tagline), c.appendChild(d);
   }
   const l = Array.isArray(e.sections) ? e.sections : [];
   for (const d of l)
     try {
-      c.appendChild(sr(d));
+      c.appendChild(cr(d));
     } catch (u) {
       console.warn("[OmniCam] help: skipped a malformed section", u);
     }
   if (e.footer) {
     const d = document.createElement("div");
-    d.className = "oc-help-tip", d.innerHTML = J(e.footer), c.appendChild(d);
+    d.className = "oc-help-tip", d.innerHTML = Q(e.footer), c.appendChild(d);
   }
   a.appendChild(c);
   let m = !1;
@@ -2950,7 +2973,7 @@ function st(e) {
     d.target === t && m && i(), m = !1;
   }), a.addEventListener("mousedown", (d) => d.stopPropagation()), document.body.appendChild(t), i;
 }
-X("MajoorOmniCamDirector", {
+Ue("MajoorOmniCamDirector", {
   title: "OmniCam Director",
   tagline: "Interactive motion-scene authoring: block cameras and tracks in a live 3D viewport and record a clean playblast.",
   sections: [
@@ -2979,7 +3002,7 @@ X("MajoorOmniCamDirector", {
   ],
   footer: "An Extractor MotionScene can be connected to Director and imported as a new editable camera."
 });
-X("MajoorOmniCamExtractor", {
+Ue("MajoorOmniCamExtractor", {
   title: "OmniCam Extractor",
   tagline: "Solve a real video's camera motion into a canonical OmniCam MotionScene, ready for Director.",
   sections: [
@@ -3010,115 +3033,54 @@ The video must be a single continuous shot - hard cuts are reported in the outpu
   ],
   footer: "Low Solver Coverage usually means low-texture footage, motion blur, or a shot the solver treated as multiple cuts - check report first."
 });
-X("MajoorOmniCamMonitor", {
+Ue("MajoorOmniCamMonitor", {
   title: "OmniCam Monitor",
-  tagline: "Validate a camera track, preview it, and route it to whichever AI-video camera adapter your workflow needs.",
+  tagline: "Compile a MotionScene for one video model, and report what the translation cannot carry.",
   sections: [
     {
       heading: "What it does",
-      body: "The Monitor is the single exit point from OmniCam into the rest of your graph. It checks a camera_track is well-formed, previews it, and converts it into the format the chosen adapter expects - all in one node, so you no longer need to pick a separate legacy adapter node per target model."
+      body: "Monitor is the single exit point from OmniCam into the rest of your graph. Pick a target profile; it resolves the frame grid that model needs, compiles the MotionScene into that model's representation, and runs a preflight. Which output carries the payload depends on the profile's semantic, not on the model."
     },
     {
-      heading: "Choosing an adapter",
+      heading: "Choosing a profile",
       defs: [
-        ["h3", "Video-reference family. Camera reference video + cinematic prompt, `Video 1` dialect (MiniMax H3 Omni Reference, Kling, Luma, HunyuanVideo, Wan and other prompt-driven pipelines)."],
-        ["h3_native", "Video-reference family. Reference frames + prompt, `<Video 1>` dialect (MiniMaxH3ReferenceToVideo); length must be 17n+5."],
-        ["wan_native", "Camera-conditioning family. A true digital camera: extrinsics/intrinsics to a native Wan camera embedding (Plücker-style). The fidelity reference; length must be 4n+1."],
-        ["wan_tracks_native", "Trajectory family. Projected 2D trajectories for the native WanTrackToVideo node."],
-        ["wan_ati", "Trajectory family. Projected 2D trajectories for WanVideoATITracks (Wan 2.1 ATI, WanVideoWrapper)."],
-        ["ltx_motion_track", "Trajectory family. Projected 2D trajectories for LTXVDrawTracks / IC-LoRA Motion Track; length must be 8n+1."],
-        ["ltx", "Proxy-guide family (legacy). Sampled proxy frames as an LTX camera guide; does not carry the authored camera."]
+        ["wan_camera_native", "Camera embedding. Real extrinsics and intrinsics into a native Wan camera embedding. The highest-fidelity path for camera motion; length resolves to 4n+1."],
+        ["wan_move_native", "Screen tracks. Native TRACKS tensors for WanMoveTrackToVideo: track_path and track_visibility."],
+        ["wan_track_native", "Screen tracks. Trajectory JSON for WanTrackToVideo, on the 121-sample source grid it resamples."],
+        ["wanvideo_ati", "Screen tracks. Trajectory JSON for WanVideoATITracks (Wan 2.1 ATI, WanVideoWrapper); a fixed 121 samples."],
+        ["ltx25_motion_track", "Screen tracks. Trajectory JSON for LTXVDrawTracks, then IC-LoRA Motion Track; length resolves to 8n+1."],
+        ["h3_native", "Reference video. Playblast frames resampled to 24 fps plus a prompt, for MiniMaxH3ReferenceToVideo; length resolves to 17n+5."],
+        ["h3_api", "Reference video. The playblast as a VIDEO plus a prompt, for MinimaxHailuo03ReferenceNode."]
       ]
     },
     {
       heading: "Outputs",
-      body: "Every output for every adapter is exposed on the node at once; only the ones relevant to your chosen `adapter` are populated, so you only wire up what you actually need. This includes `reference_video`, `camera_prompt`, `cinematic_prompt`, `final_prompt`, `camera_data_json`, `wan_camera`, `tracks`, `adapter_width/height/length`, `guide_frames` and `adapter_profile_json`."
-    }
-  ],
-  footer: "This node replaces the older single-target adapter nodes (H3 Adapter, Wan Native Camera, LTX Camera Guide, WanVideoWrapper ATI) - use it for new workflows."
-});
-X("MajoorOmniCamH3Adapter", {
-  title: "OmniCam → Universal Reference & AI Prompts",
-  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
-  sections: [
-    {
-      heading: "What it does",
-      body: "Turns a camera_track into a proxy reference video plus model-tailored cinematic prompts for MiniMax H3 Omni Reference, Kling, Luma Dream Machine, HunyuanVideo, Wan 2.1 and generic Universal pipelines."
+      body: "Every output is present on the node at once, but only the selected profile's are populated. Camera-embedding profiles fill `camera_embedding`; `wan_move_native` fills `native_tracks`; the other track profiles fill `tracks_json`; reference-video profiles fill `reference_video` or `reference_frames`. `final_prompt`, `target_width`, `target_height` and `target_length` are always filled."
     },
     {
-      heading: "Key inputs",
-      defs: [
-        ["prompt_style", "Which model's prompt phrasing to generate: `h3`, `universal`, `kling`, `luma`, `hunyuan` or `wan`."],
-        ["video_ref_token", "The placeholder token your prompt style expects for the reference video, e.g. `<Video 1>`."]
+      heading: "Reading the preflight",
+      bullets: [
+        "BLOCKED stops the compile. It is never cosmetic.",
+        "A multi-shot edit blocks camera and track profiles: one camera basis cannot describe an edit that cuts to a second camera. Reference-video profiles accept it, because the playblast carries the cuts, and swap the camera prompt for a neutral one.",
+        "'Encodable trajectories' warns when a layer will not survive the JSON track format: hidden on the first sample means dropped, a visibility gap means cut at the gap.",
+        "'Downstream contract' checks the node this profile targets. Missing or incompatible blocks; only the selected profile is binding."
       ]
     }
   ],
-  footer: "Prefer OmniCam Monitor with adapter = h3 in new workflows - same output, one fewer node type to maintain."
+  footer: "Switching profile inside a semantic is a widget change, not a rewiring."
 });
-X("MajoorOmniCamWanNativeCamera", {
-  title: "OmniCam → Wan Native Camera",
-  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
-  sections: [
-    {
-      heading: "What it does",
-      body: "Converts a camera_track to a native Wan camera embedding at a given width, height and frame length."
-    },
-    {
-      heading: "Inputs",
-      defs: [
-        ["width / height", "Output resolution the embedding is generated for."],
-        ["length", "Number of frames the embedding covers."]
-      ]
-    }
-  ],
-  footer: "Prefer OmniCam Monitor with adapter = wan_native in new workflows."
-});
-X("MajoorOmniCamLTXCameraGuide", {
-  title: "OmniCam → LTX Camera Guide",
-  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
-  sections: [
-    {
-      heading: "What it does",
-      body: "Decodes proxy VIDEO frames from a camera_track into an LTX camera guide, with control over frame range, sampling and resize."
-    },
-    {
-      heading: "Key inputs",
-      defs: [
-        ["start_frame / end_frame", "Frame range to sample from the proxy video (0 means the full range)."],
-        ["sampling_mode", "`contiguous` samples a run of consecutive frames; `uniform` spreads samples evenly across the range."],
-        ["resize_width / resize_height", "Resize the guide frames; 0 keeps the source size."]
-      ]
-    }
-  ],
-  footer: "Prefer OmniCam Monitor with adapter = ltx in new workflows."
-});
-X("MajoorOmniCamWanVideoWrapperATI", {
-  title: "OmniCam → WanVideoWrapper ATI",
-  tagline: "Deprecated compatibility node - kept for existing workflows. New workflows should use OmniCam Monitor.",
-  sections: [
-    {
-      heading: "What it does",
-      body: "Produces the exact `tracks` STRING consumed by WanVideoATITracks in WanVideoWrapper, from a camera_track."
-    },
-    {
-      heading: "Important",
-      body: "WanVideoATITracks normalises coordinates with its own width and height. Wire this node's `width` and `height` outputs into WanVideoATITracks as well - if they are left mismatched, every trajectory is silently offset and rescaled."
-    }
-  ],
-  footer: "Prefer OmniCam Monitor with adapter = wan_tracks_native in new workflows."
-});
-const it = "MajoorOmniCam.ShowHelp", He = "oc-help-toolbar-icon", ct = "oc-help-toolbar-css", cr = "#8b7bd8";
-function lr() {
-  if (document.getElementById(ct)) return;
+const ct = "MajoorOmniCam.ShowHelp", He = "oc-help-toolbar-icon", lt = "oc-help-toolbar-css", mr = "#8b7bd8";
+function dr() {
+  if (document.getElementById(lt)) return;
   const e = document.createElement("style");
-  e.id = ct, e.textContent = `
+  e.id = lt, e.textContent = `
     .${He}{display:inline-flex;align-items:center;justify-content:center;
-      width:16px;height:16px;border-radius:50%;background:${cr};color:#fff;
+      width:16px;height:16px;border-radius:50%;background:${mr};color:#fff;
       font-weight:700;font-size:11px;line-height:1}
     .${He}::before{content:"?"}
   `, document.head.appendChild(e);
 }
-function mr() {
+function pr() {
   const e = U.canvas;
   if (!e) return [];
   const t = [];
@@ -3127,8 +3089,8 @@ function mr() {
       a && a.comfyClass && t.push(a);
   return t;
 }
-function dr() {
-  for (const e of mr()) {
+function fr() {
+  for (const e of pr()) {
     const t = Be(e.comfyClass);
     if (t) return t;
   }
@@ -3138,12 +3100,12 @@ U.registerExtension({
   name: "MajoorOmniCam.HelpToolbar",
   commands: [
     {
-      id: it,
+      id: ct,
       label: "Help",
       icon: He,
       function: () => {
-        const e = dr();
-        e && st(e);
+        const e = fr();
+        e && it(e);
       }
     }
   ],
@@ -3153,30 +3115,30 @@ U.registerExtension({
   // simply never shown (harmless).
   getSelectionToolboxCommands(e) {
     const t = e && e.comfyClass;
-    return t && Be(t) ? [it] : [];
+    return t && Be(t) ? [ct] : [];
   },
   // Right-click fallback so help is reachable even without the selection
   // toolbar hook.
   getNodeMenuItems(e) {
     const t = Be(e?.comfyClass);
-    return t ? [null, { content: "? Help", callback: () => st(t) }] : [];
+    return t ? [null, { content: "? Help", callback: () => it(t) }] : [];
   },
   setup() {
-    lr();
+    dr();
   }
 });
-uo(_a);
+go(va);
 let ve = !1;
 function be(e, t) {
   const a = globalThis.__majoorOmniCamCiTrace;
   Array.isArray(a) && a.push({ stage: e, nodeId: t?.id ?? null, nodeClass: ke(t), configuringGraph: ve });
 }
-Xo();
-Ma(U);
-jo(U);
+Zo();
+Ca(U);
+To(U);
 U.registerExtension({
   name: "Majoor.OmniCam.Director",
-  settings: wo,
+  settings: xo,
   beforeConfigureGraph() {
     ve = !0;
   },
@@ -3184,87 +3146,87 @@ U.registerExtension({
     ve = !1;
   },
   async nodeCreated(e) {
-    if (ke(e) !== tr) return;
+    if (ke(e) !== or) return;
     be("director:nodeCreated", e);
     const t = !ve;
     await $e(e, async () => {
       be("director:import:start", e);
-      const { attachDirector: o } = await import("./chunk-D0O7WOBn.js").then((r) => r.f);
+      const { attachDirector: o } = await import("./chunk-UMfucsAD.js").then((r) => r.f);
       return be("director:import:resolved", e), o;
     });
     const a = e.__majoorOmniCam;
-    a && (be("director:attach:complete", e), Io(a), t && Eo(a));
+    a && (be("director:attach:complete", e), ko(a), t && Oo(a));
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(e) {
-    ke(e) === ar && await $e(e, async () => (await import("./chunk-BiSldPgW.js")).attachExtractor);
+    ke(e) === rr && await $e(e, async () => (await import("./chunk-CjrntzqT.js")).attachExtractor);
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Monitor",
   async nodeCreated(e) {
-    ke(e) === or && await $e(e, async () => (await import("./chunk-j3zx1qmO.js")).attachMonitor);
+    ke(e) === nr && await $e(e, async () => (await import("./chunk-gB_yx5C4.js")).attachMonitor);
   }
 });
 export {
-  br as $,
+  vr as $,
   L as A,
-  yr as B,
-  S as C,
-  _r as D,
+  _r as B,
+  x as C,
+  wr as D,
   $ as E,
   A as F,
-  Tr as G,
+  Ir as G,
   le as H,
   C as I,
   Ce as J,
   ce as K,
-  Ga as L,
-  Pa as M,
-  te as N,
+  Ha as L,
+  za as M,
+  ee as N,
   R as O,
-  Or as P,
-  To as Q,
-  Yo as R,
-  ja as S,
-  Mr as T,
-  Cr as U,
-  Dr as V,
-  Sr as W,
-  Pr as X,
-  zr as Y,
-  Nr as Z,
-  Fr as _,
+  Pr as P,
+  Io as Q,
+  Qo as R,
+  Ea as S,
+  Dr as T,
+  jr as U,
+  Er as V,
+  Cr as W,
+  Nr as X,
+  Fr as Y,
+  Rr as Z,
+  Lr as _,
   _ as a,
   Va as a0,
-  ut as a1,
-  ar as a2,
-  Ar as a3,
-  ht as b,
+  ht as a1,
+  rr as a2,
+  zr as a3,
+  gt as b,
   j as c,
-  ae as d,
+  te as d,
   F as e,
-  Te as f,
-  xe as g,
-  Oa as h,
-  Aa as i,
-  gr as j,
-  Ea as k,
-  lt as l,
-  vr as m,
-  hr as n,
-  xr as o,
-  jr as p,
-  bo as q,
-  Ye as r,
-  Se as s,
+  Ee as f,
+  Se as g,
+  Aa as h,
+  Pa as i,
+  br as j,
+  ka as k,
+  mt as l,
+  Sr as m,
+  yr as n,
+  Mr as o,
+  Tr as p,
+  vo as q,
+  Ze as r,
+  xe as s,
   Re as t,
-  Ir as u,
-  Er as v,
-  kr as w,
-  za as x,
-  Na as y,
-  wr as z
+  kr as u,
+  Or as v,
+  Ar as w,
+  Na as x,
+  Fa as y,
+  xr as z
 };

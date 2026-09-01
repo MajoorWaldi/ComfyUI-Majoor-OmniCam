@@ -178,14 +178,22 @@ def start_job(manager: SolveJobManager, body: Any, *, client_id: str) -> dict[st
     client_id = validate_client_id(client_id)
     source = validate_source(body.get("source"))
     settings = validate_settings(body.get("settings"))
+    node_id = _node_id(body)
+    # Resolve here, not only in the worker. A source the server will refuse is a
+    # bad request, and answering 200 with a job that fails a second later hides
+    # the reason behind a status poll. ``validate_metadata=False`` keeps the
+    # container probe -- the expensive part -- on the worker thread, where it
+    # cannot stall the event loop; the worker resolves again in full.
+    try:
+        resolve_interactive_video_source(source, validate_metadata=False)
+    except SourceResolutionError as exc:
+        raise ApiError(400, str(exc)) from exc
     try:
         job = manager.start(
-            client_id=client_id, node_id=_node_id(body), source_ref=source, settings=settings,
+            client_id=client_id, node_id=node_id, source_ref=source, settings=settings,
         )
     except SolveSlotBusyError as exc:
         raise ApiError(409, str(exc)) from exc
-    except SourceResolutionError as exc:
-        raise ApiError(400, str(exc)) from exc
     return job.status()
 
 

@@ -30,6 +30,9 @@ def _projected_sample(
     return SampledTrack(
         id=layer.id,
         label=layer.label,
+        # Off-screen coordinates are kept as they are. Only a point with no
+        # projection at all -- behind the camera, or outside the depth range --
+        # gets a placeholder, and `defined` is what tells the two apart.
         xy=[
             (
                 0.0 if point.x is None else point.x,
@@ -41,6 +44,7 @@ def _projected_sample(
             authored.visible[index] and point.visible
             for index, point in enumerate(projected)
         ],
+        defined=[point.x is not None and point.y is not None for point in projected],
     )
 
 

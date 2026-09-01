@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from omnicam.core.motion_sampling import sample_times
 from omnicam.core.motion_scene import MotionScene
 from omnicam.profiles import CompileRequest
 from omnicam.profiles.catalog import PROFILE_REGISTRY
@@ -144,9 +145,17 @@ def test_wan_track_emits_stable_121_source_grid_for_requested_target_length():
     assert result.timeline.frame_policy == "requested_length_with_121_source_grid"
     assert len(tracks) == 2
     assert len(tracks[0]) == 121
-    assert len(tracks[1]) == 60
+    # The 121-sample grid spans the shot's frame times [0, (5-1)/5] = [0, 0.8],
+    # so t=0.5 -- where "Vanishing" turns invisible -- is sample 75. Spanning
+    # [0, duration] instead put it at 60 and stretched every track by one frame.
+    assert len(tracks[1]) == 75
     assert tracks[0][0] == pytest.approx({"x": 10.0, "y": 10.0})
-    assert tracks[0][-1] == pytest.approx({"x": 90.0, "y": 40.0})
+    # "Moving" is keyed to reach (0.9, 0.8) at t=1.0, but a 1 second 5 fps shot
+    # has 5 frames and its last one is shown at 0.8 s. The trajectory therefore
+    # ends 80% of the way along, which is where the last generated frame is.
+    # A key authored past the final frame is simply never displayed -- the same
+    # thing that happens in any NLE.
+    assert tracks[0][-1] == pytest.approx({"x": 74.0, "y": 34.0})
 
 
 def test_wan_track_json_survives_the_official_parser_padding_and_resampler():
@@ -172,13 +181,15 @@ def test_wanvideo_ati_compiles_fixed_grid_and_kijai_zero_visibility_tail():
     assert result.target_length == 121
     assert result.timeline.frame_policy == "fixed_121"
     assert len(tracks[0]) == 121
-    assert len(tracks[1]) == 60
+    assert len(tracks[1]) == 75
 
     padded = _pinned_zero_pad(tracks[1])
     assert padded.shape == (121, 3)
-    assert np.all(padded[:60, 2] == 1)
-    assert np.all(padded[60:] == 0)
-    assert not np.any(np.all(padded[60:, :2] == padded[59, :2], axis=1))
+    assert np.all(padded[:75, 2] == 1)
+    assert np.all(padded[75:] == 0)
+    # The zero pad must not repeat the last visible point: that would invent
+    # continued visibility upstream cannot distinguish from a real sample.
+    assert not np.any(np.all(padded[75:, :2] == padded[74, :2], axis=1))
 
 
 @pytest.mark.parametrize("profile", [WAN_TRACK_PROFILE, WANVIDEO_ATI_PROFILE])
@@ -194,3 +205,21 @@ def test_wan_track_profiles_are_registered_without_aliasing_each_other():
     assert PROFILE_REGISTRY.require("wan_track_native") is WAN_TRACK_PROFILE
     assert PROFILE_REGISTRY.require("wanvideo_ati") is WANVIDEO_ATI_PROFILE
     assert WAN_TRACK_PROFILE is not WANVIDEO_ATI_PROFILE
+
+
+def test_the_121_grid_lands_exactly_on_the_generated_frame_times():
+    """The source grid spans frame times, so every output frame hits a sample.
+
+    With 5 frames at 5 fps the shot runs 0, 0.2, 0.4, 0.6, 0.8 s. Sampling 121
+    points across [0, 0.8] puts those frames on samples 0, 30, 60, 90 and 120.
+    Sampling across [0, 1.0] instead -- the media duration -- lands them on
+    0, 0.25, 0.5, 0.75, 1.0, dilating the whole trajectory by one frame.
+    """
+    request = _request()
+    times = sample_times(121, 0.0, request.source_last_frame_time)
+
+    assert request.source_frame_count == 5
+    assert request.source_last_frame_time == pytest.approx(0.8)
+    for frame in range(request.source_frame_count):
+        expected = frame / request.target_fps
+        assert times[frame * 30] == pytest.approx(expected)

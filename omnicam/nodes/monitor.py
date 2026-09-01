@@ -7,6 +7,7 @@ from ..comfy_compat import IO
 from ..core.motion_scene import MotionScene
 from ..core.validation import ValidationError
 from ..profiles.base import CompileRequest
+from ..profiles.capability_gate import capability_check
 from ..profiles.catalog import PROFILE_REGISTRY
 from .base import OMNICAM_MOTION_SCENE
 from .media import as_video, media_input
@@ -71,15 +72,22 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             duration_seconds=duration_seconds,
             target_fps=target_fps,
         )
+        # Detected before compiling: a downstream that cannot receive this output
+        # is a preflight failure the panel has to show, not a surprise at queue
+        # time. Only the selected profile's contract is binding -- a missing LTX
+        # install says nothing about a Wan Camera compile.
+        capabilities = detect_capabilities()
+        downstream = capability_check(target_profile, capabilities)
+
         result = profile.compile(request)
 
-        # Capability and preflight UI
+        checks = [*result.checks, downstream] if downstream is not None else list(result.checks)
         ui = {
             "preflight": [
                 {"id": check.id, "label": check.label, "state": check.state, "message": check.message}
-                for check in result.checks
+                for check in checks
             ],
-            "capabilities": detect_capabilities(),
+            "capabilities": capabilities,
             "target_profile": target_profile,
         }
         ordered = (

@@ -2,8 +2,9 @@ import pytest
 
 pytest.importorskip("comfy_api.latest")
 
-from omnicam.nodes.monitor import MajoorOmniCamMonitor
 from omnicam.core.motion_scene import MotionScene
+from omnicam.nodes.monitor import MajoorOmniCamMonitor
+
 
 def _scene() -> MotionScene:
     return MotionScene.from_dict(
@@ -102,9 +103,9 @@ def test_inactive_typed_outputs_are_none_not_fake_tensors():
         target_fps=24.0
     )
     values = output.outputs if hasattr(output, "outputs") else tuple(output)
-    
+
     assert len(values) == 9
-    
+
     assert values[0] == "A test"
     assert values[1] is None
     assert values[2] is None
