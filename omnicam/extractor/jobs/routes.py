@@ -53,12 +53,16 @@ def _respond(handler, *args, **kwargs) -> web.Response:
     try:
         return web.json_response(handler(*args, **kwargs))
     except api.ApiError as exc:
-        if exc.status == 413:
-            raise web.HTTPRequestEntityTooLarge(
-                max_size=api.MAX_REQUEST_BYTES, actual_size=api.MAX_REQUEST_BYTES + 1
-            ) from exc
-        factory = _STATUS_EXCEPTIONS.get(exc.status, web.HTTPBadRequest)
-        raise factory(text=exc.message) from exc
+        _raise_api_error(exc)
+
+
+def _raise_api_error(exc: api.ApiError) -> None:
+    if exc.status == 413:
+        raise web.HTTPRequestEntityTooLarge(
+            max_size=api.MAX_REQUEST_BYTES, actual_size=api.MAX_REQUEST_BYTES + 1
+        ) from exc
+    factory = _STATUS_EXCEPTIONS.get(exc.status, web.HTTPBadRequest)
+    raise factory(text=exc.message) from exc
 
 
 @PromptServer.instance.routes.post(PREFIX)
@@ -71,6 +75,26 @@ async def start_solve_route(request: web.Request):
 @PromptServer.instance.routes.post("/majoor/omnicam/extractor/source")
 async def describe_source_route(request: web.Request):
     return _respond(api.describe_source, await _body(request))
+
+
+@PromptServer.instance.routes.post("/majoor/omnicam/extractor/frame")
+async def preview_frame_route(request: web.Request) -> web.Response:
+    """Return one managed-source JPEG for browsers without native video decode."""
+    try:
+        preview = api.preview_frame_response(await _body(request))
+    except api.ApiError as exc:
+        _raise_api_error(exc)
+    return web.Response(
+        body=preview.data,
+        content_type=preview.mime_type,
+        headers={
+            "Cache-Control": "private, max-age=300",
+            "X-OmniCam-Frame": str(preview.frame),
+            "X-OmniCam-Frame-Count": str(preview.frame_count),
+            "X-OmniCam-Width": str(preview.width),
+            "X-OmniCam-Height": str(preview.height),
+        },
+    )
 
 
 @PromptServer.instance.routes.get(PREFIX + "/{job_id}")

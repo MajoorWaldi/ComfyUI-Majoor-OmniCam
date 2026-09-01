@@ -11,6 +11,7 @@ from omnicam.extractor.jobs.api import ApiError
 from omnicam.extractor.jobs.manager import SolveJobManager
 from omnicam.extractor.jobs.types import COMPLETED, PREPARING, STOPPING, TRACKING
 from omnicam.extractor.pipeline import RawSolve
+from omnicam.extractor.preview_frame import PreviewFrame
 from omnicam.extractor.refine.types import RefinementSettings
 from omnicam.extractor.types import PoseSample
 
@@ -402,3 +403,54 @@ def test_describing_a_source_starts_nothing():
     import inspect
 
     assert "manager" not in inspect.signature(api.describe_source).parameters
+
+
+# ---------------------------------------------------------------------------
+# Browser fallback frame route
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_preview_frame_route_posts_a_browser_ready_jpeg(monkeypatch):
+    """The browser gets bytes and timeline headers, never a path or JSON blob."""
+    import sys
+    import types
+
+    pytest.importorskip("aiohttp")
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+
+    server_stub = types.ModuleType("server")
+    server_stub.PromptServer = type(
+        "PromptServer", (), {"instance": types.SimpleNamespace(routes=web.RouteTableDef())}
+    )
+    sys.modules.setdefault("server", server_stub)
+    from omnicam.extractor.jobs import routes
+
+    preview = PreviewFrame(
+        data=b"\xff\xd8preview\xff\xd9",
+        mime_type="image/jpeg",
+        frame=3,
+        frame_count=24,
+        width=640,
+        height=360,
+    )
+    monkeypatch.setattr(routes.api, "decode_preview_frame", lambda *_args: preview)
+    app = web.Application()
+    app.router.add_post("/majoor/omnicam/extractor/frame", routes.preview_frame_route)
+    client = TestClient(TestServer(app))
+    await client.start_server()
+    try:
+        response = await client.post(
+            "/majoor/omnicam/extractor/frame",
+            json={
+                "source": {"kind": "managed", "value": "omnicam/extractor_sources/shot.mp4"},
+                "frame": 3,
+                "max_dimension": 640,
+            },
+        )
+        assert response.status == 200
+        assert response.content_type == "image/jpeg"
+        assert response.headers["X-OmniCam-Frame"] == "3"
+        assert response.headers["Cache-Control"] == "private, max-age=300"
+    finally:
+        await client.close()

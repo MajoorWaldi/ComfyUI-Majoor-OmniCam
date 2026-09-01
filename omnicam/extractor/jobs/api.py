@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from ..preview_frame import PreviewFrame, PreviewFrameError, decode_preview_frame
 from ..refine.types import RefinementSettings
 from ..source_resolver import (
     SourceResolutionError,
@@ -84,6 +85,26 @@ def validate_source(source: Any) -> dict[str, Any]:
     if len(value) > 1024:
         raise ApiError(400, "Video source reference is too long")
     return {"kind": kind, "value": value}
+
+
+def _preview_integer(body: dict[str, Any], name: str, default: int) -> int:
+    try:
+        return int(body.get(name, default))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ApiError(400, f"Invalid preview setting: {name}") from exc
+
+
+def validate_preview_request(body: Any) -> tuple[dict[str, Any], int, int]:
+    """Validate the compact, browser-facing single-frame request."""
+    if not isinstance(body, dict):
+        raise ApiError(400, "Expected a JSON object")
+    validate_request_size(body)
+    source = validate_source(body.get("source"))
+    frame = max(0, _preview_integer(body, "frame", 0))
+    max_dimension = _preview_integer(body, "max_dimension", 640)
+    if max_dimension <= 0:
+        raise ApiError(400, "max_dimension must be a positive integer")
+    return source, frame, max(64, min(1920, max_dimension))
 
 
 def validate_settings(settings: Any) -> dict[str, Any]:
@@ -175,6 +196,15 @@ def describe_source(body: Any) -> dict[str, Any]:
     except SourceResolutionError as exc:
         raise ApiError(400, str(exc)) from exc
     return {"source": source, "info": info}
+
+
+def preview_frame_response(body: Any) -> PreviewFrame:
+    """Decode one bounded JPEG frame without creating an interactive solve job."""
+    source, frame, max_dimension = validate_preview_request(body)
+    try:
+        return decode_preview_frame(source, frame, max_dimension)
+    except (PreviewFrameError, SourceResolutionError) as exc:
+        raise ApiError(400, str(exc)) from exc
 
 
 def job_status(manager: SolveJobManager, job_id: str, *, client_id: str) -> dict[str, Any]:
