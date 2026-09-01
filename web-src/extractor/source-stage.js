@@ -58,19 +58,3 @@ export async function syncUpstreamPreviewCanvas(ui, resolved) {
   ui.upstreamPreviewActive = media ? await drawUpstreamPreview(media, canvas, 960) : false;
   if (!ui.disposed) ui.render();
 }
-
-/** Advance every read-only consumer from the one Extractor frame clock. */
-export function showExtractorFrame(ui, frame, { fromVideo = false } = {}) {
-  const next = Math.max(0, Number(frame) || 0);
-  const moved = ui.state.frame !== next;
-  ui.state.frame = next;
-  if (moved && ui.overlay.frame !== next) {
-    const diagnostics = ui.diagnostics.get(next);
-    if (diagnostics) ui.overlay.setDiagnostics(diagnostics);
-    else ui.overlay.clear();
-  }
-  const scrubber = ui.$("scrubber");
-  if (scrubber && fromVideo) scrubber.value = String(next);
-  ui.viewer?.setFrame(next);
-  ui.renderFrameReadouts();
-}

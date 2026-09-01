@@ -436,10 +436,11 @@ test("a failure carries its message and colours the pill", () => {
   assert.equal(statusTone("FAILED"), "danger");
 });
 
-test("progress reports frames rather than a fabricated ETA", () => {
+test("the serializable FRAME action owns the progress readout frame", () => {
   const state = stateAfter(
     { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
-    { type: "PROGRESS", progress: { state: "TRACKING", frame: 64, frame_count: 121, progress: 0.53 } },
+    { type: "FRAME", frame: 64 },
+    { type: "PROGRESS", progress: { state: "TRACKING", frame: 99, frame_count: 121, progress: 0.53 } },
   );
   assert.equal(progressLabel(state), "64 / 121 frames");
   assert.equal(statusLabel(state), "TRACKING 53%");
@@ -687,7 +688,8 @@ test("a partial status never erases what the panel already knows", () => {
   // used to reset a finished solve's progress bar to 0%.
   let state = stateAfter(
     { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
-    { type: "PROGRESS", progress: { state: "TRACKING", frame: 120, frame_count: 121, progress: 0.95 } },
+    { type: "FRAME", frame: 120 },
+    { type: "PROGRESS", progress: { state: "TRACKING", frame: 1, frame_count: 121, progress: 0.95 } },
     { type: "COMPLETED", result: { fingerprint: "fp-1" } },
   );
   assert.equal(state.progress, 1);
@@ -704,7 +706,8 @@ test("a partial status never erases what the panel already knows", () => {
 test("a status that does report progress still wins", () => {
   const state = stateAfter(
     { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING", frame_count: 121 } },
-    { type: "STATUS", status: { state: "SOLVING", progress: 0.4, frame: 48, frame_count: 121 } },
+    { type: "FRAME", frame: 48 },
+    { type: "STATUS", status: { state: "SOLVING", progress: 0.4, frame: 77, frame_count: 121 } },
   );
   assert.equal(state.progress, 0.4);
   assert.equal(state.frame, 48);

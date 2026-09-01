@@ -1,5 +1,5 @@
 import { api } from "../comfy-runtime.js";
-import { renderSourceStageMedia, showExtractorFrame } from "./source-stage.js";
+import { renderSourceStageMedia } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
@@ -20,6 +20,7 @@ import {
   statusLine,
 } from "./result-cache.js";
 import { FrameDiagnosticsStore } from "./diagnostics-store.js";
+import { FrameCoordinator } from "./frame-coordinator.js";
 import { ResultApplyError, applyRefinedTrack } from "./result-sync.js";
 import { SourceViewer } from "./source-viewer.js";
 import { FallbackFrameViewer } from "./fallback-frame-viewer.js";
@@ -97,14 +98,24 @@ class ExtractorUI {
     this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
     this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
     this.sourceViewer = new SourceViewer(this.$("source-video"), {
-      onFrame: (frame) => this.showFrame(frame, { fromVideo: true }),
+      onFrame: (frame) => this.coordinator.seek(frame, "media"),
       onMetadata: ({ frameCount }) => this.adoptSourceLength(frameCount),
       onError: (message) => this.dispatch({ type: "SOURCE", source: { playbackError: message } }),
       onMode: () => this.render(),
       fallbackViewer: this.fallbackViewer,
     });
+    this.coordinator = new FrameCoordinator({
+      media: this.sourceViewer,
+      getViewer: () => this.viewer,
+      showDiagnostics: (frame) => this.showDiagnostics(frame),
+      dispatch: (action) => this.dispatch(action),
+      setFollow: (enabled) => this.sourceViewer.setFollow(enabled),
+      frameCount: this.state.frameCount,
+      fps: this.sourceViewer.fps,
+      loop: true,
+    });
     this.timeline = new TimelinePanelHost(this.root, {
-      onSeek: (frame) => this.sourceViewer.scrubTo(frame),
+      onSeek: (frame) => this.coordinator.seek(frame, "timeline"),
     });
     this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
     this.viewer = null;
@@ -160,24 +171,24 @@ class ExtractorUI {
     this.listen(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
     this.listen(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
     this.listen(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
-    this.listen(this.root.querySelector('[data-act="play"]'), "click", () => this.sourceViewer.toggle());
-    this.listen(this.root.querySelector('[data-act="first-frame"]'), "click", () => this.sourceViewer.scrubTo(0));
-    this.listen(this.root.querySelector('[data-act="previous-frame"]'), "click", () => this.sourceViewer.scrubTo(this.state.frame - 1));
-    this.listen(this.root.querySelector('[data-act="next-frame"]'), "click", () => this.sourceViewer.scrubTo(this.state.frame + 1));
+    this.listen(this.root.querySelector('[data-act="play"]'), "click", () => this.coordinator.toggle());
+    this.listen(this.root.querySelector('[data-act="first-frame"]'), "click", () => this.coordinator.seek(0, "transport"));
+    this.listen(this.root.querySelector('[data-act="previous-frame"]'), "click", () => this.coordinator.seek(this.state.frame - 1, "transport"));
+    this.listen(this.root.querySelector('[data-act="next-frame"]'), "click", () => this.coordinator.seek(this.state.frame + 1, "transport"));
     this.listen(this.root.querySelector('[data-act="last-frame"]'), "click",
-      () => this.sourceViewer.scrubTo(Math.max(0, this.state.frameCount - 1)));
+      () => this.coordinator.seek(Math.max(0, this.state.frameCount - 1), "transport"));
     this.listen(this.root.querySelector('[data-act="toggle-loop"]'), "click", () => {
       const loop = this.$("loop");
       if (!loop) return;
       loop.checked = !loop.checked;
-      this.sourceViewer.setLoop(loop.checked);
+      this.coordinator.setLoop(loop.checked);
       this.root.querySelector('[data-act="toggle-loop"]')?.setAttribute("aria-pressed", String(loop.checked));
     });
 
-    this.listen(this.$("scrubber"), "input", (event) => this.sourceViewer.scrubTo(Number(event.target.value)));
-    this.listen(this.$("frame"), "change", (event) => this.sourceViewer.scrubTo(Number(event.target.value)));
+    this.listen(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.listen(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
     this.listen(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
-    this.listen(this.$("loop"), "change", (event) => this.sourceViewer.setLoop(event.target.checked));
+    this.listen(this.$("loop"), "change", (event) => this.coordinator.setLoop(event.target.checked));
     this.listen(this.$("quality-timeline"), "click", (event) => this.seekFromTimeline(event));
     this.timeline.bind((target, event, handler) => this.listen(target, event, handler),
       () => this.state.frameCount);
@@ -288,6 +299,8 @@ class ExtractorUI {
       this.overlay.clear();
       this.diagnostics.clear();
       this.dispatch({ type: "JOB_STARTED", status });
+      this.coordinator.setFrameCount(this.state.frameCount);
+      this.coordinator.seek(0, "backend");
     } catch (error) {
       this.dispatch({ type: "FAILED", error: String(error?.message || error) });
     }
@@ -318,7 +331,8 @@ class ExtractorUI {
 
   onProgress(payload) {
     this.dispatch({ type: "PROGRESS", progress: payload });
-    this.sourceViewer.followSolveFrame(Number(payload.frame) || 0);
+    this.coordinator.setFrameCount(this.state.frameCount);
+    if (this.sourceViewer.follow) this.coordinator.seek(Number(payload.frame) || 0, "backend");
   }
 
   onPose(payload) {
@@ -491,7 +505,7 @@ class ExtractorUI {
     this.viewer.setRawTrack(this.result.raw);
     this.viewer.setRefinedTrack(this.result.refined);
     this.viewer.setMode(this.state.trackMode);
-    this.viewer.setFrame(this.state.frame);
+    this.coordinator.seek(this.state.frame, "sync");
   }
 
   async setViewerMode(mode) {
@@ -514,11 +528,13 @@ class ExtractorUI {
     const canvas = this.$("quality-timeline");
     const rect = canvas.getBoundingClientRect();
     const frame = frameAtPosition(event.clientX - rect.left, rect.width, this.state.frameCount);
-    this.sourceViewer.scrubTo(frame);
+    this.coordinator.seek(frame, "quality");
   }
 
-  showFrame(frame, { fromVideo = false } = {}) {
-    return showExtractorFrame(this, frame, { fromVideo });
+  showDiagnostics(frame) {
+    const diagnostics = this.diagnostics.get(frame);
+    if (diagnostics) this.overlay.setDiagnostics(diagnostics);
+    else this.overlay.clear();
   }
 
   // -- rendering ---------------------------------------------------------
@@ -663,6 +679,7 @@ class ExtractorUI {
     this.disposed = true;
     this.events.dispose();
     this.refine.dispose();
+    this.coordinator.dispose();
     this.sourceViewer.dispose();
     this.overlay.dispose();
     this.diagnostics.dispose();

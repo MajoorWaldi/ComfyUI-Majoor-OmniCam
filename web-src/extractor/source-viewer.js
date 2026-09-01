@@ -36,11 +36,13 @@ export class SourceViewer extends ManagedVideoPlayer {
     onMode = () => {}, fallbackViewer = null,
   } = {}) {
     super(video, {
-      fps, durationFrames: 1, onFrame, onMetadata,
+      fps, durationFrames: 1, onFrame: (frame) => this.reportFrame(frame), onMetadata,
       onError: (message) => this.handleMediaError(message),
       errorMessage: mediaErrorMessage, loop: true, muted: true,
     });
     this.frameCount = 0;
+    this.onExternalFrame = onFrame;
+    this.ignoredFrame = null;
     this.follow = true;
     this.mode = "native";
     this.source = null;
@@ -71,6 +73,17 @@ export class SourceViewer extends ManagedVideoPlayer {
     return true;
   }
 
+  setRate(fps) {
+    this.fps = Math.max(1, Number(fps) || 24);
+    return this.fps;
+  }
+
+  setFrameCount(frameCount) {
+    this.frameCount = Math.max(0, Math.round(Number(frameCount) || 0));
+    this.durationFrames = Math.max(1, this.frameCount);
+    return this.frameCount;
+  }
+
   handleMediaError(message) {
     const code = Number(this.video?.error?.code) || 0;
     if ((code === 2 || code === 3 || code === 4) && this.fallbackViewer && this.source) {
@@ -98,13 +111,32 @@ export class SourceViewer extends ManagedVideoPlayer {
     }
   }
 
+  /** Apply the coordinator's frame to whichever preview mode is active. */
+  seekFrame(frame) {
+    const next = Math.max(0, Number(frame) || 0);
+    if (this.mode === "fallback") {
+      void this.loadFallback(next);
+      return true;
+    }
+    this.ignoredFrame = next;
+    return super.seekFrame(next);
+  }
+
+  reportFrame(frame) {
+    const next = Math.max(0, Number(frame) || 0);
+    if (this.ignoredFrame === next) {
+      this.ignoredFrame = null;
+      return;
+    }
+    this.onExternalFrame(next);
+  }
+
   /** A user gesture: seek, and stop following the solver until re-enabled. */
   scrubTo(frame) {
     this.setFollow(false);
     const next = Math.max(0, Number(frame) || 0);
-    if (this.mode === "fallback") void this.loadFallback(next);
-    else this.seekFrame(next);
-    this.onFrame(next);
+    this.seekFrame(next);
+    this.onExternalFrame(next);
   }
 
   /** The solver moved: follow it only if the user has not taken over. */

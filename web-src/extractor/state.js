@@ -49,7 +49,7 @@ export function reduceExtractorState(state, action) {
       return {
         ...state,
         solveState: "IDLE", jobId: "", progress: 0, stageProgress: 0,
-        frame: 0, frameCount: 0, backend: "", poseCount: 0, error: "",
+        frameCount: 0, backend: "", poseCount: 0, error: "",
         warnings: [], anomalies: [], quality: [], refinedFingerprint: "",
         source: { ...state.source, ...action.source, info: null },
       };
@@ -60,7 +60,7 @@ export function reduceExtractorState(state, action) {
     case "JOB_STARTED":
       return {
         ...state, jobId: action.status.job_id, solveState: action.status.state,
-        progress: 0, stageProgress: 0, frame: 0,
+        progress: 0, stageProgress: 0,
         frameCount: Number(action.status.frame_count) || 0,
         error: "", warnings: [], anomalies: [], quality: [], poseCount: 0,
         refinedFingerprint: "",
@@ -73,14 +73,17 @@ export function reduceExtractorState(state, action) {
         solveState: action.progress.state || state.solveState,
         progress: Number(action.progress.progress) || 0,
         stageProgress: Number(action.progress.stage_progress) || 0,
-        frame: Number(action.progress.frame) || 0,
         frameCount: Number(action.progress.frame_count) || state.frameCount,
         backend: action.progress.backend || state.backend,
       };
     case "QUALITY":
       return { ...state, quality: [...state.quality, ...(action.samples || [])] };
     case "POSE":
-      return { ...state, poseCount: state.poseCount + 1, frame: Number(action.pose.frame) || state.frame };
+      return { ...state, poseCount: state.poseCount + 1 };
+    case "FRAME":
+      return { ...state, frame: Math.max(0, Math.round(Number(action.frame) || 0)) };
+    case "FRAME_COUNT":
+      return { ...state, frameCount: Math.max(0, Math.round(Number(action.frameCount) || 0)) };
     case "STATUS": {
       // A status may be partial -- the panel dispatches one carrying just the
       // anomalies after a solve finishes. Absent fields must fall back to what
@@ -97,7 +100,6 @@ export function reduceExtractorState(state, action) {
         solveState: status.state || state.solveState,
         jobId: status.job_id || state.jobId,
         progress: keep(status.progress, state.progress),
-        frame: keep(status.frame, state.frame),
         frameCount: keep(status.frame_count, state.frameCount),
         backend: status.backend || state.backend,
         poseCount: keep(status.pose_count, state.poseCount),

@@ -294,6 +294,23 @@ test("an immediate scrub replaces the initial fallback frame request", async () 
   assert.deepEqual(paints, [9]);
 });
 
+test("a coordinator seek loads the decoded fallback rather than seeking failed native media", () => {
+  const video = new FakeVideo();
+  const fallbackFrames = [];
+  const viewer = new SourceViewer(video, {
+    fallbackViewer: { load: async (_source, frame) => { fallbackFrames.push(frame); return true; }, dispose() {} },
+  });
+  viewer.setSource("/view?filename=shot.mov", {
+    source: { kind: "managed", value: "omnicam/extractor_sources/shot.mov" },
+  });
+  viewer.setMode("fallback");
+
+  viewer.seekFrame(6);
+
+  assert.deepEqual(fallbackFrames, [6]);
+  assert.equal(video.currentTime, 0, "a failed native player must not be sought by the coordinator");
+});
+
 test("source mode exposes exactly one native, fallback, or upstream visual", () => {
   const elements = Object.fromEntries(["source-video", "fallback-preview", "upstream-preview"].map((role) => [role, {}]));
   const ui = { upstreamPreviewActive: false, sourceViewer: { mode: "native" }, $: (role) => elements[role] };
