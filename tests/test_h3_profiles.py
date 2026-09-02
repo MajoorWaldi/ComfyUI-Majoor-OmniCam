@@ -199,6 +199,27 @@ def test_h3_api_blocks_a_reference_frame_rate_the_api_rejects():
     assert "frame rate" in check.message
 
 
+def test_h3_api_refuses_to_compile_a_reference_shorter_than_the_minimum():
+    """A BLOCKED preflight has to stop the compile, not just colour the panel.
+
+    The API rejects this itself -- but only after the upload, and with an error
+    that arrives too late to be actionable.
+    """
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())
+
+    with pytest.raises(ValueError, match=r"below the 2\.0s minimum"):
+        H3_API_PROFILE.compile(request)
+
+
+def test_h3_api_refuses_to_compile_a_reference_frame_rate_the_api_rejects():
+    request = _request()
+    object.__setattr__(request, "playblast_video", OffRateVideo())
+
+    with pytest.raises(ValueError, match="frame rate"):
+        H3_API_PROFILE.compile(request)
+
+
 def test_h3_native_warns_rather_than_blocks_on_a_short_reference():
     """Native has recommendations where the API has hard limits."""
     request = _request()
@@ -207,6 +228,36 @@ def test_h3_native_warns_rather_than_blocks_on_a_short_reference():
     check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_media")
 
     assert check.state == "WARNING"
+
+
+def test_h3_native_reports_the_five_frame_floor_before_compiling():
+    """The runtime floor and the panel have to agree.
+
+    A three-frame reference used to preflight as a mere WARNING and then raise
+    at compile time, so the panel said the scene was fine right up until it was
+    not.
+    """
+    class TinyVideo(MockVideo):
+        def get_frame_count(self) -> int:
+            return 3
+
+    request = _request()
+    object.__setattr__(request, "playblast_video", TinyVideo())
+
+    check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_frames")
+
+    assert check.state == "BLOCKED"
+    assert "at least 5 reference frames" in check.message
+
+
+def test_a_reference_long_enough_to_encode_passes_the_frame_floor():
+    """Short for the recommendation is not the same as too short to encode."""
+    request = _request()
+    object.__setattr__(request, "playblast_video", ShortVideo())  # 12 frames
+
+    check = _check(H3_NATIVE_PROFILE.preflight(request), "reference_frames")
+
+    assert check.state == "PASS"
 
 
 def test_h3_native_refuses_a_playblast_that_decodes_below_five_frames():

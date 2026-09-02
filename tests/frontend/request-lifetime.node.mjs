@@ -69,3 +69,25 @@ test("disposing twice is harmless", () => {
   lifetime.dispose();
   assert.equal(lifetime.aborted, true);
 });
+
+test("disposal leaves a trace an out-of-page observer can read", () => {
+  // A Playwright `requestfailed` listener sees ERR_ABORTED for a deliberate
+  // cancel and for a dead server alike. Only the page can tell them apart.
+  delete globalThis.__majoorOmniCamIntentionalAborts;
+
+  const lifetime = new RequestLifetime();
+  assert.equal(globalThis.__majoorOmniCamIntentionalAborts, undefined);
+
+  lifetime.dispose();
+
+  assert.equal(globalThis.__majoorOmniCamIntentionalAborts.length, 1);
+  assert.equal(typeof globalThis.__majoorOmniCamIntentionalAborts[0].at, "number");
+});
+
+test("the abort trace is bounded rather than a growing session history", () => {
+  globalThis.__majoorOmniCamIntentionalAborts = [];
+  for (let index = 0; index < 70; index += 1) new RequestLifetime().dispose();
+
+  assert.equal(globalThis.__majoorOmniCamIntentionalAborts.length, 64);
+  delete globalThis.__majoorOmniCamIntentionalAborts;
+});

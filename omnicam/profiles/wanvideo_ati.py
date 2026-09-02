@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..core.motion_resolution import resolve_motion_scene_tracks
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check, multi_shot_error
 from .track_json import encoding_check, tracks_json, visible_prefix_tracks
@@ -70,6 +70,9 @@ class WanVideoAtiProfile:
             raise ValueError(multi_shot_error(request.motion_scene, "WanVideoWrapper ATI"))
         if checks[0].state == "BLOCKED":
             raise ValueError("WanVideo ATI requires at least one enabled motion layer")
+        # Any other BLOCKED gate stops here too, so a check added to preflight
+        # is binding without also having to be enumerated in compile.
+        raise_on_blocked(checks)
         timeline = self.resolve_timeline(request)
         sampled = self._sampled_tracks(request)
         encoded = visible_prefix_tracks(sampled, width=timeline.width, height=timeline.height)

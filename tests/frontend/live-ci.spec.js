@@ -5,6 +5,7 @@ function captureBrowserDiagnostics(page, testInfo) {
     pageErrors: [],
     consoleErrors: [],
     requestFailures: [],
+    abortedRequests: [],
     responseErrors: [],
     chunkResponses: [],
   };
@@ -36,10 +37,17 @@ function captureBrowserDiagnostics(page, testInfo) {
     // access is blocked, so those fail with ERR_ABORTED. They are not OmniCam
     // requests and must not be counted as test failures.
     if (!url.startsWith("http://127.0.0.1") && !url.startsWith("http://localhost")) return;
-    diagnostics.requestFailures.push({
-      url,
-      error: request.failure()?.errorText || "unknown",
-    });
+    const error = request.failure()?.errorText || "unknown";
+    // A component removed while one of its fetches is in flight aborts that
+    // fetch on purpose; the browser reports the same ERR_ABORTED it uses for a
+    // dead server. Ignoring ERR_ABORTED wholesale would hide the second case,
+    // so these are held aside and judged against what the page says it did.
+    if (error.includes("ERR_ABORTED")) {
+      diagnostics.abortedRequests.push({ url, error });
+      refresh();
+      return;
+    }
+    diagnostics.requestFailures.push({ url, error });
     refresh();
   });
   page.on("response", (response) => {
@@ -117,6 +125,24 @@ async function openComfyReady(page) {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => resolve())));
 }
 
+/**
+ * Cancelled-on-purpose requests are not failures; unexplained ones still are.
+ *
+ * The page records a breadcrumb every time a component disposes its request
+ * lifetime. An ERR_ABORTED with no such breadcrumb behind it is a real fault --
+ * a dropped connection, a server that went away -- and stays a failure.
+ */
+async function expectNoUnexplainedAborts(page, diagnostics) {
+  if (diagnostics.abortedRequests.length === 0) return;
+  const intentional = await page.evaluate(
+    () => (window.__majoorOmniCamIntentionalAborts || []).length,
+  );
+  expect(
+    intentional > 0 ? [] : diagnostics.abortedRequests,
+    "requests aborted with no component disposal to explain them",
+  ).toEqual([]);
+}
+
 test("Director survives widget edit, workflow reload, recreation and queueing", async ({ page }, testInfo) => {
   await openComfyReady(page);
   const diagnostics = captureBrowserDiagnostics(page, testInfo);
@@ -191,6 +217,7 @@ test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", asyn
   expect(diagnostics.pageErrors).toEqual([]);
   expect(diagnostics.consoleErrors).toEqual([]);
   expect(diagnostics.requestFailures).toEqual([]);
+  await expectNoUnexplainedAborts(page, diagnostics);
   expect(diagnostics.responseErrors).toEqual([]);
   expect(diagnostics.chunkResponses.some(({ url, status }) => !url.endsWith("/omnicam.js") && status === 200)).toBe(true);
 });
@@ -233,6 +260,7 @@ test("Extractor renders an injected solved track in TRACK 3D without page errors
   expect(diagnostics.pageErrors).toEqual([]);
   expect(diagnostics.consoleErrors).toEqual([]);
   expect(diagnostics.requestFailures).toEqual([]);
+  await expectNoUnexplainedAborts(page, diagnostics);
   expect(diagnostics.responseErrors).toEqual([]);
   expect(viewer.renderer).toBe(true);
   expect(viewer.canvasWidth).toBeGreaterThan(0);
@@ -258,26 +286,61 @@ test("Director mounts inside a Subgraph and keeps its promoted fps widget", asyn
       app.graph.configure(workflow);
     }
     window.omnicamCiSubgraph = app.graph.nodes.find((node) => node.id === 20);
-  }, workflowData);
-
-  await page.waitForFunction(
-    () => {
-      const subgraph = window.omnicamCiSubgraph;
-      const director = subgraph?.subgraph?._nodes?.find(
+    // `graph.nodes` is the documented traversal. `_nodes` is the private field
+    // it used to be read from, kept here only as a fallback so a frontend that
+    // has not renamed it yet reports a real result instead of a bare timeout.
+    window.omnicamCiFindDirector = (host) => {
+      const inner = host?.subgraph;
+      const nodes = inner?.nodes || inner?._nodes || [];
+      return Array.from(nodes).find(
         (node) => node.comfyClass === "MajoorOmniCamDirector",
       );
-      return subgraph?.widgets?.some((widget) => widget.name === "fps")
-        || Boolean(director?.__majoorOmniCam?.root && director.widgets?.some((widget) => widget.name === "fps"));
-    },
-    null,
-    { timeout: 30_000 },
-  );
+    };
+  }, workflowData);
+
+  try {
+    await page.waitForFunction(
+      () => {
+        const subgraph = window.omnicamCiSubgraph;
+        const director = window.omnicamCiFindDirector(subgraph);
+        return subgraph?.widgets?.some((widget) => widget.name === "fps")
+          || Boolean(director?.__majoorOmniCam?.root && director.widgets?.some((widget) => widget.name === "fps"));
+      },
+      null,
+      { timeout: 30_000 },
+    );
+  } catch (error) {
+    // A bare timeout here says only "it never became true", which is the least
+    // useful thing to know: it cannot distinguish a Director that never
+    // attached from one whose widget was never promoted, or a subgraph this
+    // traversal simply failed to see into.
+    const state = await page.evaluate(() => {
+      const subgraph = window.omnicamCiSubgraph;
+      const inner = subgraph?.subgraph;
+      const director = window.omnicamCiFindDirector(subgraph);
+      return {
+        hostFound: Boolean(subgraph),
+        innerGraphFound: Boolean(inner),
+        traversalKey: inner?.nodes ? "nodes" : inner?._nodes ? "_nodes" : "none",
+        innerNodeClasses: Array.from(inner?.nodes || inner?._nodes || []).map(
+          (node) => node.comfyClass || node.type,
+        ),
+        promotedWidgets: (subgraph?.widgets || []).map((widget) => widget.name),
+        directorFound: Boolean(director),
+        directorAttached: Boolean(director?.__majoorOmniCam?.root),
+        directorWidgets: (director?.widgets || []).map((widget) => widget.name),
+      };
+    }).catch(() => ({ evaluateFailed: true }));
+    testInfo.annotations.push({
+      type: "subgraph-diagnostics",
+      description: JSON.stringify(state),
+    });
+    throw error;
+  }
 
   expect(await page.evaluate(() => {
     const subgraph = window.omnicamCiSubgraph;
-    const director = subgraph.subgraph?._nodes?.find(
-      (node) => node.comfyClass === "MajoorOmniCamDirector",
-    );
+    const director = window.omnicamCiFindDirector(subgraph);
     const fps = subgraph.widgets?.find((widget) => widget.name === "fps")
       || director?.widgets?.find((widget) => widget.name === "fps");
     if (!fps) return null;

@@ -11,13 +11,20 @@ from .adapters.registry import ADAPTER_INFO, CAPABILITY_STATES
 logger = logging.getLogger(__name__)
 
 
-def _available_node_mappings() -> dict[str, Any]:
+def _available_node_mappings() -> tuple[dict[str, Any], bool]:
+    """The installed node registry, and whether it could be read at all.
+
+    The second value is the difference between "ComfyUI is running and this node
+    is not installed" and "there is no ComfyUI here to ask". Both used to
+    collapse into an empty mapping, so every adapter reported ``missing``
+    headless -- which is why detection could never be made binding.
+    """
     try:
         import nodes as comfy_nodes
-        return dict(comfy_nodes.NODE_CLASS_MAPPINGS)
+        return dict(comfy_nodes.NODE_CLASS_MAPPINGS), True
     except Exception as exc:  # noqa: BLE001 - running outside ComfyUI is a supported mode
         logger.debug("ComfyUI node mappings are unavailable: %s", exc)
-        return {}
+        return {}, False
 
 
 def _socket_names(inputs: Any, depth: int = 0) -> set[str]:
@@ -102,9 +109,16 @@ def _evaluate_requirement(requirement: dict[str, Any], mappings: dict[str, Any])
 
 def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -> dict[str, Any]:
     """Detect presence and, where introspectable, the actual socket contract."""
-    mappings = _available_node_mappings() if node_classes is None else (
-        dict(node_classes) if isinstance(node_classes, dict) else {name: None for name in node_classes}
-    )
+    if node_classes is None:
+        mappings, registry_available = _available_node_mappings()
+    else:
+        # An explicit set is the caller stating what is installed, so the
+        # registry is known by definition.
+        mappings = (
+            dict(node_classes) if isinstance(node_classes, dict)
+            else {name: None for name in node_classes}
+        )
+        registry_available = True
     capabilities = []
     for adapter, info in ADAPTER_INFO.items():
         requirements = list(info.get("requirements", []))
@@ -133,6 +147,7 @@ def detect_capabilities(node_classes: set[str] | dict[str, Any] | None = None) -
     return {
         "format": "majoor.omnicam.capabilities.v2",
         "states": CAPABILITY_STATES,
+        "node_registry_available": registry_available,
         "capabilities": capabilities,
         "extractor": detect_extractor_backends(),
     }

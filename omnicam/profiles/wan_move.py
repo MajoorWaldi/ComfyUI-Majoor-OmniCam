@@ -7,7 +7,7 @@ from typing import Any
 
 from ..core.motion_resolution import resolve_motion_scene_tracks
 from ..core.motion_sampling import SampledTrack
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check, multi_shot_error
 
@@ -83,6 +83,9 @@ class WanMoveProfile:
             raise ValueError(multi_shot_error(request.motion_scene, "Wan Move Native"))
         if checks[0].state == "BLOCKED":
             raise ValueError("Wan Move requires at least one enabled motion layer")
+        # Any other BLOCKED gate stops here too, so a check added to preflight
+        # is binding without also having to be enumerated in compile.
+        raise_on_blocked(checks)
         timeline = self.resolve_timeline(request)
         tracks = resolve_motion_scene_tracks(
             request.motion_scene,

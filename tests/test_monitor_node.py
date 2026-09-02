@@ -132,3 +132,180 @@ def test_unknown_target_profile_is_rejected_instead_of_silently_switched():
             duration_seconds=2.0,
             target_fps=24.0,
         )
+
+
+# ---------------------------------------------------------------------------
+# The downstream capability gate is binding at execute(), not just in the panel
+# ---------------------------------------------------------------------------
+
+def _detection(state: str, **extra):
+    """A detection payload from a running ComfyUI for wan_move_native."""
+    return {
+        "node_registry_available": True,
+        "capabilities": [
+            {
+                "adapter": "wan_move_native",
+                "display": "Wan Move",
+                "state": state,
+                "detected_nodes": extra.pop("detected_nodes", ["WanTrackToVideo"]),
+                **extra,
+            }
+        ],
+    }
+
+
+def _execute(**overrides):
+    kwargs = dict(
+        motion_scene=_scene().to_dict(),
+        playblast_video=None,
+        base_prompt="A test",
+        target_profile="wan_move_native",
+        target_width=832,
+        target_height=480,
+        duration_seconds=2.0,
+        target_fps=24.0,
+    )
+    kwargs.update(overrides)
+    return MajoorOmniCamMonitor.execute(**kwargs)
+
+
+def test_a_missing_downstream_stops_execute_instead_of_only_colouring_the_panel(monkeypatch):
+    """The README promises a binding preflight; this is what makes it one.
+
+    Compiling a payload for a node that is not installed produces a workflow
+    that fails at queue time, pointing at the wrong node.
+    """
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("missing", detected_nodes=[]),
+    )
+
+    with pytest.raises(ValueError, match="not installed"):
+        _execute()
+
+
+def test_an_incompatible_downstream_socket_contract_stops_execute(monkeypatch):
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("incompatible", expected_inputs=["tracks"]),
+    )
+
+    with pytest.raises(ValueError, match="does not expose"):
+        _execute()
+
+
+def test_a_detected_but_unverified_downstream_warns_and_still_compiles(monkeypatch):
+    """Unverified is not a failure: the node is there, its schema was unreadable."""
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("detected_unverified"),
+    )
+
+    output = _execute()
+
+    downstream = next(
+        item for item in output.ui["preflight"] if item["id"] == "downstream_contract"
+    )
+    assert downstream["state"] == "WARNING"
+
+
+def test_a_verified_downstream_compiles_and_reports_pass(monkeypatch):
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("verified"),
+    )
+
+    output = _execute()
+
+    downstream = next(
+        item for item in output.ui["preflight"] if item["id"] == "downstream_contract"
+    )
+    assert downstream["state"] == "PASS"
+
+
+# ---------------------------------------------------------------------------
+# A blocked run still explains itself in the panel
+# ---------------------------------------------------------------------------
+
+def _captured_panels(monkeypatch):
+    """Collect what the Monitor pushes over the socket.
+
+    The fake module is installed in ``sys.modules`` rather than patched onto the
+    real one: importing ComfyUI's server pulls in the whole model stack, which
+    needs a GPU this suite is not entitled to assume.
+    """
+    import sys
+    import types
+
+    sent = []
+
+    class FakeServer:
+        instance = type("Instance", (), {"send_sync": staticmethod(
+            lambda event, payload, *args: sent.append((event, payload))
+        )})()
+
+    module = types.ModuleType("omnicam.comfy_compat.server")
+    module.PromptServer = FakeServer
+    monkeypatch.setitem(sys.modules, "omnicam.comfy_compat.server", module)
+    return sent
+
+
+def test_a_blocked_downstream_publishes_the_panel_before_it_raises(monkeypatch):
+    """Stopping the run must not blank the one place that says why.
+
+    ComfyUI delivers a node's ui only when it succeeds, so a binding preflight
+    would otherwise leave the user with a traceback and an empty panel.
+    """
+    sent = _captured_panels(monkeypatch)
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("missing", detected_nodes=[]),
+    )
+    monkeypatch.setattr(MajoorOmniCamMonitor, "hidden", type("H", (), {"unique_id": "4"})())
+
+    with pytest.raises(ValueError, match="not installed"):
+        _execute()
+
+    assert [event for event, _ in sent] == ["executed"]
+    payload = sent[0][1]
+    assert payload["node"] == "4"
+    states = {check["id"]: check["state"] for check in payload["output"]["preflight"]}
+    assert states["downstream_contract"] == "BLOCKED"
+    # The scene's own checks travel with it, so the panel is not reduced to the
+    # single failure that happened to stop the run.
+    assert len(states) > 1
+
+
+def test_a_profile_that_refuses_to_compile_also_publishes_its_panel(monkeypatch):
+    sent = _captured_panels(monkeypatch)
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: {"node_registry_available": False, "capabilities": []},
+    )
+    monkeypatch.setattr(MajoorOmniCamMonitor, "hidden", type("H", (), {"unique_id": "7"})())
+
+    # wan_move_native refuses a scene with no enabled motion layer.
+    scene = _scene().to_dict()
+    scene["motion_layers"][0]["enabled"] = False
+
+    with pytest.raises(ValueError, match="motion layer"):
+        _execute(motion_scene=scene)
+
+    assert [event for event, _ in sent] == ["executed"]
+    checks = sent[0][1]["output"]["preflight"]
+    assert any(check["state"] == "BLOCKED" for check in checks)
+
+
+def test_a_healthy_run_publishes_nothing_early_and_returns_its_ui(monkeypatch):
+    """The success path must not double-send or pay for a second preflight."""
+    sent = _captured_panels(monkeypatch)
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("verified"),
+    )
+    monkeypatch.setattr(MajoorOmniCamMonitor, "hidden", type("H", (), {"unique_id": "9"})())
+
+    output = _execute()
+
+    assert sent == []
+    assert output.ui["preflight"]

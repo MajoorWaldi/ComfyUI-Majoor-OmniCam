@@ -1,16 +1,56 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
 from ..core.motion_scene import MotionScene
 from ..core.validation import ValidationError
+from ..monitor.result import raise_on_blocked
 from ..profiles.base import CompileRequest
 from ..profiles.capability_gate import capability_check
 from ..profiles.catalog import PROFILE_REGISTRY
 from .base import OMNICAM_MOTION_SCENE
 from .media import as_video, media_input
+
+logger = logging.getLogger(__name__)
+
+
+def _panel(checks, capabilities: dict[str, Any], target_profile: str) -> dict[str, Any]:
+    """The payload the Monitor panel renders, blocked or not."""
+    return {
+        "preflight": [
+            {"id": check.id, "label": check.label, "state": check.state, "message": check.message}
+            for check in checks
+        ],
+        "capabilities": capabilities,
+        "target_profile": target_profile,
+    }
+
+
+def _publish(unique_id: Any, payload: dict[str, Any]) -> None:
+    """Push the panel over the socket the way a completed execution would.
+
+    A binding preflight that stops the run also stops ComfyUI from delivering
+    any ``ui``, so the one place that explains *why* it stopped would go blank
+    at exactly the moment it is needed. Sending it here keeps the panel and the
+    error telling the same story.
+    """
+    if unique_id is None:
+        return
+    try:
+        from ..comfy_compat.server import PromptServer
+
+        instance = getattr(PromptServer, "instance", None)
+        if instance is None:
+            return
+        instance.send_sync(
+            "executed",
+            {"node": str(unique_id), "display_node": str(unique_id), "output": payload},
+        )
+    except Exception as exc:  # noqa: BLE001 - the panel is diagnostics, never the gate
+        logger.debug("OmniCam Monitor could not publish its preflight panel: %s", exc)
 
 
 class MajoorOmniCamMonitor(IO.ComfyNode):
@@ -36,6 +76,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                 IO.Float.Input("duration_seconds", default=2.0, min=0.1, max=600.0, step=0.1, advanced=True),
                 IO.Float.Input("target_fps", default=24.0, min=1.0, max=120.0, step=1.0, advanced=True),
             ],
+            hidden=[IO.Hidden.unique_id],
             outputs=[
                 IO.String.Output(display_name="final_prompt"),
                 IO.Video.Output(display_name="reference_video"),
@@ -79,17 +120,41 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
         capabilities = detect_capabilities()
         downstream = capability_check(target_profile, capabilities)
 
-        result = profile.compile(request)
+        # Binding, not decorative. Compiling a payload for a node that is not
+        # installed, or whose socket contract no longer matches, produces a
+        # workflow that fails the moment it is queued -- with an error pointing
+        # at the wrong node. capability_check returns None outside a running
+        # ComfyUI, so headless compiles are unaffected.
+        unique_id = getattr(getattr(cls, "hidden", None), "unique_id", None)
+
+        def stop(error_checks) -> None:
+            """Show the panel, then fail. In that order."""
+            _publish(unique_id, _panel(error_checks, capabilities, target_profile))
+            raise_on_blocked(error_checks)
+
+        if downstream is not None and downstream.state == "BLOCKED":
+            # preflight() is only consulted on the failing path, so a healthy
+            # compile still pays for exactly one pass.
+            try:
+                scene_checks = list(profile.preflight(request))
+            except Exception:  # noqa: BLE001 - a panel is worth less than the real error
+                scene_checks = []
+            stop([*scene_checks, downstream])
+
+        try:
+            result = profile.compile(request)
+        except ValueError:
+            try:
+                blocked = [*profile.preflight(request)]
+            except Exception:  # noqa: BLE001
+                blocked = []
+            if downstream is not None:
+                blocked.append(downstream)
+            _publish(unique_id, _panel(blocked, capabilities, target_profile))
+            raise
 
         checks = [*result.checks, downstream] if downstream is not None else list(result.checks)
-        ui = {
-            "preflight": [
-                {"id": check.id, "label": check.label, "state": check.state, "message": check.message}
-                for check in checks
-            ],
-            "capabilities": capabilities,
-            "target_profile": target_profile,
-        }
+        ui = _panel(checks, capabilities, target_profile)
         ordered = (
             result.final_prompt,
             result.reference_video,

@@ -28,6 +28,18 @@ function checkMarkup(check) {
   return `<div class="oc-row"><span><strong>${escapeHtml(check.label || check.id)}</strong>${message}</span><span class="oc-state" data-state="${state}">${escapeHtml(check.state || "UNKNOWN")}</span></div>`;
 }
 
+/**
+ * What the status line says once the panel is rendered.
+ *
+ * A blocked preflight publishes this panel and then stops the run, so there is
+ * no output behind it. Saying otherwise is how a red panel still reads as a
+ * successful compile.
+ */
+export function outputStatusText(blocked, targetProfile) {
+  const status = blocked ? "NO OUTPUT" : "OUTPUT GENERATED";
+  return targetProfile ? `${status} · ${targetProfile}` : status;
+}
+
 export function renderMonitorExecution(root, message) {
   const result = normalizeMonitorExecution(message);
   const preflight = root.querySelector('[data-role="profile-preflight"]');
@@ -47,8 +59,7 @@ export function renderMonitorExecution(root, message) {
   const badge = root.querySelector('[data-role="monitor-status"]');
   badge.dataset.state = blocked ? "BLOCKED" : "READY";
   badge.lastChild.textContent = blocked ? " BLOCKED" : " READY";
-  root.querySelector('[data-role="output-status"]').textContent = result.targetProfile
-    ? `OUTPUT GENERATED · ${result.targetProfile}`
-    : "OUTPUT GENERATED";
+  root.querySelector('[data-role="output-status"]').textContent =
+    outputStatusText(blocked, result.targetProfile);
   return result;
 }

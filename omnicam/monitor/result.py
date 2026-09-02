@@ -118,3 +118,17 @@ class CompiledMotion:
     def target_length(self) -> int:
         return self.timeline.frame_count
 
+
+
+def raise_on_blocked(checks: Any) -> None:
+    """Stop on the first BLOCKED check, using its own message as the error.
+
+    Every profile used to enumerate the specific causes it would raise for, so a
+    BLOCKED check nobody had remembered to enumerate -- a reference the API
+    rejects, a downstream that is not installed -- coloured the panel red and
+    compiled anyway. Enumerating causes is the bug; the invariant is that no
+    BLOCKED check ever reaches a payload.
+    """
+    for check in checks:
+        if getattr(check, "state", None) == "BLOCKED":
+            raise ValueError(getattr(check, "message", "") or check.label)

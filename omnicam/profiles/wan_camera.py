@@ -6,7 +6,7 @@ import math
 
 from ..adapters.wan_native import build_wan_camera_embedding
 from ..core.motion_scene import CameraSceneItem, MotionScene
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check, multi_shot_error
 
@@ -81,6 +81,9 @@ class WanCameraProfile:
             raise ValueError("MotionScene has no usable playblast camera")
         if not camera.enabled:
             raise ValueError(f"playblast camera {camera.id!r} is disabled")
+        # Any other BLOCKED gate stops here too, so a check added to preflight
+        # is binding without also having to be enumerated in compile.
+        raise_on_blocked(checks)
 
         timeline = self.resolve_timeline(request)
         embedding = build_wan_camera_embedding(

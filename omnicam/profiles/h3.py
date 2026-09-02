@@ -11,8 +11,8 @@ from ..adapters.h3 import (
     h3_native_aligned_length,
 )
 from ..core.motion_scene import CameraSceneItem, MotionScene
-from ..core.video_sampling import inspect_video, resample_video_frames
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+from ..core.video_sampling import inspect_video, resample_video_frames, resampling_indices
+from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
 
@@ -81,6 +81,39 @@ def _reference_media_checks(request: CompileRequest, limits: dict) -> list[Check
     )]
 
 
+def _reference_frame_count_check(request: CompileRequest, target_frames: int) -> list[Check]:
+    """H3 Native's five-frame floor, answered before compiling rather than after.
+
+    The count is not guessed from the duration: it is the exact length
+    ``resample_video_frames`` will produce for this clip on the 24 fps clock, so
+    the panel and the compiler can never disagree about it.
+    """
+    if request.playblast_video is None:
+        return []
+    minimum = int(H3_NATIVE_MEDIA_LIMITS["min_reference_frames"])
+    try:
+        metadata = inspect_video(request.playblast_video)
+        decoded = len(
+            resampling_indices(
+                metadata.frame_count,
+                metadata.frame_rate,
+                float(H3_NATIVE_MEDIA_LIMITS["reference_fps"]),
+                max_frames=target_frames,
+            )
+        )
+    except Exception:  # noqa: BLE001 - an unreadable reference is already reported above
+        return []
+    return [Check(
+        id="reference_frames",
+        label=f"Reference frames after resampling: {decoded}",
+        state="PASS" if decoded >= minimum else "BLOCKED",
+        message="" if decoded >= minimum else (
+            f"MiniMax H3 Native needs at least {minimum} reference frames; this "
+            f"playblast resamples to {decoded}. Use a longer playblast."
+        ),
+    )]
+
+
 def _h3_prompt(request: CompileRequest, camera, *, adapter: str) -> str:
     """The camera fragment, or a neutral one when the edit has cuts.
 
@@ -146,6 +179,7 @@ class H3NativeProfile:
                 state="PASS",
             ),
             *_reference_media_checks(request, H3_NATIVE_MEDIA_LIMITS),
+            *_reference_frame_count_check(request, timeline.frame_count),
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 Native",
@@ -156,7 +190,9 @@ class H3NativeProfile:
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         if any(check.state == "BLOCKED" for check in checks):
-            # Defer to specific errors for better testing
+            # Named causes first, because their wording is the contract these
+            # errors are read by; raise_on_blocked then covers every BLOCKED
+            # nobody thought to enumerate here.
             if request.playblast_video is None:
                 raise ValueError("playblast video is required")
             camera = _playblast_camera(request.motion_scene)
@@ -164,6 +200,7 @@ class H3NativeProfile:
                 raise ValueError("MotionScene has no usable playblast camera")
             if not camera.enabled:
                 raise ValueError(f"playblast camera {camera.id!r} is disabled")
+            raise_on_blocked(checks)
 
         camera = _playblast_camera(request.motion_scene)
         if camera is None:  # preflight models this; an assert vanishes under -O
@@ -267,6 +304,10 @@ class H3ApiProfile:
                 raise ValueError("MotionScene has no usable playblast camera")
             if not camera.enabled:
                 raise ValueError(f"playblast camera {camera.id!r} is disabled")
+            # The API rejects an out-of-range frame rate or duration itself, and
+            # does so only after the upload. Refusing here is the same contract,
+            # enforced before the round trip.
+            raise_on_blocked(checks)
 
         camera = _playblast_camera(request.motion_scene)
         if camera is None:  # preflight models this; an assert vanishes under -O

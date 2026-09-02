@@ -86,8 +86,9 @@ Switching profile inside a semantic is a widget change, not a rewiring.
 To start from footage instead, put **OmniCam Extractor** in front and wire its
 `motion_scene` output to the Director's `solved_scene` input.
 
-Ready-made graphs are in [`examples/workflows/`](examples/workflows) — one per
-semantic.
+Complete runnable graphs are in [`examples/workflows/`](examples/workflows):
+each is the official Comfy-Org template for that model with its motion source
+replaced by OmniCam, so every model, LoRA and sampler setting is upstream's.
 
 ## What OmniCam will refuse to do
 

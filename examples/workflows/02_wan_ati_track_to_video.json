@@ -1,0 +1,1312 @@
+{
+  "id": "96995b8f-85c5-47af-b3cf-7b6a24675694",
+  "revision": 0,
+  "last_node_id": 265,
+  "last_link_id": 411,
+  "nodes": [
+    {
+      "id": 140,
+      "type": "UNETLoader",
+      "pos": [
+        -525.3953247070312,
+        78.10833740234375
+      ],
+      "size": [
+        360,
+        82
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            405
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "models": [
+          {
+            "name": "Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors",
+            "url": "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors",
+            "directory": "diffusion_models"
+          }
+        ],
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors",
+        "fp8_e4m3fn"
+      ]
+    },
+    {
+      "id": 38,
+      "type": "CLIPLoader",
+      "pos": [
+        -525.3953247070312,
+        208.10826110839844
+      ],
+      "size": [
+        360,
+        106
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "slot_index": 0,
+          "links": [
+            74,
+            75
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "models": [
+          {
+            "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors?download=true",
+            "directory": "text_encoders"
+          }
+        ],
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+        "wan",
+        "default"
+      ]
+    },
+    {
+      "id": 248,
+      "type": "WanTrackToVideo",
+      "pos": [
+        420,
+        180
+      ],
+      "size": [
+        265.6821594238281,
+        394.1162414550781
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 381
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 382
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 383
+        },
+        {
+          "name": "start_image",
+          "type": "IMAGE",
+          "link": 384
+        },
+        {
+          "name": "clip_vision_output",
+          "shape": 7,
+          "type": "CLIP_VISION_OUTPUT",
+          "link": 397
+        },
+        {
+          "name": "tracks",
+          "type": "STRING",
+          "widget": {
+            "name": "tracks"
+          },
+          "link": 408
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "widget": {
+            "name": "width"
+          },
+          "link": 409
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "widget": {
+            "name": "height"
+          },
+          "link": 410
+        },
+        {
+          "name": "length",
+          "type": "INT",
+          "widget": {
+            "name": "length"
+          },
+          "link": 411
+        }
+      ],
+      "outputs": [
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "links": [
+            385
+          ]
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "links": [
+            386
+          ]
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            387
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "WanTrackToVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.45"
+      },
+      "widgets_values": [
+        "[]",
+        720,
+        480,
+        81,
+        1,
+        220,
+        10
+      ]
+    },
+    {
+      "id": 7,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -90,
+        360
+      ],
+      "size": [
+        425.27801513671875,
+        180.6060791015625
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 75
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            382
+          ]
+        }
+      ],
+      "title": "CLIP Text Encode (Negative Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走,过曝，"
+      ],
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 251,
+      "type": "CLIPVisionEncode",
+      "pos": [
+        -30,
+        640
+      ],
+      "size": [
+        290.390625,
+        78
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip_vision",
+          "type": "CLIP_VISION",
+          "link": 395
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 396
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CLIP_VISION_OUTPUT",
+          "type": "CLIP_VISION_OUTPUT",
+          "links": [
+            397
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPVisionEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.45"
+      },
+      "widgets_values": [
+        "none"
+      ]
+    },
+    {
+      "id": 39,
+      "type": "VAELoader",
+      "pos": [
+        -530,
+        370
+      ],
+      "size": [
+        360,
+        60
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "slot_index": 0,
+          "links": [
+            76,
+            383
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "models": [
+          {
+            "name": "wan_2.1_vae.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors",
+            "directory": "vae"
+          }
+        ],
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "wan_2.1_vae.safetensors"
+      ]
+    },
+    {
+      "id": 244,
+      "type": "CLIPVisionLoader",
+      "pos": [
+        -520,
+        480
+      ],
+      "size": [
+        344.7685546875,
+        60.39640808105469
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP_VISION",
+          "type": "CLIP_VISION",
+          "links": [
+            395
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPVisionLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.41",
+        "models": [
+          {
+            "name": "clip_vision_h.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors",
+            "directory": "clip_vision"
+          }
+        ]
+      },
+      "widgets_values": [
+        "clip_vision_h.safetensors"
+      ]
+    },
+    {
+      "id": 258,
+      "type": "SaveVideo",
+      "pos": [
+        370,
+        650
+      ],
+      "size": [
+        720,
+        578
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 404
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.45"
+      },
+      "widgets_values": [
+        "video/ComfyUI",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 240,
+      "type": "LoadImage",
+      "pos": [
+        -530,
+        690
+      ],
+      "size": [
+        394.4261779785156,
+        454.2128601074219
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            384,
+            396
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.26"
+      },
+      "widgets_values": [
+        "video_wan_ati_input_image.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 260,
+      "type": "MarkdownNote",
+      "pos": [
+        -850,
+        470
+      ],
+      "size": [
+        290,
+        120
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "VRAM Usage",
+      "properties": {},
+      "widgets_values": [
+        "\n4090D 24GB (VRAM usage 90%)\n- size: 720*480\n- 1st gen: 500s\n- 2nd gen: 463s"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 257,
+      "type": "CreateVideo",
+      "pos": [
+        790,
+        480
+      ],
+      "size": [
+        270,
+        78
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 403
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            404
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CreateVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.45"
+      },
+      "widgets_values": [
+        16
+      ]
+    },
+    {
+      "id": 3,
+      "type": "KSampler",
+      "pos": [
+        810,
+        60
+      ],
+      "size": [
+        252.072021484375,
+        262
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 392
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 385
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 386
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 387
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "slot_index": 0,
+          "links": [
+            388
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        48,
+        "fixed",
+        20,
+        3,
+        "uni_pc",
+        "simple",
+        1
+      ]
+    },
+    {
+      "id": 48,
+      "type": "ModelSamplingSD3",
+      "pos": [
+        420,
+        70
+      ],
+      "size": [
+        270,
+        60
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 405
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "slot_index": 0,
+          "links": [
+            392
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        8.000000000000002
+      ]
+    },
+    {
+      "id": 262,
+      "type": "MarkdownNote",
+      "pos": [
+        -100,
+        1200
+      ],
+      "size": [
+        450,
+        100
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "How to create Trajectory JSON",
+      "properties": {},
+      "widgets_values": [
+        "## Tracks come from OmniCam\n\nDraw or project motion layers in the OmniCam Director's **Motion Tracks**\npanel, then queue. Monitor compiles them for this model and reports any\nlayer the target's format cannot carry.\n\nA track can be drawn by hand over the frame, or *projected*: pick a 3D\nobject or world point and let the animated camera project it to 2D for you."
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "id": 8,
+      "type": "VAEDecode",
+      "pos": [
+        890,
+        370
+      ],
+      "size": [
+        170,
+        46
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 388
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 76
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            403
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 6,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -90,
+        50
+      ],
+      "size": [
+        420,
+        260
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 74
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            381
+          ]
+        }
+      ],
+      "title": "CLIP Text Encode (Positive Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.34",
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65,
+        "widget_ue_connectable": {}
+      },
+      "widgets_values": [
+        "The white dragon warrior stands still, eyes full of determination and strength. The camera slowly moves closer or circles around the warrior, highlighting the powerful presence and heroic spirit of the character."
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 259,
+      "type": "MarkdownNote",
+      "pos": [
+        -1040,
+        10
+      ],
+      "size": [
+        480,
+        410
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Model Links",
+      "properties": {},
+      "widgets_values": [
+        "[Tutorial](https://docs.comfy.org/tutorials/video/wan/wan-ati)\n\n**Diffusion Model**\n- [Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors](https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors)\n\n**VAE**\n- [wan_2.1_vae.safetensors](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors?download=true)\n\n**Text encoders**   Chose one of following model\n- [umt5_xxl_fp16.safetensors](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp16.safetensors?download=true)\n- [umt5_xxl_fp8_e4m3fn_scaled.safetensors](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors?download=true)\n\n\n**clip_vision**\n- [clip_vision_h.safetensors](https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors)\n\nFile save location\n\n```\nComfyUI/\n├───📂 models/\n│   ├───📂 diffusion_models/\n│   │   └───Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors\n│   ├───📂 text_encoders/\n│   │   └─── umt5_xxl_fp8_e4m3fn_scaled.safetensors # or other version\n│   ├───📂 clip_vision/\n│   │   └─── clip_vision_h.safetensors\n│   └───📂 vae/\n│       └──  wan_2.1_vae.safetensors\n```\n"
+      ],
+      "color": "#222",
+      "bgcolor": "#000"
+    },
+    {
+      "type": "MajoorOmniCamDirector",
+      "pos": [
+        -980,
+        40
+      ],
+      "size": [
+        880,
+        640
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE,VIDEO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO,IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "scene_3d",
+          "type": "*",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "solved_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "links": [
+            406
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO",
+          "links": [
+            407
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamDirector"
+      },
+      "widgets_values": [
+        "{}",
+        "",
+        "",
+        720,
+        480,
+        16,
+        5.0625,
+        "omni_ref"
+      ],
+      "id": 263,
+      "flags": {},
+      "mode": 0,
+      "order": 17
+    },
+    {
+      "type": "MajoorOmniCamMonitor",
+      "pos": [
+        -60,
+        40
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "inputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 406
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO,IMAGE",
+          "shape": 7,
+          "link": 407
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_prompt",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "reference_video",
+          "type": "VIDEO",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "links": null,
+          "slot_index": 2
+        },
+        {
+          "name": "camera_embedding",
+          "type": "WAN_CAMERA_EMBEDDING",
+          "links": null,
+          "slot_index": 3
+        },
+        {
+          "name": "native_tracks",
+          "type": "TRACKS",
+          "links": null,
+          "slot_index": 4
+        },
+        {
+          "name": "tracks_json",
+          "type": "STRING",
+          "links": [
+            408
+          ],
+          "slot_index": 5
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "links": [
+            409
+          ],
+          "slot_index": 6
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "links": [
+            410
+          ],
+          "slot_index": 7
+        },
+        {
+          "name": "target_length",
+          "type": "INT",
+          "links": [
+            411
+          ],
+          "slot_index": 8
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamMonitor"
+      },
+      "widgets_values": [
+        "The white dragon warrior stands still, the camera circling closer.",
+        "wan_track_native",
+        720,
+        480,
+        5.0625,
+        16.0
+      ],
+      "id": 264,
+      "flags": {},
+      "mode": 0,
+      "order": 18
+    },
+    {
+      "type": "Note",
+      "pos": [
+        -60,
+        400
+      ],
+      "size": [
+        560,
+        640
+      ],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "OmniCam -> Wan ATI / WanTrackToVideo  (profile: wan_track_native)\n\nBase template: Comfy-Org/workflow_templates\n  video_wan_ati.json\nModel, sampler, shift and CLIP vision settings are unchanged from it.\n\nWHAT CHANGED\nThe hand-drawn trajectory string is gone. Monitor compiles tracks_json from\nthe Director's motion layers, and drives width / height / length so the\ncoordinate space cannot drift out of sync with the generation.\n\nHOW TO USE\n1. In the Director, open Motion Tracks and draw or project a layer.\n   - Draw: click a path over the frame.\n   - Project: pick a 3D object or world point and let the camera project it.\n2. Queue, then read the 'Encodable trajectories' preflight line.\n3. Wire your own start image into WanTrackToVideo.start_image.\n\nWHAT THIS FORMAT CANNOT SAY\nThe JSON marks every supplied point visible and zero-pads the rest, so it\nhas no way to express 'appears later' or 'disappears and returns'. A layer\nhidden on the first sample is dropped; one with a gap is cut at the gap.\nMonitor names the affected layers instead of silently encoding less.\n\nSOURCE GRID\nUpstream pads the JSON to 121 samples and resamples it to the generation\nlength. Monitor emits exactly that grid, spanning the shot's real frame\ntimes, so every generated frame lands on a sample.\n\nMODELS REQUIRED\n  diffusion_models/Wan2_1-I2V-ATI-14B_fp8_e4m3fn.safetensors\n  text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors\n  clip_vision/clip_vision_h.safetensors\n  vae/wan_2.1_vae.safetensors"
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "id": 265,
+      "flags": {},
+      "mode": 0,
+      "order": 19,
+      "inputs": [],
+      "outputs": []
+    }
+  ],
+  "links": [
+    [
+      74,
+      38,
+      0,
+      6,
+      0,
+      "CLIP"
+    ],
+    [
+      75,
+      38,
+      0,
+      7,
+      0,
+      "CLIP"
+    ],
+    [
+      76,
+      39,
+      0,
+      8,
+      1,
+      "VAE"
+    ],
+    [
+      381,
+      6,
+      0,
+      248,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      382,
+      7,
+      0,
+      248,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      383,
+      39,
+      0,
+      248,
+      2,
+      "VAE"
+    ],
+    [
+      384,
+      240,
+      0,
+      248,
+      3,
+      "IMAGE"
+    ],
+    [
+      385,
+      248,
+      0,
+      3,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      386,
+      248,
+      1,
+      3,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      387,
+      248,
+      2,
+      3,
+      3,
+      "LATENT"
+    ],
+    [
+      388,
+      3,
+      0,
+      8,
+      0,
+      "LATENT"
+    ],
+    [
+      392,
+      48,
+      0,
+      3,
+      0,
+      "MODEL"
+    ],
+    [
+      395,
+      244,
+      0,
+      251,
+      0,
+      "CLIP_VISION"
+    ],
+    [
+      396,
+      240,
+      0,
+      251,
+      1,
+      "IMAGE"
+    ],
+    [
+      397,
+      251,
+      0,
+      248,
+      4,
+      "CLIP_VISION_OUTPUT"
+    ],
+    [
+      403,
+      8,
+      0,
+      257,
+      0,
+      "IMAGE"
+    ],
+    [
+      404,
+      257,
+      0,
+      258,
+      0,
+      "VIDEO"
+    ],
+    [
+      405,
+      140,
+      0,
+      48,
+      0,
+      "MODEL"
+    ],
+    [
+      406,
+      263,
+      0,
+      264,
+      0,
+      "OMNICAM_MOTION_SCENE"
+    ],
+    [
+      407,
+      263,
+      1,
+      264,
+      1,
+      "VIDEO"
+    ],
+    [
+      408,
+      264,
+      5,
+      248,
+      5,
+      "STRING"
+    ],
+    [
+      409,
+      264,
+      6,
+      248,
+      6,
+      "INT"
+    ],
+    [
+      410,
+      264,
+      7,
+      248,
+      7,
+      "INT"
+    ],
+    [
+      411,
+      264,
+      8,
+      248,
+      8,
+      "INT"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "Step1 - Load models here",
+      "bounding": [
+        -540,
+        -20,
+        420,
+        610
+      ],
+      "color": "#b58b2a",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "Step4 - Prompt",
+      "bounding": [
+        -100,
+        -20,
+        450,
+        610
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "Sampling & Decoding",
+      "bounding": [
+        370,
+        -20,
+        720,
+        620
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 26,
+      "title": "Step2 - Upload image",
+      "bounding": [
+        -540,
+        610,
+        420,
+        540
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 27,
+      "title": "Step 3-Plaste Trajectory JSON",
+      "bounding": [
+        -100,
+        740,
+        450,
+        410
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.5419492353366965,
+      "offset": [
+        1274.3980320494306,
+        207.22782330403282
+      ]
+    },
+    "frontendVersion": "1.29.2",
+    "node_versions": {
+      "comfy-core": "0.3.34"
+    },
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "ue_links": [],
+    "links_added_by_ue": []
+  },
+  "version": 0.4
+}

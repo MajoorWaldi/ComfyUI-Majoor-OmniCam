@@ -62,6 +62,30 @@ export class RequestLifetime {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    recordIntentionalAbort();
     this.controller?.abort();
   }
+}
+
+/**
+ * Leave a trace that an ERR_ABORTED after this point was asked for.
+ *
+ * From outside the page -- a Playwright `requestfailed` listener, say -- a
+ * cancelled request and a dead server look identical. Only the page knows which
+ * of the two happened, so it is the page that has to say so. Ignoring
+ * ERR_ABORTED wholesale would hide real failures instead; this keeps them
+ * distinguishable.
+ */
+function recordIntentionalAbort() {
+  const scope = typeof globalThis === "object" ? globalThis : null;
+  if (!scope) return;
+  const log = scope.__majoorOmniCamIntentionalAborts;
+  const entry = { at: Date.now() };
+  if (Array.isArray(log)) {
+    // Bounded: this is a diagnostic breadcrumb, not a session history.
+    if (log.length >= 64) log.shift();
+    log.push(entry);
+    return;
+  }
+  scope.__majoorOmniCamIntentionalAborts = [entry];
 }

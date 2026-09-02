@@ -1,0 +1,410 @@
+{
+  "id": "d652d420-0e2b-42ec-a5a9-262f21f0bb6c",
+  "revision": 0,
+  "last_node_id": 7,
+  "last_link_id": 7,
+  "nodes": [
+    {
+      "id": 2,
+      "type": "LoadImage",
+      "pos": [
+        -2960,
+        -20
+      ],
+      "size": [
+        330,
+        360
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "9panel_storyboard_golden_hour_clay_court.png",
+        "image"
+      ]
+    },
+    {
+      "id": 3,
+      "type": "SaveVideo",
+      "pos": [
+        -2140,
+        -20
+      ],
+      "size": [
+        480,
+        110
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "video/MiniMax_H3",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "MinimaxHailuo03ReferenceNode",
+      "pos": [
+        -2590,
+        -20
+      ],
+      "size": [
+        400,
+        320
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "image_1",
+          "name": "model.reference_images.image_1",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "label": "image_2",
+          "name": "model.reference_images.image_2",
+          "shape": 7,
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "label": "video_1",
+          "name": "model.reference_videos.video_1",
+          "shape": 7,
+          "type": "VIDEO",
+          "link": 7
+        },
+        {
+          "label": "audio_1",
+          "name": "model.reference_audios.audio_1",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MinimaxHailuo03ReferenceNode"
+      },
+      "widgets_values": [
+        "MiniMax H3",
+        "Use the uploaded 9-panel storyboard image as the exact visual reference.Create a single continuous cinematic shot of a golden-hour tennis match on a red clay court. Follow the storyboard from left to right, top to bottom, as one smooth unbroken sequence.A Black male player in a yellow polo, yellow shorts, and sporty sunglasses plays against a female player with braided hair, a beige tank top, and a light blue tennis skirt. Preserve their faces, outfits, court, lighting, and color palette exactly as shown.The sequence should move naturally through these moments:1. male player overhead smash2. female player sprinting across the court3. male player backhand follow-through4. extreme close-up of the male player's sunglasses and sweat5. female player jumping to hit the ball6. female player forehand contact with the yellow tennis ball7. male player low lunge on clay8. both players meeting at the net and shaking handsCinematic sports film style, golden hour sunlight, warm orange tones, photoreal, sharp focus, shallow depth of field, smooth steadicam movement, no cuts, no text, no logos, no broadcast graphics.",
+        "768P",
+        "adaptive",
+        5,
+        42,
+        "randomize",
+        false
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "type": "MajoorOmniCamDirector",
+      "pos": [
+        -980,
+        40
+      ],
+      "size": [
+        880,
+        640
+      ],
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE,VIDEO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO,IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "scene_3d",
+          "type": "*",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "solved_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "shape": 7,
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "links": [
+            5
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO",
+          "links": [
+            6
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamDirector"
+      },
+      "widgets_values": [
+        "{}",
+        "",
+        "",
+        1280,
+        720,
+        24,
+        6.0,
+        "omni_ref"
+      ],
+      "id": 5,
+      "flags": {},
+      "mode": 0,
+      "order": 3
+    },
+    {
+      "type": "MajoorOmniCamMonitor",
+      "pos": [
+        -60,
+        40
+      ],
+      "size": [
+        420,
+        320
+      ],
+      "inputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 5
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO,IMAGE",
+          "shape": 7,
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_prompt",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "reference_video",
+          "type": "VIDEO",
+          "links": [
+            7
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "links": null,
+          "slot_index": 2
+        },
+        {
+          "name": "camera_embedding",
+          "type": "WAN_CAMERA_EMBEDDING",
+          "links": null,
+          "slot_index": 3
+        },
+        {
+          "name": "native_tracks",
+          "type": "TRACKS",
+          "links": null,
+          "slot_index": 4
+        },
+        {
+          "name": "tracks_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 5
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "links": null,
+          "slot_index": 6
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "links": null,
+          "slot_index": 7
+        },
+        {
+          "name": "target_length",
+          "type": "INT",
+          "links": null,
+          "slot_index": 8
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamMonitor"
+      },
+      "widgets_values": [
+        "A golden-hour tennis match on a red clay court.",
+        "h3_api",
+        1280,
+        720,
+        6.0,
+        24.0
+      ],
+      "id": 6,
+      "flags": {},
+      "mode": 0,
+      "order": 4
+    },
+    {
+      "type": "Note",
+      "pos": [
+        -60,
+        400
+      ],
+      "size": [
+        560,
+        560
+      ],
+      "properties": {
+        "text": ""
+      },
+      "widgets_values": [
+        "OmniCam -> MiniMax H3 API  (profile: h3_api)\n\nBase template: Comfy-Org/workflow_templates\n  api_minimax_h3_r2v.json\n\nWHAT CHANGED\nMonitor.reference_video feeds Video 1. The API path takes a VIDEO directly,\nwhere the native node wants decoded IMAGE frames - same playblast, two\ntransports, which is the whole reason h3_api and h3_native are separate\nprofiles rather than one with a switch.\n\nTHE PROMPT IS NOT WIRED\nThis node keeps its prompt as a widget, so copy Monitor.final_prompt into\nit after the first queue. It already contains the camera-motion fragment\nand the instruction to ignore the proxy's appearance. Refer to the\nreference as 'Video 1' in any text you add.\n\nHOW TO USE\n1. Author the shot and click Playblast.\n2. Queue once to compile. Read the preflight.\n3. Copy final_prompt into the MiniMax node, then queue for real.\n\nREFERENCE LIMITS\nThe API accepts 23.9-60.5 fps and a 2-15s reference. Preflight checks the\nconnected playblast against those and blocks outside them, so a reference\nthe service would reject never leaves your machine.\n\nThis is an API node: it needs Comfy API credits, not local weights."
+      ],
+      "color": "#432",
+      "bgcolor": "#653",
+      "id": 7,
+      "flags": {},
+      "mode": 0,
+      "order": 5,
+      "inputs": [],
+      "outputs": []
+    }
+  ],
+  "links": [
+    [
+      3,
+      4,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ],
+    [
+      4,
+      2,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
+      0,
+      "OMNICAM_MOTION_SCENE"
+    ],
+    [
+      6,
+      5,
+      1,
+      6,
+      1,
+      "VIDEO"
+    ],
+    [
+      7,
+      6,
+      1,
+      4,
+      2,
+      "VIDEO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9818181818181818,
+      "offset": [
+        3053.6458333333335,
+        386.2170862268519
+      ]
+    },
+    "frontendVersion": "1.47.11"
+  },
+  "version": 0.4
+}

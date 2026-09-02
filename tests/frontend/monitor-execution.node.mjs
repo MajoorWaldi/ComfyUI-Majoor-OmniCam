@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeMonitorExecution } from "../../web-src/monitor/execution-view.js";
+import { normalizeMonitorExecution, outputStatusText } from "../../web-src/monitor/execution-view.js";
 
 test("Monitor execution data keeps the exact selected profile and preflight", () => {
   const result = normalizeMonitorExecution({
@@ -31,4 +31,12 @@ test("Monitor execution normalizer also accepts direct V3 UI values", () => {
   assert.equal(result.targetProfile, "wan_move_native");
   assert.equal(result.preflight[0].state, "BLOCKED");
   assert.deepEqual(result.capabilities.capabilities, []);
+});
+
+test("a blocked panel does not claim an output was generated", () => {
+  // This panel is published by a run that then fails, so the status line is the
+  // difference between "your compile is red" and "your compile succeeded".
+  assert.equal(outputStatusText(true, "h3_native"), "NO OUTPUT · h3_native");
+  assert.equal(outputStatusText(false, "h3_native"), "OUTPUT GENERATED · h3_native");
+  assert.equal(outputStatusText(true, ""), "NO OUTPUT");
 });

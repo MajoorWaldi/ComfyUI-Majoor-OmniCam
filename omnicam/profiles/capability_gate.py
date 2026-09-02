@@ -30,9 +30,13 @@ def capability_check(profile_id: str, capabilities: dict[str, Any] | None) -> Ch
     Returning None matters: outside a running ComfyUI there are no node mappings
     to inspect, and inventing a BLOCKED there would make every unit test and
     every headless compile fail for a reason that has nothing to do with the
-    scene.
+    scene. ``node_registry_available`` is what separates that case from a
+    running ComfyUI where the node is genuinely not installed -- without it both
+    look like ``missing`` and this check can never be made binding.
     """
     if not capabilities:
+        return None
+    if not capabilities.get("node_registry_available"):
         return None
     entries = capabilities.get("capabilities")
     if not isinstance(entries, list):
