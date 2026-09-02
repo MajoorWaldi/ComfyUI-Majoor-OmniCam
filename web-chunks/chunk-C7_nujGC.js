@@ -1,7 +1,7 @@
 import { app as Co } from "../../scripts/app.js";
 import { api as qe } from "../../scripts/api.js";
-import { s as te, c as P, t as H, a as s, o as _o, b as Ua, d as $e, e as B, r as br, f as Oe, g as at, h as $o, i as ur, j as yr, k as gr, S as _e, l as vr, m as Ga, n as xr, p as wr, q as Da, u as kr, v as Sr, w as jr, M as Cr, x as _r, y as $r, z as Xa, A as Q, B as Ce, C as he, D as Mr, E as $a, F as Ma, G as Er, H as Ea, I as Qe, J as Ar, K as co, L as Pr, N as Mo, O as Fr, P as zr, Q as Lr, R as Tr, T as Kr, U as Ir, V as qr, W as Or, X as Dr, Y as Rr, Z as Nr, _ as Br, $ as Eo } from "./chunk-BEhDu902.js";
-import { L as Wr, a as Hr, f as Vr, b as Ao, c as Ur, d as Gr, e as Xr, s as Yr } from "./chunk-CI42yxQd.js";
+import { s as te, c as P, t as H, a as s, o as _o, b as Ua, d as $e, e as B, r as br, f as Oe, g as at, h as $o, i as ur, j as yr, k as gr, S as _e, l as vr, m as Ga, n as xr, p as wr, q as Da, u as kr, v as Sr, w as jr, M as Cr, x as _r, y as $r, z as Xa, A as Q, B as Ce, C as he, D as Mr, E as $a, F as Ma, G as Er, H as Ea, I as Qe, J as Ar, K as co, L as Pr, N as Mo, O as Fr, P as zr, Q as Lr, R as Tr, T as Kr, U as Ir, V as qr, W as Or, X as Dr, Y as Rr, Z as Nr, _ as Br, $ as Eo } from "./chunk-BQnPMAhF.js";
+import { L as Wr, a as Hr, f as Vr, b as Ao, c as Ur, d as Gr, e as Xr, s as Yr } from "./chunk-Dm2POnXp.js";
 import { S as Zr, b as Jr, p as Qr, l as en, u as tn } from "./chunk-D3fRtf1d.js";
 import { R as an } from "./chunk-BNTXm8ZY.js";
 import { m as on } from "./chunk-yd7KIc_Q.js";
@@ -2695,7 +2695,7 @@ function qs(e, t) {
     o && (o.open = !o.open, a.currentTarget.classList.toggle("active", o.open), o.open && e.drawCurveEditor());
   }, { signal: t });
 }
-const ja = () => import("./chunk-CcD7iOwC.js");
+const ja = () => import("./chunk-Cru_avtY.js");
 function Os(e, t) {
   ja().then(({ loadExchangeFormats: o }) => o(e)), e.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", async () => {
     (await ja()).pickCameraFile(e);
@@ -3784,7 +3784,7 @@ async function Pi(e) {
   (r.width !== e.canvas.width || r.height !== e.canvas.height) && (e.canvas.width = r.width, e.canvas.height = r.height, e.render());
   try {
     let n = null;
-    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: d } = await import("./chunk-DVf3M0wQ.js");
+    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: d } = await import("./chunk-BKnNUyyI.js");
     i !== "realtime" && await d(e.canvas.width, e.canvas.height) && (n = await c(e.canvas, e.state.duration_frames, e.state.fps, async (l) => {
       e.setFrame(l, !0), e.setStatus(s(`Encoding frame ${l + 1}/${e.state.duration_frames}…`)), await tr(e), await new Promise((p) => requestAnimationFrame(p));
     }, e.abortController?.signal)), n || (e.setStatus(s("WebCodecs unavailable; recording realtime fallback…")), n = await ar(e)), e.setFrame(t), await or(e, n);
@@ -6575,7 +6575,7 @@ class hr {
   async loadWebGLViewports() {
     let t;
     try {
-      ({ OmniWebGLViewport: t } = await import("./chunk-DVf3M0wQ.js"));
+      ({ OmniWebGLViewport: t } = await import("./chunk-BKnNUyyI.js"));
     } catch (a) {
       console.warn("OmniCam WebGL unavailable; using Canvas fallback", a);
       return;

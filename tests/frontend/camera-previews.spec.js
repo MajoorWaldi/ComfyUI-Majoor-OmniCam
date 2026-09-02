@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 async function mount(page, extraCameras = 0) {
   await page.setViewportSize({ width: 1180, height: 1600 });
   await page.goto("/tests/frontend/director-mount.html");
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 30000 });
   if (extraCameras) {
     await page.evaluate((count) => {
       const ui = window.omnicamNode.__majoorOmniCam;

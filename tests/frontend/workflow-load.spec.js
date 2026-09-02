@@ -20,12 +20,17 @@ test("a workflow load that beats the lazy chunk still restores the Director", as
 });
 
 test("a fresh Director gets the comfortable default size; a too-small restored one is floored", async ({ page }) => {
+  // This page attaches three full Director UIs in sequence (fresh, tiny-restored,
+  // saved-restored), each standing up its own WebGL viewport, so it legitimately
+  // takes longer than the single-attach pages above -- give it more headroom
+  // than the default 30s test timeout and a matching wait for #status.
+  test.setTimeout(60_000);
   // A window comfortably larger than the raw default, so the fresh-node path
   // is observed without its viewport cap engaging -- the cap itself is pinned
   // in tests/frontend/node-layout.node.mjs.
   await page.setViewportSize({ width: 1760, height: 1900 });
   await page.goto("/tests/frontend/director-node-sizing.html");
-  await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
+  await expect(page.locator("#status")).toHaveText("ready", { timeout: 45_000 });
   const result = await page.evaluate(() => window.omnicamSizing);
   expect(result.freshAttached).toBe(true);
   expect(result.freshSize).toEqual([1313, 1633]);

@@ -199,9 +199,9 @@ export function createSceneMethods(dependencies) {
     });
   },
 
-  updateSelection(state, selectedEntity, selectedObjectId, subSelection = null, selectionToken = "") {
+  updateSelection(state, selectedEntity, selectedObjectId, subSelection = null, selectionToken = "", orthographic = false) {
     const subToken = subSelection ? `${subSelection.mode || ""}:${subSelection.objectId || ""}:${(subSelection.point || []).join(",")}` : "";
-    const nextSelectionKey = `${selectedEntity}:${selectedObjectId || ""}:${(state.__selectedObjectIds || []).join(",")}:${selectionToken}:${subToken}`;
+    const nextSelectionKey = `${selectedEntity}:${selectedObjectId || ""}:${(state.__selectedObjectIds || []).join(",")}:${selectionToken}:${subToken}:${orthographic ? "ortho" : "persp"}`;
     if (nextSelectionKey === this.selectionKey) return;
     this.selectionKey = nextSelectionKey;
     disposeObject(this.selectionGroup);
@@ -228,7 +228,9 @@ export function createSceneMethods(dependencies) {
           } else {
             box.setFromObject(node);
           }
-          if (!hasOutlineMesh(node) && !box.isEmpty() && Number.isFinite(box.min.x) && Number.isFinite(box.max.x) && Number.isFinite(box.min.y) && Number.isFinite(box.max.y) && Number.isFinite(box.min.z) && Number.isFinite(box.max.z)) {
+          // OutlinePass is skipped for orthographic views, so the box helper is
+          // the only selection cue there even when the mesh could be outlined.
+          if ((orthographic || !hasOutlineMesh(node)) && !box.isEmpty() && Number.isFinite(box.min.x) && Number.isFinite(box.max.x) && Number.isFinite(box.min.y) && Number.isFinite(box.max.y) && Number.isFinite(box.min.z) && Number.isFinite(box.max.z)) {
             box.expandByScalar(0.04);
             const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0x8B5CF6));
             boxHelper.material.transparent = true;
@@ -319,7 +321,7 @@ export function createSceneMethods(dependencies) {
         node.updateMatrixWorld(true);
         try {
           const box = new THREE.Box3().setFromObject(node);
-          if (!hasOutlineMesh(node) && !box.isEmpty() && Number.isFinite(box.min.x)) {
+          if ((orthographic || !hasOutlineMesh(node)) && !box.isEmpty() && Number.isFinite(box.min.x)) {
             box.expandByScalar(0.04);
             const helper = new THREE.Box3Helper(box, new THREE.Color(0xA78BFA));
             helper.material.transparent = true; helper.material.opacity = 0.35; helper.material.depthTest = false; helper.renderOrder = 9997;

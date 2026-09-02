@@ -18,6 +18,19 @@ export function createRenderMethods(dependencies) {
     if (this.disposed) return;
     if (this.canvas.width !== width || this.canvas.height !== height) this.renderer.setSize(width, height, false);
 
+    // An orthographic camera changes two things in the render path: three.js
+    // draws an equirectangular scene.background on a unit box centred on the
+    // camera, which only covers the whole frame under perspective -- under
+    // ortho it shrinks to a small square and the rest of the frame falls back
+    // to the (possibly stale) GL clear colour, so ortho views get a solid
+    // colour background instead. And OutlinePass compiles its mask shader for
+    // whichever projection it first saw and hard-sets a white clear colour it
+    // only restores at the end, so it is skipped for ortho entirely.
+    const orthographic = (cameraState && cameraState.camera_type === "orthographic") === true;
+    // A poisoned clear colour (an OutlinePass that threw before restoring it)
+    // would otherwise leave every later frame white; pin it back each frame.
+    this.renderer.setClearColor(0x000000, 1);
+
     // Viewport background color / image / image sequence
     const activeBgUrl = (state.viewport_bg_sequence && state.viewport_bg_sequence.length)
       ? state.viewport_bg_sequence[frame % state.viewport_bg_sequence.length]
@@ -69,9 +82,9 @@ export function createRenderMethods(dependencies) {
       // The default colour means "no preference", so the studio sky wins there;
       // any colour the user actually picked is respected.
       const chosen = state.viewport_bg_color && state.viewport_bg_color !== DEFAULT_BG_COLOR;
-      this.scene.background = this.studioEnabled && !chosen
+      this.scene.background = this.studioEnabled && !chosen && !orthographic
         ? this.studio.sky
-        : new THREE.Color(state.viewport_bg_color || DEFAULT_BG_COLOR);
+        : new THREE.Color(chosen ? state.viewport_bg_color : (this.studioEnabled && orthographic ? 0x16171d : DEFAULT_BG_COLOR));
     }
 
     const sceneKey = JSON.stringify([
@@ -143,8 +156,15 @@ export function createRenderMethods(dependencies) {
       }
     }
 
+    // The active camera is resolved here (rather than just before the draw) so
+    // the selection pass can react to the projection: OutlinePass only supports
+    // a perspective camera, so an orthographic quick view needs the box helper
+    // instead of the post-processed outline.
+    const aspect = width / Math.max(1, height);
+    const camera = this.configureCamera(cameraState, aspect); this.activeCamera = camera;
+
     if (!cleanCapture) {
-      this.updateSelection(state, selectedEntity, selectedObjectId, subSelection, `${state.__omnicamRevision ?? "legacy"}:${frame}`);
+      this.updateSelection(state, selectedEntity, selectedObjectId, subSelection, `${state.__omnicamRevision ?? "legacy"}:${frame}`, orthographic);
       this.selectionGroup.visible = true;
     } else {
       this.selectionGroup.visible = false;
@@ -189,8 +209,6 @@ export function createRenderMethods(dependencies) {
     }
 
     this.content.visible = true;
-    const aspect = width / Math.max(1, height);
-    const camera = this.configureCamera(cameraState, aspect); this.activeCamera = camera;
     // Billboards (the look-at crosshair) face the viewer so they never collapse
     // into a line when the view is edge-on to them.
     this.path.traverse((object) => {
@@ -199,8 +217,12 @@ export function createRenderMethods(dependencies) {
     this.renderer.setScissorTest(false); this.renderer.setViewport(0, 0, width, height);
     const startedAt = performance.now();
 
+    // OutlinePass linearizes depth with the perspective formula, so an
+    // orthographic camera drives its edge detection to a fully white frame.
+    // Ortho views fall back to the plain render + the box helper from
+    // updateSelection().
     let outlined = false;
-    if (!cleanCapture && selectedEntity === "object" && selectedObjectId && !subSelection) {
+    if (!cleanCapture && !orthographic && selectedEntity === "object" && selectedObjectId && !subSelection) {
       const node = this.objectNodes.get(selectedObjectId);
       if (node && hasOutlineMesh(node)) {
         if (!this.outlineRenderer) {

@@ -364,3 +364,47 @@ test("interactive object selection invokes the outline renderer while clean capt
   expect(probe.wasOutlined).toBe(true);
   expect(probe.cleanRenderCalled).toBe(true);
 });
+
+test("orthographic quick views skip the outline pass and draw the plain scene", async ({ page }) => {
+  // OutlinePass linearizes depth with the perspective formula; an orthographic
+  // camera drove it to a fully white frame, so the front / side / iso quick
+  // views rendered blank. Those views must fall back to renderer.render().
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  await page.waitForFunction(() => window.omnicamNode?.__majoorOmniCam?.webgl, null, { timeout: 15000 });
+  const probe = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const vp = ui.webgl;
+    ui.state.objects = [{ id: "mesh_1", name: "Mesh", type: "cube", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [], enabled: true }];
+    ui.serialize();
+    vp.rebuildPath(ui.state, "object", null);
+    ui.selectedEntity = "object";
+    ui.selectedObjectId = "mesh_1";
+
+    // Simulate a poisoned clear colour, the way an OutlinePass that threw before
+    // its restore line would leave it.
+    vp.renderer.setClearColor(0xffffff, 1);
+
+    let plainRenderCalled = false;
+    const originalRender = vp.renderer.render.bind(vp.renderer);
+    vp.renderer.render = (...args) => { plainRenderCalled = true; return originalRender(...args); };
+    ui.setViewMode("front");
+    vp.render(ui.state, ui.state.editor_views.front, new Map(), 800, 600, new Map(), 0, false, "object", "mesh_1");
+    vp.renderer.render = originalRender;
+
+    const boxHelpers = [];
+    vp.selectionGroup.traverse((object) => { if (object.type === "Box3Helper") boxHelpers.push(object); });
+    return {
+      plainRenderCalled,
+      boxHelperCount: boxHelpers.length,
+      backgroundIsSolidColour: vp.scene.background?.isColor === true,
+      clearColourHex: vp.scene.background?.isColor ? vp.renderer.getClearColor(vp.scene.background.clone()).getHexString() : null,
+    };
+  });
+  expect(probe.plainRenderCalled).toBe(true);
+  expect(probe.boxHelperCount).toBeGreaterThan(0);
+  // Ortho gets a solid colour background (the equirect box does not cover the frame).
+  expect(probe.backgroundIsSolidColour).toBe(true);
+  // The poisoned white clear colour must have been pinned back.
+  expect(probe.clearColourHex).not.toBe("ffffff");
+});

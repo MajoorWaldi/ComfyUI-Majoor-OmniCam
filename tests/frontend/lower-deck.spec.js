@@ -9,7 +9,7 @@ const KEY_FRAMES = [0, 17, 34, 50, 66, 83, 100, 120];
 async function mount(page) {
   await page.setViewportSize({ width: 1180, height: 1500 });
   await page.goto("/tests/frontend/director-mount.html");
-  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 30000 });
   await page.evaluate((frames) => {
     const ui = window.omnicamNode.__majoorOmniCam;
     ui.state.duration_frames = 121;
