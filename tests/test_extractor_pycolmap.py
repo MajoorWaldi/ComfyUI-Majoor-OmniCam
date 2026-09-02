@@ -9,6 +9,11 @@ import types
 import numpy as np
 import pytest
 
+# ``PycolmapBackend.solve`` stages frames to disk with Pillow before handing the
+# directory to pycolmap, so the whole suite needs PIL even though pycolmap itself
+# is faked. python-core omits Pillow; python-full installs it and runs this file.
+pytest.importorskip("PIL")
+
 from omnicam.extractor.backends.base import BackendAvailability, BackendUnavailableError, SolveError
 from omnicam.extractor.backends.pycolmap_vo import PycolmapBackend
 from omnicam.extractor.jobs.control import SolveCancelled, SolveControl

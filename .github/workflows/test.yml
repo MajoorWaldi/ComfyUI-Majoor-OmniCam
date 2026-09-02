@@ -64,6 +64,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: git clone --depth 1 --branch ${{ matrix.comfy-ref }} https://github.com/Comfy-Org/ComfyUI.git .comfyui
+      # ComfyUI's requirements.txt leaves torch unpinned; the default index now
+      # resolves it to a CUDA build whose nvidia-* wheels overflow the runner
+      # disk. Satisfy torch/vision/audio from the CPU index first.
+      - run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r .comfyui/requirements.txt
       - run: PYTHONPATH=.comfyui:. python scripts/comfy_integration_smoke.py
 
@@ -80,6 +84,9 @@ jobs:
           node-version: "22"
           cache: npm
       - run: git clone --depth 1 --branch v0.34.0 https://github.com/Comfy-Org/ComfyUI.git .comfyui
+      # See comfyui-integration: CPU torch first so the unpinned CUDA build does
+      # not fill the runner disk.
+      - run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r .comfyui/requirements.txt
       - run: npm ci
       - run: npm run build
