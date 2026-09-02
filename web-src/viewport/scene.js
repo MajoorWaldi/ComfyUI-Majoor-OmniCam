@@ -25,7 +25,10 @@ export function createSceneMethods(dependencies) {
         : cameraColors[camIdx % cameraColors.length];
       const isActive = camera.id === state.active_camera_id;
       const isSelected = isActive && selectedEntity === "camera";
-      if (viewMode === "camera" && isActive) return;
+      // Through its own lens the active camera's body, frustum and beacon are
+      // just clutter over the shot. Keep only the look-at target + sightline so
+      // it can still be aimed. Every other camera renders in full.
+      const lookAtOnly = viewMode === "camera" && isActive;
 
       const camData = sampleCamera(camera, frame, state.objects);
       const pos = new THREE.Vector3().fromArray(camData.position || [0, 0, 0]);
@@ -49,6 +52,11 @@ export function createSceneMethods(dependencies) {
         up.applyAxisAngle(forward, rollRad);
       }
 
+      // Reused by the target hit sphere below, so it is built before the body
+      // block that the camera POV skips.
+      const pickMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+
+      if (!lookAtOnly) {
       // Camera Body
       const bodyGroup = new THREE.Group();
       const bodyMesh = new THREE.Mesh(
@@ -84,7 +92,6 @@ export function createSceneMethods(dependencies) {
 
       // Pickable hit sphere for camera body
       const camPickGeo = new THREE.SphereGeometry(0.35, 8, 6);
-      const pickMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
       const camPickMesh = new THREE.Mesh(camPickGeo, pickMat);
       camPickMesh.position.copy(pos);
       camPickMesh.userData = { omnicamType: "camera", omnicamId: camera.id };
@@ -121,6 +128,7 @@ export function createSceneMethods(dependencies) {
       }));
       frustumLines.userData.omnicamWidget = "gizmo";
       this.liveCameras.add(frustumLines);
+      } // end !lookAtOnly
 
       // Target sightline & target picking
       if (targetDist > 0.01) {

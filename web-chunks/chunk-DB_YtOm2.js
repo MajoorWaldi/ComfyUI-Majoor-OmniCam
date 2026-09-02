@@ -1,4 +1,4 @@
-const u = `
+const g = `
   .majoor-omnicam{
     --oc-bg:#141419;--oc-panel:#1a1a21;--oc-panel-2:#20202a;--oc-sunken:#101014;
     --oc-line:#2c2c38;--oc-line-soft:#26262f;
@@ -30,43 +30,46 @@ const u = `
   .majoor-omnicam .oc-section{color:var(--oc-text-faint);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
   .majoor-omnicam .oc-field-row{display:flex;align-items:center;gap:6px}
   .majoor-omnicam .oc-empty{padding:12px;border:1px dashed var(--oc-line);border-radius:var(--oc-radius-sm);color:var(--oc-text-dim);text-align:center}
-`;
-function d(o, e) {
+`, d = '<svg class="oc-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="oc-mark-ring" cx="16" cy="16" r="10"/><circle class="oc-mark-core" cx="16" cy="16" r="3.5"/></svg>';
+function p(o) {
+  return `<div class="oc-heading"><span class="oc-brand">${d}</span><span class="oc-title">${o}</span></div>`;
+}
+function m(o, e) {
   if (!o || e == null) return null;
   if (typeof e == "object") return e;
   const t = o.links;
   return t?.get?.(e) ?? t?.[e] ?? null;
 }
-function g(o, e) {
-  const t = d(o, e), n = t?.origin_id ?? t?.originId;
+function x(o, e) {
+  const t = m(o, e), n = t?.origin_id ?? t?.originId;
   if (n == null) return null;
   const r = o?.getNodeById?.(n);
   return r || ((o?._nodes || o?.nodes || []).find((a) => String(a?.id) === String(n)) ?? null);
 }
-function s(o) {
+function l(o) {
   return o instanceof HTMLImageElement || o instanceof HTMLVideoElement || o instanceof HTMLCanvasElement;
 }
-function m(o) {
+function f(o) {
   const e = o?.element;
-  return e ? s(e) ? e : e.querySelector?.("img, video, canvas") ?? null : null;
+  return e ? l(e) ? e : e.querySelector?.("img, video, canvas") ?? null : null;
 }
-function x(o) {
+function b(o) {
   if (!o) return null;
   const e = o.imgs;
   if (Array.isArray(e) && e.length) {
     const t = typeof o.imageIndex == "number" ? o.imageIndex : e.length - 1, n = e[Math.max(0, Math.min(e.length - 1, t))] ?? e[e.length - 1] ?? null;
-    if (s(n)) return n;
+    if (l(n)) return n;
   }
   for (const t of o.widgets || []) {
-    const n = m(t);
+    const n = f(t);
     if (n) return n;
   }
   return null;
 }
-function f(o) {
+function u(o) {
   return o instanceof HTMLVideoElement ? [o.videoWidth, o.videoHeight] : o instanceof HTMLImageElement ? [o.naturalWidth, o.naturalHeight] : [o.width, o.height];
 }
-async function p(o, e, t = 512) {
+async function h(o, e, t = 512) {
   if (!o || !e) return !1;
   if (o instanceof HTMLImageElement && !o.complete)
     try {
@@ -74,17 +77,18 @@ async function p(o, e, t = 512) {
     } catch {
     }
   if (o instanceof HTMLVideoElement && o.readyState < 2) return !1;
-  const [n, r] = f(o);
+  const [n, r] = u(o);
   if (!n || !r) return !1;
   const a = Math.min(1, t / Math.max(n, r)), i = Math.max(1, Math.round(n * a)), c = Math.max(1, Math.round(r * a));
   e.width = i, e.height = c;
-  const l = e.getContext("2d");
-  return l ? (l.drawImage(o, 0, 0, i, c), !0) : !1;
+  const s = e.getContext("2d");
+  return s ? (s.drawImage(o, 0, 0, i, c), !0) : !1;
 }
 export {
-  u as S,
-  p as d,
-  d as g,
-  g as l,
-  x as u
+  g as S,
+  p as b,
+  h as d,
+  m as g,
+  x as l,
+  b as u
 };

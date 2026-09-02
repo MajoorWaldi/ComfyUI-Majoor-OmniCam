@@ -1,17 +1,17 @@
-import { q as N, s as T, i as M, F as g, G as d, o as E, f as O, z as V, I as D, U as q, M as z, X, v as H, L as B, x as R, a2 as W } from "./chunk-B7ZTbDAV.js";
-import { s as G } from "./chunk-DcOQiKNJ.js";
-const p = {
+import { q as N, s as T, i as M, F as g, G as p, o as V, f as E, z as O, I as D, V as q, M as z, Y as X, v as H, L as B, x as F, a3 as W } from "./chunk-BNTXm8ZY.js";
+import { s as C } from "./chunk-CSPoZLSN.js";
+const d = {
   perspective: { theta: Math.PI * 0.25, phi: Math.PI * 0.32 },
   // Just off the pole: exactly overhead makes the up vector ambiguous and the
   // view flips as soon as the user nudges it.
   top: { theta: 0, phi: 1e-3 },
   front: { theta: 0, phi: Math.PI / 2 },
   side: { theta: Math.PI / 2, phi: Math.PI / 2 }
-}, Y = 1e-3, U = Math.PI - 1e-3;
-class K {
+}, Y = 1e-3, K = Math.PI - 1e-3;
+class U {
   constructor(t, { onChange: e = () => {
   } } = {}) {
-    this.camera = t, this.onChange = e, this.target = [0, 0, 0], this.distance = 6, this.theta = p.perspective.theta, this.phi = p.perspective.phi, this.drag = null, this.apply();
+    this.camera = t, this.onChange = e, this.target = [0, 0, 0], this.distance = 6, this.theta = d.perspective.theta, this.phi = d.perspective.phi, this.drag = null, this.apply();
   }
   /** Place the camera from the current spherical state. */
   apply() {
@@ -23,7 +23,7 @@ class K {
     return this.camera?.position?.set?.(...e), this.camera?.lookAt?.(...this.target), this.onChange(), e;
   }
   setView(t) {
-    const e = p[t] || p.perspective;
+    const e = d[t] || d.perspective;
     return this.theta = e.theta, this.phi = e.phi, this.apply();
   }
   /** Frame a bounding sphere: the "Fit Track" button. */
@@ -33,7 +33,7 @@ class K {
     return this.distance = Math.max(0.2, e * 0.6 / Math.tan(s * Math.PI / 360) + e * 0.15), this.apply();
   }
   orbit(t, e) {
-    return this.theta -= t * 5e-3, this.phi = Math.max(Y, Math.min(U, this.phi - e * 5e-3)), this.apply();
+    return this.theta -= t * 5e-3, this.phi = Math.max(Y, Math.min(K, this.phi - e * 5e-3)), this.apply();
   }
   pan(t, e) {
     const s = this.distance * 15e-4, i = [Math.cos(this.theta), 0, -Math.sin(this.theta)], n = [
@@ -100,7 +100,7 @@ function Q(r, t) {
   const n = new M();
   return n.setAttribute("position", new g(i, 3)), n;
 }
-function S(r, { color: t = 9141208, opacity: e = 1, ...s } = {}) {
+function I(r, { color: t = 9141208, opacity: e = 1, ...s } = {}) {
   const i = new N({ color: t, transparent: e < 1, opacity: e });
   return new T(Q(r, s), i);
 }
@@ -129,11 +129,11 @@ function rt(r) {
   return 10 * s;
 }
 function A(r = 10) {
-  const t = new d();
+  const t = new p();
   t.name = "omnicam-track-grid";
-  const e = rt(r), s = Math.max(e * 8, Number(r) * 2 || e * 8), i = Math.max(4, Math.min(80, Math.round(s / e))), n = new E(s, i, st, et);
+  const e = rt(r), s = Math.max(e * 8, Number(r) * 2 || e * 8), i = Math.max(4, Math.min(80, Math.round(s / e))), n = new V(s, i, st, et);
   n.name = "grid", t.add(n);
-  const a = new O(Math.max(e, s * 0.08));
+  const a = new E(Math.max(e, s * 0.08));
   return a.name = "axes", t.add(a), t;
 }
 function it(r, t) {
@@ -153,18 +153,18 @@ function c(r) {
   const t = r?.material;
   Array.isArray(t) ? t.forEach((e) => e?.dispose?.()) : t?.dispose?.();
 }
-const I = 8e3;
-function nt(r, { limit: t = I, extent: e = 1 } = {}) {
+const R = 8e3;
+function nt(r, { limit: t = R, extent: e = 1 } = {}) {
   const s = [];
   for (const a of r || []) {
     const h = [Number(a?.x), Number(a?.y), Number(a?.z)];
-    if (h.every(Number.isFinite) && (s.push(h), s.length >= Math.max(0, Math.min(I, Number(t) || 0))))
+    if (h.every(Number.isFinite) && (s.push(h), s.length >= Math.max(0, Math.min(R, Number(t) || 0))))
       break;
   }
   const i = new M();
   i.setAttribute("position", new g(s.flat(), 3));
   const n = Math.max(3e-3, Math.min(0.12, Math.max(1e-3, Number(e) || 1) * 6e-3));
-  return new V(i, new D({ color: 7980776, size: n, sizeAttenuation: !0, transparent: !0, opacity: 0.8 }));
+  return new O(i, new D({ color: 7980776, size: n, sizeAttenuation: !0, transparent: !0, opacity: 0.8 }));
 }
 const v = 9079452, f = 9141208, at = 4630360, ht = 15026253, ot = 2e3;
 function ct(r) {
@@ -174,12 +174,12 @@ function y(r, t = ot) {
   if (!r?.keyframes?.length) return [];
   const e = Math.max(1, Number(r.duration_frames) || 1), s = Math.max(2, Math.min(t, e)), i = [];
   for (let n = 0; n < s; n += 1) {
-    const a = n / (s - 1) * (e - 1), h = G(r, a);
+    const a = n / (s - 1) * (e - 1), h = C(r, a);
     i.push(h.position.map(Number));
   }
   return i;
 }
-function F(r) {
+function S(r) {
   if (!r?.length) return { min: [0, 0, 0], max: [0, 0, 0], centre: [0, 0, 0], extent: 1 };
   const t = [1 / 0, 1 / 0, 1 / 0], e = [-1 / 0, -1 / 0, -1 / 0];
   for (const n of r)
@@ -192,12 +192,12 @@ function P(r, t, { opacity: e = 1 } = {}) {
   const s = new M();
   return s.setAttribute("position", new g(r.flat(), 3)), new B(s, new N({ color: t, transparent: e < 1, opacity: e }));
 }
-function C(r, t) {
+function G(r, t) {
   return new z(new X(t, 12, 8), new H({ color: r }));
 }
 class ut {
   constructor() {
-    this.scene = new q(), this.mode = "refined", this.frame = 0, this.tracks = { raw: null, refined: null }, this.extent = 10, this.gridGroup = A(this.extent), this.pathGroup = new d(), this.frustumGroup = new d(), this.markerGroup = new d(), this.pointGroup = new d(), this.scene.add(this.gridGroup, this.pathGroup, this.frustumGroup, this.markerGroup, this.pointGroup), this.currentFrustum = null, this.currentMarker = C(f, 0.02), this.markerGroup.add(this.currentMarker);
+    this.scene = new q(), this.mode = "refined", this.frame = 0, this.tracks = { raw: null, refined: null }, this.extent = 10, this.inspectionView = "scene", this.gridGroup = A(this.extent), this.pathGroup = new p(), this.frustumGroup = new p(), this.markerGroup = new p(), this.pointGroup = new p(), this.scene.add(this.gridGroup, this.pathGroup, this.frustumGroup, this.markerGroup, this.pointGroup), this.currentFrustum = null, this.currentMarker = G(f, 0.02), this.markerGroup.add(this.currentMarker);
   }
   setRawTrack(t) {
     this.tracks.raw = t || null, this.rebuild();
@@ -207,6 +207,12 @@ class ut {
   }
   setMode(t) {
     this.mode = ["raw", "refined", "compare"].includes(t) ? t : "refined", this.rebuild();
+  }
+  /** Hide the active camera's own path/frustums when looking through its lens. */
+  setInspectionView(t) {
+    this.inspectionView = t === "camera" ? "camera" : "scene";
+    const e = this.inspectionView !== "camera";
+    this.pathGroup.visible = e, this.frustumGroup.visible = e, this.markerGroup.visible = e, this.currentFrustum && (this.currentFrustum.visible = e);
   }
   setLandmarks(t) {
     this._clear(this.pointGroup);
@@ -221,7 +227,7 @@ class ut {
     const t = this.mode !== "refined" ? y(this.tracks.raw) : [], e = this.mode !== "raw" ? y(this.tracks.refined) : [];
     t.length > 1 && this.pathGroup.add(P(t, v, { opacity: this.mode === "compare" ? 0.75 : 1 })), e.length > 1 && this.pathGroup.add(P(e, f)), this.mode === "compare" && t.length > 1 && e.length > 1 && this.pathGroup.add(this._displacement(t, e));
     const s = e.length ? e : t;
-    this.extent = F(s).extent, it(this.gridGroup, this.extent), this._rebuildMarkers(s), this._rebuildFrustums(), this.setFrame(this.frame);
+    this.extent = S(s).extent, it(this.gridGroup, this.extent), this._rebuildMarkers(s), this._rebuildFrustums(), this.setFrame(this.frame);
   }
   /** Sampled raw-to-refined offsets: what the cleanup actually changed. */
   _displacement(t, e) {
@@ -239,9 +245,9 @@ class ut {
     for (const n of [...this.markerGroup.children])
       n !== this.currentMarker && (this.markerGroup.remove(n), c(n));
     if (t.length < 2) return;
-    const e = Math.max(8e-3, this.extent * 0.012), s = C(at, e);
+    const e = Math.max(8e-3, this.extent * 0.012), s = G(at, e);
     s.position.set(...t[0]);
-    const i = C(ht, e);
+    const i = G(ht, e);
     i.position.set(...t[t.length - 1]), this.markerGroup.add(s, i), this.currentMarker.scale.setScalar(Math.max(0.5, e / 0.02));
   }
   _rebuildFrustums() {
@@ -249,7 +255,7 @@ class ut {
     if (!t) return;
     const e = Math.max(0.05, this.extent * 0.08), s = Math.max(0.05, (Number(t.width) || 16) / Math.max(1, Number(t.height) || 9));
     for (const i of $(ct(t))) {
-      const n = S(G(t, i), {
+      const n = I(C(t, i), {
         color: this.mode === "raw" ? v : f,
         opacity: 0.35,
         scale: e,
@@ -263,18 +269,18 @@ class ut {
     this.frame = Math.max(0, Number(t) || 0);
     const e = this.activeTrack();
     if (!e) return null;
-    const s = G(e, this.frame);
+    const s = C(e, this.frame);
     this.currentMarker.position.set(...s.position.map(Number)), this.currentFrustum && (this.scene.remove(this.currentFrustum), c(this.currentFrustum));
     const i = Math.max(0.05, (Number(e.width) || 16) / Math.max(1, Number(e.height) || 9));
-    return this.currentFrustum = S(s, {
+    return this.currentFrustum = I(s, {
       color: f,
       scale: Math.max(0.06, this.extent * 0.12),
       aspect: i
-    }), this.scene.add(this.currentFrustum), s;
+    }), this.currentFrustum.visible = this.inspectionView !== "camera", this.scene.add(this.currentFrustum), s;
   }
   bounds() {
     const t = y(this.activeTrack());
-    return F(t);
+    return S(t);
   }
   _clear(t) {
     for (const e of [...t.children])
@@ -287,10 +293,10 @@ class ut {
     c(this.currentMarker), this.tracks = { raw: null, refined: null };
   }
 }
-class pt {
+class dt {
   constructor(t, { onFrameCamera: e = () => {
   }, rendererFactory: s = (i) => new W(i) } = {}) {
-    this.canvas = t, this.onFrameCamera = e, this.disposed = !1, this.pending = 0, this.trackScene = new ut(), this.sceneCamera = new R(50, 16 / 9, 0.01, 1e5), this.solvedCamera = new R(50, 16 / 9, 0.01, 1e5), this.renderCamera = this.sceneCamera, this.inspectionView = "scene", this.frame = 0, this.controls = new K(this.sceneCamera, { onChange: () => this.requestRender() });
+    this.canvas = t, this.onFrameCamera = e, this.disposed = !1, this.pending = 0, this.trackScene = new ut(), this.sceneCamera = new F(50, 16 / 9, 0.01, 1e5), this.solvedCamera = new F(50, 16 / 9, 0.01, 1e5), this.renderCamera = this.sceneCamera, this.inspectionView = "scene", this.frame = 0, this.controls = new U(this.sceneCamera, { onChange: () => this.requestRender() });
     try {
       this.renderer = s({ canvas: t, antialias: !0, alpha: !1 }), this.renderer.setClearColor(1052692, 1);
     } catch (i) {
@@ -343,7 +349,7 @@ class pt {
     return this.controls.fit(t), t;
   }
   setInspectionView(t) {
-    this.inspectionView = t === "camera" ? "camera" : "scene", this.renderCamera = this.inspectionView === "camera" ? this.solvedCamera : this.sceneCamera;
+    this.inspectionView = t === "camera" ? "camera" : "scene", this.renderCamera = this.inspectionView === "camera" ? this.solvedCamera : this.sceneCamera, this.trackScene.setInspectionView(this.inspectionView);
     const e = this.trackScene.setFrame(this.frame);
     return e && this._applySolvedCamera(e), this.requestRender(), this.inspectionView;
   }
@@ -374,5 +380,5 @@ class pt {
   }
 }
 export {
-  pt as TrackViewer
+  dt as TrackViewer
 };

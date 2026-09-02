@@ -5,9 +5,8 @@
 // string, which is what keeps a filename with an angle bracket in it from
 // becoming markup.
 
+import { brandMarkup } from "../template/brand.js";
 import { EXTRACTOR_STYLES } from "./styles.js";
-
-const mark = `<svg class="oc-mark" viewBox="0 0 24 24" aria-hidden="true"><circle class="oc-mark-ring" cx="12" cy="12" r="8"/><circle class="oc-mark-core" cx="12" cy="12" r="3"/></svg>`;
 
 function slider(role, label, { min = 0, max = 1, step = 0.01, value = 0 } = {}) {
   return `<label for="oc-${role}">${label}</label>
@@ -19,9 +18,7 @@ export function extractorMarkup() {
   return `<div class="majoor-omnicam oc-extractor">
     <style>${EXTRACTOR_STYLES}</style>
     <header class="oc-header">
-      <div class="oc-heading"><span class="oc-brand">${mark}</span>
-        <div><div class="oc-title">OmniCam Extractor</div><small>Solve · inspect · clean</small></div>
-      </div>
+      ${brandMarkup("OmniCam Extractor")}
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
     </header>
 

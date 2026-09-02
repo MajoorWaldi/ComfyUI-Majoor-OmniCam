@@ -21,4 +21,15 @@ test("Monitor template mirrors the V3 Monitor profile contract", () => {
   for (const legacy of ["video_ref_token", "point_count", "ltx_max_frames", "camera-health", "adapter-preview", "monitor-refresh"]) {
     assert.doesNotMatch(markup, new RegExp(legacy));
   }
+
+  // Profiles and Installed capabilities are long lists that used to stretch the
+  // node past the screen. They ship collapsed, as <details>, and must not carry
+  // `open`.
+  for (const role of ["profile-catalogue", "profile-capabilities"]) {
+    assert.match(
+      markup,
+      new RegExp(`<details class="oc-card oc-collapsible"><summary [^>]*>[^<]+</summary><div data-role="${role}"`),
+    );
+  }
+  assert.doesNotMatch(markup, /<details[^>]*\sopen/);
 });

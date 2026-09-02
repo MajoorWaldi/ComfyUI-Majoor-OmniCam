@@ -42,9 +42,12 @@ focal lengths on square pixels) the one time refinement was left enabled.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import math
 import shutil
 import tempfile
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -67,6 +70,91 @@ INSTALL_HINT = (
     "if you would rather not install anything. OmniCam did not modify your\n"
     "Python environment."
 )
+
+
+class _CancellationBridge:
+    """Forwards an OmniCam stop request into pycolmap's ``CancellationToken``.
+
+    ``checkpoint(control)`` only runs between phases and in the mapper's
+    per-image callback, so a stop pressed during ``extract_features`` or
+    ``match_sequential`` -- the two phases with no callback at all -- was not
+    observed until that phase finished. On a long clip that made Stop feel
+    dead. This bridge watches the flag on its own thread and calls
+    ``token.cancel()`` the moment it flips, which aborts the running COLMAP
+    phase mid-call; the clean, typed :class:`SolveCancelled` is still raised
+    from the plain-Python ``checkpoint(control)`` that follows the phase.
+    """
+
+    def __init__(self, control, token, *, poll_seconds: float = 0.05) -> None:
+        self._control = control
+        self._token = token
+        self._poll_seconds = poll_seconds
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def __enter__(self) -> _CancellationBridge:
+        if self._control is not None:
+            self._thread = threading.Thread(
+                target=self._run, name="omnicam-pycolmap-cancel", daemon=True
+            )
+            self._thread.start()
+        return self
+
+    def __exit__(self, *_exc: object) -> bool:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+        return False
+
+    def _run(self) -> None:
+        while not self._stop.wait(self._poll_seconds):
+            try:
+                cancelled = self._control.cancelled()
+            except Exception:  # noqa: BLE001, S112 - a broken probe must not wedge the solve
+                continue
+            if cancelled:
+                with contextlib.suppress(Exception):
+                    self._token.cancel()
+                return
+
+
+#: Inspection cloud cap, matching the DPVO backend. The Extractor's 3D view and
+#: the "points that show the motion" both read from this; it is never part of
+#: the camera-track contract, so a failure to read it is silently no cloud.
+MAX_LANDMARKS_3D = 8_000
+#: A point seen by only one image is a triangulation of nothing.
+MIN_LANDMARK_TRACK = 2
+
+
+def _landmarks_from_reconstruction(reconstruction, limit: int = MAX_LANDMARKS_3D) -> list[dict[str, float]]:
+    """COLMAP's sparse point cloud in world space, as ``{x, y, z}`` dicts.
+
+    World coordinates in COLMAP's computer-vision basis -- the same basis the
+    poses use -- so the pipeline's opencv->omnicam flip lands points and
+    cameras together. Ranked by track length (more observations = better
+    constrained) and capped.
+    """
+    try:
+        points = reconstruction.points3D
+    except Exception:  # noqa: BLE001 - optional geometry must not fail a solve
+        return []
+    if not points:
+        return []
+    candidates: list[tuple[float, list[float]]] = []
+    for point in (points.values() if hasattr(points, "values") else points):
+        try:
+            track_length = point.track.length() if hasattr(point.track, "length") else len(point.track.elements)
+            if track_length < MIN_LANDMARK_TRACK:
+                continue
+            x, y, z = (float(component) for component in point.xyz)
+        except Exception:  # noqa: BLE001, S112 - a malformed point is skipped, not fatal
+            continue
+        if not all(math.isfinite(component) for component in (x, y, z)):
+            continue
+        candidates.append((float(track_length), [round(x, 5), round(y, 5), round(z, 5)]))
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    cap = max(0, min(MAX_LANDMARKS_3D, int(limit)))
+    return [{"x": x, "y": y, "z": z} for _weight, (x, y, z) in candidates[:cap]]
 
 
 def _managed_exchange_root() -> Path:
@@ -141,29 +229,9 @@ class PycolmapBackend:
                 f"{intrinsics.fx},{intrinsics.fy},{intrinsics.cx},{intrinsics.cy}"
             )
 
-            token = pycolmap.CancellationToken()
-            pycolmap.extract_features(
-                database_path, image_dir,
-                camera_mode=pycolmap.CameraMode.SINGLE,
-                reader_options=reader_options,
-                cancellation_token=token,
-            )
-            checkpoint(control)
-
-            pycolmap.match_sequential(database_path, cancellation_token=token)
-            checkpoint(control)
-
-            observe_finalizing(observer)
-            options = pycolmap.IncrementalPipelineOptions()
-            # Trust the intrinsics OmniCam already resolved; see the module
-            # docstring for what letting COLMAP refine them produced.
-            options.ba_refine_focal_length = False
-            options.ba_refine_extra_params = False
-            options.mapper.abs_pose_refine_focal_length = False
-            options.mapper.abs_pose_refine_extra_params = False
-
             registered = 0
             total = len(frames)
+            token = pycolmap.CancellationToken()
 
             def on_next_image() -> None:
                 # Invoked from C++: never raise here (pybind's exception
@@ -182,11 +250,37 @@ class PycolmapBackend:
 
             sparse_dir = exchange / "sparse"
             sparse_dir.mkdir()
-            reconstructions = pycolmap.incremental_mapping(
-                database_path, image_dir, sparse_dir,
-                options=options, next_image_callback=on_next_image, cancellation_token=token,
-            )
-            checkpoint(control)  # the real, clean raise if on_next_image saw a stop request
+
+            # The bridge cancels ``token`` off-thread the instant a stop is
+            # requested, so extract/match -- the phases with no callback -- abort
+            # mid-call. The checkpoint(control) after each phase then does the
+            # clean, typed SolveCancelled raise back in plain Python.
+            with _CancellationBridge(control, token):
+                pycolmap.extract_features(
+                    database_path, image_dir,
+                    camera_mode=pycolmap.CameraMode.SINGLE,
+                    reader_options=reader_options,
+                    cancellation_token=token,
+                )
+                checkpoint(control)
+
+                pycolmap.match_sequential(database_path, cancellation_token=token)
+                checkpoint(control)
+
+                observe_finalizing(observer)
+                options = pycolmap.IncrementalPipelineOptions()
+                # Trust the intrinsics OmniCam already resolved; see the module
+                # docstring for what letting COLMAP refine them produced.
+                options.ba_refine_focal_length = False
+                options.ba_refine_extra_params = False
+                options.mapper.abs_pose_refine_focal_length = False
+                options.mapper.abs_pose_refine_extra_params = False
+
+                reconstructions = pycolmap.incremental_mapping(
+                    database_path, image_dir, sparse_dir,
+                    options=options, next_image_callback=on_next_image, cancellation_token=token,
+                )
+            checkpoint(control)  # the real, clean raise if a stop was seen mid-phase
 
             if not reconstructions:
                 raise SolveError(
@@ -239,15 +333,19 @@ class PycolmapBackend:
                     "(coverage {:.0%}); the gaps are interpolated by the Director.".format(coverage)
                 )
 
+            landmarks = _landmarks_from_reconstruction(best)
+
             return BackendSolveResult(
                 poses=samples,
                 backend="pycolmap",
                 coverage=coverage,
                 warnings=warnings,
+                landmarks_3d=landmarks,
                 diagnostics={
                     "solved_poses": len(samples),
                     "requested_samples": len(frames),
                     "reconstructions": len(reconstructions),
+                    "landmarks_3d": len(landmarks),
                 },
             )
         finally:

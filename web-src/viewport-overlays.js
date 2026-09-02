@@ -179,6 +179,9 @@ export function drawCameraPath(ui) {
     const keys = camera.keyframes || [];
     const color = camera.color || cameraColors[camIdx % cameraColors.length];
     const isActive = camera.id === ui.state.active_camera_id;
+    // Through its own lens the active camera's trajectory just paints over the
+    // shot; the WebGL path does the same. Other cameras still draw.
+    if (isActive && ui.state.view_mode === "camera") return;
     if (keys.length >= 2) {
       for (let i = 0; i < keys.length - 1; i++) {
         drawLine3D(ui, keys[i].camera.position, keys[i + 1].camera.position, color, isActive ? 2.2 : 1.2);
@@ -282,6 +285,19 @@ export function drawOverlays(ui) {
       console.error("[OmniCam] radar overlay failed", err);
       ui.radarError = String(err?.message || err);
     }
+  }
+  // A soft vignette settles the studio render into its frame. Orbit views only:
+  // the camera POV is a framing surface the resolution gate already darkens, and
+  // a capture must record flat.
+  if (!ui.recording && ui.state.view_mode !== "camera" && w > 1 && h > 1) {
+    const radius = Math.hypot(w, h) / 2;
+    const vignette = c.createRadialGradient(w / 2, h / 2, radius * 0.62, w / 2, h / 2, radius);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.28)");
+    c.save();
+    c.fillStyle = vignette;
+    c.fillRect(0, 0, w, h);
+    c.restore();
   }
   if (ui.state.burn_in) {
     const camera = ui.viewportCamera();

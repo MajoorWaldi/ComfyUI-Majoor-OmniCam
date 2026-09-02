@@ -194,12 +194,26 @@ test("camera inspection uses the solved pose and fov without changing the frame"
     rendererFactory: () => ({ setClearColor() {}, setSize() {}, render() {}, dispose() {} }),
   });
   viewer.setRefinedTrack(DOLLY);
+  viewer.setLandmarks([{ x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }]);
   viewer.setFrame(30);
   viewer.setInspectionView("camera");
 
   assert.equal(viewer.frame, 30);
   assert.deepEqual(viewer.renderCamera.position.toArray(), [0, 1, 2]);
   assert.equal(viewer.renderCamera.fov, 53);
+
+  // Through the solved lens its own path and frustums are hidden; the landmark
+  // cloud and grid -- what actually reads the motion from inside -- stay.
+  const scene = viewer.trackScene;
+  assert.equal(scene.pathGroup.visible, false);
+  assert.equal(scene.frustumGroup.visible, false);
+  assert.equal(scene.currentFrustum.visible, false);
+  assert.equal(scene.pointGroup.visible, true);
+  assert.equal(scene.gridGroup.visible, true);
+
+  viewer.setInspectionView("scene");
+  assert.equal(scene.pathGroup.visible, true);
+  assert.equal(scene.currentFrustum.visible, true);
   viewer.dispose();
 });
 

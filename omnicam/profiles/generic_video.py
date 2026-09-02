@@ -9,16 +9,25 @@ telling the user before the queue does.
 This profile encodes none of that, on purpose. It exists for the destination
 OmniCam has no named profile for -- Seedance, Kling, Veo, Runway, a private
 API, a model that ships next month -- and hands over the playblast and the
-prompt unchanged. It is not a looser version of the strict profiles with the
-same checks turned off; it genuinely has no upstream contract to enforce, so
-WARNING is the ceiling here rather than a policy choice.
+prompt byte-for-byte unchanged, multi-shot included. It is not a looser
+version of the strict profiles with the same checks turned off; it genuinely
+has no upstream contract to enforce, so WARNING is the ceiling here rather
+than a policy choice.
+
+In particular it does NOT append the multi-shot camera-work instruction the
+H3 profiles use ("follow its camera motion... do not copy its appearance").
+That sentence is a semantic decision about how a specific model reads a
+reference video, and for an unknown destination it can be the exact opposite
+of what the user wants -- an appearance-transfer or V2V node, say. The cut
+timing is already carried by the playblast itself; the prompt stays the
+user's.
 """
 
 from __future__ import annotations
 
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
-from .shots import MULTI_SHOT_PROMPT, multi_shot_check
+from .shots import multi_shot_check
 
 
 class ExternalReferenceVideoProfile:
@@ -64,15 +73,11 @@ class ExternalReferenceVideoProfile:
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         timeline = self.resolve_timeline(request)
-        if request.motion_scene.is_multi_shot:
-            final_prompt = f"{request.base_prompt}\n\n{MULTI_SHOT_PROMPT}".strip()
-        else:
-            final_prompt = request.base_prompt
         return CompiledMotion(
             profile_id=self.id,
             semantic=self.semantic,
             timeline=timeline,
-            final_prompt=final_prompt,
+            final_prompt=request.base_prompt,
             reference_video=request.playblast_video,
             checks=tuple(checks),
         )

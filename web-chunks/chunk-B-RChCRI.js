@@ -1,13 +1,13 @@
 import "../../scripts/app.js";
 import { api as N } from "../../scripts/api.js";
-import { d as ht, u as pt, l as mt, S as ft } from "./chunk-CYXHK_as.js";
-import { m as bt, g as it, n as gt, L as vt, h as yt, S as W, r as xt, i as wt, j as kt, k as St, p as Et, l as Ct, F as Mt } from "./chunk-CB7gDXVB.js";
-import { M as Tt } from "./chunk-Jm0vAvYx.js";
-import { a0 as Nt, a1 as _t } from "./chunk-DcOQiKNJ.js";
-function At(r) {
+import { d as ht, u as pt, l as mt, S as ft, b as bt } from "./chunk-DB_YtOm2.js";
+import { m as gt, g as it, n as vt, L as yt, h as xt, S as W, r as wt, i as kt, j as St, k as Et, p as Ct, l as Mt, F as Tt } from "./chunk-nt_Eiok4.js";
+import { M as Nt } from "./chunk-Jm0vAvYx.js";
+import { a0 as _t, a1 as At } from "./chunk-CSPoZLSN.js";
+function Rt(r) {
   return r?.name === "AbortError" || r?.code === 20;
 }
-class Rt {
+class It {
   constructor() {
     this.controller = typeof AbortController == "function" ? new AbortController() : null, this.disposed = !1;
   }
@@ -33,15 +33,15 @@ class Rt {
       const e = await t(this.signal);
       return this.aborted ? void 0 : e;
     } catch (e) {
-      if (this.aborted || At(e)) return;
+      if (this.aborted || Rt(e)) return;
       throw e;
     }
   }
   dispose() {
-    this.disposed || (this.disposed = !0, It(), this.controller?.abort());
+    this.disposed || (this.disposed = !0, Ft(), this.controller?.abort());
   }
 }
-function It() {
+function Ft() {
   const r = typeof globalThis == "object" ? globalThis : null;
   if (!r) return;
   const t = r.__majoorOmniCamIntentionalAborts, e = { at: Date.now() };
@@ -51,24 +51,24 @@ function It() {
   }
   r.__majoorOmniCamIntentionalAborts = [e];
 }
-function Ft(r, t) {
+function $t(r, t) {
   const e = !!r.upstreamPreviewActive, a = r.sourceViewer?.mode || "native", o = t ? e ? "upstream" : a === "fallback" ? "fallback" : "native" : "none", i = (s, n) => {
     const c = r.$(s);
     c && (c.hidden = !n);
   };
   return i("source-video", o === "native"), i("fallback-preview", o === "fallback"), i("upstream-preview", o === "upstream"), o;
 }
-function $t(r, t) {
+function Lt(r, t) {
   const e = r.$("tracking-overlay"), a = Math.round(Number(t?.width) || 0), o = Math.round(Number(t?.height) || 0);
   return !e || a < 1 || o < 1 || e.width === a && e.height === o ? !1 : (e.width = a, e.height = o, r.overlay.draw(), !0);
 }
-async function Lt(r, t) {
+async function Pt(r, t) {
   const e = r.$("upstream-preview");
   if (!e) return;
   const a = t.available ? null : t.previewMedia;
   r.upstreamPreviewActive = a ? await ht(a, e, 960) : !1, r.disposed || r.render();
 }
-const Pt = {
+const Ot = {
   job: "majoor.omnicam.extractor.job",
   progress: "majoor.omnicam.extractor.progress",
   pose: "majoor.omnicam.extractor.pose",
@@ -77,7 +77,7 @@ const Pt = {
   completed: "majoor.omnicam.extractor.completed",
   failed: "majoor.omnicam.extractor.failed"
 };
-class Ot {
+class Dt {
   /**
    * @param api ComfyUI api object
    * @param handlers one callback per SOLVE_EVENTS key
@@ -85,7 +85,7 @@ class Ot {
    */
   constructor(t, e = {}, a = () => !0) {
     this.api = t, this.match = a, this.bound = [];
-    for (const [o, i] of Object.entries(Pt)) {
+    for (const [o, i] of Object.entries(Ot)) {
       const s = e[o];
       if (typeof s != "function") continue;
       const n = (c) => {
@@ -100,13 +100,13 @@ class Ot {
       this.api?.removeEventListener?.(t, e);
   }
 }
-function Dt(r) {
+function Vt(r) {
   return (t) => {
     const e = r() || {};
     return !(e.jobId && t.job_id && t.job_id !== e.jobId || t.node_id != null && String(t.node_id) !== String(e.nodeId));
   };
 }
-const M = "/majoor/omnicam/extractor/jobs", Vt = /* @__PURE__ */ new Set([
+const M = "/majoor/omnicam/extractor/jobs", jt = /* @__PURE__ */ new Set([
   "IDLE",
   "PREPARING",
   "TRACKING",
@@ -114,9 +114,9 @@ const M = "/majoor/omnicam/extractor/jobs", Vt = /* @__PURE__ */ new Set([
   "REFINING",
   "STOPPING"
 ]);
-function jt(r, t = {}) {
+function qt(r, t = {}) {
   const e = String(t.jobId || "");
-  return !e || !Vt.has(String(t.solveState || "")) ? !1 : (r.stopSolve(e).catch(() => {
+  return !e || !jt.has(String(t.solveState || "")) ? !1 : (r.stopSolve(e).catch(() => {
   }), !0);
 }
 async function K(r) {
@@ -126,7 +126,7 @@ async function K(r) {
     return `Request failed (${r.status})`;
   }
 }
-class qt {
+class Ut {
   constructor(t, { clientId: e = "" } = {}) {
     this.api = t, this.clientId = e, this.abort = null;
   }
@@ -185,7 +185,7 @@ class qt {
     return a.json();
   }
 }
-const Ut = 200, X = {
+const Gt = 200, X = {
   position_smoothing: 0.15,
   rotation_smoothing: 0.1,
   motion_scale: 1,
@@ -202,8 +202,8 @@ const Ut = 200, X = {
 function O() {
   return { pitch: 0, yaw: 0, roll: 0 };
 }
-class Gt {
-  constructor({ onRefine: t, delay: e = Ut, setTimer: a, clearTimer: o } = {}) {
+class Ht {
+  constructor({ onRefine: t, delay: e = Gt, setTimer: a, clearTimer: o } = {}) {
     this.settings = { ...X }, this.alignment = O(), this.onRefine = t || (() => {
     }), this.delay = e, this.setTimer = a || ((i, s) => setTimeout(i, s)), this.clearTimer = o || ((i) => clearTimeout(i)), this.timer = null, this.lastSent = "";
   }
@@ -213,7 +213,7 @@ class Gt {
   }
   setAlignment(t) {
     return this.alignment = { ...this.alignment, ...t }, this.update({
-      global_rotation_xyzw: Ht(this.alignment),
+      global_rotation_xyzw: Wt(this.alignment),
       estimate_up: !1
     });
   }
@@ -244,7 +244,7 @@ class Gt {
     this.clearTimer(this.timer), this.timer = null;
   }
 }
-function Ht({ pitch: r = 0, yaw: t = 0, roll: e = 0 } = {}) {
+function Wt({ pitch: r = 0, yaw: t = 0, roll: e = 0 } = {}) {
   if (!r && !t && !e) return null;
   const [a, o, i] = [r, t, e].map((d) => (Number(d) || 0) * (Math.PI / 180) * 0.5), [s, n, c, l, h, p] = [
     Math.cos(a),
@@ -261,7 +261,7 @@ function Ht({ pitch: r = 0, yaw: t = 0, roll: e = 0 } = {}) {
     s * c * h - n * l * p
   ];
 }
-class Wt {
+class Bt {
   constructor({ maxFrames: t = 180 } = {}) {
     this.maxFrames = Math.max(1, Math.floor(Number(t) || 180)), this.frames = /* @__PURE__ */ new Map();
   }
@@ -285,14 +285,14 @@ class Wt {
     this.clear();
   }
 }
-function Bt(r, t) {
+function zt(r, t) {
   const e = Math.max(0, Math.floor(Number(t) || 0) - 1);
   return Math.max(0, Math.min(e, Math.round(Number(r) || 0)));
 }
-function zt(r) {
+function Kt(r) {
   return ["manual", "transport", "timeline", "quality", "input"].includes(r);
 }
-class Kt {
+class Xt {
   constructor({
     media: t = null,
     getViewer: e = () => null,
@@ -329,8 +329,8 @@ class Kt {
   }
   seek(t, e = "manual") {
     if (this.disposed) return this.frame;
-    const a = Bt(t, this.frameCount);
-    return zt(e) && this.setFollow(!1), e !== "media" && this.media?.seekFrame?.(a), this.getViewer?.()?.setFrame?.(a), this.showDiagnostics(a), this.frame = a, this.dispatch({ type: "FRAME", frame: a }), e !== "playback" && (this.playbackStartFrame = a, this.playbackStartTime = null), a;
+    const a = zt(t, this.frameCount);
+    return Kt(e) && this.setFollow(!1), e !== "media" && this.media?.seekFrame?.(a), this.getViewer?.()?.setFrame?.(a), this.showDiagnostics(a), this.frame = a, this.dispatch({ type: "FRAME", frame: a }), e !== "playback" && (this.playbackStartFrame = a, this.playbackStartTime = null), a;
   }
   play() {
     return this.disposed || this.playing || this.frameCount < 1 ? !1 : (this.playing = !0, this.onPlaybackState(this.playing), this.playbackStartFrame = this.frame, this.playbackStartTime = null, this.schedule(), !0);
@@ -369,7 +369,7 @@ class Kt {
 }
 class _ extends Error {
 }
-function Xt(r, { track: t, state: e } = {}) {
+function Yt(r, { track: t, state: e } = {}) {
   if (e !== "COMPLETED")
     throw new _("Only a completed solve can be applied to the Director.");
   const a = t?.keyframes;
@@ -378,7 +378,7 @@ function Xt(r, { track: t, state: e } = {}) {
   const o = String(t?.metadata?.extractor_fingerprint || "");
   if (!o)
     throw new _("This track carries no extractor fingerprint.");
-  const i = bt(t);
+  const i = gt(t);
   if (!i)
     throw new _("This solve cannot be wrapped in a canonical motion scene.");
   it(r, {
@@ -386,10 +386,10 @@ function Xt(r, { track: t, state: e } = {}) {
     fingerprint: o,
     solver_coverage: Number(t?.metadata?.solver_coverage ?? t?.metadata?.confidence) || 0
   });
-  const s = gt(r);
+  const s = vt(r);
   return { fingerprint: o, notified: s };
 }
-function Yt(r, t = "") {
+function Jt(r, t = "") {
   const e = Number(r?.code) || 0, a = t ? "" : " (no source URL was set)";
   switch (e) {
     case 1:
@@ -404,7 +404,7 @@ function Yt(r, t = "") {
       return `The footage could not be played${a}.`;
   }
 }
-class Jt extends Tt {
+class Qt extends Nt {
   constructor(t, {
     fps: e = 24,
     onFrame: a = () => {
@@ -423,7 +423,7 @@ class Jt extends Tt {
       onFrame: (c) => this.reportFrame(c),
       onMetadata: o,
       onError: (c) => this.handleMediaError(c),
-      errorMessage: Yt,
+      errorMessage: Jt,
       loop: !0,
       muted: !0
     }), this.frameCount = 0, this.onExternalFrame = a, this.ignoredFrame = null, this.follow = !0, this.mode = "native", this.source = null, this.onMode = s, this.fallbackViewer = n, this.onPlaybackError = i;
@@ -494,32 +494,32 @@ function Y(r, t) {
   const e = Math.max(1, Number(t) || 24), a = Math.max(0, Number(r) || 0), o = Math.floor(a / e), i = (s, n = 2) => String(s).padStart(n, "0");
   return `${i(Math.floor(o / 60))}:${i(o % 60)}:${i(a % e)}`;
 }
-const Qt = "/majoor/omnicam/extractor/frame";
-function Zt(r) {
+const Zt = "/majoor/omnicam/extractor/frame";
+function te(r) {
   return Math.max(0, Math.round(Number(r) || 0));
 }
 function I(r, t, e = 0) {
   const a = Number(r?.get?.(t));
   return Number.isFinite(a) && a > 0 ? Math.round(a) : e;
 }
-async function te(r) {
+async function ee(r) {
   try {
     return await r?.text?.() || `Preview frame request failed (${r?.status || "unknown"})`;
   } catch {
     return `Preview frame request failed (${r?.status || "unknown"})`;
   }
 }
-function ee(r) {
+function re(r) {
   return r?.name === "AbortError";
 }
-function re(r, t, e = t?.width, a = t?.height) {
+function ae(r, t, e = t?.width, a = t?.height) {
   const o = r?.getContext?.("2d"), i = Math.max(1, Number(t?.width) || 1), s = Math.max(1, Number(t?.height) || 1), n = Math.max(1, Math.round(Number(e) || i)), c = Math.max(1, Math.round(Number(a) || s));
   if (!o) return !1;
   r.width !== n && (r.width = n), r.height !== c && (r.height = c);
   const l = Math.min(n / i, c / s), h = Math.round(i * l), p = Math.round(s * l);
   return o.clearRect(0, 0, n, c), o.drawImage(t, Math.round((n - h) / 2), Math.round((c - p) / 2), h, p), !0;
 }
-class ae {
+class oe {
   constructor(t, { api: e, decodeImage: a = (o) => globalThis.createImageBitmap(o) } = {}) {
     this.canvas = t, this.api = e, this.decodeImage = a, this.abortController = null, this.generation = 0, this.frame = 0, this.frameCount = 0, this.error = "";
   }
@@ -531,29 +531,29 @@ class ae {
     this.abort();
     const o = ++this.generation, i = new AbortController();
     this.abortController = i;
-    const s = Zt(e);
+    const s = te(e);
     try {
-      const n = await this.api?.fetchApi?.(Qt, {
+      const n = await this.api?.fetchApi?.(Zt, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: t, frame: s, max_dimension: a }),
         signal: i.signal
       });
-      if (!n?.ok) throw new Error(await te(n));
+      if (!n?.ok) throw new Error(await ee(n));
       const c = await n.blob(), l = await this.decodeImage(c);
       if (o !== this.generation || i.signal.aborted)
         return l?.close?.(), !1;
       const h = I(n.headers, "X-OmniCam-Width", l?.width), p = I(n.headers, "X-OmniCam-Height", l?.height);
       let d = !1;
       try {
-        d = re(this.canvas, l, h, p);
+        d = ae(this.canvas, l, h, p);
       } finally {
         l?.close?.();
       }
       if (!d) throw new Error("The fallback preview canvas is unavailable.");
       return this.frame = I(n.headers, "X-OmniCam-Frame", s), this.frameCount = I(n.headers, "X-OmniCam-Frame-Count", this.frameCount), this.error = "", !0;
     } catch (n) {
-      if (o !== this.generation || i.signal.aborted || ee(n)) return !1;
+      if (o !== this.generation || i.signal.aborted || re(n)) return !1;
       throw this.error = String(n?.message || n), n;
     } finally {
       o === this.generation && (this.abortController = null);
@@ -568,12 +568,12 @@ class ae {
     this.clear(), this.canvas = null, this.api = null;
   }
 }
-const oe = {
+const ie = {
   LoadVideo: ["file", "video"],
   VHS_LoadVideo: ["video"],
   VHS_LoadVideoPath: ["video"],
   LoadVideoFFmpeg: ["file", "video"]
-}, ie = /\.(mp4|mov|webm|mkv|m4v|avi)(\s|$)/i, F = {
+}, se = /\.(mp4|mov|webm|mkv|m4v|avi)(\s|$)/i, F = {
   available: !1,
   ref: null,
   label: "",
@@ -582,14 +582,14 @@ const oe = {
 function J(r) {
   return String(r?.comfyClass || r?.type || r?.constructor?.type || "");
 }
-function se(r, t) {
+function ne(r, t) {
   for (const e of t) {
     const a = r?.widgets?.find((o) => String(o.name).toLowerCase() === e);
     if (a && a.value) return String(a.value);
   }
   return "";
 }
-function ne(r, t) {
+function ce(r, t) {
   const e = (r?.inputs || []).find((a) => String(a?.name).toLowerCase() === "video");
   return !e || e.link == null || !t ? null : mt(t, e.link);
 }
@@ -599,10 +599,10 @@ function Q(r) {
   );
   return t ? { kind: /\s\[(input|output|temp)\]$/.test(t) ? "annotated_input" : "managed", value: t } : null;
 }
-function ce(r, t = r?.graph) {
-  const e = ne(r, t);
+function le(r, t = r?.graph) {
+  const e = ce(r, t);
   if (e) {
-    const o = oe[J(e)];
+    const o = ie[J(e)];
     if (!o) {
       const s = Q(r);
       return s ? {
@@ -621,8 +621,8 @@ function ce(r, t = r?.graph) {
         previewMedia: pt(e)
       };
     }
-    const i = se(e, o);
-    return i ? ie.test(i) ? {
+    const i = ne(e, o);
+    return i ? se.test(i) ? {
       available: !0,
       reason: "",
       label: i,
@@ -639,25 +639,25 @@ function ce(r, t = r?.graph) {
     originNodeId: null
   } : { ...F, reason: "Connect Load Video, or choose a source file, to track." };
 }
-function le(r) {
+function de(r) {
   if (!r?.available) return r?.reason || "No source";
   const t = r.info;
   if (!t) return r.label;
   const e = [r.label];
   return t.width && t.height && e.push(`${t.width}x${t.height}`), t.fps && e.push(`${Number(t.fps).toFixed(2).replace(/\.?0+$/, "")}fps`), t.frame_count && e.push(`${t.frame_count} frames`), e.join(" · ");
 }
-function de(r) {
-  const t = ce(r.node, r.node.graph), e = t.ref ? `${t.ref.kind}:${t.ref.value}` : "", a = e !== (r.sourceKey || "");
+function ue(r) {
+  const t = le(r.node, r.node.graph), e = t.ref ? `${t.ref.kind}:${t.ref.value}` : "", a = e !== (r.sourceKey || "");
   if (a) {
     const i = r.state.jobId;
     r.sourceKey = e, r.describing = "", i && r.client.stopSolve(i).catch(() => {
     }), r.dispatch({ type: "SOURCE_RESET", source: { ...t, playbackError: "" } }), r.coordinator.setRate(24), r.coordinator.setFrameCount(0);
   }
   const o = r.sourceViewer.setSource(
-    t.available && t.ref ? Nt(N, t.ref.value) : "",
+    t.available && t.ref ? _t(N, t.ref.value) : "",
     { source: t.available ? t.ref : null }
   );
-  return a && r.coordinator.seek(0, "source"), r.dispatch({ type: "SOURCE", source: o ? { ...t, playbackError: "" } : t }), t.available && t.ref ? st(r, t) : B(r, 0), Lt(r, t), t;
+  return a && r.coordinator.seek(0, "source"), r.dispatch({ type: "SOURCE", source: o ? { ...t, playbackError: "" } : t }), t.available && t.ref ? st(r, t) : B(r, 0), Pt(r, t), t;
 }
 async function st(r, t) {
   if (r.describing === t.ref?.value) return null;
@@ -666,7 +666,7 @@ async function st(r, t) {
     const e = await r.client.describeSource(t.ref);
     if (r.disposed || r.sourceKey !== `${t.ref.kind}:${t.ref.value}`) return null;
     const a = e?.info || null;
-    return r.dispatch({ type: "SOURCE", source: { info: a } }), a && (r.coordinator.setRate(Number(a.fps) || r.sourceViewer.fps), B(r, Number(a.frame_count) || 0), $t(r, a)), a;
+    return r.dispatch({ type: "SOURCE", source: { info: a } }), a && (r.coordinator.setRate(Number(a.fps) || r.sourceViewer.fps), B(r, Number(a.frame_count) || 0), Lt(r, a)), a;
   } catch (e) {
     return console.warn("[OmniCam] could not describe the extractor source", e), null;
   }
@@ -675,7 +675,7 @@ function B(r, t) {
   const e = Math.max(0, Math.round(Number(t) || 0));
   r.coordinator.setFrameCount(e), e !== r.state.frameCount && (r.dispatch({ type: "FRAME_COUNT", frameCount: e }), r.coordinator.seek(r.coordinator.frame, "source"));
 }
-const ue = /* @__PURE__ */ new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]), D = (r, t) => r == null || Number.isNaN(Number(r)) ? t : Number(r), he = {
+const he = /* @__PURE__ */ new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]), D = (r, t) => r == null || Number.isNaN(Number(r)) ? t : Number(r), pe = {
   IDLE: "neutral",
   PREPARING: "info",
   TRACKING: "active",
@@ -686,7 +686,7 @@ const ue = /* @__PURE__ */ new Set(["PREPARING", "TRACKING", "SOLVING", "REFININ
   COMPLETED: "ok",
   FAILED: "danger"
 };
-function pe() {
+function me() {
   return {
     solveState: "IDLE",
     jobId: "",
@@ -810,8 +810,8 @@ function V(r, t) {
       return r;
   }
 }
-function me(r) {
-  const t = r.solveState, e = ue.has(t), a = t === "COMPLETED";
+function fe(r) {
+  const t = r.solveState, e = he.has(t), a = t === "COMPLETED";
   return {
     track: !e && r.source.available,
     stop: e,
@@ -821,10 +821,10 @@ function me(r) {
     retry: t === "STOPPED" || t === "FAILED"
   };
 }
-function fe(r) {
-  return he[r] || "neutral";
-}
 function be(r) {
+  return pe[r] || "neutral";
+}
+function ge(r) {
   const t = Math.round(Math.max(0, Math.min(1, r.progress)) * 100);
   switch (r.solveState) {
     case "TRACKING":
@@ -836,13 +836,13 @@ function be(r) {
       return r.solveState;
   }
 }
-function ge(r) {
+function ve(r) {
   return r.frameCount ? `${r.frame} / ${r.frameCount} frames` : r.solveState === "IDLE" ? "Ready to track" : r.solveState;
 }
-function ve(r) {
+function ye(r) {
   return r.applied.fingerprint ? r.applied.outdated ? "OUTDATED" : "APPLIED" : "NOT APPLIED";
 }
-const ye = `${ft}${vt}
+const xe = `${ft}${yt}
   .oc-extractor{width:100%;min-height:700px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--oc-line);border-radius:var(--oc-radius);background:var(--oc-bg)}
   .oc-extractor .oc-header{justify-content:space-between}.oc-extractor .oc-heading{display:flex;align-items:center;gap:9px}
   .oc-extractor button,.oc-extractor select,.oc-extractor input{font:inherit;color:var(--oc-text);background:var(--oc-panel-2);border:1px solid var(--oc-line);border-radius:6px}
@@ -956,7 +956,7 @@ const ye = `${ft}${vt}
   .oc-extractor [hidden]{display:none}
   .oc-extractor .oc-views[hidden]{display:none}
   @media(max-width:720px){.oc-extractor .oc-columns{grid-template-columns:1fr}}
-`, xe = '<svg class="oc-mark" viewBox="0 0 24 24" aria-hidden="true"><circle class="oc-mark-ring" cx="12" cy="12" r="8"/><circle class="oc-mark-core" cx="12" cy="12" r="3"/></svg>';
+`;
 function S(r, t, { min: e = 0, max: a = 1, step: o = 0.01, value: i = 0 } = {}) {
   return `<label for="oc-${r}">${t}</label>
     <input id="oc-${r}" data-role="${r}" type="range" min="${e}" max="${a}" step="${o}" value="${i}">
@@ -964,11 +964,9 @@ function S(r, t, { min: e = 0, max: a = 1, step: o = 0.01, value: i = 0 } = {}) 
 }
 function we() {
   return `<div class="majoor-omnicam oc-extractor">
-    <style>${ye}</style>
+    <style>${xe}</style>
     <header class="oc-header">
-      <div class="oc-heading"><span class="oc-brand">${xe}</span>
-        <div><div class="oc-title">OmniCam Extractor</div><small>Solve · inspect · clean</small></div>
-      </div>
+      ${bt("OmniCam Extractor")}
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
     </header>
 
@@ -1219,7 +1217,7 @@ function Re(r, t = null, e = "generic") {
   if (!r?.keyframes?.length || !t) return null;
   try {
     const o = Array.isArray(r.objects) && r.objects.some((i) => i?.id === "subject" && Array.isArray(i.position)) ? t : { ...t, allow_framing_loss: !0 };
-    return _t(r, o, null, e);
+    return At(r, o, null, e);
   } catch {
     return null;
   }
@@ -1603,7 +1601,7 @@ function tr(r) {
   return (r || []).map((t, e) => [`Note ${e + 1}`, String(t)]);
 }
 function er(r) {
-  return import("./chunk-NqD7hj1e.js").then(({ TrackViewer: t }) => (r.viewerLoad = null, r.disposed || r.viewer || (r.viewer = new t(r.$("track-canvas")), r.pushTracksToViewer()), r.viewer)).catch((t) => (r.viewerLoad = null, console.warn("OmniCam track viewer unavailable", t), null));
+  return import("./chunk-DAl_oA1J.js").then(({ TrackViewer: t }) => (r.viewerLoad = null, r.disposed || r.viewer || (r.viewer = new t(r.$("track-canvas")), r.pushTracksToViewer()), r.viewer)).catch((t) => (r.viewerLoad = null, console.warn("OmniCam track viewer unavailable", t), null));
 }
 function rt(r) {
   const t = r.$("frame");
@@ -1649,7 +1647,7 @@ const rr = [
 function A(r, t) {
   return r?.widgets?.find((e) => e.name === t) || null;
 }
-const ar = [Ct, Mt, W];
+const ar = [Mt, Tt, W];
 function H(r) {
   for (const t of ar) {
     const e = A(r, t);
@@ -1663,13 +1661,13 @@ function or(r) {
 }
 class ir {
   constructor(t) {
-    this.node = t, this.root = ke(), this.state = pe(), this.disposed = !1, this.disposers = [], this.requests = new Rt(), this.result = { raw: null, refined: null }, this.landmarks = [], this.diagnostics = new Wt(), this.upstreamPreviewActive = !1, this.motionLimits = null, this.client = new qt(N), this.refine = new Gt({ onRefine: (e) => this.requestRefine(e) }), this.fallbackViewer = new ae(this.$("fallback-preview"), { api: N }), this.sourceViewer = new Jt(this.$("source-video"), {
+    this.node = t, this.root = ke(), this.state = me(), this.disposed = !1, this.disposers = [], this.requests = new It(), this.result = { raw: null, refined: null }, this.landmarks = [], this.diagnostics = new Bt(), this.upstreamPreviewActive = !1, this.motionLimits = null, this.client = new Ut(N), this.refine = new Ht({ onRefine: (e) => this.requestRefine(e) }), this.fallbackViewer = new oe(this.$("fallback-preview"), { api: N }), this.sourceViewer = new Qt(this.$("source-video"), {
       onFrame: (e) => this.coordinator.seek(e, "media"),
       onMetadata: ({ frameCount: e }) => this.adoptSourceLength(e),
       onError: (e) => this.dispatch({ type: "SOURCE", source: { playbackError: e } }),
       onMode: () => this.render(),
       fallbackViewer: this.fallbackViewer
-    }), this.coordinator = new Kt({
+    }), this.coordinator = new Xt({
       media: this.sourceViewer,
       getViewer: () => this.viewer,
       showDiagnostics: (e) => this.showDiagnostics(e),
@@ -1686,7 +1684,7 @@ class ir {
       getState: () => this.state,
       getTrack: () => this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
       listen: (e, a, o) => this.listen(e, a, o)
-    }), this.overlay = new Ye(this.$("tracking-overlay")), this.viewer = null, this.viewerLoad = null, this.events = new Ot(N, {
+    }), this.overlay = new Ye(this.$("tracking-overlay")), this.viewer = null, this.viewerLoad = null, this.events = new Dt(N, {
       job: (e) => this.dispatch({ type: "JOB_STATE", state: e.state }),
       progress: (e) => this.onProgress(e),
       pose: (e) => this.onPose(e),
@@ -1694,7 +1692,7 @@ class ir {
       features: (e) => this.onFeatures(e),
       completed: (e) => this.onCompleted(e),
       failed: (e) => this.dispatch({ type: "FAILED", error: e.error })
-    }, Dt(() => ({ jobId: this.state.jobId, nodeId: this.node.id }))), this.bind(), this.loadMotionLimits(), this.refreshSource(), this.restoreCachedResult(), this.render();
+    }, Vt(() => ({ jobId: this.state.jobId, nodeId: this.node.id }))), this.bind(), this.loadMotionLimits(), this.refreshSource(), this.restoreCachedResult(), this.render();
   }
   // -- plumbing ----------------------------------------------------------
   $(t) {
@@ -1788,7 +1786,7 @@ class ir {
   }
   // -- source ------------------------------------------------------------
   refreshSource() {
-    return de(this);
+    return ue(this);
   }
   /**
    * Ask the server what this footage is, before anything is solved.
@@ -1907,7 +1905,7 @@ class ir {
     }), this.dispatch({ type: "REFINED", fingerprint: i }), this.pushTracksToViewer(), e === "queued" && (it(this.node, {
       fingerprint: i,
       confidence: Number(t?.confidence ?? o?.metadata?.confidence) || 0
-    }), t?.source && wt(this.node, t.source), this.node.__majoorOmniCamStatus = kt({
+    }), t?.source && kt(this.node, t.source), this.node.__majoorOmniCamStatus = St({
       track: o,
       confidence: Number(t?.confidence ?? o?.metadata?.confidence) || 0
     }), this.dispatch({ type: "APPLIED", fingerprint: i }), t?.source && this.refreshSource()), !0;
@@ -1970,7 +1968,7 @@ class ir {
   }
   applyRefined() {
     try {
-      const { fingerprint: t } = Xt(this.node, {
+      const { fingerprint: t } = Yt(this.node, {
         track: this.result.refined,
         state: this.state.solveState
       });
@@ -2000,10 +1998,10 @@ class ir {
   // -- rendering ---------------------------------------------------------
   render() {
     const t = this.$("solve-status");
-    t && (t.dataset.tone = fe(this.state.solveState), this.$("solve-status-text").textContent = be(this.state));
+    t && (t.dataset.tone = be(this.state.solveState), this.$("solve-status-text").textContent = ge(this.state));
     const e = this.$("source-strip");
-    e && (e.dataset.available = String(!!this.state.source.available), this.$("source-label").textContent = le(this.state.source));
-    const a = me(this.state);
+    e && (e.dataset.available = String(!!this.state.source.available), this.$("source-label").textContent = de(this.state.source));
+    const a = fe(this.state);
     for (const [b, x] of Object.entries({
       track: a.track,
       stop: a.stop,
@@ -2012,17 +2010,17 @@ class ir {
       const y = this.root.querySelector(`[data-act="${b}"]`);
       y && (y.disabled = !x);
     }
-    this.$("solve-detail").textContent = ge(this.state), this.$("solve-percent").textContent = `${Math.round(this.state.progress * 100)}%`, this.$("progress-bar").style.width = `${Math.round(this.state.progress * 100)}%`;
+    this.$("solve-detail").textContent = ve(this.state), this.$("solve-percent").textContent = `${Math.round(this.state.progress * 100)}%`, this.$("progress-bar").style.width = `${Math.round(this.state.progress * 100)}%`;
     const o = this.$("solve-error");
     o.hidden = !this.state.error, o.textContent = this.state.error || "";
-    const i = ve(this.state), s = this.$("applied-state");
+    const i = ye(this.state), s = this.$("applied-state");
     s.dataset.state = i, s.textContent = i;
     for (const b of this.root.querySelectorAll("[data-tab]"))
       b.setAttribute("aria-selected", String(b.dataset.tab === this.state.viewerMode));
     for (const b of this.root.querySelectorAll("[data-track-mode]"))
       b.setAttribute("aria-selected", String(b.dataset.trackMode === this.state.trackMode));
     const n = this.state.viewerMode, c = n === "source", l = n === "track3d", h = this.$("stage");
-    h && (h.dataset.mode = n), Ft(this, c), this.$("tracking-overlay").hidden = !0, this.$("track-canvas").hidden = !l, this.root.querySelector('[data-role="views"]').hidden = !l;
+    h && (h.dataset.mode = n), $t(this, c), this.$("tracking-overlay").hidden = !0, this.$("track-canvas").hidden = !l, this.root.querySelector('[data-role="views"]').hidden = !l;
     const p = this.$("scrubber");
     p && (p.max = String(Math.max(0, this.state.frameCount - 1)));
     const d = this.$("frame");
@@ -2082,28 +2080,28 @@ class ir {
   }
   // -- lifecycle ---------------------------------------------------------
   restoreCachedResult() {
-    const t = St(this.node);
+    const t = Et(this.node);
     t && (this.result = { raw: t.track, refined: t.track }, this.state = V(this.state, { type: "APPLIED", fingerprint: t.fingerprint }), this.state = V(this.state, { type: "REFINED", fingerprint: t.fingerprint }));
   }
   executed(t) {
-    const e = Et(t);
+    const e = Ct(t);
     e && this.acceptSolvedResult(e, "queued");
   }
   dispose() {
-    jt(this.client, this.state), this.disposed = !0, this.requests.dispose(), this.events.dispose(), this.refine.dispose(), this.coordinator.dispose(), this.sourceViewer.dispose(), this.overlay.dispose(), this.diagnostics.dispose(), this.viewer?.dispose(), this.viewer = null, this.viewerLoad = null;
+    qt(this.client, this.state), this.disposed = !0, this.requests.dispose(), this.events.dispose(), this.refine.dispose(), this.coordinator.dispose(), this.sourceViewer.dispose(), this.overlay.dispose(), this.diagnostics.dispose(), this.viewer?.dispose(), this.viewer = null, this.viewerLoad = null;
     for (const t of this.disposers.splice(0)) t();
     this.result = { raw: null, refined: null };
   }
 }
 function hr(r) {
   if (r.__majoorOmniCamExtractor) return;
-  if (yt(r), !A(r, W)) {
+  if (xt(r), !A(r, W)) {
     const n = r.addWidget?.("text", W, "", () => {
     }, { serialize: !0 });
     n && (n.computeSize = () => [0, -4], n.draw = () => {
     }, n.hidden = !0);
   }
-  or(r), xt(r);
+  or(r), wt(r);
   const t = new ir(r);
   r.__majoorOmniCamExtractor = t;
   const e = () => Math.max(700, t.root.scrollHeight || 0);

@@ -8,10 +8,18 @@
 // (AGENTS.md §7). The only render mode that keeps the studio look during a
 // capture is "beauty", which the user has to pick explicitly.
 
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+// `renderScale` is a supersample factor the host blit reads: the WebGL canvas
+// is drawn at this multiple of the viewport's backing size and scaled back
+// down, which is the cheapest antialiasing that also sharpens shadow and
+// silhouette edges. It only applies to the interactive viewport, never a
+// capture. Shadow maps went up a stop across the board -- a 1024 map over a
+// 24-unit frustum was the coarse-penumbra "video game" tell.
 export const QUALITY_PRESETS = {
-  low: { shadows: true, shadowSize: 512, toneExposure: 0.9 },
-  balanced: { shadows: true, shadowSize: 1024, toneExposure: 0.95 },
-  high: { shadows: true, shadowSize: 2048, toneExposure: 1.0 },
+  low: { shadows: true, shadowSize: 1024, toneExposure: 0.9, renderScale: 1 },
+  balanced: { shadows: true, shadowSize: 2048, toneExposure: 0.95, renderScale: 1.25 },
+  high: { shadows: true, shadowSize: 4096, toneExposure: 1.0, renderScale: 1.5 },
 };
 
 export const DEFAULT_QUALITY = "balanced";
@@ -133,10 +141,20 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
   shadowCatcher.name = "omnicam-shadow-catcher";
   group.add(shadowCatcher);
 
+  // The visible backdrop stays the graded sky. The *lighting* environment is a
+  // real room IBL instead of that flat 3-stop gradient: it gives the standard
+  // materials directional fill and soft occlusion in the creases, which is the
+  // difference between "plastic" and "photographed" on an untextured proxy.
   const sky = skyTexture(THREE);
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
-  const environment = pmrem.fromEquirectangular(sky).texture;
+  const roomScene = new RoomEnvironment();
+  const environment = pmrem.fromScene(roomScene, 0.04).texture;
+  roomScene.traverse((object) => {
+    object.geometry?.dispose?.();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    for (const material of materials) material?.dispose?.();
+  });
 
   return {
     group, key, fill, rim, catcher, shadowCatcher, floorMap, sky, environment, pmrem,

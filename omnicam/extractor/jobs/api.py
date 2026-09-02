@@ -129,7 +129,7 @@ def validate_settings(settings: Any) -> dict[str, Any]:
     unknown = set(settings) - allowed
     if unknown:
         raise ApiError(400, f"Unknown solve setting: {sorted(unknown)[0]}")
-    method = str(settings.get("method", "dpvo"))
+    method = str(settings.get("method", "auto"))
     if method not in METHODS:
         raise ApiError(400, f"Unsupported solve method: {method!r}")
     lens_mode = str(settings.get("lens_mode", "auto"))

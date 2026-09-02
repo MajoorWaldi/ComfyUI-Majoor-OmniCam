@@ -54,8 +54,20 @@ export function createRenderMethods(dependencies) {
     let webglRendered = false;
     if (this.webgl) {
       try {
-        this.webgl.render(renderState, viewCamera, this.cardMediaById, w, h, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null);
-        c.drawImage(this.webgl.canvas, 0, 0, w, h);
+        // Supersample: render the 3D viewport larger than the backing store and
+        // let the blit scale it down. This is the antialiasing that separates a
+        // crisp studio look from a soft one; it is off during a capture (which
+        // needs exact pixels) and clamped so a huge panel never asks the GPU
+        // for more than ~4K on its long edge.
+        const factor = this.recording ? 1 : (this.webgl.supersampleFactor?.() ?? 1);
+        const scale = factor > 1 ? Math.min(factor, 4096 / Math.max(1, w, h)) : 1;
+        const rw = scale > 1 ? Math.round(w * scale) : w;
+        const rh = scale > 1 ? Math.round(h * scale) : h;
+        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null);
+        c.imageSmoothingEnabled = true;
+        c.imageSmoothingQuality = "high";
+        if (rw !== w || rh !== h) c.drawImage(this.webgl.canvas, 0, 0, rw, rh, 0, 0, w, h);
+        else c.drawImage(this.webgl.canvas, 0, 0, w, h);
         webglRendered = true;
       } catch (err) {
         console.error("[OmniCam WebGL Render Error]", err);

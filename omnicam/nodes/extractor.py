@@ -53,10 +53,12 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 IO.Combo.Input(
                     "method",
                     options=["auto", "dpvo", "pycolmap", "opencv_sift"],
-                    default="dpvo",
+                    default="auto",
                     tooltip=(
-                        "DPVO is the default. auto prefers DPVO, then pycolmap, then "
-                        "OpenCV/SIFT, taking the first one actually installed."
+                        "auto takes the first solver actually installed: DPVO, then "
+                        "pycolmap, then OpenCV/SIFT. The report names the one it ran. "
+                        "Pick a solver by name to force it and get an install hint if "
+                        "it is missing."
                     ),
                 ),
                 IO.Combo.Input("lens_mode", options=["auto", "fov", "focal_mm"], default="auto", advanced=True),

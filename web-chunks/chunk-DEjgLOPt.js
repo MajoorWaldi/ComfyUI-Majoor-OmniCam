@@ -1,9 +1,9 @@
-import { l as T, S as M, u as N, d as P } from "./chunk-CYXHK_as.js";
+import { l as T, S as M, b as N, u as P, d as L } from "./chunk-DB_YtOm2.js";
 import "../../scripts/app.js";
 import { api as u } from "../../scripts/api.js";
-import { M as L } from "./chunk-Jm0vAvYx.js";
-import { a0 as I } from "./chunk-DcOQiKNJ.js";
-import { m as $, b as A } from "./chunk-DqCGPFAY.js";
+import { M as I } from "./chunk-Jm0vAvYx.js";
+import { a0 as $ } from "./chunk-CSPoZLSN.js";
+import { m as A } from "./chunk-yd7KIc_Q.js";
 function s(e) {
   return String(e ?? "").replace(/[&<>"']/g, (t) => ({
     "&": "&amp;",
@@ -89,22 +89,22 @@ function H(e, t) {
     monitor: F(t)
   };
 }
-class V extends L {
+class V extends I {
   constructor(t, { fps: o = 24, durationFrames: r = 1, onFrame: i = () => {
   } } = {}) {
     super(t, { fps: o, durationFrames: r, onFrame: i, loop: !0, muted: !0 });
   }
 }
 const _ = "MajoorOmniCamDirector";
-function O(e) {
+function k(e) {
   return String(e?.comfyClass || e?.constructor?.type || "");
 }
-function m(e, t) {
+function h(e, t) {
   return e?.widgets?.find((o) => o.name === t)?.value;
 }
 function B(e) {
   try {
-    const t = JSON.parse(String(m(e, "state_json") ?? "{}"));
+    const t = JSON.parse(String(h(e, "state_json") ?? "{}"));
     return t && typeof t == "object" ? t : {};
   } catch {
     return {};
@@ -112,13 +112,13 @@ function B(e) {
 }
 function z(e, t) {
   const o = e?.motion_scene_fingerprint;
-  return o ? o !== $(t) : !1;
+  return o ? o !== A(t) : !1;
 }
 function K(e, t) {
-  if (O(t) !== _) return null;
-  const o = String(m(t, "recording_path") || "");
+  if (k(t) !== _) return null;
+  const o = String(h(t, "recording_path") || "");
   if (!o) return null;
-  const r = I(e, o);
+  const r = $(e, o);
   if (!r) return null;
   const i = B(t), a = i?.metadata?.playblast && typeof i.metadata.playblast == "object" ? i.metadata.playblast : {};
   return {
@@ -133,18 +133,18 @@ function K(e, t) {
     outdated: z(a, i)
   };
 }
-function k(e) {
-  return O(e) === _ && !m(e, "recording_path");
+function O(e) {
+  return k(e) === _ && !h(e, "recording_path");
 }
 function G(e, t) {
   if (e) {
     const o = [e.outdated ? "⚠ Playblast outdated (re-record before compiling)" : "● Director playblast"];
     return e.width && e.height && o.push(`${e.width}x${e.height}`), e.fps && o.push(`${e.fps}fps`), e.frameCount && o.push(`${e.frameCount} frames`), e.durationSeconds && o.push(`${e.durationSeconds.toFixed(2)}s`), o.join(" · ");
   }
-  return k(t) ? "⚠ Director connected, no playblast recorded yet — showing the live viewport." : "";
+  return O(t) ? "⚠ Director connected, no playblast recorded yet — showing the live viewport." : "";
 }
 function Y(e, t) {
-  return e?.outdated ? "2" : e ? "" : k(t) ? "1" : "";
+  return e?.outdated ? "2" : e ? "" : O(t) ? "1" : "";
 }
 class J {
   constructor(t, {
@@ -255,6 +255,11 @@ const et = `${M}
   .oc-monitor .oc-row:last-child{border-bottom:0}.oc-monitor .oc-row strong{font-weight:600}.oc-monitor .oc-row small{color:var(--oc-text-dim)}
   .oc-monitor .oc-state{font-size:10px;font-weight:750}.oc-monitor .oc-state[data-state="ready"]{color:var(--oc-ok-text)}.oc-monitor .oc-state[data-state="warning"]{color:var(--oc-warn-text)}.oc-monitor .oc-state[data-state="blocked"]{color:var(--oc-danger-text)}.oc-monitor .oc-state[data-state="pass"]{color:var(--oc-ok-text)}.oc-monitor .oc-state[data-state="risk"]{color:var(--oc-text-dim)}
   .oc-monitor .oc-advanced>summary{cursor:pointer;list-style:none}.oc-monitor .oc-advanced>summary::-webkit-details-marker{display:none}
+  .oc-monitor .oc-collapsible>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
+  .oc-monitor .oc-collapsible>summary::-webkit-details-marker{display:none}
+  .oc-monitor .oc-collapsible>summary::before{content:"\\25B8";color:var(--oc-text-faint);font-size:9px}
+  .oc-monitor .oc-collapsible[open]>summary::before{content:"\\25BE"}
+  .oc-monitor .oc-collapsible:not([open]){gap:0}
   .oc-monitor .oc-adapter-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px}.oc-monitor .oc-adapter-controls label{display:flex;flex-direction:column;gap:3px;color:var(--oc-text-dim)}
   .oc-monitor .oc-adapter-controls .wide{grid-column:1/-1}.oc-monitor .oc-adapter-controls input,.oc-monitor .oc-adapter-controls select{width:100%;padding:5px}
   .oc-monitor .oc-preview-label{display:flex;gap:7px;align-items:center;margin-bottom:7px}.oc-monitor .oc-preview-label span{font-size:9px;font-weight:750;color:var(--oc-accent)}
@@ -278,7 +283,7 @@ function rt() {
 function it() {
   return `<div class="majoor-omnicam oc-monitor">
     <style>${et}</style>
-    <header class="oc-header">${A("OmniCam Monitor")}
+    <header class="oc-header">${N("OmniCam Monitor")}
       <div class="oc-header-actions"><span class="oc-status-pill" data-role="monitor-status" data-state="OFFLINE"><i class="oc-status-dot"></i> WAITING</span></div>
     </header>
     <div class="oc-source" data-role="source-status">Connect a MotionScene and queue the workflow.</div>
@@ -296,8 +301,8 @@ function it() {
           <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0.1" max="600" step="0.1"></label>
           <label>FPS<input data-setting="target_fps" type="number" min="1" max="120" step="1"></label>
         </div></div>
-        <div class="oc-card"><div class="oc-section">Profiles</div><div data-role="profile-catalogue" class="oc-empty">Loading the Monitor profile catalogue.</div></div>
-        <div class="oc-card"><div class="oc-section">Installed capabilities</div><div data-role="profile-capabilities" class="oc-empty">Capability report available after execution.</div></div>
+        <details class="oc-card oc-collapsible"><summary class="oc-section">Profiles</summary><div data-role="profile-catalogue" class="oc-empty">Loading the Monitor profile catalogue.</div></details>
+        <details class="oc-card oc-collapsible"><summary class="oc-section">Installed capabilities</summary><div data-role="profile-capabilities" class="oc-empty">Capability report available after execution.</div></details>
         <div class="oc-card"><div class="oc-section">Execution output</div><div data-role="output-status" class="oc-empty">OUTPUT NOT EXECUTED</div></div>
       </aside>
     </main>
@@ -323,7 +328,7 @@ const f = [
 function E(e, t) {
   return e?.widgets?.find((o) => o.name === t);
 }
-function h(e) {
+function m(e) {
   return Object.fromEntries(f.map((t) => [t, E(e, t)?.value]));
 }
 function C(e, t, o) {
@@ -383,7 +388,7 @@ class lt {
     v(this.source?.sceneOrigin) ? this.liveTick() : this.markOutdated();
   }
   syncControlsFromWidgets() {
-    const t = h(this.node), o = this.root.querySelector('[data-role="profile-select"]');
+    const t = m(this.node), o = this.root.querySelector('[data-role="profile-select"]');
     t.target_profile != null && (o.value = String(t.target_profile));
     for (const r of f) {
       if (r === "target_profile") continue;
@@ -415,7 +420,7 @@ class lt {
       this.showLiveUnavailable();
       return;
     }
-    const o = H(t, h(this.node));
+    const o = H(t, m(this.node));
     this.refreshController.schedule(o);
   }
   liveSnapshotReceived(t) {
@@ -445,7 +450,7 @@ class lt {
       });
       return;
     }
-    const a = N(r);
+    const a = P(r);
     if (!a) {
       t.hidden = !0, o.hidden = !1, this.player.setSource("");
       return;
@@ -455,7 +460,7 @@ class lt {
       t.hidden = !0, o.hidden = !0, this.player.setSource(c);
       return;
     }
-    this.player.setSource(""), P(a, t, 640).then((l) => {
+    this.player.setSource(""), L(a, t, 640).then((l) => {
       t.hidden = !l, o.hidden = l;
     });
   }
@@ -476,7 +481,7 @@ class lt {
   executed(t) {
     this.hasExecutedOnce = !0;
     const o = y(this.root, t);
-    o.targetProfile && h(this.node).target_profile !== o.targetProfile && this.markOutdated();
+    o.targetProfile && m(this.node).target_profile !== o.targetProfile && this.markOutdated();
   }
   dispose() {
     clearInterval(this.liveTimer), this.refreshController?.dispose(), this.watcher?.dispose(), this.player.dispose();

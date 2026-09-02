@@ -116,6 +116,7 @@ export class TrackViewer {
   setInspectionView(view) {
     this.inspectionView = view === "camera" ? "camera" : "scene";
     this.renderCamera = this.inspectionView === "camera" ? this.solvedCamera : this.sceneCamera;
+    this.trackScene.setInspectionView(this.inspectionView);
     const camera = this.trackScene.setFrame(this.frame);
     if (camera) this._applySolvedCamera(camera);
     this.requestRender();

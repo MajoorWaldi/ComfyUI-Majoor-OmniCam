@@ -98,9 +98,14 @@ test("the resolution gate masks the viewport, not only the preview tiles", async
     ui.render();
     const canvas = ui.canvas;
     const context = canvas.getContext("2d");
-    // Sample the far-left column: a 1:1 gate on a 16:9 canvas masks the sides.
-    const strip = context.getImageData(2, Math.round(canvas.height / 2), 1, 1).data;
-    return strip[0] + strip[1] + strip[2];
+    // Sample a corner, not the mid-height edge: a 1:1 gate letterboxes the
+    // longer axis, so the mid-height row is only masked when the canvas is
+    // landscape. On a slow CI layout the viewport wrap can come up portrait,
+    // its bars land top/bottom, and the render-area outline's antialiased edge
+    // then reads *brighter* than the bare background. Every corner is inside a
+    // bar whichever way the letterbox falls.
+    const px = context.getImageData(2, 2, 1, 1).data;
+    return px[0] + px[1] + px[2];
   });
   const ungated = await sample();
   await page.evaluate(() => { window.omnicamNode.__majoorOmniCam.state.resolution_gate = true; });

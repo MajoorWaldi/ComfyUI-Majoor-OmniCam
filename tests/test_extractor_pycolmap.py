@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import threading
+import time
 import types
 
 import numpy as np
@@ -58,9 +59,25 @@ class _FakeImage:
         return self._pose
 
 
+class _FakeTrack:
+    def __init__(self, length: int):
+        self._length = length
+
+    def length(self) -> int:
+        return self._length
+
+
+class _FakePoint3D:
+    def __init__(self, xyz, track_length: int = 3):
+        self.xyz = xyz
+        self.track = _FakeTrack(track_length)
+
+
 class _FakeReconstruction:
-    def __init__(self, images: dict[int, _FakeImage]):
+    def __init__(self, images: dict[int, _FakeImage], points3d: dict | None = None):
         self._images = images
+        # Named to mirror pycolmap's real ``Reconstruction.points3D`` attribute.
+        self.points3D = points3d or {}
 
     def num_reg_images(self) -> int:
         return len(self._images)
@@ -139,6 +156,15 @@ def _install_fake_pycolmap(monkeypatch, *, reconstructions, image_count=None):
     module.incremental_mapping = incremental_mapping
     monkeypatch.setitem(sys.modules, "pycolmap", module)
     return calls
+
+
+def _wait_for(predicate, timeout: float, interval: float = 0.01) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(interval)
+    return predicate()
 
 
 def _intrinsics() -> CameraIntrinsics:
@@ -261,6 +287,71 @@ def test_a_stop_mid_mapping_raises_cleanly_after_the_cancellation_token_stops_it
     with pytest.raises(SolveCancelled):
         PycolmapBackend().solve(_frames(5), _intrinsics(), control=control)
     assert calls["extract"] == 1  # got well past the top-of-solve checkpoints first
+
+
+def test_a_stop_during_feature_extraction_is_forwarded_to_the_token_off_thread(monkeypatch):
+    """extract_features and match_sequential have no per-image callback, so a
+    stop pressed while one of them runs used to sit unobserved until the phase
+    returned. The cancellation bridge must cancel the token from its own thread
+    so the phase aborts mid-call; the clean SolveCancelled still comes from the
+    checkpoint(control) right after it.
+    """
+    monkeypatch.setattr(PycolmapBackend, "availability", classmethod(lambda cls: BackendAvailability(True)))
+    stop_requested = threading.Event()
+    control = SolveControl(stop_requested)
+    images = {i: _FakeImage(f"{i:06d}.jpg", [float(i), 0, 0], [0, 0, 0, 1]) for i in range(3)}
+    _install_fake_pycolmap(monkeypatch, reconstructions={0: _FakeReconstruction(images)}, image_count=3)
+
+    extraction_saw_the_cancel = threading.Event()
+    real_extract = sys.modules["pycolmap"].extract_features
+
+    def blocking_extract(*args, cancellation_token, **kwargs):
+        # Stand in for a long COLMAP phase: request the stop from here (as if
+        # the user just clicked it), then wait for the bridge to translate it
+        # into token.cancel(). Bounded so a regression fails instead of hangs.
+        stop_requested.set()
+        if cancellation_token.is_cancelled() or _wait_for(cancellation_token.is_cancelled, 2.0):
+            extraction_saw_the_cancel.set()
+        real_extract(*args, cancellation_token=cancellation_token, **kwargs)
+
+    sys.modules["pycolmap"].extract_features = blocking_extract
+
+    with pytest.raises(SolveCancelled):
+        PycolmapBackend().solve(_frames(3), _intrinsics(), control=control)
+    assert extraction_saw_the_cancel.is_set()
+
+
+def test_a_healthy_solve_exposes_the_sparse_point_cloud_ranked_by_track_length(monkeypatch):
+    """The Extractor's 3D view reads landmarks_3d to show the reconstructed
+    geometry; pycolmap should surface COLMAP's own points3D. Single-observation
+    points are dropped, and the cap keeps the densest tracks."""
+    monkeypatch.setattr(PycolmapBackend, "availability", classmethod(lambda cls: BackendAvailability(True)))
+    images = {i: _FakeImage(f"{i:06d}.jpg", [float(i), 0, 0], [0, 0, 0, 1]) for i in range(3)}
+    points = {
+        1: _FakePoint3D([1.0, 2.0, 3.0], track_length=8),
+        2: _FakePoint3D([4.0, 5.0, 6.0], track_length=2),
+        3: _FakePoint3D([9.0, 9.0, 9.0], track_length=1),   # too few observations
+        4: _FakePoint3D([float("nan"), 0.0, 0.0], track_length=5),  # not finite
+    }
+    _install_fake_pycolmap(
+        monkeypatch, reconstructions={0: _FakeReconstruction(images, points3d=points)}, image_count=3
+    )
+
+    result = PycolmapBackend().solve(_frames(3), _intrinsics())
+
+    assert [(p["x"], p["y"], p["z"]) for p in result.landmarks_3d] == [(1.0, 2.0, 3.0), (4.0, 5.0, 6.0)]
+    assert result.diagnostics["landmarks_3d"] == 2
+
+
+def test_a_reconstruction_without_a_point_cloud_still_solves(monkeypatch):
+    monkeypatch.setattr(PycolmapBackend, "availability", classmethod(lambda cls: BackendAvailability(True)))
+    images = {i: _FakeImage(f"{i:06d}.jpg", [float(i), 0, 0], [0, 0, 0, 1]) for i in range(3)}
+    _install_fake_pycolmap(monkeypatch, reconstructions={0: _FakeReconstruction(images)}, image_count=3)
+
+    result = PycolmapBackend().solve(_frames(3), _intrinsics())
+
+    assert result.landmarks_3d == []
+    assert len(result.poses) == 3
 
 
 def test_a_frame_index_pycolmap_cannot_map_back_is_skipped_not_crashed(monkeypatch):

@@ -92,14 +92,19 @@ def test_generic_profile_never_imposes_a_frame_grid():
     assert timeline.frame_policy == "requested_length"
 
 
-def test_generic_profile_compiles_a_multi_shot_edit_with_a_neutral_prompt():
-    """Reference-video semantics can represent cuts; the playblast carries them."""
+def test_generic_profile_leaves_the_prompt_untouched_even_for_a_multi_shot_edit():
+    """The cut timing rides in the playblast; the prompt stays exactly the user's.
+
+    A named profile may append a "follow its camera motion, not its look"
+    instruction, but that is a claim about how one model reads a reference
+    video. For an unknown destination it must not be assumed.
+    """
     cuts = [
         {"camera_id": "hero_camera", "time_seconds": 0.0, "end_time_seconds": 1.0},
         {"camera_id": "second_camera", "time_seconds": 1.0, "end_time_seconds": 2.0},
     ]
     result = EXTERNAL_REFERENCE_VIDEO_PROFILE.compile(_request(cuts=cuts))
-    assert "cuts" in result.final_prompt.lower() or "camera work" in result.final_prompt.lower()
+    assert result.final_prompt == "A stone tower."
     checks = {check.id: check for check in result.checks}
     assert checks["multi_shot"].state == "WARNING"  # never BLOCKED, unlike a single-camera semantic
 

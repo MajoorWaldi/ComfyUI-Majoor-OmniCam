@@ -91,8 +91,12 @@ export function createResourceMethods(dependencies) {
     }
   },
 
-  rebuildPath(state, selectedEntity = "camera", selectedFrame = null) {
+  rebuildPath(state, selectedEntity = "camera", selectedFrame = null, viewMode = "") {
     disposeObject(this.path); this.path.clear();
+    // Through the active camera's own lens its trajectory and keyframe frustums
+    // are drawn straight across the shot. Skip them there; the live look-at
+    // target from updateLiveCameras still shows so the aim stays editable.
+    const povCameraId = viewMode === "camera" ? state.active_camera_id : null;
     const cameraColors = [
       { line: 0x4aa3ef, marker: 0x8ab4f8, frustum: 0x3d6b9e }, // Camera 1 - Blue/Cyan
       { line: 0xf2a93b, marker: 0xfde047, frustum: 0x8c621e }, // Camera 2 - Amber/Gold
@@ -105,6 +109,7 @@ export function createResourceMethods(dependencies) {
     cameras.forEach((camera, camIdx) => {
       const keys = camera.keyframes || [];
       if (keys.length === 0) return;
+      if (camera.id === povCameraId) return;
       const palette = camera.color
         ? { line: new THREE.Color(camera.color), marker: new THREE.Color(camera.color), frustum: new THREE.Color(camera.color) }
         : cameraColors[camIdx % cameraColors.length];

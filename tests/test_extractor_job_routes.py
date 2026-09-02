@@ -204,7 +204,7 @@ def test_a_non_object_body_is_refused():
 
 def test_settings_default_when_omitted():
     validated = api.validate_settings(None)
-    assert validated["method"] == "dpvo"
+    assert validated["method"] == "auto"
     assert validated["max_dimension"] == 840
     assert validated["frame_step"] == 1
 

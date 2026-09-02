@@ -354,8 +354,9 @@ class MotionScene:
     def shot_camera_ids(self) -> list[str]:
         """Cameras the edit actually cuts between, in cut order, deduplicated.
 
-        A cut carries ``camera_id``, ``start`` and ``end`` in frames. Repeated
-        cuts back to the same camera are one shot camera, not several.
+        A cut carries ``camera_id``, ``time_seconds`` and an optional
+        ``end_time_seconds`` -- times, not frames. Repeated cuts back to the
+        same camera are one shot camera, not several.
         """
         seen: list[str] = []
         for cut in self.cuts:

@@ -20,6 +20,10 @@ test("a workflow load that beats the lazy chunk still restores the Director", as
 });
 
 test("a fresh Director gets the comfortable default size; a too-small restored one is floored", async ({ page }) => {
+  // A window comfortably larger than the raw default, so the fresh-node path
+  // is observed without its viewport cap engaging -- the cap itself is pinned
+  // in tests/frontend/node-layout.node.mjs.
+  await page.setViewportSize({ width: 1760, height: 1900 });
   await page.goto("/tests/frontend/director-node-sizing.html");
   await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
   const result = await page.evaluate(() => window.omnicamSizing);

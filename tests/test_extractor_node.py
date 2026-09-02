@@ -34,7 +34,7 @@ def test_node_offers_the_four_documented_methods():
     schema = MajoorOmniCamExtractor.define_schema()
     method = next(item for item in schema.inputs if item.id == "method")
     assert list(method.options) == ["auto", "dpvo", "pycolmap", "opencv_sift"]
-    assert method.default == "dpvo"
+    assert method.default == "auto"
 
 
 def test_node_defaults_to_an_840_pixel_dpvo_solve():

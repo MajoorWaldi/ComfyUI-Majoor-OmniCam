@@ -35,6 +35,30 @@ test("applyDefaultNodeSize does nothing for an unregistered node class", () => {
   assert.deepEqual(node.size, [50, 30]);
 });
 
+test("applyDefaultNodeSize caps a fresh node to the viewport, floored by its minimum", () => {
+  const original = globalThis.window;
+  try {
+    // A short 1080p window: the default 1633px-tall Director must not open
+    // taller than the screen, but never below its usable minimum either.
+    globalThis.window = { innerWidth: 1920, innerHeight: 1080 };
+    const node = fakeNode([50, 30]);
+    applyDefaultNodeSize(node, DIRECTOR_NODE_CLASS);
+    const [minWidth, minHeight] = NODE_LAYOUTS[DIRECTOR_NODE_CLASS].min;
+    assert.ok(node.size[1] < NODE_LAYOUTS[DIRECTOR_NODE_CLASS].default[1], "height was capped");
+    assert.ok(node.size[1] <= 1080 && node.size[1] >= minHeight);
+    assert.ok(node.size[0] <= 1920 && node.size[0] >= minWidth);
+
+    // A tiny window still yields at least the minimum, never less.
+    globalThis.window = { innerWidth: 400, innerHeight: 300 };
+    const tiny = fakeNode([50, 30]);
+    applyDefaultNodeSize(tiny, MONITOR_NODE_CLASS);
+    assert.deepEqual(tiny.size, NODE_LAYOUTS[MONITOR_NODE_CLASS].min);
+  } finally {
+    if (original === undefined) delete globalThis.window;
+    else globalThis.window = original;
+  }
+});
+
 test("clampNodeSizeToMinimum leaves a size already above the floor untouched", () => {
   const node = fakeNode([1400, 1000]);
   const applied = clampNodeSizeToMinimum(node, DIRECTOR_NODE_CLASS);

@@ -83,6 +83,10 @@ export class TrackScene {
     this.frame = 0;
     this.tracks = { raw: null, refined: null };
     this.extent = 10;
+    // "scene" is the free orbit; "camera" looks through the solved camera, where
+    // its own path and frustums just paint over the shot. The landmark cloud
+    // and grid stay -- those are what read the motion from inside the lens.
+    this.inspectionView = "scene";
 
     this.gridGroup = buildTrackGrid(this.extent);
     this.pathGroup = new Group();
@@ -109,6 +113,16 @@ export class TrackScene {
   setMode(mode) {
     this.mode = ["raw", "refined", "compare"].includes(mode) ? mode : "refined";
     this.rebuild();
+  }
+
+  /** Hide the active camera's own path/frustums when looking through its lens. */
+  setInspectionView(view) {
+    this.inspectionView = view === "camera" ? "camera" : "scene";
+    const showRig = this.inspectionView !== "camera";
+    this.pathGroup.visible = showRig;
+    this.frustumGroup.visible = showRig;
+    this.markerGroup.visible = showRig;
+    if (this.currentFrustum) this.currentFrustum.visible = showRig;
   }
 
   setLandmarks(points) {
@@ -204,6 +218,7 @@ export class TrackScene {
     this.currentFrustum = frustumLines(camera, {
       color: REFINED_COLOR, scale: Math.max(0.06, this.extent * 0.12), aspect,
     });
+    this.currentFrustum.visible = this.inspectionView !== "camera";
     this.scene.add(this.currentFrustum);
     return camera;
   }

@@ -63,7 +63,7 @@ function Se(e) {
     end: r + 1 < a.length ? a[r + 1].start - 1 : t
   }));
 }
-function Sr(e) {
+function Cr(e) {
   return !!e?.sequence?.enabled && Se(e).length > 0;
 }
 function ht(e, t) {
@@ -83,7 +83,7 @@ function Ra(e) {
   })), n = /* @__PURE__ */ new Set();
   return r.filter((s) => s.start > a || n.has(s.start) ? !1 : (n.add(s.start), !0));
 }
-function xr(e, t, a) {
+function Dr(e, t, a) {
   const o = e?.sequence?.cuts || [];
   if (t <= 0 || t >= o.length) return !1;
   const r = o[t - 1].start + 1, n = (t + 1 < o.length ? o[t + 1].start : e.duration_frames || 1) - 1;
@@ -108,7 +108,7 @@ function Va(e, t) {
   return t < 0 || t >= a.length || a.length === 1 ? !1 : (a.splice(t, 1), a.length && (a[0].start = 0), !0);
 }
 const Ka = Object.freeze(["select", "track", "anchor", "project", "erase"]), Ga = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), Ba = Object.freeze(["linear", "smooth", "hold"]), ce = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, tt = (e) => Math.max(0, Math.min(1, ce(e)));
-function qa(e, t) {
+function Ha(e, t) {
   return {
     time_seconds: Math.max(0, Math.min(t, ce(e?.time_seconds))),
     x: tt(e?.x),
@@ -117,12 +117,12 @@ function qa(e, t) {
     interpolation: Ba.includes(e?.interpolation) ? e.interpolation : "linear"
   };
 }
-function Ha(e) {
+function qa(e) {
   const t = Math.max(1 / Math.max(1, ce(e.fps, 24)), ce(e.duration_frames, 120) / Math.max(1, ce(e.fps, 24))), a = /* @__PURE__ */ new Set();
   return e.motion_layers = (Array.isArray(e.motion_layers) ? e.motion_layers : []).slice(0, 256).map((o, r) => {
     let n = String(o?.id || `motion_${r + 1}`);
     a.has(n) && (n = `motion_${r + 1}`), a.add(n);
-    const s = Ga.includes(o?.source_kind) ? o.source_kind : "manual_2d", c = (Array.isArray(o?.keys) ? o.keys : []).slice(0, 1e4).map((l) => qa(l, t)).sort((l, m) => l.time_seconds - m.time_seconds);
+    const s = Ga.includes(o?.source_kind) ? o.source_kind : "manual_2d", c = (Array.isArray(o?.keys) ? o.keys : []).slice(0, 1e4).map((l) => Ha(l, t)).sort((l, m) => l.time_seconds - m.time_seconds);
     return {
       id: n,
       label: String(o?.label || `Motion ${r + 1}`).slice(0, 80),
@@ -150,12 +150,12 @@ function $a(e, t) {
   const o = `/view?filename=${encodeURIComponent(a.filename)}&subfolder=${encodeURIComponent(a.subfolder)}&type=${encodeURIComponent(a.type)}`;
   return e?.apiURL ? e.apiURL(o) : o;
 }
-function Mr(e) {
+function jr(e) {
   return $a({ apiURL: gt }, e);
 }
 let gt = (e) => e;
 const Ae = /* @__PURE__ */ new WeakMap();
-function Cr({ api: e }) {
+function Er({ api: e }) {
   gt = (t) => e.apiURL ? e.apiURL(t) : t;
 }
 function Ua(e, t, a) {
@@ -297,8 +297,8 @@ function k(e, t, a, o, r = !1, n = null) {
       const K = (N + X) * 0.5, Oe = 1 - K;
       3 * Oe * Oe * K * M + 3 * Oe * K * K * T + K * K * K < u ? N = K : X = K;
     }
-    const H = (N + X) * 0.5, Y = 1 - H;
-    return Y * Y * Y * D + 3 * Y * Y * H * w + 3 * Y * H * H * E + H * H * H * f;
+    const q = (N + X) * 0.5, Y = 1 - q;
+    return Y * Y * Y * D + 3 * Y * Y * q * w + 3 * Y * q * q * E + q * q * q * f;
   }
   const y = Za(u, l.interpolation);
   return h + (g - h) * y;
@@ -337,7 +337,7 @@ function Ee(e, t) {
     ]
   };
 }
-function Dr(e = "balanced", t = "all_views", a = null) {
+function Tr(e = "balanced", t = "all_views", a = null) {
   const o = {
     none: 0,
     0: 0,
@@ -483,7 +483,7 @@ function ue(e, t, a, o) {
   const r = Number(e);
   return Number.isFinite(r) ? j(r, a, o) : t;
 }
-function jr(e) {
+function Ir(e) {
   const t = eo();
   if (!e || typeof e != "object") return t;
   const a = { ...t, ...e };
@@ -537,7 +537,7 @@ function jr(e) {
     })).sort((p, d) => p.frame - d.frame)
   })), a.gizmo_mode = ["translate", "rotate", "scale"].includes(a.gizmo_mode) ? a.gizmo_mode : "translate", a.gizmo_space = a.gizmo_space === "local" ? "local" : "world", a.navigation_profile = a.navigation_profile === "blender" ? "blender" : "maya", a.spatial_snap_mode = ["none", "grid", "vertex"].includes(a.spatial_snap_mode) ? a.spatial_snap_mode : "none", a.spatial_grid_size = j(Number(a.spatial_grid_size) || 0.5, 0.01, 100), a.ui_density = ["basic", "animation", "advanced"].includes(a.ui_density) ? a.ui_density : "advanced", a.select_mode = ["object", "vertex", "edge", "face"].includes(a.select_mode) ? a.select_mode : "object", a.show_grid = a.show_grid !== !1, a.show_camera_paths = a.show_camera_paths !== !1, a.show_camera_gizmos = a.show_camera_gizmos !== !1, a.show_look_at = a.show_look_at !== !1, a.show_helper_axes = a.show_helper_axes !== !1, a.show_gizmo = a.show_gizmo !== !1, a.show_wireframe = !!a.show_wireframe, a.show_vertices = !!a.show_vertices, a.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(a.point_density) ? a.point_density : "balanced", a.point_spread = ["all_views", "ground_focus", "dome"].includes(a.point_spread) ? a.point_spread : "all_views", a.point_color = ne(a.point_color, "#cbd5e1"), a.viewport_bg_color = ne(a.viewport_bg_color, "#121212"), a.viewport_bg_image = typeof a.viewport_bg_image == "string" ? a.viewport_bg_image : "", a.viewport_bg_sequence = Array.isArray(a.viewport_bg_sequence) ? a.viewport_bg_sequence.map(String) : [], a.snap_enabled = a.snap_enabled !== !1, a.snap_frames = Math.max(1, Math.round(Number(a.snap_frames) || 1)), a.timecode_mode = ["time", "timecode"].includes(a.timecode_mode) ? a.timecode_mode : "time", a.loop_playback = !!a.loop_playback, a.playback_range = Array.isArray(a.playback_range) && a.playback_range.length === 2 ? [j(Math.round(Number(a.playback_range[0]) || 0), 0, a.duration_frames - 1), j(Math.round(Number(a.playback_range[1]) || a.duration_frames - 1), 0, a.duration_frames - 1)] : null, a.markers = (Array.isArray(a.markers) ? a.markers : []).filter((i) => i && Number.isFinite(Number(i.frame))).map((i, p) => ({ frame: Math.max(0, Math.round(Number(i.frame))), name: String(i.name || `Marker ${p + 1}`).slice(0, 40), color: ne(i.color, "#f2d06b") })), a.preview_layout = ["auto", "1", "2", "4"].includes(String(a.preview_layout)) ? String(a.preview_layout) : "auto", a.maximized_camera_id = typeof a.maximized_camera_id == "string" ? a.maximized_camera_id : null, a.safe_areas = !!a.safe_areas, a.resolution_gate = !!a.resolution_gate, a.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(a.aspect_ratio) ? a.aspect_ratio : "auto", a.auto_key = !!a.auto_key, a.playblast_grid = !!a.playblast_grid, a.playblast_resolution = ["viewport", "half", "output", "double"].includes(a.playblast_resolution) ? a.playblast_resolution : "output", a.reference_index = Math.max(0, Number(a.reference_index || 0)), a.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(a.view_mode) ? a.view_mode : "camera", a.camera_view_visible = a.camera_view_visible !== !1;
   const m = Me();
-  return a.editor_views = Object.fromEntries(Object.entries(m).map(([i, p]) => [i, R(a.editor_views?.[i] || p)])), Ha(a);
+  return a.editor_views = Object.fromEntries(Object.entries(m).map(([i, p]) => [i, R(a.editor_views?.[i] || p)])), qa(a);
 }
 function Ce(e, t) {
   const [a, o, r] = (t || [0, 0, 0]).map((l) => l * Math.PI / 180);
@@ -563,7 +563,7 @@ function yt(e, t) {
   const a = t.quaternion || Re(t.rotation), o = to(a, e.quaternion || Re(e.rotation));
   return { position: x(ao(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: oo(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
 }
-function Er(e, t) {
+function kr(e, t) {
   const a = new Map(e.map((r) => [r.id, r])), o = (r, n = /* @__PURE__ */ new Set()) => {
     const s = { ...ae(r), quaternion: Re(r.rotation) };
     if (!r?.id || n.has(r.id)) return s;
@@ -692,7 +692,7 @@ function wt(e, t, a) {
   const o = a.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = j(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, c = r / n, l = (t.clientX - o.left) / Math.max(1, o.width);
   return j(Math.round(s + l * c), 0, r);
 }
-function Tr(e, t) {
+function Or(e, t) {
   t.preventDefault(), t.stopPropagation();
   const a = Math.max(1, e.state.duration_frames - 1), o = t.deltaY < 0 ? 1.18 : 0.85;
   if (t.shiftKey)
@@ -703,10 +703,10 @@ function Tr(e, t) {
   }
   e.refreshKeys(), e.setStatus(_(`Timeline zoom: ${(e.timelineZoom * 100).toFixed(0)}%`));
 }
-function Ir(e) {
+function Ar(e) {
   e.timelineZoom = 1, e.timelinePan = 0, e.refreshKeys(), e.setStatus(_("Timeline view fitted"));
 }
-function kr(e, t) {
+function zr(e, t) {
   if (t.target.closest?.(".key")) return;
   t.preventDefault(), t.stopPropagation(), e.exitKeyEdit(!0);
   const a = t.currentTarget;
@@ -725,7 +725,7 @@ function kr(e, t) {
   }
   e.selectedKeyFrames = null, e.timelineDrag = { box: a, pointerId: t.pointerId }, e.setFrame(wt(e, t, a));
 }
-function Or(e, t) {
+function Pr(e, t) {
   if (e.timelinePanDrag && t.pointerId === e.timelinePanDrag.pointerId) {
     t.preventDefault(), t.stopPropagation();
     const a = t.clientX - e.timelinePanDrag.startX, o = e.timelineDrag?.box || e.root.querySelector('[data-role="dope-tracks"]'), n = Math.max(1, e.state.duration_frames - 1) / (Number(e.timelineZoom) || 1);
@@ -744,7 +744,7 @@ function Or(e, t) {
   }
   !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.setFrame(wt(e, t, e.timelineDrag.box)));
 }
-function Ar(e, t) {
+function Nr(e, t) {
   if (e.timelinePanDrag && t.pointerId === e.timelinePanDrag.pointerId) {
     e.timelinePanDrag = null;
     return;
@@ -867,7 +867,7 @@ let he = null, Le = null;
 function So(e) {
   Le = e;
 }
-async function zr() {
+async function Rr() {
   if (he) return he;
   try {
     if (!Le) return null;
@@ -968,7 +968,7 @@ function Do(e) {
     </div>
     <p class="oc-health-note">${_("A valid trajectory stays inside the limits recommended for this model. It is not a guarantee about the generated video.")}</p>`;
 }
-function Pr(e, t) {
+function Fr(e, t) {
   if (!t || !e.motionProfiles) return;
   const a = pe(e);
   if (a) {
@@ -986,7 +986,7 @@ function je(e, t, a, o) {
   const r = e.activeCameraTrack();
   r && (e.checkpoint(a), r.keyframes = t, e.state.keyframes = t, e.syncActiveCameraTrack(), e.refreshKeys(), e.setFrame(e.frame, !1, !1), e.setStatus(o), Do(e));
 }
-function Nr(e) {
+function Lr(e) {
   const t = pe(e);
   if (!t) return;
   const a = t.limits.max_speed;
@@ -1002,7 +1002,7 @@ function Nr(e) {
   const s = n.max_speed / a * (e.state.duration_frames / Math.max(1, e.state.fps));
   je(e, r, "Slow to limits", _("Speed flattened, still over: this path needs about {seconds}s to fit the limit.").replace("{seconds}", s.toFixed(1)));
 }
-function Rr(e) {
+function Vr(e) {
   const t = pe(e);
   if (!t) return;
   const a = vo(t);
@@ -1018,7 +1018,7 @@ function Rr(e) {
     _("Smoothed {count} flagged zone(s).").replace("{count}", String(a.length))
   );
 }
-function Fr(e) {
+function Kr(e) {
   const t = pe(e);
   if (!t) return;
   const a = _o(t, "framing_loss");
@@ -1539,7 +1539,7 @@ const jo = {
   "More viewport views": "Plus de vues",
   "World axis navigation": "Navigation des axes monde",
   "View: {axis} axis": "Vue : axe {axis}"
-}, W = ["OmniCam", "Director"], xt = "MajoorOmniCam.Locale", Mt = "MajoorOmniCam.Defaults.Fps", Ct = "MajoorOmniCam.Defaults.DurationSeconds", Dt = "MajoorOmniCam.Defaults.Width", jt = "MajoorOmniCam.Defaults.Height", Et = "MajoorOmniCam.Defaults.RenderMode", Tt = "MajoorOmniCam.Defaults.Encoder", It = "MajoorOmniCam.Defaults.PlayblastResolution", kt = "MajoorOmniCam.Defaults.PlayblastGrid", Ot = "MajoorOmniCam.Proxy.PointDensity", At = "MajoorOmniCam.Proxy.PointSpread", zt = "MajoorOmniCam.Proxy.PointColor", Pt = "MajoorOmniCam.Proxy.CardFit", Nt = "MajoorOmniCam.Viewport.Quality", Rt = "MajoorOmniCam.Viewport.Adaptive", Ft = "MajoorOmniCam.Viewport.BackgroundColor", Lt = "MajoorOmniCam.Display.Grid", Vt = "MajoorOmniCam.Display.Radar", Kt = "MajoorOmniCam.Display.CameraPaths", Gt = "MajoorOmniCam.Display.CameraGizmos", Bt = "MajoorOmniCam.Display.LookAt", qt = "MajoorOmniCam.Display.HelperAxes", Ht = "MajoorOmniCam.Display.Gizmo", Wt = "MajoorOmniCam.Display.Guides", $t = "MajoorOmniCam.Display.SafeAreas", Ut = "MajoorOmniCam.Display.ResolutionGate", Xt = "MajoorOmniCam.Display.AspectRatio", Yt = "MajoorOmniCam.Display.BurnIn", Zt = "MajoorOmniCam.Display.SpeedHeatmap", Qt = "MajoorOmniCam.Display.Wireframe", Jt = "MajoorOmniCam.Display.Vertices", ea = "MajoorOmniCam.Tools.SelectMode", ta = "MajoorOmniCam.Tools.GizmoMode", aa = "MajoorOmniCam.Tools.GizmoSpace", oa = "MajoorOmniCam.Tools.SpatialSnapMode", ra = "MajoorOmniCam.Tools.SpatialGridSize", na = "MajoorOmniCam.Navigation.Profile", sa = "MajoorOmniCam.Navigation.FlySpeed", ia = "MajoorOmniCam.Navigation.ViewMode", ca = "MajoorOmniCam.Timeline.SnapEnabled", la = "MajoorOmniCam.Timeline.SnapFrames", ma = "MajoorOmniCam.Timeline.AutoKey", da = "MajoorOmniCam.Timeline.TimecodeMode", pa = "MajoorOmniCam.Timeline.LoopPlayback", fa = "MajoorOmniCam.Interface.Density", ua = "MajoorOmniCam.Interface.PreviewLayout", ha = "MajoorOmniCam.Interface.CameraPreviews", ga = "MajoorOmniCam.History.Limit";
+}, W = ["OmniCam", "Director"], xt = "MajoorOmniCam.Locale", Mt = "MajoorOmniCam.Defaults.Fps", Ct = "MajoorOmniCam.Defaults.DurationSeconds", Dt = "MajoorOmniCam.Defaults.Width", jt = "MajoorOmniCam.Defaults.Height", Et = "MajoorOmniCam.Defaults.RenderMode", Tt = "MajoorOmniCam.Defaults.Encoder", It = "MajoorOmniCam.Defaults.PlayblastResolution", kt = "MajoorOmniCam.Defaults.PlayblastGrid", Ot = "MajoorOmniCam.Proxy.PointDensity", At = "MajoorOmniCam.Proxy.PointSpread", zt = "MajoorOmniCam.Proxy.PointColor", Pt = "MajoorOmniCam.Proxy.CardFit", Nt = "MajoorOmniCam.Viewport.Quality", Rt = "MajoorOmniCam.Viewport.Adaptive", Ft = "MajoorOmniCam.Viewport.BackgroundColor", Lt = "MajoorOmniCam.Display.Grid", Vt = "MajoorOmniCam.Display.Radar", Kt = "MajoorOmniCam.Display.CameraPaths", Gt = "MajoorOmniCam.Display.CameraGizmos", Bt = "MajoorOmniCam.Display.LookAt", Ht = "MajoorOmniCam.Display.HelperAxes", qt = "MajoorOmniCam.Display.Gizmo", Wt = "MajoorOmniCam.Display.Guides", $t = "MajoorOmniCam.Display.SafeAreas", Ut = "MajoorOmniCam.Display.ResolutionGate", Xt = "MajoorOmniCam.Display.AspectRatio", Yt = "MajoorOmniCam.Display.BurnIn", Zt = "MajoorOmniCam.Display.SpeedHeatmap", Qt = "MajoorOmniCam.Display.Wireframe", Jt = "MajoorOmniCam.Display.Vertices", ea = "MajoorOmniCam.Tools.SelectMode", ta = "MajoorOmniCam.Tools.GizmoMode", aa = "MajoorOmniCam.Tools.GizmoSpace", oa = "MajoorOmniCam.Tools.SpatialSnapMode", ra = "MajoorOmniCam.Tools.SpatialGridSize", na = "MajoorOmniCam.Navigation.Profile", sa = "MajoorOmniCam.Navigation.FlySpeed", ia = "MajoorOmniCam.Navigation.ViewMode", ca = "MajoorOmniCam.Timeline.SnapEnabled", la = "MajoorOmniCam.Timeline.SnapFrames", ma = "MajoorOmniCam.Timeline.AutoKey", da = "MajoorOmniCam.Timeline.TimecodeMode", pa = "MajoorOmniCam.Timeline.LoopPlayback", fa = "MajoorOmniCam.Interface.Density", ua = "MajoorOmniCam.Interface.PreviewLayout", ha = "MajoorOmniCam.Interface.CameraPreviews", ga = "MajoorOmniCam.History.Limit";
 function I(e, t, a, o, r) {
   return { id: e, category: [...W, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
 }
@@ -1741,14 +1741,14 @@ function Eo({ onLocaleChange: e, onQualityChange: t } = {}) {
       !0
     ),
     I(
-      qt,
+      Ht,
       "Display",
       "Show helper axes by default",
       "Shows null-object axis helpers on newly created Director nodes.",
       !0
     ),
     I(
-      Ht,
+      qt,
       "Display",
       "Show transform gizmo by default",
       "Shows transform and axis gizmos on newly created Director nodes.",
@@ -1977,7 +1977,7 @@ function V(e, t) {
     return t;
   }
 }
-function q(e, t, a, o, r = !1) {
+function H(e, t, a, o, r = !1) {
   const n = Number(V(e, t)), s = Number.isFinite(n) ? Math.min(o, Math.max(a, n)) : t;
   return r ? Math.round(s) : s;
 }
@@ -2001,7 +2001,7 @@ const Ie = /* @__PURE__ */ new Set();
 function Io(e) {
   Ie.add(e);
 }
-function Lr(e) {
+function Gr(e) {
   Ie.delete(e);
 }
 function ko(e) {
@@ -2022,10 +2022,10 @@ function Ao(e = _a()) {
 }
 function zo() {
   return {
-    fps: q(Mt, 24, 1, 120, !0),
-    durationSeconds: q(Ct, 5, 1, 120, !0),
-    width: q(Dt, 1280, 64, 4096, !0),
-    height: q(jt, 720, 64, 4096, !0),
+    fps: H(Mt, 24, 1, 120, !0),
+    durationSeconds: H(Ct, 5, 1, 120, !0),
+    width: H(Dt, 1280, 64, 4096, !0),
+    height: H(jt, 720, 64, 4096, !0),
     renderMode: String(V(Et, "omni_ref")),
     encoder: String(V(Tt, "auto")),
     playblastResolution: P(It, "output", ["viewport", "half", "output", "double"]),
@@ -2040,8 +2040,8 @@ function zo() {
     showCameraPaths: O(Kt, !0),
     showCameraGizmos: O(Gt, !0),
     showLookAt: O(Bt, !0),
-    showHelperAxes: O(qt, !0),
-    showGizmo: O(Ht, !0),
+    showHelperAxes: O(Ht, !0),
+    showGizmo: O(qt, !0),
     guides: O(Wt, !0),
     safeAreas: O($t, !1),
     resolutionGate: O(Ut, !1),
@@ -2054,19 +2054,19 @@ function zo() {
     gizmoMode: P(ta, "translate", ["translate", "rotate", "scale"]),
     gizmoSpace: P(aa, "world", ["world", "local"]),
     spatialSnapMode: P(oa, "none", ["none", "grid", "vertex"]),
-    spatialGridSize: q(ra, 0.5, 0.01, 100),
+    spatialGridSize: H(ra, 0.5, 0.01, 100),
     navigationProfile: P(na, "maya", ["maya", "blender"]),
-    flySpeed: q(sa, 1, 0.05, 5),
+    flySpeed: H(sa, 1, 0.05, 5),
     viewMode: P(ia, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
     snapEnabled: O(ca, !0),
-    snapFrames: q(la, 1, 1, 24, !0),
+    snapFrames: H(la, 1, 1, 24, !0),
     autoKey: O(ma, !1),
     timecodeMode: P(da, "time", ["time", "timecode"]),
     loopPlayback: O(pa, !1),
     uiDensity: P(fa, "advanced", ["basic", "animation", "advanced"]),
     previewLayout: P(ua, "auto", ["auto", "1", "2", "4"]),
     cameraViewVisible: O(ha, !0),
-    undoLimit: q(ga, 100, 10, 500, !0)
+    undoLimit: H(ga, 100, 10, 500, !0)
   };
 }
 function Po(e) {
@@ -2144,7 +2144,7 @@ function Vo(e, t, a, o, r) {
 function Ko(e) {
   return e === "bezier" ? "bezier" : "smooth";
 }
-function Vr(e) {
+function Br(e) {
   for (let t = e?.object; t; t = t.parent)
     if (t.userData?.omnicamPathKey) return t.userData.omnicamPathKey;
   return null;
@@ -2181,7 +2181,7 @@ function Bo(e) {
   }
   return null;
 }
-function qo(e) {
+function Ho(e) {
   const t = Bo(e);
   if (!t) return null;
   const a = oe(e), o = t.position;
@@ -2207,7 +2207,7 @@ function qo(e) {
   return { entity: t, center: r, worldLength: n, handles: c };
 }
 function va(e, t) {
-  const a = qo(e);
+  const a = Ho(e);
   if (!a) return null;
   const o = Math.min(2, window.devicePixelRatio || 1), r = Math.hypot(t[0] - a.center[0], t[1] - a.center[1]);
   if (a.entity.type === "object" && (e.state.gizmo_mode === "translate" || e.state.gizmo_mode === "scale") && r <= 11 * o) {
@@ -2230,7 +2230,7 @@ function va(e, t) {
     }
   return s?.distance <= 18 * o ? s : null;
 }
-function Ho(e, t) {
+function qo(e, t) {
   const a = e.webgl?.pick?.(t[0], t[1], e.canvas.width, e.canvas.height);
   if (a) {
     if (typeof a == "string") {
@@ -2374,7 +2374,7 @@ function Z(e, t, a, o = []) {
   }
   return t;
 }
-function Kr(e, t) {
+function Hr(e, t) {
   if (e.modalTransform) {
     t.preventDefault?.(), t.stopPropagation?.(), t.button === 0 ? Sa(e) : t.button === 2 && xa(e);
     return;
@@ -2449,7 +2449,7 @@ function Kr(e, t) {
       return;
     }
   }
-  const i = c ? Ho(e, [o, r]) : null;
+  const i = c ? qo(e, [o, r]) : null;
   if (e.pointerHit = !!(m || i), i) {
     if (i.type === "camera_keyframe") {
       e.finishCameraEdit(), e.selectedEntity = "camera", e.selectedObjectId = null, e.editingKeyFrame = null, e.activateCamera(i.camera.id), e.setFrame(i.keyframe.frame), e.selectKeyframe(i.keyframe), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${i.camera.name} · Keyframe @ F${i.keyframe.frame} selected`));
@@ -2508,7 +2508,7 @@ function Kr(e, t) {
     historyCheckpointed: !s
   }, e.interactionElement.style && (e.interactionElement.style.cursor = u ? "ns-resize" : d ? "move" : "grabbing");
 }
-function Gr(e, t) {
+function qr(e, t) {
   if (e.lastPointerEvent = t, e.modalTransform) {
     ve(e, t);
     return;
@@ -2654,7 +2654,7 @@ function Gr(e, t) {
 function Qo(e) {
   return !e.drag && !e.gizmoDrag && !e.objectDrag && !e.targetFreeDrag ? !1 : (e.undo(), e.activePointerId !== null && e.interactionElement.hasPointerCapture?.(e.activePointerId) && e.interactionElement.releasePointerCapture(e.activePointerId), e.activePointerId = null, e.drag = null, e.objectDrag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), e.finishCameraEdit(), e.refreshInspector(), e.render(), e.setStatus(_("Interaction cancelled")), !0);
 }
-function Br(e, t) {
+function Wr(e, t) {
   if (e.pathDrag) {
     e.pathDrag = null, e.interactionElement.style && (e.interactionElement.style.cursor = ""), e.interactionElement.releasePointerCapture?.(t.pointerId), e.activePointerId = null, e.canvas.classList.remove("dragging"), e.scheduleSerialize(), e.refreshKeys(), e.setStatus(_("Path key moved"));
     return;
@@ -2672,7 +2672,7 @@ function Br(e, t) {
   const a = e.keyDrag, o = !!(e.drag && !e.drag.editorView || e.targetFreeDrag), r = !!(e.gizmoDrag || e.objectDrag);
   !e.pointerHit && !e.gizmoDrag && !e.objectDrag && !e.targetFreeDrag && e.drag && t && Math.hypot(t.clientX - e.drag.x, t.clientY - e.drag.y) < 5 && (t.button === 0 || t.button === void 0) && (e.selectedEntity === "object" || e.selectedObjectId !== null || e.selectedEntity === "camera_target") && (e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.selectedKeyFrame = null, e.subSelection = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_("Deselected"))), t?.pointerId === e.activePointerId && e.interactionElement.hasPointerCapture?.(t.pointerId) && e.interactionElement.releasePointerCapture(t.pointerId), e.activePointerId = null, e.drag = null, e.objectDrag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.keyDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), a && (a.badge?.remove(), e.editingKeyFrame = null, e.updateKeyVisualState(), e.root.focus({ preventScroll: !0 })), o && e.finishCameraEdit(), r && (e.editingKeyFrame = null, e.updateKeyVisualState(), e.drawCurveEditor());
 }
-function qr(e, t) {
+function $r(e, t) {
   if (t.target.closest?.(".viewport-inspector, .scene-tree, .menu-panel, .context-menu, .viewport-quick-bar"))
     return;
   if (t.preventDefault(), t.stopPropagation(), e.closeMenus(), e.isNavigatingFly) {
@@ -2835,20 +2835,28 @@ function Ye(e, t) {
     n(), console.error("OmniCam: node UI failed to load", s);
   });
 }
-const Be = "MajoorOmniCamDirector", qe = "MajoorOmniCamExtractor", He = "MajoorOmniCamMonitor";
+const Be = "MajoorOmniCamDirector", He = "MajoorOmniCamExtractor", qe = "MajoorOmniCamMonitor";
 function ke(e) {
   return String(e?.comfyClass || e?.type || e?.constructor?.type || "");
 }
 const Ma = {
   [Be]: { default: [1313, 1633], min: [760, 760] },
-  [qe]: { default: [761, 1458], min: [700, 760] },
-  [He]: { default: [798, 1634], min: [640, 680] }
-};
-function lr(e, t) {
-  const a = Ma[t];
-  return !a || !e?.setSize ? !1 : (e.setSize([...a.default]), !0);
+  [He]: { default: [761, 1458], min: [700, 760] },
+  [qe]: { default: [798, 1634], min: [640, 680] }
+}, lr = 0.92, mr = 0.88;
+function dr([e, t], [a, o]) {
+  if (typeof window > "u") return [e, t];
+  const r = Math.round((window.innerWidth || e) * lr), n = Math.round((window.innerHeight || t) * mr);
+  return [
+    Math.max(a, Math.min(e, r)),
+    Math.max(o, Math.min(t, n))
+  ];
 }
-function mr(e, t, a) {
+function pr(e, t) {
+  const a = Ma[t];
+  return !a || !e?.setSize ? !1 : (e.setSize(dr(a.default, a.min)), !0);
+}
+function fr(e, t, a) {
   const o = Ma[t];
   if (!o || !e?.setSize) return !1;
   const r = Array.isArray(a) ? a : Array.isArray(e.size) ? e.size : [0, 0], n = Array.isArray(e.size) ? e.size : [0, 0], [s, c] = o.min, l = Math.max(Number(r[0]) || 0, s), m = Math.max(Number(r[1]) || 0, c);
@@ -2861,7 +2869,7 @@ function Ze(e, t) {
 function We(e) {
   return e && Ca.get(e) || null;
 }
-const dr = `
+const ur = `
 .oc-help-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;
   align-items:center;justify-content:center;z-index:10000;font:12px/1.35 system-ui,
   -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -2896,15 +2904,15 @@ const dr = `
 .oc-help-tip{margin-top:2px;padding:8px 10px;background:rgba(139,123,216,.12);
   border-left:2px solid ${be};border-radius:3px;color:#ddd;font-size:11.5px}
 `;
-function pr() {
+function hr() {
   if (document.getElementById(dt)) return;
   const e = document.createElement("style");
-  e.id = dt, e.textContent = dr, document.head.appendChild(e);
+  e.id = dt, e.textContent = ur, document.head.appendChild(e);
 }
 function Q(e) {
   return String(e ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, (a, o) => `<code>${o}</code>`);
 }
-function fr(e) {
+function gr(e) {
   const t = document.createElement("div");
   if (t.className = "oc-help-section", e.heading) {
     const a = document.createElement("div");
@@ -2938,11 +2946,11 @@ function fr(e) {
   return t;
 }
 let de = null;
-function ur() {
+function yr() {
   de && de();
 }
 function pt(e) {
-  e = e || {}, pr(), ur();
+  e = e || {}, hr(), yr();
   const t = document.createElement("div");
   t.className = "oc-help-backdrop";
   const a = document.createElement("div");
@@ -2963,7 +2971,7 @@ function pt(e) {
   const l = Array.isArray(e.sections) ? e.sections : [];
   for (const d of l)
     try {
-      c.appendChild(fr(d));
+      c.appendChild(gr(d));
     } catch (u) {
       console.warn("[OmniCam] help: skipped a malformed section", u);
     }
@@ -3096,18 +3104,18 @@ When the connected MotionScene comes straight from a Director, the preflight is 
   ],
   footer: "Switching profile never changes the MotionScene, only which Monitor output you connect: the compiler is universal, the sockets are typed."
 });
-const ft = "MajoorOmniCam.ShowHelp", $e = "oc-help-toolbar-icon", ut = "oc-help-toolbar-css", hr = "#8b7bd8";
-function gr() {
+const ft = "MajoorOmniCam.ShowHelp", $e = "oc-help-toolbar-icon", ut = "oc-help-toolbar-css", br = "#8b7bd8";
+function _r() {
   if (document.getElementById(ut)) return;
   const e = document.createElement("style");
   e.id = ut, e.textContent = `
     .${$e}{display:inline-flex;align-items:center;justify-content:center;
-      width:16px;height:16px;border-radius:50%;background:${hr};color:#fff;
+      width:16px;height:16px;border-radius:50%;background:${br};color:#fff;
       font-weight:700;font-size:11px;line-height:1}
     .${$e}::before{content:"?"}
   `, document.head.appendChild(e);
 }
-function yr() {
+function vr() {
   const e = U.canvas;
   if (!e) return [];
   const t = [];
@@ -3116,8 +3124,8 @@ function yr() {
       a && a.comfyClass && t.push(a);
   return t;
 }
-function br() {
-  for (const e of yr()) {
+function wr() {
+  for (const e of vr()) {
     const t = We(e.comfyClass);
     if (t) return t;
   }
@@ -3131,7 +3139,7 @@ U.registerExtension({
       label: "Help",
       icon: $e,
       function: () => {
-        const e = br();
+        const e = wr();
         e && pt(e);
       }
     }
@@ -3151,13 +3159,13 @@ U.registerExtension({
     return t ? [null, { content: "? Help", callback: () => pt(t) }] : [];
   },
   setup() {
-    gr();
+    _r();
   }
 });
 So(Da);
 let te = !1;
 function Qe(e, t, a, o) {
-  a ? lr(e, t) : mr(e, t, o);
+  a ? pr(e, t) : fr(e, t, o);
 }
 function Je(e) {
   if (typeof e.configure != "function") return () => null;
@@ -3189,7 +3197,7 @@ U.registerExtension({
     const t = !te, a = t ? null : Je(e);
     await Ye(e, async () => {
       _e("director:import:start", e);
-      const { attachDirector: r } = await import("./chunk-GZ3o5PUq.js").then((n) => n.f);
+      const { attachDirector: r } = await import("./chunk-DKWrvpAq.js").then((n) => n.f);
       return _e("director:import:resolved", e), r;
     });
     const o = e.__majoorOmniCam;
@@ -3199,28 +3207,28 @@ U.registerExtension({
 U.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(e) {
-    if (ke(e) !== qe) return;
+    if (ke(e) !== He) return;
     const t = !te, a = t ? null : Je(e);
-    await Ye(e, async () => (await import("./chunk-lDLyLnlz.js")).attachExtractor), e.__majoorOmniCamExtractor && Qe(e, qe, t, a?.());
+    await Ye(e, async () => (await import("./chunk-B-RChCRI.js")).attachExtractor), e.__majoorOmniCamExtractor && Qe(e, He, t, a?.());
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Monitor",
   async nodeCreated(e) {
-    if (ke(e) !== He) return;
+    if (ke(e) !== qe) return;
     const t = !te, a = t ? null : Je(e);
-    await Ye(e, async () => (await import("./chunk-o6_cEID_.js")).attachMonitor), e.__majoorOmniCamMonitor && Qe(e, He, t, a?.());
+    await Ye(e, async () => (await import("./chunk-DEjgLOPt.js")).attachMonitor), e.__majoorOmniCamMonitor && Qe(e, qe, t, a?.());
   }
 });
 export {
-  Cr as $,
+  Er as $,
   L as A,
-  Mr as B,
+  jr as B,
   x as C,
-  Dr as D,
+  Tr as D,
   $ as E,
   A as F,
-  Pr as G,
+  Fr as G,
   me as H,
   C as I,
   Ce as J,
@@ -3229,23 +3237,23 @@ export {
   Ka as M,
   ee as N,
   F as O,
-  Lr as P,
+  Gr as P,
   No as Q,
   rr as R,
   za as S,
-  kr as T,
-  Or as U,
-  Ar as V,
-  Ir as W,
-  Kr as X,
-  Gr as Y,
-  Br as Z,
-  qr as _,
+  zr as T,
+  Pr as U,
+  Nr as V,
+  Ar as W,
+  Hr as X,
+  qr as Y,
+  Wr as Z,
+  $r as _,
   _ as a,
   $a as a0,
   vt as a1,
-  qe as a2,
-  Vr as a3,
+  He as a2,
+  Br as a3,
   wt as b,
   j as c,
   ae as d,
@@ -3254,21 +3262,21 @@ export {
   Se as g,
   La as h,
   Va as i,
-  xr as j,
+  Dr as j,
   Ra as k,
   ht as l,
-  jr as m,
-  Sr as n,
-  Tr as o,
-  zr as p,
+  Ir as m,
+  Cr as n,
+  Or as o,
+  Rr as p,
   Do as q,
   at as r,
   xe as s,
   Fe as t,
-  Nr as u,
-  Rr as v,
-  Fr as w,
+  Lr as u,
+  Vr as v,
+  Kr as w,
   Ga as x,
   Ba as y,
-  Er as z
+  kr as z
 };

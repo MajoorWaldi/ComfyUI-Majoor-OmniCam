@@ -39,11 +39,30 @@ export const NODE_LAYOUTS = {
   [MONITOR_NODE_CLASS]: { default: [798, 1634], min: [640, 680] },
 };
 
+// The `default` sizes above are taller than a 1080p screen. Opening a new node
+// larger than the window lands it with its resize handle and half its panel
+// off-screen, and the user's first interaction is a fight to shrink it. Cap a
+// *fresh* node to most of the current viewport; the minimum still wins if the
+// window is genuinely tiny, and restored nodes never pass through here so a
+// saved size the user chose is untouched.
+const VIEWPORT_WIDTH_FRACTION = 0.92;
+const VIEWPORT_HEIGHT_FRACTION = 0.88;
+
+function fitDefaultToViewport([width, height], [minWidth, minHeight]) {
+  if (typeof window === "undefined") return [width, height];
+  const maxWidth = Math.round((window.innerWidth || width) * VIEWPORT_WIDTH_FRACTION);
+  const maxHeight = Math.round((window.innerHeight || height) * VIEWPORT_HEIGHT_FRACTION);
+  return [
+    Math.max(minWidth, Math.min(width, maxWidth)),
+    Math.max(minHeight, Math.min(height, maxHeight)),
+  ];
+}
+
 /** Set once, only for a node the user just added -- never for one being restored. */
 export function applyDefaultNodeSize(node, comfyClass) {
   const layout = NODE_LAYOUTS[comfyClass];
   if (!layout || !node?.setSize) return false;
-  node.setSize([...layout.default]);
+  node.setSize(fitDefaultToViewport(layout.default, layout.min));
   return true;
 }
 

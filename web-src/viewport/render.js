@@ -1,6 +1,6 @@
 // WebGL viewport methods extracted from the public facade.
 
-import { DEFAULT_BG_COLOR, applyQuality, setStudioEnabled } from "./studio.js";
+import { DEFAULT_BG_COLOR, applyQuality, qualityPreset, setStudioEnabled } from "./studio.js";
 import { createQualityMonitor, recordFrame, resetMonitor } from "./adaptive-quality.js";
 
 export function createRenderMethods(dependencies) {
@@ -113,14 +113,18 @@ export function createRenderMethods(dependencies) {
     const editorGrid = state.show_grid !== false && state.render_mode !== "point_field";
     this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
 
-    const pathKey = `${selectedEntity}:${selectedFrame ?? ""}:${state.__omnicamRevision ?? JSON.stringify([
+    // Looking through the active camera, its own path and frustum are just
+    // clutter drawn over the shot -- the look-at target still shows so it can
+    // be aimed (updateLiveCameras keeps that). Every other camera is untouched.
+    const viewMode = state.view_mode || "camera";
+    const pathKey = `${viewMode}:${selectedEntity}:${selectedFrame ?? ""}:${state.__omnicamRevision ?? JSON.stringify([
       state.active_camera_id,
       (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target])]),
       (state.objects || []).map((o) => [o.id, o.keyframes?.length, o.keyframes?.map((k) => [k.frame, k.transform?.position])]),
     ])}`;
-    if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state, selectedEntity, selectedFrame); }
+    if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state, selectedEntity, selectedFrame, viewMode); }
 
-    this.updateLiveCameras(state, frame, cleanCapture, state.view_mode || "camera", selectedEntity, selectedFrame);
+    this.updateLiveCameras(state, frame, cleanCapture, viewMode, selectedEntity, selectedFrame);
     this.liveCameras.visible = !cleanCapture;
 
     // Per-widget visibility, evaluated every frame so the "Show" checkboxes react
@@ -149,11 +153,39 @@ export function createRenderMethods(dependencies) {
     // Shadow flags are cheap to set and only meaningful while the studio is on.
     if (this.studioEnabled && this.contentShadowKey !== this.sceneKey) {
       this.contentShadowKey = this.sceneKey;
+      const shadowBox = new THREE.Box3();
       this.content.traverse((object) => {
         if (!object.isMesh || object.userData.omnicamCaptureGuide) return;
         object.castShadow = true;
         object.receiveShadow = true;
+        object.updateWorldMatrix(true, false);
+        const box = new THREE.Box3().setFromObject(object);
+        if (!box.isEmpty() && Number.isFinite(box.min.x)) shadowBox.union(box);
       });
+      // Fit the key light's shadow camera to what actually casts. The authored
+      // +-12 frustum spread a 1k/2k map across ground the scene never touches;
+      // a lone 2.5-unit character then got a few hundred texels of penumbra.
+      // Same light *direction*, just re-aimed and tightened around the content.
+      const key = this.studio?.key;
+      if (key) {
+        const center = shadowBox.isEmpty() ? new THREE.Vector3() : shadowBox.getCenter(new THREE.Vector3());
+        const size = shadowBox.isEmpty() ? new THREE.Vector3(12, 12, 12) : shadowBox.getSize(new THREE.Vector3());
+        const radius = Math.max(1, 0.5 * Math.max(size.x, size.y, size.z) * Math.SQRT2);
+        const span = radius * 1.15 + 0.5;
+        const direction = new THREE.Vector3(4.5, 7.5, 3.5).normalize();
+        const distance = Math.max(12, radius * 4);
+        key.position.copy(center).addScaledVector(direction, distance);
+        key.target.position.copy(center);
+        key.target.updateMatrixWorld(true);
+        const shadowCamera = key.shadow.camera;
+        shadowCamera.left = -span; shadowCamera.right = span;
+        shadowCamera.top = span; shadowCamera.bottom = -span;
+        shadowCamera.near = Math.max(0.1, distance - radius - 1);
+        shadowCamera.far = distance + radius + 1;
+        shadowCamera.updateProjectionMatrix();
+        key.shadow.map?.dispose();
+        key.shadow.map = null;
+      }
     }
 
     this.content.visible = true;
@@ -199,6 +231,15 @@ export function createRenderMethods(dependencies) {
   setViewportQuality(quality) {
     applyQuality(this.studio, this.renderer, quality);
     this.qualityMonitor = resetMonitor(this.qualityMonitor || createQualityMonitor(quality), quality);
+  },
+
+  // Supersample multiple the host blit renders the interactive viewport at
+  // before scaling it back down -- the cheapest edge antialiasing there is.
+  // 1 while the studio look is off (a neutral capture), and 1 at "low" so a
+  // struggling GPU is never asked to draw more pixels.
+  supersampleFactor() {
+    if (!this.studioEnabled) return 1;
+    return qualityPreset(this.studio?.quality).renderScale || 1;
   },
 
   dispose() {
