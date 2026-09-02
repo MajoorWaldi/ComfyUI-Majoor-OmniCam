@@ -3151,7 +3151,7 @@ U.registerExtension({
     const t = !ve;
     await $e(e, async () => {
       be("director:import:start", e);
-      const { attachDirector: o } = await import("./chunk-D2gOZ0kR.js").then((r) => r.f);
+      const { attachDirector: o } = await import("./chunk-DrzcQFnW.js").then((r) => r.f);
       return be("director:import:resolved", e), o;
     });
     const a = e.__majoorOmniCam;
@@ -3161,7 +3161,7 @@ U.registerExtension({
 U.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(e) {
-    ke(e) === rr && await $e(e, async () => (await import("./chunk-DqmE8ltE.js")).attachExtractor);
+    ke(e) === rr && await $e(e, async () => (await import("./chunk-B1kbhUMH.js")).attachExtractor);
   }
 });
 U.registerExtension({

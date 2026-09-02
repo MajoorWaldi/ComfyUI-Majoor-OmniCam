@@ -377,6 +377,24 @@ async def capabilities(_request: web.Request):
     return web.json_response({**detected, "diagnostic": diagnose_setup(detected)})
 
 
+@PromptServer.instance.routes.get("/majoor/omnicam/motion_profiles")
+async def motion_profiles(_request: web.Request):
+    """Recommended motion limits per target model, for the Health panel.
+
+    The panel grades locally so the feedback stays live while scrubbing, but the
+    numbers it grades against are served from here: the adapter tables stay the
+    single source of truth and the frontend never hardcodes a limit.
+
+    Distinct from /monitor/profiles below, which serves the Monitor's profile
+    catalogue and capability states -- a different vocabulary and a different
+    payload. Collapsing the two is what took this route away and left the
+    Director and Extractor panels fetching a 404.
+    """
+    from .adapters.motion_profiles import motion_profile_roster
+
+    return web.json_response(motion_profile_roster())
+
+
 @PromptServer.instance.routes.get("/majoor/omnicam/monitor/profiles")
 async def monitor_profiles(_request: web.Request):
     """Return the current Monitor profiles and downstream capability states."""

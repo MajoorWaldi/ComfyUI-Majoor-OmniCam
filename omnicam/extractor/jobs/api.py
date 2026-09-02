@@ -142,7 +142,7 @@ def validate_settings(settings: Any) -> dict[str, Any]:
         "fov_degrees": _number(settings, "fov_degrees", 53.0, 10.0, 140.0),
         "focal_length_mm": _number(settings, "focal_length_mm", 24.0, 1.0, 300.0),
         "sensor_width_mm": _number(settings, "sensor_width_mm", 36.0, 4.0, 70.0),
-        "max_dimension": _integer(settings, "max_dimension", 640, 320, 1920),
+        "max_dimension": _integer(settings, "max_dimension", 840, 320, 1920),
         "frame_step": _integer(settings, "frame_step", 1, 1, 10),
         "refine": refine,
     }

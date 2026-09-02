@@ -60,7 +60,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 IO.Float.Input("fov_degrees", default=53.0, min=10.0, max=140.0, step=0.1, advanced=True),
                 IO.Float.Input("focal_length_mm", default=24.0, min=1.0, max=300.0, step=0.1, advanced=True),
                 IO.Float.Input("sensor_width_mm", default=36.0, min=4.0, max=70.0, step=0.1, advanced=True),
-                IO.Int.Input("max_dimension", default=640, min=320, max=1920, step=32),
+                IO.Int.Input("max_dimension", default=840, min=320, max=1920, step=32),
                 IO.Int.Input("frame_step", default=1, min=1, max=10, step=1, advanced=True),
                 IO.Boolean.Input("normalize_origin", default=True),
                 IO.Float.Input(

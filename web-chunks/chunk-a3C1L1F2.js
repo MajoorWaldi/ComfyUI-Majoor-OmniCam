@@ -1,8 +1,8 @@
 import { a9 as b, e as C, a0 as u, Q as _ } from "./chunk-B7ZTbDAV.js";
-import { api as f } from "../../scripts/api.js";
-import { l as k } from "./chunk-iq9Z6rYd.js";
-import { a as c } from "./chunk-DXtw26Dt.js";
-import { e as g } from "./chunk-D2gOZ0kR.js";
+import { api as l } from "../../scripts/api.js";
+import { o as k } from "./chunk-D8bk9N8J.js";
+import { a as c } from "./chunk-BRMs2FDi.js";
+import { e as g } from "./chunk-DrzcQFnW.js";
 function S(e) {
   const a = g(e);
   return {
@@ -21,7 +21,7 @@ async function N(e) {
   const a = e.root.querySelector('[data-role="export-format"]');
   if (!(!a || a.dataset.ready === "1"))
     try {
-      const r = await f.fetchApi("/majoor/omnicam/exchange_formats");
+      const r = await l.fetchApi("/majoor/omnicam/exchange_formats");
       if (!r.ok) return;
       const t = await r.json();
       a.replaceChildren();
@@ -43,7 +43,7 @@ async function O(e) {
   const r = e.root.querySelector('[data-role="export-format"]')?.value || "glb", t = g(e);
   e.setStatus(c("Exporting camera…"));
   try {
-    const o = await f.fetchApi("/majoor/omnicam/export_camera", {
+    const o = await l.fetchApi("/majoor/omnicam/export_camera", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ format: r, name: t?.name || "omnicam_camera", track: S(e) })
@@ -72,7 +72,7 @@ async function $(e, a) {
 async function v(e) {
   const a = new FormData();
   a.append("file", e, e.name);
-  const r = await f.fetchApi("/majoor/omnicam/import_camera", { method: "POST", body: a });
+  const r = await l.fetchApi("/majoor/omnicam/import_camera", { method: "POST", body: a });
   if (!r.ok) throw new Error(await r.text());
   return (await r.json()).track;
 }
@@ -83,14 +83,14 @@ async function j(e, a) {
   }), !o.length) throw new Error(c("this FBX contains no camera"));
   const n = o[0], s = Math.max(1, Number(e.state.fps) || 24), d = t.animations?.[0], h = d ? Math.max(1, Math.round(d.duration * s) + 1) : 1, x = [], p = d ? new C(t) : null;
   p && p.clipAction(d).play();
-  const m = new u(), y = new _(), l = new u();
+  const m = new u(), y = new _(), f = new u();
   for (let i = 0; i < h; i++)
-    p && (p.setTime(i / s), t.updateMatrixWorld(!0)), n.getWorldPosition(m), n.getWorldQuaternion(y), l.set(0, 0, -1).applyQuaternion(y), x.push({
+    p && (p.setTime(i / s), t.updateMatrixWorld(!0)), n.getWorldPosition(m), n.getWorldQuaternion(y), f.set(0, 0, -1).applyQuaternion(y), x.push({
       frame: i,
       interpolation: "linear",
       camera: {
         position: [m.x, m.y, m.z],
-        target: [m.x + l.x, m.y + l.y, m.z + l.z],
+        target: [m.x + f.x, m.y + f.y, m.z + f.z],
         fov: Number(n.fov) || 35,
         roll: 0,
         camera_type: "perspective",

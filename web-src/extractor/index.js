@@ -14,6 +14,7 @@ import {
   ensureCacheWidgets,
   parseExtractorMessage,
   readCachedResult,
+  restoreLateWidgetValues,
   statusLine,
 } from "./result-cache.js";
 import { FrameDiagnosticsStore } from "./diagnostics-store.js";
@@ -726,6 +727,9 @@ export function attachExtractor(node) {
     }
   }
   hideInternalWidgetsWhenMounted(node);
+  // Before the UI is built: its constructor restores the cached solve from
+  // these widgets, and they are only now able to hold what was saved.
+  restoreLateWidgetValues(node);
 
   const ui = new ExtractorUI(node);
   node.__majoorOmniCamExtractor = ui;

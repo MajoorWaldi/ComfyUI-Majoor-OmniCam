@@ -143,7 +143,7 @@ and wraps that internal camera solve in a canonical one-camera MotionScene.
 | `fov_degrees` | `53.0` | vertical FOV, used when `lens_mode=fov` |
 | `focal_length_mm` | `24.0` | focal length, used when `lens_mode=focal_mm` |
 | `sensor_width_mm` | `36.0` | sensor width, used when `lens_mode=focal_mm` |
-| `max_dimension` | `640` | solver long edge; never upscales |
+| `max_dimension` | `840` | solver long edge; never upscales |
 | `frame_step` | `1` | sampling stride; keys keep the **source** frame numbers |
 | `normalize_origin` | `True` | places frame 0 at the origin with identity orientation |
 | `motion_scale` | `1.0` | sizes the relative translation for your scene; never touches rotation |

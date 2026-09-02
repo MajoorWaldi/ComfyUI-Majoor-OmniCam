@@ -95,6 +95,39 @@ export function ensureCacheWidgets(node) {
   return widgets;
 }
 
+/**
+ * Re-apply saved values to the cache widgets, which are created too late to get them.
+ *
+ * ComfyUI writes `widgets_values` positionally into the widgets a node has at
+ * `configure()` time. Ours are frontend-only and are added when the lazily
+ * imported panel attaches, which is *after* that -- so the saved solve was
+ * serialized correctly and then dropped on the way back in, and the panel came
+ * up empty after every browser refresh.
+ *
+ * ComfyUI's own PrimitiveNode recovers the same way, from the same array, for
+ * the same reason: widgets it builds only once a connection exists.
+ *
+ * @returns {number} how many widgets took a value back.
+ */
+export function restoreLateWidgetValues(node) {
+  const saved = node?.widgets_values;
+  const widgets = node?.widgets;
+  if (!Array.isArray(saved) || !Array.isArray(widgets)) return 0;
+  let restored = 0;
+  for (const name of [SCENE_WIDGET, FINGERPRINT_WIDGET, SOURCE_WIDGET]) {
+    const index = widgets.findIndex((widget) => widget?.name === name);
+    if (index < 0 || index >= saved.length) continue;
+    const value = saved[index];
+    if (typeof value !== "string" || !value) continue;
+    // Never clobber a live value: a solve that finished while the workflow was
+    // loading is newer than anything the file carried.
+    if (widgets[index].value) continue;
+    widgets[index].value = value;
+    restored += 1;
+  }
+  return restored;
+}
+
 /** Store a parsed result on the node. Returns true when the fingerprint changed. */
 export function cacheExtractorResult(node, result) {
   ensureCacheWidgets(node);

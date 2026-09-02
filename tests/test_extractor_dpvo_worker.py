@@ -372,3 +372,73 @@ def test_child_sys_path_drops_other_custom_nodes_but_keeps_omnicam():
 
 def test_child_sys_path_always_reaches_this_repository():
     assert REPOSITORY_ROOT in child_sys_path([])
+
+
+def test_vram_is_released_before_the_child_is_spawned(tmp_path):
+    """Order is the whole point.
+
+    DPVO allocates in its own process. Anything the parent frees after the child
+    is running arrives too late for the allocation that failed, so the release
+    has to happen on the near side of Process.start().
+    """
+    observed = []
+    runner = DpvoProcessRunner(target=_successful_child, poll_seconds=0.01)
+
+    def _release():
+        # No child exists yet at this point, which is exactly the claim.
+        observed.append(runner.process)
+        return None
+
+    runner._release_vram = _release
+
+    runner.solve(_request(tmp_path))
+
+    assert observed == [None]
+
+
+def test_a_caller_that_manages_its_own_vram_can_opt_out(tmp_path):
+    runner = DpvoProcessRunner(
+        target=_successful_child, poll_seconds=0.01, release_vram=None
+    )
+
+    poses, _timestamps = runner.solve(_request(tmp_path))
+
+    assert poses[1][0] == 1
+    assert runner.vram_release is None
+
+
+def test_the_child_does_not_inherit_comfyui_allocator_tuning(monkeypatch):
+    """ComfyUI puts Torch on cudaMallocAsync process-wide; DPVO must not get it.
+
+    That backend is chosen for diffusion models. DPVO's CUDA extensions
+    allocate outside Torch's allocator and it is developed against the native
+    one, so inheriting the tuning gains nothing and has been seen to fail
+    allocations on an almost empty card.
+    """
+    import os
+
+    from omnicam.extractor.backends.dpvo_worker import _isolated_child_bootstrap
+
+    monkeypatch.setenv("PYTORCH_CUDA_ALLOC_CONF", "backend:cudaMallocAsync")
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", "backend:cudaMallocAsync")
+
+    with _isolated_child_bootstrap():
+        assert "PYTORCH_CUDA_ALLOC_CONF" not in os.environ
+        assert "PYTORCH_ALLOC_CONF" not in os.environ
+
+    # The parent keeps its own tuning: ComfyUI still needs it after the solve.
+    assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "backend:cudaMallocAsync"
+    assert os.environ["PYTORCH_ALLOC_CONF"] == "backend:cudaMallocAsync"
+
+
+def test_restoring_allocator_tuning_survives_a_failing_solve(monkeypatch):
+    import os
+
+    from omnicam.extractor.backends.dpvo_worker import _isolated_child_bootstrap
+
+    monkeypatch.setenv("PYTORCH_CUDA_ALLOC_CONF", "backend:cudaMallocAsync")
+
+    with pytest.raises(RuntimeError), _isolated_child_bootstrap():
+        raise RuntimeError("the child failed to start")
+
+    assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "backend:cudaMallocAsync"

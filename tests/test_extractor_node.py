@@ -37,11 +37,17 @@ def test_node_offers_the_three_documented_methods():
     assert method.default == "dpvo"
 
 
-def test_node_defaults_to_a_640_pixel_dpvo_solve():
+def test_node_defaults_to_an_840_pixel_dpvo_solve():
+    """840 solves 1080p at 840x472, the panel default the solver is tuned for.
+
+    The widget default and the job-settings default have to agree: a solve
+    started from the panel and one started from the graph must not silently
+    pick different resolutions.
+    """
     schema = MajoorOmniCamExtractor.define_schema()
     max_dimension = next(item for item in schema.inputs if item.id == "max_dimension")
 
-    assert max_dimension.default == 640
+    assert max_dimension.default == 840
 
 
 def test_node_execution_emits_a_one_camera_motion_scene_and_a_ui_envelope(clip, monkeypatch):

@@ -1,5 +1,5 @@
-import { a as s, e as u, a2 as C } from "./chunk-DXtw26Dt.js";
-import { g as N, l as I } from "./chunk-CYXHK_as.js";
+import { a as p, e as f, a2 as N } from "./chunk-BRMs2FDi.js";
+import { g as I, l as A } from "./chunk-CYXHK_as.js";
 const J = `
       .majoor-omnicam .oc-lower{display:grid;grid-template-columns:236px minmax(0,1fr);gap:8px;padding:0 8px 8px}
       .majoor-omnicam .oc-preview{display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);position:static;width:auto}
@@ -180,11 +180,11 @@ function T(o, e = y) {
   const a = S(Number(o) || 0, k, j);
   return e / (2 * Math.tan(a * _ / 2));
 }
-function A(o, e = y) {
+function z(o, e = y) {
   const a = Math.max(1e-6, Number(o) || 0), r = 2 * Math.atan(e / (2 * a)) / _;
   return S(r, k, j);
 }
-function z(o) {
+function M(o) {
   const e = T(o);
   return e >= 100 ? e.toFixed(0) : e.toFixed(1);
 }
@@ -206,68 +206,68 @@ const B = [14, 24, 35, 50, 85, 135], w = [
   "#8b5cf6"
   // Camera 8 - Violet
 ];
-function M(o) {
+function F(o) {
   const e = `camera_${Date.now().toString(36)}`;
   let a = e, r = 2;
   for (; o.cameras.some((t) => t.id === a); ) a = `${e}_${r++}`;
   return a;
 }
-function F(o, e) {
+function q(o, e) {
   if (!o.cameras.some((r) => r.name === e)) return e;
   let a = 2;
   for (; o.cameras.some((r) => r.name === `${e} ${a}`); ) a += 1;
   return `${e} ${a}`;
 }
-function q(o, e, { label: a = "Extracted Camera" } = {}) {
+function L(o, e, { label: a = "Extracted Camera" } = {}) {
   const r = Array.isArray(e?.keyframes) ? e.keyframes : [];
-  if (!r.length) throw new Error(s("no camera keys in this solve"));
-  const t = Number(o.state.fps) || 24, n = Number(e.fps) || t, p = n > 0 ? t / n : 1, i = M(o.state), m = o.state.cameras.length, c = F(o.state, a || "Extracted Camera"), d = w[m % w.length], v = r.map((h) => ({
-    ...h,
-    frame: Math.round((Number(h.frame) || 0) * p),
-    camera: u(h.camera)
+  if (!r.length) throw new Error(p("no camera keys in this solve"));
+  const t = Number(o.state.fps) || 24, n = Number(e.fps) || t, c = n > 0 ? t / n : 1, i = F(o.state), s = o.state.cameras.length, m = q(o.state, a || "Extracted Camera"), d = w[s % w.length], b = r.map((u) => ({
+    ...u,
+    frame: Math.round((Number(u.frame) || 0) * c),
+    camera: f(u.camera)
   }));
-  if (o.state.cameras.push({ id: i, name: c, color: d, camera: u(v[0].camera), keyframes: v }), Number.isFinite(Number(e.duration_frames))) {
-    const h = Math.round(Number(e.duration_frames) * p);
-    o.state.duration_frames = Math.max(o.state.duration_frames || 1, h);
+  if (o.state.cameras.push({ id: i, name: m, color: d, camera: f(b[0].camera), keyframes: b }), Number.isFinite(Number(e.duration_frames))) {
+    const u = Math.round(Number(e.duration_frames) * c);
+    o.state.duration_frames = Math.max(o.state.duration_frames || 1, u);
   }
   return o.cameraPreviewSignature = "", o.activateCamera(i), i;
 }
 function Y(o, e) {
-  const a = A(e);
+  const a = z(e);
   o.activeCameraTrack()?.keyframes?.length && o.activeKeyframe() ? (o.activeKeyframe().camera.fov = a, o.scheduleSerialize(), o.render(), o.refreshKeyEditor()) : (o.camera.fov = a, o.render());
   for (const t of o.root.querySelectorAll('[data-role="camera-fov"]')) t.value = String(a.toFixed(1));
-  for (const t of o.root.querySelectorAll('[data-role="camera-focal"]')) t.value = z(a);
+  for (const t of o.root.querySelectorAll('[data-role="camera-focal"]')) t.value = M(a);
   o.setStatus(`Lens: ${e}mm (FOV ${a.toFixed(1)}°)`);
 }
 function O(o) {
-  return o?.state?.cameras?.length || (o.state.cameras = [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: u(o?.camera), keyframes: o?.state?.keyframes || [] }]), o.state.cameras.find((e) => e.id === o.state.active_camera_id) || o.state.cameras[0];
+  return o?.state?.cameras?.length || (o.state.cameras = [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: f(o?.camera), keyframes: o?.state?.keyframes || [] }]), o.state.cameras.find((e) => e.id === o.state.active_camera_id) || o.state.cameras[0];
 }
-const g = "upstream_camera_track";
+const x = "upstream_camera_track";
 function Q(o, e, {
   label: a = "Import camera",
   source: r = "camera_import",
   fingerprint: t = "",
   originNodeId: n = null,
-  adoptFps: p = !0,
+  adoptFps: c = !0,
   checkpoint: i = !0,
-  status: m = !0
+  status: s = !0
 } = {}) {
-  const c = e?.keyframes;
-  if (!Array.isArray(c) || !c.length)
-    throw new Error(s("no camera keys in this file"));
+  const m = e?.keyframes;
+  if (!Array.isArray(m) || !m.length)
+    throw new Error(p("no camera keys in this file"));
   i && o.checkpoint(a);
   const d = O(o);
-  return d.keyframes = c, o.state.keyframes = c, p && Number.isFinite(Number(e.fps)) && (o.state.fps = Math.max(1, Math.round(Number(e.fps))), o.fpsWidget && (o.fpsWidget.value = o.state.fps)), Number.isFinite(Number(e.duration_frames)) && (o.state.duration_frames = Math.max(1, Math.round(Number(e.duration_frames)))), o.durationWidget && (o.durationWidget.value = o.state.duration_frames / Math.max(1, o.state.fps)), t && (o.state.metadata = {
+  return d.keyframes = m, o.state.keyframes = m, c && Number.isFinite(Number(e.fps)) && (o.state.fps = Math.max(1, Math.round(Number(e.fps))), o.fpsWidget && (o.fpsWidget.value = o.state.fps)), Number.isFinite(Number(e.duration_frames)) && (o.state.duration_frames = Math.max(1, Math.round(Number(e.duration_frames)))), o.durationWidget && (o.durationWidget.value = o.state.duration_frames / Math.max(1, o.state.fps)), t && (o.state.metadata = {
     ...o.state.metadata,
-    [g]: {
+    [x]: {
       fingerprint: t,
       source: r,
       ...n == null ? {} : { origin_node_id: String(n) }
     }
-  }), o.syncActiveCameraTrack(), o.setFrame(0), o.refreshKeys(), o.render(), o.scheduleSerialize(), m && o.setStatus(s("Imported {count} camera keys from {name}").replace("{count}", String(c.length)).replace("{name}", a)), c.length;
+  }), o.syncActiveCameraTrack(), o.setFrame(0), o.refreshKeys(), o.render(), o.scheduleSerialize(), s && o.setStatus(p("Imported {count} camera keys from {name}").replace("{count}", String(m.length)).replace("{name}", a)), m.length;
 }
-const R = "omnicam_extractor_result_v2", f = "omnicam_extracted_motion_scene_json", x = "omnicam_extracted_track_fingerprint", D = "omnicam_extractor_source";
-function E(o) {
+const R = "omnicam_extractor_result_v2", h = "omnicam_extracted_motion_scene_json", g = "omnicam_extracted_track_fingerprint", E = "omnicam_extractor_source";
+function C(o) {
   if (!o || o.version !== 1 || !Array.isArray(o.cameras)) return null;
   const e = String(o.playblast_camera_id || o.active_camera_id || ""), r = o.cameras.find((t) => String(t?.id || "") === e)?.track;
   return r && Array.isArray(r.keyframes) && r.keyframes.length ? r : null;
@@ -300,7 +300,7 @@ function oo(o) {
     return null;
   }
   if (!r || r.kind !== R) return null;
-  const t = r.motion_scene, n = E(t);
+  const t = r.motion_scene, n = C(t);
   return n ? {
     motionScene: t,
     track: n,
@@ -310,7 +310,7 @@ function oo(o) {
     source: String(r.source || "")
   } : null;
 }
-function L(o) {
+function D(o) {
   return o.computeSize = () => [0, -4], o.draw = () => {
   }, o.hidden = !0, o.options = { ...o.options || {}, hideInVueNodes: !0 }, o;
 }
@@ -319,30 +319,42 @@ function l(o, e) {
 }
 function W(o) {
   const e = [];
-  for (const a of [f, x]) {
+  for (const a of [h, g]) {
     let r = l(o, a);
     if (!r) {
       if (r = o.addWidget?.("text", a, "", () => {
       }, { serialize: !0 }), !r) continue;
-      L(r);
+      D(r);
     }
     e.push(r);
   }
   return e;
 }
-function eo(o, e) {
-  W(o);
-  const a = l(o, f), r = l(o, x), t = String(r?.value || "") !== e.fingerprint;
-  return a && (a.value = JSON.stringify(e.motionScene)), r && (r.value = e.fingerprint), t;
+function eo(o) {
+  const e = o?.widgets_values, a = o?.widgets;
+  if (!Array.isArray(e) || !Array.isArray(a)) return 0;
+  let r = 0;
+  for (const t of [h, g, E]) {
+    const n = a.findIndex((i) => i?.name === t);
+    if (n < 0 || n >= e.length) continue;
+    const c = e[n];
+    typeof c != "string" || !c || a[n].value || (a[n].value = c, r += 1);
+  }
+  return r;
 }
 function ao(o, e) {
-  const a = l(o, D);
+  W(o);
+  const a = l(o, h), r = l(o, g), t = String(r?.value || "") !== e.fingerprint;
+  return a && (a.value = JSON.stringify(e.motionScene)), r && (r.value = e.fingerprint), t;
+}
+function ro(o, e) {
+  const a = l(o, E);
   if (!a || !e) return !1;
   const r = String(e), t = String(a.value || "") !== r;
   return a.value = r, t;
 }
 function $(o) {
-  const e = String(l(o, x)?.value || ""), a = String(l(o, f)?.value || "");
+  const e = String(l(o, g)?.value || ""), a = String(l(o, h)?.value || "");
   if (!e || !a) return null;
   let r;
   try {
@@ -350,10 +362,10 @@ function $(o) {
   } catch {
     return null;
   }
-  const t = E(r);
+  const t = C(r);
   return t ? { motionScene: r, track: t, fingerprint: e } : null;
 }
-function ro(o) {
+function to(o) {
   const e = o?.track?.metadata || {}, a = String(e.backend || "solver").toUpperCase(), r = Number(o?.track?.duration_frames) || 0, t = Array.isArray(o?.track?.keyframes) ? o.track.keyframes.length : 0, n = Math.round((Number(o?.solver_coverage ?? o?.confidence) || 0) * 100);
   return `${a} · ${r} f · ${t} keys · Solver Coverage ${n}%`;
 }
@@ -366,84 +378,85 @@ function G(o) {
   if (!a) return null;
   for (const r of e.inputs || []) {
     if (String(r?.name || "").toLowerCase() !== P || r.link == null) continue;
-    const t = I(a, r.link);
-    if (t && K(t) === C) return t;
+    const t = A(a, r.link);
+    if (t && K(t) === N) return t;
   }
   return null;
 }
 function U(o) {
-  return String(o?.state?.metadata?.[g]?.fingerprint || "");
+  return String(o?.state?.metadata?.[x]?.fingerprint || "");
 }
 function V(o, e, a) {
   o.state.metadata = {
     ...o.state.metadata,
-    [g]: {
+    [x]: {
       fingerprint: e,
       source: "omnicam_extractor",
       origin_node_id: String(a.id)
     }
   };
 }
-function b(o) {
+function v(o) {
   const e = o.root?.querySelector('[data-role="extractor-import-banner"]');
   if (!e) return;
   const a = o.pendingExtractorImport;
   if (e.hidden = !a, !a) return;
   const r = e.querySelector('[data-role="extractor-import-text"]');
-  r && (r.textContent = s("{count} camera keys ready from {name} — import as a new camera?").replace("{count}", String(a.keyCount)).replace("{name}", a.label));
+  r && (r.textContent = p("{count} camera keys ready from {name} — import as a new camera?").replace("{count}", String(a.keyCount)).replace("{name}", a.label));
 }
-function to(o) {
+function no(o) {
   const e = G(o), a = e ? $(e) : null;
   let r = !1;
   return a ? a.fingerprint !== U(o) && o.pendingExtractorImport?.fingerprint !== a.fingerprint && (o.pendingExtractorImport = {
     track: a.track,
     fingerprint: a.fingerprint,
     originNodeId: e.id,
-    label: String(e.title || s("OmniCam Extractor")),
+    label: String(e.title || p("OmniCam Extractor")),
     keyCount: a.track.keyframes?.length || 0
-  }, V(o, a.fingerprint, e), r = !0) : o.pendingExtractorImport && (o.pendingExtractorImport = null, r = !0), b(o), r;
-}
-function no(o) {
-  const e = o.pendingExtractorImport;
-  return e ? (o.checkpoint("Import extracted camera"), q(o, e.track, { label: e.label }), o.pendingExtractorImport = null, b(o), o.setStatus?.(s("Imported {count} camera keys from {name}").replace("{count}", String(e.keyCount)).replace("{name}", e.label)), o.scheduleSerialize(), o.render(), !0) : !1;
+  }, V(o, a.fingerprint, e), r = !0) : o.pendingExtractorImport && (o.pendingExtractorImport = null, r = !0), v(o), r;
 }
 function io(o) {
-  return o.pendingExtractorImport ? (o.pendingExtractorImport = null, b(o), o.render(), o.setStatus?.(s("Extracted camera preview dismissed")), !0) : !1;
+  const e = o.pendingExtractorImport;
+  return e ? (o.checkpoint("Import extracted camera"), L(o, e.track, { label: e.label }), o.pendingExtractorImport = null, v(o), o.setStatus?.(p("Imported {count} camera keys from {name}").replace("{count}", String(e.keyCount)).replace("{name}", e.label)), o.scheduleSerialize(), o.render(), !0) : !1;
 }
 function co(o) {
+  return o.pendingExtractorImport ? (o.pendingExtractorImport = null, v(o), o.render(), o.setStatus?.(p("Extracted camera preview dismissed")), !0) : !1;
+}
+function mo(o) {
   const e = o?.graph;
   if (!e) return 0;
   const a = o.outputs || [], r = /* @__PURE__ */ new Set();
   let t = 0;
   for (const n of a)
-    for (const p of n?.links || []) {
-      const i = N(e, p), m = i?.target_id ?? i?.targetId;
-      if (!i || m == null || r.has(m)) continue;
-      r.add(m);
-      const d = e.getNodeById?.(m)?.__majoorOmniCam;
+    for (const c of n?.links || []) {
+      const i = I(e, c), s = i?.target_id ?? i?.targetId;
+      if (!i || s == null || r.has(s)) continue;
+      r.add(s);
+      const d = e.getNodeById?.(s)?.__majoorOmniCam;
       d?.syncUpstreamInputs && (d.syncUpstreamInputs(), t += 1);
     }
   return t;
 }
 export {
-  x as F,
+  g as F,
   J as L,
-  D as S,
+  E as S,
   B as a,
-  z as b,
-  no as c,
-  io as d,
+  M as b,
+  io as c,
+  co as d,
   Y as e,
-  A as f,
-  eo as g,
+  z as f,
+  ao as g,
   W as h,
-  ao as i,
-  ro as j,
-  f as k,
-  Q as l,
+  ro as i,
+  to as j,
+  $ as k,
+  h as l,
   Z as m,
-  co as n,
+  mo as n,
+  Q as o,
   oo as p,
-  $ as r,
-  to as s
+  eo as r,
+  no as s
 };

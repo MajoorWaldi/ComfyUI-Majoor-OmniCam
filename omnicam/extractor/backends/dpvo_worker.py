@@ -11,6 +11,7 @@ import contextlib
 import importlib
 import math
 import multiprocessing
+import os
 import shutil
 import sys
 import tempfile
@@ -24,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from ..types import CameraIntrinsics, VideoFrameSample
+from ..vram import cuda_free_bytes, release_comfy_vram
 from .base import SolveError, checkpoint, report_progress, sample_features
 
 DPVO_WORKER_PROTOCOL = 2
@@ -351,6 +353,9 @@ def child_sys_path(entries: Sequence[str]) -> list[str]:
     return kept
 
 
+#: Allocator tuning the parent sets for itself and the solver must not inherit.
+_ALLOCATOR_ENV_VARS = ("PYTORCH_CUDA_ALLOC_CONF", "PYTORCH_ALLOC_CONF")
+
 @contextlib.contextmanager
 def _isolated_child_bootstrap():
     """Hand the spawn bootstrap a clean ``__main__`` and a clean ``sys.path``.
@@ -365,9 +370,17 @@ def _isolated_child_bootstrap():
     real_path = sys.path
     sys.modules["__main__"] = types.ModuleType("__main__")
     sys.path = child_sys_path(real_path)
+    # The child inherits os.environ, and ComfyUI puts Torch on the
+    # cudaMallocAsync backend process-wide (cuda_malloc.py). That is a choice
+    # made for diffusion models; DPVO is a different workload whose CUDA
+    # extensions allocate outside Torch's allocator, and it is developed
+    # against the native one. Inheriting the tuning gains DPVO nothing and has
+    # been observed to fail allocations with the card almost empty.
+    restore_env = {name: os.environ.pop(name) for name in _ALLOCATOR_ENV_VARS if name in os.environ}
     try:
         yield
     finally:
+        os.environ.update(restore_env)
         sys.path = real_path
         if real_main is not None:
             sys.modules["__main__"] = real_main
@@ -395,6 +408,44 @@ def _worker_exit_error(process, *, last_state: str | None = None) -> SolveError:
     )
 
 
+#: How a CUDA allocation failure names itself across torch versions.
+_OOM_MARKERS = ("OutOfMemoryError", "CUDA out of memory", "Allocation on device")
+
+
+def describe_worker_oom(error_text: str, release) -> str:
+    """Turn a raw CUDA traceback into something a user can act on.
+
+    The traceback names the tensor that failed, which says nothing about the
+    cause: DPVO runs in its own process, so what it ran out of is whatever the
+    parent had not released. That is the sentence worth adding.
+    """
+    if not any(marker in error_text for marker in _OOM_MARKERS):
+        return error_text
+    free = cuda_free_bytes()
+    lines = ["", "OmniCam: DPVO ran out of VRAM."]
+    if free is not None:
+        lines.append(f"Free VRAM now: {free / 1024 ** 3:.2f} GiB.")
+    if release is not None:
+        lines.append(f"Before the solve OmniCam {release.describe()}.")
+    if free is not None and free > 8 * 1024 ** 3:
+        # Plenty free and still refused: this is not a shortage. Saying
+        # "free some VRAM" here would send the user to tune settings that
+        # cannot be the cause.
+        lines.append(
+            "The card is not short of memory, so this is an allocator failure "
+            "rather than a shortage. OmniCam already runs the solver without "
+            "ComfyUI's cudaMallocAsync tuning; if this persists, lower "
+            "max_dimension (640 uses ~42% less than 840) or raise frame_step."
+        )
+    else:
+        lines.append(
+            "DPVO solves in a separate process, so it cannot use VRAM ComfyUI "
+            "still holds. Lower max_dimension (640 uses ~42% less than 840), "
+            "raise frame_step, or free VRAM in ComfyUI before solving."
+        )
+    return error_text + "\n" + "\n".join(lines)
+
+
 class DpvoProcessRunner:
     """Own exactly one spawned child and reap it on every terminal path."""
 
@@ -402,8 +453,12 @@ class DpvoProcessRunner:
         self, *, target=run_dpvo_child, poll_seconds: float = 0.05,
         timeout_seconds: float | None = None, stop_grace_seconds: float = 2.0,
         finalization_timeout_seconds: float | None = DEFAULT_FINALIZATION_TIMEOUT_SECONDS,
+        release_vram=release_comfy_vram,
     ) -> None:
         self._target = target
+        # Injectable so a test can prove the release happens without needing a
+        # GPU, and so a caller that manages its own VRAM can opt out.
+        self._release_vram = release_vram
         self._poll_seconds = float(poll_seconds)
         self._timeout_seconds = timeout_seconds
         self._stop_grace_seconds = float(stop_grace_seconds)
@@ -412,6 +467,7 @@ class DpvoProcessRunner:
         self._connection = None
         self.last_pid: int | None = None
         self.last_exitcode: int | None = None
+        self.vram_release = None
         self.landmarks_3d: list[dict[str, float]] = []
 
     def solve(
@@ -425,6 +481,9 @@ class DpvoProcessRunner:
         target, payload = self._target, request
         if target is run_dpvo_child:
             target, payload = canonical_worker_entry(request)
+        # Before the child exists, not after: once it is running, anything the
+        # parent frees is already too late for the allocation that failed.
+        self.vram_release = self._release_vram() if self._release_vram else None
         context = multiprocessing.get_context("spawn")
         parent, child = context.Pipe(duplex=True)
         process = context.Process(target=target, args=(child, payload), daemon=True)
@@ -499,7 +558,9 @@ class DpvoProcessRunner:
                         self.landmarks_3d = list(message.get("landmarks_3d") or [])
                         return list(message.get("poses", [])), list(message.get("timestamps", []))
                     elif kind == "error":
-                        raise SolveError(f"DPVO worker failed:\n{message.get('error', 'unknown error')}")
+                        raise SolveError("DPVO worker failed:\n" + describe_worker_oom(
+                            str(message.get("error", "unknown error")), self.vram_release,
+                        ))
                     elif kind == "stopped":
                         checkpoint(control)
                         raise SolveError("DPVO worker stopped before producing a result")

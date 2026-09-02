@@ -285,7 +285,11 @@ test("Director mounts inside a Subgraph and keeps its promoted fps widget", asyn
     } else {
       app.graph.configure(workflow);
     }
-    window.omnicamCiSubgraph = app.graph.nodes.find((node) => node.id === 20);
+    // Node ids come back as strings from a loaded workflow in the 0.34
+    // frontend, so match on the string form: a strict `=== 20` finds
+    // nothing and the wait below then times out on a graph that is
+    // actually fine.
+    window.omnicamCiSubgraph = app.graph.nodes.find((node) => String(node.id) === "20");
     // `graph.nodes` is the documented traversal. `_nodes` is the private field
     // it used to be read from, kept here only as a fallback so a frontend that
     // has not renamed it yet reports a real result instead of a bare timeout.
