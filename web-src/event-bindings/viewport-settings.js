@@ -82,6 +82,18 @@ export function bindViewportSettings(ui, q, signal) {
       for (const panel of ui.root.querySelectorAll(".inspector-tab-content, [data-tab-panel]")) {
         panel.hidden = panel.dataset.tabPanel !== tabName;
       }
+      // The viewport motion toolbar is contextual: only the Motion workspace
+      // shows it. Leaving the tab also drops any in-progress motion tool.
+      const motionActive = tabName === "motion";
+      ui.root.classList.toggle("oc-motion-mode", motionActive);
+      if (!motionActive && (ui.state.motion_tool || "select") !== "select") {
+        ui.state.motion_tool = "select";
+        ui.motionTrackDraft = null;
+      }
+      // Re-render on the switch so the 2D motion path preview can measure its
+      // box once the Motion panel is actually visible, and so the contextual
+      // viewport toolbar repaints.
+      ui.render?.();
     }, { signal });
   }
   for (const el of ui.root.querySelectorAll('[data-role="active-camera-select"]')) {

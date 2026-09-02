@@ -5,6 +5,10 @@ test("Motion Track tools author, edit and serialize the scene", async ({ page })
   await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15_000 });
   await expect(page.locator("#status")).toHaveText("ready");
 
+  // Motion authoring lives in its own workspace now: the viewport motion
+  // toolbar and the track panel are only shown while the Motion tab is active.
+  await page.locator('[data-tab="motion"]').click();
+
   const tools = page.locator("button[data-motion-tool]");
   await expect(tools).toHaveCount(5);
   const canvas = page.locator(".viewport-wrap > canvas");
@@ -22,6 +26,8 @@ test("Motion Track tools author, edit and serialize the scene", async ({ page })
   await canvas.click({ position: { x: box.width * 0.7, y: box.height * 0.65 } });
   await page.locator('[data-motion-tool="project"]').click();
   await canvas.click({ position: { x: box.width * 0.55, y: box.height * 0.55 } });
+  // Camera Motion Field presets sit in the collapsed Advanced disclosure.
+  await page.locator(".motion-advanced > summary").click();
   await page.locator('[data-motion-preset="balanced"]').click();
 
   await expect(page.locator("[data-motion-layer-id]")).toHaveCount(4);

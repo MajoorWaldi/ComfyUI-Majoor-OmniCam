@@ -1,4 +1,4 @@
-const g = `
+const p = `
   .majoor-omnicam{
     --oc-bg:#141419;--oc-panel:#1a1a21;--oc-panel-2:#20202a;--oc-sunken:#101014;
     --oc-line:#2c2c38;--oc-line-soft:#26262f;
@@ -31,7 +31,7 @@ const g = `
   .majoor-omnicam .oc-field-row{display:flex;align-items:center;gap:6px}
   .majoor-omnicam .oc-empty{padding:12px;border:1px dashed var(--oc-line);border-radius:var(--oc-radius-sm);color:var(--oc-text-dim);text-align:center}
 `, d = '<svg class="oc-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle class="oc-mark-ring" cx="16" cy="16" r="10"/><circle class="oc-mark-core" cx="16" cy="16" r="3.5"/></svg>';
-function p(o) {
+function g(o) {
   return `<div class="oc-heading"><span class="oc-brand">${d}</span><span class="oc-title">${o}</span></div>`;
 }
 function m(o, e) {
@@ -46,19 +46,37 @@ function x(o, e) {
   const r = o?.getNodeById?.(n);
   return r || ((o?._nodes || o?.nodes || []).find((a) => String(a?.id) === String(n)) ?? null);
 }
-function l(o) {
+function b(o) {
+  return (e) => {
+    if (!e.ctrlKey)
+      for (let t = e.composedPath?.()[0] || e.target; t && t !== o; t = t.parentNode) {
+        if (!(t instanceof HTMLElement)) continue;
+        const n = getComputedStyle(t);
+        if (/(auto|scroll)/.test(n.overflowY) && t.scrollHeight - t.clientHeight > 1) {
+          const r = t.scrollTop <= 0, a = t.scrollTop + t.clientHeight >= t.scrollHeight - 1;
+          (e.deltaY < 0 && !r || e.deltaY > 0 && !a) && e.stopPropagation();
+          return;
+        }
+        if (/(auto|scroll)/.test(n.overflowX) && t.scrollWidth - t.clientWidth > 1 && e.deltaX !== 0) {
+          e.stopPropagation();
+          return;
+        }
+      }
+  };
+}
+function s(o) {
   return o instanceof HTMLImageElement || o instanceof HTMLVideoElement || o instanceof HTMLCanvasElement;
 }
 function f(o) {
   const e = o?.element;
-  return e ? l(e) ? e : e.querySelector?.("img, video, canvas") ?? null : null;
+  return e ? s(e) ? e : e.querySelector?.("img, video, canvas") ?? null : null;
 }
-function b(o) {
+function h(o) {
   if (!o) return null;
   const e = o.imgs;
   if (Array.isArray(e) && e.length) {
     const t = typeof o.imageIndex == "number" ? o.imageIndex : e.length - 1, n = e[Math.max(0, Math.min(e.length - 1, t))] ?? e[e.length - 1] ?? null;
-    if (l(n)) return n;
+    if (s(n)) return n;
   }
   for (const t of o.widgets || []) {
     const n = f(t);
@@ -69,7 +87,7 @@ function b(o) {
 function u(o) {
   return o instanceof HTMLVideoElement ? [o.videoWidth, o.videoHeight] : o instanceof HTMLImageElement ? [o.naturalWidth, o.naturalHeight] : [o.width, o.height];
 }
-async function h(o, e, t = 512) {
+async function w(o, e, t = 512) {
   if (!o || !e) return !1;
   if (o instanceof HTMLImageElement && !o.complete)
     try {
@@ -81,14 +99,15 @@ async function h(o, e, t = 512) {
   if (!n || !r) return !1;
   const a = Math.min(1, t / Math.max(n, r)), i = Math.max(1, Math.round(n * a)), c = Math.max(1, Math.round(r * a));
   e.width = i, e.height = c;
-  const s = e.getContext("2d");
-  return s ? (s.drawImage(o, 0, 0, i, c), !0) : !1;
+  const l = e.getContext("2d");
+  return l ? (l.drawImage(o, 0, 0, i, c), !0) : !1;
 }
 export {
-  g as S,
-  p as b,
-  h as d,
+  p as S,
+  g as b,
+  w as d,
   m as g,
   x as l,
-  b as u
+  b as p,
+  h as u
 };

@@ -8,6 +8,7 @@ import { describeReferenceSource, directorPlayblastSource, referenceSourceWarnLe
 import { MonitorRefreshController } from "./refresh.js";
 import { MonitorSourceWatcher } from "./source-sync.js";
 import { loadMonitorProfileInfo, renderMonitorProfileInfo } from "./profile-info.js";
+import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { buildMonitorRoot } from "./template.js";
 import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
 
@@ -74,6 +75,8 @@ class MonitorUI {
   }
 
   bindControls() {
+    // Wheel over a scrollable panel scrolls it instead of zooming the graph.
+    this.listen(this.root, "wheel", panelWheelKeeper(this.root));
     this.listen(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle());
     this.listen(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (event) => this.player.scrub(event.target.value));
     this.listen(this.root.querySelector('[data-role="proxy-loop"]'), "change", (event) => this.player.setLoop(event.target.checked));

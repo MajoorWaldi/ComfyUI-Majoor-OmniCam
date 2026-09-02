@@ -11,6 +11,7 @@ import { bindGraphTabs } from "../curve-editor/tabs.js";
 import { renderChannelList } from "../curve-editor/channel-list.js";
 import { renderGraphDopeSheet } from "../curve-editor/dope-view.js";
 import { syncMirroredControl } from "../event-bindings.js";
+import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { t } from "../i18n.js";
 
 export function bindEditorAndGlobal(ui, q, signal) {
@@ -244,6 +245,10 @@ export function bindEditorAndGlobal(ui, q, signal) {
   ui.interactionElement?.addEventListener("pointercancel", (event) => ui.onPointerUp(event), { signal });
   ui.interactionElement?.addEventListener("dblclick", (event) => ui.setTargetAtCursor(event), { signal });
   ui.interactionElement?.addEventListener("wheel", (event) => ui.onWheel(event), { passive: false, signal });
+  // Mouse wheel over a scrollable panel inside the node (the side-panel body,
+  // long lists, the help sheet) must scroll that panel -- not fall through to
+  // LiteGraph and zoom the graph canvas behind the node.
+  ui.root.addEventListener("wheel", panelWheelKeeper(ui.root), { signal });
   window.addEventListener("pointermove", (event) => {
     if (ui.keyDrag) ui.onPointerMove(event);
   }, { capture: true, signal });

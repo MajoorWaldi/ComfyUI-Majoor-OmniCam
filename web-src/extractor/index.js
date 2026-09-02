@@ -1,5 +1,6 @@
 import { api } from "../comfy-runtime.js";
 import { RequestLifetime } from "../request-lifetime.js";
+import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
@@ -184,6 +185,8 @@ class ExtractorUI {
   }
 
   bind() {
+    // Wheel over a scrollable panel scrolls it instead of zooming the graph.
+    this.listen(this.root, "wheel", panelWheelKeeper(this.root));
     for (const tab of this.root.querySelectorAll("[data-tab]")) {
       this.listen(tab, "click", () => this.setViewerMode(tab.dataset.tab));
     }

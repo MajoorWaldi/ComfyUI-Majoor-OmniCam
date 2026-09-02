@@ -9,7 +9,7 @@ const rangeSeconds = (ui) => {
 };
 const finish = (ui, message) => { ui.serialize(); ui.render(); ui.setStatus(message); };
 
-function syncToolButtons(ui) {
+export function syncToolButtons(ui) {
   for (const button of ui.root.querySelectorAll("[data-motion-tool]")) {
     const active = button.dataset.motionTool === ui.state.motion_tool;
     button.classList.toggle("active", active); button.setAttribute("aria-pressed", String(active));

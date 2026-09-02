@@ -1,9 +1,9 @@
-import { l as T, S as M, b as N, u as P, d as L } from "./chunk-DB_YtOm2.js";
+import { l as T, S as M, b as N, p as P, u as L, d as I } from "./chunk-D3fRtf1d.js";
 import "../../scripts/app.js";
 import { api as u } from "../../scripts/api.js";
-import { M as I } from "./chunk-Jm0vAvYx.js";
-import { a0 as $ } from "./chunk-CSPoZLSN.js";
-import { m as A } from "./chunk-yd7KIc_Q.js";
+import { M as $ } from "./chunk-Jm0vAvYx.js";
+import { a0 as A } from "./chunk-BEhDu902.js";
+import { m as j } from "./chunk-yd7KIc_Q.js";
 function s(e) {
   return String(e ?? "").replace(/[&<>"']/g, (t) => ({
     "&": "&amp;",
@@ -26,7 +26,7 @@ function S(e) {
 function b(e) {
   return Array.isArray(e) && e.length === 1 ? e[0] : e;
 }
-function j(e) {
+function q(e) {
   const t = e?.ui && typeof e.ui == "object" ? e.ui : e || {}, o = Array.isArray(t.preflight) && t.preflight.length === 1 && Array.isArray(t.preflight[0]) ? t.preflight[0] : t.preflight, r = b(t.capabilities), i = b(t.target_profile);
   return {
     targetProfile: typeof i == "string" ? i : "",
@@ -34,24 +34,24 @@ function j(e) {
     capabilities: r && typeof r == "object" ? r : { capabilities: [] }
   };
 }
-function q(e) {
+function D(e) {
   const t = S(e.state), o = e.message ? `<br><small>${s(e.message)}</small>` : "";
   return `<div class="oc-row"><span><strong>${s(e.label || e.id)}</strong>${o}</span><span class="oc-state" data-state="${t}">${s(e.state || "UNKNOWN")}</span></div>`;
 }
-function D(e, t, o = !1) {
+function R(e, t, o = !1) {
   const r = o ? e ? "LIVE — WOULD BLOCK" : "LIVE PREVIEW" : e ? "NO OUTPUT" : "OUTPUT GENERATED";
   return t ? `${r} · ${t}` : r;
 }
 function y(e, t, { live: o = !1 } = {}) {
-  const r = j(t), i = e.querySelector('[data-role="profile-preflight"]');
-  i.innerHTML = r.preflight.length ? r.preflight.map(q).join("") : '<div class="oc-empty">No preflight checks returned.</div>';
+  const r = q(t), i = e.querySelector('[data-role="profile-preflight"]');
+  i.innerHTML = r.preflight.length ? r.preflight.map(D).join("") : '<div class="oc-empty">No preflight checks returned.</div>';
   const a = Array.isArray(r.capabilities.capabilities) ? r.capabilities.capabilities : [], n = e.querySelector('[data-role="profile-capabilities"]');
   n.innerHTML = a.length ? a.map((p) => `<div class="oc-row"><span>${s(p.display || p.adapter)}</span><span class="oc-state" data-state="${S(p.state)}">${s(p.state)}</span></div>`).join("") : '<div class="oc-empty">No optional downstream capability detected.</div>';
   const c = r.preflight.some((p) => String(p.state).toUpperCase() === "BLOCKED"), l = e.querySelector('[data-role="monitor-status"]');
-  return l.dataset.state = c ? "BLOCKED" : "READY", l.lastChild.textContent = c ? " BLOCKED" : " READY", e.querySelector('[data-role="output-status"]').textContent = D(c, r.targetProfile, o), r;
+  return l.dataset.state = c ? "BLOCKED" : "READY", l.lastChild.textContent = c ? " BLOCKED" : " READY", e.querySelector('[data-role="output-status"]').textContent = R(c, r.targetProfile, o), r;
 }
-const R = "MajoorOmniCamDirector";
-function U(e) {
+const U = "MajoorOmniCamDirector";
+function W(e) {
   return String(e?.comfyClass || e?.constructor?.type || "");
 }
 function d(e, t, o) {
@@ -59,9 +59,9 @@ function d(e, t, o) {
   return r && r.value !== void 0 ? r.value : o;
 }
 function v(e) {
-  return U(e) === R;
+  return W(e) === U;
 }
-function W(e) {
+function F(e) {
   return {
     state_json: String(d(e, "state_json", "{}")),
     recording_path: String(d(e, "recording_path", "")),
@@ -73,7 +73,7 @@ function W(e) {
     render_mode: String(d(e, "render_mode", "omni_ref"))
   };
 }
-function F(e) {
+function H(e) {
   return {
     target_profile: String(e?.target_profile ?? ""),
     base_prompt: String(e?.base_prompt ?? ""),
@@ -83,13 +83,13 @@ function F(e) {
     target_fps: Number(e?.target_fps ?? 24)
   };
 }
-function H(e, t) {
+function V(e, t) {
   return {
-    director: W(e),
-    monitor: F(t)
+    director: F(e),
+    monitor: H(t)
   };
 }
-class V extends I {
+class B extends $ {
   constructor(t, { fps: o = 24, durationFrames: r = 1, onFrame: i = () => {
   } } = {}) {
     super(t, { fps: o, durationFrames: r, onFrame: i, loop: !0, muted: !0 });
@@ -102,7 +102,7 @@ function k(e) {
 function h(e, t) {
   return e?.widgets?.find((o) => o.name === t)?.value;
 }
-function B(e) {
+function z(e) {
   try {
     const t = JSON.parse(String(h(e, "state_json") ?? "{}"));
     return t && typeof t == "object" ? t : {};
@@ -110,17 +110,17 @@ function B(e) {
     return {};
   }
 }
-function z(e, t) {
-  const o = e?.motion_scene_fingerprint;
-  return o ? o !== A(t) : !1;
-}
 function K(e, t) {
+  const o = e?.motion_scene_fingerprint;
+  return o ? o !== j(t) : !1;
+}
+function G(e, t) {
   if (k(t) !== _) return null;
   const o = String(h(t, "recording_path") || "");
   if (!o) return null;
-  const r = $(e, o);
+  const r = A(e, o);
   if (!r) return null;
-  const i = B(t), a = i?.metadata?.playblast && typeof i.metadata.playblast == "object" ? i.metadata.playblast : {};
+  const i = z(t), a = i?.metadata?.playblast && typeof i.metadata.playblast == "object" ? i.metadata.playblast : {};
   return {
     kind: "director_playblast",
     url: r,
@@ -130,23 +130,23 @@ function K(e, t) {
     height: Number(a.height) || void 0,
     durationSeconds: Number(a.duration_seconds) || void 0,
     encoder: typeof a.encoder == "string" ? a.encoder : void 0,
-    outdated: z(a, i)
+    outdated: K(a, i)
   };
 }
 function O(e) {
   return k(e) === _ && !h(e, "recording_path");
 }
-function G(e, t) {
+function Y(e, t) {
   if (e) {
     const o = [e.outdated ? "⚠ Playblast outdated (re-record before compiling)" : "● Director playblast"];
     return e.width && e.height && o.push(`${e.width}x${e.height}`), e.fps && o.push(`${e.fps}fps`), e.frameCount && o.push(`${e.frameCount} frames`), e.durationSeconds && o.push(`${e.durationSeconds.toFixed(2)}s`), o.join(" · ");
   }
   return O(t) ? "⚠ Director connected, no playblast recorded yet — showing the live viewport." : "";
 }
-function Y(e, t) {
+function J(e, t) {
   return e?.outdated ? "2" : e ? "" : O(t) ? "1" : "";
 }
-class J {
+class Q {
   constructor(t, {
     delay: o = 250,
     endpoint: r = "/majoor/omnicam/monitor/live_preflight",
@@ -190,7 +190,7 @@ function w(e, t) {
   const o = e?.inputs?.find((r) => r.name === t);
   return o?.link == null || !e?.graph ? null : T(e.graph, o.link);
 }
-function Q(e) {
+function X(e) {
   const t = w(e, "motion_scene"), o = w(e, "playblast_video");
   return {
     sceneConnected: !!t,
@@ -201,12 +201,12 @@ function Q(e) {
     playblastNodeClass: x(o)
   };
 }
-class X {
+class Z {
   constructor(t, o, r = 250) {
     this.node = t, this.onChange = o, this.initialized = !1, this.last = "", this.timer = setInterval(() => this.poll(), r), this.poll();
   }
   poll() {
-    const t = Q(this.node), o = JSON.stringify([
+    const t = X(this.node), o = JSON.stringify([
       t.sceneOrigin?.id ?? null,
       t.playblastOrigin?.id ?? null,
       t.playblastOrigin?.imageIndex ?? null
@@ -217,12 +217,12 @@ class X {
     clearInterval(this.timer), this.timer = null;
   }
 }
-async function Z(e) {
+async function tt(e) {
   const t = await e.fetchApi("/majoor/omnicam/monitor/profiles");
   if (!t.ok) throw new Error(`Monitor profile catalog failed (${t.status})`);
   return t.json();
 }
-function tt(e, t) {
+function et(e, t) {
   const o = e.querySelector('[data-role="profile-catalogue"]');
   if (!o) return;
   const r = Array.isArray(t?.profiles) ? t.profiles : [], i = Array.isArray(t?.capabilities?.capabilities) ? t.capabilities.capabilities : [], a = new Map(i.map((n) => [String(n.adapter), n]));
@@ -231,7 +231,7 @@ function tt(e, t) {
     return `<div class="oc-row"><span><strong>${s(n.display_name)}</strong><br><small>${s(n.semantic)} · ${s(n.frame_policy)}</small></span><span class="oc-state" data-state="${s(l)}">${s(l)}</span></div>`;
   }).join("") : '<div class="oc-empty">No Monitor profile is available.</div>';
 }
-const et = `${M}
+const ot = `${M}
   .oc-monitor{width:100%;min-height:680px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--oc-line);border-radius:var(--oc-radius);background:var(--oc-bg)}
   .oc-monitor .oc-header{justify-content:space-between}.oc-monitor .oc-header-actions{display:flex;align-items:center;gap:7px}
   .oc-monitor button,.oc-monitor select,.oc-monitor input,.oc-monitor textarea{font:inherit;color:var(--oc-text);background:var(--oc-panel-2);border:1px solid var(--oc-line);border-radius:6px}
@@ -267,7 +267,7 @@ const et = `${M}
   .oc-monitor .oc-tabs{display:flex;gap:4px;overflow:auto}.oc-monitor .oc-tab[aria-selected="true"]{background:var(--oc-accent);border-color:var(--oc-accent);color:var(--oc-accent-ink)}
   .oc-monitor .oc-copy-row{display:flex;justify-content:flex-end}.oc-monitor pre{min-height:95px;max-height:190px;overflow:auto;margin:0;padding:8px;white-space:pre-wrap;word-break:break-word;background:var(--oc-sunken);border-radius:6px;color:var(--oc-text-dim)}
   @media(max-width:700px){.oc-monitor .oc-layout{grid-template-columns:1fr}.oc-monitor .oc-grid{grid-template-columns:1fr}}
-`, ot = [
+`, rt = [
   ["external_reference_video", "External / Generic Reference Video"],
   ["h3_api", "MiniMax H3 · Comfy API"],
   ["h3_native", "MiniMax H3 · Native"],
@@ -277,12 +277,12 @@ const et = `${M}
   ["wan_track_native", "Wan Track Native"],
   ["wanvideo_ati", "WanVideo ATI"]
 ];
-function rt() {
-  return ot.map(([e, t]) => `<option value="${e}">${t}</option>`).join("");
-}
 function it() {
+  return rt.map(([e, t]) => `<option value="${e}">${t}</option>`).join("");
+}
+function at() {
   return `<div class="majoor-omnicam oc-monitor">
-    <style>${et}</style>
+    <style>${ot}</style>
     <header class="oc-header">${N("OmniCam Monitor")}
       <div class="oc-header-actions"><span class="oc-status-pill" data-role="monitor-status" data-state="OFFLINE"><i class="oc-status-dot"></i> WAITING</span></div>
     </header>
@@ -294,7 +294,7 @@ function it() {
       </section>
       <aside class="oc-column">
         <div class="oc-card"><div class="oc-section">Compilation target</div><div class="oc-adapter-controls">
-          <label class="wide">Profile<select data-role="profile-select">${rt()}</select></label>
+          <label class="wide">Profile<select data-role="profile-select">${it()}</select></label>
           <label class="wide">Base prompt<textarea data-setting="base_prompt" rows="3"></textarea></label>
           <label>Width<input data-setting="target_width" type="number" min="64" max="4096" step="8"></label>
           <label>Height<input data-setting="target_height" type="number" min="64" max="4096" step="8"></label>
@@ -308,9 +308,9 @@ function it() {
     </main>
   </div>`;
 }
-function at(e = document) {
+function nt(e = document) {
   const t = e.createElement("div");
-  return t.innerHTML = it(), t.firstElementChild;
+  return t.innerHTML = at(), t.firstElementChild;
 }
 const f = [
   "base_prompt",
@@ -319,7 +319,7 @@ const f = [
   "target_height",
   "duration_seconds",
   "target_fps"
-], nt = /* @__PURE__ */ new Set([
+], st = /* @__PURE__ */ new Set([
   "target_width",
   "target_height",
   "duration_seconds",
@@ -334,32 +334,32 @@ function m(e) {
 function C(e, t, o) {
   if (!f.includes(t)) return !1;
   const r = E(e, t);
-  return r ? (r.value = nt.has(t) ? Number(o) : o, r.callback?.(r.value), !0) : !1;
+  return r ? (r.value = st.has(t) ? Number(o) : o, r.callback?.(r.value), !0) : !1;
 }
-const st = 250;
-function ct(e) {
+const ct = 250;
+function lt(e) {
   for (const t of e.widgets || [])
     t.computeSize = () => [0, -4], t.draw = () => {
     }, t.hidden = !0, t.options = { ...t.options || {}, hideInVueNodes: !0 };
 }
-class lt {
+class dt {
   constructor(t) {
-    this.node = t, this.root = at(), this.disposers = [], this.source = null, this.player = new V(
+    this.node = t, this.root = nt(), this.disposers = [], this.source = null, this.player = new B(
       this.root.querySelector('[data-role="proxy-player"]'),
       {
         onFrame: (o) => this.showFrame(o),
         onMetadata: ({ frameCount: o }) => this.setFrameCount(o)
       }
-    ), this.hasExecutedOnce = !1, this._liveUnavailableText = "", this.refreshController = new J(u, {
+    ), this.hasExecutedOnce = !1, this._liveUnavailableText = "", this.refreshController = new Q(u, {
       onSnapshot: (o) => this.liveSnapshotReceived(o),
       onError: (o) => this.liveRefreshFailed(o)
-    }), this.bindControls(), this.syncControlsFromWidgets(), this.loadProfileInfo(), this.watcher = new X(t, (o) => this.sourceChanged(o)), this.liveTimer = setInterval(() => this.liveTick(), st);
+    }), this.bindControls(), this.syncControlsFromWidgets(), this.loadProfileInfo(), this.watcher = new Z(t, (o) => this.sourceChanged(o)), this.liveTimer = setInterval(() => this.liveTick(), ct);
   }
   async loadProfileInfo() {
     const t = this.root.querySelector('[data-role="profile-catalogue"]');
     try {
-      const o = await Z(u);
-      tt(this.root, o);
+      const o = await tt(u);
+      et(this.root, o);
     } catch (o) {
       t && (t.textContent = "Monitor profile information unavailable."), console.warn("OmniCam: Monitor profile catalog unavailable", o);
     }
@@ -368,7 +368,7 @@ class lt {
     t && (t.addEventListener(o, r), this.disposers.push(() => t.removeEventListener(o, r)));
   }
   bindControls() {
-    this.listen(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle()), this.listen(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (t) => this.player.scrub(t.target.value)), this.listen(this.root.querySelector('[data-role="proxy-loop"]'), "change", (t) => this.player.setLoop(t.target.checked)), this.listen(this.root.querySelector('[data-role="proxy-mute"]'), "change", (t) => this.player.setMuted(t.target.checked)), this.listen(this.root.querySelector('[data-role="profile-select"]'), "change", (t) => {
+    this.listen(this.root, "wheel", P(this.root)), this.listen(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle()), this.listen(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (t) => this.player.scrub(t.target.value)), this.listen(this.root.querySelector('[data-role="proxy-loop"]'), "change", (t) => this.player.setLoop(t.target.checked)), this.listen(this.root.querySelector('[data-role="proxy-mute"]'), "change", (t) => this.player.setMuted(t.target.checked)), this.listen(this.root.querySelector('[data-role="profile-select"]'), "change", (t) => {
       C(this.node, "target_profile", t.target.value), this.settingsChanged();
     });
     for (const t of this.root.querySelectorAll("[data-setting]"))
@@ -420,7 +420,7 @@ class lt {
       this.showLiveUnavailable();
       return;
     }
-    const o = H(t, m(this.node));
+    const o = V(t, m(this.node));
     this.refreshController.schedule(o);
   }
   liveSnapshotReceived(t) {
@@ -442,7 +442,7 @@ class lt {
     o !== this._liveUnavailableText && (this._liveUnavailableText = o, this.root.querySelector('[data-role="profile-preflight"]').innerHTML = `<div class="oc-empty">${o}</div>`);
   }
   refreshPlayblastPreview() {
-    const t = this.root.querySelector('[data-role="proxy-upstream-preview"]'), o = this.root.querySelector(".oc-player-empty"), r = this.source?.playblastOrigin, i = K(u, r);
+    const t = this.root.querySelector('[data-role="proxy-upstream-preview"]'), o = this.root.querySelector(".oc-player-empty"), r = this.source?.playblastOrigin, i = G(u, r);
     if (this.updateReferenceSourceLabel(r, i), i) {
       t.hidden = !0, o.hidden = !0, this.player.setSource(i.url, {
         fps: i.fps,
@@ -450,7 +450,7 @@ class lt {
       });
       return;
     }
-    const a = P(r);
+    const a = L(r);
     if (!a) {
       t.hidden = !0, o.hidden = !1, this.player.setSource("");
       return;
@@ -460,15 +460,15 @@ class lt {
       t.hidden = !0, o.hidden = !0, this.player.setSource(c);
       return;
     }
-    this.player.setSource(""), L(a, t, 640).then((l) => {
+    this.player.setSource(""), I(a, t, 640).then((l) => {
       t.hidden = !l, o.hidden = l;
     });
   }
   updateReferenceSourceLabel(t, o) {
     const r = this.root.querySelector('[data-role="reference-source"]');
     if (!r) return;
-    const i = G(o, t);
-    r.textContent = i, r.hidden = !i, r.dataset.warn = Y(o, t);
+    const i = Y(o, t);
+    r.textContent = i, r.hidden = !i, r.dataset.warn = J(o, t);
   }
   setFrameCount(t) {
     const o = this.root.querySelector('[data-role="proxy-scrubber"]');
@@ -488,10 +488,10 @@ class lt {
     for (const t of this.disposers.splice(0)) t();
   }
 }
-function gt(e) {
+function bt(e) {
   if (e.__majoorOmniCamMonitor) return;
-  ct(e);
-  const t = new lt(e);
+  lt(e);
+  const t = new dt(e);
   e.__majoorOmniCamMonitor = t;
   const o = () => Math.max(620, t.root.scrollHeight || 0);
   e.addDOMWidget("majoor_omnicam_monitor", "omnicam", t.root, {
@@ -519,5 +519,5 @@ function gt(e) {
   };
 }
 export {
-  gt as attachMonitor
+  bt as attachMonitor
 };

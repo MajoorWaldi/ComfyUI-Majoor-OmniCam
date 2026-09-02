@@ -101,11 +101,16 @@ def encoding_check(tracks: list[SampledTrack], *, display_name: str) -> Check:
         )
     dropped = [issue for issue in issues if issue.kind == "hidden_at_start"]
     state = "BLOCKED" if dropped and encodable == 0 else "WARNING"
+    # Several layers can share a label (e.g. five "Subject Card Track" layers all
+    # projecting off-screen at frame 0) and would otherwise repeat the same
+    # sentence verbatim. Collapse identical text; the count still names how many
+    # layers are affected.
+    unique_messages = list(dict.fromkeys(issue.message for issue in issues))
     return Check(
         id="track_encoding",
         label=f"Encodable trajectories: {encodable} ({len(issues)} affected)",
         state=state,
-        message=f"{display_name}: " + " ".join(issue.message for issue in issues),
+        message=f"{display_name}: " + " ".join(unique_messages),
     )
 
 
