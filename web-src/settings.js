@@ -121,7 +121,7 @@ export function directorDefaults() {
     height: numericSetting(SETTING_HEIGHT, 720, 64, 4096, true),
     renderMode: String(readSetting(SETTING_RENDER_MODE, "omni_ref")),
     encoder: String(readSetting(SETTING_ENCODER, "auto")),
-    playblastResolution: choiceSetting(SETTING_PLAYBLAST_RESOLUTION, "viewport", ["viewport", "half", "output", "double"]),
+    playblastResolution: choiceSetting(SETTING_PLAYBLAST_RESOLUTION, "output", ["viewport", "half", "output", "double"]),
     playblastGrid: booleanSetting(SETTING_PLAYBLAST_GRID, false),
 
     pointDensity: choiceSetting(SETTING_POINT_DENSITY, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),

@@ -11,6 +11,7 @@ from omnicam.extractor.backends import (
     BackendUnavailableError,
     DpvoBackend,
     OpenCvSiftBackend,
+    PycolmapBackend,
     SolveError,
     backend_availability,
     coverage_ratio,
@@ -21,10 +22,14 @@ from omnicam.extractor.intrinsics import resolve_intrinsics
 from omnicam.extractor.types import VideoFrameSample
 
 
-def force(monkeypatch, *, dpvo: bool, opencv: bool):
+def force(monkeypatch, *, dpvo: bool, opencv: bool, pycolmap: bool = False):
     monkeypatch.setattr(
         DpvoBackend, "availability",
         classmethod(lambda cls: BackendAvailability(dpvo, "" if dpvo else "no DPVO here")),
+    )
+    monkeypatch.setattr(
+        PycolmapBackend, "availability",
+        classmethod(lambda cls: BackendAvailability(pycolmap, "" if pycolmap else "no pycolmap here")),
     )
     monkeypatch.setattr(
         OpenCvSiftBackend, "availability",
@@ -46,6 +51,11 @@ def test_auto_falls_back_to_opencv(monkeypatch):
     assert select_backend("auto").name == "opencv_sift"
 
 
+def test_auto_prefers_pycolmap_over_opencv_when_dpvo_missing(monkeypatch):
+    force(monkeypatch, dpvo=False, opencv=True, pycolmap=True)
+    assert select_backend("auto").name == "pycolmap"
+
+
 def test_requested_unavailable_dpvo_has_actionable_reason(monkeypatch):
     force(monkeypatch, dpvo=False, opencv=True)
     with pytest.raises(BackendUnavailableError) as error:
@@ -65,12 +75,13 @@ def test_requested_unavailable_opencv_points_at_the_install(monkeypatch):
     assert "opencv-python-headless" in str(error.value)
 
 
-def test_no_backend_reports_both_failures(monkeypatch):
-    force(monkeypatch, dpvo=False, opencv=False)
+def test_no_backend_reports_all_three_failures(monkeypatch):
+    force(monkeypatch, dpvo=False, opencv=False, pycolmap=False)
     with pytest.raises(BackendUnavailableError) as error:
         select_backend("auto")
     message = str(error.value)
     assert "DPVO: no DPVO here" in message
+    assert "pycolmap: no pycolmap here" in message
     assert "OpenCV/SIFT: no OpenCV here" in message
 
 

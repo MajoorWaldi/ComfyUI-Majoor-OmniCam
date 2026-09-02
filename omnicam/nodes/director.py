@@ -1,15 +1,8 @@
 from __future__ import annotations
 
-import json
-from typing import Any
-
 from ..comfy_compat import IO, UI
-from ..core.compiler import compile_editor_scene
-from ..core.editor_state import editor_state_to_track
+from ..core.director_compile import compile_director_motion_scene, parse_director_state
 from ..core.motion_scene import MotionScene
-from ..core.sequence import sequence_recording_path, targets_sequence
-from ..core.track import OmniCamTrack
-from ..core.upstream_track import resolve_director_camera_track
 from .base import OMNICAM_MOTION_SCENE, resolve_video
 from .media import as_image_batch, as_video, media_input
 
@@ -83,22 +76,8 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         # read at this node's own frame rate.
         image = as_image_batch(image, max_frames=32)
         video = as_video(video, fps=float(fps))
-        raw_state: dict[str, Any] = {}
-        try:
-            parsed = json.loads(state_json) if state_json else {}
-            raw_state = parsed if isinstance(parsed, dict) else {}
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"Invalid OmniCam state JSON: {exc}") from exc
-        # Queue widgets are authoritative. Merge them before compilation so the
-        # validator clamps keys against the exact duration that will execute.
-        authoritative_state = {
-            **raw_state,
-            "width": int(width),
-            "height": int(height),
-            "fps": int(fps),
-            "duration_frames": max(1, round(float(duration_seconds) * int(fps))),
-            "render_mode": str(render_mode),
-        }
+        raw_state = parse_director_state(state_json)
+
         upstream_track = None
         # Deliberately only the camera. The socket is named solved_scene rather
         # than motion_scene because that is all it imports: a full MotionScene
@@ -114,62 +93,19 @@ class MajoorOmniCamDirector(IO.ComfyNode):
             upstream_track = upstream_camera.track.to_dict()
 
         # A connected Extractor is authoritative once per solve, never on every
-        # queue: resolve_director_camera_track() compares fingerprints so local
+        # queue: compile_director_motion_scene() compares fingerprints so local
         # edits survive a cable that is still plugged in.
-        effective_track = resolve_director_camera_track(
-            local_track=editor_state_to_track(authoritative_state, validate=True),
+        validated_scene, active_recording_path = compile_director_motion_scene(
+            raw_state,
+            width=width,
+            height=height,
+            fps=fps,
+            duration_seconds=duration_seconds,
+            render_mode=render_mode,
+            card_asset=card_asset,
+            recording_path=recording_path,
             upstream_track=upstream_track,
-            width=int(width),
-            height=int(height),
-            render_mode=str(render_mode),
-        )
-        effective_track.update(
-            {
-                "fps": int(fps),
-                "duration_frames": authoritative_state["duration_frames"],
-                "width": int(width),
-                "height": int(height),
-                "render_mode": str(render_mode),
-            }
-        )
-        track = OmniCamTrack.from_dict(effective_track)
-        scene = compile_editor_scene(authoritative_state)
-        selected_camera_id = str(track.metadata.get("camera_id") or scene.playblast_camera_id)
-        selected_camera = next(
-            (camera for camera in scene.cameras if camera.id == selected_camera_id),
-            None,
-        )
-        if selected_camera is None:
-            selected_camera = next(
-                camera for camera in scene.cameras if camera.id == scene.playblast_camera_id
-            )
-        selected_camera.track = track
-
-        edit_is_target = targets_sequence(authoritative_state)
-        if edit_is_target and sequence_recording_path(authoritative_state):
-            active_recording_path = sequence_recording_path(authoritative_state)
-        else:
-            raw_cameras = raw_state.get("cameras")
-            raw_selected = next(
-                (
-                    camera
-                    for camera in raw_cameras
-                    if isinstance(camera, dict) and camera.get("id") == scene.playblast_camera_id
-                ),
-                None,
-            ) if isinstance(raw_cameras, list) else None
-            active_recording_path = str(
-                (raw_selected or {}).get("recording_path") or recording_path
-            )
-
-        scene.metadata.update(
-            {
-                "card_asset": card_asset,
-                "recording_path": active_recording_path,
-                "generator": "ComfyUI-Majoor-OmniCam",
-            }
         )
         playblast_video = resolve_video(active_recording_path) or video
         ui = UI.PreviewImage(image, cls=cls) if image is not None else None
-        validated_scene = MotionScene.from_dict(scene.to_dict())
         return IO.NodeOutput(validated_scene.to_dict(), playblast_video, audio, ui=ui)

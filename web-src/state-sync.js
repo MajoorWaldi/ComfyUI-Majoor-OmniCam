@@ -114,7 +114,7 @@ export function syncFromWidgets(ui, persist = true) {
   for (const el of ui.root.querySelectorAll('[data-role="mode"]')) el.value = ui.state.render_mode;
   for (const el of ui.root.querySelectorAll('[data-role="guides"]')) el.checked = ui.state.guides !== false;
   for (const el of ui.root.querySelectorAll('[data-role="playblast-grid"]')) el.checked = Boolean(ui.state.playblast_grid);
-  for (const el of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) el.value = ui.state.playblast_resolution || "viewport";
+  for (const el of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) el.value = ui.state.playblast_resolution || "output";
   for (const el of ui.root.querySelectorAll('[data-role="show-wireframe"]')) el.checked = Boolean(ui.state.show_wireframe);
   for (const el of ui.root.querySelectorAll('[data-role="show-vertices"]')) el.checked = Boolean(ui.state.show_vertices);
   for (const el of ui.root.querySelectorAll('[data-role="show-grid"]')) el.checked = ui.state.show_grid !== false;

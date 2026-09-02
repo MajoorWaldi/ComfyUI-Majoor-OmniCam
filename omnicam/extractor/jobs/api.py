@@ -12,6 +12,7 @@ import json
 import re
 from typing import Any
 
+from ..backends import METHODS
 from ..preview_frame import PreviewFrame, PreviewFrameError, decode_preview_frame
 from ..refine.types import RefinementSettings
 from ..source_resolver import (
@@ -29,7 +30,6 @@ from .types import COMPLETED
 from .worker import job_result
 
 MAX_REQUEST_BYTES = 256 * 1024
-METHODS = ("auto", "dpvo", "opencv_sift")
 LENS_MODES = ("auto", "fov", "focal_mm")
 SOURCE_KINDS = ("annotated_input", "managed")
 _CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")

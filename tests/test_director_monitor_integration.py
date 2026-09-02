@@ -111,7 +111,7 @@ def _director_outputs():
 
 
 @pytest.mark.parametrize("profile_id", PROFILE_REGISTRY.ids)
-def test_director_to_monitor_compiles_every_registered_profile(profile_id):
+def test_director_to_monitor_compiles_every_registered_profile(profile_id, all_targets_installed):
     director_outputs = _director_outputs()
     assert len(director_outputs) == 3
     motion_scene, playblast_video, _audio = director_outputs
@@ -141,6 +141,7 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id):
     # WanVideoATITracks.tracks), not the native TRACKS tensor socket, which
     # only Wan Move consumes.
     payload_index = {
+        "external_reference_video": 1,
         "wan_camera_native": 3,
         "wan_move_native": 4,
         "wan_track_native": 5,
@@ -156,7 +157,7 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id):
         assert json.loads(payload), "the tracks JSON socket must carry a trajectory"
 
 
-def test_director_monitor_motion_scene_round_trip_preserves_selected_camera():
+def test_director_monitor_motion_scene_round_trip_preserves_selected_camera(all_targets_installed):
     motion_scene = _director_outputs()[0]
     reloaded = json.loads(json.dumps(motion_scene))
 

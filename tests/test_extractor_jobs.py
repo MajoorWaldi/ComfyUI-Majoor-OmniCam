@@ -5,7 +5,11 @@ import threading
 import pytest
 
 from omnicam.extractor.jobs import types as job_types
-from omnicam.extractor.jobs.control import SolveCancelled, SolveControl
+from omnicam.extractor.jobs.control import (
+    GpuContentionError,
+    SolveCancelled,
+    SolveControl,
+)
 from omnicam.extractor.jobs.manager import (
     JobAccessDeniedError,
     JobNotFoundError,
@@ -312,3 +316,108 @@ def test_every_state_name_is_unique():
 def test_public_job_state_machine_has_no_pause_states():
     assert "PAUSING" not in job_types.STATES
     assert "PAUSED" not in job_types.STATES
+
+
+class _Clock:
+    """A hand-cranked monotonic clock, so contention polling is not a sleep."""
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def _gpu_control(busy, clock=None, poll_seconds=0.5):
+    clock = clock or _Clock()
+    control = SolveControl(
+        threading.Event(), execution_probe=busy, clock=clock, poll_seconds=poll_seconds,
+    )
+    control.watch_gpu_contention()
+    return control, clock
+
+
+def test_an_unarmed_solve_ignores_comfyui_execution_entirely():
+    """OpenCV never touches the card, so a queued workflow is none of its business."""
+    control = SolveControl(threading.Event(), execution_probe=lambda: True, clock=_Clock())
+
+    control.checkpoint()  # not armed: no exception, no probe result consulted
+
+
+def test_a_gpu_solve_gives_the_card_back_when_a_workflow_starts():
+    """The start gate reads the queue once; this is what covers the window after it.
+
+    OmniCam released ComfyUI's models to hand the card to the solver child, so a
+    prompt queued a second later reloads a checkpoint straight into VRAM the
+    solver is using. Both processes lose. The solve is the one that steps aside.
+    """
+    busy = False
+    control, clock = _gpu_control(lambda: busy)
+
+    clock.advance(0.6)
+    control.checkpoint()  # queue still idle: the solve keeps the card
+
+    busy = True
+    clock.advance(0.6)
+    with pytest.raises(GpuContentionError, match="a ComfyUI workflow started using the GPU"):
+        control.checkpoint()
+
+
+def test_the_queue_is_not_re_read_on_every_checkpoint():
+    """The checkpoint fires ~20x a second and each probe takes the queue's lock."""
+    probes = []
+    control, clock = _gpu_control(lambda: probes.append(clock.now) or False)
+
+    # 0.6s of checkpoints at the runner's real 20Hz-plus rate, over one interval.
+    for _ in range(60):
+        clock.advance(0.01)
+        control.checkpoint()
+
+    assert len(probes) == 1
+
+
+def test_arming_does_not_re_read_the_queue_the_manager_just_read():
+    control, _clock = _gpu_control(lambda: True)
+
+    control.checkpoint()  # inside the poll interval: the idle read still stands
+
+
+def test_a_broken_execution_probe_never_stops_a_healthy_solve():
+    def probe():
+        raise RuntimeError("ComfyUI's queue moved again")
+
+    control, clock = _gpu_control(probe)
+    clock.advance(0.6)
+
+    control.checkpoint()
+
+
+def test_a_user_stop_outranks_gpu_contention():
+    """Both are true at once when someone hits Stop as a workflow starts."""
+    stop = threading.Event()
+    control = SolveControl(stop, execution_probe=lambda: True, clock=_Clock())
+    control.watch_gpu_contention()
+    stop.set()
+
+    with pytest.raises(SolveCancelled):
+        control.checkpoint()
+
+
+def test_the_manager_exposes_its_one_execution_probe_to_running_solves():
+    """Start gate and running solve must not disagree about what busy means."""
+    busy = True
+    mgr = manager(execution_probe=lambda: busy)
+
+    assert mgr.execution_busy() is True
+    busy = False
+    assert mgr.execution_busy() is False
+
+
+def test_a_manager_execution_probe_that_raises_reads_as_idle():
+    def probe():
+        raise RuntimeError("no PromptServer yet")
+
+    assert manager(execution_probe=probe).execution_busy() is False

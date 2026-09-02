@@ -48,6 +48,25 @@ def capability_check(profile_id: str, capabilities: dict[str, Any] | None) -> Ch
     if entry is None:
         return None
 
+    # A profile whose contract names no downstream node -- see
+    # ``external_reference_video`` -- always evaluates to "verified" with
+    # nothing detected, because there is nothing to be missing or
+    # incompatible with. Saying so as "user managed" is the honest read of
+    # that; "verified: " with an empty list after the colon is not.
+    # Checked as "key present and empty", not just falsy: `detect_capabilities`
+    # always sets this key, but a hand-built test payload that omits it is
+    # asserting about `state` directly and must fall through to that below.
+    if "requirements" in entry and not entry["requirements"]:
+        return Check(
+            id="downstream_contract",
+            label="Downstream contract: external / user managed",
+            state="PASS",
+            message=(
+                "This profile applies no model-specific restrictions. Compatibility "
+                "with the model you connect it to is your responsibility."
+            ),
+        )
+
     state = str(entry.get("state", ""))
     detected = [str(name) for name in entry.get("detected_nodes") or []]
     check_state = _STATE_TO_CHECK.get(state, "WARNING")

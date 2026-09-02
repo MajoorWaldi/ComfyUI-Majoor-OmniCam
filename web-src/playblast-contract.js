@@ -1,4 +1,5 @@
 import { SEQUENCE_TARGET, sequenceCuts } from "./director/sequence.js";
+import { motionFingerprint } from "./shared/motion-fingerprint.js";
 
 export function attachPlayblastMetrics(blob, metrics) {
   Object.defineProperty(blob, "omnicamMetrics", { value: Object.freeze({ ...metrics }), enumerable: true });
@@ -27,6 +28,11 @@ export function playblastManifest(ui, blob) {
     clean_capture: true,
     drift_ms: Number(metrics.driftMs) || 0,
     cuts,
+    // What Monitor compares its own live recompute against to warn when the
+    // edit has moved on since this file was recorded. Computed from `ui.state`
+    // as it stands right now -- recording holds the panel locked, so this is
+    // the state that produced the pixels above.
+    motion_scene_fingerprint: motionFingerprint(ui.state),
   };
 }
 

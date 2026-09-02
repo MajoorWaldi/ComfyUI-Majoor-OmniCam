@@ -48,7 +48,8 @@ MIN_PARALLAX_PIXELS = 0.75
 
 INSTALL_HINT = (
     "Install OpenCV in the ComfyUI Python environment (for example "
-    "`opencv-python-headless`) or use method=dpvo. OmniCam did not modify your "
+    "`opencv-python-headless`), or use method=dpvo or method=pycolmap "
+    "(pip install pycolmap, no compiler) instead. OmniCam did not modify your "
     "Python environment."
 )
 
@@ -97,6 +98,7 @@ def rotation_matrix_to_quaternion(matrix) -> list[float]:
 class OpenCvSiftBackend:
     name = "opencv_sift"
     basis = "opencv"
+    gpu_exclusive = False
 
     @classmethod
     def availability(cls) -> BackendAvailability:

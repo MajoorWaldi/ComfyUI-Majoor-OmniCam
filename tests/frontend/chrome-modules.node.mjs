@@ -33,7 +33,7 @@ test("director defaults fall back cleanly when the settings store is unavailable
   registerOmniCamLocales({});
   assert.deepEqual(directorDefaults(), {
     fps: 24, durationSeconds: 5, width: 1280, height: 720,
-    renderMode: "omni_ref", encoder: "auto", playblastResolution: "viewport", playblastGrid: false,
+    renderMode: "omni_ref", encoder: "auto", playblastResolution: "output", playblastGrid: false,
     pointDensity: "balanced", pointSpread: "all_views", pointColor: "#cbd5e1", cardFit: "contain",
     backgroundColor: "#121212",
     showGrid: true, showRadar: false, showCameraPaths: true, showCameraGizmos: true,

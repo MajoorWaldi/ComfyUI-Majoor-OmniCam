@@ -91,7 +91,20 @@ def test_monitor_v3_schema_has_stable_typed_contract():
     ]
 
 
-def test_inactive_typed_outputs_are_none_not_fake_tensors():
+def test_a_new_monitor_defaults_to_the_permissive_generic_profile():
+    """A fresh Director -> Monitor graph should never fail to queue on its own.
+
+    Defaulting to a strict model profile means the very first thing a new user
+    sees, before they have chosen a destination model, is a preflight that can
+    read BLOCKED. The permissive passthrough never can.
+    """
+    target_profile = next(
+        item for item in MajoorOmniCamMonitor.define_schema().inputs if item.id == "target_profile"
+    )
+    assert target_profile.default == "external_reference_video"
+
+
+def test_inactive_typed_outputs_are_none_not_fake_tensors(all_targets_installed):
     output = MajoorOmniCamMonitor.execute(
         motion_scene=_scene().to_dict(),
         playblast_video=None,

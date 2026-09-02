@@ -163,7 +163,10 @@ def test_expected_inputs_match_the_installed_node_sockets():
     assert ADAPTER_INFO["ltx25_motion_track"]["expected_inputs"] == ["tracks"]
     assert ADAPTER_INFO["h3_api"]["expected_inputs"] == ["reference_video"]
     for adapter, info in ADAPTER_INFO.items():
-        assert info["required_node_classes"], f"{adapter} must name at least one node class"
+        # external_reference_video names no node at all -- that omission is the
+        # point of it, not an oversight in every other entry.
+        if info["requirements"]:
+            assert info["required_node_classes"], f"{adapter} must name at least one node class"
         assert info["docs"].startswith("https://"), f"{adapter} needs a docs link"
 
 
@@ -173,9 +176,11 @@ def test_adapter_contract_matrix_pins_upstream_and_input_fingerprints():
 
     assert set(ADAPTER_INFO) == {
         "wan_camera_native", "wan_move_native", "wan_track_native", "h3_api",
-        "h3_native", "ltx25_motion_track", "wanvideo_ati",
+        "h3_native", "ltx25_motion_track", "wanvideo_ati", "external_reference_video",
     }
     for adapter, info in ADAPTER_INFO.items():
+        if not info["requirements"]:
+            continue  # external_reference_video: no downstream node to pin
         upstream = info["upstream"]
         assert upstream["repository"].startswith("https://github.com/"), adapter
         assert len(upstream["tested_commit"]) == 40, adapter
@@ -225,7 +230,7 @@ def test_socket_discovery_survives_hostile_shapes():
 
 def test_capabilities_report_extractor_backend_availability():
     report = detect_capabilities(set())["extractor"]
-    assert set(report) == {"dpvo", "opencv_sift"}
+    assert set(report) == {"dpvo", "pycolmap", "opencv_sift"}
     for entry in report.values():
         assert isinstance(entry["available"], bool)
         if not entry["available"]:
@@ -233,9 +238,14 @@ def test_capabilities_report_extractor_backend_availability():
 
 
 def test_a_missing_tracker_is_a_warning_not_an_error(monkeypatch):
-    from omnicam.extractor.backends import BackendAvailability, DpvoBackend, OpenCvSiftBackend
+    from omnicam.extractor.backends import (
+        BackendAvailability,
+        DpvoBackend,
+        OpenCvSiftBackend,
+        PycolmapBackend,
+    )
 
-    for backend in (DpvoBackend, OpenCvSiftBackend):
+    for backend in (DpvoBackend, PycolmapBackend, OpenCvSiftBackend):
         monkeypatch.setattr(
             backend, "availability", classmethod(lambda cls: BackendAvailability(False, "not here"))
         )

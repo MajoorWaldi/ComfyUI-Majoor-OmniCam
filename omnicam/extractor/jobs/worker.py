@@ -12,13 +12,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from ..backends import BACKENDS_BY_NAME
 from ..pipeline import refine_raw_solve, solve_raw_poses
 from ..refine.spikes import detect_pose_spikes
 from ..refine.types import RefinementSettings
 from ..source_resolver import describe_video_file, resolve_interactive_video_source
 from ..track_builder import build_report
 from ..video import FileVideoSource
-from .control import SolveCancelled, SolveControl
+from .control import GpuContentionError, SolveCancelled, SolveControl
 from .types import (
     COMPLETED,
     FAILED,
@@ -37,13 +38,22 @@ logger = logging.getLogger(__name__)
 class _JobObserver:
     """Bridges backend callbacks into job state and throttled events."""
 
-    def __init__(self, job, publisher, manager=None) -> None:
+    def __init__(self, job, publisher, manager=None, control=None) -> None:
         self._job = job
         self._publisher = publisher
         self._manager = manager
+        self._control = control
 
     def backend(self, name: str) -> None:
         self._job.backend_name = str(name)
+        # ``auto`` only reveals which solver it got here. Arming on the resolved
+        # backend rather than the requested method keeps an OpenCV fallback --
+        # which never touches the card -- from abandoning itself the moment
+        # someone queues an unrelated workflow.
+        if self._control is not None and getattr(
+            BACKENDS_BY_NAME.get(str(name)), "gpu_exclusive", False
+        ):
+            self._control.watch_gpu_contention()
         self._publisher.progress()
 
     def pose(self, pose) -> None:
@@ -74,7 +84,7 @@ class _JobObserver:
 
 def run_solve_job(job, manager, publisher) -> None:
     """Solve, refine and complete one job. Never raises to the caller."""
-    control = SolveControl(job.stop_requested)
+    control = SolveControl(job.stop_requested, execution_probe=manager.execution_busy)
 
     def stage(target: str) -> None:
         """Enter the next stage, or give up if a stop landed first.
@@ -105,7 +115,7 @@ def run_solve_job(job, manager, publisher) -> None:
             fps=job.source_info.get("fps", 0.0),
             frame_count=job.source_frame_count,
         )
-        observer = _JobObserver(job, publisher, manager)
+        observer = _JobObserver(job, publisher, manager, control)
         raw = solve_raw_poses(
             video=video,
             method=str(job.settings.get("method", "auto")),
@@ -149,6 +159,14 @@ def run_solve_job(job, manager, publisher) -> None:
     except SolveCancelled:
         manager.transition(job, STOPPED, force=True)
         publisher.state_changed(STOPPED)
+    except GpuContentionError as exc:
+        # Not a crash and not the user's Stop: OmniCam gave the card back. It
+        # travels the FAILED path because that is the only state whose message
+        # the panel puts in front of the user, and the sentence says what to do.
+        logger.info("OmniCam interactive solve %s yielded the GPU to ComfyUI", job.job_id)
+        job.error = str(exc)
+        manager.transition(job, FAILED, force=True)
+        publisher.failed(str(exc))
     except JobStateError:
         # The only way to lose a transition race is a stop landing mid-stage,
         # and the honest report for that is STOPPED.

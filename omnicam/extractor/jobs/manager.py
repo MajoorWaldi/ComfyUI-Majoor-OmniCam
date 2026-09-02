@@ -76,6 +76,18 @@ class SolveJobManager:
         self._execution_probe = execution_probe
         self._exclusive_job_id: str | None = None
 
+    def execution_busy(self) -> bool:
+        """Whether ComfyUI is executing a prompt right now.
+
+        Public because a running solve has to keep asking, not just the ``start``
+        gate: routing it through the manager keeps the one injected probe as the
+        single source of truth for both.
+        """
+        try:
+            return bool(self._execution_probe())
+        except Exception:  # noqa: BLE001 - the probe is best effort on both call sites
+            return False
+
     # -- lookup ------------------------------------------------------------
 
     def get(self, job_id: str, *, client_id: str | None = None) -> InteractiveSolveJob:

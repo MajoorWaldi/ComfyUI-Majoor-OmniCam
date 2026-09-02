@@ -51,7 +51,7 @@
             document.querySelector("#host").appendChild(element);
             return { element, options: {} };
           },
-          setSize() {}, connect() { return true; },
+          setSize(next) { this.size = next; }, connect() { return true; },
         };
 
         extension.beforeConfigureGraph?.({ nodes: [] });
@@ -80,6 +80,10 @@
           height: heightWidget.value,
           fps: fpsWidget.value,
           duration: durationWidget.value,
+          // The node started at [800, 800] -- already above Director's
+          // minimum on both axes -- to prove the loaded-workflow path never
+          // overwrites a real saved size with the fresh-node default.
+          size: [...node.size],
         };
         document.querySelector("#status").textContent = "ready";
       } catch (error) {

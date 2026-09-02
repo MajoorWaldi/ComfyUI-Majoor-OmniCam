@@ -34,13 +34,15 @@ is what travels between the nodes.
 
 ### OmniCam Director
 
-![OmniCam Director](docs/assets/director-outliner.png)
+![OmniCam Director](docs/assets/director-panel.png)
 
 A small shot-layout tool in a live 3D viewport. Animate cameras and scene
 references, draw motion layers over the frame, cut between cameras, and record a
 neutral proxy playblast. This is where a MotionScene is authored.
 
 ### OmniCam Extractor
+
+![OmniCam Extractor](docs/assets/extractor-panel.png)
 
 Recover a relative 6DoF camera track from one continuous reference shot and hand
 it on as a solved MotionScene. Connect it to the Director's `solved_scene` input
@@ -58,14 +60,16 @@ The model compiler. Pick a target profile; Monitor resolves the timeline,
 compiles the MotionScene into that model's representation, and runs a preflight
 that reports what will and will not survive the translation.
 
-Preflight is binding, not decorative: a downstream node that is missing or whose
-socket contract has changed blocks the run rather than producing a payload with
-nowhere to go.
+Preflight is binding, not decorative: for every named model profile, a downstream
+node that is missing or whose socket contract has changed blocks the run rather
+than producing a payload with nowhere to go. `external_reference_video` is the
+one exception, by design -- see below.
 
 ## Profiles
 
 | Profile | Semantic | Monitor output | Connect to |
 |---|---|---|---|
+| `external_reference_video` | `reference_video` | `reference_video` + `final_prompt` | any destination model's own reference-video input |
 | `wan_camera_native` | `camera_embedding` | `camera_embedding` | `WanCameraImageToVideo.camera_conditions` |
 | `wan_move_native` | `screen_tracks` | `native_tracks` | `WanMoveTrackToVideo.tracks` |
 | `wan_track_native` | `screen_tracks` | `tracks_json` | `WanTrackToVideo.tracks` |
@@ -74,7 +78,14 @@ nowhere to go.
 | `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos` |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
 
-Switching profile inside a semantic is a widget change, not a rewiring.
+`external_reference_video` is the Monitor default and the odd one out: it names
+no upstream node, imposes no frame grid or fps conversion, and never blocks on
+a missing or unrecognized downstream. Use it for a model OmniCam has no named
+profile for. Every other profile is strict on purpose -- it encodes one real
+model's contract, and a payload that contract cannot satisfy is a bug worth
+stopping the queue for.
+
+Switching profile never changes the MotionScene. It does change which Monitor output carries the result, so connect the output this table lists for the profile you selected.
 
 ## Start here
 

@@ -17,12 +17,23 @@ def _node_with_inputs(*names: str):
 
 def test_contract_matrix_has_pinned_upstream_and_input_fingerprint():
     for adapter, contract in ADAPTER_INFO.items():
+        # A profile with no requirements names no downstream node -- there is
+        # nothing to pin a commit against, and pretending otherwise with a
+        # fabricated hash would be the dishonest fixture, not the honest one.
+        if not contract["requirements"]:
+            continue
         upstream = contract["upstream"]
         assert upstream["repository"].startswith("https://github.com/"), adapter
         assert re.fullmatch(r"[0-9a-f]{7,40}", upstream["tested_commit"]), adapter
         assert contract["input_fingerprint"] == input_fingerprint(
             contract["expected_inputs"], contract["expected_widgets"]
         )
+
+
+def test_a_requirement_free_contract_is_the_deliberate_exception_not_a_typo():
+    """Only the profile that genuinely has no downstream node skips the pin."""
+    unpinned = {adapter for adapter, contract in ADAPTER_INFO.items() if not contract["requirements"]}
+    assert unpinned == {"external_reference_video"}
 
 
 def test_contract_matrix_verifies_each_adapter_input_surface():

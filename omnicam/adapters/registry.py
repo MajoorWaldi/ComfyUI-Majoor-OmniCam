@@ -146,6 +146,27 @@ ADAPTER_INFO = {
         motion_limits={"length": "8n+1"},
         connection_recipe="Connect tracks to LTXVDrawTracks, then its IMAGE into LTX Add Video IC-LoRA Guide.",
     ),
+    # No upstream pin: this profile names no specific downstream node, so
+    # there is nothing to detect and nothing to verify a socket contract
+    # against. `requirements=[]` is what tells `detect_capabilities` that --
+    # an adapter with no requirements can never be "missing" or
+    # "incompatible", so it reports "verified" unconditionally, and
+    # `capability_check` recognises the empty list and reports "user managed"
+    # rather than a hollow "verified: " with nothing detected.
+    "external_reference_video": _contract(
+        display_name="External / Generic Reference Video",
+        target="any downstream node's own reference-video input",
+        node_classes=[],
+        inputs=[],
+        repository="n/a",
+        tested_ref="n/a",
+        tested_commit="n/a",
+        docs="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/blob/main/docs/USER_GUIDE.md",
+        connection_recipe=(
+            "Connect reference_video to whatever the destination model expects. "
+            "OmniCam applies no model-specific contract here."
+        ),
+    ),
     "wanvideo_ati": _contract(
         display_name="Wan 2.1 ATI - WanVideoWrapper",
         target="WanVideoATITracks tracks STRING",

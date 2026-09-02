@@ -41,7 +41,7 @@ export async function uploadDirectorPlayblast(ui, blob) {
 // width x height so the proxy resolution is predictable regardless of layout.
 export function playblastDimensions(ui) {
   const current = { width: ui.canvas.width, height: ui.canvas.height };
-  const mode = ui.state.playblast_resolution || "viewport";
+  const mode = ui.state.playblast_resolution || "output";
   if (mode === "viewport") return current;
   const factor = mode === "half" ? 0.5 : mode === "double" ? 2 : 1;
   const outW = Math.max(16, Math.round(Number(ui.state.width) || current.width));

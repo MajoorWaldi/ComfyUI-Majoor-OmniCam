@@ -80,6 +80,7 @@ files = [
   "omnicam/core/camera_math.py",
   "omnicam/core/camera_pose.py",
   "omnicam/core/compiler.py",
+  "omnicam/core/director_compile.py",
   "omnicam/core/upstream_track.py",
   "omnicam/core/editor_state.py",
   "omnicam/core/migrations.py",

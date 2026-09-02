@@ -227,6 +227,10 @@ def writable_frame_copy(frames, index: int, height: int, width: int):
 def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
     """Import and execute DPVO inside the disposable CUDA process."""
     try:
+        # Before ``import torch``: Torch reads this when it builds its CUDA
+        # allocator and never again.
+        clear_inherited_allocator_tuning()
+
         import numpy as np
         import torch
         from dpvo.config import cfg
@@ -239,53 +243,60 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
         width = int(frames.shape[2])
         height -= height % RESOLUTION_MULTIPLE
         width -= width % RESOLUTION_MULTIPLE
-        config = cfg.clone()
-        slam = DPVO(config, request.checkpoint_path, ht=height, wd=width, viz=False)
-        intrinsics = torch.as_tensor(
-            [request.intrinsics.fx, request.intrinsics.fy,
-             request.intrinsics.cx, request.intrinsics.cy],
-            dtype=torch.float32,
-        )
-        if torch.cuda.is_available():
-            intrinsics = intrinsics.cuda()
-        total = len(frames)
-        for index in range(total):
-            connection.send({
-                "kind": "ready", "index": index,
-                "source_frame": request.source_frames[index],
-            })
-            command = connection.recv()
-            if command.get("kind") != "continue":
-                connection.send({"kind": "stopped"})
-                return
-            image = torch.from_numpy(writable_frame_copy(frames, index, height, width)).permute(2, 0, 1)
+        # Upstream runs the whole solve under ``@torch.no_grad()``
+        # (DPVO/demo.py); the DPVO class itself never disables grad. Tracking
+        # keeps ``pg.net`` live across frames, so with grad enabled every frame
+        # chains onto the previous one's graph and the retained activations grow
+        # without bound -- 0.41 GiB becomes 27 GiB over 48 frames, and
+        # ``terminate()``'s twelve global BA iterations then OOM on a 24 GiB card.
+        with torch.no_grad():
+            config = cfg.clone()
+            slam = DPVO(config, request.checkpoint_path, ht=height, wd=width, viz=False)
+            intrinsics = torch.as_tensor(
+                [request.intrinsics.fx, request.intrinsics.fy,
+                 request.intrinsics.cx, request.intrinsics.cy],
+                dtype=torch.float32,
+            )
             if torch.cuda.is_available():
-                image = image.cuda()
-            slam(index, image, intrinsics)
+                intrinsics = intrinsics.cuda()
+            total = len(frames)
+            for index in range(total):
+                connection.send({
+                    "kind": "ready", "index": index,
+                    "source_frame": request.source_frames[index],
+                })
+                command = connection.recv()
+                if command.get("kind") != "continue":
+                    connection.send({"kind": "stopped"})
+                    return
+                image = torch.from_numpy(writable_frame_copy(frames, index, height, width)).permute(2, 0, 1)
+                if torch.cuda.is_available():
+                    image = image.cuda()
+                slam(index, image, intrinsics)
+                with contextlib.suppress(Exception):
+                    points = extract_active_patch_features(
+                        slam, width // DPVO_FEATURE_RESOLUTION, height // DPVO_FEATURE_RESOLUTION,
+                    )
+                    if points:
+                        connection.send({
+                            "kind": "features", "source_frame": request.source_frames[index], "points": points,
+                        })
+                connection.send({
+                    "kind": "progress", "done": index + 1, "total": total,
+                    "source_frame": request.source_frames[index],
+                })
+            connection.send({"kind": "finalizing", "total": total})
+            poses, timestamps = slam.terminate()
+            result = {
+                "kind": "result",
+                "poses": np.asarray(poses).tolist(),
+                "timestamps": np.asarray(timestamps).tolist(),
+            }
             with contextlib.suppress(Exception):
-                points = extract_active_patch_features(
-                    slam, width // DPVO_FEATURE_RESOLUTION, height // DPVO_FEATURE_RESOLUTION,
-                )
-                if points:
-                    connection.send({
-                        "kind": "features", "source_frame": request.source_frames[index], "points": points,
-                    })
-            connection.send({
-                "kind": "progress", "done": index + 1, "total": total,
-                "source_frame": request.source_frames[index],
-            })
-        connection.send({"kind": "finalizing", "total": total})
-        poses, timestamps = slam.terminate()
-        result = {
-            "kind": "result",
-            "poses": np.asarray(poses).tolist(),
-            "timestamps": np.asarray(timestamps).tolist(),
-        }
-        with contextlib.suppress(Exception):
-            landmarks = extract_landmarks_3d(slam)
-            if landmarks:
-                result["landmarks_3d"] = landmarks
-        connection.send(result)
+                landmarks = extract_landmarks_3d(slam)
+                if landmarks:
+                    result["landmarks_3d"] = landmarks
+            connection.send(result)
     except BaseException as exc:  # noqa: BLE001 - failure must cross the process boundary
         message = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         with contextlib.suppress(Exception):
@@ -354,7 +365,31 @@ def child_sys_path(entries: Sequence[str]) -> list[str]:
 
 
 #: Allocator tuning the parent sets for itself and the solver must not inherit.
+#:
+#: ComfyUI puts Torch on the cudaMallocAsync backend process-wide
+#: (cuda_malloc.py). That is a choice made for diffusion models; DPVO is a
+#: different workload whose CUDA extensions allocate outside Torch's allocator,
+#: and it is developed against the native one. Inheriting the tuning gains DPVO
+#: nothing and has been observed to fail allocations with the card almost empty.
+#:
+#: The child drops these itself, in :func:`run_dpvo_child`, rather than the
+#: parent unsetting and restoring them around the spawn. ComfyUI is a threaded
+#: server: for as long as the parent's own environment is missing them, any
+#: other thread that imports Torch or reads the setting sees the wrong answer.
+#: The child owns its environment outright and can simply start without them.
 _ALLOCATOR_ENV_VARS = ("PYTORCH_CUDA_ALLOC_CONF", "PYTORCH_ALLOC_CONF")
+
+
+def clear_inherited_allocator_tuning(environ=None) -> dict[str, str]:
+    """Drop the parent's allocator tuning from *this* process's environment.
+
+    Called at the top of the solver child, before anything imports Torch --
+    Torch reads these once, when its CUDA allocator is first created, so
+    clearing them later would have no effect at all.
+    """
+    target = os.environ if environ is None else environ
+    return {name: target.pop(name) for name in _ALLOCATOR_ENV_VARS if name in target}
+
 
 @contextlib.contextmanager
 def _isolated_child_bootstrap():
@@ -370,17 +405,9 @@ def _isolated_child_bootstrap():
     real_path = sys.path
     sys.modules["__main__"] = types.ModuleType("__main__")
     sys.path = child_sys_path(real_path)
-    # The child inherits os.environ, and ComfyUI puts Torch on the
-    # cudaMallocAsync backend process-wide (cuda_malloc.py). That is a choice
-    # made for diffusion models; DPVO is a different workload whose CUDA
-    # extensions allocate outside Torch's allocator, and it is developed
-    # against the native one. Inheriting the tuning gains DPVO nothing and has
-    # been observed to fail allocations with the card almost empty.
-    restore_env = {name: os.environ.pop(name) for name in _ALLOCATOR_ENV_VARS if name in os.environ}
     try:
         yield
     finally:
-        os.environ.update(restore_env)
         sys.path = real_path
         if real_main is not None:
             sys.modules["__main__"] = real_main

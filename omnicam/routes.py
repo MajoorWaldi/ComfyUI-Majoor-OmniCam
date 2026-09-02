@@ -44,6 +44,10 @@ MIN_FREE_BYTES = _env_limit("OMNICAM_MIN_FREE_BYTES", 512 * 1024 * 1024)
 MAX_IMAGE_PIXELS = _env_limit("OMNICAM_MAX_IMAGE_PIXELS", 80_000_000)
 MAX_IMAGE_FRAMES = _env_limit("OMNICAM_MAX_IMAGE_FRAMES", 2_000)
 MAX_VIDEO_PIXELS = _env_limit("OMNICAM_MAX_VIDEO_PIXELS", 16_777_216)
+#: A Director's state_json can run large on a long multi-camera edit; this is
+#: an HTTP body limit, well above MAX_STATE_JSON_CHARS in monitor_live.py,
+#: which is the one that actually bounds what gets parsed.
+MAX_LIVE_PREFLIGHT_BYTES = _env_limit("OMNICAM_MAX_LIVE_PREFLIGHT_BYTES", 4 * 1024 * 1024)
 MAX_VIDEO_DURATION_SECONDS = _env_limit("OMNICAM_MAX_VIDEO_DURATION_SECONDS", 3_600)
 MAX_CLEANUP_JSON_BYTES = _env_limit("OMNICAM_MAX_CLEANUP_JSON_BYTES", 256 * 1024)
 MAX_EXPORT_JSON_BYTES = _env_limit("OMNICAM_MAX_EXPORT_JSON_BYTES", 8 * 1024 * 1024)
@@ -425,6 +429,23 @@ async def monitor_profiles(_request: web.Request):
         "profiles": profiles,
         "capabilities": capabilities,
     })
+
+
+@PromptServer.instance.routes.post("/majoor/omnicam/monitor/live_preflight")
+async def monitor_live_preflight(request: web.Request):
+    """Preflight the selected profile against a Director's *current* state.
+
+    No prompt is queued. This is the whole point: it is what lets Monitor
+    read a live PASS/BLOCKED the moment a Director is connected, instead of
+    only after the graph has actually run once.
+    """
+    from .nodes.monitor_live import LivePreflightError, build_live_preflight
+
+    body = await read_bounded_json_object(request, max_bytes=MAX_LIVE_PREFLIGHT_BYTES)
+    try:
+        return web.json_response(build_live_preflight(body))
+    except LivePreflightError as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
 
 
 @PromptServer.instance.routes.get("/majoor/omnicam/assets")

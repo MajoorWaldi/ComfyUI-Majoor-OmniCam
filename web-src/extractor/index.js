@@ -738,7 +738,9 @@ export function attachExtractor(node) {
     serialize: false, hideOnZoom: false, getMinHeight: () => 700,
     getHeight: preferredHeight, getMaxHeight: preferredHeight,
   });
-  node.setSize([Math.max(node.size?.[0] || 0, 800), Math.max(node.size?.[1] || 0, 780)]);
+  // Initial and minimum sizing is centralized in main.js's nodeCreated
+  // (web-src/shared/node-layout.js), which alone knows whether this is a
+  // fresh node or one being restored from a saved workflow.
 
   const removed = node.onRemoved;
   node.onRemoved = function () {

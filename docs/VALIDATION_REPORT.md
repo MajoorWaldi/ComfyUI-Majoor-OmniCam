@@ -4,44 +4,41 @@
 
 | | |
 |---|---|
-| Base commit | `6c6599a78c3d0cc658c7a383749bb19cc7305c71` (*refactor: modernize OmniCam workflow and Monitor*) |
+| Base commit | `067a610536b7063a1f7a5b55b27d43814ce29c10` (*chore: sync extractor and frontend updates*) |
 | Validated | uncommitted working tree on top of that commit |
-| Date | 1 September 2026 |
+| Date | 2 September 2026 |
 | ComfyUI | 0.34.1, local install |
 | GitHub Actions run | none — these are local results |
 
 This file records what was *observed*, not what is expected. It must be
 regenerated against a committed SHA with a green Actions run before it can be
-cited as release evidence; until then the row above says so plainly, because
-the previous version of this file reported a green suite for a commit whose CI
-was red.
+cited as release evidence; until then the row above says so plainly, because an
+earlier version of this file reported a green suite for a commit whose CI was
+red.
 
 ## Gates
 
 - [x] **Model-agnostic Python lane** — `pytest -q` with numpy, jsonschema and
-      pytest-asyncio only, no torch and no ComfyUI: **614 passed, 59 skipped**.
-      This is the lane CI runs on 3.10 / 3.12 / 3.13, and the one that was red
-      at the base commit: three suites imported torch or `comfy_api` at module
-      scope and failed collection for the whole run.
+      pytest-asyncio only, no torch and no ComfyUI: **820 passed, 17 skipped**.
+      This is the lane CI runs on 3.10 / 3.12 / 3.13.
 - [x] **Full Python lane** — same suite with the ComfyUI runtime and torch
-      present: **820 passed, 3 skipped**.
+      present: **884 passed, 3 skipped**.
 - [x] **`ruff check .`** — clean.
-- [x] **`mypy`** — clean across the 29 scoped source files.
+- [x] **`mypy`** — clean across the 29 scoped source files. Run bare, as CI
+      does: passing an explicit path overrides `files` in `pyproject.toml` and
+      lints the unscoped node and route layers, which are covered by tests.
 - [x] **`npm run build`** — Vite production build; the committed bundle in
       `web-chunks/` matches the source.
-- [x] **`npm run check`** — 412 files under the 800-line ceiling, 466 files
+- [x] **`npm run check`** — 416 files under the 800-line ceiling, 472 files
       UTF-8 clean, 58 three.js symbols all used, template contract across 14
       template sources, third-party notices current.
-- [x] **French locale** — 100.0% of 502 source messages (was 95.4%).
-- [x] **Frontend unit modules** — **422 passed**.
-- [x] **Playwright viewport suite** — **59 passed**. The three Monitor specs
-      that were failing pointed at a harness deleted in the base commit and at
-      four view modules replaced during the Monitor refactor; both the harness
-      and the specs are rewritten against the shipped UI.
+- [x] **French locale** — 100.0% of 502 source messages.
+- [x] **Frontend unit modules** — **429 passed**.
+- [x] **Playwright viewport suite** — **59 passed**.
 - [x] **`scripts/verify_package.py`** — OK.
-- [x] **Upstream contract parity** — every literal pinned in
-      `tests/fixtures/upstream_contracts/` verified against the installed
-      ComfyUI 0.34.1 source.
+- [x] **Real DPVO solve on GPU** — 96 frames at 640x384 through
+      `DpvoBackend.solve`, 96 poses, coverage 1.0, 6.5 s, on an RTX 4090 with
+      ComfyUI's `PYTORCH_CUDA_ALLOC_CONF` set in the parent.
 
 ## Not covered here
 
@@ -51,22 +48,20 @@ was red.
 - **Live ComfyUI browser gate** (`npm run test:live`) — not re-run.
 - **Generation.** No model was loaded. Every profile claim here is about the
       payload OmniCam compiles and the socket contract it targets, not about
-      the video a model produces from it.
+      the video a model produces from it. The seven target profiles have not
+      been smoke-tested against their real downstream nodes.
+- **Branch protection.** Documented in `docs/BRANCH_PROTECTION.md`; verified on
+      2 September 2026 as **not applied** to `main` — the remote reports neither
+      classic protection nor any ruleset. The eight required check contexts the
+      policy names do match the job names in `.github/workflows/test.yml`.
 
-## Known state of the working tree
-
-The base commit's CI was red. What was fixed on top of it:
+## Fixed on top of the base commit
 
 | Was | Now |
 |---|---|
-| 3 suites failed collection on the core lane | torch is an `importorskip`; the MotionScene socket name lives in the pure domain |
-| Trajectories sampled across `[0, duration]` | sampled across the shot's real frame span `[0, (n-1)/fps]` |
-| Multi-shot edits compiled silently to one camera | BLOCKED on single-camera profiles; neutral prompt on reference-video profiles |
-| H3 Native's five-frame minimum was a comment | enforced against the decoded playblast |
-| H3 API media limits lost in the profile migration | fps and duration checked against the documented contract |
-| Capability and profile registries used different ids | one vocabulary; the translation table is gone |
-| Capability detection was advisory | the selected profile's downstream contract blocks the compile |
-| Non-encodable tracks dropped silently | reported per layer before encoding |
-| `cuts` and scene objects were untyped dicts | `CutEvent` is typed and validated; objects go through canonical validation |
-| 4 of 5 example workflows wired removed nodes | 3 rebuilt, one per semantic, checked against the live schemas |
-| README and NODES described the pre-MotionScene product | rewritten |
+| The DPVO child ran tracking and `terminate()` with autograd enabled | the solve runs under `torch.no_grad()`, as upstream's `demo.py` does |
+| A 48-frame clip peaked at 27.38 GiB and OOMed mid bundle adjustment | the same clip peaks at 0.41 GiB |
+| The start gate read ComfyUI's queue once, then never again | a GPU solve re-reads it twice a second and yields the card when a workflow starts |
+| The parent unset `PYTORCH_*` allocator tuning around every spawn | the child drops it for itself, before it imports torch |
+| "Switching profile is a widget change, not a rewiring" | profiles publish different Monitor outputs, and the docs and in-app help now say which one to connect |
+| Monitor compile tests asserted against the machine's installed nodes | the downstream preflight is pinned by a fixture, so they measure the compiler |

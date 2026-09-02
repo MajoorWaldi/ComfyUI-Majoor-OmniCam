@@ -2,6 +2,7 @@ import { escapeHtml } from "./html.js";
 
 // Keyed by profile id, the single vocabulary shared with the backend registry.
 export const ADAPTER_LABELS = {
+  external_reference_video: "External / Generic Reference Video",
   h3_api: "MiniMax H3 · Comfy API",
   h3_native: "MiniMax H3 · Native",
   wan_camera_native: "Wan Camera",

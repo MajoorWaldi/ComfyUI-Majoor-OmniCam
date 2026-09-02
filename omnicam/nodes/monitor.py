@@ -7,7 +7,7 @@ from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
 from ..core.motion_scene import MotionScene
 from ..core.validation import ValidationError
-from ..monitor.result import raise_on_blocked
+from ..monitor.result import panel_payload, raise_on_blocked
 from ..profiles.base import CompileRequest
 from ..profiles.capability_gate import capability_check
 from ..profiles.catalog import PROFILE_REGISTRY
@@ -15,18 +15,6 @@ from .base import OMNICAM_MOTION_SCENE
 from .media import as_video, media_input
 
 logger = logging.getLogger(__name__)
-
-
-def _panel(checks, capabilities: dict[str, Any], target_profile: str) -> dict[str, Any]:
-    """The payload the Monitor panel renders, blocked or not."""
-    return {
-        "preflight": [
-            {"id": check.id, "label": check.label, "state": check.state, "message": check.message}
-            for check in checks
-        ],
-        "capabilities": capabilities,
-        "target_profile": target_profile,
-    }
 
 
 def _publish(unique_id: Any, payload: dict[str, Any]) -> None:
@@ -129,7 +117,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
 
         def stop(error_checks) -> None:
             """Show the panel, then fail. In that order."""
-            _publish(unique_id, _panel(error_checks, capabilities, target_profile))
+            _publish(unique_id, panel_payload(error_checks, capabilities, target_profile))
             raise_on_blocked(error_checks)
 
         if downstream is not None and downstream.state == "BLOCKED":
@@ -150,11 +138,11 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                 blocked = []
             if downstream is not None:
                 blocked.append(downstream)
-            _publish(unique_id, _panel(blocked, capabilities, target_profile))
+            _publish(unique_id, panel_payload(blocked, capabilities, target_profile))
             raise
 
         checks = [*result.checks, downstream] if downstream is not None else list(result.checks)
-        ui = _panel(checks, capabilities, target_profile)
+        ui = panel_payload(checks, capabilities, target_profile)
         ordered = (
             result.final_prompt,
             result.reference_video,

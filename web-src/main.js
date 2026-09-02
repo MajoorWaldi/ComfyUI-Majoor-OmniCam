@@ -10,6 +10,7 @@ import {
 } from "./settings.js";
 import { installGlobalKeyInterceptor } from "./omnicam-commands.js";
 import { attachWhenLoaded } from "./lazy-node-ui.js";
+import { applyDefaultNodeSize, clampNodeSizeToMinimum } from "./shared/node-layout.js";
 import {
   DIRECTOR_NODE_CLASS,
   EXTRACTOR_NODE_CLASS,
@@ -30,6 +31,36 @@ import "./help/index.js";
 configureMotionHealthApi(api);
 
 let configuringGraph = false;
+
+// A node created while a graph is being configured is being restored from a
+// saved workflow, not added by the user: give it the comfortable default size
+// only in the fresh case, and never take a saved size away from the other.
+// `seedDefaults` is read synchronously in nodeCreated, well before the lazy
+// chunk import -- see web-src/shared/node-layout.js for why that matters.
+function applyNodeLayout(node, comfyClass, seedDefaults, restoredSize) {
+  if (seedDefaults) applyDefaultNodeSize(node, comfyClass);
+  else clampNodeSizeToMinimum(node, comfyClass, restoredSize);
+}
+
+// Captures the [width, height] a restored node's own saved workflow data
+// carries, synchronously as LiteGraph's graph.configure() calls node.configure
+// with it -- before the lazy chunk import resolves. Without this, the size
+// applyNodeLayout later reads off node.size can already have been shrunk by
+// LiteGraph's own layout pass, which runs on this node while it still has no
+// DOM widget mounted (ours attaches only once the lazy import resolves) and
+// so treats it as having nothing to fit around. That shrink is what made a
+// real browser refresh floor every OmniCam node to its bare minimum size
+// instead of restoring what was saved.
+function captureRestoredSize(node) {
+  if (typeof node.configure !== "function") return () => null;
+  let size = null;
+  const originalConfigure = node.configure.bind(node);
+  node.configure = function (data) {
+    if (size === null && Array.isArray(data?.size)) size = [...data.size];
+    return originalConfigure(data);
+  };
+  return () => size;
+}
 
 function recordDirectorTrace(stage, node) {
   const trace = globalThis.__majoorOmniCamCiTrace;
@@ -61,6 +92,7 @@ app.registerExtension({
     // the lifecycle state before the dynamic import so afterConfigureGraph
     // cannot make a loaded node look new when the chunk eventually resolves.
     const seedDefaults = !configuringGraph;
+    const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
     await attachWhenLoaded(node, async () => {
       recordDirectorTrace("director:import:start", node);
       const { attachDirector } = await import("./director.js");
@@ -72,6 +104,7 @@ app.registerExtension({
     recordDirectorTrace("director:attach:complete", node);
     registerDirectorRuntime(ui);
     if (seedDefaults) seedDirectorDefaults(ui);
+    applyNodeLayout(node, DIRECTOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });
 
@@ -79,7 +112,11 @@ app.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(node) {
     if (nodeClassOf(node) !== EXTRACTOR_NODE_CLASS) return;
+    const seedDefaults = !configuringGraph;
+    const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
     await attachWhenLoaded(node, async () => (await import("./extractor/index.js")).attachExtractor);
+    if (!node.__majoorOmniCamExtractor) return;
+    applyNodeLayout(node, EXTRACTOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });
 
@@ -87,6 +124,10 @@ app.registerExtension({
   name: "Majoor.OmniCam.Monitor",
   async nodeCreated(node) {
     if (nodeClassOf(node) !== MONITOR_NODE_CLASS) return;
+    const seedDefaults = !configuringGraph;
+    const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
     await attachWhenLoaded(node, async () => (await import("./monitor/index.js")).attachMonitor);
+    if (!node.__majoorOmniCamMonitor) return;
+    applyNodeLayout(node, MONITOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });

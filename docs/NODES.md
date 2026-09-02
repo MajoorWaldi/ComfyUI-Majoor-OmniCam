@@ -52,9 +52,14 @@ Interactive camera-layout, motion-track, animation, timeline and playblast
 environment. Execution compiles the complete editor state to a strict,
 model-independent MotionScene.
 
-![OmniCam Director](assets/director-outliner.png)
+![OmniCam Director](assets/director-panel.png)
 
-*Regenerate the screenshots with `npx playwright test tests/frontend/docs-screens.spec.js`, then copy `test-results/docs-*.png` into `docs/assets/`.*
+*Regenerate the screenshots against a running ComfyUI (real Director/Extractor/Monitor wiring, a real live preflight):*
+```text
+OMNICAM_LIVE_URL=http://127.0.0.1:8188 OMNICAM_LIVE_MATCH=live-docs-screens.spec.js \
+  OMNICAM_LIVE_VIDEO=<a clip in ComfyUI/input> npm run test:live
+```
+*then copy `test-results/live-*.png` into `docs/assets/`. `npx playwright test tests/frontend/docs-screens.spec.js` regenerates the Director outliner/inspector close-ups from an isolated module mount instead, with no server required.*
 
 **Inputs.** `width`, `height`, `fps`, `duration_seconds`, `render_mode`
 (`omni_ref`, `graybox`, `grid`, `point_field`, `wireframe`, `card_grid`,
@@ -130,6 +135,8 @@ on the upstream scene are not merged.
 
 ## OmniCam Extractor — `MajoorOmniCamExtractor`
 
+![OmniCam Extractor](assets/extractor-panel.png)
+
 Estimates a **relative** 6DoF camera trajectory from one continuous video shot
 and wraps that internal camera solve in a canonical one-camera MotionScene.
 
@@ -138,7 +145,7 @@ and wraps that internal camera solve in a canonical one-camera MotionScene.
 | Input | Default | Role |
 |---|---|---|
 | `video` | — | one continuous shot, `VIDEO` or `IMAGE` batch; a hard cut is reported, never stitched |
-| `method` | `dpvo` | `dpvo`; `auto` prefers DPVO when installed and falls back to OpenCV/SIFT; `opencv_sift` forces the classical solver |
+| `method` | `dpvo` | `dpvo`; `auto` prefers DPVO, then pycolmap, then OpenCV/SIFT, taking the first installed; `pycolmap` or `opencv_sift` force those directly |
 | `lens_mode` | `auto` | `auto`, `fov` or `focal_mm` |
 | `fov_degrees` | `53.0` | vertical FOV, used when `lens_mode=fov` |
 | `focal_length_mm` | `24.0` | focal length, used when `lens_mode=focal_mm` |
@@ -188,13 +195,12 @@ context is force-destroyed. Pause/Resume is intentionally absent because native
 GPU backends cannot guarantee it safely. A `STOPPED` or `FAILED` solve never
 produces a final track and `APPLY REFINED` stays disabled.
 
-While it runs the panel shows three tabs:
+While it runs the panel shows two tabs:
 
 | Tab | Shows |
 |---|---|
-| `SOURCE` | the clean managed footage the solver reads |
+| `VIDEO` | the managed footage the solver reads, with live solver points overlaid as it tracks |
 | `TRACK 3D` | the solved trajectory, read-only: orbit / pan / zoom, Fit, Top/Front/Side |
-| `COMPARE` | clean source, the same frame with live solver points, and the read-only 3D track, side by side |
 
 OpenCV streams a bounded transient 3D path while it tracks. DPVO reports honest
 source-frame progress but publishes its trajectory only after global
@@ -296,27 +302,44 @@ experiment.
 
 ### Backends
 
-DPVO ([princeton-vl/DPVO](https://github.com/princeton-vl/DPVO), MIT) and
-OpenCV/SIFT are **optional** and lazily imported: OmniCam loads normally with
-neither. The DPVO checkpoint is read from one fixed, non-configurable managed
-path:
+DPVO ([princeton-vl/DPVO](https://github.com/princeton-vl/DPVO), MIT), pycolmap
+([colmap/pycolmap](https://github.com/colmap/pycolmap), BSD-3-Clause) and
+OpenCV/SIFT are all **optional** and lazily imported: OmniCam loads normally
+with none of them. `auto` tries them in that order and takes the first one
+installed. The DPVO checkpoint is read from one fixed, non-configurable
+managed path:
 
 ```text
 ComfyUI/models/omnicam/dpvo/dpvo.pth
 ```
 
-OmniCam never runs `pip install` at runtime. No DPVO code or configuration is
-redistributed in this package. Each DPVO solve runs in a fresh spawned process;
-sampled frames cross through a private NumPy memmap below ComfyUI's temp
-directory, removed on success, stop and failure. When the child exits its CUDA
-context exits with it, so DPVO VRAM returns to the driver instead of staying in
-ComfyUI's allocator. Frame memmap views are copied into writable contiguous
-arrays before Torch consumes them. See [TECHNICAL_REFERENCE.md](TECHNICAL_REFERENCE.md)
-for the DPVO runtime and Windows-portable build notes.
+OmniCam never runs `pip install` at runtime. No third-party solver code or
+configuration is redistributed in this package. Each DPVO solve runs in a
+fresh spawned process; sampled frames cross through a private NumPy memmap
+below ComfyUI's temp directory, removed on success, stop and failure. When the
+child exits its CUDA context exits with it, so DPVO VRAM returns to the driver
+instead of staying in ComfyUI's allocator. Frame memmap views are copied into
+writable contiguous arrays before Torch consumes them. See
+[Installing DPVO](TECHNICAL_REFERENCE.md#installing-dpvo) for the Windows
+build procedure, and [TECHNICAL_REFERENCE.md](TECHNICAL_REFERENCE.md) for the
+runtime notes.
+
+pycolmap runs incremental Structure-from-Motion rather than DPVO/OpenCV's
+frame-to-frame visual odometry: it extracts and matches features globally,
+then registers frames one at a time against a shared point cloud with bundle
+adjustment. That is more expensive per frame, but it does not zero out
+translation on a low-parallax or rotation-only segment the way essential-matrix
+VO does -- see OpenCV/SIFT's own module docstring for that limitation. A hard
+cut in the footage can come back as more than one disconnected reconstruction;
+only the largest is used, and it is reported as a warning rather than silently
+bridged. Unlike DPVO, `pip install pycolmap` is the entire installation: it
+ships prebuilt Windows wheels with no CUDA extension to compile.
 
 ---
 
 ## OmniCam Monitor — `MajoorOmniCamMonitor`
+
+![OmniCam Monitor](assets/monitor-panel.png)
 
 The model compiler, and the single exit point from OmniCam into the rest of the
 graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
@@ -333,7 +356,7 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `motion_scene` | — | the canonical scene to compile |
 | `playblast_video` | optional | the shot the scene describes, `VIDEO` or `IMAGE` batch |
 | `base_prompt` | empty | user intent, kept at the head of `final_prompt` |
-| `target_profile` | `h3_api` | one of the seven profiles below |
+| `target_profile` | `external_reference_video` | one of the eight profiles below |
 | `target_width`, `target_height` | `832`, `480` | target frame size |
 | `duration_seconds`, `target_fps` | `2.0`, `24.0` | the shot being compiled |
 
@@ -344,10 +367,17 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 Only the selected profile's outputs are computed; the rest are `None`. Which one
 carries the payload is decided by the profile's **semantic**, not by its model.
 
-### The seven profiles, by semantic
+### The eight profiles, by semantic
+
+`external_reference_video` is the only permissive one: no upstream node
+requirement, no frame grid, no fps conversion, and it never blocks on a missing
+or unrecognized downstream. Every other profile is strict -- it encodes one
+real model's contract, and a payload that contract cannot satisfy stops the
+queue rather than reaching the model broken.
 
 | Profile | Semantic | Output | Downstream |
 |---|---|---|---|
+| `external_reference_video` | `reference_video` | `reference_video` + `final_prompt` | any destination model's own reference-video input; no contract enforced |
 | `wan_camera_native` | `camera_embedding` | `camera_embedding` | `WanCameraImageToVideo.camera_conditions`; real extrinsics and intrinsics, the highest-fidelity path; length 4n+1 |
 | `wan_move_native` | `screen_tracks` | `native_tracks` | `WanMoveTrackToVideo.tracks`; `comfy_api.latest.io.Tracks`, i.e. `track_path` `[frames, tracks, 2]` and `track_visibility` `[frames, tracks]` |
 | `wan_track_native` | `screen_tracks` | `tracks_json` | `WanTrackToVideo.tracks`; a 121-sample source grid resampled upstream to the generation length |

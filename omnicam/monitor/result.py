@@ -120,6 +120,23 @@ class CompiledMotion:
 
 
 
+def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str) -> dict[str, Any]:
+    """The payload the Monitor panel renders, blocked or not.
+
+    Shared by a real execution's ``ui`` output and the live preflight route:
+    both are the same report of the same checks, and the panel does not need
+    to know which one produced it.
+    """
+    return {
+        "preflight": [
+            {"id": check.id, "label": check.label, "state": check.state, "message": check.message}
+            for check in checks
+        ],
+        "capabilities": capabilities,
+        "target_profile": target_profile,
+    }
+
+
 def raise_on_blocked(checks: Any) -> None:
     """Stop on the first BLOCKED check, using its own message as the error.
 

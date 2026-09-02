@@ -12,6 +12,15 @@ export const SOLVE_STATES = [
 
 const ACTIVE = new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]);
 
+// Absent/non-numeric fields fall back to what is already known, not to zero:
+// coercing them reset a completed solve's progress bar to 0% the instant its
+// result arrived.
+const keep = (value, fallback) => (
+  value === undefined || value === null || Number.isNaN(Number(value))
+    ? fallback
+    : Number(value)
+);
+
 // Status-pill colour families, matching the shared Director tokens.
 const TONES = {
   IDLE: "neutral", PREPARING: "info", TRACKING: "active", SOLVING: "active", REFINING: "active",
@@ -88,11 +97,6 @@ export function reduceExtractorState(state, action) {
       // is already known, not to zero: coercing them reset a completed solve's
       // progress bar to 0% the instant its result arrived.
       const status = action.status || {};
-      const keep = (value, fallback) => (
-        value === undefined || value === null || Number.isNaN(Number(value))
-          ? fallback
-          : Number(value)
-      );
       return {
         ...state,
         solveState: status.state || state.solveState,
@@ -110,6 +114,13 @@ export function reduceExtractorState(state, action) {
         ...state, solveState: "COMPLETED", progress: 1,
         refinedFingerprint: String(action.result?.fingerprint || ""),
         backend: action.result?.backend || state.backend,
+        // The live counter increments once per POSE event, and those are
+        // throttled to at most one per THROTTLE_SECONDS -- every backend
+        // hands its poses over in one tight loop once the solve itself is
+        // done, so a fast solve (or a lot of frames) throttles most of them
+        // away. completion_payload's own pose_count is the server's real
+        // count of what it kept, not of what the socket let through.
+        poseCount: keep(action.result?.pose_count, state.poseCount),
       };
     case "FAILED":
       return { ...state, solveState: "FAILED", error: String(action.error || "The solve failed") };

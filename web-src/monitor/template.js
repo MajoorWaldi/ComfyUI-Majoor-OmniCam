@@ -2,6 +2,7 @@ import { MONITOR_STYLES } from "./styles.js";
 import { brandMarkup } from "../template/brand.js";
 
 export const PROFILE_OPTIONS = [
+  ["external_reference_video", "External / Generic Reference Video"],
   ["h3_api", "MiniMax H3 · Comfy API"],
   ["h3_native", "MiniMax H3 · Native"],
   ["ltx25_motion_track", "LTX 2.5 Motion Track"],
@@ -26,7 +27,7 @@ export function monitorMarkup() {
     <div class="oc-source" data-role="source-status">Connect a MotionScene and queue the workflow.</div>
     <main class="oc-layout">
       <section class="oc-column">
-        <div class="oc-card" data-role="proxy-card"><div class="oc-section">Playblast</div><div class="oc-player"><video data-role="proxy-player" playsinline muted aria-label="OmniCam playblast playback"></video><div class="oc-player-empty">No playblast preview</div><canvas data-role="proxy-upstream-preview" hidden aria-label="Connected playblast preview"></canvas></div><div class="oc-player-controls"><button type="button" data-act="proxy-play" aria-label="Play or pause playblast">Play</button><input data-role="proxy-scrubber" type="range" min="0" max="0" value="0" aria-label="Playblast frame"><output data-role="proxy-frame">0 / 0</output><label><input data-role="proxy-loop" type="checkbox" checked> Loop</label><label><input data-role="proxy-mute" type="checkbox" checked> Mute</label></div></div>
+        <div class="oc-card" data-role="proxy-card"><div class="oc-section">Playblast</div><div class="oc-reference-source" data-role="reference-source" hidden></div><div class="oc-player"><video data-role="proxy-player" playsinline muted aria-label="OmniCam playblast playback"></video><div class="oc-player-empty">No playblast preview</div><canvas data-role="proxy-upstream-preview" hidden aria-label="Connected playblast preview"></canvas></div><div class="oc-player-controls"><button type="button" data-act="proxy-play" aria-label="Play or pause playblast">Play</button><input data-role="proxy-scrubber" type="range" min="0" max="0" value="0" aria-label="Playblast frame"><output data-role="proxy-frame">0 / 0</output><label><input data-role="proxy-loop" type="checkbox" checked> Loop</label><label><input data-role="proxy-mute" type="checkbox" checked> Mute</label></div></div>
         <div class="oc-card"><div class="oc-section">Profile preflight</div><div data-role="profile-preflight" class="oc-empty">Queue the workflow to validate the selected profile.</div></div>
       </section>
       <aside class="oc-column">

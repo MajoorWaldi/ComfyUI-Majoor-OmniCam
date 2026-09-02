@@ -30,10 +30,10 @@ def test_node_takes_a_required_video_or_image_input():
     assert not getattr(video, "optional", False)
 
 
-def test_node_offers_the_three_documented_methods():
+def test_node_offers_the_four_documented_methods():
     schema = MajoorOmniCamExtractor.define_schema()
     method = next(item for item in schema.inputs if item.id == "method")
-    assert list(method.options) == ["auto", "dpvo", "opencv_sift"]
+    assert list(method.options) == ["auto", "dpvo", "pycolmap", "opencv_sift"]
     assert method.default == "dpvo"
 
 

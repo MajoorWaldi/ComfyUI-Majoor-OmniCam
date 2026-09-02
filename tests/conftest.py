@@ -9,6 +9,9 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
+from omnicam.adapters.registry import ADAPTER_INFO
+from omnicam.capabilities import detect_capabilities
+
 
 class FakeVideo:
     """The slice of the ComfyUI VIDEO contract the extractor consumes."""
@@ -52,3 +55,47 @@ def clip(tmp_path):
             container.mux(stream.encode(av.VideoFrame.from_ndarray(image, format="rgb24")))
         container.mux(stream.encode(None))
     return FakeVideo(path, width, height, 24, frames)
+
+
+def _node_declaring(*names: str):
+    class Node:
+        @classmethod
+        def INPUT_TYPES(cls):
+            return {"required": {name: ("ANY",) for name in names}}
+
+    return Node
+
+
+def every_downstream_installed() -> dict:
+    """Capabilities as they read on a machine with every target node installed.
+
+    Built from ADAPTER_INFO rather than hand-listed, so a new adapter is covered
+    the day it is registered.
+    """
+    node_inputs: dict[str, set[str]] = {}
+    for contract in ADAPTER_INFO.values():
+        for requirement in contract["requirements"]:
+            sockets = requirement["expected_inputs"] + requirement["expected_widgets"]
+            for node_class in requirement["any_of"]:
+                node_inputs.setdefault(node_class, set()).update(sockets)
+    return detect_capabilities({
+        node_class: _node_declaring(*inputs) for node_class, inputs in node_inputs.items()
+    })
+
+
+@pytest.fixture
+def all_targets_installed(monkeypatch):
+    """Pin the Monitor's downstream preflight to "everything is installed".
+
+    The Monitor probes ComfyUI's live node registry, so a test that compiles a
+    profile otherwise asserts something about the machine it runs on: green on a
+    bare CI runner, BLOCKED on a real install that happens to lack Wan Move.
+    Neither answer is about the compiler, which is what these tests measure.
+    Coverage of the probe itself lives in test_capabilities.py, and of the
+    blocking behaviour in test_monitor_node.py.
+    """
+    from omnicam.nodes import monitor
+
+    capabilities = every_downstream_installed()
+    monkeypatch.setattr(monitor, "detect_capabilities", lambda *args, **kwargs: capabilities)
+    return capabilities

@@ -1,9 +1,10 @@
 """Backend registry and deterministic selection.
 
-Neither solver is a hard dependency of OmniCam: importing this package must
-succeed on a machine with no CUDA toolchain and no OpenCV, because otherwise a
-missing tracker would take the whole node pack down with it. Availability is
-therefore probed lazily, and the runtime classes are imported inside ``solve``.
+No solver is a hard dependency of OmniCam: importing this package must succeed
+on a machine with no CUDA toolchain, no OpenCV and no pycolmap, because
+otherwise a missing tracker would take the whole node pack down with it.
+Availability is therefore probed lazily, and the runtime classes are imported
+inside ``solve``.
 """
 
 from __future__ import annotations
@@ -18,12 +19,17 @@ from .base import (
 )
 from .dpvo import DpvoBackend
 from .opencv_vo import OpenCvSiftBackend
+from .pycolmap_vo import PycolmapBackend
 
-METHODS = ("auto", "dpvo", "opencv_sift")
+METHODS = ("auto", "dpvo", "pycolmap", "opencv_sift")
 
 # Ordered by solve quality: `auto` walks this list and takes the first backend
-# that is actually installed.
-BACKEND_CLASSES: tuple[type, ...] = (DpvoBackend, OpenCvSiftBackend)
+# that is actually installed. pycolmap sits between the two: a stronger
+# fallback than OpenCV/SIFT (bundle-adjusted Structure-from-Motion rather than
+# frame-to-frame essential-matrix VO, so it does not zero out translation on a
+# low-parallax segment the way OpenCV/SIFT's own module documents doing), but
+# DPVO remains OmniCam's tracker of choice where it is installed.
+BACKEND_CLASSES: tuple[type, ...] = (DpvoBackend, PycolmapBackend, OpenCvSiftBackend)
 BACKENDS_BY_NAME = {backend.name: backend for backend in BACKEND_CLASSES}  # type: ignore[attr-defined]
 
 
@@ -40,7 +46,7 @@ def backend_availability() -> dict[str, BackendAvailability]:
 
 def _no_backend_message(report: dict[str, BackendAvailability]) -> str:
     lines = ["No OmniCam camera-tracking backend is available."]
-    labels = {"dpvo": "DPVO", "opencv_sift": "OpenCV/SIFT"}
+    labels = {"dpvo": "DPVO", "pycolmap": "pycolmap", "opencv_sift": "OpenCV/SIFT"}
     for name, availability in report.items():
         lines.append(f"{labels.get(name, name)}: {availability.reason or 'unavailable'}")
     lines.append(
@@ -77,6 +83,7 @@ __all__ = [
     "CameraMotionBackend",
     "DpvoBackend",
     "OpenCvSiftBackend",
+    "PycolmapBackend",
     "SolveError",
     "backend_availability",
     "coverage_ratio",

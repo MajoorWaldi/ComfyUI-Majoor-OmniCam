@@ -34,13 +34,20 @@ function checkMarkup(check) {
  * A blocked preflight publishes this panel and then stops the run, so there is
  * no output behind it. Saying otherwise is how a red panel still reads as a
  * successful compile.
+ *
+ * `live` distinguishes a preview computed without queuing anything from an
+ * actual completed execution: "OUTPUT GENERATED" is a claim about a real run,
+ * and a live snapshot has not run one. Defaults to `false` so every existing
+ * two-argument call keeps its exact current wording.
  */
-export function outputStatusText(blocked, targetProfile) {
-  const status = blocked ? "NO OUTPUT" : "OUTPUT GENERATED";
+export function outputStatusText(blocked, targetProfile, live = false) {
+  const status = live
+    ? (blocked ? "LIVE — WOULD BLOCK" : "LIVE PREVIEW")
+    : (blocked ? "NO OUTPUT" : "OUTPUT GENERATED");
   return targetProfile ? `${status} · ${targetProfile}` : status;
 }
 
-export function renderMonitorExecution(root, message) {
+export function renderMonitorExecution(root, message, { live = false } = {}) {
   const result = normalizeMonitorExecution(message);
   const preflight = root.querySelector('[data-role="profile-preflight"]');
   preflight.innerHTML = result.preflight.length
@@ -60,6 +67,6 @@ export function renderMonitorExecution(root, message) {
   badge.dataset.state = blocked ? "BLOCKED" : "READY";
   badge.lastChild.textContent = blocked ? " BLOCKED" : " READY";
   root.querySelector('[data-role="output-status"]').textContent =
-    outputStatusText(blocked, result.targetProfile);
+    outputStatusText(blocked, result.targetProfile, live);
   return result;
 }

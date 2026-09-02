@@ -776,3 +776,19 @@ test("syncFromWidgets keeps dormant keys when the duration widget shrinks", () =
   assert.deepEqual(ui.state.cameras[0].keyframes.map((key) => key.frame), [0, 120, 200]);
   assert.deepEqual(ui.state.objects[0].keyframes.map((key) => key.frame), [0, 200]);
 });
+
+test("a fresh state records a deterministic playblast resolution by default", () => {
+  // Regression: "viewport" here meant the recorded proxy's pixel size tracked
+  // whatever the panel happened to be laid out at, not the node's configured
+  // width x height -- so the same shot could produce a different resolution
+  // reference clip depending on how the ComfyUI graph was scrolled or zoomed.
+  assert.equal(defaultState().playblast_resolution, "output");
+});
+
+test("an invalid playblast_resolution sanitizes to the deterministic default", () => {
+  assert.equal(sanitizeState({ playblast_resolution: "not-a-real-mode" }).playblast_resolution, "output");
+  assert.equal(sanitizeState({}).playblast_resolution, "output");
+  // Explicit choices, including the non-deterministic one, are still honored.
+  assert.equal(sanitizeState({ playblast_resolution: "viewport" }).playblast_resolution, "viewport");
+  assert.equal(sanitizeState({ playblast_resolution: "half" }).playblast_resolution, "half");
+});

@@ -431,6 +431,31 @@ test("a completed solve with a refined track can be applied", () => {
   assert.equal(statusTone("COMPLETED"), "ok");
 });
 
+test("completion reports the server's real pose count, not the throttled live one", () => {
+  // Regression: every backend hands its poses to the observer in one tight
+  // loop once the solve itself is done (DPVO after terminate(), pycolmap
+  // after incremental_mapping(), ...), so the live POSE websocket event --
+  // throttled to one per THROTTLE_SECONDS -- lets only the first of them
+  // through. A 71-pose solve read back as poseCount: 1 in a real run before
+  // this fix, even though the job had genuinely registered 71 frames.
+  const state = stateAfter(
+    { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING" } },
+    { type: "POSE", pose: { source_frame: 0 } }, // the one pose the throttle let through
+    { type: "COMPLETED", result: { fingerprint: "fp-1", pose_count: 71 } },
+  );
+  assert.equal(state.poseCount, 71);
+});
+
+test("a completion payload without pose_count keeps whatever was already known", () => {
+  const state = stateAfter(
+    { type: "JOB_STARTED", status: { job_id: "j1", state: "TRACKING" } },
+    { type: "POSE", pose: { source_frame: 0 } },
+    { type: "POSE", pose: { source_frame: 1 } },
+    { type: "COMPLETED", result: { fingerprint: "fp-1" } },
+  );
+  assert.equal(state.poseCount, 2);
+});
+
 test("a failure carries its message and colours the pill", () => {
   const state = stateAfter({ type: "FAILED", error: "Camera tracking lost near frame 84" });
   assert.match(state.error, /frame 84/);

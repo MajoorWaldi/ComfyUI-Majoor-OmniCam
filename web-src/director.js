@@ -247,9 +247,9 @@ export function attachDirector(node) {
       ui.scheduleResizeAndRender();
     }
   });
-  const min = [760, 780];
-  const current = node.size || min;
-  node.setSize([Math.max(current[0], min[0]), Math.max(current[1], min[1])]);
+  // Initial and minimum sizing is centralized in main.js's nodeCreated
+  // (web-src/shared/node-layout.js), which alone knows whether this is a
+  // fresh node or one being restored from a saved workflow.
   const originalResize = node.onResize;
   node.onResize = function() {
     originalResize?.apply(this, arguments);

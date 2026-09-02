@@ -408,37 +408,130 @@ def test_a_caller_that_manages_its_own_vram_can_opt_out(tmp_path):
 
 
 def test_the_child_does_not_inherit_comfyui_allocator_tuning(monkeypatch):
-    """ComfyUI puts Torch on cudaMallocAsync process-wide; DPVO must not get it.
+    """ComfyUI runs Torch on cudaMallocAsync process-wide; DPVO must not.
 
-    That backend is chosen for diffusion models. DPVO's CUDA extensions
-    allocate outside Torch's allocator and it is developed against the native
-    one, so inheriting the tuning gains nothing and has been seen to fail
-    allocations on an almost empty card.
+    DPVO's CUDA extensions allocate outside Torch's allocator and it is
+    developed against the native one. Inheriting the tuning gains it nothing and
+    has been seen to fail allocations on an almost empty card.
+    """
+    import os
+
+    from omnicam.extractor.backends.dpvo_worker import clear_inherited_allocator_tuning
+
+    monkeypatch.setenv("PYTORCH_CUDA_ALLOC_CONF", "backend:cudaMallocAsync")
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", "backend:cudaMallocAsync")
+
+    dropped = clear_inherited_allocator_tuning()
+
+    assert dropped == {
+        "PYTORCH_CUDA_ALLOC_CONF": "backend:cudaMallocAsync",
+        "PYTORCH_ALLOC_CONF": "backend:cudaMallocAsync",
+    }
+    assert "PYTORCH_CUDA_ALLOC_CONF" not in os.environ
+    assert "PYTORCH_ALLOC_CONF" not in os.environ
+
+
+def test_clearing_allocator_tuning_tolerates_an_environment_without_it():
+    """Outside ComfyUI nothing sets these, and the child still has to start."""
+    from omnicam.extractor.backends.dpvo_worker import clear_inherited_allocator_tuning
+
+    assert clear_inherited_allocator_tuning({"PATH": "/usr/bin"}) == {}
+
+
+def test_spawning_never_disturbs_the_parents_own_allocator_tuning(monkeypatch):
+    """The clearing belongs to the child, not to a window in the parent.
+
+    ComfyUI is a threaded server. Unsetting the tuning in the parent for the
+    duration of a spawn means any other thread that imports Torch in that window
+    builds its allocator from the wrong environment -- a race for a variable the
+    child can simply drop for itself, before it imports Torch at all.
     """
     import os
 
     from omnicam.extractor.backends.dpvo_worker import _isolated_child_bootstrap
 
     monkeypatch.setenv("PYTORCH_CUDA_ALLOC_CONF", "backend:cudaMallocAsync")
-    monkeypatch.setenv("PYTORCH_ALLOC_CONF", "backend:cudaMallocAsync")
 
     with _isolated_child_bootstrap():
-        assert "PYTORCH_CUDA_ALLOC_CONF" not in os.environ
-        assert "PYTORCH_ALLOC_CONF" not in os.environ
-
-    # The parent keeps its own tuning: ComfyUI still needs it after the solve.
-    assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "backend:cudaMallocAsync"
-    assert os.environ["PYTORCH_ALLOC_CONF"] == "backend:cudaMallocAsync"
-
-
-def test_restoring_allocator_tuning_survives_a_failing_solve(monkeypatch):
-    import os
-
-    from omnicam.extractor.backends.dpvo_worker import _isolated_child_bootstrap
-
-    monkeypatch.setenv("PYTORCH_CUDA_ALLOC_CONF", "backend:cudaMallocAsync")
-
-    with pytest.raises(RuntimeError), _isolated_child_bootstrap():
-        raise RuntimeError("the child failed to start")
+        assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "backend:cudaMallocAsync"
 
     assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "backend:cudaMallocAsync"
+
+
+class _RecordingConnection:
+    """A pipe end that always says "continue" and keeps what the child sent."""
+
+    def __init__(self) -> None:
+        self.sent: list[dict] = []
+
+    def send(self, message):
+        self.sent.append(message)
+
+    def recv(self):
+        return {"kind": "continue"}
+
+    def close(self):
+        pass
+
+
+def _install_fake_dpvo(monkeypatch, grad_flags: list[bool]) -> None:
+    """A DPVO stand-in that records whether autograd was live when it ran."""
+    import torch
+
+    class _FakeDpvo:
+        def __init__(self, *args, **kwargs) -> None:
+            grad_flags.append(torch.is_grad_enabled())
+
+        def __call__(self, index, image, intrinsics):
+            grad_flags.append(torch.is_grad_enabled())
+
+        def terminate(self):
+            grad_flags.append(torch.is_grad_enabled())
+            return np.zeros((2, 7), dtype=float), np.array([0.0, 1.0])
+
+    package = types.ModuleType("dpvo")
+    package.__path__ = []
+    config = types.ModuleType("dpvo.config")
+    config.cfg = types.SimpleNamespace(clone=lambda: object())
+    inner = types.ModuleType("dpvo.dpvo")
+    inner.DPVO = _FakeDpvo
+    for name, module in (("dpvo", package), ("dpvo.config", config), ("dpvo.dpvo", inner)):
+        monkeypatch.setitem(sys.modules, name, module)
+
+
+def test_the_child_solves_with_autograd_disabled(tmp_path, monkeypatch):
+    """Grad-enabled tracking retains every frame's graph and OOMs a 24 GiB card.
+
+    DPVO's own class never disables grad -- upstream's demo.py carries the
+    ``@torch.no_grad()`` for it. Tracking keeps ``pg.net`` live across frames, so
+    with grad on, each frame chains onto the last: measured on one 48-frame clip,
+    0.41 GiB became 27.38 GiB and ``terminate()`` died in global bundle
+    adjustment. There is no GPU in CI, so the contract asserted here is the one
+    that matters and is testable: no OmniCam code path runs DPVO with autograd on.
+    """
+    torch = pytest.importorskip("torch")
+    from omnicam.extractor.backends.dpvo_worker import run_dpvo_child
+
+    grad_flags: list[bool] = []
+    _install_fake_dpvo(monkeypatch, grad_flags)
+    exchange = write_frame_exchange(_frames(3), root=tmp_path)
+    request = DpvoWorkerRequest(
+        frames_path=str(exchange.frames_path),
+        source_frames=exchange.source_frames,
+        timestamps=exchange.timestamps,
+        intrinsics=CameraIntrinsics(fx=64.0, fy=64.0, cx=32.0, cy=24.0, width=64, height=48, source="test"),
+        checkpoint_path=str(tmp_path / "dpvo.pth"),
+    )
+    connection = _RecordingConnection()
+    try:
+        run_dpvo_child(connection, request)
+    finally:
+        exchange.cleanup()
+
+    assert [message["kind"] for message in connection.sent if message["kind"] == "error"] == []
+    assert connection.sent[-1]["kind"] == "result"
+    # Construction, all three frames, and terminate() -- every one of them.
+    assert len(grad_flags) == 5
+    assert not any(grad_flags)
+    # And the parent's own grad mode is restored, not left globally disabled.
+    assert torch.is_grad_enabled()

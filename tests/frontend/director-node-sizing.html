@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><title>OmniCam Director node-sizing test</title>
+    <style>body { background: #111; }</style>
+    <script type="importmap">
+      { "imports": { "/scripts/app.js": "/tests/frontend/stubs/app.js", "/scripts/api.js": "/tests/frontend/stubs/api.js" } }
+    </script>
+  </head>
+  <body>
+    <div id="status">loading</div>
+    <div id="host-fresh"></div>
+    <div id="host-tiny"></div>
+    <div id="host-restored"></div>
+    <script type="module">
+      // The two cases web-src/shared/node-layout.js exists for, driven the
+      // same way director-workflow-load.html proves the widget-restore
+      // ordering: through the real registered extension, not app.graph /
+      // loadGraphData (a hand-built minimal graph JSON gets pruned by
+      // ComfyUI's own graph validation before this ever runs -- a red
+      // herring that has nothing to do with sizing).
+      const fail = (error) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamSizing = { error: String(error?.stack || error?.message || error) };
+      };
+      window.addEventListener("error", (event) => fail(event.error || event.message));
+      window.addEventListener("unhandledrejection", (event) => fail(event.reason));
+      try {
+        await import("/tests/frontend/stubs/app.js");
+        await import("/web/omnicam.js");
+        const extension = (window.__omnicamExtensions || []).find((item) => item.name === "Majoor.OmniCam.Director");
+        if (!extension) throw new Error("Director extension did not register");
+
+        function makeNode(hostId, size) {
+          return {
+            comfyClass: "MajoorOmniCamDirector",
+            widgets: [
+              { name: "state_json", value: "{}" }, { name: "recording_path", value: "" },
+              { name: "card_asset", value: "" }, { name: "width", value: 1280 },
+              { name: "height", value: 720 }, { name: "fps", value: 24 },
+              { name: "duration_seconds", value: 5 }, { name: "render_mode", value: "omni_ref" },
+            ],
+            size, pos: [0, 0],
+            graph: { setDirtyCanvas() {} },
+            addDOMWidget(name, type, element) {
+              document.querySelector(hostId).appendChild(element);
+              return { element, options: {} };
+            },
+            setSize(next) { this.size = next; }, connect() { return true; },
+          };
+        }
+
+        // Case 1: a genuinely new node -- no beforeConfigureGraph wrapping,
+        // exactly like clicking "Add Node". Starts at a tiny LiteGraph
+        // placeholder size, the way a real fresh node does.
+        const freshNode = makeNode("#host-fresh", [200, 60]);
+        await extension.nodeCreated(freshNode);
+
+        // Case 2: restored from a workflow whose saved size is below the
+        // current minimum (an old save, from before the panel grew).
+        const tinyNode = makeNode("#host-tiny", [300, 200]);
+        extension.beforeConfigureGraph?.({ nodes: [] });
+        const restoring = extension.nodeCreated(tinyNode);
+        tinyNode.onConfigure?.({});
+        tinyNode.onAfterGraphConfigured?.();
+        extension.afterConfigureGraph?.();
+        await restoring;
+
+        // Case 3: a real browser refresh. LiteGraph calls node.configure(data)
+        // with the workflow's actual saved size (comfortably above the
+        // minimum), but its own layout pass can shrink node.size again right
+        // after -- this node has no DOM widget mounted yet, since the lazy
+        // chunk import for it is still in flight, so anything measuring it
+        // "for widgets" sees nothing to fit around. The real saved size must
+        // win, not that transient shrink.
+        const restoredNode = makeNode("#host-restored", [300, 200]);
+        restoredNode.configure = function (data) {
+          if (Array.isArray(data?.size)) this.size = [...data.size];
+        };
+        extension.beforeConfigureGraph?.({ nodes: [] });
+        const restoringSaved = extension.nodeCreated(restoredNode);
+        // LiteGraph applies the saved size first...
+        restoredNode.configure({ size: [1313.3125, 1632.5625] });
+        // ...then its own widget-less layout pass shrinks it back down,
+        // before our lazy chunk has attached anything to measure.
+        restoredNode.size = [140, 80];
+        restoredNode.onConfigure?.({});
+        restoredNode.onAfterGraphConfigured?.();
+        extension.afterConfigureGraph?.();
+        await restoringSaved;
+
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        window.omnicamSizing = {
+          freshAttached: Boolean(freshNode.__majoorOmniCam),
+          freshSize: [...freshNode.size],
+          tinyAttached: Boolean(tinyNode.__majoorOmniCam),
+          tinySize: [...tinyNode.size],
+          restoredAttached: Boolean(restoredNode.__majoorOmniCam),
+          restoredSize: [...restoredNode.size],
+        };
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        fail(error);
+      }
+    </script>
+  </body>
+</html>

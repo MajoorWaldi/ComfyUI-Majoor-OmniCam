@@ -71,6 +71,10 @@ class CameraMotionBackend(Protocol):
     name: str
     #: Basis the returned camera-to-world poses live in: "opencv" or "omnicam".
     basis: str
+    #: Whether a solve monopolises the GPU. An interactive run of such a backend
+    #: is abandoned when a ComfyUI workflow starts, because the two cannot share
+    #: the card without both of them running out of VRAM.
+    gpu_exclusive: bool
 
     @classmethod
     def availability(cls) -> BackendAvailability:

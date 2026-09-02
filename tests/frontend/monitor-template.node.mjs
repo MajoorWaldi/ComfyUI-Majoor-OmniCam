@@ -12,9 +12,12 @@ test("Monitor template mirrors the V3 Monitor profile contract", () => {
     assert.match(markup, new RegExp(`data-setting="${setting}"`));
   }
   assert.deepEqual(PROFILE_OPTIONS.map(([id]) => id), [
-    "h3_api", "h3_native", "ltx25_motion_track", "wan_camera_native",
-    "wan_move_native", "wan_track_native", "wanvideo_ati",
+    "external_reference_video", "h3_api", "h3_native", "ltx25_motion_track",
+    "wan_camera_native", "wan_move_native", "wan_track_native", "wanvideo_ati",
   ]);
+  // The permissive profile leads the list, matching the backend widget default
+  // in omnicam/nodes/monitor.py (PROFILE_REGISTRY.ids[0], alphabetically first).
+  assert.equal(PROFILE_OPTIONS[0][0], "external_reference_video");
   for (const legacy of ["video_ref_token", "point_count", "ltx_max_frames", "camera-health", "adapter-preview", "monitor-refresh"]) {
     assert.doesNotMatch(markup, new RegExp(legacy));
   }

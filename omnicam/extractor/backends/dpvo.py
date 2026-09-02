@@ -56,8 +56,9 @@ MODEL_SUBDIRECTORY = os.path.join("omnicam", "dpvo")
 INSTALL_HINT = (
     "Expected the DPVO Python/CUDA extension and its checkpoint at\n"
     "    ComfyUI/models/omnicam/dpvo/dpvo.pth\n"
-    "Use method=opencv_sift if OpenCV is available, or install DPVO following "
-    "docs/NODES.md. OmniCam did not modify your Python environment."
+    "Use method=pycolmap (pip install pycolmap, no compiler) or method=opencv_sift "
+    "if either is available, or install DPVO following docs/NODES.md. OmniCam did "
+    "not modify your Python environment."
 )
 
 # DPVO downsamples by a fixed factor internally, so it wants both image
@@ -87,6 +88,7 @@ def checkpoint_path() -> str:
 class DpvoBackend:
     name = "dpvo"
     basis = "opencv"
+    gpu_exclusive = True
 
     def __init__(self, *, runner_factory=DpvoProcessRunner) -> None:
         self._runner_factory = runner_factory
