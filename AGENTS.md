@@ -241,7 +241,7 @@ Every PR touching camera math or track serialization must include tests for:
 - adapter payload dimensions.
 
 Frontend changes must keep the automated suites green and extend them where the
-change is testable: Vitest unit (`npm run test:unit`), headless Playwright
+change is testable: frontend unit (`npm run test:unit`), headless Playwright
 (`npm run test:browser`), and the live suites against a real ComfyUI
 (`live-ci.spec.js`, plus `live-vue-ci.spec.js` with `Comfy.VueNodes.Enabled`).
 A manual QA checklist supplements these for viewport interaction that automation
