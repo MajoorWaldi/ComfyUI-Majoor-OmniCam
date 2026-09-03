@@ -217,19 +217,3 @@ def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]
             "docs": "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main/docs/NODES.md",
         })
     return {"format": "majoor.omnicam.setup-diagnostic.v2", "ok": not any(i["severity"] == "error" for i in issues), "issues": issues}
-
-
-def check_workflow_compatibility(workflow_node_types: list[str], capabilities: dict[str, Any] | None = None) -> dict[str, Any]:
-    capabilities = capabilities or detect_capabilities()
-    present = set(workflow_node_types)
-    # The legacy per-adapter nodes. h3_native and ltx_motion_track never had
-    # one: they are reachable only through Monitor.
-    # Every profile is reachable only through Monitor now: the per-adapter nodes
-    # this used to map were removed before the first public release, so a
-    # workflow can no longer name one.
-    usage: dict[str, set[str]] = {}
-    problems = []
-    for entry in capabilities["capabilities"]:
-        if present.intersection(usage.get(entry["adapter"], set())) and entry["state"] in {"missing", "incompatible"}:
-            problems.append({"adapter": entry["adapter"], "message": f"{entry['display']} contract is {entry['state']}.", "remediation": _remediation(entry)})
-    return {"ok": not problems, "problems": problems}

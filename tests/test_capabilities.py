@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from omnicam.capabilities import check_workflow_compatibility, detect_capabilities, diagnose_setup
+from omnicam.capabilities import detect_capabilities, diagnose_setup
 from omnicam.core.manifest import camera_manifest, motion_fidelity_report
 from omnicam.core.track import OmniCamTrack
 
@@ -95,24 +95,6 @@ def test_an_incompatible_optional_adapter_warns_without_blocking_global_setup():
     assert report["issues"][0]["severity"] == "warning"
 
 
-def test_wanvideowrapper_legacy_node_does_not_claim_native_tracks():
-    capabilities = detect_capabilities({
-        "WanVideoATITracks": _node_with_inputs("tracks", "width", "height"),
-    })
-    report = check_workflow_compatibility(["MajoorOmniCamWanVideoWrapperATI"], capabilities)
-    assert "wan_track_native" not in {problem["adapter"] for problem in report["problems"]}
-
-
-def test_workflow_compatibility_has_nothing_to_flag_without_per_adapter_nodes():
-    """Every profile is reachable only through Monitor now.
-
-    The legacy per-adapter nodes were removed before the first public release,
-    so no workflow can name one and this check has no node left to map onto a
-    contract. Monitor's own preflight is where a missing downstream is reported.
-    """
-    result = check_workflow_compatibility(["MajoorOmniCamH3Adapter"], detect_capabilities(set()))
-    assert result["ok"] is True
-    assert result["problems"] == []
 def _track() -> OmniCamTrack:
     return OmniCamTrack.from_dict(
         {
