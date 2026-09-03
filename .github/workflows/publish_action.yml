@@ -1,17 +1,32 @@
 name: Publish to Comfy registry
+
+# The Registry publishes whatever version is written in pyproject.toml, so the
+# release trigger is a version bump landing on main (or a manual dispatch).
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+    paths:
+      - "pyproject.toml"
+
+# publish-node-action opens an issue on the repo when a publish fails.
+permissions:
+  issues: write
 
 jobs:
   test:
     uses: ./.github/workflows/test.yml
+
   publish-node:
     name: Publish Custom Node to registry
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # Never fires from a fork.
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -24,8 +39,9 @@ jobs:
           git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git .adapter-release/ltx
           git clone --depth 1 https://github.com/kijai/ComfyUI-WanVideoWrapper.git .adapter-release/wan-video-wrapper
       - name: Verify external adapter contracts
-        # Unlike the weekly canary, this is a release gate: a `v*` tag does not
-        # publish while an upstream contract OmniCam pins has drifted.
+        # Release gate: a version bump does not publish while an upstream
+        # contract OmniCam pins has drifted. The weekly canary stays advisory;
+        # this step is blocking.
         run: python scripts/adapter_contract_canary.py .adapter-release/ltx .adapter-release/wan-video-wrapper
       - name: Publish Custom Node
         uses: Comfy-Org/publish-node-action@0eb6cd742945443bee7f79eeddd4f732780029a1 # v1

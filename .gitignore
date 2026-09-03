@@ -23,10 +23,10 @@ docs/*
 !docs/USER_GUIDE.md
 !docs/COMPATIBILITY.md
 !docs/CONFORMANCE.md
-!docs/VALIDATION_REPORT.md
 !docs/REFACTOR_CHECKLIST.md
 !docs/AUDIT.md
 !docs/assets/
 
 # DPVO build tree: sources upstream, toolkit CUDA portable, archives
 .dpvo-install/
+.vscode/launch.json

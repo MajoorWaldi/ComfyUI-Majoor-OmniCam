@@ -4,7 +4,8 @@
 > 31 August 2026, before the MotionScene refactor and the stabilisation pass
 > that followed. The node surface, adapter ids and example workflows it
 > describes no longer exist. Kept as a record of what was found and why; see
-> `docs/VALIDATION_REPORT.md` for the current state.
+> `.github/workflows/test.yml` for the current CI matrix and
+> `docs/CONFORMANCE.md` for real-model conformance status.
 
 Scope: full pass over the shipped Python package (`omnicam/`, ~11.9k LOC),
 the frontend source (`web-src/`, ~15.3k LOC), the maintained documentation

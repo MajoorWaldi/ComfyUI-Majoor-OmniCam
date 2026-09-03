@@ -79,6 +79,14 @@ optional `scene_3d`, and an optional upstream `solved_scene` (an OmniCam
 Extractor connects here). `state_json`, `recording_path` and `card_asset` are
 advanced fields the interface manages.
 
+`scene_3d` is a **UI interoperability bridge**, not a serialized MotionScene 3D
+data contract. The backend `execute()` does not consume it; the frontend
+inspects the connected upstream node and reads a mesh path from a set of
+common widget names (`model_file`, `model`, `file`, `filename`, `filepath`,
+`mesh`, `scene`, `3d_file`). A 3D node that names its path field differently
+will not be detected. Treat this as a best-effort convenience for loading a
+proxy mesh into the viewport, not a stable structured input.
+
 **Outputs**, in schema order:
 
 | Output | Type | Meaning |

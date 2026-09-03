@@ -171,7 +171,7 @@ OMNICAM_LIVE_MATCH=live-ci.spec.js
 npm run test:live
 ```
 
-Validation coverage and branch-check policy are recorded in [VALIDATION_REPORT.md](VALIDATION_REPORT.md) and [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md). Internal module boundaries and schema rules are documented in [INTERNALS.md](INTERNALS.md).
+The CI matrix in [`.github/workflows/test.yml`](../.github/workflows/test.yml) is the source of truth for validation coverage; real-model conformance status per Monitor profile is tracked in [CONFORMANCE.md](CONFORMANCE.md), and branch-check policy in [BRANCH_PROTECTION.md](BRANCH_PROTECTION.md). Internal module boundaries and schema rules are documented in [INTERNALS.md](INTERNALS.md).
 
 ## Security
 

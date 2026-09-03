@@ -153,6 +153,9 @@ jobs:
       - run: npm run build
       - run: npm run check
       - run: npm run test:unit
-      - run: git diff --exit-code -- web/
+      # The real frontend bundle Vite emits lives in web-chunks/ (web/ holds only
+      # a stub). Both are versioned and the publish job ships whatever is checked
+      # in without rebuilding, so a stale web-chunks/ must fail CI here.
+      - run: git diff --exit-code -- web/ web-chunks/
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

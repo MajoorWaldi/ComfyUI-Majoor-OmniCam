@@ -9,10 +9,20 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam"><img src="https://img.shields.io/badge/GitHub-Repo-181717?logo=github" alt="GitHub repo"></a>
+  <a href="https://registry.comfy.org/nodes/majoor-omnicam"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.comfy.org%2Fnodes%2Fmajoor-omnicam&query=%24.downloads&label=registry%20installs&color=0b7285" alt="Comfy Registry installs"></a>
+  <a href="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/releases"><img src="https://img.shields.io/github/downloads/MajoorWaldi/ComfyUI-Majoor-OmniCam/total?label=GitHub%20downloads&style=flat" alt="GitHub release downloads"></a>
+  <a href="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/stargazers"><img src="https://img.shields.io/github/stars/MajoorWaldi/ComfyUI-Majoor-OmniCam?style=flat" alt="GitHub stars"></a>
+  <a href="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/issues"><img src="https://img.shields.io/github/issues/MajoorWaldi/ComfyUI-Majoor-OmniCam?style=flat" alt="GitHub issues"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/actions/workflows/test.yml"><img src="https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/actions/workflows/test.yml/badge.svg" alt="CI status"></a>
   <img src="https://img.shields.io/badge/ComfyUI-0.31%2B-blue" alt="ComfyUI 0.31 or newer">
-  <img src="https://img.shields.io/badge/Version-0.1.0-orange" alt="Version 0.1.0">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
+  <img src="https://img.shields.io/badge/Python-3.10--3.13-blue" alt="Python 3.10 to 3.13">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/MajoorWaldi/ComfyUI-Majoor-OmniCam?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Status-experimental-e0a253" alt="Experimental">
+  <a href="https://ko-fi.com/majoorwaldi"><img src="https://img.shields.io/badge/Ko--fi-Buy_Me_a_White_Monster_Drink-ff5e5b?logo=ko-fi" alt="Support on Ko-fi"></a>
 </p>
 
 <p align="center">
@@ -33,9 +43,12 @@ Director ──┘        + playblast                   trajectory JSON / TRACKS
                                                   reference video + prompt
 ```
 
-A **MotionScene** is the canonical document: cameras, objects, motion layers,
-cuts and an authoring timeline, all resolution- and frame-rate-independent. It
-is what travels between the nodes.
+A **MotionScene** is the canonical model-independent authoring document:
+cameras, objects, motion layers, cuts and an authoring timeline. Motion layers
+and cuts use time-based scene semantics; camera and object tracks in v1 still
+retain authoring-grid information (canvas size, authoring fps, duration) where
+required, and compile to any model resolution or frame rate. It is what travels
+between the nodes.
 
 ![The full OmniCam graph: Load Video, Extractor, Director, Monitor, Save Video](docs/assets/omnicam-overview.png)
 

@@ -16,6 +16,19 @@ The Monitor node itself is `is_experimental=True`.
 `EXPERIMENTAL` for real-model motion until evidence lands in
 `tests/conformance/results/` and its row here moves to `CERTIFIED`.
 
+**Real-model certification is post-release work, not a release blocker.** The
+first release ships every Monitor profile experimental and uncertified, by
+design: the unit-parity and socket-contract gates below run in CI and gate the
+release; the certification runs need real GPUs and model weights and are done
+after release. Priority order when that work starts:
+
+1. `wan_camera_native`
+2. `h3_native`
+3. `h3_api`
+
+then the remaining profiles. Until a row moves to `CERTIFIED` here with
+committed evidence, the profile stays labelled experimental everywhere.
+
 | Profile | Model Certification | Evidence |
 |---|---|---|
 | external_reference_video | PENDING | none |
@@ -26,6 +39,25 @@ The Monitor node itself is `is_experimental=True`.
 | ltx25_motion_track | PENDING | none |
 | h3_native | PENDING | none |
 | h3_api | PENDING | none |
+
+## Test ladder
+
+Real-model conformance sits on top of two cheaper gates that run in CI:
+
+1. **Unit parity** — OmniCam's camera maths compared numerically against the
+   downstream project's own maths, no model. For Wan:
+   `tests/test_wan_native_golden.py` (translations vs `WanCameraEmbedding`
+   presets) and `tests/parity/test_wan_camera_official_parity.py` (roll vs the
+   `ClockWise` / `Anti Clockwise` presets, plus pan / tilt / orbit direction
+   and sign). A mirrored axis or dropped sign fails here.
+2. **Socket / schema contract** — the profile emits what the downstream node
+   accepts (`Contract` in [COMPATIBILITY.md](COMPATIBILITY.md)).
+3. **Model Certification** — this document: a real model actually moves the way
+   the scene described.
+
+Gates 1 and 2 run in CI and gate the release. Gate 3 does not: it is scheduled
+after release (see **Status**). Passing 1 and 2 is a prerequisite for a
+certification run, not a substitute for one.
 
 ## Cases
 

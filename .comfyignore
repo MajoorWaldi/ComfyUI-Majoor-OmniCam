@@ -1,14 +1,23 @@
 # Files the Registry should not ship to users. The runtime needs omnicam/,
-# web/, web-chunks/ and the packaging metadata; everything below is
+# web/, web-chunks/, schemas/ and the packaging metadata; everything below is
 # development-only and only makes the download bigger.
 .venv/
 venv/
 .pytest_cache/
+.pytest_*/
+.tmp_pytest_*/
 .ruff_cache/
+.mypy_cache/
 __pycache__/
 node_modules/
 test-results/
 *.log
+
+# Local scratch and toolchain checkouts, never part of a release.
+.dpvo-install/
+.codex-pytest-temp/
+.superpowers/
+.vscode/
 
 # Development-only sources and suites. web-src/ is the input to `npm run build`;
 # what ships is the built bundle in web-chunks/, which is committed.
@@ -22,3 +31,9 @@ vite.test.config.mjs
 package.json
 package-lock.json
 requirements-dev.txt
+
+# Contributor/CI metadata that has no meaning inside an installed node.
+.github/
+AGENTS.md
+.template-contract.json
+docs/superpowers/

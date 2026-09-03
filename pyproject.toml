@@ -17,6 +17,7 @@ classifiers = [
 ]
 
 [project.urls]
+Homepage = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam"
 Repository = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam"
 Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main/docs"
 "Bug Tracker" = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/issues"

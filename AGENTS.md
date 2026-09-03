@@ -203,6 +203,12 @@ Default `omni_ref` should include card + floor grid + sparse depth/point cues an
 
 ## 8. Adapter rules
 
+Model targets below are **Monitor profiles** — compilers from MotionScene to a
+model-native artifact — not separate conditioning nodes on the public surface.
+Blender and Unreal are **exchange / DCC interoperability** exports, not adapter
+nodes either. The public node surface stays three product nodes; everything here
+is downstream of the Monitor profile compiler.
+
 ### MiniMax H3
 
 Primary product path: pass the proxy video as an Omni Reference and generate a prompt fragment that explicitly says to copy camera motion only, not proxy appearance.
@@ -215,15 +221,14 @@ Never hardcode undocumented third-party socket names without checking that repos
 
 ### LTX
 
-Keep a version-neutral intrinsics/extrinsics payload. Only add a direct conditioning node adapter after checking the current official LTX implementation and current ComfyUI integration.
+Keep a version-neutral intrinsics/extrinsics payload. Only extend the LTX Monitor profile toward direct conditioning after checking the current official LTX implementation and current ComfyUI integration.
 
-### Blender
+### Blender / Unreal (exchange / DCC interoperability)
 
-Export a script that reconstructs camera transforms, lens/FOV and timeline timing.
+These are file/script exports from the canonical MotionScene, not nodes.
 
-### Unreal
-
-Keep canonical JSON as source of truth. Put Sequencer-specific logic behind a versioned adapter because Unreal Python APIs vary.
+- **Blender:** export a script that reconstructs camera transforms, lens/FOV and timeline timing.
+- **Unreal:** keep canonical JSON as source of truth. Put Sequencer-specific logic behind a versioned exporter because Unreal Python APIs vary.
 
 ## 9. Testing requirements
 
@@ -235,7 +240,12 @@ Every PR touching camera math or track serialization must include tests for:
 - camera projection,
 - adapter payload dimensions.
 
-Frontend changes should include at least a manual QA checklist until browser tests are added.
+Frontend changes must keep the automated suites green and extend them where the
+change is testable: Vitest unit (`npm run test:unit`), headless Playwright
+(`npm run test:browser`), and the live suites against a real ComfyUI
+(`live-ci.spec.js`, plus `live-vue-ci.spec.js` with `Comfy.VueNodes.Enabled`).
+A manual QA checklist supplements these for viewport interaction that automation
+does not yet cover; it does not replace them.
 
 ## 10. Performance requirements
 
