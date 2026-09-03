@@ -145,6 +145,48 @@ def test_manager_shutdown_stops_jobs_and_reaps_backend_processes():
     assert cleaned == [True]
 
 
+class _JoinThread:
+    """A worker-thread stand-in that records how ``shutdown()`` joins it."""
+
+    def __init__(self, *, alive_after_join=False):
+        self.name = "omnicam-test-worker"
+        self.join_calls = []
+        self._alive = alive_after_join
+
+    def join(self, timeout=None):
+        self.join_calls.append(timeout)
+
+    def is_alive(self):
+        return self._alive
+
+
+def test_shutdown_bounds_the_worker_join_and_runs_backend_cleanup_first():
+    events = []
+    mgr = manager(backend_cleanup=lambda: events.append("cleanup"))
+    job = start(mgr)
+
+    fake = _JoinThread()
+    mgr._threads[job.job_id] = fake
+
+    mgr.shutdown()
+
+    assert job.stop_requested.is_set()
+    assert events == ["cleanup"]
+    assert fake.join_calls, "shutdown must join the worker thread"
+    assert all(timeout is not None and timeout > 0 for timeout in fake.join_calls)
+
+
+def test_shutdown_warns_but_returns_when_a_worker_will_not_die(caplog):
+    mgr = manager(backend_cleanup=lambda: None)
+    job = start(mgr)
+    mgr._threads[job.job_id] = _JoinThread(alive_after_join=True)
+
+    with caplog.at_level("WARNING"):
+        mgr.shutdown()
+
+    assert "worker threads still alive" in caplog.text
+
+
 def test_stop_signals_an_active_worker():
     mgr = manager()
     job = start(mgr)

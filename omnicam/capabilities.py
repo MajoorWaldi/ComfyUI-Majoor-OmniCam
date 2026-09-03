@@ -203,14 +203,17 @@ def diagnose_setup(capabilities: dict[str, Any] | None = None) -> dict[str, Any]
             })
     extractor = capabilities.get("extractor") or {}
     if extractor and not any(entry.get("available") for entry in extractor.values()):
-        # A warning, not an error: OmniCam's five other nodes work perfectly
-        # well without a tracker installed.
+        # A warning, not an error: the other OmniCam product nodes work
+        # without a tracker installed.
         reasons = "; ".join(f"{name}: {entry.get('reason') or 'unavailable'}" for name, entry in extractor.items())
         issues.append({
             "adapter": "extractor", "display": "OmniCam Extractor", "state": "missing",
             "severity": "warning",
             "message": f"No camera-tracking backend is installed ({reasons}).",
-            "remediation": "Install DPVO or OpenCV to use OmniCam Extractor. See docs/NODES.md",
+            "remediation": (
+                "Install DPVO, pycolmap, or OpenCV/SIFT to use OmniCam Extractor. "
+                "See docs/NODES.md"
+            ),
             "docs": "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main/docs/NODES.md",
         })
     return {"format": "majoor.omnicam.setup-diagnostic.v2", "ok": not any(i["severity"] == "error" for i in issues), "issues": issues}

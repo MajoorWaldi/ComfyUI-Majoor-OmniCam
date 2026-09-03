@@ -44,6 +44,12 @@ EXCLUSIVE_BACKENDS = frozenset({"dpvo", "auto"})
 TERMINAL_TTL_SECONDS = 30 * 60
 MAX_TRACKED_JOBS = 32
 
+#: How long ``shutdown()`` waits, in total, for worker threads to unwind after
+#: their solver children have been terminated. Bounded so a wedged solve cannot
+#: hang ComfyUI teardown; a thread still alive past this is logged, not joined
+#: forever.
+SHUTDOWN_JOIN_SECONDS = 5.0
+
 
 class SolveSlotBusyError(RuntimeError):
     """Another exclusive solve already holds the single GPU slot."""
@@ -232,7 +238,27 @@ class SolveJobManager:
     def shutdown(self) -> None:
         for job in self.jobs():
             job.stop_requested.set()
+
+        # Stop/terminate solver children first. This gives threads waiting on a
+        # solver a chance to unwind before we join them.
         self._backend_cleanup()
+
+        with self._lock:
+            threads = list(self._threads.values())
+
+        deadline = time.monotonic() + SHUTDOWN_JOIN_SECONDS
+        for thread in threads:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            thread.join(timeout=remaining)
+
+        alive = [thread.name for thread in threads if thread.is_alive()]
+        if alive:
+            logger.warning(
+                "OmniCam shutdown timed out with worker threads still alive: %s",
+                ", ".join(alive),
+            )
 
 
 def _release(job: InteractiveSolveJob) -> None:
