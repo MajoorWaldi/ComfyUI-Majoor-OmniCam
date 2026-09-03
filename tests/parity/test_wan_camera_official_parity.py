@@ -7,28 +7,16 @@ file does not cover -- **roll, pan, tilt and orbit** -- and consolidates the
 translation set so a single suite answers "does an OmniCam move produce the
 camera ComfyUI would produce".
 
-Two kinds of check live here:
-
-* Where ComfyUI ships an equivalent preset (translations via ``Pan *`` / ``Zoom
-  *``, roll via ``ClockWise`` / ``Anti Clockwise``) the OmniCam pose is compared
-  numerically against ComfyUI's own trajectory maths, executed from the
-  installed ``comfy_extras`` source rather than transcribed.
-
-* ``WanCameraEmbedding`` has **no** rotational preset for pan/tilt/orbit (its
-  ``Pan *`` entries are pure translations). For those the check is semantic
-  conformance: the relative pose that reaches the model must be a rotation about
-  the expected OpenCV axis, with the expected sign, and orbit must preserve the
-  distance to the framed subject.
-
-The comparison is always made on the pose expressed in the first frame's own
-camera basis -- exactly what ``process_pose_params`` reduces the trajectory to
-via ``get_relative_pose`` -- so absolute world conventions cancel and the check
-is on the only thing the model sees.
+Where ComfyUI ships an equivalent preset, this test executes the official
+``comfy_extras/nodes_camera_trajectory.py`` source from the checkout provided by
+``OMNICAM_COMFYUI_ROOT``. CI sets ``OMNICAM_REQUIRE_OFFICIAL_WAN_PARITY=1`` so a
+missing upstream source is a failure rather than a skip.
 """
 
 from __future__ import annotations
 
 import math
+import os
 import pathlib
 
 import numpy as np
@@ -38,19 +26,24 @@ from omnicam.adapters.wan import track_to_wan_camera_params
 from omnicam.core.track import OmniCamTrack
 
 LENGTH = 21
-# ComfyUI's base_T_norm 1.5 spread over 21 frames at speed 1.0 (frames 0..20).
 DISTANCE = 1.5 * (LENGTH - 1) / LENGTH
-# ComfyUI's base_angle pi/3 over the same span, in degrees.
 ANGLE_DEG = math.degrees((LENGTH - 1) / LENGTH * (math.pi / 3))
 TOLERANCE = 1e-4
 
 
 def _upstream():
-    """Load ComfyUI's camera-trajectory maths without importing ComfyUI itself."""
+    """Load ComfyUI's camera-trajectory maths from an explicit checkout."""
     pytest.importorskip("torch")
-    source = pathlib.Path(__file__).resolve().parents[3] / "comfy_extras" / "nodes_camera_trajectory.py"
+    root = os.environ.get("OMNICAM_COMFYUI_ROOT")
+    if root:
+        source = pathlib.Path(root) / "comfy_extras" / "nodes_camera_trajectory.py"
+    else:
+        source = pathlib.Path(__file__).resolve().parents[4] / "comfy_extras" / "nodes_camera_trajectory.py"
     if not source.exists():
-        pytest.skip("ComfyUI's comfy_extras is not available next to this checkout")
+        message = f"ComfyUI camera trajectory source not found: {source}"
+        if os.environ.get("OMNICAM_REQUIRE_OFFICIAL_WAN_PARITY") == "1":
+            pytest.fail(message)
+        pytest.skip(message)
     text = source.read_text(encoding="utf-8")
     namespace: dict = {"np": np}
     exec(text[text.index("CAMERA_DICT = {"):text.index("class WanCameraEmbedding")], namespace)
@@ -58,7 +51,6 @@ def _upstream():
 
 
 def _relative_pose(matrices) -> np.ndarray:
-    """The last 4x4 pose expressed in the first frame's own camera basis."""
     first, last = matrices[0], matrices[-1]
     rotation, translation = first[:3, :3], first[:3, 3]
     inverse = np.eye(4)
@@ -73,7 +65,6 @@ def _omnicam_relative(keyframes) -> np.ndarray:
         "keyframes": keyframes,
     })
     params = np.asarray(track_to_wan_camera_params(track, LENGTH), dtype=np.float64)
-    # Row layout: [pad, fx, fy, cx, cy, 0, 0] + a flattened 4x4 camera-to-world.
     return _relative_pose([np.array(row[7:23]).reshape(4, 4) for row in params])
 
 
@@ -94,15 +85,11 @@ def _move(position_end, target_end, *, position_start=(0.0, 0.0, 5.0), target_st
     ]
 
 
-# --- translations: numeric parity against ComfyUI's own presets -----------------
-
-# Wan's camera basis is OpenCV-style: X right, Y down, Z forward.
 TRANSLATIONS = {
-    # name:            (omnicam end pos,               end target,                     preset,       expected relative translation)
-    "truck_right":     ((DISTANCE, 0.0, 5.0),          (DISTANCE, 0.0, 0.0),           "Pan Right",  (DISTANCE, 0.0, 0.0)),
-    "truck_left":      ((-DISTANCE, 0.0, 5.0),         (-DISTANCE, 0.0, 0.0),          "Pan Left",   (-DISTANCE, 0.0, 0.0)),
-    "pedestal_up":     ((0.0, DISTANCE, 5.0),          (0.0, DISTANCE, 0.0),           "Pan Up",     (0.0, -DISTANCE, 0.0)),
-    "pedestal_down":   ((0.0, -DISTANCE, 5.0),         (0.0, -DISTANCE, 0.0),          "Pan Down",   (0.0, DISTANCE, 0.0)),
+    "truck_right": ((DISTANCE, 0.0, 5.0), (DISTANCE, 0.0, 0.0), "Pan Right", (DISTANCE, 0.0, 0.0)),
+    "truck_left": ((-DISTANCE, 0.0, 5.0), (-DISTANCE, 0.0, 0.0), "Pan Left", (-DISTANCE, 0.0, 0.0)),
+    "pedestal_up": ((0.0, DISTANCE, 5.0), (0.0, DISTANCE, 0.0), "Pan Up", (0.0, -DISTANCE, 0.0)),
+    "pedestal_down": ((0.0, -DISTANCE, 5.0), (0.0, -DISTANCE, 0.0), "Pan Down", (0.0, DISTANCE, 0.0)),
 }
 
 
@@ -111,13 +98,12 @@ def test_translation_moves_match_comfyui_presets(name):
     end_pos, end_target, preset, expected = TRANSLATIONS[name]
     ours = _omnicam_relative(_move(end_pos, end_target))
     assert ours[:3, 3] == pytest.approx(expected, abs=TOLERANCE)
-    assert np.allclose(ours[:3, :3], np.eye(3), atol=TOLERANCE), "a pure translation must not rotate the basis"
+    assert np.allclose(ours[:3, :3], np.eye(3), atol=TOLERANCE)
     theirs = _upstream_relative(_upstream(), preset)
     assert ours[:3, 3] == pytest.approx(theirs[:3, 3], abs=TOLERANCE)
 
 
 def test_dolly_matches_the_zoom_presets_direction_and_scale():
-    """ComfyUI's Zoom presets use T = 2.0, so only direction and ratio compare."""
     namespace = _upstream()
     dolly_in = _omnicam_relative(_move((0.0, 0.0, 5.0 - DISTANCE), (0.0, 0.0, 0.0)))
     dolly_out = _omnicam_relative(_move((0.0, 0.0, 5.0 + DISTANCE), (0.0, 0.0, 0.0)))
@@ -128,24 +114,16 @@ def test_dolly_matches_the_zoom_presets_direction_and_scale():
     assert dolly_out[2, 3] < 0 and zoom_out[2, 3] < 0
 
 
-# --- roll: numeric parity against the ClockWise / Anti Clockwise presets --------
-
 def test_roll_matches_the_clockwise_presets_exactly():
     namespace = _upstream()
     clockwise = _upstream_relative(namespace, "ClockWise (CW)")[:3, :3]
     anticlockwise = _upstream_relative(namespace, "Anti Clockwise (ACW)")[:3, :3]
-
     negative = _omnicam_relative(_move((0.0, 0.0, 5.0), (0.0, 0.0, 0.0), roll_end=-ANGLE_DEG))[:3, :3]
     positive = _omnicam_relative(_move((0.0, 0.0, 5.0), (0.0, 0.0, 0.0), roll_end=ANGLE_DEG))[:3, :3]
-
-    # OmniCam roll magnitude and axis match ComfyUI; the sign is mirrored between
-    # the two presets, so a dropped minus sign anywhere in the chain fails here.
     assert np.allclose(negative, clockwise, atol=TOLERANCE)
     assert np.allclose(positive, anticlockwise, atol=TOLERANCE)
     assert not np.allclose(clockwise, anticlockwise, atol=TOLERANCE)
 
-
-# --- pan / tilt / orbit: semantic conformance (no ComfyUI reference exists) -----
 
 def _axis_angle(rotation: np.ndarray) -> tuple[np.ndarray, float]:
     angle = math.acos(max(-1.0, min(1.0, (np.trace(rotation) - 1.0) / 2.0)))
@@ -159,58 +137,44 @@ def _axis_angle(rotation: np.ndarray) -> tuple[np.ndarray, float]:
     return axis / np.linalg.norm(axis), angle
 
 
-WAN_FORWARD = np.array([0.0, 0.0, 1.0])  # OpenCV/Wan camera looks down +Z.
+WAN_FORWARD = np.array([0.0, 0.0, 1.0])
 
 
 @pytest.mark.parametrize(("target_x", "screen_side"), [(3.0, +1.0), (-3.0, -1.0)])
 def test_pan_is_a_pure_yaw_that_turns_toward_the_target(target_x, screen_side):
-    """Target sweeps sideways, camera fixed: the model must see a pure Y rotation
-    that turns the lens the *same* way ComfyUI's ``Pan Right`` / ``Pan Left``
-    translation presets move it -- a mirror here swings every pan backwards."""
     pose = _omnicam_relative(_move((0.0, 0.0, 5.0), (target_x, 0.0, 0.0)))
-    assert pose[:3, 3] == pytest.approx((0.0, 0.0, 0.0), abs=TOLERANCE), "panning must not translate the camera"
+    assert pose[:3, 3] == pytest.approx((0.0, 0.0, 0.0), abs=TOLERANCE)
     axis, angle = _axis_angle(pose[:3, :3])
     assert angle == pytest.approx(math.atan2(abs(target_x), 5.0), abs=TOLERANCE)
-    assert abs(axis[1]) == pytest.approx(1.0, abs=TOLERANCE), "yaw axis must be Wan's vertical (Y) axis"
+    assert abs(axis[1]) == pytest.approx(1.0, abs=TOLERANCE)
     assert abs(axis[0]) < TOLERANCE and abs(axis[2]) < TOLERANCE
-    turned_forward = pose[:3, :3] @ WAN_FORWARD
-    assert np.sign(turned_forward[0]) == screen_side, "lens must swing toward the side the subject moved"
+    assert np.sign((pose[:3, :3] @ WAN_FORWARD)[0]) == screen_side
 
 
 @pytest.mark.parametrize(("target_y", "wan_y_sign"), [(3.0, -1.0), (-3.0, +1.0)])
 def test_tilt_is_a_pure_pitch_that_turns_toward_the_target(target_y, wan_y_sign):
-    """Target +Y is screen-up; Wan's Y points down, so the lens must gain a -Y
-    forward component when the subject rises."""
     pose = _omnicam_relative(_move((0.0, 0.0, 5.0), (0.0, target_y, 0.0)))
-    assert pose[:3, 3] == pytest.approx((0.0, 0.0, 0.0), abs=TOLERANCE), "tilting must not translate the camera"
+    assert pose[:3, 3] == pytest.approx((0.0, 0.0, 0.0), abs=TOLERANCE)
     axis, angle = _axis_angle(pose[:3, :3])
     assert angle == pytest.approx(math.atan2(abs(target_y), 5.0), abs=TOLERANCE)
-    assert abs(axis[0]) == pytest.approx(1.0, abs=TOLERANCE), "pitch axis must be Wan's horizontal (X) axis"
+    assert abs(axis[0]) == pytest.approx(1.0, abs=TOLERANCE)
     assert abs(axis[1]) < TOLERANCE and abs(axis[2]) < TOLERANCE
-    turned_forward = pose[:3, :3] @ WAN_FORWARD
-    assert np.sign(turned_forward[1]) == wan_y_sign, "lens must tilt toward the side the subject moved"
+    assert np.sign((pose[:3, :3] @ WAN_FORWARD)[1]) == wan_y_sign
 
 
 @pytest.mark.parametrize("degrees", [45.0, 90.0])
 def test_orbit_rotates_about_the_subject_and_keeps_its_radius(degrees):
     radius, theta = 5.0, math.radians(degrees)
-    keyframes = _move(
-        (radius * math.sin(theta), 0.0, radius * math.cos(theta)),
-        (0.0, 0.0, 0.0),
-    )
+    keyframes = _move((radius * math.sin(theta), 0.0, radius * math.cos(theta)), (0.0, 0.0, 0.0))
     pose = _omnicam_relative(keyframes)
-
-    # An orbit is a yaw with translation, unlike a pan (yaw, no translation).
     axis, angle = _axis_angle(pose[:3, :3])
     assert angle == pytest.approx(theta, abs=TOLERANCE)
     assert abs(axis[1]) == pytest.approx(1.0, abs=TOLERANCE)
     assert np.linalg.norm(pose[:3, 3]) > TOLERANCE
-
-    # The framed subject stays the same world distance from the camera.
     track = OmniCamTrack.from_dict({
         "fps": 24, "duration_frames": LENGTH, "width": 1280, "height": 720, "keyframes": keyframes,
     })
     start, end = track.sample(0), track.sample(LENGTH - 1)
-    start_radius = np.linalg.norm(np.array(start.position) - np.array(start.target))
-    end_radius = np.linalg.norm(np.array(end.position) - np.array(end.target))
-    assert end_radius == pytest.approx(start_radius, abs=TOLERANCE)
+    assert np.linalg.norm(np.array(end.position) - np.array(end.target)) == pytest.approx(
+        np.linalg.norm(np.array(start.position) - np.array(start.target)), abs=TOLERANCE
+    )
