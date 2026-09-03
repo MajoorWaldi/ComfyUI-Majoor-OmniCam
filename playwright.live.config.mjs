@@ -10,12 +10,29 @@ const python = process.env.OMNICAM_COMFYUI_PYTHON || "python";
 const port = Number(process.env.OMNICAM_LIVE_PORT || 8191);
 const customNodeName = basename(import.meta.dirname);
 
+// Test-only knob. Lets a CI lane pin a specific frontend
+// (`--front-end-version Comfy-Org/ComfyUI_frontend@x.y.z`) for the throwaway
+// server. It is never wired to an HTTP route, a frontend widget, or a workflow
+// value.
+const extraComfyArgs = (process.env.OMNICAM_LIVE_COMFY_ARGS || "").trim();
+
 // Set OMNICAM_LIVE_AUTOSTART=1 to boot a throwaway ComfyUI server for the
 // Nodes 2.0 browser tests; otherwise reuse the already-running instance.
 const webServer =
   process.env.OMNICAM_LIVE_AUTOSTART === "1"
     ? {
-        command: `"${python}" main.py --port ${port} --disable-auto-launch --cpu --disable-all-custom-nodes --whitelist-custom-nodes ${customNodeName}`,
+        command: [
+          `"${python}"`,
+          "main.py",
+          `--port ${port}`,
+          "--disable-auto-launch",
+          "--cpu",
+          "--disable-all-custom-nodes",
+          `--whitelist-custom-nodes ${customNodeName}`,
+          extraComfyArgs,
+        ]
+          .filter(Boolean)
+          .join(" "),
         cwd: comfyRoot,
         url: `http://127.0.0.1:${port}/`,
         reuseExistingServer: true,

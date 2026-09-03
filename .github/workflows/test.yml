@@ -97,6 +97,48 @@ jobs:
           OMNICAM_LIVE_AUTOSTART: "1"
           OMNICAM_COMFYUI_ROOT: ${{ github.workspace }}/.comfyui
           OMNICAM_LIVE_MATCH: "live-ci.spec.js"
+      - run: npm run test:live
+        env:
+          OMNICAM_LIVE_AUTOSTART: "1"
+          OMNICAM_COMFYUI_ROOT: ${{ github.workspace }}/.comfyui
+          OMNICAM_LIVE_MATCH: "live-vue-ci.spec.js"
+
+  comfyui-browser-current-frontend:
+    name: comfyui-browser-current-frontend
+    # The bundled comfyui-browser lane above pins the frontend ComfyUI v0.34.0
+    # ships. This lane re-runs the same live and Nodes 2.0 suites against a
+    # newer pinned frontend so a frontend-only regression is caught before a
+    # user hits it. The pin is explicit, never @latest, so this stays a
+    # required check.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: git clone --depth 1 --branch v0.34.0 https://github.com/Comfy-Org/ComfyUI.git .comfyui
+      - run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r .comfyui/requirements.txt
+      - run: npm ci
+      - run: npm run build
+      - run: rsync -a --delete --exclude .git --exclude .comfyui --exclude node_modules ./ .comfyui/custom_nodes/ComfyUI-Majoor-OmniCam/
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:live
+        env:
+          OMNICAM_LIVE_AUTOSTART: "1"
+          OMNICAM_COMFYUI_ROOT: ${{ github.workspace }}/.comfyui
+          OMNICAM_LIVE_MATCH: "live-ci.spec.js"
+          OMNICAM_LIVE_COMFY_ARGS: "--front-end-version Comfy-Org/ComfyUI_frontend@1.54.1"
+      - run: npm run test:live
+        env:
+          OMNICAM_LIVE_AUTOSTART: "1"
+          OMNICAM_COMFYUI_ROOT: ${{ github.workspace }}/.comfyui
+          OMNICAM_LIVE_MATCH: "live-vue-ci.spec.js"
+          OMNICAM_LIVE_COMFY_ARGS: "--front-end-version Comfy-Org/ComfyUI_frontend@1.54.1"
 
   frontend:
     name: frontend
