@@ -11,24 +11,57 @@ OmniCam does not accept arbitrary filesystem paths. Browser uploads are stored
 below ComfyUI's managed `input/omnicam/` directory and API responses expose only
 paths relative to that managed root.
 
-## Monitor snapshot boundary
+## Monitor live-preflight boundary
 
-`POST /majoor/omnicam/monitor/snapshot` accepts only a canonical camera-track
-JSON object, a fixed adapter enum, a Boolean proxy-presence flag and a whitelist
-of bounded scalar settings. The request is capped at 2 MiB both from the
-declared body size and after JSON decoding. Unknown settings, invalid enums,
-out-of-range dimensions and malformed tracks are rejected with ordinary errors
-that do not disclose filesystem structure.
+`POST /majoor/omnicam/monitor/live_preflight` evaluates the currently connected
+Director state against the selected Monitor profile without queueing a prompt.
 
-The route accepts no path or URL. It cannot open a proxy supplied by the
-client, execute a shell, install a dependency, queue the graph or start model
-inference. Snapshot preview work is limited to camera math, prompt text,
-trajectory projection and LTX sampling indices. Wan embeddings and decoded LTX
-IMAGE tensors are generated only through normal node execution.
+The HTTP request is bounded by `OMNICAM_MAX_LIVE_PREFLIGHT_BYTES` (default
+4 MiB). The nested Director `state_json` is additionally bounded to 2,000,000
+characters by `omnicam/nodes/monitor_live.py`.
 
-Monitor proxy playback is derived from the connected Director's managed
-`recording_path` annotation and resolves it through ComfyUI's `/view` endpoint;
-the snapshot payload contains only `proxy_available: true|false`.
+The route accepts:
+
+### director
+
+- `state_json`
+- `recording_path`
+- `card_asset`
+- `width`
+- `height`
+- `fps`
+- `duration_seconds`
+- `render_mode`
+
+### monitor
+
+- `target_profile`
+- `base_prompt`
+- `target_width`
+- `target_height`
+- `duration_seconds`
+- `target_fps`
+
+The route never:
+
+- queues a ComfyUI prompt;
+- starts diffusion inference;
+- installs dependencies;
+- executes shell commands;
+- accepts a remote URL;
+- accepts arbitrary filesystem paths.
+
+It compiles the live Director state through the same MotionScene compilation
+path used by queued execution. Proxy playback is derived from the connected
+Director's managed `recording_path` annotation and resolved through ComfyUI's
+`/view` endpoint.
+
+Additional read-only Monitor routes:
+
+```text
+GET /majoor/omnicam/monitor/profiles
+GET /majoor/omnicam/motion_profiles
+```
 
 ## Upload validation
 

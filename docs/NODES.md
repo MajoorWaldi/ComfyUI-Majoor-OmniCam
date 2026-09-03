@@ -7,9 +7,15 @@ registry; their history remains in git.
 
 | Node id | Display name | Category | State |
 |---|---|---|---|
-| `MajoorOmniCamDirector` | OmniCam Director | `Majoor/OmniCam` | product |
-| `MajoorOmniCamExtractor` | OmniCam Extractor | `Majoor/OmniCam` | product |
-| `MajoorOmniCamMonitor` | OmniCam Monitor | `Majoor/OmniCam` | product |
+| `MajoorOmniCamDirector` | OmniCam Director | `Majoor/OmniCam` | product, `is_experimental=True` |
+| `MajoorOmniCamExtractor` | OmniCam Extractor | `Majoor/OmniCam` | product, `is_experimental=True` |
+| `MajoorOmniCamMonitor` | OmniCam Monitor | `Majoor/OmniCam` | product, `is_experimental=True` |
+
+All three product nodes ship with `is_experimental=True`: the node contract
+(sockets, MotionScene schema, profile outputs) is not frozen yet. Inside
+Director, the **Motion Tracks** authoring surface (screen paths, anchors,
+projected points, motion layers) is the least settled part and is labelled
+`EXPERIMENTAL` in the panel.
 
 ## Canonical flow
 
@@ -22,6 +28,11 @@ The motion scene is the source of truth. It contains model-independent cameras,
 objects, screen tracks, projected anchors and cuts. Model-specific frame grids,
 prompt dialects and transport formats belong to Monitor profiles and never leak
 into the Director scene.
+
+![The full OmniCam graph with the three node panels expanded](assets/omnicam-overview.png)
+
+A short authoring clip is in [`assets/omnicam-demo.gif`](assets/omnicam-demo.gif);
+a longer walkthrough is [`assets/omnicam-preview.mp4`](assets/omnicam-preview.mp4).
 
 ## Media sockets: VIDEO or IMAGE
 
@@ -101,6 +112,11 @@ controls are in [SHORTCUTS.md](SHORTCUTS.md).
 
 ### Motion Tracks
 
+> **Experimental.** This authoring surface is labelled `EXPERIMENTAL` in the
+> panel. The layer model, source kinds and the compiled `motion_layers`
+> representation may still change before a stable release; camera authoring and
+> the playblast are not affected.
+
 The Camera View toolbar provides `Select`, `Track`, `Anchor`, `Project` and
 `Erase`. Track draws a sparse normalized screen path over the current playback
 range; Anchor creates a held screen point; Project binds a point to the selected
@@ -145,7 +161,7 @@ and wraps that internal camera solve in a canonical one-camera MotionScene.
 | Input | Default | Role |
 |---|---|---|
 | `video` | — | one continuous shot, `VIDEO` or `IMAGE` batch; a hard cut is reported, never stitched |
-| `method` | `dpvo` | `dpvo`; `auto` prefers DPVO, then pycolmap, then OpenCV/SIFT, taking the first installed; `pycolmap` or `opencv_sift` force those directly |
+| `method` | `auto` | `auto` prefers DPVO, then pycolmap, then OpenCV/SIFT, taking the first installed; `dpvo`, `pycolmap` or `opencv_sift` force those directly |
 | `lens_mode` | `auto` | `auto`, `fov` or `focal_mm` |
 | `fov_degrees` | `53.0` | vertical FOV, used when `lens_mode=fov` |
 | `focal_length_mm` | `24.0` | focal length, used when `lens_mode=focal_mm` |
@@ -232,8 +248,6 @@ POST   /majoor/omnicam/extractor/source
 POST   /majoor/omnicam/extractor/frame
 POST   /majoor/omnicam/extractor/jobs
 GET    /majoor/omnicam/extractor/jobs/{job_id}
-POST   /majoor/omnicam/extractor/jobs/{job_id}/pause
-POST   /majoor/omnicam/extractor/jobs/{job_id}/resume
 POST   /majoor/omnicam/extractor/jobs/{job_id}/stop
 POST   /majoor/omnicam/extractor/jobs/{job_id}/refine
 GET    /majoor/omnicam/extractor/jobs/{job_id}/result
@@ -340,6 +354,10 @@ ships prebuilt Windows wheels with no CUDA extension to compile.
 ## OmniCam Monitor — `MajoorOmniCamMonitor`
 
 ![OmniCam Monitor](assets/monitor-panel.png)
+
+> **Experimental** (`is_experimental=True`). The profile set, their output
+> sockets and the capability-gate wording are still moving; no profile is
+> real-model certified yet (see [CONFORMANCE.md](CONFORMANCE.md)).
 
 The model compiler, and the single exit point from OmniCam into the rest of the
 graph. Monitor takes a MotionScene and its playblast, resolves the timeline the

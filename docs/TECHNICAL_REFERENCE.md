@@ -5,10 +5,35 @@
 OmniCam keeps camera authoring model-agnostic:
 
 ```text
-Viewport / timeline -> MAJOOR_OMNICAM_TRACK -> adapters
+Extractor ---------┐
+                   │
+                   ▼
+          OMNICAM_MOTION_SCENE
+                   ▲
+                   │
+Director ----------┘
+                   │
+                   ▼
+            Monitor Profile
+                   │
+                   ▼
+        model-native artifact
 ```
 
-Director, Extractor, and Monitor are the product nodes. Model-specific logic belongs behind Monitor adapters and must not enter the canonical track.
+Director, Extractor and Monitor are the product nodes.
+
+`OMNICAM_MOTION_SCENE` is the product-level source of truth.
+`MAJOOR_OMNICAM_TRACK` is the camera primitive embedded inside a scene.
+
+Model-specific logic belongs behind Monitor profiles and must not enter
+MotionScene authoring.
+
+### Versioning
+
+MotionScene and camera tracks are versioned independently. A MotionScene schema
+change must go through `omnicam/core/migrations.py`. Simply increasing the
+MotionScene version and rejecting every older workflow is not a valid migration
+strategy.
 
 The frontend has a small extension bootstrap in `web/omnicam.js`; product surfaces load from code-split chunks. Three.js and media components load only when their respective UI needs them. Do not move these dependencies into startup imports.
 

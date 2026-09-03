@@ -24,17 +24,88 @@ If an API has changed since the last commit, adapt the implementation to the cur
 
 **OmniCam core is model-agnostic.**
 
-The canonical flow is:
+The canonical product flow is:
 
 ```text
-Viewport / Timeline → MAJOOR_OMNICAM_TRACK → adapters
+Viewport / Timeline
+        ↓
+OMNICAM_EDITOR_STATE
+        ↓
+OMNICAM_MOTION_SCENE
+        ↓
+Monitor profile compiler
+        ↓
+model-native artifact
 ```
 
-No MiniMax-, Wan-, LTX-, Blender-, or Unreal-specific inference code belongs in the viewport engine.
+`OMNICAM_MOTION_SCENE` is the product interchange contract between Extractor,
+Director and Monitor. It owns:
 
-Adapters may depend on external model semantics; the core track may not.
+- authoring timeline;
+- canvas;
+- cameras;
+- objects;
+- motion layers;
+- cuts;
+- model-independent metadata.
 
-## 3. Canonical camera-track contract
+`MAJOOR_OMNICAM_TRACK` remains the versioned camera primitive used inside
+MotionScene and by solve/compiler internals. It is NOT the top-level OmniCam
+product interchange contract.
+
+No MiniMax-, Wan-, LTX-, Blender-, Unreal- or API-specific model semantics
+belong in MotionScene authoring or the viewport engine. Model-specific behavior
+belongs behind Monitor profiles.
+
+## 3. Canonical document contracts
+
+### MotionScene
+
+The public product document is versioned through `motion_scene.version`.
+
+An incompatible schema change requires:
+
+1. incrementing the MotionScene version;
+2. registering a migration in `omnicam/core/migrations.py`;
+3. keeping previously saved workflows loadable;
+4. adding a migration regression test;
+5. adding a saved-workflow fixture.
+
+Simply increasing the MotionScene version and rejecting every older workflow is
+not a valid migration strategy.
+
+Minimal shape:
+
+```json
+{
+  "version": 1,
+
+  "timeline": {
+    "duration_seconds": 5.0,
+    "authoring_fps": 24.0
+  },
+
+  "canvas": {
+    "width": 1280,
+    "height": 720
+  },
+
+  "cameras": [],
+  "active_camera_id": "camera_1",
+  "playblast_camera_id": "camera_1",
+
+  "objects": [],
+  "motion_layers": [],
+  "cuts": [],
+
+  "metadata": {}
+}
+```
+
+### Camera Track
+
+`MAJOOR_OMNICAM_TRACK` remains independently versioned as the canonical camera
+primitive embedded in MotionScene.
 
 The canonical track is versioned.
 
