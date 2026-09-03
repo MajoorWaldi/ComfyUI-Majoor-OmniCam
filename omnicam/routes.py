@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import mimetypes
 import os
 import re
@@ -26,6 +27,7 @@ _SOURCE_EXTENSIONS = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"}
 _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
 _EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".ps1", ".sh", ".js", ".py", ".dll", ".com"}
 
+
 def _env_limit(name: str, default: int, *, minimum: int = 1, maximum: int = 1 << 50) -> int:
     """Read a positive bounded byte/count limit without breaking extension import."""
     try:
@@ -38,6 +40,12 @@ def _env_limit(name: str, default: int, *, minimum: int = 1, maximum: int = 1 <<
 # Configurable limits (safe environment overrides).
 MAX_CARD_BYTES = _env_limit("OMNICAM_MAX_CARD_BYTES", 128 * 1024 * 1024)
 MAX_MODEL_BYTES = _env_limit("OMNICAM_MAX_MODEL_BYTES", 256 * 1024 * 1024)
+MAX_MODEL_VERTICES = _env_limit("OMNICAM_MAX_MODEL_VERTICES", 5_000_000)
+MAX_MODEL_TRIANGLES = _env_limit("OMNICAM_MAX_MODEL_TRIANGLES", 10_000_000)
+# Binary FBX is expensive to inspect safely without shipping an FBX parser. A
+# tighter byte ceiling is therefore its conservative complexity proxy; the
+# other supported formats receive actual vertex/triangle checks below.
+MAX_FBX_MODEL_BYTES = _env_limit("OMNICAM_MAX_FBX_MODEL_BYTES", 64 * 1024 * 1024)
 MAX_PLAYBLAST_BYTES = _env_limit("OMNICAM_MAX_PLAYBLAST_BYTES", 512 * 1024 * 1024)
 MAX_FOLDER_BYTES = _env_limit("OMNICAM_MAX_FOLDER_BYTES", 4 * 1024 * 1024 * 1024)
 MIN_FREE_BYTES = _env_limit("OMNICAM_MIN_FREE_BYTES", 512 * 1024 * 1024)
@@ -51,6 +59,7 @@ MAX_LIVE_PREFLIGHT_BYTES = _env_limit("OMNICAM_MAX_LIVE_PREFLIGHT_BYTES", 4 * 10
 MAX_VIDEO_DURATION_SECONDS = _env_limit("OMNICAM_MAX_VIDEO_DURATION_SECONDS", 3_600)
 MAX_CLEANUP_JSON_BYTES = _env_limit("OMNICAM_MAX_CLEANUP_JSON_BYTES", 256 * 1024)
 MAX_EXPORT_JSON_BYTES = _env_limit("OMNICAM_MAX_EXPORT_JSON_BYTES", 8 * 1024 * 1024)
+MAX_EXPORT_FOLDER_BYTES = _env_limit("OMNICAM_MAX_EXPORT_FOLDER_BYTES", 512 * 1024 * 1024)
 # The cached folder size goes stale as soon as anything deletes managed files
 # without going through /cleanup. Re-scan at most this often.
 QUOTA_CACHE_TTL_SECONDS = _env_limit("OMNICAM_QUOTA_CACHE_TTL_SECONDS", 300)
@@ -114,9 +123,6 @@ def _managed_root() -> Path:
 def _folder_size(directory: Path) -> int:
     total = 0
     for entry in directory.rglob("*"):
-        # A file deleted between rglob and stat is a race, not a server error.
-        # asset_index._scan() already skips these; the quota scan must agree,
-        # or a concurrent cleanup turns an upload into a 500.
         try:
             if entry.is_file():
                 total += entry.stat().st_size
@@ -254,9 +260,6 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
     dest = (dest_dir / filename).resolve()
     if dest.parent != dest_dir:
         raise web.HTTPBadRequest(text="Invalid upload destination")
-    # Reserving the full per-file ceiling up front makes concurrent uploads
-    # reject each other long before the folder is actually full. Start from what
-    # the client announced and grow the reservation only if it streams past it.
     reserved = _declared_upload_size(request, max_bytes)
     await _reserve_quota(dest_dir, reserved)
 
@@ -280,7 +283,6 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
                     extra = min(max_bytes, size + _QUOTA_RESERVATION_STEP) - reserved
                     await _extend_quota_reservation(extra)
                     reserved += extra
-                # Keep blocking file I/O off the async server event loop.
                 await asyncio.to_thread(handle.write, chunk)
         if size == 0:
             raise web.HTTPBadRequest(text="Empty uploads are rejected")
@@ -322,18 +324,99 @@ async def upload_asset(request: web.Request):
 
 @PromptServer.instance.routes.post("/majoor/omnicam/upload_extractor_source")
 async def upload_extractor_source(request: web.Request):
-    """A video for an interactive solve, stored where the resolver can find it.
-
-    Deliberately the same managed-upload path as every other OmniCam asset:
-    same extension whitelist, same magic-byte check, same quota and free-space
-    reservation. A second upload implementation is a second place to get file
-    handling wrong.
-    """
+    """A video for an interactive solve, stored where the resolver can find it."""
     payload = await _save_multipart_file(
         request, "extractor_sources", _SOURCE_EXTENSIONS, MAX_PLAYBLAST_BYTES
     )
     invalidate_asset_index(_managed_root())
     return web.json_response({**payload, "kind": "managed"})
+
+
+def _raise_model_budget(actual: int, limit: int, label: str) -> None:
+    if actual > limit:
+        raise web.HTTPRequestEntityTooLarge(
+            max_size=limit,
+            actual_size=actual,
+            text=f"3D model exceeds OmniCam {label} limit ({actual} > {limit})",
+        )
+
+
+def _validate_model_complexity(path: Path, extension: str) -> None:
+    """Reject valid-but-pathological geometry before Three.js sees the file."""
+    extension = extension.lower()
+    vertices = triangles = 0
+    if extension == ".stl":
+        with path.open("rb") as handle:
+            header = handle.read(84)
+        binary_count = int.from_bytes(header[80:84], "little") if len(header) >= 84 else 0
+        if binary_count and path.stat().st_size == 84 + binary_count * 50:
+            triangles = binary_count
+            vertices = binary_count * 3
+        else:
+            with path.open("rb") as handle:
+                for line in handle:
+                    if line.lstrip().lower().startswith(b"facet normal"):
+                        triangles += 1
+            vertices = triangles * 3
+    elif extension == ".obj":
+        with path.open("rt", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                stripped = line.lstrip()
+                if stripped.startswith("v "):
+                    vertices += 1
+                elif stripped.startswith("f "):
+                    corners = len(stripped.split()) - 1
+                    triangles += max(0, corners - 2)
+    elif extension == ".ply":
+        with path.open("rb") as handle:
+            header = bytearray()
+            while len(header) <= 1024 * 1024:
+                line = handle.readline()
+                if not line:
+                    break
+                header.extend(line)
+                if line.strip() == b"end_header":
+                    break
+        text = header.decode("ascii", errors="replace")
+        for line in text.splitlines():
+            fields = line.split()
+            if len(fields) == 3 and fields[:2] == ["element", "vertex"]:
+                vertices = int(fields[2])
+            elif len(fields) == 3 and fields[:2] == ["element", "face"]:
+                # PLY faces can be n-gons. Counting each face as at least one
+                # triangle is a lower bound; the vertex cap supplies the second
+                # guard without parsing the full binary body.
+                triangles = int(fields[2])
+    elif extension == ".glb":
+        with path.open("rb") as handle:
+            header = handle.read(20)
+            if len(header) < 20 or header[:4] != b"glTF" or header[16:20] != b"JSON":
+                raise web.HTTPBadRequest(text="GLB JSON chunk could not be inspected")
+            json_length = int.from_bytes(header[12:16], "little")
+            if json_length > 16 * 1024 * 1024:
+                raise web.HTTPRequestEntityTooLarge(max_size=16 * 1024 * 1024, actual_size=json_length)
+            document = json.loads(handle.read(json_length).decode("utf-8"))
+        accessors = document.get("accessors") or []
+        for mesh in document.get("meshes") or []:
+            for primitive in mesh.get("primitives") or []:
+                if int(primitive.get("mode", 4)) != 4:
+                    continue
+                position_index = (primitive.get("attributes") or {}).get("POSITION")
+                position_count = 0
+                if isinstance(position_index, int) and 0 <= position_index < len(accessors):
+                    position_count = int(accessors[position_index].get("count", 0))
+                    vertices += position_count
+                index_index = primitive.get("indices")
+                if isinstance(index_index, int) and 0 <= index_index < len(accessors):
+                    triangles += int(accessors[index_index].get("count", 0)) // 3
+                else:
+                    triangles += position_count // 3
+    elif extension == ".fbx":
+        _raise_model_budget(path.stat().st_size, MAX_FBX_MODEL_BYTES, "FBX byte-complexity")
+        return
+
+    _raise_model_budget(vertices, MAX_MODEL_VERTICES, "vertex")
+    _raise_model_budget(triangles, MAX_MODEL_TRIANGLES, "triangle")
 
 
 @PromptServer.instance.routes.post("/majoor/omnicam/upload_model")
@@ -359,10 +442,14 @@ async def upload_model(request: web.Request):
         valid = valid or (header.lstrip().lower().startswith(b"solid") and b"facet" in header.lower())
     else:
         valid = header.startswith((b"ply\n", b"ply\r\n"))
-    if not valid:
+    try:
+        if not valid:
+            raise web.HTTPBadRequest(text=f"Invalid {extension[1:].upper()} model file")
+        await asyncio.to_thread(_validate_model_complexity, path, extension)
+    except Exception:
         path.unlink(missing_ok=True)
         await _finish_quota_reservation(0, -payload["size"])
-        raise web.HTTPBadRequest(text=f"Invalid {extension[1:].upper()} model file")
+        raise
     invalidate_asset_index(_managed_root())
     return web.json_response(payload)
 
@@ -383,17 +470,7 @@ async def capabilities(_request: web.Request):
 
 @PromptServer.instance.routes.get("/majoor/omnicam/motion_profiles")
 async def motion_profiles(_request: web.Request):
-    """Recommended motion limits per target model, for the Health panel.
-
-    The panel grades locally so the feedback stays live while scrubbing, but the
-    numbers it grades against are served from here: the adapter tables stay the
-    single source of truth and the frontend never hardcodes a limit.
-
-    Distinct from /monitor/profiles below, which serves the Monitor's profile
-    catalogue and capability states -- a different vocabulary and a different
-    payload. Collapsing the two is what took this route away and left the
-    Director and Extractor panels fetching a 404.
-    """
+    """Recommended motion limits per target model, for the Health panel."""
     from .adapters.motion_profiles import motion_profile_roster
 
     return web.json_response(motion_profile_roster())
@@ -406,10 +483,6 @@ async def monitor_profiles(_request: web.Request):
     from .profiles.catalog import PROFILE_REGISTRY
 
     capabilities = detect_capabilities()
-    # Capability contracts are keyed by profile id, so there is nothing to map.
-    # The hand-written translation table that used to live here bridged two
-    # vocabularies and got two of its seven entries wrong -- both Wan track
-    # profiles pointed at the same contract, and LTX had no entry at all.
     capability_by_profile = {
         str(entry.get("adapter")): entry
         for entry in capabilities.get("capabilities", [])
@@ -433,12 +506,7 @@ async def monitor_profiles(_request: web.Request):
 
 @PromptServer.instance.routes.post("/majoor/omnicam/monitor/live_preflight")
 async def monitor_live_preflight(request: web.Request):
-    """Preflight the selected profile against a Director's *current* state.
-
-    No prompt is queued. This is the whole point: it is what lets Monitor
-    read a live PASS/BLOCKED the moment a Director is connected, instead of
-    only after the graph has actually run once.
-    """
+    """Preflight the selected profile against a Director's *current* state."""
     from .nodes.monitor_live import LivePreflightError, build_live_preflight
 
     body = await read_bounded_json_object(request, max_bytes=MAX_LIVE_PREFLIGHT_BYTES)
@@ -463,11 +531,7 @@ async def list_assets(request: web.Request):
 
 @PromptServer.instance.routes.post("/majoor/omnicam/cleanup")
 async def cleanup_assets(request: web.Request):
-    """Delete explicitly listed managed assets (safe unused-asset cleanup).
-
-    Body: {"files": ["cards/foo.png", ...]} with paths relative to the managed
-    omnicam folder. Traversal outside the managed folder is rejected.
-    """
+    """Delete explicitly listed managed assets (safe unused-asset cleanup)."""
     body = await read_bounded_json_object(request, max_bytes=MAX_CLEANUP_JSON_BYTES)
     files = body.get("files")
     if not isinstance(files, list) or not files:
@@ -510,6 +574,16 @@ def _export_root() -> Path:
     if output_root not in root.parents:
         raise web.HTTPInternalServerError(text="OmniCam export folder resolves outside ComfyUI output")
     return root
+
+
+def _check_export_capacity(root: Path, incoming_bytes: int) -> None:
+    """Apply an output-specific quota before writing a generated exchange file."""
+    usage = _folder_size(root) if root.exists() else 0
+    if usage + incoming_bytes > MAX_EXPORT_FOLDER_BYTES:
+        raise web.HTTPInsufficientStorage(
+            text=f"OmniCam export quota exceeded ({MAX_EXPORT_FOLDER_BYTES} bytes)"
+        )
+    _check_free_space(root, incoming_bytes)
 
 
 @PromptServer.instance.routes.get("/majoor/omnicam/exchange_formats")
@@ -557,6 +631,7 @@ async def export_camera_route(request: web.Request):
         raise web.HTTPBadRequest(text="Invalid export destination")
 
     data = await asyncio.to_thread(export_camera, track, fmt, destination.stem)
+    await asyncio.to_thread(_check_export_capacity, root, len(data))
     await asyncio.to_thread(destination.write_bytes, data)
     return web.json_response({
         "name": destination.name,
@@ -582,21 +657,19 @@ async def import_camera_route(request: web.Request):
     if extension not in IMPORT_EXTENSIONS:
         raise web.HTTPBadRequest(text=f"Unsupported camera file: {extension or 'no extension'}")
 
-    chunks: list[bytes] = []
-    size = 0
+    data = bytearray()
     while True:
         chunk = await field.read_chunk(size=1024 * 1024)  # type: ignore[union-attr]
         if not chunk:
             break
-        size += len(chunk)
-        if size > MAX_IMPORT_BYTES:
-            raise web.HTTPRequestEntityTooLarge(max_size=MAX_IMPORT_BYTES, actual_size=size)
-        chunks.append(chunk)
-    if not size:
+        if len(data) + len(chunk) > MAX_IMPORT_BYTES:
+            raise web.HTTPRequestEntityTooLarge(max_size=MAX_IMPORT_BYTES, actual_size=len(data) + len(chunk))
+        data.extend(chunk)
+    if not data:
         raise web.HTTPBadRequest(text="Empty uploads are rejected")
 
     try:
-        payload = await asyncio.to_thread(import_camera, b"".join(chunks), extension)
+        payload = await asyncio.to_thread(import_camera, data, extension)
     except Exception as exc:
         raise web.HTTPBadRequest(text=f"Could not read a camera from this file: {exc}") from exc
     return web.json_response({"track": payload, "source": extension})
