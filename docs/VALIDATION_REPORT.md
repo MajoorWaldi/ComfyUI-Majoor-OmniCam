@@ -4,104 +4,127 @@
 
 | | |
 |---|---|
-| Base commit | `99fbb4afa1268a6027cfc5f4a5a4ad1ec003fc40` (*Handle orthographic viewport rendering and steady CI browser tests*) |
-| Validated | uncommitted working tree on top of that commit — a hardening pass (see *Fixed on top of the base commit*) |
+| Base commit | `1647006d4973c77a8a756c437c28e44c61774010` (*Fix ruff N818 / RUF059 in the new hardening tests*) |
+| Validated | uncommitted working tree on top of that commit — the MotionScene-contract remediation pass (docs realignment, MotionScene migration registry, Nodes 2.0 / current-frontend CI, Extractor hardening, release adapter gate, conformance scaffold, legacy helper removal) |
 | Date | 3 September 2026 |
-| ComfyUI | 0.34.1, local install |
-| GitHub Actions | run `33678187191` — **success** — was produced for the **base commit** `99fbb4a`, *not* for this working tree. The tree below has not yet been committed or re-run through CI. |
+| ComfyUI | 0.34.1, local install (`python_embeded`, Python 3.12.10) |
+| Node / npm | Node v22.20.0 |
+| Python (core lane) | 3.14.0, local |
+| GitHub Actions | **not run for this tree.** The lanes below marked *CI-only* ran for the base commit; this working tree has not been committed or pushed. |
 
-This file records what was *observed*, not what is expected. It must be
-regenerated against a committed SHA with its own green Actions run before it can
-be cited as release evidence; until then the rows above say so plainly, because
-an earlier version of this file once reported a green suite for a commit whose
-CI was red.
+This file records what was *observed* this session, not what is expected. It
+must be regenerated against a committed SHA with its own green Actions run
+before it can be cited as release evidence.
 
-## Gates
+## Gates observed this session
 
-- [x] **Full Python lane** — `pytest -q` with the ComfyUI runtime and torch
-      present: **937 passed, 3 skipped** (940 collected). Includes the four new
-      suites this pass: motion-scene invariants, playblast freshness, the DPVO
-      pre-release guard, and the Monitor duration/fps inheritance.
-- [ ] **Model-agnostic Python lane** — numpy / jsonschema / pytest-asyncio only,
-      no torch, no ComfyUI. Not re-run this session (no isolated env here); CI
-      runs it on 3.10 / 3.12 / 3.13 and it was green for the base commit.
-- [ ] **`ruff check .`** — not re-run this session (`ruff` absent from this
-      interpreter). Green for the base commit in CI.
-- [ ] **`mypy`** — not re-run this session (`mypy` absent from this
-      interpreter). Green for the base commit in CI. The scoped set in
-      `pyproject.toml` is 30 source files; none were changed in a way that
-      alters their type surface.
-- [x] **`npm run build`** — Vite production build; the committed bundle in
-      `web-chunks/` was regenerated from source in this pass and matches it.
-- [x] **`npm run check`** — 446 files under the 800-line ceiling, 503 files
-      UTF-8 clean, 58 three.js symbols all used, template contract across 19
-      template sources, third-party notices current.
-- [x] **French locale** — 100.0% of 525 source messages (0 untranslated).
-- [x] **Frontend unit modules** — **511 passed**.
-- [ ] **Playwright viewport suite** — not re-run this session. 59 passed for the
-      base commit.
-- [x] **`scripts/verify_package.py`** — OK.
-- [~] **Real DPVO solve on GPU** — not re-run this session. Last observed on the
-      base commit: 96 frames at 640x384 through `DpvoBackend.solve`, 96 poses,
-      coverage 1.0, ~6.5 s, RTX 4090, with ComfyUI's `PYTORCH_CUDA_ALLOC_CONF`
-      set in the parent. The pre-release guard added this pass has unit
-      coverage (`tests/test_extractor_dpvo_worker.py`,
-      `tests/test_extractor_jobs.py`) but not a fresh end-to-end GPU run.
+- [x] **`python -m pytest -q`** (Python 3.14, local) — **864 passed, 18 skipped**.
+      Includes the new suites this pass: MotionScene migration-registry
+      invariants (`tests/test_motion_scene.py`), bounded Extractor shutdown
+      (`tests/test_extractor_jobs.py`), and the conformance scaffold guard
+      (`tests/test_conformance_scaffold.py`). Two dead-code tests for the
+      removed `check_workflow_compatibility` helper were deleted.
+- [x] **`python -m ruff check .`** — all checks passed (two `os error 5`
+      warnings on unreadable `.pytest_*` scratch dirs, unrelated to sources).
+- [x] **`python -m mypy`** — success, no issues in the 30 scoped source files.
+- [x] **`python scripts/verify_package.py`** — OK.
+- [x] **`npm run build`** — Vite production build; `web-chunks/` regenerated
+      from source and identical to the committed bundle (`git diff --exit-code
+      -- web/ web-chunks/` clean).
+- [x] **`npm run check`** — 448 files under the 800-line ceiling, 508 files
+      UTF-8 clean, 58 three.js symbols all used, locales at budget
+      (fr.js 100.0% of 525), template contract across 19 sources, third-party
+      notices current.
+- [x] **`npm run test:unit`** — **511 passed**, 0 failed.
+- [x] **`npm run test:browser`** (Playwright, Chromium, no server) —
+      **61 passed**.
+- [x] **`npm run test:live` — `live-ci.spec.js`** against the local ComfyUI
+      0.34.1 (`OMNICAM_LIVE_AUTOSTART=1`) — **6 passed** (Director reload /
+      recreate / queue, Extractor lazy UI attach+detach, TRACK 3D render,
+      Subgraph mount, ancient-v1 workflow load, epoch diagnostics).
+- [x] **`npm run test:live` — `live-vue-ci.spec.js`** (new, Nodes 2.0 / Vue
+      nodes enabled) against the same server — **3 passed**: Director,
+      Extractor and Monitor each mount a connected Vue root and dispose it on
+      node removal with zero page errors.
 
-## Not covered here
+## Gates not run this session
 
-- **GitHub Actions on this tree.** The `comfyui-integration` (0.31 / 0.34 /
-  master) and `comfyui-browser` lanes ran for the base commit only. Commit this
-  pass and let CI re-run before citing it.
-- **Live ComfyUI browser gate** (`npm run test:live`) — not re-run.
-- **Generation.** No model has been loaded. Every profile claim here is about
-  the payload OmniCam compiles and the socket contract it targets, not the
-  video a model produces from it. The eight target profiles have **not** been
-  smoke-tested against their real downstream nodes:
+- [ ] **Model-agnostic Python lane** (numpy only, no torch / ComfyUI) —
+      *CI-only*; `python-core` matrix on 3.10 / 3.12 / 3.13.
+- [ ] **`comfyui-integration`** (ComfyUI `v0.31.0` / `v0.34.0` / `master`) —
+      *CI-only*. Local evidence for 0.34.x: the OmniCam nodes import in 0.34.1
+      (import time reported 0.0 s) and every live browser test above passed
+      against it. `scripts/comfy_integration_smoke.py` was not run locally —
+      the embedded interpreter's `._pth` ignores `PYTHONPATH`.
+- [ ] **`comfyui-browser-current-frontend`** (new lane: `live-ci` +
+      `live-vue-ci` against a pinned newer frontend,
+      `Comfy-Org/ComfyUI_frontend@1.54.1` via `OMNICAM_LIVE_COMFY_ARGS`) —
+      *CI-only*; the pinned frontend package is not fetchable in this
+      environment. The `OMNICAM_LIVE_COMFY_ARGS` plumbing in
+      `playwright.live.config.mjs` is exercised by both live runs above (empty
+      value, no behavior change).
+- [ ] **Release adapter-contract gate** (`publish_action.yml`) — added; fires
+      only on a `v*` tag. `python scripts/adapter_contract_canary.py` logic is
+      covered by `tests/test_adapter_contract_canary.py` (**2 passed**).
+- [~] **Real DPVO solve on GPU** — not re-run. Last observed on an earlier
+      commit: 96 frames at 640×384, coverage 1.0, ~6.5 s on an RTX 4090. The
+      pre-release contention guard retains unit coverage.
+- [ ] **Branch protection** — documented in `docs/BRANCH_PROTECTION.md`; not
+      verifiable from here. The new required context
+      `comfyui-browser-current-frontend` must be added to the protected-branch
+      check set before it can gate a merge.
 
-  | Profile | Real-model smoke |
-  |---|---|
-  | External / Generic Reference Video | ⬜ |
-  | Wan Camera (native) | ⬜ |
-  | Wan Move (native) | ⬜ |
-  | Wan Track (native) | ⬜ |
-  | WanVideo ATI | ⬜ |
-  | H3 Native | ⬜ |
-  | H3 API | ⬜ |
-  | LTX Motion Track | ⬜ |
+## Real-model conformance — every profile PENDING
 
-  Each needs a 2–5 s generation checked for: direction, timing, framing, frame
-  count, target dimensions, trajectory scale, visibility, cuts where relevant,
-  no proxy-appearance leakage, no socket/runtime error.
+No Monitor profile has been certified against a real downstream model in this
+pass. `docs/CONFORMANCE.md` and `tests/conformance/` were added as the
+scaffold (cases, result schema, PASS criteria, minimum sets); the
+`results/` directory is empty by design.
 
-- **Branch protection.** Documented in `docs/BRANCH_PROTECTION.md`. Not verified
-  this session (the connected GitHub integration returns `403 Resource not
-  accessible by integration` for the protection endpoints); check it directly
-  in the repository settings before release. The eight required check contexts
-  the policy names do match the job names in `.github/workflows/test.yml`.
+| Profile | Contract (socket/schema) | Model certification |
+|---|---|---|
+| external_reference_video | pass (permissive) | **PENDING** |
+| wan_camera_native | verified by capability gate | **PENDING** |
+| wan_move_native | verified by capability gate | **PENDING** |
+| wan_track_native | verified by capability gate | **PENDING** |
+| wanvideo_ati | verified by capability gate | **PENDING** |
+| ltx25_motion_track | verified by capability gate | **PENDING** |
+| h3_native | verified by capability gate | **PENDING** |
+| h3_api | verified by capability gate | **PENDING** |
 
-## Fixed on top of the base commit
+## Changes in this pass
 
-This pass is edge-invariant hardening — no architecture change, no new node,
-no schema break beyond widening two Monitor float widgets to accept `0`.
+Documentation, CI and hardening — no architecture change, no new node, no
+MotionScene schema break (v1 stays v1; the registry is wired for a future v2).
 
-| Was | Now |
+| Area | Change |
 |---|---|
-| Monitor `duration_seconds` / `target_fps` were manual widgets (default `2.0` / `24.0`); a Director authoring a different shot had its length silently ignored | both default to `0` = *inherit the connected shot* (`timeline.duration_seconds` / `timeline.authoring_fps`); the widgets are optional overrides. Live preflight and queued `execute()` agree. |
-| `World Point` and `Track Object` share the internal `project` tool, and `projectLayer()` picked `object_point` vs `world_point` from "is an object still selected?" — so a `World Point` chosen with an object selected recorded `object_point` | an ephemeral `ui.motionCreationKind` carries the artist's choice through to layer creation; the selection heuristic is the fallback only when the raw tool is armed with no creation card |
-| DPVO released ComfyUI's VRAM just before spawning its child with no re-check; the in-loop contention probe is throttled 0.5 s and `watch_gpu_contention()` pushes the first probe past that window | `SolveControl.assert_gpu_free()` — an unthrottled contention + stop check — runs immediately before `_release_vram()` via `DpvoProcessRunner.solve(pre_release_guard=…)`; a workflow that started since admission aborts the solve before anything is freed or spawned |
-| `MotionScene` accepted a camera track whose `fps` differed from `timeline.authoring_fps`; a cut could end past the timeline; `MotionLayer.semantic` accepted any non-empty string | all three are invariants now: `camera.track.fps == timeline.authoring_fps`, `cut.end_time_seconds <= timeline.duration_seconds`, `semantic ∈ {screen_point}` |
-| A Director playblast recorded before the scene changed still reached H3 unchallenged; the "outdated" fingerprint check was frontend-only | the Director stamps `metadata.motion_scene_fingerprint_live` into the serialized state; `h3_native` / `h3_api` preflight (and queued `compile()`) go **BLOCKED** on a recorded-vs-current mismatch, `external_reference_video` goes **WARNING**, other profiles are unaffected |
+| Contracts docs | `AGENTS.md`, `docs/TECHNICAL_REFERENCE.md`, `docs/SECURITY.md`, `docs/NODES.md` realigned on `OMNICAM_MOTION_SCENE` as the product interchange contract, with `MAJOOR_OMNICAM_TRACK` demoted to the embedded camera primitive. Stale `/monitor/snapshot` boundary replaced with the real `/monitor/live_preflight` boundary. Phantom Extractor `/jobs/{id}/pause` and `/resume` routes removed; `method` default corrected to `auto`. |
+| New docs | `docs/COMPATIBILITY.md` (rewritten in English, contract-vs-certification split) and `docs/CONFORMANCE.md` added to the maintained set (`.gitignore` allowlist updated). |
+| MotionScene migrations | `OMNICAM_MOTION_SCENE` registered in `omnicam/core/migrations.py` (`CURRENT_VERSIONS`, `_payload_version` handling the `version` field). `MotionScene.from_dict` now requires `version`, routes the payload through `migrate_payload`, and rejects a version newer than supported. `MOTION_SCENE_VERSION` is now owned by the registry. |
+| Nodes 2.0 CI | `tests/frontend/live-vue-ci.spec.js` mounts/disposes all three nodes with `Comfy.VueNodes.Enabled`. `playwright.live.config.mjs` gained the test-only `OMNICAM_LIVE_COMFY_ARGS` knob. `test.yml`: the `comfyui-browser` job also runs `live-vue-ci`; new `comfyui-browser-current-frontend` job re-runs both live suites against a pinned newer frontend. |
+| Extractor hardening | pycolmap diagnostic wording corrected ("five other nodes" → "the other OmniCam product nodes"); remediation now names DPVO, pycolmap **and** OpenCV/SIFT. `SolveJobManager.shutdown()` now terminates solver children, then joins worker threads with a bounded `SHUTDOWN_JOIN_SECONDS = 5.0` budget and logs any still-alive thread instead of blocking teardown. |
+| Release gate | `publish_action.yml` clones current LTX-Video and WanVideoWrapper sources and runs `adapter_contract_canary.py` before `Publish Custom Node`: a `v*` tag does not publish on upstream contract drift. The weekly canary stays `continue-on-error`. |
+| Legacy removal | dead `check_workflow_compatibility()` (always returned `{"ok": True, "problems": []}`) and its two tests removed. No replacement table. |
+| Experimental status | `MajoorOmniCamMonitor` now ships `is_experimental=True` (Director and Extractor already did — all three product nodes are experimental). Director's **Motion Tracks** panel carries an `EXPERIMENTAL` badge and note. Docs (`NODES.md`, `COMPATIBILITY.md`, `CONFORMANCE.md`, `USER_GUIDE.md`, `AUDIT.md`) aligned; `tests/test_node_registry.py` asserts all three schemas are experimental. |
+| Docs media | Added `docs/assets/omnicam-overview.png` (335 KB full-graph screenshot), `docs/assets/omnicam-demo.gif` (3.1 MB, downscaled/optimised from a 23 MB source), `docs/assets/omnicam-preview.mp4` (1.0 MB, re-encoded with `+faststart`). Embedded in `README.md`, `docs/NODES.md`, `docs/USER_GUIDE.md`. |
 
-## Re-run after this pass
+## Re-run to reproduce
 
 ```
-python -m pytest -q          # 937 passed, 3 skipped
-node scripts/run_node_tests.mjs   # 511 passed
-npm run build && npm run check    # pass
-python scripts/verify_package.py  # OK
+python -m pytest -q                         # 864 passed, 18 skipped
+python -m ruff check .                       # all checks passed
+python -m mypy                               # success, 30 files
+python scripts/verify_package.py             # OK
+npm run build && npm run check               # pass; web/ diff clean
+npm run test:unit                            # 511 passed
+npm run test:browser                         # 61 passed
+OMNICAM_LIVE_AUTOSTART=1 OMNICAM_LIVE_MATCH=live-ci.spec.js     npm run test:live   # 6 passed
+OMNICAM_LIVE_AUTOSTART=1 OMNICAM_LIVE_MATCH=live-vue-ci.spec.js npm run test:live   # 3 passed
 ```
 
-Still owed before this file becomes release evidence: commit the tree, let CI
-run all lanes green on the new SHA, run the eight real-model smoke tests, then
+Still owed before this file is release evidence: commit the tree; let every CI
+lane (including the new `comfyui-browser-current-frontend`) run green on the
+new SHA; add that lane to branch protection; run the real-model conformance
+sets in `docs/CONFORMANCE.md` and move certified profiles off PENDING; then
 regenerate this report against that SHA.
