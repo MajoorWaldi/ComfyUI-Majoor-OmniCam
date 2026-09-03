@@ -27,6 +27,10 @@ PublisherId = "majoorwaldi"
 DisplayName = "Majoor OmniCam"
 Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.svg"
 requires-comfyui = ">=0.31.0"
+# Vite output is intentionally git-ignored because Rollup chunk hashes are not
+# byte-reproducible across OSes. Registry `includes` is the official mechanism
+# for forcing generated frontend directories into the published archive.
+includes = ["web", "web-chunks"]
 
 [tool.ruff]
 line-length = 110
