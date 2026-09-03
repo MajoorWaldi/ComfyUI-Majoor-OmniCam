@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
+from .playblast_freshness import stale_playblast_check
 from .shots import multi_shot_check
 
 
@@ -49,6 +50,12 @@ class ExternalReferenceVideoProfile:
 
     def preflight(self, request: CompileRequest) -> list[Check]:
         has_video = request.playblast_video is not None
+        # Advisory only: this profile has no upstream contract to enforce, and
+        # the destination could well be an appearance-transfer node that wants
+        # exactly the "wrong" reference. WARNING is the ceiling here.
+        freshness = stale_playblast_check(
+            request.motion_scene, display_name=self.display_name, block=False
+        )
         return [
             Check(
                 id="playblast_video",
@@ -59,6 +66,7 @@ class ExternalReferenceVideoProfile:
                     "one is recorded."
                 ),
             ),
+            *([freshness] if freshness else []),
             # No "downstream_contract" check here: this profile has no
             # ADAPTER_INFO requirements, and capability_gate.capability_check
             # already reports that case as "user managed" rather than

@@ -29,7 +29,13 @@ const EDITOR_CHROME_KEYS = new Set([
 //: Metadata keys removed before hashing: the manifest of the *previous*
 //: playblast (and the two display-only fields mirrored from it) would make
 //: every fingerprint depend on the fingerprint before it, which is circular.
-const METADATA_CHROME_KEYS = new Set(["playblast", "playblast_camera_id", "playblast_camera_name"]);
+//: `motion_scene_fingerprint_live` is this very hash, mirrored into the
+//: serialized state so a headless compile can compare it against the recorded
+//: playblast's fingerprint without re-deriving FNV in Python. Hashing it would
+//: make the fingerprint depend on itself.
+const METADATA_CHROME_KEYS = new Set([
+  "playblast", "playblast_camera_id", "playblast_camera_name", "motion_scene_fingerprint_live",
+]);
 
 //: `recording_path` names where a file was uploaded, not anything that
 //: touches a rendered pixel -- so it is excluded per-camera and on the

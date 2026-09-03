@@ -62,6 +62,14 @@ test("a previous playblast's own manifest does not feed back into the fingerprin
   assert.equal(motionFingerprint(b), recorded);
 });
 
+test("the live fingerprint mirrored into metadata does not feed back on itself", () => {
+  const a = baseState();
+  const recorded = motionFingerprint(a);
+  const b = baseState();
+  b.metadata = { motion_scene_fingerprint_live: "whatever-was-here-before" };
+  assert.equal(motionFingerprint(b), recorded);
+});
+
 test("unrelated production metadata still changes the fingerprint", () => {
   const a = baseState();
   const b = baseState();

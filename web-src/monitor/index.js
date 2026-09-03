@@ -2,7 +2,7 @@ import { drawUpstreamPreview, upstreamPreviewMedia } from "../shared/upstream-pr
 import { api } from "../comfy-runtime.js";
 
 import { renderMonitorExecution } from "./execution-view.js";
-import { canPreviewLive, liveRequestPayload } from "./live-source.js";
+import { canPreviewLive, directorLivePayload, liveRequestPayload } from "./live-source.js";
 import { MonitorPlayer } from "./player.js";
 import { describeReferenceSource, directorPlayblastSource, referenceSourceWarnLevel } from "./reference-source.js";
 import { MonitorRefreshController } from "./refresh.js";
@@ -20,6 +20,10 @@ import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widg
 //: actually paces the network requests; running the cheap read+diff this
 //: often just keeps the lag between an edit and a scheduled request small.
 const LIVE_POLL_INTERVAL_MS = 250;
+
+//: Monitor settings whose 0 means "inherit from the connected shot" rather
+//: than a literal zero. Shown blank with an "auto" placeholder.
+const INHERITABLE_SHOT_WIDGETS = new Set(["duration_seconds", "target_fps"]);
 
 function hideWidgets(node) {
   for (const item of node.widgets || []) {
@@ -116,7 +120,35 @@ class MonitorUI {
     for (const name of MONITOR_WIDGETS) {
       if (name === "target_profile") continue;
       const control = this.root.querySelector(`[data-setting="${name}"]`);
-      if (control && values[name] != null) control.value = values[name];
+      if (!control || values[name] == null) continue;
+      // duration_seconds / target_fps use 0 as "inherit the connected shot".
+      // Show that as an empty field with an "auto" placeholder, never a bare 0.
+      if (INHERITABLE_SHOT_WIDGETS.has(name) && Number(values[name]) <= 0) {
+        control.value = "";
+      } else {
+        control.value = values[name];
+      }
+    }
+    this.reflectInheritedShot();
+  }
+
+  /**
+   * Fill the placeholder of any "auto" (left-blank) duration / fps field with
+   * the value the compile will actually inherit from the connected Director,
+   * so the number is visible without being typed. Only a Director exposes its
+   * shot client-side; a third-party MotionScene still compiles correctly (the
+   * backend inherits from the scene) but cannot be previewed here.
+   */
+  reflectInheritedShot() {
+    const origin = this.source?.sceneOrigin;
+    const shot = canPreviewLive(origin) ? directorLivePayload(origin) : null;
+    const fields = {
+      duration_seconds: shot ? `${shot.duration_seconds} (from Director)` : "auto (from shot)",
+      target_fps: shot ? `${shot.fps} (from Director)` : "auto (from shot)",
+    };
+    for (const [name, placeholder] of Object.entries(fields)) {
+      const control = this.root.querySelector(`[data-setting="${name}"]`);
+      if (control) control.placeholder = placeholder;
     }
   }
 
@@ -133,6 +165,7 @@ class MonitorUI {
     const badge = this.root.querySelector('[data-role="monitor-status"]');
     badge.dataset.state = source.sceneConnected ? "CONNECTED" : "OFFLINE";
     badge.lastChild.textContent = source.sceneConnected ? " CONNECTED" : " WAITING";
+    this.reflectInheritedShot();
     this.refreshPlayblastPreview();
     this.liveTick();
   }
@@ -151,6 +184,7 @@ class MonitorUI {
     // the preflight is what makes a fresh recording show up without needing
     // to unplug and replug the cable.
     this.refreshPlayblastPreview();
+    this.reflectInheritedShot();
     const origin = this.source?.sceneOrigin;
     if (!canPreviewLive(origin)) {
       this.showLiveUnavailable();

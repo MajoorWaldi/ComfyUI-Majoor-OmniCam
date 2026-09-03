@@ -152,6 +152,14 @@ def test_motion_scene_rejects_malformed_visibility_and_time():
         MotionScene.from_dict(late_key)
 
 
+def test_motion_scene_rejects_a_semantic_it_does_not_actually_support():
+    """v1 resolvers all assume screen_point; nothing else is implemented."""
+    payload = _scene_payload()
+    payload["motion_layers"][0]["semantic"] = "pose"
+    with pytest.raises(ValueError, match="semantic must be one of"):
+        MotionScene.from_dict(payload)
+
+
 def test_motion_scene_enforces_camera_identity_invariants():
     duplicate = _scene_payload()
     duplicate["cameras"].append(copy.deepcopy(duplicate["cameras"][0]))
@@ -179,6 +187,14 @@ def test_motion_scene_enforces_camera_timeline_and_canvas_invariants():
     wrong_duration["cameras"][0]["track"]["duration_frames"] = 119
     with pytest.raises(ValueError, match="duration does not match"):
         MotionScene.from_dict(wrong_duration)
+
+    # A camera sampled at a different rate than the timeline authored on would
+    # put every frame-keyed object projection on the wrong temporal grid.
+    wrong_fps = _scene_payload()
+    wrong_fps["cameras"][0]["track"]["fps"] = 30
+    wrong_fps["cameras"][0]["track"]["duration_frames"] = 150  # keep 5.0s
+    with pytest.raises(ValueError, match="does not match the scene authoring fps"):
+        MotionScene.from_dict(wrong_fps)
 
 
 def test_motion_scene_comfy_type_is_stable():
@@ -276,6 +292,15 @@ def test_shots_may_meet_exactly_because_the_end_is_exclusive():
 
 def test_a_cut_past_the_end_of_the_timeline_is_rejected():
     payload = _scene_with_cuts([{"camera_id": "camera_1", "time_seconds": 99.0}])
+
+    with pytest.raises(ValueError, match="past the"):
+        MotionScene.from_dict(payload)
+
+
+def test_a_cut_that_ends_past_the_timeline_is_rejected():
+    payload = _scene_with_cuts([
+        {"camera_id": "camera_1", "time_seconds": 3.0, "end_time_seconds": 8.0},
+    ])
 
     with pytest.raises(ValueError, match="past the"):
         MotionScene.from_dict(payload)

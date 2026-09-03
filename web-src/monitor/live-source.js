@@ -45,8 +45,9 @@ export function monitorLivePayload(values) {
     base_prompt: String(values?.base_prompt ?? ""),
     target_width: Number(values?.target_width ?? 832),
     target_height: Number(values?.target_height ?? 480),
-    duration_seconds: Number(values?.duration_seconds ?? 2.0),
-    target_fps: Number(values?.target_fps ?? 24.0),
+    // 0 tells the backend to inherit the connected shot's duration / fps.
+    duration_seconds: Number(values?.duration_seconds ?? 0),
+    target_fps: Number(values?.target_fps ?? 0),
   };
 }
 

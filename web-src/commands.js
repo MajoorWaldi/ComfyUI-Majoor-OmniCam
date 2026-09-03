@@ -17,6 +17,7 @@
 
 import { add, cameraBasis, mul } from "./director/core.js";
 import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
+import { cancelMotionCreation } from "./motion-tracks/creation.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
 import { directorForTarget } from "./settings.js";
 import {
@@ -32,6 +33,17 @@ const ZONE_SELECTORS = [
   ["graph", ".oc-graph"],
   ["timeline", ".oc-timeline"],
 ];
+
+// Elements that natively activate on Space/Enter. Claiming those keys would
+// break keyboard operation of buttons, <summary> disclosures, outliner rows and
+// the axis gizmo, which are role="button" nodes rather than real <button>s.
+const ACTIVATABLE_SELECTOR = 'button,summary,a[href],[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="checkbox"],[role="switch"]';
+
+function isActivatableTarget(target) {
+  return target instanceof HTMLElement || target instanceof SVGElement
+    ? Boolean(target.closest?.(ACTIVATABLE_SELECTOR))
+    : false;
+}
 
 export function isEditableTarget(target) {
   return (
@@ -83,7 +95,7 @@ export function installGlobalKeyInterceptor() {
 export function dispatchDirectorKey(ui, event) {
   const target = event.composedPath?.()[0] || event.target;
   if (isEditableTarget(target)) return false;
-  if (target.tagName === "BUTTON" && (event.code === "Space" || event.key === "Enter")) return false;
+  if ((event.code === "Space" || event.key === "Enter") && isActivatableTarget(target)) return false;
   if (ui.contextMenu.onKey(event)) return true;
 
   if (ui.modalTransform) {
@@ -115,6 +127,7 @@ function globalKeymap(ui, event) {
 
   if (key === "escape") {
     if (cancelViewportInteraction(ui)) return true;
+    if (cancelMotionCreation(ui)) return true;
     if (ui.isNavigatingFly) {
       ui.isNavigatingFly = false;
       ui.setStatus("Fly Mode OFF");

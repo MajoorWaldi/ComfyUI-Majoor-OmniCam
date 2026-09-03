@@ -28,6 +28,11 @@ MOTION_INTERPOLATIONS = frozenset({"linear", "smooth", "hold"})
 MOTION_SOURCE_KINDS = frozenset(
     {"manual_2d", "static_anchor", "world_point", "object_point", "camera_field"}
 )
+#: MotionScene v1 carries exactly one motion semantic: a normalised screen-space
+#: point per key. Every resolver assumes it. A layer tagged ``pose`` or
+#: ``depth`` would be silently sampled as a screen point, so the schema rejects
+#: it rather than imply support that does not exist yet.
+MOTION_SEMANTICS = frozenset({"screen_point"})
 
 
 def _object(value: Any, path: str) -> dict[str, Any]:
@@ -185,6 +190,11 @@ class MotionLayer:
             raise ValidationError(
                 f"{path}.source_kind must be one of {sorted(MOTION_SOURCE_KINDS)}"
             )
+        semantic = _string(data.get("semantic"), f"{path}.semantic")
+        if semantic not in MOTION_SEMANTICS:
+            raise ValidationError(
+                f"{path}.semantic must be one of {sorted(MOTION_SEMANTICS)}"
+            )
         keys = [
             MotionKey.from_dict(key, f"{path}.keys[{index}]")
             for index, key in enumerate(_list(data.get("keys"), f"{path}.keys"))
@@ -198,7 +208,7 @@ class MotionLayer:
             id=_string(data.get("id"), f"{path}.id"),
             label=_string(data.get("label"), f"{path}.label"),
             enabled=_boolean(data.get("enabled"), f"{path}.enabled"),
-            semantic=_string(data.get("semantic"), f"{path}.semantic"),
+            semantic=semantic,
             source_kind=source_kind,
             keys=keys,
             source=_json_value(source, f"{path}.source"),
@@ -294,6 +304,14 @@ def validate_cuts(cuts: list[CutEvent], camera_ids: set[str], duration_seconds: 
         if cut.time_seconds > duration_seconds:
             raise ValidationError(
                 f"cuts[{index}] starts at {cut.time_seconds}s, past the "
+                f"{duration_seconds}s timeline"
+            )
+        if (
+            cut.end_time_seconds is not None
+            and cut.end_time_seconds > duration_seconds + 1e-9
+        ):
+            raise ValidationError(
+                f"cuts[{index}] ends at {cut.end_time_seconds}s, past the "
                 f"{duration_seconds}s timeline"
             )
         if previous is not None:
@@ -467,6 +485,20 @@ class MotionScene:
             ):
                 raise ValidationError(
                     f"camera {camera.id!r} duration does not match the scene timeline"
+                )
+            # Objects still keyframe on a frame index, so a camera sampled on a
+            # different rate than the timeline authored on would evaluate every
+            # object projection on the wrong temporal grid. v1 keeps the two
+            # locked; v2 may go fully time-based.
+            if not math.isclose(
+                float(camera.track.fps),
+                self.timeline.authoring_fps,
+                rel_tol=0.0,
+                abs_tol=1e-6,
+            ):
+                raise ValidationError(
+                    f"camera {camera.id!r} fps ({camera.track.fps}) does not match "
+                    f"the scene authoring fps ({self.timeline.authoring_fps})"
                 )
 
     @classmethod

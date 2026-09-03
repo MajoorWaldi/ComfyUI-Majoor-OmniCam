@@ -14,6 +14,7 @@ from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.video_sampling import inspect_video, resample_video_frames, resampling_indices
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
+from .playblast_freshness import stale_playblast_check
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
 
 
@@ -160,6 +161,9 @@ class H3NativeProfile:
         video_message = "" if has_video else "A playblast video is required."
 
         timeline = self.resolve_timeline(request)
+        freshness = stale_playblast_check(
+            request.motion_scene, display_name="MiniMax H3 Native", block=True
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -180,6 +184,7 @@ class H3NativeProfile:
             ),
             *_reference_media_checks(request, H3_NATIVE_MEDIA_LIMITS),
             *_reference_frame_count_check(request, timeline.frame_count),
+            *([freshness] if freshness else []),
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 Native",
@@ -267,6 +272,9 @@ class H3ApiProfile:
         has_video = request.playblast_video is not None
         video_message = "" if has_video else "A playblast video is required."
 
+        freshness = stale_playblast_check(
+            request.motion_scene, display_name="MiniMax H3 API", block=True
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -287,6 +295,7 @@ class H3ApiProfile:
                 message="Video transport required for API",
             ),
             *_reference_media_checks(request, H3_API_MEDIA_LIMITS),
+            *([freshness] if freshness else []),
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 API",

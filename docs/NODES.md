@@ -358,7 +358,7 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `base_prompt` | empty | user intent, kept at the head of `final_prompt` |
 | `target_profile` | `external_reference_video` | one of the eight profiles below |
 | `target_width`, `target_height` | `832`, `480` | target frame size |
-| `duration_seconds`, `target_fps` | `2.0`, `24.0` | the shot being compiled |
+| `duration_seconds`, `target_fps` | `0` (auto), `0` (auto) | length and frame rate of the shot being compiled; `0` inherits `timeline.duration_seconds` / `timeline.authoring_fps` from the connected MotionScene (the Director's authored shot) |
 
 **Outputs**, in schema order: `final_prompt`, `reference_video`,
 `reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,

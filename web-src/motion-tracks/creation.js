@@ -1,13 +1,17 @@
 // Motion creation workflows. These are a thin artist-facing vocabulary on top
-// of the existing motion tools -- no new state:
+// of the existing motion tools:
 //
 //   Draw Path      -> tool "track"   -> source_kind manual_2d
-//   Track Object   -> tool "project" -> source_kind object_point (object selected)
+//   Track Object   -> tool "project" -> source_kind object_point
 //   World Point    -> tool "project" -> source_kind world_point
 //   Screen Anchor  -> tool "anchor"  -> source_kind static_anchor
 //
-// The actual layer creation still happens in interactions.js on the next
-// viewport pointer event.
+// Track Object and World Point share one internal tool ("project"), so the
+// tool alone cannot say which the artist asked for. `ui.motionCreationKind`
+// carries that intent through to the next viewport pointer event, where
+// interactions.js actually creates the layer. Without it, projectLayer() fell
+// back to "is an object still selected?" and silently recorded object_point
+// for a World Point the artist explicitly chose.
 
 import { setMotionTool } from "./editing.js";
 import { syncToolButtons } from "./interactions.js";
@@ -29,19 +33,24 @@ export function beginMotionCreation(ui, kind) {
   ui.checkpoint?.(`Motion: ${flow.label}`);
   setMotionTool(ui.state, flow.tool);
   ui.motionCreatingLabel = flow.label;
+  // The intent the shared "project" tool cannot express on its own.
+  ui.motionCreationKind = kind;
   syncToolButtons(ui);
   ui.render();
   ui.setStatus(flow.hint);
 }
 
+/** Returns true when there was a pending creation flow to cancel. */
 export function cancelMotionCreation(ui) {
-  if ((ui.state.motion_tool || "select") === "select" && !ui.motionTrackDraft) return;
+  if ((ui.state.motion_tool || "select") === "select" && !ui.motionTrackDraft) return false;
   setMotionTool(ui.state, "select");
   ui.motionTrackDraft = null;
   ui.motionCreatingLabel = "";
+  ui.motionCreationKind = "";
   syncToolButtons(ui);
   ui.render();
   ui.setStatus("Motion creation cancelled.");
+  return true;
 }
 
 export function bindMotionCreation(ui, signal) {
@@ -49,7 +58,6 @@ export function bindMotionCreation(ui, signal) {
     button.addEventListener("click", () => beginMotionCreation(ui, button.dataset.motionCreate), { signal });
   }
   ui.root.querySelector("[data-motion-create-cancel]")?.addEventListener("click", () => cancelMotionCreation(ui), { signal });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") cancelMotionCreation(ui);
-  }, { signal });
+  // Escape is routed by the window-capture interceptor (commands.js) so it only
+  // reaches the Director the event actually came from.
 }

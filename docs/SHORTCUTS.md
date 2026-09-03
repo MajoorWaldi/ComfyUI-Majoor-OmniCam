@@ -3,7 +3,9 @@
 Shortcuts are live only while the OmniCam viewport or timeline has focus. They
 never capture the keyboard while you are typing into a field, and OmniCam
 claims a key from ComfyUI only when it actually handles it
-(`web-src/commands.js`).
+(`web-src/commands.js`). `Space` and `Enter` are also left alone when focus sits
+on something that activates with them -- a button, a disclosure `summary`, an
+outliner row or the axis gizmo -- so the panels stay keyboard-operable.
 
 Keys are scoped to the zone the event came from: the **viewport** owns the
 spatial keys, the **timeline / graph editor** own the temporal keys, and the

@@ -23,37 +23,42 @@ const c = /* @__PURE__ */ new Set([
   "schema_version",
   "reference_index",
   "markers"
-]), s = /* @__PURE__ */ new Set(["playblast", "playblast_camera_id", "playblast_camera_name"]);
+]), s = /* @__PURE__ */ new Set([
+  "playblast",
+  "playblast_camera_id",
+  "playblast_camera_name",
+  "motion_scene_fingerprint_live"
+]);
 function i(e) {
   if (!e || typeof e != "object") return e;
-  const { recording_path: a, ...t } = e;
+  const { recording_path: n, ...t } = e;
   return t;
 }
-function n(e) {
-  if (Array.isArray(e)) return e.map(n);
+function a(e) {
+  if (Array.isArray(e)) return e.map(a);
   if (e && typeof e == "object") {
-    const a = {};
-    for (const t of Object.keys(e).sort()) a[t] = n(e[t]);
-    return a;
+    const n = {};
+    for (const t of Object.keys(e).sort()) n[t] = a(e[t]);
+    return n;
   }
   return e;
 }
 function _(e) {
-  const a = e && typeof e == "object" ? e : {}, t = {};
-  for (const r of Object.keys(a))
-    c.has(r) || (t[r] = a[r]);
+  const n = e && typeof e == "object" ? e : {}, t = {};
+  for (const r of Object.keys(n))
+    c.has(r) || (t[r] = n[r]);
   const o = { ...t.metadata && typeof t.metadata == "object" ? t.metadata : {} };
   for (const r of s) delete o[r];
   return t.metadata = o, Array.isArray(t.cameras) && (t.cameras = t.cameras.map(i)), t.sequence && (t.sequence = i(t.sequence)), t;
 }
 function m(e) {
-  let a = 2166136261;
+  let n = 2166136261;
   for (let t = 0; t < e.length; t += 1)
-    a ^= e.charCodeAt(t), a = Math.imul(a, 16777619);
-  return (a >>> 0).toString(16).padStart(8, "0");
+    n ^= e.charCodeAt(t), n = Math.imul(n, 16777619);
+  return (n >>> 0).toString(16).padStart(8, "0");
 }
 function f(e) {
-  return m(JSON.stringify(n(_(e))));
+  return m(JSON.stringify(a(_(e))));
 }
 export {
   f as m

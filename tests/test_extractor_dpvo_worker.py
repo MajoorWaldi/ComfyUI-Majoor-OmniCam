@@ -396,6 +396,43 @@ def test_vram_is_released_before_the_child_is_spawned(tmp_path):
     assert observed == [None]
 
 
+def test_a_failing_pre_release_guard_stops_before_vram_is_freed_or_a_child_spawns(tmp_path):
+    """The guard is the last checkpoint before the point of no return: if a
+    ComfyUI workflow started since the manager admitted this job, nothing is
+    released and nothing is spawned -- the solve raises straight out."""
+    released = []
+    spawned = []
+    runner = DpvoProcessRunner(target=_successful_child, poll_seconds=0.01)
+    runner._release_vram = lambda: released.append(True)
+    original_target = runner._target
+    runner._target = lambda *a, **k: spawned.append(True) or original_target(*a, **k)
+
+    class _Contention(RuntimeError):
+        pass
+
+    def guard():
+        raise _Contention("a ComfyUI workflow started using the GPU")
+
+    with pytest.raises(_Contention):
+        runner.solve(_request(tmp_path), pre_release_guard=guard)
+
+    assert released == []
+    assert spawned == []
+    assert runner.process is None
+
+
+def test_a_passing_pre_release_guard_lets_the_solve_proceed(tmp_path):
+    calls = []
+    runner = DpvoProcessRunner(target=_successful_child, poll_seconds=0.01)
+
+    poses, _timestamps = runner.solve(
+        _request(tmp_path), pre_release_guard=lambda: calls.append(True)
+    )
+
+    assert calls == [True]
+    assert poses[1][0] == 1
+
+
 def test_a_caller_that_manages_its_own_vram_can_opt_out(tmp_path):
     runner = DpvoProcessRunner(
         target=_successful_child, poll_seconds=0.01, release_vram=None

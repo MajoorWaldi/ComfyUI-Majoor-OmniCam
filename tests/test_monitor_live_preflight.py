@@ -60,6 +60,17 @@ def test_a_healthy_director_state_reports_a_live_panel_with_no_run():
     assert not any(check["state"] == "BLOCKED" for check in result["preflight"])
 
 
+def test_zero_monitor_duration_and_fps_inherit_the_director_shot():
+    """A blank duration / fps on the Monitor (0) must not 400 the route: it
+    means "inherit the connected shot", exactly as the queued execute() does."""
+    result = build_live_preflight({
+        "director": _director(fps=30, duration_seconds=4.0),
+        "monitor": _monitor(duration_seconds=0, target_fps=0),
+    })
+    assert result["live"] is True
+    assert not any(check["state"] == "BLOCKED" for check in result["preflight"])
+
+
 def test_an_empty_director_state_still_answers_with_the_default_single_camera_scene():
     """A brand-new Director, before the user has authored anything at all."""
     result = build_live_preflight({

@@ -17,19 +17,31 @@ export function syncToolButtons(ui) {
   ui.interactionElement.dataset.motionTool = ui.state.motion_tool;
 }
 
-function projectLayer(ui, point) {
+export function projectLayer(ui, point) {
   const object = ui.state.objects.find((item) => item.id === ui.selectedObjectId);
-  const sourceKind = object ? "object_point" : "world_point";
-  const source = object
+  // The creation card the artist chose is authoritative. World Point means a
+  // fixed 3D point even with an object still selected; Track Object needs one.
+  // Only when the "project" tool was armed directly (no card) do we fall back
+  // to inferring intent from the selection.
+  const kind = ui.motionCreationKind;
+  const wantsObject = kind === "object" || (kind !== "world" && Boolean(object));
+  const sourceKind = wantsObject && object ? "object_point" : "world_point";
+  const source = sourceKind === "object_point"
     ? { object_id: object.id, local_point: [0, 0, 0] }
     : { point: ui.webgl?.intersectScenePoint?.(point.x * ui.canvas.width, point.y * ui.canvas.height, ui.canvas.width, ui.canvas.height) || [...ui.camera.target] };
   const projected = projectWorldSource(ui.state, source, ui.frame, ui.canvas.width, ui.canvas.height) || point;
-  return createMotionLayer(ui.state, { sourceKind, label: object ? `${object.name || object.id} Track` : "World Anchor", keys: [{ time_seconds: ui.frame / ui.state.fps, x: projected.x, y: projected.y, visible: projected.visible !== false }], source });
+  const label = sourceKind === "object_point" ? `${object.name || object.id} Track` : "World Anchor";
+  return createMotionLayer(ui.state, { sourceKind, label, keys: [{ time_seconds: ui.frame / ui.state.fps, x: projected.x, y: projected.y, visible: projected.visible !== false }], source });
 }
 
 export function bindMotionTrackEvents(ui, signal) {
   for (const button of ui.root.querySelectorAll("[data-motion-tool]")) {
-    button.addEventListener("click", () => { setMotionTool(ui.state, button.dataset.motionTool); syncToolButtons(ui); ui.render(); }, { signal });
+    button.addEventListener("click", () => {
+      // A raw tool button carries no artist-facing intent -- let projectLayer()
+      // infer object vs world from the selection again.
+      ui.motionCreationKind = "";
+      setMotionTool(ui.state, button.dataset.motionTool); syncToolButtons(ui); ui.render();
+    }, { signal });
   }
   for (const button of ui.root.querySelectorAll("[data-motion-preset]")) {
     button.addEventListener("click", () => {

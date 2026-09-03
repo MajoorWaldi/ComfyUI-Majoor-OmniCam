@@ -308,3 +308,38 @@ def test_a_single_camera_scene_is_not_reported_as_an_edit():
 
     assert check.state == "PASS"
     assert MULTI_SHOT_PROMPT not in H3_API_PROFILE.compile(_request()).final_prompt
+
+
+def _stale_request() -> CompileRequest:
+    payload = _scene().to_dict()
+    payload["metadata"] = {
+        "playblast": {"motion_scene_fingerprint": "recorded-aaa"},
+        "motion_scene_fingerprint_live": "current-bbb",
+    }
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    return request
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_blocks_a_playblast_recorded_before_the_scene_changed(profile):
+    """H3 conditions entirely on the reference video, so a stale one is a wrong
+    result, not a cosmetic nit -- BLOCKED before the queue, not a UI warning."""
+    request = _stale_request()
+    check = _check(profile.preflight(request), "playblast_freshness")
+    assert check.state == "BLOCKED"
+
+    with pytest.raises(ValueError):
+        profile.compile(request)
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_does_not_flag_a_fresh_playblast(profile):
+    payload = _scene().to_dict()
+    payload["metadata"] = {
+        "playblast": {"motion_scene_fingerprint": "same"},
+        "motion_scene_fingerprint_live": "same",
+    }
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    assert not [c for c in profile.preflight(request) if c.id == "playblast_freshness"]

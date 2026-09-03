@@ -93,6 +93,16 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
     except KeyError as exc:
         raise LivePreflightError(str(exc)) from exc
 
+    # 0 (or absent) means "inherit the connected shot", exactly as
+    # MajoorOmniCamMonitor.execute() does -- the live panel must preview the
+    # same request the queued run would build.
+    mon_duration = _numeric(monitor, "duration_seconds", 0.0, cast=float)
+    mon_fps = _numeric(monitor, "target_fps", 0.0, cast=float)
+    if mon_duration <= 0:
+        mon_duration = scene.timeline.duration_seconds
+    if mon_fps <= 0:
+        mon_fps = scene.timeline.authoring_fps
+
     try:
         request = CompileRequest(
             motion_scene=scene,
@@ -100,8 +110,8 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
             base_prompt=str(monitor.get("base_prompt", "") or ""),
             target_width=_numeric(monitor, "target_width", 832, cast=int),
             target_height=_numeric(monitor, "target_height", 480, cast=int),
-            duration_seconds=_numeric(monitor, "duration_seconds", 2.0, cast=float),
-            target_fps=_numeric(monitor, "target_fps", 24.0, cast=float),
+            duration_seconds=mon_duration,
+            target_fps=mon_fps,
         )
     except LivePreflightError:
         raise

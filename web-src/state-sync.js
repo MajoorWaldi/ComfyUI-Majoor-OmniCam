@@ -3,6 +3,7 @@
 
 import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./director/core.js";
 import { SEQUENCE_TARGET, cutAtFrame, sequenceActive } from "./director/sequence.js";
+import { motionFingerprint } from "./shared/motion-fingerprint.js";
 
 export function activeCameraTrack(ui) {
   if (!ui?.state?.cameras?.length) {
@@ -62,6 +63,12 @@ export function serializeEditorState(ui) {
     playblast_camera_name: recordingSequence ? "Sequence" : playblastCamera.name,
   };
   const payload = { ...ui.state, camera: cloneCamera(playblastCamera.camera), keyframes: playblastCamera.keyframes };
+  // The current scene fingerprint, hashed the same way `storePlayblastManifest`
+  // hashes it at record time. Carrying it in the serialized state lets a
+  // queued compile (no frontend) tell a stale playblast from a fresh one --
+  // the strict profiles block on the mismatch. Excluded from the hash itself
+  // (METADATA_CHROME_KEYS), so it does not perturb what it measures.
+  payload.metadata = { ...payload.metadata, motion_scene_fingerprint_live: motionFingerprint(ui.state) };
   if (ui.stateWidget) ui.stateWidget.value = JSON.stringify(payload);
   if (ui.widthWidget) ui.widthWidget.value = ui.state.width;
   if (ui.heightWidget) ui.heightWidget.value = ui.state.height;

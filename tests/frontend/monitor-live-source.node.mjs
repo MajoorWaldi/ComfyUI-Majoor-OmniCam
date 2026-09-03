@@ -68,8 +68,18 @@ test("monitorLivePayload shapes the Monitor's own widget values", () => {
 test("monitorLivePayload falls back to safe defaults when values are missing", () => {
   assert.deepEqual(monitorLivePayload(undefined), {
     target_profile: "", base_prompt: "", target_width: 832, target_height: 480,
-    duration_seconds: 2, target_fps: 24,
+    // 0 => the backend inherits the connected shot's duration / fps.
+    duration_seconds: 0, target_fps: 0,
   });
+});
+
+test("monitorLivePayload forwards a blank duration / fps as 0 (inherit)", () => {
+  const payload = monitorLivePayload({
+    target_profile: "h3_native", target_width: 832, target_height: 480,
+    duration_seconds: 0, target_fps: 0,
+  });
+  assert.equal(payload.duration_seconds, 0);
+  assert.equal(payload.target_fps, 0);
 });
 
 test("liveRequestPayload combines both halves under the shape the route expects", () => {

@@ -85,6 +85,33 @@ class SolveControl:
             raise SolveCancelled
         self._check_gpu_contention()
 
+    def assert_gpu_free(self) -> None:
+        """An *unthrottled* contention check, for the one moment it must not be
+        skipped: immediately before OmniCam releases ComfyUI's VRAM to spawn a
+        GPU child.
+
+        ``checkpoint()`` there can silently no-op -- ``watch_gpu_contention()``
+        set ``_next_probe`` half a second into the future when it armed, and the
+        release happens well inside that window -- which leaves exactly the race
+        this guards: the queue read as idle at admission, a workflow started
+        since, and the VRAM about to be freed straight into its reload.
+
+        Not gated on ``_watch_gpu``: about to hand the card to a child *is* the
+        condition. Still a clean no-op with no probe wired (headless, tests).
+        """
+        if self.stop_requested.is_set():
+            raise SolveCancelled
+        if self._execution_probe is None:
+            return
+        now = self._clock()
+        self._next_probe = now + self._poll_seconds
+        try:
+            busy = bool(self._execution_probe())
+        except Exception:  # noqa: BLE001 - a probe that breaks must not stop a healthy solve
+            return
+        if busy:
+            raise GpuContentionError(GPU_CONTENTION_MESSAGE)
+
     def _check_gpu_contention(self) -> None:
         if not self._watch_gpu or self._execution_probe is None:
             return

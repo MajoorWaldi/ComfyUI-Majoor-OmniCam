@@ -133,6 +133,11 @@ class DpvoBackend:
             checkpoint_path=checkpoint_path(),
         )
         runner = self._runner_factory()
+        # An unthrottled contention check fired the instant before the runner
+        # releases ComfyUI's VRAM -- the in-loop checkpoint is rate-limited and
+        # can sail past this exact window. No-op when the solve runs without a
+        # control (headless).
+        guard = getattr(control, "assert_gpu_free", None)
         try:
             poses, timestamps = runner.solve(
                 request,
@@ -141,6 +146,7 @@ class DpvoBackend:
                 on_source_frame=lambda frame: observe_progress_frame(observer, frame),
                 on_features=lambda frame, points: observe_features(observer, frame, points, "good"),
                 on_finalizing=lambda: observe_finalizing(observer),
+                pre_release_guard=guard if callable(guard) else None,
             )
             result = self._poses_to_samples(np, poses, timestamps, frames)
             result.landmarks_3d = list(getattr(runner, "landmarks_3d", []) or [])

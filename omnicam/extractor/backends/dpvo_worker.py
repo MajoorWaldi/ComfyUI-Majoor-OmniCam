@@ -502,12 +502,20 @@ class DpvoProcessRunner:
         on_source_frame: Callable[[int], None] | None = None,
         on_features: Callable[[int, list[dict[str, Any]]], None] | None = None,
         on_finalizing: Callable[[], None] | None = None,
+        pre_release_guard: Callable[[], None] | None = None,
     ) -> tuple[list, list]:
         if self.process is not None:
             raise RuntimeError("This DPVO process runner is already active")
         target, payload = self._target, request
         if target is run_dpvo_child:
             target, payload = canonical_worker_entry(request)
+        # The last checkpoint before the point of no return: freeing ComfyUI's
+        # VRAM here, only to have a workflow that started since reload straight
+        # into it, is the one race the throttled in-loop check can miss. The
+        # guard raises (GpuContentionError / SolveCancelled) before anything is
+        # released or spawned; the solve then travels the failure path.
+        if pre_release_guard is not None:
+            pre_release_guard()
         # Before the child exists, not after: once it is running, anything the
         # parent frees is already too late for the allocation that failed.
         self.vram_release = self._release_vram() if self._release_vram else None

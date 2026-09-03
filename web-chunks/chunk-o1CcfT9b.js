@@ -1,9 +1,9 @@
-import { l as T, S as M, b as N, p as P, u as L, d as I } from "./chunk-D3fRtf1d.js";
+import { l as M, S as N, b as P, p as I, u as L, d as $ } from "./chunk-D3fRtf1d.js";
 import "../../scripts/app.js";
 import { api as u } from "../../scripts/api.js";
-import { M as $ } from "./chunk-Jm0vAvYx.js";
-import { a0 as A } from "./chunk-BQnPMAhF.js";
-import { m as j } from "./chunk-yd7KIc_Q.js";
+import { M as A } from "./chunk-Jm0vAvYx.js";
+import { a1 as D } from "./chunk-D4ffYaAz.js";
+import { m as j } from "./chunk-COqBWNqK.js";
 function s(e) {
   return String(e ?? "").replace(/[&<>"']/g, (t) => ({
     "&": "&amp;",
@@ -13,55 +13,55 @@ function s(e) {
     "'": "&#39;"
   })[t]);
 }
-const g = {
+const b = {
   verified: "pass",
   detected_unverified: "warning",
   incompatible: "blocked",
   missing: "blocked"
 };
-function S(e) {
+function _(e) {
   const t = String(e || "").toLowerCase();
-  return t in g ? g[t] : ["ready", "warning", "blocked", "risk", "pass", "connected", "unknown"].includes(t) ? t : "unknown";
+  return t in b ? b[t] : ["ready", "warning", "blocked", "risk", "pass", "connected", "unknown"].includes(t) ? t : "unknown";
 }
-function b(e) {
+function y(e) {
   return Array.isArray(e) && e.length === 1 ? e[0] : e;
 }
 function q(e) {
-  const t = e?.ui && typeof e.ui == "object" ? e.ui : e || {}, o = Array.isArray(t.preflight) && t.preflight.length === 1 && Array.isArray(t.preflight[0]) ? t.preflight[0] : t.preflight, r = b(t.capabilities), i = b(t.target_profile);
+  const t = e?.ui && typeof e.ui == "object" ? e.ui : e || {}, o = Array.isArray(t.preflight) && t.preflight.length === 1 && Array.isArray(t.preflight[0]) ? t.preflight[0] : t.preflight, r = y(t.capabilities), i = y(t.target_profile);
   return {
     targetProfile: typeof i == "string" ? i : "",
     preflight: Array.isArray(o) ? o : [],
     capabilities: r && typeof r == "object" ? r : { capabilities: [] }
   };
 }
-function D(e) {
-  const t = S(e.state), o = e.message ? `<br><small>${s(e.message)}</small>` : "";
+function R(e) {
+  const t = _(e.state), o = e.message ? `<br><small>${s(e.message)}</small>` : "";
   return `<div class="oc-row"><span><strong>${s(e.label || e.id)}</strong>${o}</span><span class="oc-state" data-state="${t}">${s(e.state || "UNKNOWN")}</span></div>`;
 }
-function R(e, t, o = !1) {
+function U(e, t, o = !1) {
   const r = o ? e ? "LIVE — WOULD BLOCK" : "LIVE PREVIEW" : e ? "NO OUTPUT" : "OUTPUT GENERATED";
   return t ? `${r} · ${t}` : r;
 }
-function y(e, t, { live: o = !1 } = {}) {
+function v(e, t, { live: o = !1 } = {}) {
   const r = q(t), i = e.querySelector('[data-role="profile-preflight"]');
-  i.innerHTML = r.preflight.length ? r.preflight.map(D).join("") : '<div class="oc-empty">No preflight checks returned.</div>';
+  i.innerHTML = r.preflight.length ? r.preflight.map(R).join("") : '<div class="oc-empty">No preflight checks returned.</div>';
   const a = Array.isArray(r.capabilities.capabilities) ? r.capabilities.capabilities : [], n = e.querySelector('[data-role="profile-capabilities"]');
-  n.innerHTML = a.length ? a.map((p) => `<div class="oc-row"><span>${s(p.display || p.adapter)}</span><span class="oc-state" data-state="${S(p.state)}">${s(p.state)}</span></div>`).join("") : '<div class="oc-empty">No optional downstream capability detected.</div>';
+  n.innerHTML = a.length ? a.map((p) => `<div class="oc-row"><span>${s(p.display || p.adapter)}</span><span class="oc-state" data-state="${_(p.state)}">${s(p.state)}</span></div>`).join("") : '<div class="oc-empty">No optional downstream capability detected.</div>';
   const c = r.preflight.some((p) => String(p.state).toUpperCase() === "BLOCKED"), l = e.querySelector('[data-role="monitor-status"]');
-  return l.dataset.state = c ? "BLOCKED" : "READY", l.lastChild.textContent = c ? " BLOCKED" : " READY", e.querySelector('[data-role="output-status"]').textContent = R(c, r.targetProfile, o), r;
+  return l.dataset.state = c ? "BLOCKED" : "READY", l.lastChild.textContent = c ? " BLOCKED" : " READY", e.querySelector('[data-role="output-status"]').textContent = U(c, r.targetProfile, o), r;
 }
-const U = "MajoorOmniCamDirector";
-function W(e) {
+const W = "MajoorOmniCamDirector";
+function F(e) {
   return String(e?.comfyClass || e?.constructor?.type || "");
 }
 function d(e, t, o) {
   const r = e?.widgets?.find((i) => i.name === t);
   return r && r.value !== void 0 ? r.value : o;
 }
-function v(e) {
-  return W(e) === U;
+function h(e) {
+  return F(e) === W;
 }
-function F(e) {
+function C(e) {
   return {
     state_json: String(d(e, "state_json", "{}")),
     recording_path: String(d(e, "recording_path", "")),
@@ -79,32 +79,33 @@ function H(e) {
     base_prompt: String(e?.base_prompt ?? ""),
     target_width: Number(e?.target_width ?? 832),
     target_height: Number(e?.target_height ?? 480),
-    duration_seconds: Number(e?.duration_seconds ?? 2),
-    target_fps: Number(e?.target_fps ?? 24)
+    // 0 tells the backend to inherit the connected shot's duration / fps.
+    duration_seconds: Number(e?.duration_seconds ?? 0),
+    target_fps: Number(e?.target_fps ?? 0)
   };
 }
 function V(e, t) {
   return {
-    director: F(e),
+    director: C(e),
     monitor: H(t)
   };
 }
-class B extends $ {
+class B extends A {
   constructor(t, { fps: o = 24, durationFrames: r = 1, onFrame: i = () => {
   } } = {}) {
     super(t, { fps: o, durationFrames: r, onFrame: i, loop: !0, muted: !0 });
   }
 }
-const _ = "MajoorOmniCamDirector";
+const O = "MajoorOmniCamDirector";
 function k(e) {
   return String(e?.comfyClass || e?.constructor?.type || "");
 }
-function h(e, t) {
+function f(e, t) {
   return e?.widgets?.find((o) => o.name === t)?.value;
 }
 function z(e) {
   try {
-    const t = JSON.parse(String(h(e, "state_json") ?? "{}"));
+    const t = JSON.parse(String(f(e, "state_json") ?? "{}"));
     return t && typeof t == "object" ? t : {};
   } catch {
     return {};
@@ -115,10 +116,10 @@ function K(e, t) {
   return o ? o !== j(t) : !1;
 }
 function G(e, t) {
-  if (k(t) !== _) return null;
-  const o = String(h(t, "recording_path") || "");
+  if (k(t) !== O) return null;
+  const o = String(f(t, "recording_path") || "");
   if (!o) return null;
-  const r = A(e, o);
+  const r = D(e, o);
   if (!r) return null;
   const i = z(t), a = i?.metadata?.playblast && typeof i.metadata.playblast == "object" ? i.metadata.playblast : {};
   return {
@@ -133,18 +134,18 @@ function G(e, t) {
     outdated: K(a, i)
   };
 }
-function O(e) {
-  return k(e) === _ && !h(e, "recording_path");
+function E(e) {
+  return k(e) === O && !f(e, "recording_path");
 }
 function Y(e, t) {
   if (e) {
     const o = [e.outdated ? "⚠ Playblast outdated (re-record before compiling)" : "● Director playblast"];
     return e.width && e.height && o.push(`${e.width}x${e.height}`), e.fps && o.push(`${e.fps}fps`), e.frameCount && o.push(`${e.frameCount} frames`), e.durationSeconds && o.push(`${e.durationSeconds.toFixed(2)}s`), o.join(" · ");
   }
-  return O(t) ? "⚠ Director connected, no playblast recorded yet — showing the live viewport." : "";
+  return E(t) ? "⚠ Director connected, no playblast recorded yet — showing the live viewport." : "";
 }
 function J(e, t) {
-  return e?.outdated ? "2" : e ? "" : O(t) ? "1" : "";
+  return e?.outdated ? "2" : e ? "" : E(t) ? "1" : "";
 }
 class Q {
   constructor(t, {
@@ -188,7 +189,7 @@ function x(e) {
 }
 function w(e, t) {
   const o = e?.inputs?.find((r) => r.name === t);
-  return o?.link == null || !e?.graph ? null : T(e.graph, o.link);
+  return o?.link == null || !e?.graph ? null : M(e.graph, o.link);
 }
 function X(e) {
   const t = w(e, "motion_scene"), o = w(e, "playblast_video");
@@ -231,7 +232,7 @@ function et(e, t) {
     return `<div class="oc-row"><span><strong>${s(n.display_name)}</strong><br><small>${s(n.semantic)} · ${s(n.frame_policy)}</small></span><span class="oc-state" data-state="${s(l)}">${s(l)}</span></div>`;
   }).join("") : '<div class="oc-empty">No Monitor profile is available.</div>';
 }
-const ot = `${M}
+const ot = `${N}
   .oc-monitor{width:100%;min-height:680px;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--oc-line);border-radius:var(--oc-radius);background:var(--oc-bg)}
   .oc-monitor .oc-header{justify-content:space-between}.oc-monitor .oc-header-actions{display:flex;align-items:center;gap:7px}
   .oc-monitor button,.oc-monitor select,.oc-monitor input,.oc-monitor textarea{font:inherit;color:var(--oc-text);background:var(--oc-panel-2);border:1px solid var(--oc-line);border-radius:6px}
@@ -283,7 +284,7 @@ function it() {
 function at() {
   return `<div class="majoor-omnicam oc-monitor">
     <style>${ot}</style>
-    <header class="oc-header">${N("OmniCam Monitor")}
+    <header class="oc-header">${P("OmniCam Monitor")}
       <div class="oc-header-actions"><span class="oc-status-pill" data-role="monitor-status" data-state="OFFLINE"><i class="oc-status-dot"></i> WAITING</span></div>
     </header>
     <div class="oc-source" data-role="source-status">Connect a MotionScene and queue the workflow.</div>
@@ -298,8 +299,8 @@ function at() {
           <label class="wide">Base prompt<textarea data-setting="base_prompt" rows="3"></textarea></label>
           <label>Width<input data-setting="target_width" type="number" min="64" max="4096" step="8"></label>
           <label>Height<input data-setting="target_height" type="number" min="64" max="4096" step="8"></label>
-          <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0.1" max="600" step="0.1"></label>
-          <label>FPS<input data-setting="target_fps" type="number" min="1" max="120" step="1"></label>
+          <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0" max="600" step="0.1" placeholder="auto (from shot)"></label>
+          <label>FPS<input data-setting="target_fps" type="number" min="0" max="120" step="1" placeholder="auto (from shot)"></label>
         </div></div>
         <details class="oc-card oc-collapsible"><summary class="oc-section">Profiles</summary><div data-role="profile-catalogue" class="oc-empty">Loading the Monitor profile catalogue.</div></details>
         <details class="oc-card oc-collapsible"><summary class="oc-section">Installed capabilities</summary><div data-role="profile-capabilities" class="oc-empty">Capability report available after execution.</div></details>
@@ -312,7 +313,7 @@ function nt(e = document) {
   const t = e.createElement("div");
   return t.innerHTML = at(), t.firstElementChild;
 }
-const f = [
+const g = [
   "base_prompt",
   "target_profile",
   "target_width",
@@ -325,24 +326,24 @@ const f = [
   "duration_seconds",
   "target_fps"
 ]);
-function E(e, t) {
+function T(e, t) {
   return e?.widgets?.find((o) => o.name === t);
 }
 function m(e) {
-  return Object.fromEntries(f.map((t) => [t, E(e, t)?.value]));
+  return Object.fromEntries(g.map((t) => [t, T(e, t)?.value]));
 }
-function C(e, t, o) {
-  if (!f.includes(t)) return !1;
-  const r = E(e, t);
+function S(e, t, o) {
+  if (!g.includes(t)) return !1;
+  const r = T(e, t);
   return r ? (r.value = st.has(t) ? Number(o) : o, r.callback?.(r.value), !0) : !1;
 }
-const ct = 250;
-function lt(e) {
+const ct = 250, lt = /* @__PURE__ */ new Set(["duration_seconds", "target_fps"]);
+function dt(e) {
   for (const t of e.widgets || [])
     t.computeSize = () => [0, -4], t.draw = () => {
     }, t.hidden = !0, t.options = { ...t.options || {}, hideInVueNodes: !0 };
 }
-class dt {
+class pt {
   constructor(t) {
     this.node = t, this.root = nt(), this.disposers = [], this.source = null, this.player = new B(
       this.root.querySelector('[data-role="proxy-player"]'),
@@ -368,12 +369,12 @@ class dt {
     t && (t.addEventListener(o, r), this.disposers.push(() => t.removeEventListener(o, r)));
   }
   bindControls() {
-    this.listen(this.root, "wheel", P(this.root)), this.listen(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle()), this.listen(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (t) => this.player.scrub(t.target.value)), this.listen(this.root.querySelector('[data-role="proxy-loop"]'), "change", (t) => this.player.setLoop(t.target.checked)), this.listen(this.root.querySelector('[data-role="proxy-mute"]'), "change", (t) => this.player.setMuted(t.target.checked)), this.listen(this.root.querySelector('[data-role="profile-select"]'), "change", (t) => {
-      C(this.node, "target_profile", t.target.value), this.settingsChanged();
+    this.listen(this.root, "wheel", I(this.root)), this.listen(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle()), this.listen(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (t) => this.player.scrub(t.target.value)), this.listen(this.root.querySelector('[data-role="proxy-loop"]'), "change", (t) => this.player.setLoop(t.target.checked)), this.listen(this.root.querySelector('[data-role="proxy-mute"]'), "change", (t) => this.player.setMuted(t.target.checked)), this.listen(this.root.querySelector('[data-role="profile-select"]'), "change", (t) => {
+      S(this.node, "target_profile", t.target.value), this.settingsChanged();
     });
     for (const t of this.root.querySelectorAll("[data-setting]"))
       this.listen(t, "change", () => {
-        C(this.node, t.dataset.setting, t.value), this.settingsChanged();
+        S(this.node, t.dataset.setting, t.value), this.settingsChanged();
       });
   }
   /**
@@ -385,15 +386,33 @@ class dt {
    * refresh it really has gone stale.
    */
   settingsChanged() {
-    v(this.source?.sceneOrigin) ? this.liveTick() : this.markOutdated();
+    h(this.source?.sceneOrigin) ? this.liveTick() : this.markOutdated();
   }
   syncControlsFromWidgets() {
     const t = m(this.node), o = this.root.querySelector('[data-role="profile-select"]');
     t.target_profile != null && (o.value = String(t.target_profile));
-    for (const r of f) {
+    for (const r of g) {
       if (r === "target_profile") continue;
       const i = this.root.querySelector(`[data-setting="${r}"]`);
-      i && t[r] != null && (i.value = t[r]);
+      !i || t[r] == null || (lt.has(r) && Number(t[r]) <= 0 ? i.value = "" : i.value = t[r]);
+    }
+    this.reflectInheritedShot();
+  }
+  /**
+   * Fill the placeholder of any "auto" (left-blank) duration / fps field with
+   * the value the compile will actually inherit from the connected Director,
+   * so the number is visible without being typed. Only a Director exposes its
+   * shot client-side; a third-party MotionScene still compiles correctly (the
+   * backend inherits from the scene) but cannot be previewed here.
+   */
+  reflectInheritedShot() {
+    const t = this.source?.sceneOrigin, o = h(t) ? C(t) : null, r = {
+      duration_seconds: o ? `${o.duration_seconds} (from Director)` : "auto (from shot)",
+      target_fps: o ? `${o.fps} (from Director)` : "auto (from shot)"
+    };
+    for (const [i, a] of Object.entries(r)) {
+      const n = this.root.querySelector(`[data-setting="${i}"]`);
+      n && (n.placeholder = a);
     }
   }
   markOutdated() {
@@ -404,7 +423,7 @@ class dt {
     const o = this.root.querySelector('[data-role="source-status"]');
     o.textContent = t.sceneConnected ? `${t.sceneNodeClass || "MotionScene"} connected${t.playblastConnected ? ` · playblast: ${t.playblastNodeClass || "connected"}` : " · no playblast"}` : "Connect a MotionScene and queue the workflow.";
     const r = this.root.querySelector('[data-role="monitor-status"]');
-    r.dataset.state = t.sceneConnected ? "CONNECTED" : "OFFLINE", r.lastChild.textContent = t.sceneConnected ? " CONNECTED" : " WAITING", this.refreshPlayblastPreview(), this.liveTick();
+    r.dataset.state = t.sceneConnected ? "CONNECTED" : "OFFLINE", r.lastChild.textContent = t.sceneConnected ? " CONNECTED" : " WAITING", this.reflectInheritedShot(), this.refreshPlayblastPreview(), this.liveTick();
   }
   /**
    * Read the connected Director's current widgets and, if anything actually
@@ -414,9 +433,9 @@ class dt {
    * never touches a DOM input at all.
    */
   liveTick() {
-    this.refreshPlayblastPreview();
+    this.refreshPlayblastPreview(), this.reflectInheritedShot();
     const t = this.source?.sceneOrigin;
-    if (!v(t)) {
+    if (!h(t)) {
       this.showLiveUnavailable();
       return;
     }
@@ -424,7 +443,7 @@ class dt {
     this.refreshController.schedule(o);
   }
   liveSnapshotReceived(t) {
-    y(this.root, t, { live: !0 });
+    v(this.root, t, { live: !0 });
   }
   liveRefreshFailed(t) {
     console.warn("OmniCam: Monitor live preflight failed", t);
@@ -460,7 +479,7 @@ class dt {
       t.hidden = !0, o.hidden = !0, this.player.setSource(c);
       return;
     }
-    this.player.setSource(""), I(a, t, 640).then((l) => {
+    this.player.setSource(""), $(a, t, 640).then((l) => {
       t.hidden = !l, o.hidden = l;
     });
   }
@@ -480,7 +499,7 @@ class dt {
   }
   executed(t) {
     this.hasExecutedOnce = !0;
-    const o = y(this.root, t);
+    const o = v(this.root, t);
     o.targetProfile && m(this.node).target_profile !== o.targetProfile && this.markOutdated();
   }
   dispose() {
@@ -488,10 +507,10 @@ class dt {
     for (const t of this.disposers.splice(0)) t();
   }
 }
-function bt(e) {
+function yt(e) {
   if (e.__majoorOmniCamMonitor) return;
-  lt(e);
-  const t = new dt(e);
+  dt(e);
+  const t = new pt(e);
   e.__majoorOmniCamMonitor = t;
   const o = () => Math.max(620, t.root.scrollHeight || 0);
   e.addDOMWidget("majoor_omnicam_monitor", "omnicam", t.root, {
@@ -519,5 +538,5 @@ function bt(e) {
   };
 }
 export {
-  bt as attachMonitor
+  yt as attachMonitor
 };

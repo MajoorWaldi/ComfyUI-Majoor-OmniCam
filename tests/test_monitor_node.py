@@ -133,6 +133,44 @@ def test_inactive_typed_outputs_are_none_not_fake_tensors(all_targets_installed)
     assert ui["target_profile"] == "wan_move_native"
 
 
+def test_zero_duration_and_fps_inherit_the_connected_shot(all_targets_installed):
+    """0 on either widget means "use the shot the upstream authored".
+
+    A Director authoring a 3 s move should not need its duration re-typed into
+    the Monitor; leaving the field blank (0) must produce the same compile as
+    typing the scene's own numbers, and a different one from the old 2 s / 24
+    fps defaults.
+    """
+    scene = _scene().to_dict()
+    scene["timeline"] = {"duration_seconds": 3.0, "authoring_fps": 30.0}
+    # The camera track has to agree with the timeline it lives on.
+    track = scene["cameras"][0]["track"]
+    track["fps"] = 30
+    track["duration_frames"] = 90
+
+    inherited = MajoorOmniCamMonitor.execute(
+        motion_scene=scene, playblast_video=None, base_prompt="",
+        target_profile="external_reference_video", target_width=832, target_height=480,
+        duration_seconds=0.0, target_fps=0.0,
+    )
+    explicit = MajoorOmniCamMonitor.execute(
+        motion_scene=scene, playblast_video=None, base_prompt="",
+        target_profile="external_reference_video", target_width=832, target_height=480,
+        duration_seconds=3.0, target_fps=30.0,
+    )
+    old_defaults = MajoorOmniCamMonitor.execute(
+        motion_scene=scene, playblast_video=None, base_prompt="",
+        target_profile="external_reference_video", target_width=832, target_height=480,
+        duration_seconds=2.0, target_fps=24.0,
+    )
+
+    def outs(node_output):
+        return node_output.outputs if hasattr(node_output, "outputs") else tuple(node_output)
+
+    assert outs(inherited)[8] == outs(explicit)[8]
+    assert outs(inherited)[8] != outs(old_defaults)[8]
+
+
 def test_unknown_target_profile_is_rejected_instead_of_silently_switched():
     with pytest.raises(KeyError, match="missing_profile"):
         MajoorOmniCamMonitor.execute(

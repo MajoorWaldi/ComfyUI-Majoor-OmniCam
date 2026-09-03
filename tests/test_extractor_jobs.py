@@ -406,6 +406,40 @@ def test_a_user_stop_outranks_gpu_contention():
         control.checkpoint()
 
 
+def test_assert_gpu_free_probes_even_inside_the_throttle_window():
+    """checkpoint() is rate-limited and can sail past the instant just before a
+    VRAM release; assert_gpu_free() is the unthrottled check for that instant."""
+    control, clock = _gpu_control(lambda: True)
+
+    control.checkpoint()  # throttled: the manager's idle read still stands
+
+    with pytest.raises(GpuContentionError):
+        control.assert_gpu_free()  # unthrottled: sees the workflow that just started
+
+    # And it stays a clean no-op when the queue really is idle.
+    idle, _ = _gpu_control(lambda: False)
+    idle.assert_gpu_free()
+
+
+def test_assert_gpu_free_needs_no_arming_and_no_probe():
+    """About to hand the card to a child *is* the condition, and a headless
+    solve with no probe wired must not be blocked by it."""
+    armed_never = SolveControl(threading.Event(), execution_probe=lambda: True, clock=_Clock())
+    with pytest.raises(GpuContentionError):
+        armed_never.assert_gpu_free()
+
+    SolveControl(threading.Event()).assert_gpu_free()  # no probe -> no-op
+
+
+def test_assert_gpu_free_yields_to_a_user_stop_first():
+    stop = threading.Event()
+    control = SolveControl(stop, execution_probe=lambda: True, clock=_Clock())
+    stop.set()
+
+    with pytest.raises(SolveCancelled):
+        control.assert_gpu_free()
+
+
 def test_the_manager_exposes_its_one_execution_probe_to_running_solves():
     """Start gate and running solve must not disagree about what busy means."""
     busy = True

@@ -5,6 +5,7 @@ import { defaultState, sanitizeState } from "../../web-src/director/core.js";
 import { commitDrawnTrack, eraseAtPoint, simplifyDrawnPoints } from "../../web-src/motion-tracks/draw.js";
 import { createMotionLayer, retimeLayer, setLayerInterpolation, setMotionTool } from "../../web-src/motion-tracks/editing.js";
 import { normalizedPointer } from "../../web-src/motion-tracks/projection.js";
+import { projectLayer } from "../../web-src/motion-tracks/interactions.js";
 
 test("Director defaults include an empty serializable motion workspace", () => {
   const state = defaultState();
@@ -38,6 +39,41 @@ test("anchor editing supports interpolation, retime, tools and erase", () => {
   assert.equal(state.motion_tool, "erase");
   assert.equal(eraseAtPoint(state, { x: 0.5, y: 0.5 }).id, layer.id);
   assert.deepEqual(state.motion_layers, []);
+});
+
+function projectUi(overrides = {}) {
+  return {
+    state: { fps: 24, motion_layers: [], objects: [{ id: "subject", name: "Subject" }] },
+    selectedObjectId: "subject",
+    motionCreationKind: "",
+    frame: 0,
+    canvas: { width: 1280, height: 720 },
+    camera: { target: [0, 0, 0] },
+    webgl: { intersectScenePoint: () => [1, 2, 3] },
+    ...overrides,
+  };
+}
+
+test("projectLayer honours the World Point card even with an object selected", () => {
+  const ui = projectUi({ motionCreationKind: "world" });
+  const layer = projectLayer(ui, { x: 0.5, y: 0.5 });
+  assert.equal(layer.source_kind, "world_point");
+  assert.ok(!("object_id" in layer.source));
+});
+
+test("projectLayer honours the Track Object card", () => {
+  const ui = projectUi({ motionCreationKind: "object" });
+  const layer = projectLayer(ui, { x: 0.5, y: 0.5 });
+  assert.equal(layer.source_kind, "object_point");
+  assert.equal(layer.source.object_id, "subject");
+});
+
+test("projectLayer without a card still infers object vs world from the selection", () => {
+  const withObject = projectLayer(projectUi(), { x: 0.5, y: 0.5 });
+  assert.equal(withObject.source_kind, "object_point");
+
+  const noObject = projectLayer(projectUi({ selectedObjectId: null }), { x: 0.5, y: 0.5 });
+  assert.equal(noObject.source_kind, "world_point");
 });
 
 test("normalized pointer coordinates are canvas-relative and bounded", () => {

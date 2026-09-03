@@ -61,8 +61,14 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                 ),
                 IO.Int.Input("target_width", default=832, min=64, max=4096, step=8, advanced=True),
                 IO.Int.Input("target_height", default=480, min=64, max=4096, step=8, advanced=True),
-                IO.Float.Input("duration_seconds", default=2.0, min=0.1, max=600.0, step=0.1, advanced=True),
-                IO.Float.Input("target_fps", default=24.0, min=1.0, max=120.0, step=1.0, advanced=True),
+                IO.Float.Input(
+                    "duration_seconds", default=0.0, min=0.0, max=600.0, step=0.1, advanced=True,
+                    tooltip="Length of the shot to compile. 0 inherits the duration of the connected MotionScene (the Director's authored shot).",
+                ),
+                IO.Float.Input(
+                    "target_fps", default=0.0, min=0.0, max=120.0, step=1.0, advanced=True,
+                    tooltip="Frame rate to sample trajectories at. 0 inherits the authoring fps of the connected MotionScene.",
+                ),
             ],
             hidden=[IO.Hidden.unique_id],
             outputs=[
@@ -82,12 +88,20 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
     def execute(
         cls, motion_scene: dict[str, Any], playblast_video=None, base_prompt: str = "",
         target_profile: str = "", target_width: int = 832, target_height: int = 480,
-        duration_seconds: float = 2.0, target_fps: float = 24.0,
+        duration_seconds: float = 0.0, target_fps: float = 0.0,
     ) -> IO.NodeOutput:
         try:
             scene = MotionScene.from_dict(motion_scene)
         except (TypeError, ValueError, ValidationError) as error:
             raise ValueError(f"Invalid MotionScene: {error}") from error
+
+        # 0 on either widget means "use the shot the upstream authored". Re-typing
+        # the Director's duration and fps into the Monitor was pure duplication,
+        # and a silent source of drift the moment one of them was forgotten.
+        if not duration_seconds or duration_seconds <= 0:
+            duration_seconds = scene.timeline.duration_seconds
+        if not target_fps or target_fps <= 0:
+            target_fps = scene.timeline.authoring_fps
 
         playblast_video = as_video(playblast_video)
         profile = PROFILE_REGISTRY.require(target_profile)

@@ -36,8 +36,8 @@ export function monitorMarkup() {
           <label class="wide">Base prompt<textarea data-setting="base_prompt" rows="3"></textarea></label>
           <label>Width<input data-setting="target_width" type="number" min="64" max="4096" step="8"></label>
           <label>Height<input data-setting="target_height" type="number" min="64" max="4096" step="8"></label>
-          <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0.1" max="600" step="0.1"></label>
-          <label>FPS<input data-setting="target_fps" type="number" min="1" max="120" step="1"></label>
+          <label>Duration (seconds)<input data-setting="duration_seconds" type="number" min="0" max="600" step="0.1" placeholder="auto (from shot)"></label>
+          <label>FPS<input data-setting="target_fps" type="number" min="0" max="120" step="1" placeholder="auto (from shot)"></label>
         </div></div>
         <details class="oc-card oc-collapsible"><summary class="oc-section">Profiles</summary><div data-role="profile-catalogue" class="oc-empty">Loading the Monitor profile catalogue.</div></details>
         <details class="oc-card oc-collapsible"><summary class="oc-section">Installed capabilities</summary><div data-role="profile-capabilities" class="oc-empty">Capability report available after execution.</div></details>
