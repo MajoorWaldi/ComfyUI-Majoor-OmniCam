@@ -70,6 +70,12 @@ jobs:
       - run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r .comfyui/requirements.txt
       - run: PYTHONPATH=.comfyui:. python scripts/comfy_integration_smoke.py
+      - name: Run official Wan camera parity
+        if: ${{ matrix.label == 'v0.34.0' }}
+        env:
+          OMNICAM_COMFYUI_ROOT: ${{ github.workspace }}/.comfyui
+          OMNICAM_REQUIRE_OFFICIAL_WAN_PARITY: "1"
+        run: PYTHONPATH=.comfyui:. python -m pytest tests/parity/test_wan_camera_official_parity.py -q
 
   comfyui-browser:
     name: comfyui-browser
@@ -145,6 +151,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
@@ -154,6 +163,7 @@ jobs:
       # content-hashes the chunk names and the result is not byte-reproducible
       # across OSes). This job and the publish job both build the bundle fresh.
       - run: npm run build
+      - run: python scripts/verify_package.py
       - run: npm run check
       - run: npm run test:unit
       - run: npx playwright install --with-deps chromium
