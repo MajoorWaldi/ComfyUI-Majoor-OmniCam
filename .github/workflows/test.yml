@@ -164,6 +164,30 @@ jobs:
       # across OSes). This job and the publish job both build the bundle fresh.
       - run: npm run build
       - run: python scripts/verify_package.py
+      - name: Pack and inspect the Registry archive
+        run: |
+          pip install comfy-cli
+          comfy --skip-prompt --no-enable-telemetry node pack
+          python - <<'PY'
+          import zipfile
+
+          with zipfile.ZipFile("node.zip") as archive:
+              names = set(archive.namelist())
+
+          def has(path: str) -> bool:
+              return any(name == path or name.endswith("/" + path) for name in names)
+
+          missing = [
+              path
+              for path in ("__init__.py", "omnicam/__init__.py", "web/omnicam.js", "pyproject.toml")
+              if not has(path)
+          ]
+          if missing:
+              raise SystemExit(f"Registry archive missing required files: {missing}")
+          if not any("web-chunks/" in name and name.endswith(".js") for name in names):
+              raise SystemExit("Registry archive missing generated web-chunks JavaScript")
+          print(f"Registry archive smoke: OK ({len(names)} files)")
+          PY
       - run: npm run check
       - run: npm run test:unit
       - run: npx playwright install --with-deps chromium
