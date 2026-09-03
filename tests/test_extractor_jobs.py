@@ -409,7 +409,7 @@ def test_a_user_stop_outranks_gpu_contention():
 def test_assert_gpu_free_probes_even_inside_the_throttle_window():
     """checkpoint() is rate-limited and can sail past the instant just before a
     VRAM release; assert_gpu_free() is the unthrottled check for that instant."""
-    control, clock = _gpu_control(lambda: True)
+    control, _clock = _gpu_control(lambda: True)
 
     control.checkpoint()  # throttled: the manager's idle read still stands
 

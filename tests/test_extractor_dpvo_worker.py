@@ -407,13 +407,13 @@ def test_a_failing_pre_release_guard_stops_before_vram_is_freed_or_a_child_spawn
     original_target = runner._target
     runner._target = lambda *a, **k: spawned.append(True) or original_target(*a, **k)
 
-    class _Contention(RuntimeError):
+    class _ContentionError(RuntimeError):
         pass
 
     def guard():
-        raise _Contention("a ComfyUI workflow started using the GPU")
+        raise _ContentionError("a ComfyUI workflow started using the GPU")
 
-    with pytest.raises(_Contention):
+    with pytest.raises(_ContentionError):
         runner.solve(_request(tmp_path), pre_release_guard=guard)
 
     assert released == []
