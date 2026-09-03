@@ -12,7 +12,14 @@
   <img src="https://img.shields.io/badge/ComfyUI-0.31%2B-blue" alt="ComfyUI 0.31 or newer">
   <img src="https://img.shields.io/badge/Version-0.1.0-orange" alt="Version 0.1.0">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
+  <img src="https://img.shields.io/badge/Status-experimental-e0a253" alt="Experimental">
 </p>
+
+<p align="center">
+  <img src="docs/assets/omnicam-demo.gif" width="900" alt="Authoring a camera move in the OmniCam Director viewport">
+</p>
+
+<p align="center"><em><a href="docs/assets/omnicam-preview.mp4">▶ Full walkthrough (MP4)</a></em></p>
 
 Video models do not agree on how to be told about motion. One wants camera
 extrinsics, another wants 2D trajectories, a third wants a reference video and a
@@ -30,7 +37,13 @@ A **MotionScene** is the canonical document: cameras, objects, motion layers,
 cuts and an authoring timeline, all resolution- and frame-rate-independent. It
 is what travels between the nodes.
 
+![The full OmniCam graph: Load Video, Extractor, Director, Monitor, Save Video](docs/assets/omnicam-overview.png)
+
 ## The three nodes
+
+> All three nodes are marked **experimental** in ComfyUI. Camera authoring and
+> the playblast are stable in practice; the Monitor profile set and the Director
+> Motion Tracks surface may still change before a stable release.
 
 ### OmniCam Director
 
