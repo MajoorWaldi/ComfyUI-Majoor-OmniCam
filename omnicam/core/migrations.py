@@ -1,7 +1,8 @@
 """Versioned migration registry for OmniCam payloads.
 
 Every versioned schema (MAJOOR_OMNICAM_TRACK, OMNICAM_EDITOR_STATE,
-MAJOOR_OMNICAM_SEQUENCE) registers one migration per version step here.
+MAJOOR_OMNICAM_SEQUENCE, OMNICAM_MOTION_SCENE) registers one migration per
+version step here.
 Migrations receive a deep-copied payload and return the payload upgraded by
 one schema version. Unknown fields are preserved verbatim so older or richer
 documents never silently lose data; canonical serialization decides later
@@ -22,12 +23,37 @@ MIGRATIONS: dict[tuple[str, int], Migration] = {}
 TRACK_SCHEMA = "MAJOOR_OMNICAM_TRACK"
 EDITOR_STATE_SCHEMA = "OMNICAM_EDITOR_STATE"
 SEQUENCE_SCHEMA = "MAJOOR_OMNICAM_SEQUENCE"
+MOTION_SCENE_SCHEMA = "OMNICAM_MOTION_SCENE"
 
 CURRENT_VERSIONS = {
     TRACK_SCHEMA: 1,
     EDITOR_STATE_SCHEMA: 1,
     SEQUENCE_SCHEMA: 1,
+    MOTION_SCENE_SCHEMA: 1,
 }
+
+
+def _payload_version(payload: dict[str, Any], schema: str) -> tuple[int, str]:
+    """Return the document version and the field migrations must advance.
+
+    MotionScene carries its version in ``version``; the older schemas carry it
+    in ``schema_version`` (accepting a camelCase ``schemaVersion`` alias).
+    """
+    if schema == MOTION_SCENE_SCHEMA:
+        return int(payload.get("version", 0) or 0), "version"
+
+    snake_version = payload.get("schema_version")
+    camel_version = payload.get("schemaVersion")
+    if (
+        snake_version is not None
+        and camel_version is not None
+        and int(snake_version or 0) != int(camel_version or 0)
+    ):
+        raise ValueError(f"{schema} payload has conflicting schema versions")
+    version = int(
+        snake_version if snake_version is not None else (camel_version or 0) or 0
+    )
+    return version, "schema_version"
 
 
 def register_migration(schema: str, from_version: int, migration: Migration) -> None:
@@ -42,11 +68,7 @@ def migrate_payload(payload: dict[str, Any], schema: str = TRACK_SCHEMA, target_
         raise TypeError(f"{schema} payload must be a JSON object")
     target = target_version if target_version is not None else CURRENT_VERSIONS[schema]
     migrated = copy.deepcopy(payload)
-    snake_version = migrated.get("schema_version")
-    camel_version = migrated.get("schemaVersion")
-    if snake_version is not None and camel_version is not None and int(snake_version or 0) != int(camel_version or 0):
-        raise ValueError(f"{schema} payload has conflicting schema versions")
-    version = int(snake_version if snake_version is not None else (camel_version or 0) or 0)
+    version, version_field = _payload_version(migrated, schema)
     if version > target:
         raise ValueError(f"{schema} schema v{version} is newer than supported v{target}")
     while version < target:
@@ -54,7 +76,7 @@ def migrate_payload(payload: dict[str, Any], schema: str = TRACK_SCHEMA, target_
         if migration is None:
             raise ValueError(f"No migration registered for {schema} v{version} → v{version + 1}")
         migrated = migration(migrated)
-        next_version = int(migrated.get("schema_version", version) or version)
+        next_version = int(migrated.get(version_field, version) or version)
         if next_version <= version:
             raise ValueError(f"Migration for {schema} v{version} did not advance the schema version")
         version = next_version

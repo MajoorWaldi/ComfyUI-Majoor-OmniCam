@@ -9,6 +9,11 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import Any
 
+from .migrations import (
+    CURRENT_VERSIONS,
+    MOTION_SCENE_SCHEMA,
+    migrate_payload,
+)
 from .track import OmniCamTrack
 from .validation import (
     DEFAULT_LIMITS,
@@ -18,7 +23,9 @@ from .validation import (
     validate_track_payload,
 )
 
-MOTION_SCENE_VERSION = 1
+#: The MotionScene schema version is owned by the migration registry so a bump
+#: cannot land without a registered migration and its regression fixtures.
+MOTION_SCENE_VERSION = CURRENT_VERSIONS[MOTION_SCENE_SCHEMA]
 #: The ComfyUI socket type carrying a MotionScene between the product nodes.
 #: Declared here, in the domain, so the model-agnostic test lane can assert the
 #: contract without importing ComfyUI. ``nodes/base.py`` builds its IO.Custom
@@ -397,6 +404,12 @@ class MotionScene:
     @classmethod
     def from_dict(cls, payload: Any) -> MotionScene:
         data = _object(payload, "motion_scene")
+        if "version" not in data:
+            raise ValidationError("motion_scene.version is required")
+        try:
+            data = migrate_payload(data, MOTION_SCENE_SCHEMA)
+        except (TypeError, ValueError) as error:
+            raise ValidationError(str(error)) from error
         version = data.get("version")
         if version != MOTION_SCENE_VERSION:
             raise ValidationError(

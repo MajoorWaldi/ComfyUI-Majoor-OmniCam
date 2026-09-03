@@ -5,8 +5,14 @@ import math
 
 import pytest
 
+from omnicam.core.migrations import (
+    CURRENT_VERSIONS,
+    MOTION_SCENE_SCHEMA,
+    migrate_payload,
+)
 from omnicam.core.motion_scene import (
     MOTION_SCENE_IO_TYPE,
+    MOTION_SCENE_VERSION,
     MotionScene,
     motion_scene_from_camera_track,
 )
@@ -82,6 +88,27 @@ def _scene_payload() -> dict:
         "cuts": [{"time_seconds": 0.0, "camera_id": "camera_1"}],
         "metadata": {"shot": "A001"},
     }
+
+
+def test_motion_scene_version_is_owned_by_the_migration_registry():
+    assert CURRENT_VERSIONS[MOTION_SCENE_SCHEMA] == MOTION_SCENE_VERSION
+
+
+def test_current_motion_scene_is_idempotent_through_migration_registry():
+    payload = _scene_payload()
+
+    migrated = migrate_payload(payload, MOTION_SCENE_SCHEMA)
+
+    assert migrated == payload
+    assert migrate_payload(migrated, MOTION_SCENE_SCHEMA) == payload
+
+
+def test_motion_scene_rejects_newer_schema_version():
+    payload = _scene_payload()
+    payload["version"] = CURRENT_VERSIONS[MOTION_SCENE_SCHEMA] + 1
+
+    with pytest.raises(ValueError, match="newer than supported"):
+        MotionScene.from_dict(payload)
 
 
 def test_motion_scene_round_trip_is_stable_and_preserves_what_was_authored():
