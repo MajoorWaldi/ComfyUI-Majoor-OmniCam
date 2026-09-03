@@ -15,6 +15,18 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Fetch current external adapter contracts
+        run: |
+          git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git .adapter-release/ltx
+          git clone --depth 1 https://github.com/kijai/ComfyUI-WanVideoWrapper.git .adapter-release/wan-video-wrapper
+      - name: Verify external adapter contracts
+        # Unlike the weekly canary, this is a release gate: a `v*` tag does not
+        # publish while an upstream contract OmniCam pins has drifted.
+        run: python scripts/adapter_contract_canary.py .adapter-release/ltx .adapter-release/wan-video-wrapper
       - name: Publish Custom Node
         uses: Comfy-Org/publish-node-action@0eb6cd742945443bee7f79eeddd4f732780029a1 # v1
         with:
