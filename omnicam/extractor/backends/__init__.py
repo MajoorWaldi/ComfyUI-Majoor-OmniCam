@@ -56,6 +56,27 @@ def _no_backend_message(report: dict[str, BackendAvailability]) -> str:
     return "\n".join(lines)
 
 
+def backend_requires_gpu_slot(method: str) -> bool:
+    """Whether the method that would actually run needs OmniCam's GPU slot.
+
+    `auto` is resolved using the same ordered availability policy as
+    :func:`select_backend`. This prevents a CPU-only pycolmap/OpenCV fallback
+    from being blocked just because DPVO would have needed the card. When no
+    backend is available we stay conservative; the worker will later report the
+    useful installation error without allowing two potential GPU jobs to race.
+    """
+    requested = str(method)
+    if requested not in METHODS:
+        raise BackendUnavailableError(f"Unknown extraction method {requested!r}; expected one of {list(METHODS)}")
+    if requested != "auto":
+        return bool(getattr(BACKENDS_BY_NAME[requested], "gpu_exclusive", False))
+    report = backend_availability()
+    for backend in BACKEND_CLASSES:
+        if report[backend.name].available:  # type: ignore[attr-defined]
+            return bool(getattr(backend, "gpu_exclusive", False))
+    return True
+
+
 def select_backend(method: str) -> CameraMotionBackend:
     """Resolve a method widget value to a ready-to-run solver instance."""
     requested = str(method)
@@ -86,6 +107,7 @@ __all__ = [
     "PycolmapBackend",
     "SolveError",
     "backend_availability",
+    "backend_requires_gpu_slot",
     "coverage_ratio",
     "report_progress",
     "select_backend",
