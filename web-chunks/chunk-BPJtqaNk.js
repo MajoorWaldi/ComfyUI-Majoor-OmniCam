@@ -29,16 +29,16 @@ function Ha(e) {
     }
   });
 }
-const et = "en", Me = /* @__PURE__ */ new Map([[et, {}]]);
+const et = "en", xe = /* @__PURE__ */ new Map([[et, {}]]);
 function Wa(e, t) {
-  Me.set(e, { ...Me.get(e) || {}, ...t || {} });
+  xe.set(e, { ...xe.get(e) || {}, ...t || {} });
 }
 let Ge = et;
 function $a(e) {
-  Me.has(e) && (Ge = e);
+  xe.has(e) && (Ge = e);
 }
 function _(e) {
-  return Ge === et ? e : Me.get(Ge)?.[e] || e;
+  return Ge === et ? e : xe.get(Ge)?.[e] || e;
 }
 const Ua = "__sequence__";
 function Xa() {
@@ -55,7 +55,7 @@ function Ya(e, t = []) {
     recording_path: typeof a.recording_path == "string" ? a.recording_path : ""
   };
 }
-function xe(e) {
+function Me(e) {
   const t = Math.max(0, (e?.duration_frames || 1) - 1), a = (e?.sequence?.cuts || []).filter((o) => o.start <= t);
   return a.map((o, r) => ({
     camera_id: o.camera_id,
@@ -64,10 +64,10 @@ function xe(e) {
   }));
 }
 function Yr(e) {
-  return !!e?.sequence?.enabled && xe(e).length > 0;
+  return !!e?.sequence?.enabled && Me(e).length > 0;
 }
-function Mt(e, t) {
-  const a = xe(e);
+function xt(e, t) {
+  const a = Me(e);
   if (!a.length) return null;
   const o = Math.max(0, Math.round(Number(t) || 0));
   for (let r = a.length - 1; r >= 0; r--)
@@ -100,14 +100,14 @@ function Qa(e, t) {
 function Ja(e, t, a = null) {
   const o = e?.sequence?.cuts || [], r = Math.max(0, Math.round(Number(t) || 0));
   if (!o.length || r <= 0 || o.some((i) => i.start === r)) return !1;
-  const s = Mt(e, r)?.camera_id || o[0].camera_id;
+  const s = xt(e, r)?.camera_id || o[0].camera_id;
   return o.push({ camera_id: a || Qa(e, s), start: r }), o.sort((i, l) => i.start - l.start), !0;
 }
 function eo(e, t) {
   const a = e?.sequence?.cuts || [];
   return t < 0 || t >= a.length || a.length === 1 ? !1 : (a.splice(t, 1), a.length && (a[0].start = 0), !0);
 }
-const xt = Object.freeze(["select", "track", "anchor", "project", "erase"]), Ct = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), Dt = Object.freeze(["linear", "smooth", "hold"]), le = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, ct = (e) => Math.max(0, Math.min(1, le(e)));
+const Mt = Object.freeze(["select", "track", "anchor", "project", "erase"]), Ct = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), Dt = Object.freeze(["linear", "smooth", "hold"]), le = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, ct = (e) => Math.max(0, Math.min(1, le(e)));
 function to(e, t) {
   return {
     time_seconds: Math.max(0, Math.min(t, le(e?.time_seconds))),
@@ -132,7 +132,7 @@ function ao(e) {
       keys: i,
       source: o?.source && typeof o.source == "object" ? { ...o.source } : {}
     };
-  }).filter((o) => o.keys.length), e.motion_tool = xt.includes(e.motion_tool) ? e.motion_tool : "select", e.selected_motion_layer_id = e.motion_layers.some((o) => o.id === e.selected_motion_layer_id) ? e.selected_motion_layer_id : e.motion_layers[0]?.id || null, e;
+  }).filter((o) => o.keys.length), e.motion_tool = Mt.includes(e.motion_tool) ? e.motion_tool : "select", e.selected_motion_layer_id = e.motion_layers.some((o) => o.id === e.selected_motion_layer_id) ? e.selected_motion_layer_id : e.motion_layers[0]?.id || null, e;
 }
 function oo(e) {
   const t = String(e || "").trim().replaceAll("\\", "/");
@@ -175,8 +175,8 @@ function L(e) {
   Math.sqrt(ee(r, r)) < 1e-6 && (o = Math.abs(a[1]) > 0.9 ? [0, 0, a[1] > 0 ? -1 : 1] : [0, 1, 0], r = me(a, o)), r = de(r);
   let n = de(me(r, a));
   if (Math.abs(e.roll || 0) > 1e-9) {
-    const s = e.roll * Math.PI / 180, i = Math.cos(s), l = Math.sin(s), m = M(C(r, i), C(n, l));
-    n = M(C(n, i), C(r, -l)), r = m;
+    const s = e.roll * Math.PI / 180, i = Math.cos(s), l = Math.sin(s), m = x(C(r, i), C(n, l));
+    n = x(C(n, i), C(r, -l)), r = m;
   }
   return { right: r, up: n, forward: a };
 }
@@ -201,10 +201,10 @@ function fe(e, t, a = null) {
   let l = I(o, t, "target_x", (f) => (f.camera || f).target[0], !1, r), m = I(o, t, "target_y", (f) => (f.camera || f).target[1], !1, r), c = I(o, t, "target_z", (f) => (f.camera || f).target[2], !1, r);
   const p = e.constraints?.look_at, u = p?.status === void 0 || p?.status === "active" ? p?.object_id || e.target_object_id || e.camera?.target_object_id : null, h = a || e.objects;
   if (u && Array.isArray(h)) {
-    const f = h.find((x) => x.id === u);
+    const f = h.find((M) => M.id === u);
     if (f && f.enabled !== !1) {
-      const x = Tt(h, f, t), T = p?.offset || e.target_offset || e.camera?.target_offset || [0, 0, 0];
-      l = (x.position?.[0] ?? 0) + (T[0] || 0), m = (x.position?.[1] ?? 1.5) + (T[1] || 0), c = (x.position?.[2] ?? 0) + (T[2] || 0);
+      const M = Tt(h, f, t), T = p?.offset || e.target_offset || e.camera?.target_offset || [0, 0, 0];
+      l = (M.position?.[0] ?? 0) + (T[0] || 0), m = (M.position?.[1] ?? 1.5) + (T[1] || 0), c = (M.position?.[2] ?? 0) + (T[2] || 0);
     }
   }
   const g = I(o, t, "fov", (f) => Number((f.camera || f).fov ?? 35), !1, r), v = I(o, t, "roll", (f) => Number((f.camera || f).roll ?? 0), !0, r), y = I(o, t, "zoom", (f) => Number((f.camera || f).zoom ?? 1), !1, r), b = I(o, t, "near", (f) => Number((f.camera || f).near ?? 0.01), !1, r), S = I(o, t, "far", (f) => Number((f.camera || f).far ?? 1e4), !1, r), D = o[0]?.camera || o[0] || te();
@@ -225,7 +225,7 @@ function fe(e, t, a = null) {
     ...D.up ? { up: [...D.up] } : {}
   };
 }
-const j = (e, t, a) => Math.max(t, Math.min(a, e)), so = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i, se = (e, t = null) => typeof e == "string" && so.test(e.trim()) ? e.trim() : t, M = (e, t) => [e[0] + t[0], e[1] + t[1], e[2] + t[2]], O = (e, t) => [e[0] - t[0], e[1] - t[1], e[2] - t[2]], C = (e, t) => [e[0] * t, e[1] * t, e[2] * t], ee = (e, t) => e[0] * t[0] + e[1] * t[1] + e[2] * t[2], me = (e, t) => [e[1] * t[2] - e[2] * t[1], e[2] * t[0] - e[0] * t[2], e[0] * t[1] - e[1] * t[0]], $ = (e) => Math.sqrt(Math.max(1e-12, ee(e, e))), de = (e) => C(e, 1 / $(e));
+const j = (e, t, a) => Math.max(t, Math.min(a, e)), so = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i, se = (e, t = null) => typeof e == "string" && so.test(e.trim()) ? e.trim() : t, x = (e, t) => [e[0] + t[0], e[1] + t[1], e[2] + t[2]], O = (e, t) => [e[0] - t[0], e[1] - t[1], e[2] - t[2]], C = (e, t) => [e[0] * t, e[1] * t, e[2] * t], ee = (e, t) => e[0] * t[0] + e[1] * t[1] + e[2] * t[2], me = (e, t) => [e[1] * t[2] - e[2] * t[1], e[2] * t[0] - e[0] * t[2], e[0] * t[1] - e[1] * t[0]], $ = (e) => Math.sqrt(Math.max(1e-12, ee(e, e))), de = (e) => C(e, 1 / $(e));
 function io(e, t, a) {
   const o = [a[0] - t[0], a[1] - t[1]], r = [e[0] - t[0], e[1] - t[1]], n = Math.max(1e-9, o[0] * o[0] + o[1] * o[1]), s = j((r[0] * o[0] + r[1] * o[1]) / n, 0, 1);
   return Math.hypot(e[0] - t[0] - o[0] * s, e[1] - t[1] - o[1] * s);
@@ -291,11 +291,11 @@ function I(e, t, a, o, r = !1, n = null) {
     g = h + b;
   }
   if (l.interpolation === "bezier" || m.interpolation === "bezier") {
-    const b = lt(l, a, c, m, o), S = lt(m, a, l, p, o), D = h, w = h + (b.out_y || 0), k = g + (S.in_y || 0), f = g, x = j(Number(b.out_x ?? 1 / 3), 0, 1), T = j(1 + Number(S.in_x ?? -1 / 3), 0, 1);
+    const b = lt(l, a, c, m, o), S = lt(m, a, l, p, o), D = h, w = h + (b.out_y || 0), k = g + (S.in_y || 0), f = g, M = j(Number(b.out_x ?? 1 / 3), 0, 1), T = j(1 + Number(S.in_x ?? -1 / 3), 0, 1);
     let N = 0, X = 1;
     for (let it = 0; it < 32; it++) {
       const V = (N + X) * 0.5, ze = 1 - V;
-      3 * ze * ze * V * x + 3 * ze * V * V * T + V * V * V < u ? N = V : X = V;
+      3 * ze * ze * V * M + 3 * ze * V * V * T + V * V * V < u ? N = V : X = V;
     }
     const H = (N + X) * 0.5, Y = 1 - H;
     return Y * Y * Y * D + 3 * Y * Y * H * w + 3 * Y * H * H * k + H * H * H * f;
@@ -367,22 +367,22 @@ function en(e = "balanced", t = "all_views", a = null) {
         v = Math.cos(f) * k, b = Math.sin(f) * k, y = 0.75 + (u - 0.6) * 8.5, S = 0.62, D = 0.7, w = 0.82;
       }
     else if (t === "dome") {
-      const k = u * Math.PI * 2, f = 1 - 2 * h, x = Math.sqrt(Math.max(0, 1 - f * f)), T = 1.5 + Math.cbrt(g) * 20;
-      v = Math.cos(k) * x * T, b = Math.sin(k) * x * T, y = Math.max(0.01, f * T * 0.75 + 2.5), S = 0.72, D = 0.78, w = 0.88;
+      const k = u * Math.PI * 2, f = 1 - 2 * h, M = Math.sqrt(Math.max(0, 1 - f * f)), T = 1.5 + Math.cbrt(g) * 20;
+      v = Math.cos(k) * M * T, b = Math.sin(k) * M * T, y = Math.max(0.01, f * T * 0.75 + 2.5), S = 0.72, D = 0.78, w = 0.88;
     } else {
       const k = d % 4;
       if (k === 0) {
-        const f = 0.3 + Math.sqrt(h) * 28, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 0.01 + g * 0.34, S = 0.9, D = 0.94, w = 1;
+        const f = 0.3 + Math.sqrt(h) * 28, M = d * 2.399963229728653;
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.01 + g * 0.34, S = 0.9, D = 0.94, w = 1;
       } else if (k === 1) {
-        const f = 0.6 + Math.sqrt(h) * 18, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 0.35 + g * 3.15, S = 0.68, D = 0.76, w = 0.86;
+        const f = 0.6 + Math.sqrt(h) * 18, M = d * 2.399963229728653;
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.35 + g * 3.15, S = 0.68, D = 0.76, w = 0.86;
       } else if (k === 2) {
-        const f = 2 + Math.sqrt(h) * 24, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 3.5 + g * 11.5, S = 0.55, D = 0.65, w = 0.78;
+        const f = 2 + Math.sqrt(h) * 24, M = d * 2.399963229728653;
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 3.5 + g * 11.5, S = 0.55, D = 0.65, w = 0.78;
       } else {
-        const f = 0.5 + h * 6.5, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 0.05 + g * 4.95, S = 0.8, D = 0.86, w = 0.94;
+        const f = 0.5 + h * 6.5, M = d * 2.399963229728653;
+        v = Math.cos(M) * f, b = Math.sin(M) * f, y = 0.05 + g * 4.95, S = 0.8, D = 0.86, w = 0.94;
       }
     }
     n.push(v, y, b), s.push(a ? S * i : S, a ? D * l : D, a ? w * m : w);
@@ -561,7 +561,7 @@ function ho([e, t, a, o]) {
 }
 function kt(e, t) {
   const a = t.quaternion || Be(t.rotation), o = fo(a, e.quaternion || Be(e.rotation));
-  return { position: M(uo(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: ho(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
+  return { position: x(uo(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: ho(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
 }
 function go(e, t) {
   const a = new Map(e.map((r) => [r.id, r])), o = (r, n = /* @__PURE__ */ new Set()) => {
@@ -630,7 +630,7 @@ function ft(e) {
 function So(e, t) {
   return e.length === t.length && e.every((a, o) => a === t[o]);
 }
-function Mo(e, t) {
+function xo(e, t) {
   const a = [];
   for (let o = 0; o < e.length; o++) {
     const r = [...t[o]].sort(), n = a[a.length - 1];
@@ -647,12 +647,12 @@ function It(e, t = {}, a = null, o = "generic") {
   for (let f = 0; f < n; f++) l.push(fe(e, f, e.objects));
   const m = bo(l, r), c = _o(l, r), p = dt(m, r), d = dt(p, r), u = { speed: m, angular_speed: c, acceleration: p, jerk: d }, h = vo(e, a), g = wo(l, h, s, i), v = l.map((f) => f.fov), y = t.allow_framing_loss === !0, b = [], S = [];
   for (let f = 0; f < n; f++) {
-    const x = [], T = [];
+    const M = [], T = [];
     for (const N of mt) {
       const X = pt(u[N][f], t[`max_${N}`]);
-      x.push(X), X !== "ok" && T.push(N);
+      M.push(X), X !== "ok" && T.push(N);
     }
-    !g[f] && !y && (x.push("over"), T.push("framing_loss")), b.push(ft(x)), S.push(T);
+    !g[f] && !y && (M.push("over"), T.push("framing_loss")), b.push(ft(M)), S.push(T);
   }
   const D = g.filter((f) => !f).length, w = {
     profile: o,
@@ -670,18 +670,18 @@ function It(e, t = {}, a = null, o = "generic") {
     series: u,
     framing: g,
     frame_grades: b,
-    segments: Mo(b, S),
+    segments: xo(b, S),
     violations: []
   };
   for (const f of [...mt, "fov_drift"]) {
-    const x = f === "fov_drift" ? "max_fov_change" : `max_${f}`, T = t[x];
-    T != null && w[x] > Number(T) && w.violations.push({ metric: x, value: w[x], recommended_max: Number(T) });
+    const M = f === "fov_drift" ? "max_fov_change" : `max_${f}`, T = t[M];
+    T != null && w[M] > Number(T) && w.violations.push({ metric: M, value: w[M], recommended_max: Number(T) });
   }
   D && !y && w.violations.push({ metric: "framing_loss_frames", value: D, recommended_max: 0 });
   const k = pt(w.max_fov_change, t.max_fov_change);
   return w.track_grades = { fov_drift: k }, w.grade = ft([...b, k]), w.trajectory_valid = w.violations.length === 0, w.ok = w.trajectory_valid, w;
 }
-function xo(e) {
+function Mo(e) {
   return e.segments.filter((t) => t.grade !== "ok").sort((t, a) => (a.grade === "over") - (t.grade === "over") || a.end - a.start - (t.end - t.start));
 }
 function qe(e, t) {
@@ -904,7 +904,7 @@ function be(e, t, a) {
   return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * a ? "warn" : "ok";
 }
 function Ro(e) {
-  const t = xo(e);
+  const t = Mo(e);
   return t.length ? t.slice(0, 6).map((a) => {
     const o = a.metrics.map((n) => Ae(n)).join(", "), r = a.start === a.end ? _("Frame {frame}").replace("{frame}", String(a.start)) : _("Frames {start}-{end}").replace("{start}", String(a.start)).replace("{end}", String(a.end));
     return `
@@ -1059,6 +1059,7 @@ const Lo = {
   "Ground parallax camera field": "Champ caméra parallaxe au sol",
   "Model Compatibility": "Compatibilité des modèles",
   "Motion Tracks are consumed by screen-track profiles. Generic video does not use them directly.": "Les motion tracks sont utilisés par les profils screen-track. La vidéo générique ne les utilise pas directement.",
+  "Motion Tracks are experimental and may change before a stable release.": "Les motion tracks sont expérimentaux et peuvent changer avant une version stable.",
   "Motion interpolation": "Interpolation du mouvement",
   "Motion paths appear here in screen space.": "Les trajectoires de mouvement apparaissent ici en espace écran.",
   "Motion paths in screen space. Click a path to select it.": "Trajectoires de mouvement en espace écran. Cliquez sur une trajectoire pour la sélectionner.",
@@ -1562,7 +1563,7 @@ const Lo = {
   "More viewport views": "Plus de vues",
   "World axis navigation": "Navigation des axes monde",
   "View: {axis} axis": "Vue : axe {axis}"
-}, W = ["OmniCam", "Director"], Pt = "MajoorOmniCam.Locale", zt = "MajoorOmniCam.Defaults.Fps", Nt = "MajoorOmniCam.Defaults.DurationSeconds", Rt = "MajoorOmniCam.Defaults.Width", Ft = "MajoorOmniCam.Defaults.Height", Lt = "MajoorOmniCam.Defaults.RenderMode", Kt = "MajoorOmniCam.Defaults.Encoder", Vt = "MajoorOmniCam.Defaults.PlayblastResolution", Gt = "MajoorOmniCam.Defaults.PlayblastGrid", Bt = "MajoorOmniCam.Proxy.PointDensity", qt = "MajoorOmniCam.Proxy.PointSpread", Ht = "MajoorOmniCam.Proxy.PointColor", Wt = "MajoorOmniCam.Proxy.CardFit", $t = "MajoorOmniCam.Viewport.Quality", Ut = "MajoorOmniCam.Viewport.Adaptive", Xt = "MajoorOmniCam.Viewport.BackgroundColor", Yt = "MajoorOmniCam.Display.Grid", Zt = "MajoorOmniCam.Display.Radar", Qt = "MajoorOmniCam.Display.CameraPaths", Jt = "MajoorOmniCam.Display.CameraGizmos", ea = "MajoorOmniCam.Display.LookAt", ta = "MajoorOmniCam.Display.HelperAxes", aa = "MajoorOmniCam.Display.Gizmo", oa = "MajoorOmniCam.Display.Guides", ra = "MajoorOmniCam.Display.SafeAreas", na = "MajoorOmniCam.Display.ResolutionGate", sa = "MajoorOmniCam.Display.AspectRatio", ia = "MajoorOmniCam.Display.BurnIn", ca = "MajoorOmniCam.Display.SpeedHeatmap", la = "MajoorOmniCam.Display.Wireframe", ma = "MajoorOmniCam.Display.Vertices", da = "MajoorOmniCam.Tools.SelectMode", pa = "MajoorOmniCam.Tools.GizmoMode", fa = "MajoorOmniCam.Tools.GizmoSpace", ua = "MajoorOmniCam.Tools.SpatialSnapMode", ha = "MajoorOmniCam.Tools.SpatialGridSize", ga = "MajoorOmniCam.Navigation.Profile", ya = "MajoorOmniCam.Navigation.FlySpeed", ba = "MajoorOmniCam.Navigation.ViewMode", _a = "MajoorOmniCam.Timeline.SnapEnabled", va = "MajoorOmniCam.Timeline.SnapFrames", wa = "MajoorOmniCam.Timeline.AutoKey", Sa = "MajoorOmniCam.Timeline.TimecodeMode", Ma = "MajoorOmniCam.Timeline.LoopPlayback", xa = "MajoorOmniCam.Interface.Density", Ca = "MajoorOmniCam.Interface.PreviewLayout", Da = "MajoorOmniCam.Interface.CameraPreviews", ja = "MajoorOmniCam.History.Limit";
+}, W = ["OmniCam", "Director"], Pt = "MajoorOmniCam.Locale", zt = "MajoorOmniCam.Defaults.Fps", Nt = "MajoorOmniCam.Defaults.DurationSeconds", Rt = "MajoorOmniCam.Defaults.Width", Ft = "MajoorOmniCam.Defaults.Height", Lt = "MajoorOmniCam.Defaults.RenderMode", Kt = "MajoorOmniCam.Defaults.Encoder", Vt = "MajoorOmniCam.Defaults.PlayblastResolution", Gt = "MajoorOmniCam.Defaults.PlayblastGrid", Bt = "MajoorOmniCam.Proxy.PointDensity", qt = "MajoorOmniCam.Proxy.PointSpread", Ht = "MajoorOmniCam.Proxy.PointColor", Wt = "MajoorOmniCam.Proxy.CardFit", $t = "MajoorOmniCam.Viewport.Quality", Ut = "MajoorOmniCam.Viewport.Adaptive", Xt = "MajoorOmniCam.Viewport.BackgroundColor", Yt = "MajoorOmniCam.Display.Grid", Zt = "MajoorOmniCam.Display.Radar", Qt = "MajoorOmniCam.Display.CameraPaths", Jt = "MajoorOmniCam.Display.CameraGizmos", ea = "MajoorOmniCam.Display.LookAt", ta = "MajoorOmniCam.Display.HelperAxes", aa = "MajoorOmniCam.Display.Gizmo", oa = "MajoorOmniCam.Display.Guides", ra = "MajoorOmniCam.Display.SafeAreas", na = "MajoorOmniCam.Display.ResolutionGate", sa = "MajoorOmniCam.Display.AspectRatio", ia = "MajoorOmniCam.Display.BurnIn", ca = "MajoorOmniCam.Display.SpeedHeatmap", la = "MajoorOmniCam.Display.Wireframe", ma = "MajoorOmniCam.Display.Vertices", da = "MajoorOmniCam.Tools.SelectMode", pa = "MajoorOmniCam.Tools.GizmoMode", fa = "MajoorOmniCam.Tools.GizmoSpace", ua = "MajoorOmniCam.Tools.SpatialSnapMode", ha = "MajoorOmniCam.Tools.SpatialGridSize", ga = "MajoorOmniCam.Navigation.Profile", ya = "MajoorOmniCam.Navigation.FlySpeed", ba = "MajoorOmniCam.Navigation.ViewMode", _a = "MajoorOmniCam.Timeline.SnapEnabled", va = "MajoorOmniCam.Timeline.SnapFrames", wa = "MajoorOmniCam.Timeline.AutoKey", Sa = "MajoorOmniCam.Timeline.TimecodeMode", xa = "MajoorOmniCam.Timeline.LoopPlayback", Ma = "MajoorOmniCam.Interface.Density", Ca = "MajoorOmniCam.Interface.PreviewLayout", Da = "MajoorOmniCam.Interface.CameraPreviews", ja = "MajoorOmniCam.History.Limit";
 function E(e, t, a, o, r) {
   return { id: e, category: [...W, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
 }
@@ -1939,14 +1940,14 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       "time"
     ),
     E(
-      Ma,
+      xa,
       "Timeline",
       "Loop playback by default",
       "Restarts playback at the first frame instead of stopping at the last.",
       !1
     ),
     P(
-      xa,
+      Ma,
       "Interface",
       "Default interface density",
       "How much of the editor chrome is shown.",
@@ -2085,8 +2086,8 @@ function Wo() {
     snapFrames: q(va, 1, 1, 24, !0),
     autoKey: A(wa, !1),
     timecodeMode: z(Sa, "time", ["time", "timecode"]),
-    loopPlayback: A(Ma, !1),
-    uiDensity: z(xa, "advanced", ["basic", "animation", "advanced"]),
+    loopPlayback: A(xa, !1),
+    uiDensity: z(Ma, "advanced", ["basic", "animation", "advanced"]),
     previewLayout: z(Ca, "auto", ["auto", "1", "2", "4"]),
     cameraViewVisible: A(Da, !0),
     undoLimit: q(ja, 100, 10, 500, !0)
@@ -2217,12 +2218,12 @@ function ar(e) {
       entity: t,
       center: r,
       worldLength: n,
-      handles: s.map((l, m) => ({ index: m, axis: l, points: [r, F(M(o, C(l, n)), a, e.canvas.width, e.canvas.height)] })).filter((l) => l.points[1] && Number.isFinite(l.points[1][0]) && Number.isFinite(l.points[1][1]))
+      handles: s.map((l, m) => ({ index: m, axis: l, points: [r, F(x(o, C(l, n)), a, e.canvas.width, e.canvas.height)] })).filter((l) => l.points[1] && Number.isFinite(l.points[1][0]) && Number.isFinite(l.points[1][1]))
     };
   const i = s.map((l, m) => {
     const c = Math.abs(l[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], p = de(me(l, c)), d = de(me(l, p)), u = [];
     for (let h = 0; h <= 48; h++) {
-      const g = h / 48 * Math.PI * 2, v = F(M(o, M(C(p, Math.cos(g) * n), C(d, Math.sin(g) * n))), a, e.canvas.width, e.canvas.height);
+      const g = h / 48 * Math.PI * 2, v = F(x(o, x(C(p, Math.cos(g) * n), C(d, Math.sin(g) * n))), a, e.canvas.width, e.canvas.height);
       v && Number.isFinite(v[0]) && Number.isFinite(v[1]) && u.push(v);
     }
     return { index: m, axis: l, points: u };
@@ -2314,7 +2315,7 @@ function rr(e, t) {
   if (!a.length || !["translate", "rotate", "scale"].includes(t)) return !1;
   e.checkpoint(`${t[0].toUpperCase()}${t.slice(1)} selection`);
   for (const m of a) e.beginObjectEdit(m);
-  const o = a.map((m) => ({ object: m, transform: oe(m) })), r = o.reduce((m, c) => M(m, c.transform.position), [0, 0, 0]).map((m) => m / o.length), n = [e.canvas.width * 0.5, e.canvas.height * 0.5], s = e.lastViewportPointer || n, i = e.interactionElement.getBoundingClientRect(), l = e.lastPointerEvent || { clientX: i.left + s[0] * i.width / e.canvas.width, clientY: i.top + s[1] * i.height / e.canvas.height };
+  const o = a.map((m) => ({ object: m, transform: oe(m) })), r = o.reduce((m, c) => x(m, c.transform.position), [0, 0, 0]).map((m) => m / o.length), n = [e.canvas.width * 0.5, e.canvas.height * 0.5], s = e.lastViewportPointer || n, i = e.interactionElement.getBoundingClientRect(), l = e.lastPointerEvent || { clientX: i.left + s[0] * i.width / e.canvas.width, clientY: i.top + s[1] * i.height / e.canvas.height };
   return e.modalTransform = { mode: t, axis: null, numeric: "", start: s, lastEvent: l, snapshots: o, pivot: r }, e.setTransformMode(t), e.setStatus(`${t.toUpperCase()} · move mouse · X/Y/Z constrain · type value · Enter confirm · Esc cancel`), e.render(), !0;
 }
 function nr(e) {
@@ -2331,8 +2332,8 @@ function sr(e, t, a, o, r) {
   if (n === "vertex" && o) {
     const s = e.webgl?.pickSubElement?.(o[0], o[1], e.canvas.width, e.canvas.height, "vertex");
     if (s?.point && !t.snapshots.some((i) => i.object.id === s.objectId)) {
-      const i = a.reduce((m, c) => M(m, c), [0, 0, 0]).map((m) => m / a.length), l = O(s.point, i);
-      return a.map((m) => M(m, l));
+      const i = a.reduce((m, c) => x(m, c), [0, 0, 0]).map((m) => m / a.length), l = O(s.point, i);
+      return a.map((m) => x(m, l));
     }
   }
   return a;
@@ -2349,19 +2350,19 @@ function Se(e, t) {
   const n = r[0] - a.start[0], s = r[1] - a.start[1], i = t.shiftKey ? 0.1 : 1, l = nr(a), m = a.axis ? We[a.axis] : null, c = e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode], p = L(c), d = c.camera_type === "orthographic" ? 10 / (Math.max(0.01, c.zoom || 1) * Math.max(1, e.canvas.height)) : Math.hypot(...O(c.position, c.target)) * 25e-4;
   let u = a.snapshots.map((S) => [...S.transform.position]);
   if (a.mode === "translate") {
-    const S = l ?? (n - s) * d * i, D = m ? C(m, S) : M(C(p.right, n * d * i), C(p.up, -s * d * i));
-    u = u.map((w) => M(w, D)), u = sr(e, a, u, r, t.ctrlKey || t.metaKey);
+    const S = l ?? (n - s) * d * i, D = m ? C(m, S) : x(C(p.right, n * d * i), C(p.up, -s * d * i));
+    u = u.map((w) => x(w, D)), u = sr(e, a, u, r, t.ctrlKey || t.metaKey);
   }
   const h = a.mode === "rotate" ? l ?? (n - s) * 0.5 * i : 0, g = a.mode === "scale" ? Math.max(0.01, l ?? 1 + (n - s) * 0.01 * i) : 1, v = m || We.z, y = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
   a.snapshots.forEach((S, D) => {
     const w = S.object;
     if (a.mode === "translate" && (w.position = u[D]), a.mode === "rotate") {
       const k = y ? $e(h, 15) : h, f = C(v, k);
-      w.position = M(a.pivot, De(O(S.transform.position, a.pivot), f)), w.rotation = M(S.transform.rotation, f);
+      w.position = x(a.pivot, De(O(S.transform.position, a.pivot), f)), w.rotation = x(S.transform.rotation, f);
     }
     if (a.mode === "scale") {
-      const k = y ? $e(g, 0.1) : g, f = m ? m.map((T) => T ? k : 1) : [k, k, k], x = O(S.transform.position, a.pivot);
-      w.position = M(a.pivot, x.map((T, N) => T * f[N])), w.size = S.transform.size.map((T, N) => Math.max(0.01, T * f[N]));
+      const k = y ? $e(g, 0.1) : g, f = m ? m.map((T) => T ? k : 1) : [k, k, k], M = O(S.transform.position, a.pivot);
+      w.position = x(a.pivot, M.map((T, N) => T * f[N])), w.size = S.transform.size.map((T, N) => Math.max(0.01, T * f[N]));
     }
     e.commitObjectEdit(w);
   }), e.refreshInspector(), e.render();
@@ -2454,7 +2455,7 @@ function hn(e, t) {
       e.checkpoint("Transform object");
       const D = Aa(e), w = (D.length ? D : [S]).map((f) => ({ object: f, transform: oe(f) }));
       for (const f of w) e.beginObjectEdit(f.object);
-      const k = w.reduce((f, x) => M(f, x.transform.position), [0, 0, 0]).map((f) => f / w.length);
+      const k = w.reduce((f, M) => x(f, M.transform.position), [0, 0, 0]).map((f) => f / w.length);
       e.gizmoDrag = {
         ...b,
         type: "object",
@@ -2561,7 +2562,7 @@ function gn(e, t) {
   }
   if (e.targetFreeDrag) {
     _e(e, e.targetFreeDrag, "Move camera target");
-    const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), i = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), l = s - e.targetFreeDrag.pointer[0], m = i - e.targetFreeDrag.pointer[1], c = t.shiftKey ? 0.1 : 1, p = M(C(e.targetFreeDrag.right, l * e.targetFreeDrag.scale * c), C(e.targetFreeDrag.up, -m * e.targetFreeDrag.scale * c)), d = M(e.targetFreeDrag.target, p);
+    const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), i = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), l = s - e.targetFreeDrag.pointer[0], m = i - e.targetFreeDrag.pointer[1], c = t.shiftKey ? 0.1 : 1, p = x(C(e.targetFreeDrag.right, l * e.targetFreeDrag.scale * c), C(e.targetFreeDrag.up, -m * e.targetFreeDrag.scale * c)), d = x(e.targetFreeDrag.target, p);
     e.camera.target = Z(e, d, [s, i]), e.commitCameraEdit(), e.refreshInspector(), e.render();
     return;
   }
@@ -2572,30 +2573,30 @@ function gn(e, t) {
       (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height)
     ], i = t.shiftKey ? 0.1 : 1, l = ((s[0] - e.gizmoDrag.pointer[0]) * e.gizmoDrag.screen[0] + (s[1] - e.gizmoDrag.pointer[1]) * e.gizmoDrag.screen[1]) * i, m = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
     if (e.gizmoDrag.type === "camera_target") {
-      const d = M(e.gizmoDrag.target, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+      const d = x(e.gizmoDrag.target, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
       e.camera.target = Z(e, d, s), e.commitCameraEdit(), e.refreshInspector(), e.render();
       return;
     }
     if (e.gizmoDrag.type === "camera") {
       if (e.state.gizmo_mode === "translate") {
-        const d = M(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+        const d = x(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
         e.camera.position = Z(e, d, s);
       } else {
         const d = m ? ce(l * 0.015, Math.PI / 12) : l * 0.015, u = O(e.gizmoDrag.target, e.gizmoDrag.position), h = De(u, C(e.gizmoDrag.axis, d * (180 / Math.PI)));
-        e.camera.target = M(e.gizmoDrag.position, h);
+        e.camera.target = x(e.gizmoDrag.position, h);
       }
       e.commitCameraEdit(), e.refreshInspector(), e.render();
       return;
     }
     if (e.state.gizmo_mode === "translate")
       if (e.gizmoDrag.free) {
-        const d = (s[0] - e.gizmoDrag.pointer[0]) * i, u = (s[1] - e.gizmoDrag.pointer[1]) * i, h = M(
+        const d = (s[0] - e.gizmoDrag.pointer[0]) * i, u = (s[1] - e.gizmoDrag.pointer[1]) * i, h = x(
           e.gizmoDrag.position,
-          M(C(e.gizmoDrag.viewRight, d * e.gizmoDrag.freeScale), C(e.gizmoDrag.viewUp, -u * e.gizmoDrag.freeScale))
+          x(C(e.gizmoDrag.viewRight, d * e.gizmoDrag.freeScale), C(e.gizmoDrag.viewUp, -u * e.gizmoDrag.freeScale))
         );
         e.gizmoDrag.object.position = Z(e, h, s, [e.gizmoDrag.object.id]);
       } else {
-        const d = M(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+        const d = x(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
         e.gizmoDrag.object.position = Z(e, d, s, [e.gizmoDrag.object.id]);
       }
     else if (e.state.gizmo_mode === "scale")
@@ -2617,16 +2618,16 @@ function gn(e, t) {
     if (c.length > 1 && p)
       if (e.state.gizmo_mode === "translate") {
         const d = O(e.gizmoDrag.object.position, p.position);
-        for (const u of c) u.object.position = M(u.transform.position, d);
+        for (const u of c) u.object.position = x(u.transform.position, d);
       } else if (e.state.gizmo_mode === "rotate") {
         const d = O(e.gizmoDrag.object.rotation, p.rotation);
         for (const u of c)
-          u.object.position = M(e.gizmoDrag.groupPivot, De(O(u.transform.position, e.gizmoDrag.groupPivot), d)), u.object.rotation = M(u.transform.rotation, d);
+          u.object.position = x(e.gizmoDrag.groupPivot, De(O(u.transform.position, e.gizmoDrag.groupPivot), d)), u.object.rotation = x(u.transform.rotation, d);
       } else {
         const d = e.gizmoDrag.object.size.map((u, h) => u / Math.max(0.01, p.size[h]));
         for (const u of c) {
           const h = O(u.transform.position, e.gizmoDrag.groupPivot);
-          u.object.position = M(e.gizmoDrag.groupPivot, h.map((g, v) => g * d[v])), u.object.size = u.transform.size.map((g, v) => Math.max(0.01, g * d[v]));
+          u.object.position = x(e.gizmoDrag.groupPivot, h.map((g, v) => g * d[v])), u.object.size = u.transform.size.map((g, v) => Math.max(0.01, g * d[v]));
         }
       }
     for (const d of c.length ? c : [{ object: e.gizmoDrag.object }]) e.commitObjectEdit(d.object);
@@ -2635,7 +2636,7 @@ function gn(e, t) {
   }
   if (e.objectDrag) {
     _e(e, e.objectDrag, "Move object");
-    const n = t.clientX - e.objectDrag.x, s = t.clientY - e.objectDrag.y, { right: i, up: l } = L(e.objectDrag.camera), m = Ue(e.objectDrag.camera, e.canvas.height) * (t.shiftKey ? 0.1 : 1), c = M(e.objectDrag.position, M(C(i, n * m), C(l, -s * m)));
+    const n = t.clientX - e.objectDrag.x, s = t.clientY - e.objectDrag.y, { right: i, up: l } = L(e.objectDrag.camera), m = Ue(e.objectDrag.camera, e.canvas.height) * (t.shiftKey ? 0.1 : 1), c = x(e.objectDrag.position, x(C(i, n * m), C(l, -s * m)));
     e.objectDrag.object.position = Z(e, c, null, [e.objectDrag.object.id]), e.commitObjectEdit(e.objectDrag.object), e.refreshInspector(), e.render();
     return;
   }
@@ -2651,7 +2652,7 @@ function gn(e, t) {
   const a = t.clientX - e.drag.x, o = t.clientY - e.drag.y, r = e.drag.camera;
   if (e.drag.dolly) {
     const n = Math.exp(o * 5e-3), s = O(r.position, r.target);
-    e.drag.target.position = M(r.target, C(s, n)), e.drag.target.camera_type === "orthographic" && (e.drag.target.zoom = Math.max(0.01, (r.zoom || 1) / n));
+    e.drag.target.position = x(r.target, C(s, n)), e.drag.target.camera_type === "orthographic" && (e.drag.target.zoom = Math.max(0.01, (r.zoom || 1) / n));
   } else if (e.drag.fly) {
     const n = O(r.target, r.position), s = $(n);
     let i = Math.atan2(n[0], n[2]), l = Math.asin(j(n[1] / s, -0.999, 0.999));
@@ -2661,8 +2662,8 @@ function gn(e, t) {
       r.position[2] + s * Math.cos(i) * Math.cos(l)
     ];
   } else if (e.drag.shift) {
-    const { right: n, up: s } = L(r), i = Ue(r, e.canvas.height), l = M(C(n, -a * i), C(s, o * i));
-    e.drag.target.position = M(r.position, l), e.drag.target.target = M(r.target, l);
+    const { right: n, up: s } = L(r), i = Ue(r, e.canvas.height), l = x(C(n, -a * i), C(s, o * i));
+    e.drag.target.position = x(r.position, l), e.drag.target.target = x(r.target, l);
   } else {
     const n = O(r.position, r.target), s = $(n);
     let i = Math.atan2(n[0], n[2]), l = Math.asin(j(n[1] / s, -0.999, 0.999));
@@ -2706,7 +2707,7 @@ function bn(e, t) {
   const a = e.state.view_mode !== "camera", o = re(e);
   a || e.beginCameraEdit();
   const r = j(t.deltaY * 1e-3, -0.4, 0.4), n = O(o.position, o.target);
-  o.position = M(o.target, C(n, Math.exp(r))), o.camera_type === "orthographic" && (o.zoom = Math.max(0.01, (o.zoom || 1) * Math.exp(-r))), a ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
+  o.position = x(o.target, C(n, Math.exp(r))), o.camera_type === "orthographic" && (o.zoom = Math.max(0.01, (o.zoom || 1) * Math.exp(-r))), a ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
 }
 const dr = (e) => {
   const t = new Set((e.motion_layers || []).map((o) => o.id));
@@ -2723,7 +2724,7 @@ function Fe(e) {
   return (e.motion_layers || []).find((t) => t.id === e.selected_motion_layer_id) || null;
 }
 function at(e, t) {
-  return e.motion_tool = xt.includes(t) ? t : "select", e.motion_tool;
+  return e.motion_tool = Mt.includes(t) ? t : "select", e.motion_tool;
 }
 function pr(e, t) {
   if (Dt.includes(t))
@@ -2904,9 +2905,9 @@ const yt = { t: "translate", r: "rotate", s: "scale" }, Sr = [
   ["sequence", '[data-role="graph-sequence"]'],
   ["graph", ".oc-graph"],
   ["timeline", ".oc-timeline"]
-], Mr = 'button,summary,a[href],[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="checkbox"],[role="switch"]';
-function xr(e) {
-  return e instanceof HTMLElement || e instanceof SVGElement ? !!e.closest?.(Mr) : !1;
+], xr = 'button,summary,a[href],[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="checkbox"],[role="switch"]';
+function Mr(e) {
+  return e instanceof HTMLElement || e instanceof SVGElement ? !!e.closest?.(xr) : !1;
 }
 function Cr(e) {
   return !(e instanceof HTMLElement) || ["INPUT", "SELECT", "TEXTAREA"].includes(e.tagName) || e.isContentEditable || !!e.closest?.('[contenteditable="true"],span.property_value');
@@ -2929,7 +2930,7 @@ function kr() {
 }
 function Tr(e, t) {
   const a = t.composedPath?.()[0] || t.target;
-  if (Cr(a) || (t.code === "Space" || t.key === "Enter") && xr(a)) return !1;
+  if (Cr(a) || (t.code === "Space" || t.key === "Enter") && Mr(a)) return !1;
   if (e.contextMenu.onKey(t)) return !0;
   if (e.modalTransform)
     return ir(e, t), !0;
@@ -2989,7 +2990,7 @@ function Ir(e, t) {
     return t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.deleteObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.deleteCamera(e.state.active_camera_id)), !0;
   if (["w", "a", "s", "d", "q", "e"].includes(a) && e.isNavigatingFly) {
     const n = e.viewportCamera(), s = e.state.view_mode !== "camera", { right: i, up: l, forward: m } = L(n), c = (t.shiftKey ? 0.6 : 0.18) * e.cameraSpeed, p = { w: C(m, c), s: C(m, -c), d: C(i, c), a: C(i, -c), e: C(l, c), q: C(l, -c) }[a];
-    return s || e.beginCameraEdit(), n.position = M(n.position, p), n.target = M(n.target, p), s ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit()), !0;
+    return s || e.beginCameraEdit(), n.position = x(n.position, p), n.target = x(n.target, p), s ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit()), !0;
   }
   return !1;
 }
@@ -3029,10 +3030,10 @@ function Or(e, t) {
   if (t.key === "End")
     return e.setFrame(e.state.duration_frames - 1), !0;
   if (a === "s" || a === "a")
-    return t.repeat || (!xe(e.state).length || a === "a" ? (e.checkpoint("Auto-split shots"), e.state.sequence = { ...e.state.sequence || { recording_path: "" }, enabled: !0, cuts: Za(e.state) }, Ve(e)) : (e.checkpoint("Split shot"), Ja(e.state, e.frame, null) ? Ve(e) : e.setStatus("Move the playhead inside a shot first"))), !0;
+    return t.repeat || (!Me(e.state).length || a === "a" ? (e.checkpoint("Auto-split shots"), e.state.sequence = { ...e.state.sequence || { recording_path: "" }, enabled: !0, cuts: Za(e.state) }, Ve(e)) : (e.checkpoint("Split shot"), Ja(e.state, e.frame, null) ? Ve(e) : e.setStatus("Move the playhead inside a shot first"))), !0;
   if (t.key === "Delete" || t.key === "Backspace") {
     if (t.repeat) return !0;
-    const o = xe(e.state), r = Mt(e.state, e.frame), n = r ? o.findIndex((s) => s.start === r.start) : -1;
+    const o = Me(e.state), r = xt(e.state, e.frame), n = r ? o.findIndex((s) => s.start === r.start) : -1;
     return n >= 0 && (e.checkpoint("Remove shot"), eo(e.state, n) && Ve(e)), !0;
   }
   return !1;
@@ -3414,7 +3415,7 @@ U.registerExtension({
     const t = !ae, a = t ? null : st(e);
     await ot(e, async () => {
       we("director:import:start", e);
-      const { attachDirector: r } = await import("./chunk-ChFqP4e2.js").then((n) => n.f);
+      const { attachDirector: r } = await import("./chunk-CynrCD75.js").then((n) => n.f);
       return we("director:import:resolved", e), r;
     });
     const o = e.__majoorOmniCam;
@@ -3426,7 +3427,7 @@ U.registerExtension({
   async nodeCreated(e) {
     if (Pe(e) !== Ye) return;
     const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => (await import("./chunk-CgyMAhbE.js")).attachExtractor), e.__majoorOmniCamExtractor && nt(e, Ye, t, a?.());
+    await ot(e, async () => (await import("./chunk-B8sSbAQ1.js")).attachExtractor), e.__majoorOmniCamExtractor && nt(e, Ye, t, a?.());
   }
 });
 U.registerExtension({
@@ -3434,7 +3435,7 @@ U.registerExtension({
   async nodeCreated(e) {
     if (Pe(e) !== Ze) return;
     const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => (await import("./chunk-o1CcfT9b.js")).attachMonitor), e.__majoorOmniCamMonitor && nt(e, Ze, t, a?.());
+    await ot(e, async () => (await import("./chunk-x26LrT_w.js")).attachMonitor), e.__majoorOmniCamMonitor && nt(e, Ze, t, a?.());
   }
 });
 export {
@@ -3442,7 +3443,7 @@ export {
   vn as A,
   Qr as B,
   F as C,
-  M as D,
+  x as D,
   en as E,
   $ as F,
   O as G,
@@ -3477,12 +3478,12 @@ export {
   oe as d,
   R as e,
   Ie as f,
-  xe as g,
+  Me as g,
   Ja as h,
   eo as i,
   Zr as j,
   Za as k,
-  Mt as l,
+  xt as l,
   tn as m,
   Yr as n,
   an as o,

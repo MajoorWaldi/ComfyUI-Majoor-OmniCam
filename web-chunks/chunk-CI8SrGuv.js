@@ -1,4 +1,4 @@
-import { a as p, e as f, a3 as N } from "./chunk-D4ffYaAz.js";
+import { a as p, e as f, a3 as N } from "./chunk-BPJtqaNk.js";
 import { g as I, l as A } from "./chunk-D3fRtf1d.js";
 const J = `
       .majoor-omnicam .oc-lower{display:grid;grid-template-columns:236px minmax(0,1fr);gap:8px;padding:0 8px 8px}

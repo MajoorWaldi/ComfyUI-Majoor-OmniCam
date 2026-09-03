@@ -23,6 +23,18 @@ def test_product_registry_contains_only_the_three_product_nodes():
     assert INTERNAL_COMPONENTS
 
 
+def test_every_product_node_is_marked_experimental():
+    """Director, Extractor and Monitor all ship is_experimental=True.
+
+    The node contract (sockets, MotionScene schema, Monitor profile outputs) is
+    not frozen; Monitor was the one that had lost the flag.
+    """
+    pytest.importorskip("comfy_api.latest")
+    for node in get_registered_nodes():
+        schema = node.define_schema()
+        assert schema.is_experimental is True, schema.node_id
+
+
 def test_public_node_schema_inputs_match_execute_signatures():
     root = Path(__file__).resolve().parents[1] / "omnicam" / "nodes"
     classes = {}

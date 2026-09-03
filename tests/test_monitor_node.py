@@ -80,6 +80,7 @@ def test_monitor_v3_schema_has_stable_typed_contract():
     schema = MajoorOmniCamMonitor.define_schema()
     assert schema.node_id == "MajoorOmniCamMonitor"
     assert schema.display_name == "OmniCam Monitor"
+    assert schema.is_experimental is True
     assert [item.id for item in schema.inputs] == [
         "motion_scene", "playblast_video", "base_prompt", "target_profile",
         "target_width", "target_height", "duration_seconds", "target_fps"

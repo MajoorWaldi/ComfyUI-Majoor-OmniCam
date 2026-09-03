@@ -1,7 +1,7 @@
 import { app as ho } from "../../scripts/app.js";
 import { api as Ie } from "../../scripts/api.js";
-import { s as re, c as A, t as H, a as s, o as bo, b as Da, d as $e, e as B, r as nr, f as qe, g as tt, h as uo, i as sr, j as ir, k as cr, S as _e, l as lr, m as Ra, n as dr, p as mr, q as Ka, u as pr, v as fr, w as hr, x as Na, y as br, z as ur, A as gr, B as je, C as oe, D as he, E as yr, F as _a, G as $a, H as go, I as vr, J as Ma, K as Je, L as xr, M as Qa, N as wr, O as yo, P as kr, Q as Sr, R as Cr, T as jr, U as _r, V as $r, W as Mr, X as Er, Y as Pr, Z as Ar, _ as Fr, $ as zr, a0 as vo } from "./chunk-D4ffYaAz.js";
-import { L as Lr, a as Tr, f as Kr, b as xo, c as Ir, d as qr, e as Or, s as Dr } from "./chunk-BWEsLo1P.js";
+import { s as re, c as A, t as H, a as s, o as bo, b as Da, d as $e, e as B, r as nr, f as qe, g as tt, h as uo, i as sr, j as ir, k as cr, S as _e, l as lr, m as Ra, n as dr, p as mr, q as Ka, u as pr, v as fr, w as hr, x as Na, y as br, z as ur, A as gr, B as je, C as oe, D as he, E as yr, F as _a, G as $a, H as go, I as vr, J as Ma, K as Je, L as xr, M as Qa, N as wr, O as yo, P as kr, Q as Sr, R as Cr, T as jr, U as _r, V as $r, W as Mr, X as Er, Y as Pr, Z as Ar, _ as Fr, $ as zr, a0 as vo } from "./chunk-BPJtqaNk.js";
+import { L as Lr, a as Tr, f as Kr, b as xo, c as Ir, d as qr, e as Or, s as Dr } from "./chunk-CI8SrGuv.js";
 import { S as Rr, b as Nr, p as Br, l as Wr, u as Hr } from "./chunk-D3fRtf1d.js";
 import { m as wo } from "./chunk-COqBWNqK.js";
 import { R as Vr } from "./chunk-BNTXm8ZY.js";
@@ -1373,6 +1373,7 @@ const Tn = `
       .majoor-omnicam .motion-creating{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:0 0 6px;padding:5px 8px;background:#173b38;border:1px solid #41d9c5;border-radius:5px;font-size:10px;color:#a9f0e6}
       .majoor-omnicam .motion-badge{display:inline-block;padding:1px 5px;border-radius:3px;background:#26303a;color:#8fd7cd;font-size:8.5px;font-weight:700;letter-spacing:.4px}
       .majoor-omnicam .motion-badge.experimental{background:#3d2b12;color:#e0a253}
+      .majoor-omnicam .motion-experimental-note{margin:2px 0 8px;color:#e0a253;font-size:9px;line-height:1.35}
       .majoor-omnicam .motion-preview-wrap{position:relative;height:132px;margin:4px 0 2px;border:1px solid #2e2e38;border-radius:5px;overflow:hidden;background:#0b0b0f}
       .majoor-omnicam .motion-preview{display:block;width:100%;height:100%;cursor:pointer}
       .majoor-omnicam .motion-preview-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:8px;text-align:center;font-size:9px;color:#6c6c78;pointer-events:none}
@@ -1642,7 +1643,8 @@ function Nn() {
   return `
     <div class="inspector-tab-content oc-side-body motion-panel" data-tab-panel="motion" hidden>
 
-      <div class="oc-section">${s("Create Motion")}</div>
+      <div class="oc-section">${s("Create Motion")} <span class="motion-badge experimental">EXPERIMENTAL</span></div>
+      <p class="motion-experimental-note">${s("Motion Tracks are experimental and may change before a stable release.")}</p>
       <div class="motion-create-grid">
         <button type="button" class="motion-create-btn" data-motion-create="draw">
           <i class="pi pi-pencil"></i><b>${s("Draw Path")}</b><small>${s("Draw movement onscreen")}</small>
@@ -2695,7 +2697,7 @@ function $s(e, t) {
     o && (o.open = !o.open, a.currentTarget.classList.toggle("active", o.open), o.open && e.drawCurveEditor());
   }, { signal: t });
 }
-const Sa = () => import("./chunk-DGXmGXiv.js");
+const Sa = () => import("./chunk-HaZXj0BB.js");
 function Ms(e, t) {
   Sa().then(({ loadExchangeFormats: o }) => o(e)), e.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", async () => {
     (await Sa()).pickCameraFile(e);
@@ -3591,7 +3593,7 @@ async function ci(e) {
   (r.width !== e.canvas.width || r.height !== e.canvas.height) && (e.canvas.width = r.width, e.canvas.height = r.height, e.render());
   try {
     let n = null;
-    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: d } = await import("./chunk-BqZKdIQD.js");
+    const i = e.root.querySelector('[data-role="encoder"]').value, { encodeDeterministicPlayblast: c, supportsDeterministicEncoding: d } = await import("./chunk-BI0Is5e4.js");
     i !== "realtime" && await d(e.canvas.width, e.canvas.height) && (n = await c(e.canvas, e.state.duration_frames, e.state.fps, async (l) => {
       e.setFrame(l, !0), e.setStatus(s(`Encoding frame ${l + 1}/${e.state.duration_frames}…`)), await Ho(e), await new Promise((p) => requestAnimationFrame(p));
     }, e.abortController?.signal)), n || (e.setStatus(s("WebCodecs unavailable; recording realtime fallback…")), n = await Vo(e)), e.setFrame(t), await Uo(e, n);
@@ -6382,7 +6384,7 @@ class rr {
   async loadWebGLViewports() {
     let t;
     try {
-      ({ OmniWebGLViewport: t } = await import("./chunk-BqZKdIQD.js"));
+      ({ OmniWebGLViewport: t } = await import("./chunk-BI0Is5e4.js"));
     } catch (a) {
       console.warn("OmniCam WebGL unavailable; using Canvas fallback", a);
       return;

@@ -13,7 +13,8 @@ export function motionPanel() {
   return `
     <div class="inspector-tab-content oc-side-body motion-panel" data-tab-panel="motion" hidden>
 
-      <div class="oc-section">${t("Create Motion")}</div>
+      <div class="oc-section">${t("Create Motion")} <span class="motion-badge experimental">EXPERIMENTAL</span></div>
+      <p class="motion-experimental-note">${t("Motion Tracks are experimental and may change before a stable release.")}</p>
       <div class="motion-create-grid">
         <button type="button" class="motion-create-btn" data-motion-create="draw">
           <i class="pi pi-pencil"></i><b>${t("Draw Path")}</b><small>${t("Draw movement onscreen")}</small>

@@ -47,7 +47,7 @@ From `omnicam/node_registry.py` and each `define_schema()`:
 |---|---|---|---|
 | `MajoorOmniCamDirector` | OmniCam Director | `Majoor/OmniCam` | product, `is_experimental=True` |
 | `MajoorOmniCamExtractor` | OmniCam Extractor | `Majoor/OmniCam` | product, `is_experimental=True` |
-| `MajoorOmniCamMonitor` | OmniCam Monitor | `Majoor/OmniCam` | product |
+| `MajoorOmniCamMonitor` | OmniCam Monitor | `Majoor/OmniCam` | product, `is_experimental=True` |
 | `MajoorOmniCamH3Adapter` | OmniCam → Universal Reference & AI Prompts | `Majoor/OmniCam/Legacy` | **deprecated** (`is_deprecated=True`) |
 | `MajoorOmniCamWanNativeCamera` | OmniCam → Wan Native Camera | `Majoor/OmniCam/Legacy` | **deprecated** |
 | `MajoorOmniCamLTXCameraGuide` | OmniCam → LTX Camera Guide | `Majoor/OmniCam/Legacy` | **deprecated** |

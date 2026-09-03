@@ -1,5 +1,15 @@
 # OmniCam User Guide
 
+All three nodes are marked **experimental** in ComfyUI. Camera authoring and the
+playblast are stable in practice; the **Monitor** profile set and the Director
+**Motion Tracks** surface may still change before a stable release.
+
+![Authoring a camera move in the Director viewport](assets/omnicam-demo.gif)
+
+The full graph — Extractor, Director and Monitor wired end to end — is in
+[`assets/omnicam-overview.png`](assets/omnicam-overview.png); a longer
+walkthrough is [`assets/omnicam-preview.mp4`](assets/omnicam-preview.mp4).
+
 ## Author a Camera Move
 
 1. Add **OmniCam Director**.

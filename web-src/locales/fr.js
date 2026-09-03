@@ -30,6 +30,7 @@ export const FR = {
   "Ground parallax camera field": "Champ caméra parallaxe au sol",
   "Model Compatibility": "Compatibilité des modèles",
   "Motion Tracks are consumed by screen-track profiles. Generic video does not use them directly.": "Les motion tracks sont utilisés par les profils screen-track. La vidéo générique ne les utilise pas directement.",
+  "Motion Tracks are experimental and may change before a stable release.": "Les motion tracks sont expérimentaux et peuvent changer avant une version stable.",
   "Motion interpolation": "Interpolation du mouvement",
   "Motion paths appear here in screen space.": "Les trajectoires de mouvement apparaissent ici en espace écran.",
   "Motion paths in screen space. Click a path to select it.": "Trajectoires de mouvement en espace écran. Cliquez sur une trajectoire pour la sélectionner.",
