@@ -20,7 +20,10 @@ server_stub = sys.modules.setdefault("server", types.ModuleType("server"))
 if not hasattr(server_stub, "PromptServer"):
     server_stub.PromptServer = type("PromptServer", (), {"instance": types.SimpleNamespace(routes=web.RouteTableDef())})
 
-from omnicam import routes
+# Must follow the ComfyUI module stubs above: omnicam.routes imports both at
+# module initialization, while this regression test deliberately runs without a
+# full ComfyUI checkout in python-core.
+from omnicam import routes  # noqa: E402
 
 
 def test_camera_import_does_not_duplicate_chunk_list_into_joined_bytes() -> None:
