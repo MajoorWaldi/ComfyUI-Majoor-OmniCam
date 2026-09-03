@@ -24,8 +24,10 @@ def test_registry_force_includes_generated_frontend() -> None:
 
 def test_publish_workflow_does_not_recheckout_after_frontend_build() -> None:
     workflow = _text(".github/workflows/publish_action.yml")
-    build = workflow.index("npm run build")
-    publish = workflow.index("comfy node publish")
+    build_command = "          npm run build"
+    publish_command = "          comfy --skip-prompt --no-enable-telemetry node publish"
+    build = workflow.index(build_command)
+    publish = workflow.index(publish_command)
     assert build < publish
     assert "Comfy-Org/publish-node-action" not in workflow
     assert "contents: read" in workflow
@@ -39,8 +41,8 @@ def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
 
 def test_ci_builds_and_inspects_the_real_comfy_registry_archive() -> None:
     workflow = _text(".github/workflows/test.yml")
-    assert "comfy node pack" in workflow
-    assert "node.zip" in workflow
+    assert "--no-enable-telemetry node pack" in workflow
+    assert 'zipfile.ZipFile("node.zip")' in workflow
     assert "web/omnicam.js" in workflow
     assert "web-chunks/" in workflow
 
