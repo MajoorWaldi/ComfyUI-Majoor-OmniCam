@@ -37,6 +37,14 @@ def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
     assert "OMNICAM_COMFYUI_ROOT" in workflow
 
 
+def test_ci_builds_and_inspects_the_real_comfy_registry_archive() -> None:
+    workflow = _text(".github/workflows/test.yml")
+    assert "comfy node pack" in workflow
+    assert "node.zip" in workflow
+    assert "web/omnicam.js" in workflow
+    assert "web-chunks/" in workflow
+
+
 def test_source_install_docs_include_frontend_build_step() -> None:
     guide = _text("docs/USER_GUIDE.md")
     install = guide[guide.index("## Install"):]
