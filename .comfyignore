@@ -20,7 +20,8 @@ test-results/
 .vscode/
 
 # Development-only sources and suites. web-src/ is the input to `npm run build`;
-# what ships is the built bundle in web-chunks/, which is committed.
+# what ships is the built bundle in web-chunks/ (+ web/omnicam.js), which the
+# publish workflow builds before packing -- it is not committed.
 tests/
 web-src/
 scripts/

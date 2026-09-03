@@ -34,6 +34,18 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Build the frontend bundle
+        # web-chunks/ and web/omnicam.js are generated, not committed. The
+        # Registry ships the checked-out tree as-is, so the bundle has to be
+        # built here before publish-node-action packs the directory.
+        run: |
+          npm ci
+          npm run build
       - name: Fetch current external adapter contracts
         run: |
           git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git .adapter-release/ltx

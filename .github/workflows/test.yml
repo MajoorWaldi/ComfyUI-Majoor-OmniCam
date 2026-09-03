@@ -150,12 +150,11 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # web-chunks/ and web/omnicam.js are build output, not committed (Rollup
+      # content-hashes the chunk names and the result is not byte-reproducible
+      # across OSes). This job and the publish job both build the bundle fresh.
       - run: npm run build
       - run: npm run check
       - run: npm run test:unit
-      # The real frontend bundle Vite emits lives in web-chunks/ (web/ holds only
-      # a stub). Both are versioned and the publish job ships whatever is checked
-      # in without rebuilding, so a stale web-chunks/ must fail CI here.
-      - run: git diff --exit-code -- web/ web-chunks/
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

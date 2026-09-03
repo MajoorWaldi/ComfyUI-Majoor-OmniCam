@@ -35,11 +35,19 @@ async function rootState(page, handle) {
     const node = window[handle];
     const marker = markers.find((name) => node?.[name]);
     const root = marker ? node[marker].root : null;
+    // LiteGraph stores `size` as an indexable Float32Array-like, not a real
+    // Array (and the Nodes 2.0 layer wraps it again), so `Array.isArray` is
+    // the wrong gate -- probe for two finite numeric slots instead.
+    const rawSize = node?.size;
+    const size =
+      rawSize && rawSize.length >= 2 && Number.isFinite(Number(rawSize[0])) && Number.isFinite(Number(rawSize[1]))
+        ? [Math.round(rawSize[0]), Math.round(rawSize[1])]
+        : null;
     return {
       marker: marker || null,
       connected: Boolean(root?.isConnected),
       width: root?.getBoundingClientRect().width || 0,
-      size: Array.isArray(node?.size) ? [Math.round(node.size[0]), Math.round(node.size[1])] : null,
+      size,
     };
   }, { handle, markers: MARKERS });
 }
@@ -51,7 +59,9 @@ async function waitAttached(page, handle) {
       return markers.some((name) => node?.[name]?.root?.isConnected);
     },
     { handle, markers: MARKERS },
-    { timeout: 30_000 },
+    // The Director editor bundle is heavy; a cold CPU-only CI runner can take
+    // well past 30s to mount its Vue root on the first node of the run.
+    { timeout: 45_000 },
   );
 }
 
@@ -112,6 +122,9 @@ for (const [nodeType, marker] of CASES) {
 
 for (const [nodeType] of CASES) {
   test(`${nodeType} survives resize, right sidebar, serialization reload, duplication and queue (Nodes 2.0)`, async ({ page }) => {
+    // Mount + four resizes + sidebar + reload + duplicate + queue is a lot for
+    // one CPU-only CI test; give it the tripled budget rather than flake.
+    test.slow();
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
 
