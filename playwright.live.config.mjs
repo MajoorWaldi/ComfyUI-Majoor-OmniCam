@@ -46,6 +46,13 @@ export default defineConfig({
   // local video opt in through OMNICAM_LIVE_MATCH instead.
   testMatch: process.env.OMNICAM_LIVE_MATCH || "live-ci.spec.js",
   timeout: 60_000,
+  // This lane cold-boots a throwaway ComfyUI on a CPU-only runner and, on the
+  // current-frontend job, fetches an unreleased frontend build from GitHub
+  // before the first paint. The first Vue-root mount occasionally overruns its
+  // 60s wait purely on runner contention -- a different node/test each run, no
+  // code pattern behind it. Let an unlucky cold mount retry rather than redden
+  // the whole build; keep it at zero locally.
+  retries: process.env.CI ? 2 : 0,
   use: {
     baseURL: process.env.OMNICAM_LIVE_URL || `http://127.0.0.1:${port}`,
     headless: true,
