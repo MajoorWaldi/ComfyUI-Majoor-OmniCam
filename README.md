@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web/assets/omnicam-icon.svg" width="112" alt="Majoor OmniCam">
+  <img src="web/assets/omnicam-icon.png" width="112" alt="Majoor OmniCam">
 </p>
 
 <h1 align="center">Majoor OmniCam</h1>
@@ -26,7 +26,11 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/omnicam-demo.gif" width="900" alt="Authoring a camera move in the OmniCam Director viewport">
+  <img src="docs/assets/omnicam-cover.png" width="900" alt="Majoor OmniCam — camera control for generative video: Extract, Direct, Monitor">
+</p>
+
+<p align="center">
+  <img src="docs/assets/omnicam-demo.gif" width="760" alt="Authoring a camera move in the OmniCam Director viewport">
 </p>
 
 <p align="center"><em><a href="docs/assets/omnicam-preview.mp4">▶ Full walkthrough (MP4)</a></em></p>

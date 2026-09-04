@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../web/assets/omnicam-icon.png" width="72" alt="Majoor OmniCam">
+</p>
+
 # OmniCam — node guide
 
 This document describes only the nodes OmniCam actually registers

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/omnicam-cover.png" width="820" alt="Majoor OmniCam — camera control for generative video">
+</p>
+
 # OmniCam User Guide
 
 All three nodes are marked **experimental** in ComfyUI. Camera authoring and the

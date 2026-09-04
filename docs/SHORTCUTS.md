@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../web/assets/omnicam-icon.png" width="72" alt="Majoor OmniCam">
+</p>
+
 # OmniCam keyboard shortcuts and controls
 
 Shortcuts are live only while the OmniCam viewport or timeline has focus. They

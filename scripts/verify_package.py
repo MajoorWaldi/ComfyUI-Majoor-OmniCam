@@ -47,7 +47,8 @@ def main() -> None:
         "docs/SECURITY.md",
         "web/omnicam.js",
         "web/assets/omnicam-icon.svg",
-        "web/assets/omnicam-banner.svg",
+        "web/assets/omnicam-icon.png",
+        "docs/assets/omnicam-cover.png",
         "package-lock.json",
         "omnicam/nodes/__init__.py",
     ]

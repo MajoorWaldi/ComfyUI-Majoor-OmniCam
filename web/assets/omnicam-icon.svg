@@ -1,18 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
   <title id="title">Majoor OmniCam</title>
-  <defs>
-    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#e5484d" stop-opacity="0.35"/>
-      <stop offset="0.7" stop-color="#e5484d" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#e5484d" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="256" height="256" rx="56" fill="#0f1117"/>
-  <!-- Discreet halo: a hint at rest, meant to be brightened while the node is active. -->
-  <circle cx="128" cy="128" r="104" fill="url(#halo)"/>
-  <!-- Sober ring. -->
-  <circle cx="128" cy="128" r="72" fill="none" stroke="#8b95a7" stroke-width="12"/>
-  <!-- Red centre. -->
-  <circle cx="128" cy="128" r="30" fill="#e5484d"/>
-  <circle cx="119" cy="119" r="9" fill="#ffffff" fill-opacity="0.28"/>
+  <!-- Vector twin of web/assets/omnicam-icon.png: same mark, ~1 KB so the
+       eagerly-loaded node-branding chunk stays cheap. Keep the two in sync. -->
+  <circle cx="128" cy="128" r="102" fill="#031228"/>
+  <circle cx="128" cy="128" r="53" fill="#f7f6ff"/>
+  <circle cx="128" cy="128" r="43" fill="#8873fd"/>
 </svg>

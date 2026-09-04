@@ -46,8 +46,8 @@ export function registerOmniCamNodeBranding(app) {
         if (this.selected) {
           const alpha = haloAlpha();
           const gradient = ctx.createRadialGradient(cx, cy, ICON_SIZE * 0.35, cx, cy, ICON_SIZE * 1.15);
-          gradient.addColorStop(0, `rgba(229, 72, 77, ${alpha})`);
-          gradient.addColorStop(1, "rgba(229, 72, 77, 0)");
+          gradient.addColorStop(0, `rgba(136, 115, 253, ${alpha})`);
+          gradient.addColorStop(1, "rgba(136, 115, 253, 0)");
           ctx.fillStyle = gradient;
           ctx.beginPath();
           ctx.arc(cx, cy, ICON_SIZE * 1.15, 0, Math.PI * 2);

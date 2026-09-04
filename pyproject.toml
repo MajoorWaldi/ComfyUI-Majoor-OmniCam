@@ -25,7 +25,8 @@ Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main
 [tool.comfy]
 PublisherId = "majoorwaldi"
 DisplayName = "Majoor OmniCam"
-Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.svg"
+Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.png"
+Banner = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-cover.png"
 requires-comfyui = ">=0.31.0"
 # Vite output is intentionally git-ignored because Rollup chunk hashes are not
 # byte-reproducible across OSes. Registry `includes` is the official mechanism
