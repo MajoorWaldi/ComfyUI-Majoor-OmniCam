@@ -77,25 +77,24 @@ Use [Shortcuts](SHORTCUTS.md) for the complete viewport and timeline control ref
 
 ## Install
 
-For normal use, install Majoor OmniCam through **ComfyUI Manager / Registry**
-when it is available there.
-
-A source checkout is a developer installation. The Vite frontend output is
-intentionally not committed because Rollup's content hashes are not
-byte-reproducible across operating systems, so a raw `git clone` must build the
-frontend before ComfyUI is restarted:
+For normal use, install Majoor OmniCam through **ComfyUI Manager → Custom Nodes
+Manager** (search for *Majoor OmniCam*), or with a plain clone into
+`custom_nodes/`:
 
 ```bash
+cd ComfyUI/custom_nodes
 git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
-cd ComfyUI-Majoor-OmniCam
-npm ci
-npm run build
 ```
 
-Use Node.js 22, install the documented Python dependencies/backends you need,
-then restart ComfyUI. A Registry installation does **not** require this manual
-frontend build: the release workflow builds it and the Registry package
-force-includes `web/` and `web-chunks/`.
+The Vite frontend output (`web/`, `web-chunks/`) is committed, so both routes
+work with no build step. Restart ComfyUI, then install whichever optional
+Extractor backends you need (below). There are no required Python packages
+beyond ComfyUI's own.
+
+Contributors editing `web-src/` do need the toolchain — Node.js 22, then
+`npm ci && npm run build` to regenerate the bundle. Rollup's content hashes are
+not byte-reproducible across operating systems, so a rebuild on another platform
+will churn the `web-chunks/` filenames.
 
 All three Extractor backends are optional. DPVO requires a compatible local
 installation and its checkpoint at:

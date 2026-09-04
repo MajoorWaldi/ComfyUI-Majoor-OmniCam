@@ -56,6 +56,31 @@ between the nodes.
 
 ![The full OmniCam graph: Load Video, Extractor, Director, Monitor, Save Video](docs/assets/omnicam-overview.png)
 
+## Install
+
+Requires **ComfyUI 0.31+** and **Python 3.10–3.13**. After installing, restart
+ComfyUI; the nodes appear in the node menu under **Majoor › OmniCam**.
+
+### ComfyUI Manager (recommended)
+
+Open **Manager → Custom Nodes Manager**, search for **Majoor OmniCam**, and click
+**Install**. This pulls the published
+[Comfy Registry](https://registry.comfy.org/nodes/majoor-omnicam) release with
+its prebuilt frontend bundle.
+
+### Manual (git clone)
+
+```bash
+cd ComfyUI/custom_nodes
+git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
+```
+
+The built frontend bundle (`web/`, `web-chunks/`) is committed, so a plain clone
+runs as-is — no `npm install` or build step. There are no required Python
+packages beyond ComfyUI's own. The Extractor's camera-solver backends (DPVO,
+pycolmap, OpenCV/SIFT) are all optional and installed separately — see the
+[User Guide](docs/USER_GUIDE.md#install).
+
 ## The three nodes
 
 > All three nodes are marked **experimental** in ComfyUI. Camera authoring and
