@@ -3421,7 +3421,7 @@ U.registerExtension({
     const t = !ae, a = t ? null : st(e);
     await ot(e, async () => {
       Se("director:import:start", e);
-      const { attachDirector: r } = await import("./chunk-D7v2L4KF.js").then((n) => n.f);
+      const { attachDirector: r } = await import("./chunk-Cmn1DyXm.js").then((n) => n.f);
       return Se("director:import:resolved", e), r;
     });
     const o = e.__majoorOmniCam;
@@ -3433,7 +3433,7 @@ U.registerExtension({
   async nodeCreated(e) {
     if (Pe(e) !== Ye) return;
     const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => (await import("./chunk-Dt1dut0O.js")).attachExtractor), e.__majoorOmniCamExtractor && nt(e, Ye, t, a?.());
+    await ot(e, async () => (await import("./chunk-D7NGSVSw.js")).attachExtractor), e.__majoorOmniCamExtractor && nt(e, Ye, t, a?.());
   }
 });
 U.registerExtension({
@@ -3441,7 +3441,7 @@ U.registerExtension({
   async nodeCreated(e) {
     if (Pe(e) !== Ze) return;
     const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => (await import("./chunk-CB1h4J21.js")).attachMonitor), e.__majoorOmniCamMonitor && nt(e, Ze, t, a?.());
+    await ot(e, async () => (await import("./chunk-BSWixFRm.js")).attachMonitor), e.__majoorOmniCamMonitor && nt(e, Ze, t, a?.());
   }
 });
 export {
