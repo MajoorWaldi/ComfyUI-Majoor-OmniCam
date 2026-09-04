@@ -78,6 +78,15 @@ duration and dimensions are validated with ComfyUI's PyAV stack. WebP requires
 both the `RIFF` prefix and the `WEBP` marker at byte offset 8; signature and
 byte limits always remain active.
 
+3D uploads receive a second resource check after structural validation and
+before the browser can create GPU buffers. OBJ, STL, PLY and GLB files are
+inspected for bounded vertex/triangle counts. Binary FBX has no lightweight
+parser in OmniCam, so it receives a tighter byte-complexity ceiling instead of
+pretending that file size proves geometry safety. The defaults are 5,000,000
+vertices, 10,000,000 triangles and 64 MiB for FBX; all are configurable through
+the environment variables documented below. A file that exceeds the budget is
+deleted and its managed-input quota is released.
+
 Folder quota reservations are serialized so concurrent uploads cannot jointly
 exceed the configured quota. A reservation starts from the client-declared
 `Content-Length` rather than the per-file ceiling, so several small concurrent
@@ -88,6 +97,13 @@ The cached folder size is re-scanned when it is older than
 longer keep the quota artificially full. Cleanup validates every requested
 relative path before deleting any file, and ignores duplicates within one
 request.
+
+Camera imports remain memory-only, but the request is bounded to 64 MiB and is
+accumulated into one `bytearray` rather than a list of chunks followed by a
+second joined copy. Camera exports are written only below
+`output/omnicam/exports/` and have a separate 512 MiB folder quota plus the same
+minimum-free-space policy as uploads. This keeps generated DCC exchange files
+from growing independently of every other OmniCam storage bound.
 
 Viewport backgrounds use the same managed upload path as cards. Workflows store
 ComfyUI input annotations rather than browser-local `blob:` URLs, so backgrounds
@@ -105,9 +121,14 @@ the defaults instead of preventing the extension from loading.
 |---|---:|---|
 | `OMNICAM_MAX_CARD_BYTES` | 128 MiB | Maximum image/video card upload |
 | `OMNICAM_MAX_MODEL_BYTES` | 256 MiB | Maximum 3D model upload |
+| `OMNICAM_MAX_MODEL_VERTICES` | 5,000,000 | Maximum inspected 3D vertex count |
+| `OMNICAM_MAX_MODEL_TRIANGLES` | 10,000,000 | Maximum inspected 3D triangle count |
+| `OMNICAM_MAX_FBX_MODEL_BYTES` | 64 MiB | Conservative FBX complexity ceiling |
 | `OMNICAM_MAX_PLAYBLAST_BYTES` | 512 MiB | Maximum playblast upload |
-| `OMNICAM_MAX_FOLDER_BYTES` | 4 GiB | Total managed OmniCam asset quota |
-| `OMNICAM_MIN_FREE_BYTES` | 512 MiB | Disk space kept free after reservation |
+| `OMNICAM_MAX_FOLDER_BYTES` | 4 GiB | Total managed OmniCam input-asset quota |
+| `OMNICAM_MAX_EXPORT_FOLDER_BYTES` | 512 MiB | Total `output/omnicam/exports` quota |
+| `OMNICAM_MAX_IMPORT_BYTES` | 64 MiB | Maximum memory-only camera import |
+| `OMNICAM_MIN_FREE_BYTES` | 512 MiB | Disk space kept free after reservation/write |
 | `OMNICAM_MAX_IMAGE_PIXELS` | 80,000,000 | Maximum decoded image pixel count |
 | `OMNICAM_MAX_IMAGE_FRAMES` | 2,000 | Maximum animated-image frame count |
 | `OMNICAM_MAX_VIDEO_PIXELS` | 16,777,216 | Maximum video frame pixel count |
@@ -167,10 +188,12 @@ Every job route validates: the job id, the session that owns the job, the
 source reference, the solve-method enum, every numeric setting against a
 documented range, and the request body size (256 KiB). A job belongs to the
 client that started it; another session gets 403 rather than the ability to
-stop someone else's solve. Only one GPU solve runs at a time, refused with 409
-rather than queued into an unbounded backlog. Terminal jobs are swept after 30
-minutes, releasing pose arrays, quality samples and solver buffers -- never the
-user's source video.
+stop someone else's solve. Only one GPU-exclusive solve runs at a time, refused
+with 409 rather than queued into an unbounded backlog. For `auto`, the slot is
+reserved only when the backend that availability resolution would actually pick
+is GPU-exclusive: a CPU pycolmap/OpenCV fallback is not blocked by unrelated
+ComfyUI GPU execution. Terminal jobs are swept after 30 minutes, releasing pose
+arrays, quality samples and solver buffers -- never the user's source video.
 
 Interactive routes never queue a prompt, never execute a shell command, never
 install a package, and never accept a remote URL to solve.

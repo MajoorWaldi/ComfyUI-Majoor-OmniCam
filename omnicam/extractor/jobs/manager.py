@@ -23,6 +23,7 @@ import time
 from typing import Any
 
 from ...comfy_compat.execution import execution_busy
+from ..backends import backend_requires_gpu_slot
 from ..backends.dpvo_worker import close_all_dpvo_runners
 from .events import SolveEventPublisher
 from .types import (
@@ -37,9 +38,6 @@ from .types import (
 from .worker import run_solve_job
 
 logger = logging.getLogger(__name__)
-
-#: Backends that contend for the GPU and therefore share one global slot.
-EXCLUSIVE_BACKENDS = frozenset({"dpvo", "auto"})
 
 TERMINAL_TTL_SECONDS = 30 * 60
 MAX_TRACKED_JOBS = 32
@@ -121,14 +119,15 @@ class SolveJobManager:
     ) -> InteractiveSolveJob:
         """Create a job and hand it to a worker thread outside the prompt queue."""
         method = str(settings.get("method", "auto"))
-        if method in EXCLUSIVE_BACKENDS and self._execution_probe():
+        exclusive = backend_requires_gpu_slot(method)
+        if exclusive and self._execution_probe():
             raise SolveSlotBusyError(
                 "ComfyUI is currently executing a workflow. Wait for GPU execution "
                 "to finish before starting DPVO tracking."
             )
         with self._lock:
             self._sweep_locked()
-            if method in EXCLUSIVE_BACKENDS and self._exclusive_job_id:
+            if exclusive and self._exclusive_job_id:
                 active = self._jobs.get(self._exclusive_job_id)
                 if active is not None and active.is_active:
                     raise SolveSlotBusyError(
@@ -146,7 +145,7 @@ class SolveJobManager:
                 settings=settings,
             )
             self._jobs[job.job_id] = job
-            if method in EXCLUSIVE_BACKENDS:
+            if exclusive:
                 self._exclusive_job_id = job.job_id
             publisher = self._publisher_factory(job)
             self._publishers[job.job_id] = publisher

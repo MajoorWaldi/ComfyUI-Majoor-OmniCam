@@ -158,19 +158,20 @@ for (const [nodeType] of CASES) {
       expect(state.width, `root collapsed to zero width after resize to ${size}`).toBeGreaterThan(0);
     }
 
-    // --- open the right sidebar, then resize again ------------------------
-    // The sidebar API differs across the two pinned frontends, so this is
-    // best-effort; what must hold is that toggling it and resizing under it
-    // produces no page error and leaves the root mounted with real width.
+    // --- open a real right sidebar, then resize again ----------------------
+    // ComfyUI v0.34.0 pins frontend 1.49.6, whose own Playwright fixtures use
+    // `.node-library-tab-button` and `.side-bar-button-selected`; the current
+    // frontend keeps the same stable tab-button contract. Requiring the selected
+    // state means this test can no longer silently pass without opening a panel.
+    const sidebarButton = page.locator(".node-library-tab-button");
+    await expect(sidebarButton).toBeVisible({ timeout: 15_000 });
+    if (!(await sidebarButton.evaluate((element) => element.classList.contains("side-bar-button-selected")))) {
+      await sidebarButton.click();
+    }
+    await expect(page.locator(".node-library-tab-button.side-bar-button-selected")).toBeVisible();
+    await expect(page.locator(".sidebar-content-container").first()).toBeVisible();
+
     await page.evaluate(async () => {
-      const { app } = await import("/scripts/app.js");
-      try {
-        const manager = app.extensionManager;
-        const tabs = manager?.sidebarTab?.sidebarTabs ?? manager?.registeredSidebarTabs ?? [];
-        const id = tabs[0]?.id ?? "queue";
-        manager?.sidebarTab?.toggleSidebarTab?.(id);
-      } catch { /* frontend without this API: covered by the no-error assertion */ }
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       window.__omniPrimary.setSize([1100, 1100]);
       window.dispatchEvent(new Event("resize"));
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

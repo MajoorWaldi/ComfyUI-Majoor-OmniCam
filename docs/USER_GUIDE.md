@@ -19,7 +19,9 @@ walkthrough is [`assets/omnicam-preview.mp4`](assets/omnicam-preview.mp4).
 5. Press `Space` to preview the shot.
 6. Record a playblast when a reference-video workflow needs one.
 
-Director keeps the authored camera track as the source of truth. The playblast is a motion reference, not a final render.
+Director keeps the authored **MotionScene** as the canonical scene state; each
+camera carries its own versioned camera track. The playblast is a motion
+reference, not a final render.
 
 ## Recover Motion from Video
 
@@ -40,8 +42,7 @@ Extractor returns relative camera motion. It does not reconstruct metric scene s
 4. Queue, then read the preflight. Anything `BLOCKED` stops the compile and says
    why; resolve it before wiring the output.
 5. Wire the one output that profile populates:
-   - `reference_video`, plus `final_prompt`, for `external_reference_video` (the
-     default) or the H3 profiles
+   - `reference_video`, plus `final_prompt`, for `external_reference_video` or `h3_api`
    - `reference_frames`, plus `final_prompt`, for `h3_native`
    - `camera_embedding` for `wan_camera_native`
    - `native_tracks` for `wan_move_native`
@@ -72,7 +73,25 @@ Use [Shortcuts](SHORTCUTS.md) for the complete viewport and timeline control ref
 
 ## Install
 
-Install Majoor OmniCam through ComfyUI Manager when it is available in the registry. For a source checkout, place the repository in ComfyUI's `custom_nodes` directory, install its documented dependencies, and restart ComfyUI.
+For normal use, install Majoor OmniCam through **ComfyUI Manager / Registry**
+when it is available there.
+
+A source checkout is a developer installation. The Vite frontend output is
+intentionally not committed because Rollup's content hashes are not
+byte-reproducible across operating systems, so a raw `git clone` must build the
+frontend before ComfyUI is restarted:
+
+```bash
+git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
+cd ComfyUI-Majoor-OmniCam
+npm ci
+npm run build
+```
+
+Use Node.js 22, install the documented Python dependencies/backends you need,
+then restart ComfyUI. A Registry installation does **not** require this manual
+frontend build: the release workflow builds it and the Registry package
+force-includes `web/` and `web-chunks/`.
 
 All three Extractor backends are optional. DPVO requires a compatible local
 installation and its checkpoint at:

@@ -7,9 +7,6 @@ on:
 jobs:
   python-core:
     name: python-core (${{ matrix.python-version }})
-    # Deliberately installs only requirements-dev.txt: the model-agnostic core
-    # must stay testable without ComfyUI or torch. Suites that genuinely need an
-    # optional dependency skip themselves via pytest.importorskip.
     strategy:
       fail-fast: false
       matrix:
@@ -27,8 +24,6 @@ jobs:
 
   python-full:
     name: python-full
-    # Same suite with the ComfyUI runtime dependencies present, so the route and
-    # video-sampling tests that python-core skips are actually exercised.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -54,8 +49,6 @@ jobs:
           - label: master
             comfy-ref: master
             canary: true
-    # Master is early warning only. Stable support is defined by the two tagged
-    # lanes above, which must remain green.
     continue-on-error: ${{ matrix.canary }}
     runs-on: ubuntu-latest
     steps:
@@ -64,12 +57,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: git clone --depth 1 --branch ${{ matrix.comfy-ref }} https://github.com/Comfy-Org/ComfyUI.git .comfyui
-      # ComfyUI's requirements.txt leaves torch unpinned; the default index now
-      # resolves it to a CUDA build whose nvidia-* wheels overflow the runner
-      # disk. Satisfy torch/vision/audio from the CPU index first.
       - run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r .comfyui/requirements.txt
+      - name: Install Wan parity test dependencies
+        if: ${{ matrix.label == 'v0.34.0' }}
+        run: pip install pytest==9.0.2
       - run: PYTHONPATH=.comfyui:. python scripts/comfy_integration_smoke.py
+      - name: Run official Wan camera parity
+        if: ${{ matrix.label == 'v0.34.0' }}
+        env:
+          OMNICAM_COMFYUI_ROOT: ${{ github.workspace }}/.comfyui
+          OMNICAM_REQUIRE_OFFICIAL_WAN_PARITY: "1"
+        run: PYTHONPATH=.comfyui:. python -m pytest tests/parity/test_wan_camera_official_parity.py -q
 
   comfyui-browser:
     name: comfyui-browser
@@ -84,8 +83,6 @@ jobs:
           node-version: "22"
           cache: npm
       - run: git clone --depth 1 --branch v0.34.0 https://github.com/Comfy-Org/ComfyUI.git .comfyui
-      # See comfyui-integration: CPU torch first so the unpinned CUDA build does
-      # not fill the runner disk.
       - run: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r .comfyui/requirements.txt
       - run: npm ci
@@ -105,11 +102,6 @@ jobs:
 
   comfyui-browser-current-frontend:
     name: comfyui-browser-current-frontend
-    # The bundled comfyui-browser lane above pins the frontend ComfyUI v0.34.0
-    # ships. This lane re-runs the same live and Nodes 2.0 suites against a
-    # newer pinned frontend so a frontend-only regression is caught before a
-    # user hits it. The pin is explicit, never @latest, so this stays a
-    # required check.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -145,15 +137,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
       - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
-      # web-chunks/ and web/omnicam.js are build output, not committed (Rollup
-      # content-hashes the chunk names and the result is not byte-reproducible
-      # across OSes). This job and the publish job both build the bundle fresh.
       - run: npm run build
+      - run: python scripts/verify_package.py
+      - name: Pack and inspect the Registry archive
+        run: |
+          pip install comfy-cli
+          comfy --skip-prompt --no-enable-telemetry node pack
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile("node.zip") as archive:
+              names = set(archive.namelist())
+          def has(path: str) -> bool:
+              return any(name == path or name.endswith("/" + path) for name in names)
+          missing = [path for path in ("__init__.py", "omnicam/__init__.py", "web/omnicam.js", "pyproject.toml") if not has(path)]
+          if missing:
+              raise SystemExit(f"Registry archive missing required files: {missing}")
+          if not any("web-chunks/" in name and name.endswith(".js") for name in names):
+              raise SystemExit("Registry archive missing generated web-chunks JavaScript")
+          print(f"Registry archive smoke: OK ({len(names)} files)")
+          PY
       - run: npm run check
       - run: npm run test:unit
       - run: npx playwright install --with-deps chromium
