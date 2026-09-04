@@ -59,14 +59,18 @@ async function waitAttached(page, handle) {
       return markers.some((name) => node?.[name]?.root?.isConnected);
     },
     { handle, markers: MARKERS },
-    // The Director editor bundle is heavy; a cold CPU-only CI runner can take
-    // well past 30s to mount its Vue root on the first node of the run.
-    { timeout: 45_000 },
+    // The Director editor bundle is heavy and the current-frontend CI lane
+    // fetches an unreleased build from GitHub before the first paint; a cold
+    // CPU-only runner can take well past 45s to mount the first Vue root.
+    { timeout: 60_000 },
   );
 }
 
 for (const [nodeType, marker] of CASES) {
   test(`${nodeType} mounts and disposes with Nodes 2.0 enabled`, async ({ page }) => {
+    // Cold boot + unreleased-frontend fetch + first Vue-root mount overruns the
+    // default 60s file budget on the current-frontend lane; take the triple.
+    test.slow();
     const pageErrors = [];
     page.on("pageerror", (error) => {
       pageErrors.push(String(error?.stack || error));
@@ -86,7 +90,8 @@ for (const [nodeType, marker] of CASES) {
       ({ marker }) =>
         Boolean(window.__omnicamVueTestNode?.[marker]?.root?.isConnected),
       { marker },
-      { timeout: 30_000 },
+      // Match waitAttached: the current-frontend lane's first mount is slow.
+      { timeout: 60_000 },
     );
 
     const mounted = await page.evaluate(
@@ -123,8 +128,9 @@ for (const [nodeType, marker] of CASES) {
 for (const [nodeType] of CASES) {
   test(`${nodeType} survives resize, right sidebar, serialization reload, duplication and queue (Nodes 2.0)`, async ({ page }) => {
     // Mount + four resizes + sidebar + reload + duplicate + queue is a lot for
-    // one CPU-only CI test; give it the tripled budget rather than flake.
-    test.slow();
+    // one CPU-only CI test, and three of those steps now wait up to 60s for a
+    // Vue root on the slow current-frontend lane; budget for the sum.
+    test.setTimeout(300_000);
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));
 
@@ -158,17 +164,24 @@ for (const [nodeType] of CASES) {
       expect(state.width, `root collapsed to zero width after resize to ${size}`).toBeGreaterThan(0);
     }
 
-    // --- open a real right sidebar, then resize again ----------------------
-    // ComfyUI v0.34.0 pins frontend 1.49.6, whose own Playwright fixtures use
-    // `.node-library-tab-button` and `.side-bar-button-selected`; the current
-    // frontend keeps the same stable tab-button contract. Requiring the selected
-    // state means this test can no longer silently pass without opening a panel.
-    const sidebarButton = page.locator(".node-library-tab-button");
+    // --- open a real sidebar, then resize again --------------------------
+    // The per-tab button DOM keeps churning across frontend releases: the
+    // `.node-library-tab-button` class the 1.49.x fixtures (and this test)
+    // relied on is gone by 1.54.x. The `.side-bar-button` /
+    // `.side-bar-button-selected` / `.sidebar-content-container` contract has
+    // held since well before 1.43, so key off that. Prefer the node-library
+    // tab while its class survives, else open whichever tab is first -- the
+    // test only needs a panel open to exercise the resize math. Requiring the
+    // selected state means this test still can't silently pass with no panel.
+    const nodeLibraryTab = page.locator(".side-bar-button.node-library-tab-button");
+    const sidebarButton = (await nodeLibraryTab.count())
+      ? nodeLibraryTab.first()
+      : page.locator(".side-bar-button").first();
     await expect(sidebarButton).toBeVisible({ timeout: 15_000 });
     if (!(await sidebarButton.evaluate((element) => element.classList.contains("side-bar-button-selected")))) {
       await sidebarButton.click();
     }
-    await expect(page.locator(".node-library-tab-button.side-bar-button-selected")).toBeVisible();
+    await expect(page.locator(".side-bar-button-selected")).toBeVisible();
     await expect(page.locator(".sidebar-content-container").first()).toBeVisible();
 
     await page.evaluate(async () => {
