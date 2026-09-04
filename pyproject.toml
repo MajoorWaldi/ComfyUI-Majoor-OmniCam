@@ -23,7 +23,7 @@ Documentation = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/tree/main
 "Bug Tracker" = "https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/issues"
 
 [tool.comfy]
-PublisherId = "majoorwaldi"
+PublisherId = "majoor-waldi"
 DisplayName = "Majoor OmniCam"
 Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.png"
 Banner = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-cover.png"
