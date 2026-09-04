@@ -1,6 +1,7 @@
 import { api } from "../comfy-runtime.js";
 import { RequestLifetime } from "../request-lifetime.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
@@ -701,6 +702,7 @@ class ExtractorUI {
   dispose() {
     stopActiveSolveOnDispose(this.client, this.state);
     this.disposed = true;
+    closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
     this.requests.dispose();
     this.events.dispose();
     this.refine.dispose();

@@ -33,7 +33,7 @@ function exportableTrack(ui) {
 }
 
 /** Formats the running build can actually produce, fetched once per editor. */
-export async function loadExchangeFormats(ui) {
+export async function loadExchangeFormats(ui, signal) {
   const select = ui.root.querySelector('[data-role="export-format"]');
   if (!select || select.dataset.ready === "1") return;
   try {
@@ -51,7 +51,7 @@ export async function loadExchangeFormats(ui) {
     select.dataset.ready = "1";
     ui.exchangeFormats = payload.export || {};
     updateExportNote(ui);
-    select.addEventListener("change", () => updateExportNote(ui));
+    select.addEventListener("change", () => updateExportNote(ui), signal ? { signal } : undefined);
   } catch {
     // The editor works without interchange; a missing route must not break it.
   }

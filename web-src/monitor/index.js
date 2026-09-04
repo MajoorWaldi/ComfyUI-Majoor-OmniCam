@@ -9,6 +9,7 @@ import { MonitorRefreshController } from "./refresh.js";
 import { MonitorSourceWatcher } from "./source-sync.js";
 import { loadMonitorProfileInfo, renderMonitorProfileInfo } from "./profile-info.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { closeHelpPopup } from "../help/schema.js";
 import { buildMonitorRoot } from "./template.js";
 import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
 
@@ -295,6 +296,7 @@ class MonitorUI {
 
   dispose() {
     clearInterval(this.liveTimer);
+    closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
     this.refreshController?.dispose();
     this.watcher?.dispose();
     this.player.dispose();

@@ -477,12 +477,18 @@ same applications.
 sockets the installed classes expose; class presence alone never announces a
 pinned version or a verified integration.
 
-OmniCam uses `comfy_api.latest` because the required V3 contract (`IO.Schema`,
-`IO.Video`, `IO.WanCameraEmbedding`, Node Replacement) is not fully provided by
-the stable `v0_0_2` adapter. The declared and tested minimum is ComfyUI
-`0.31.0`, which bundles `comfyui-frontend-package==1.48.7`; both bounds in
-`pyproject.toml` agree. CI blocks on `v0.31.0` and `v0.34.0`; `master` is a
-non-blocking canary. A separate weekly, non-blocking contract canary checks the
+`omnicam/comfy_compat/api.py` is the single boundary for the ComfyUI V3 API. It
+resolves each symbol (`IO`, `UI`, `ComfyAPI`, `ComfyExtension`, `InputImpl`,
+`VideoComponents`) from the stable numbered API (`comfy_api.v0_0_2`) first and
+falls back to `comfy_api.latest` per symbol, because `latest` is an
+in-development target that can rename or drop a symbol between releases and the
+stable module does not expose every symbol the same way (`VideoComponents` is
+reached through `Types` there). The required V3 contract is `IO.Schema`,
+`IO.Video`, `IO.WanCameraEmbedding`, and Node Replacement. The declared and
+tested minimum is ComfyUI `0.31.0`, whose tagged `requirements.txt` pins
+`comfyui-frontend-package==1.48.7` (intermediate `1.47.x` bumps appear in that
+release's changelog but not in the shipped pin); both bounds in `pyproject.toml`
+agree. CI blocks on `v0.31.0` and `v0.34.0`; `master` is a non-blocking canary. A separate weekly, non-blocking contract canary checks the
 current LTX-Video and WanVideoWrapper sources against the pinned adapter socket
 contracts. It reports drift for review and never expands declared support.
 

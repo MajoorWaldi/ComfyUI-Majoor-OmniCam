@@ -2,6 +2,7 @@
 
 import { clamp } from "../director/core.js";
 import { resolveZone } from "../commands.js";
+import { cancelModalTransform } from "../viewport-controls/modal-transform.js";
 import { applyCinemaLens } from "../cameras.js";
 import { applyBlockingScenePreset } from "../motion-presets.js";
 import { onCurveWheel } from "../curve-editor.js";
@@ -272,6 +273,15 @@ export function bindEditorAndGlobal(ui, q, signal) {
   };
   ui.root.addEventListener("focusin", rememberZone, { signal });
   ui.root.addEventListener("pointerdown", rememberZone, { capture: true, signal });
+  // A modal G/R/S transform consumes every keystroke until it is confirmed or
+  // cancelled. If focus leaves the node entirely (a click elsewhere in
+  // ComfyUI), cancel it so a stuck session cannot strand the keyboard.
+  ui.root.addEventListener("focusout", (event) => {
+    if (ui.modalTransform && !ui.root.contains(event.relatedTarget)) {
+      cancelModalTransform(ui);
+      ui.render();
+    }
+  }, { signal });
   const ro = new ResizeObserver(() => {
     ui.scheduleResizeAndRender();
   });

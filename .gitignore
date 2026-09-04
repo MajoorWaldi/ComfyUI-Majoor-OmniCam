@@ -12,11 +12,9 @@ test-results/
 dist/
 *.log
 
-# Vite build output. Not byte-reproducible across OSes (Rollup content-hashes
-# the chunk names), so it is never committed: the frontend CI job and the
-# publish job both run `npm run build` to regenerate it.
-/web-chunks/
-/web/omnicam.js
+# Vite build output (web-chunks/, web/omnicam.js) is committed. Note the chunk
+# names are Rollup content-hashes and are not byte-reproducible across OSes, so
+# a rebuild on a different platform will churn filenames.
 .DS_Store
 Thumbs.db
 

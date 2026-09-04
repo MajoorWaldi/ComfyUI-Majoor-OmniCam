@@ -38,6 +38,12 @@ export class ContextMenuController {
   }
   show(event, title, actions) {
     if (!this.menu || this.disposed) return;
+    // A re-show before the previous deferred attach has fired would otherwise
+    // leave that setTimeout live, re-adding the dismiss handler after hide().
+    if (this.dismissTimer !== null) {
+      clearTimeout(this.dismissTimer);
+      this.dismissTimer = null;
+    }
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();

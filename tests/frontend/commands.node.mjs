@@ -112,6 +112,27 @@ test("Ctrl+Z is consumed from every zone, so ComfyUI's graph undo never sees it"
   }
 });
 
+test("Ctrl+C / Ctrl+V only claim the key when there is a keyframe op to do", () => {
+  const modC = { key: "c", code: "KeyC", ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, repeat: false };
+  const modV = { key: "v", code: "KeyV", ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, repeat: false };
+  const run = (ui, over) => withMockElement(() => dispatchDirectorKey(ui, {
+    target: el(["viewport-wrap"]), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {}, ...over,
+  }));
+
+  // Nothing selected / nothing copied: the event passes through to the browser.
+  const idle = baseUi({ copiedKeyframe: null, copyKeyframe() { throw new Error("must not copy"); }, pasteKeyframe() { throw new Error("must not paste"); } });
+  assert.equal(run(idle, modC), false, "Ctrl+C is released when no keyframe is selected");
+  assert.equal(run(idle, modV), false, "Ctrl+V is released when the keyframe clipboard is empty");
+
+  // A selected key / a filled clipboard: OmniCam consumes the key.
+  const copied = [];
+  const pasted = [];
+  const armed = baseUi({ selectedKeyframe: () => ({ frame: 5 }), copiedKeyframe: { frame: 5 }, copyKeyframe: () => copied.push(1), pasteKeyframe: () => pasted.push(1) });
+  assert.equal(run(armed, modC), true);
+  assert.equal(run(armed, modV), true);
+  assert.deepEqual([copied, pasted], [[1], [1]]);
+});
+
 test("Delete removes a shot in the sequence editor and a keyframe in the timeline", () => {
   const seqUi = baseUi({
     state: {

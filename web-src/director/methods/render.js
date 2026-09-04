@@ -3,6 +3,7 @@
 import { applyAimConstraint } from "../../aim-constraint.js";
 import { drawAxisGizmo } from "../../axis-gizmo-view.js";
 import { unregisterDirector } from "../../settings.js";
+import { closeHelpPopup } from "../../help/schema.js";
 import { drawMotionOverlay } from "../../motion-tracks/overlay.js";
 import { renderMotionPanel } from "../../motion-tracks/panel.js";
 import { renderMotionPreview } from "../../motion-tracks/preview.js";
@@ -148,6 +149,10 @@ export function createRenderMethods(dependencies) {
     if (this.disposed) return;
     this.disposed = true;
     unregisterDirector(this);
+    // The help popup is appended to document.body with its own capture keydown
+    // listener; nothing else tears it down when the node (or the whole graph)
+    // goes away with it still open.
+    closeHelpPopup();
     this.backgroundRequestId = (this.backgroundRequestId || 0) + 1;
     this.upstreamSyncId = (this.upstreamSyncId || 0) + 1;
     this.stopPlay(), clearTimeout(this.previewClickTimer), clearTimeout(this.connectionTimer), cancelAnimationFrame(this.restoreFrame), cancelAnimationFrame(this.serializeFrame), cancelAnimationFrame(this.resizeFrame), this.abortController?.abort(), this.upstreamFetchController?.abort(), this.resizeObserver?.disconnect(), this.contextMenu?.dispose(), this.webgl?.dispose(), this.cameraWebgl?.dispose();

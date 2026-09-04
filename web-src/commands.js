@@ -19,7 +19,7 @@ import { add, cameraBasis, mul } from "./director/core.js";
 import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
 import { cancelMotionCreation } from "./motion-tracks/creation.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
-import { directorForTarget } from "./settings.js";
+import { anyDirectorsLive, directorForTarget } from "./settings.js";
 import {
   autoSequenceCuts, cutAtFrame, removeCut, sequenceCuts, splitCutAtFrame,
 } from "./director/sequence.js";
@@ -74,12 +74,19 @@ let interceptorInstalled = false;
  * One window-level capture listener for the whole page. It resolves the owning
  * Director from the event target and lets OmniCam claim the key before
  * ComfyUI's own capture-phase handlers (graph undo, canvas shortcuts) run.
- * Holds no Director reference; once every Director is disposed it is inert.
+ * Holds no Director reference.
+ *
+ * It is installed once at startup and never removed: attaching before
+ * ComfyUI's ChangeTracker registers its own Ctrl+Z capture handler is what
+ * lets OmniCam win that key, and a listener added lazily on the first node
+ * could lose that race. When no Director is mounted the handler bails on its
+ * first line, so an idle tab pays only one boolean check per keystroke.
  */
 export function installGlobalKeyInterceptor() {
   if (interceptorInstalled || typeof window === "undefined") return;
   interceptorInstalled = true;
   window.addEventListener("keydown", (event) => {
+    if (!anyDirectorsLive()) return;
     const target = event.composedPath?.()[0] || event.target;
     const ui = directorForTarget(target);
     if (!ui || ui.disposed) return;
@@ -143,8 +150,19 @@ function globalKeymap(ui, event) {
     if (!event.repeat) ui.redo();
     return true;
   }
-  if (mod && key === "c") { ui.copyKeyframe(); return true; }
-  if (mod && key === "v") { ui.pasteKeyframe(); return true; }
+  // Only claim the clipboard keys when there is a keyframe operation to do,
+  // otherwise let the browser copy whatever text the user has selected inside
+  // the node (status readouts, labels, <option> text).
+  if (mod && key === "c") {
+    if (!ui.selectedKeyframe()) return false;
+    ui.copyKeyframe();
+    return true;
+  }
+  if (mod && key === "v") {
+    if (!ui.copiedKeyframe) return false;
+    ui.pasteKeyframe();
+    return true;
+  }
   if (mod && key === "d") {
     if (!event.repeat) {
       if (ui.selectedEntity === "object" && ui.selectedObjectId) ui.duplicateObject(ui.selectedObjectId);

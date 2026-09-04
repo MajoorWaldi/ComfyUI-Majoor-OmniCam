@@ -121,7 +121,7 @@ const cameraExchange = () => import("../camera-exchange.js");
 function bindCameraExchange(ui, signal) {
   // Populates the format dropdown. Deferred like the rest, so binding a
   // Director no longer drags three.js in on its own.
-  cameraExchange().then(({ loadExchangeFormats }) => loadExchangeFormats(ui));
+  cameraExchange().then(({ loadExchangeFormats }) => loadExchangeFormats(ui, signal));
   ui.root.querySelector('[data-act="import-camera"]')?.addEventListener("click", async () => {
     (await cameraExchange()).pickCameraFile(ui);
   }, { signal });

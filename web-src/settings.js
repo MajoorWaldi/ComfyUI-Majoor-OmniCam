@@ -87,6 +87,14 @@ export function unregisterDirector(ui) {
   liveDirectors.delete(ui);
 }
 
+/** True while at least one Director UI is mounted; the key interceptor's fast path. */
+export function anyDirectorsLive() {
+  for (const ui of liveDirectors) {
+    if (!ui.disposed) return true;
+  }
+  return false;
+}
+
 /** The mounted Director whose root contains `target`, for the global key interceptor. */
 export function directorForTarget(target) {
   if (!(target instanceof Node)) return null;
