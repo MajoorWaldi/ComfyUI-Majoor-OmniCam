@@ -2,7 +2,14 @@ import { expect, test } from "@playwright/test";
 
 async function mount(page) {
   await page.goto("/tests/frontend/director-mount.html");
-  await expect(page.locator("#status")).toHaveText("ready");
+  // The director mount spins up a full three.js viewport, which on CI's
+  // software renderer takes well past expect()'s 5s default -- every other
+  // viewport spec waits on the mount flag with its own budget for that reason.
+  // Reading #status afterwards keeps a mount *failure* loud (with its stack)
+  // instead of surfacing as an opaque timeout.
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 30000 });
+  const mountResult = await page.evaluate(() => window.omnicamMount);
+  expect(await page.locator("#status").textContent(), mountResult?.error ?? "no error").toBe("ready");
   return page.evaluate(() => {
     const ui = window.omnicamNode.__majoorOmniCam;
     ui.setViewMode("perspective");
