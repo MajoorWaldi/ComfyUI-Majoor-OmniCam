@@ -34,19 +34,19 @@ export function outlinerPanel() {
           <select data-role="object-parent" title="${t("Parent object")}"><option value="">${t("No parent")}</option></select>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Position")}</span>
-          <label class="oc-axis x">X<input data-role="object-x" type="number" step="0.1"></label>
-          <label class="oc-axis y">Y<input data-role="object-y" type="number" step="0.1"></label>
-          <label class="oc-axis z">Z<input data-role="object-z" type="number" step="0.1"></label>
+          <label class="oc-axis x"><input data-role="object-x" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="object-y" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="object-z" type="number" step="0.1" aria-label="Z"></label>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Rotation")}</span>
-          <label class="oc-axis x">X<input data-role="object-rx" type="number" step="1"></label>
-          <label class="oc-axis y">Y<input data-role="object-ry" type="number" step="1"></label>
-          <label class="oc-axis z">Z<input data-role="object-rz" type="number" step="1"></label>
+          <label class="oc-axis x"><input data-role="object-rx" type="number" step="1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="object-ry" type="number" step="1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="object-rz" type="number" step="1" aria-label="Z"></label>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Scale")}</span>
-          <label class="oc-axis x">X<input data-role="object-sx" type="number" min="0.01" step="0.1"></label>
-          <label class="oc-axis y">Y<input data-role="object-sy" type="number" min="0.01" step="0.1"></label>
-          <label class="oc-axis z">Z<input data-role="object-sz" type="number" min="0.01" step="0.1"></label>
+          <label class="oc-axis x"><input data-role="object-sx" type="number" min="0.01" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="object-sy" type="number" min="0.01" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="object-sz" type="number" min="0.01" step="0.1" aria-label="Z"></label>
         </div>
         <div class="animation-row" data-role="animation-row" hidden><i class="pi pi-play-circle"></i><select data-role="animation-select" title="${t("Animation clip")}"></select></div>
       </div>

@@ -22,10 +22,20 @@ export function bindEditorAndGlobal(ui, q, signal) {
       input.addEventListener("change", () => ui.updateSelectedObject(), { signal });
     }
   }
-  for (const role of ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-near", "camera-far"]) {
+  for (const role of ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far"]) {
     for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
       input.addEventListener("input", () => ui.updateCameraFromHud(), { signal });
       input.addEventListener("change", () => ui.updateCameraFromHud(), { signal });
+    }
+  }
+  // Rotation X/Y/Z is Pitch/Yaw/Roll, a second view onto the same
+  // Target+Roll data the row above edits (see cameraOrientationEuler) -- it
+  // needs its own handler so editing one does not stomp the other (see
+  // updateCameraRotationFromHud's own note).
+  for (const role of ["camera-rx", "camera-ry", "camera-rz"]) {
+    for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      input.addEventListener("input", () => ui.updateCameraRotationFromHud(), { signal });
+      input.addEventListener("change", () => ui.updateCameraRotationFromHud(), { signal });
     }
   }
   q('[data-role="animation-select"]')?.addEventListener("change", (event) => ui.selectObjectAnimation(Number(event.target.value)), { signal });
@@ -244,6 +254,7 @@ export function bindEditorAndGlobal(ui, q, signal) {
   ui.interactionElement?.addEventListener("pointermove", (event) => ui.onPointerMove(event), { signal });
   ui.interactionElement?.addEventListener("pointerup", (event) => ui.onPointerUp(event), { signal });
   ui.interactionElement?.addEventListener("pointercancel", (event) => ui.onPointerUp(event), { signal });
+  ui.interactionElement?.addEventListener("lostpointercapture", (event) => ui.onPointerUp(event), { signal });
   ui.interactionElement?.addEventListener("dblclick", (event) => ui.setTargetAtCursor(event), { signal });
   ui.interactionElement?.addEventListener("wheel", (event) => ui.onWheel(event), { passive: false, signal });
   // Mouse wheel over a scrollable panel inside the node (the side-panel body,

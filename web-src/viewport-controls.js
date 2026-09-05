@@ -2,6 +2,7 @@
 
 import { add, cameraBasis, clamp, cloneCamera, cross, distanceToSegment, length, mul, norm, project, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "./director/core.js";
 import { t } from "./i18n.js";
+import { frameObjects } from "./viewport-controls/framing.js";
 
 export function viewportCamera(ui) {
   return ui.recording
@@ -51,13 +52,13 @@ export function resetCamera(ui, defaultCameraFn) {
   ui.setStatus(t("Camera reset"));
 }
 
-export function frameTarget(ui) {
+export function frameTarget(ui, options = {}) {
   const camera = viewportCamera(ui);
   const editorView = ui.state.view_mode !== "camera";
   const oldTarget = [...camera.target];
 
   // 1. If a sub-element (vertex, edge, face) is selected, focus directly on it!
-  if (ui.subSelection?.point) {
+  if (ui.subSelection?.point && !options.all) {
     ui.checkpoint("Frame selection");
     const pt = ui.subSelection.point;
     const currentDir = norm(sub(camera.position, oldTarget));
@@ -84,25 +85,8 @@ export function frameTarget(ui) {
   const selectedObj = ui.selectedObject();
   const targetObj = selectedObj || ui.state.objects.find((object) => object.id === "subject") || ui.state.objects[0] || { position: [0, 1.5, 0], size: [2, 3] };
   
-  const size = targetObj.size || [1, 1, 1];
-  const maxDim = Math.max(size[0] || 1, size[1] || 1, size[2] || 1);
-  const fovRad = (((camera.fov || 35) * Math.PI) / 360);
-  const idealDist = Math.max(2.0, (maxDim / Math.max(0.1, Math.tan(fovRad))) * 0.9);
-
-  const currentDir = norm(sub(camera.position, oldTarget));
-  const dir = (Number.isFinite(currentDir[0]) && length(currentDir) > 0.1) ? currentDir : [0.707, 0.4, 0.707];
-  // A rigged model animates inside its node, so its transform stays at the
-  // origin while the character moves. The bone-aware centre is what the gizmo
-  // and the aim constraint already use, and it is what F should frame too.
-  const modelCentre = (targetObj.type === "model" || targetObj.type === "glb")
-    ? ui.webgl?.getObjectWorldCenter?.(targetObj.id)
-    : null;
-  const targetPos = modelCentre
-    || (targetObj.keyframes?.length ? sampleObjectTransform(targetObj, ui.frame).position : (targetObj.position || [0, 1.5, 0]));
-
-  ui.checkpoint("Frame subject");
-  camera.target = [...targetPos];
-  camera.position = add(camera.target, mul(dir, idealDist));
+  ui.checkpoint(options.all ? "Frame all" : "Frame subject");
+  frameObjects(ui, camera, targetObj, options);
 
   if (editorView) {
     ui.serialize();
@@ -112,38 +96,53 @@ export function frameTarget(ui) {
     ui.commitCameraEdit();
     ui.finishCameraEdit();
   }
-  ui.setStatus(t(`Framed: ${targetObj.name || targetObj.type || "Subject"}`));
+  ui.setStatus(options.all
+    ? t("Framed: all objects")
+    : t("Framed: {name}").replace("{name}", targetObj.name || targetObj.type || t("Subject")));
 }
 
-export function gizmoAxes(ui, object, entity) {
+export function gizmoAxes(ui, object, entity, { forceLocal = false } = {}) {
   const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
   const rot = entity?.rotation || object?.rotation || [0, 0, 0];
-  return ui.state.gizmo_space === "local" ? axes.map((axis) => rotateEuler(axis, rot)) : axes;
+  return forceLocal || ui.state.gizmo_space === "local" ? axes.map((axis) => rotateEuler(axis, rot)) : axes;
 }
 
 export function activeGizmoEntity(ui) {
   if (ui.selectedEntity === "object") {
     const object = ui.selectedObject();
     if (!object || object.locked) return null;
-    const modelCenter = (object.type === "model" || object.type === "glb") ? ui.webgl?.getObjectWorldCenter?.(object.id) : null;
     const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
-    const position = modelCenter || transform.position || [0, 0, 0];
+    const origin = transform.position || [0, 0, 0];
+    // The transform gizmo always sits at the object's own origin, exactly
+    // like Maya's pivot or Blender's origin point: a fixed, authored point,
+    // never a live geometric/bone average. A bone-average centre (as this
+    // used to draw for model/glb entities) visibly drifts with the current
+    // pose during animation, which no 3D package's gizmo does -- that live
+    // centre stays a legitimate aim/look-at target elsewhere (framing,
+    // aimAtSelectedObject), just not a transform pivot.
     return {
       type: "object",
       object,
-      position,
+      position: origin,
+      origin,
       rotation: transform.rotation || [0, 0, 0],
       size: transform.size || [1, 1, 1],
     };
   }
   if (ui.state.view_mode !== "camera") {
+    const activeCam = ui.activeCameraTrack();
+    // Same guard as the object branch above: a locked camera's gizmo must not
+    // even appear, exactly like a locked object's. Every gizmoDrag creation
+    // site calls beginCameraEdit(), which already refuses to write a
+    // keyframe for a locked track -- but nothing there stopped the drag
+    // itself, so the camera still visibly moved on screen and only the
+    // (silent) failure to persist gave away that it was locked at all.
+    if (activeCam?.locked) return null;
     if (ui.selectedEntity === "camera_target") {
-      const activeCam = ui.activeCameraTrack();
       const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
       return { type: "camera_target", position: camData.target || ui.camera.target || [0, 1.5, 0], rotation: [0, 0, 0] };
     }
     if (ui.selectedEntity === "camera") {
-      const activeCam = ui.activeCameraTrack();
       const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
       return { type: "camera", position: camData.position || ui.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
     }
@@ -160,7 +159,29 @@ export function gizmoGeometry(ui) {
   const center = project(origin, camera, ui.canvas.width, ui.canvas.height);
   if (!center || !Number.isFinite(center[0]) || !Number.isFinite(center[1])) return null;
   const worldLength = Math.max(0.7, length(sub(camera.position, origin)) * 0.12);
-  const axes = entity.type === "object" ? gizmoAxes(ui, entity.object, entity) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  // Scale and rotate handles always follow the object's own axes, whatever the
+  // World / Local setting says, because that is the only frame their stored
+  // data has. Handle N writes size[N] or rotation[N]: a size triple lives in
+  // the object's frame, and an XYZ euler composes as Rz*Ry*Rx, so rotation[0]
+  // is a turn about the object's own X. Drawing those handles along *world*
+  // axes therefore lied about what the drag would do -- on a cube turned 90
+  // degrees on Z, pulling the red world-X scale handle grew it along world Y,
+  // and dragging the world-X rotate ring swung it about world Y. X and Y
+  // looked swapped, for exactly the objects where it is hardest to see why.
+  // Expressing either gesture about a world axis needs a full matrix (a world
+  // scale shears; a world rotation has to recompose the euler), which neither
+  // a size triple nor an euler triple can hold -- and Maya's own scale and
+  // rotate manipulators are object-space for the same reason. Translate is
+  // the one gesture whose data is frame-free, so it still honours the choice.
+  const ownAxesOnly = ui.state.gizmo_mode === "scale" || ui.state.gizmo_mode === "rotate";
+  const axes = entity.type === "object"
+    ? gizmoAxes(ui, entity.object, entity, { forceLocal: ownAxesOnly })
+    : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  // Cameras have no size to scale: without this guard Scale mode fell through
+  // to the translate-shaped handles below, which onPointerMove then drove as
+  // a rotate (anything not "translate" was treated as rotate) -- the camera
+  // silently rotated instead of following the selected mode.
+  if (ui.state.gizmo_mode === "scale" && entity.type !== "object") return null;
   if (ui.state.gizmo_mode !== "rotate" || entity.type === "camera_target")
     return {
       entity,

@@ -257,6 +257,20 @@ test("path smoothing is non-destructive, so dragging back to zero restores exact
   assert.deepEqual(baseline[1].camera.position, [10, 0, 0], "the baseline itself is never mutated");
 });
 
+test("path smoothing weighs neighbours by how close they are in time, not just index (regression)", () => {
+  // A plain (prev+current+next)/3 average treats a neighbour 1 frame away
+  // exactly the same as one 99 frames away, so a held pose followed by a
+  // quick move -- extremely common keyframe spacing -- got dragged toward a
+  // temporally irrelevant far key. The frame-1 neighbour must dominate here.
+  const uneven = [
+    { frame: 0, camera: { position: [0, 0, 0], target: [0, 0, 0], fov: 35 } },
+    { frame: 1, camera: { position: [0, 10, 0], target: [0, 0, 0], fov: 35 } },
+    { frame: 100, camera: { position: [10, 0, 0], target: [0, 0, 0], fov: 35 } },
+  ];
+  const [x] = smoothKeyframes(uneven, 1)[1].camera.position;
+  assert.ok(x < 1, `the far neighbour (99 frames away) must barely pull the result, got x=${x}`);
+});
+
 test("path smoothing clamps its strength and tolerates short tracks", () => {
   const baseline = smoothingKeys();
   assert.deepEqual(smoothKeyframes(baseline, 5)[1].camera.position, smoothKeyframes(baseline, 1)[1].camera.position);
@@ -319,14 +333,33 @@ test("applyCinemaLens resolves its conversion (regression: re-export left no loc
   const key = { frame: 0, camera: { fov: 35 } };
   const ui = {
     camera: { fov: 35 },
-    activeCameraTrack: () => ({ keyframes: [key] }),
-    activeKeyframe: () => key,
-    scheduleSerialize() {}, render() {}, refreshKeyEditor() {}, setStatus() {},
+    checkpoint() {},
+    beginCameraEdit() { ui.cameraEditKey = key; },
+    commitCameraEdit() { key.camera.fov = ui.camera.fov; },
+    finishCameraEdit() {},
+    setStatus() {},
     root: { querySelectorAll: (selector) => [fields.get(selector.match(/data-role="([^"]+)"/)[1])] },
   };
   cameras.applyCinemaLens(ui, 85);
   assert.equal(Math.round(Number(fields.get("camera-focal").value)), 85);
   assert.ok(Math.abs(key.camera.fov - focalLengthToFov(85)) < 1e-9, "the key took the new FOV");
+});
+
+test("Roll and FOV inputs route through the checkpointed HUD pipeline, not a separate un-serialized handler", async () => {
+  // Roll and FOV used to have their own inline "input"/"change" handlers in
+  // viewport-settings.js that wrote straight to ui.camera with no
+  // checkpoint() and, when the camera had no keyframes yet, no
+  // scheduleSerialize() either -- the roll/FOV edit rendered instantly but
+  // never reached the saved workflow and had no undo entry. Both fields must
+  // now be bound to updateCameraFromHud() like every other camera field.
+  const editorGlobalSource = await readFile(new URL("../../web-src/event-bindings/editor-global.js", import.meta.url), "utf8");
+  const boundRoles = editorGlobalSource.match(/for \(const role of \[([^\]]*"camera-tz"[^\]]*)\]\)/)[1];
+  assert.match(boundRoles, /"camera-fov"/, "camera-fov must be bound to updateCameraFromHud");
+  assert.match(boundRoles, /"camera-roll"/, "camera-roll must be bound to updateCameraFromHud");
+
+  const viewportSettingsSource = await readFile(new URL("../../web-src/event-bindings/viewport-settings.js", import.meta.url), "utf8");
+  assert.doesNotMatch(viewportSettingsSource, /data-role="camera-roll"/, "no separate, un-checkpointed roll handler");
+  assert.doesNotMatch(viewportSettingsSource, /data-role="camera-fov"/, "no separate, un-checkpointed fov handler");
 });
 
 test("activeKeyframe returns the camera key under the playhead (regression: it never existed)", async () => {
@@ -468,4 +501,24 @@ test("realtime playblast reports requested frames, duration, and timing drift", 
   assert.ok(Math.abs(blob.omnicamMetrics.recordedDurationMs - 5030) < 1e-9);
   assert.ok(Math.abs(blob.omnicamMetrics.driftMs - 30) < 1e-9);
   assert.deepEqual(metricsSeen, [blob.omnicamMetrics]);
+});
+
+test("the Timeline and Graph Editor can receive DOM focus, so Ctrl+Z targets OmniCam instead of ComfyUI's graph undo (regression)", async () => {
+  // ComfyUI's ChangeTracker runs a full graph undo on Ctrl+Z unless the key
+  // interceptor resolves a mounted Director from the currently *focused*
+  // element (installGlobalKeyInterceptor in commands.js, keyed off
+  // directorForTarget). The Timeline background and the Graph Editor canvas
+  // both call event.stopPropagation() in their own pointerdown handlers,
+  // which blocks the root-level fallback listener (editor-global.js) that
+  // would otherwise focus ui.root -- so interacting with either one, without
+  // a tabindex + explicit .focus() of their own, left DOM focus wherever it
+  // was before (often outside the node entirely). Ctrl+Z then fell straight
+  // through to ComfyUI's own undo, which visibly resets the graph -- what
+  // this bug reads as "Ctrl+Z refreshes the whole browser".
+  const templateSource = await readFile(new URL("../../web-src/template/timeline-panel.js", import.meta.url), "utf8");
+  assert.match(templateSource, /data-role="dope-tracks"[^>]*tabindex=/, "the timeline background must be focusable");
+  assert.match(templateSource, /data-role="curve-canvas"[^>]*tabindex=/, "the curve editor canvas must be focusable");
+
+  const curveInteractionsSource = await readFile(new URL("../../web-src/curve-editor/interactions.js", import.meta.url), "utf8");
+  assert.match(curveInteractionsSource, /onCurvePointerDown[\s\S]{0,800}canvas\.focus\(/, "onCurvePointerDown must claim focus for itself");
 });

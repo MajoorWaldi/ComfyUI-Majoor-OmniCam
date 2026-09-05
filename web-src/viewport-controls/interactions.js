@@ -6,11 +6,25 @@ import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
 import { cancelModalTransform, confirmModalTransform, selectedTransformObjects, updateModalTransform } from "./modal-transform.js";
+import { isNavigationGesture, navigationGesture, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
 
 function checkpointDrag(ui, drag, label) {
   if (!drag || drag.historyCheckpointed) return;
   ui.checkpoint(label);
   drag.historyCheckpointed = true;
+}
+
+// Writes a dragged camera-target position as the "maintain offset" on top of
+// an active look-at constraint, instead of the raw target sampleCamera would
+// immediately discard (see the camera_target drag sites below). Re-deriving
+// via setFrame folds in applyAimConstraint too, so a bone-aimed camera gets
+// the same live feedback as a plain object-tracked one.
+function applyTrackingOffset(ui, offset) {
+  const track = ui.activeCameraTrack?.();
+  if (!track) return;
+  track.target_offset = offset;
+  if (track.id === ui.state.active_camera_id) ui.state.target_offset = offset;
+  ui.setFrame(ui.frame, false, false);
 }
 
 function checkpointWheelGesture(ui) {
@@ -23,15 +37,49 @@ function checkpointWheelGesture(ui) {
 
 const snapValue = (value, step) => Math.round(value / step) * step;
 const snapVector = (value, step) => value.map((component) => snapValue(component, step));
-const worldPerPixel = (camera, height) => camera.camera_type === "orthographic"
-  ? 10 / (Math.max(0.01, camera.zoom || 1) * Math.max(1, height))
-  : length(sub(camera.position, camera.target)) * 25e-4;
 
-function spatiallySnap(ui, position, pointer, excludedIds = []) {
+/** The screen-space AABB of an object's world bounds, for marquee overlap
+ * tests. Falls back to a box built from position +/- size/2 when there is no
+ * WebGL mesh to measure (nulls, primitives the renderer draws procedurally). */
+function projectedObjectScreenBounds(ui, object, camera) {
+  const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
+  const position = transform.position || [0, 0, 0];
+  const worldBounds = ui.webgl?.getObjectWorldBounds?.(object.id);
+  let min, max;
+  if (worldBounds) {
+    ({ min, max } = worldBounds);
+  } else {
+    const half = (transform.size || [1, 1, 1]).map((value) => Math.max(0.01, Math.abs(value)) / 2);
+    min = half.map((h, i) => position[i] - h);
+    max = half.map((h, i) => position[i] + h);
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const x of [min[0], max[0]]) for (const y of [min[1], max[1]]) for (const z of [min[2], max[2]]) {
+    const point = project([x, y, z], camera, ui.canvas.width, ui.canvas.height);
+    if (!point) continue;
+    minX = Math.min(minX, point[0]); maxX = Math.max(maxX, point[0]);
+    minY = Math.min(minY, point[1]); maxY = Math.max(maxY, point[1]);
+  }
+  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+}
+
+// `axisLock` restricts snapping to a single-axis drag ({ base, axis }): only
+// the coordinate(s) that axis actually moves get snapped to the world grid,
+// same absolute grid lines the free drag below snaps onto; any coordinate the
+// axis doesn't touch is pinned to its exact pre-drag value instead of being
+// run through the grid too. Without this, grid snap (Ctrl, or the Grid snap
+// mode) rewrote every component of the position, so an axis-constrained drag
+// could visibly jump off its axis the moment an idle coordinate wasn't
+// already grid-aligned.
+function spatiallySnap(ui, position, pointer, excludedIds = [], axisLock = null) {
   const temporaryGrid = ui.currentTransformEvent?.ctrlKey || ui.currentTransformEvent?.metaKey;
   const mode = temporaryGrid ? "grid" : ui.state.spatial_snap_mode;
-  if (mode === "grid") return snapVector(position, ui.state.spatial_grid_size || 0.5);
-  if (mode === "vertex" && pointer) {
+  const gridSize = ui.state.spatial_grid_size || 0.5;
+  if (mode === "grid") {
+    if (axisLock) return position.map((value, i) => (Math.abs(axisLock.axis[i]) > 1e-6 ? snapValue(value, gridSize) : axisLock.base[i]));
+    return snapVector(position, gridSize);
+  }
+  if (mode === "vertex" && pointer && !axisLock) {
     const hit = ui.webgl?.pickSubElement?.(pointer[0], pointer[1], ui.canvas.width, ui.canvas.height, "vertex");
     if (hit?.point && !excludedIds.includes(hit.objectId)) return [...hit.point];
   }
@@ -71,7 +119,8 @@ export function onPointerDown(ui, e) {
 
   // Only the primary button selects or edits scene entities. In particular,
   // middle-button navigation must never be captured by a selected gizmo.
-  const canPick = e.button === 0;
+  const navigationOnly = isNavigationGesture(ui, e);
+  const canPick = e.button === 0 && !navigationOnly;
   // A visible gizmo handle owns an unmodified primary drag, as in standard 3D
   // editors. Navigation still starts normally everywhere outside the handles.
   const canEditGizmo = canPick && !e.altKey && !e.shiftKey;
@@ -83,8 +132,7 @@ export function onPointerDown(ui, e) {
       const track = (ui.state.cameras || []).find((camera) => camera.id === handle.cameraId);
       const key = (track?.keyframes || []).find((item) => item.frame === handle.frame);
       if (key) {
-        ui.checkpoint("Move path key");
-        ui.pathDrag = { cameraId: handle.cameraId, frame: handle.frame, anchor: [...key.camera.position] };
+        ui.pathDrag = { cameraId: handle.cameraId, frame: handle.frame, anchor: [...key.camera.position], startX: pointerX, startY: pointerY, moved: false, historyCheckpointed: false };
         if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
         ui.selectKeyframe?.(key);
         return;
@@ -110,11 +158,17 @@ export function onPointerDown(ui, e) {
     if (picked.entity.type === "camera_target") {
       ui.checkpoint("Move camera target");
       ui.beginCameraEdit();
+      // See applyTrackingOffset: a tracked target must be dragged as the
+      // constraint's maintained offset, not its resolved absolute position,
+      // or the edit is silently overwritten on the next resample.
+      const trackingTrack = ui.activeCameraTrack?.();
+      const tracking = Boolean(trackingTrack?.target_object_id);
       ui.gizmoDrag = {
         ...baseDrag,
         type: "camera_target",
         historyCheckpointed: true,
-        target: [...(picked.entity.position || ui.camera.target)],
+        tracking,
+        target: tracking ? [...(trackingTrack.target_offset || [0, 0, 0])] : [...(picked.entity.position || ui.camera.target)],
       };
       return;
     }
@@ -144,7 +198,11 @@ export function onPointerDown(ui, e) {
         object: selected,
         group,
         groupPivot,
-        position: [...picked.entity.position],
+        // Same value as picked.entity.position -- the gizmo always sits at the
+        // object's own origin (see activeGizmoEntity) -- `origin` is the name
+        // that documents this is the drag base, in case a future entity type
+        // ever needs its display position to differ from its transform again.
+        position: [...(picked.entity.origin || picked.entity.position)],
         rotation: [...picked.entity.rotation],
         size: [...picked.entity.size],
         viewRight: cameraBasis(viewCamera).right,
@@ -199,18 +257,41 @@ export function onPointerDown(ui, e) {
       ui.selectedObjectIds = new Set();
       ui.editingKeyFrame = null;
       ui.activateCamera(hit.camera.id);
+      // beginCameraEdit() below already refuses to key a locked track, but it
+      // does nothing to stop the drag itself -- bail before even checkpointing
+      // (a no-op edit must not spend an undo slot either) so a locked camera's
+      // target visibly does not move at all, matching its gizmo above.
+      if (hit.camera.locked) {
+        ui.setStatus(t("{name} is locked").replace("{name}", hit.camera.name));
+        ui.refreshObjects();
+        ui.refreshInspector();
+        ui.render();
+        return;
+      }
       ui.checkpoint("Move camera target");
       ui.beginCameraEdit();
       const { right, up } = cameraBasis(viewCamera);
       const initialTarget = [...ui.camera.target];
-      const dist = length(sub(viewCamera.position, initialTarget));
-      const fovRad = ((viewCamera.fov || 35) * Math.PI) / 360;
+      // A tracked target (look-at constraint) recomputes from the tracked
+      // object on every resample, so writing the drag straight into
+      // camera.target -- as if there were no constraint -- got silently
+      // discarded the next time the frame refreshed. Maya's own constraints
+      // keep a manipulable "maintain offset" for exactly this reason: drag
+      // the offset the constraint already adds on top of its target instead.
+      const trackingTrack = ui.activeCameraTrack?.();
+      const tracking = Boolean(trackingTrack?.target_object_id);
       ui.targetFreeDrag = {
         pointer: [pointerX, pointerY],
-        target: initialTarget,
+        target: tracking ? [...(trackingTrack.target_offset || [0, 0, 0])] : initialTarget,
+        tracking,
         right,
         up,
-        scale: dist * (viewCamera.camera_type === "orthographic" ? 25e-4 : (2 * Math.tan(fovRad)) / ui.canvas.height),
+        // Identical to the old perspective expression, and finally correct for
+        // an orthographic view: that branch scaled by distance and ignored
+        // `zoom` entirely, so the target ran away from the cursor as soon as
+        // the view was zoomed (5x zoom moved it more than five times too far).
+        // The pointer deltas here are backing pixels, hence canvas.height.
+        scale: worldPerPixel(viewCamera, ui.canvas.height),
         historyCheckpointed: true,
       };
       ui.refreshObjects();
@@ -233,6 +314,13 @@ export function onPointerDown(ui, e) {
       ui.refreshInspector();
       ui.render();
       ui.setStatus(t(`${hit.camera.name} selected`));
+      // Neither Maya nor Blender ever orbits from a plain left-drag that
+      // started on something -- LMB only ever selects/manipulates in both;
+      // navigation is exclusively Alt (Maya) or the middle button (Blender).
+      // Without this, continuing to drag right after this click armed an
+      // orbit anyway (see the fallback nav section below), so clicking an
+      // object and dragging even slightly spun the camera unexpectedly.
+      return;
     }
 
     if (hit.type === "object" && hit.object) {
@@ -269,12 +357,21 @@ export function onPointerDown(ui, e) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
+      // See the same return in the camera-hit branch above: selecting an
+      // object must not also arm an orbit if the drag continues.
+      return;
     }
   }
 
-  // Box selection is drag-only in the Blender profile. Ctrl+drag must stay free for
-  // viewport navigation (Ctrl+wheel/Ctrl+middle); multi-select uses Ctrl+click instead.
-  if (!hit && canPick && !e.ctrlKey && !e.metaKey && ui.state.navigation_profile === "blender") {
+  // Box selection is drag-only, in both profiles: real Maya's native marquee is
+  // an unmodified drag over empty space (Alt is reserved for camera nav, so
+  // canPick/navigationOnly already keeps it out of the way here); real Blender
+  // behaves the same once its own middle-button nav is excluded. Ctrl is
+  // declined here so that a Ctrl+drag over empty space reaches the navigation
+  // fallback below (the left-button orbit for hardware with no middle button
+  // and no working Alt); multi-select stays on Ctrl+*click*, which is picked
+  // by the branches above and never reaches either of these two.
+  if (!hit && canPick && !e.ctrlKey && !e.metaKey) {
     ui.boxSelection = {
       start: [pointerX, pointerY], current: [pointerX, pointerY],
       additive: e.shiftKey, initial: new Set(ui.selectedObjectIds || []),
@@ -285,24 +382,20 @@ export function onPointerDown(ui, e) {
     return;
   }
 
-  // Standard 3D Software Viewport Navigation:
-  // - Middle Click (or Alt+Middle, or Shift+Left/Middle): Pan
-  // - Right Click (or Alt+Right): Dolly / Zoom
-  // - Left Click (or Alt+Left): Orbit
-  // - Fly Navigation: First-person gaze look
-  const blenderNavigation = ui.state.navigation_profile === "blender";
-  const isPan = blenderNavigation
-    ? (e.button === 1 && e.shiftKey) || viewCamera.camera_type === "orthographic"
-    : e.button === 1 || (e.altKey && e.button === 1) || (e.shiftKey && (e.button === 0 || e.button === 1)) || viewCamera.camera_type === "orthographic";
-  const isDolly = blenderNavigation
-    ? e.button === 1 && (e.ctrlKey || e.metaKey)
-    : (e.altKey && e.button === 2) || (e.button === 2 && !ui.isNavigatingFly);
+  // navigationGesture owns the whole button/modifier table (see
+  // navigation-gesture.js). A click it does not recognize arms nothing at all:
+  // neither package starts a camera drag from an unmodified click, on any
+  // button. The hit branches above all return before reaching here, so this
+  // only ever sees an empty-space drag -- the Ctrl one the marquee declined
+  // for exactly this purpose, or a plain click with nothing to select.
   const isFly = Boolean(ui.isNavigatingFly);
+  const mode = navigationGesture(ui, e, viewCamera);
+  if (!isFly && !mode) return;
+  // Fly mode owns the drag for looking around, so it outranks pan/dolly --
+  // onPointerMove tests dolly first and would otherwise win the gesture.
+  const isPan = !isFly && mode === "pan";
+  const isDolly = !isFly && mode === "dolly";
 
-  if (!editorView) {
-    ui.checkpoint("Move camera");
-    ui.beginCameraEdit();
-  }
   if (editorView && !ui.state.editor_views) ui.state.editor_views = defaultEditorViews();
 
   ui.drag = {
@@ -314,9 +407,11 @@ export function onPointerDown(ui, e) {
     camera: cloneCamera(viewCamera),
     target: editorView ? (ui.state.editor_views[ui.state.view_mode] || (ui.state.editor_views[ui.state.view_mode] = defaultEditorViews()[ui.state.view_mode])) : ui.camera,
     editorView,
-    historyCheckpointed: !editorView,
+    navigationOnly,
+    historyCheckpointed: false,
   };
   if (ui.interactionElement.style) ui.interactionElement.style.cursor = isDolly ? "ns-resize" : isPan ? "move" : "grabbing";
+  ui.setStatus?.(t(isFly ? "Fly" : isDolly ? "Dolly" : isPan ? "Pan" : "Orbit"));
 }
 
 export function onPointerMove(ui, e) {
@@ -329,6 +424,14 @@ export function onPointerMove(ui, e) {
     const rect = ui.interactionElement.getBoundingClientRect();
     const pointerX = ((e.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
     const pointerY = ((e.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    // Sub-pixel jitter fires real pointermove events even for a stationary
+    // click, so without this a plain click-to-select on a Linear/Hold key
+    // would silently promote it to Smooth (see interpolationAfterDrag) and
+    // nudge its position by a fraction of a pixel -- neither of which the
+    // user asked for.
+    if (!ui.pathDrag.moved && Math.hypot(pointerX - ui.pathDrag.startX, pointerY - ui.pathDrag.startY) < 3) return;
+    ui.pathDrag.moved = true;
+    checkpointDrag(ui, ui.pathDrag, "Move path key");
     const track = (ui.state.cameras || []).find((camera) => camera.id === ui.pathDrag.cameraId);
     const key = (track?.keyframes || []).find((item) => item.frame === ui.pathDrag.frame);
     if (key) {
@@ -366,8 +469,9 @@ export function onPointerMove(ui, e) {
     const dy = currentY - ui.targetFreeDrag.pointer[1];
     const precision = e.shiftKey ? 0.1 : 1;
     const delta = add(mul(ui.targetFreeDrag.right, dx * ui.targetFreeDrag.scale * precision), mul(ui.targetFreeDrag.up, -dy * ui.targetFreeDrag.scale * precision));
-    const target = add(ui.targetFreeDrag.target, delta);
-    ui.camera.target = spatiallySnap(ui, target, [currentX, currentY]);
+    const result = spatiallySnap(ui, add(ui.targetFreeDrag.target, delta), [currentX, currentY]);
+    if (ui.targetFreeDrag.tracking) applyTrackingOffset(ui, result);
+    else ui.camera.target = result;
     ui.commitCameraEdit();
     ui.refreshInspector();
     ui.render();
@@ -387,7 +491,9 @@ export function onPointerMove(ui, e) {
 
     if (ui.gizmoDrag.type === "camera_target") {
       const target = add(ui.gizmoDrag.target, mul(ui.gizmoDrag.axis, (deltaPixels * ui.gizmoDrag.worldLength) / ui.gizmoDrag.screenLength));
-      ui.camera.target = spatiallySnap(ui, target, pointer);
+      const result = spatiallySnap(ui, target, pointer, [], { base: ui.gizmoDrag.target, axis: ui.gizmoDrag.axis });
+      if (ui.gizmoDrag.tracking) applyTrackingOffset(ui, result);
+      else ui.camera.target = result;
       ui.commitCameraEdit();
       ui.refreshInspector();
       ui.render();
@@ -397,7 +503,7 @@ export function onPointerMove(ui, e) {
     if (ui.gizmoDrag.type === "camera") {
       if (ui.state.gizmo_mode === "translate") {
         const position = add(ui.gizmoDrag.position, mul(ui.gizmoDrag.axis, (deltaPixels * ui.gizmoDrag.worldLength) / ui.gizmoDrag.screenLength));
-        ui.camera.position = spatiallySnap(ui, position, pointer);
+        ui.camera.position = spatiallySnap(ui, position, pointer, [], { base: ui.gizmoDrag.position, axis: ui.gizmoDrag.axis });
       } else {
         const angle = snapping ? snapValue(deltaPixels * 0.015, Math.PI / 12) : deltaPixels * 0.015;
         const rel = sub(ui.gizmoDrag.target, ui.gizmoDrag.position);
@@ -421,7 +527,7 @@ export function onPointerMove(ui, e) {
         ui.gizmoDrag.object.position = spatiallySnap(ui, position, pointer, [ui.gizmoDrag.object.id]);
       } else {
         const position = add(ui.gizmoDrag.position, mul(ui.gizmoDrag.axis, (deltaPixels * ui.gizmoDrag.worldLength) / ui.gizmoDrag.screenLength));
-        ui.gizmoDrag.object.position = spatiallySnap(ui, position, pointer, [ui.gizmoDrag.object.id]);
+        ui.gizmoDrag.object.position = spatiallySnap(ui, position, pointer, [ui.gizmoDrag.object.id], { base: ui.gizmoDrag.position, axis: ui.gizmoDrag.axis });
       }
     } else if (ui.state.gizmo_mode === "scale") {
       if (ui.gizmoDrag.free) {
@@ -474,19 +580,6 @@ export function onPointerMove(ui, e) {
     ui.render();
     return;
   }
-  if (ui.objectDrag) {
-    checkpointDrag(ui, ui.objectDrag, "Move object");
-    const dx = e.clientX - ui.objectDrag.x;
-    const dy = e.clientY - ui.objectDrag.y;
-    const { right, up } = cameraBasis(ui.objectDrag.camera);
-    const scale = worldPerPixel(ui.objectDrag.camera, ui.canvas.height) * (e.shiftKey ? 0.1 : 1);
-    const position = add(ui.objectDrag.position, add(mul(right, dx * scale), mul(up, -dy * scale)));
-    ui.objectDrag.object.position = spatiallySnap(ui, position, null, [ui.objectDrag.object.id]);
-    ui.commitObjectEdit(ui.objectDrag.object);
-    ui.refreshInspector();
-    ui.render();
-    return;
-  }
   if (!ui.drag) {
     const rect = ui.interactionElement.getBoundingClientRect();
     const hovered = pickGizmo(ui, [
@@ -501,9 +594,12 @@ export function onPointerMove(ui, e) {
     }
     return;
   }
-  checkpointDrag(ui, ui.drag, ui.drag.editorView ? "Navigate viewport" : "Move camera");
   const dx = e.clientX - ui.drag.x;
   const dy = e.clientY - ui.drag.y;
+  if (!ui.drag.historyCheckpointed && Math.hypot(dx, dy) < 3) return;
+  const beginsCameraEdit = !ui.drag.historyCheckpointed && !ui.drag.editorView;
+  checkpointDrag(ui, ui.drag, ui.drag.editorView ? "Navigate viewport" : "Move camera");
+  if (beginsCameraEdit) ui.beginCameraEdit();
   const base = ui.drag.camera;
 
   if (ui.drag.dolly) {
@@ -527,7 +623,7 @@ export function onPointerMove(ui, e) {
     ];
   } else if (ui.drag.shift) {
     const { right, up } = cameraBasis(base);
-    const scale = worldPerPixel(base, ui.canvas.height);
+    const scale = worldPerPixel(base, ui.interactionElement.getBoundingClientRect().height);
     const delta = add(mul(right, -dx * scale), mul(up, dy * scale));
     ui.drag.target.position = add(base.position, delta);
     ui.drag.target.target = add(base.target, delta);
@@ -551,28 +647,30 @@ export function onPointerMove(ui, e) {
 }
 
 export function cancelViewportInteraction(ui) {
-  if (!ui.drag && !ui.gizmoDrag && !ui.objectDrag && !ui.targetFreeDrag) return false;
-  ui.undo();
-  if (ui.activePointerId !== null && ui.interactionElement.hasPointerCapture?.(ui.activePointerId)) {
-    ui.interactionElement.releasePointerCapture(ui.activePointerId);
-  }
-  ui.activePointerId = null; ui.drag = null; ui.objectDrag = null; ui.gizmoDrag = null; ui.targetFreeDrag = null;
-  ui.pointerHit = false; ui.canvas.classList.remove("dragging");
-  if (ui.interactionElement.style) ui.interactionElement.style.cursor = "default";
+  if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag) return false;
+  const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag].some((drag) => drag?.historyCheckpointed);
+  ui.drag = null; ui.gizmoDrag = null; ui.targetFreeDrag = null;
+  ui.boxSelection = null; ui.pathDrag = null;
+  releaseViewportPointer(ui);
+  if (checkpointed) ui.undo();
   ui.finishCameraEdit(); ui.refreshInspector(); ui.render(); ui.setStatus(t("Interaction cancelled"));
   return true;
 }
 
 export function onPointerUp(ui, event) {
+  if (event?.type === "pointercancel" || event?.type === "lostpointercapture") {
+    if (event.pointerId === ui.activePointerId) cancelViewportInteraction(ui);
+    return;
+  }
   if (ui.pathDrag) {
+    const moved = ui.pathDrag.moved;
     ui.pathDrag = null;
-    if (ui.interactionElement.style) ui.interactionElement.style.cursor = "";
-    ui.interactionElement.releasePointerCapture?.(event.pointerId);
-    ui.activePointerId = null;
-    ui.canvas.classList.remove("dragging");
-    ui.scheduleSerialize();
-    ui.refreshKeys();
-    ui.setStatus(t("Path key moved"));
+    releaseViewportPointer(ui);
+    if (moved) {
+      ui.scheduleSerialize();
+      ui.refreshKeys();
+      ui.setStatus(t("Path key moved"));
+    }
     return;
   }
   if (ui.boxSelection) {
@@ -583,22 +681,28 @@ export function onPointerUp(ui, event) {
     const ids = selection.additive ? new Set(selection.initial) : new Set();
     for (const object of ui.state.objects) {
       if (object.enabled === false) continue;
-      const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
-      const point = project(transform.position || [0, 0, 0], camera, ui.canvas.width, ui.canvas.height);
-      if (point && point[0] >= minX && point[0] <= maxX && point[1] >= minY && point[1] <= maxY) ids.add(object.id);
+      // Maya/Blender select an object the marquee merely overlaps, not just
+      // one whose pivot happens to land inside it -- a marquee drawn over
+      // most of a large object (pivot outside the box) or a thin sliver of a
+      // small one both count. Test the projected screen-space footprint of
+      // its world bounds against the marquee rectangle instead of a single
+      // point; a synthetic box from position +/- size/2 stands in for
+      // objects with no WebGL mesh to measure (nulls, cameras-as-objects).
+      const screenBox = projectedObjectScreenBounds(ui, object, camera);
+      if (screenBox && screenBox.maxX >= minX && screenBox.minX <= maxX && screenBox.maxY >= minY && screenBox.minY <= maxY) ids.add(object.id);
     }
     ui.selectedObjectIds = ids; ui.selectedObjectId = [...ids].at(-1) || null;
     ui.selectedEntity = ids.size ? "object" : "camera"; ui.boxSelection = null;
-    ui.interactionElement.style && (ui.interactionElement.style.cursor = "default");
+    releaseViewportPointer(ui);
     ui.refreshObjects(); ui.refreshInspector(); ui.render(); ui.setStatus(t(`${ids.size} object(s) selected`));
     return;
   }
   const finishedKeyDrag = ui.keyDrag;
   const finishedCameraDrag = Boolean((ui.drag && !ui.drag.editorView) || ui.targetFreeDrag);
-  const finishedObjectEdit = Boolean(ui.gizmoDrag || ui.objectDrag);
+  const finishedObjectEdit = Boolean(ui.gizmoDrag);
 
   // Deselect when user clicked in an empty area without dragging
-  if (!ui.pointerHit && !ui.gizmoDrag && !ui.objectDrag && !ui.targetFreeDrag && ui.drag && event) {
+  if (!ui.pointerHit && !ui.gizmoDrag && !ui.targetFreeDrag && ui.drag && !ui.drag.navigationOnly && event) {
     const moved = Math.hypot(event.clientX - ui.drag.x, event.clientY - ui.drag.y);
     if (moved < 5 && (event.button === 0 || event.button === undefined)) {
       if (ui.selectedEntity === "object" || ui.selectedObjectId !== null || ui.selectedEntity === "camera_target") {
@@ -616,10 +720,8 @@ export function onPointerUp(ui, event) {
     }
   }
 
-  if (event?.pointerId === ui.activePointerId && ui.interactionElement.hasPointerCapture?.(event.pointerId)) ui.interactionElement.releasePointerCapture(event.pointerId);
-  ui.activePointerId = null;
+  releaseViewportPointer(ui);
   ui.drag = null;
-  ui.objectDrag = null;
   ui.gizmoDrag = null;
   ui.targetFreeDrag = null;
   ui.keyDrag = null;
@@ -647,8 +749,10 @@ export function onWheel(ui, e) {
   e.preventDefault();
   e.stopPropagation();
   ui.closeMenus();
+  const pixels = wheelPixels(e, ui.interactionElement.getBoundingClientRect().height);
+  if (!pixels) return;
   if (ui.isNavigatingFly) {
-    ui.cameraSpeed = clamp(ui.cameraSpeed * Math.exp(-e.deltaY * 1e-3), 0.05, 20);
+    ui.cameraSpeed = clamp(ui.cameraSpeed * Math.exp(-pixels * 1e-3), 0.05, 20);
     ui.setStatus(t(`Fly speed: ${ui.cameraSpeed.toFixed(2)}x`));
     return;
   }
@@ -656,7 +760,7 @@ export function onWheel(ui, e) {
   const editorView = ui.state.view_mode !== "camera";
   const camera = viewportCamera(ui);
   if (!editorView) ui.beginCameraEdit();
-  const delta = clamp(e.deltaY * 1e-3, -0.4, 0.4);
+  const delta = clamp(pixels * 1e-3, -0.4, 0.4);
   const offset = sub(camera.position, camera.target);
   camera.position = add(camera.target, mul(offset, Math.exp(delta)));
   if (camera.camera_type === "orthographic") camera.zoom = Math.max(0.01, (camera.zoom || 1) * Math.exp(-delta));

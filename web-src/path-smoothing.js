@@ -12,7 +12,27 @@
 
 const SMOOTHED_FIELDS = ["position", "target"];
 
+// A plain (prev+current+next)/3 average -- as if the three keys were always
+// one frame apart -- is only correct when they actually are evenly spaced.
+// Real keyframe spacing is rarely even (a held pose sits for dozens of
+// frames, then a quick move follows), and a naive average lets whichever
+// neighbour happens to be temporally *farther away* pull just as hard as the
+// close one, dragging the curve toward a point in time that barely matters.
+// Weighting by where `current` actually falls between previous and next
+// (linear interpolation at its own frame) fixes that, and reduces to the
+// exact same (prev+current+next)/3 result when spacing happens to be even,
+// so evenly-spaced animation is unaffected.
 function averageOfThree(previous, current, next, field) {
+  const prevVal = previous.camera?.[field];
+  const curVal = current.camera?.[field];
+  const nextVal = next.camera?.[field];
+  const frameSpan = next.frame - previous.frame;
+  if (Array.isArray(prevVal) && Array.isArray(nextVal) && frameSpan !== 0) {
+    const t = (current.frame - previous.frame) / frameSpan;
+    const linear = [0, 1, 2].map((axis) => Number(prevVal[axis] || 0) + (Number(nextVal[axis] || 0) - Number(prevVal[axis] || 0)) * t);
+    if (!Array.isArray(curVal)) return linear;
+    return [0, 1, 2].map((axis) => (2 * linear[axis] + Number(curVal[axis] || 0)) / 3);
+  }
   const values = [previous, current, next].map((key) => key.camera?.[field]).filter(Array.isArray);
   if (!values.length) return null;
   return [0, 1, 2].map((axis) => values.reduce((total, vector) => total + Number(vector[axis] || 0), 0) / values.length);

@@ -228,8 +228,8 @@ export function createInteractionMethods(dependencies) {
   onKey(e) {
     return dispatchDirectorKey(this, e);
   },
-  frameTarget() {
-    frameTarget(this);
+  frameTarget(options) {
+    frameTarget(this, options);
   },
   async loadMediaUrl(object, url) {
     return loadMediaUrl(this, object, url);

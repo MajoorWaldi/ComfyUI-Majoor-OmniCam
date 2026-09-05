@@ -35,13 +35,22 @@ function numericValue(session) {
   return Number.isFinite(value) ? value : null;
 }
 
-function snappedGroupOffset(ui, session, positions, pointer, temporarySnap) {
+// `axis` is the locked axis (X/Y/Z pressed during the modal transform), if
+// any. Grid snap must only round the coordinate(s) that axis actually moves;
+// snapping every component -- as a flat `position.map(snap)` did -- pulled
+// the two idle coordinates onto the grid too, so a G, X, drag (translate
+// locked to X) could jump the object off its axis in Y/Z the moment either
+// wasn't already grid-aligned. Vertex snap is a free-form absolute override,
+// so it only applies to the unconstrained (no axis pressed) case for the
+// same reason.
+function snappedGroupOffset(ui, session, positions, pointer, temporarySnap, axis, basePositions) {
   const mode = temporarySnap ? "grid" : ui.state.spatial_snap_mode;
   if (mode === "grid") {
     const step = ui.state.spatial_grid_size || 0.5;
+    if (axis) return positions.map((position, index) => position.map((value, i) => (Math.abs(axis[i]) > 1e-6 ? snap(value, step) : basePositions[index][i])));
     return positions.map((position) => position.map((value) => snap(value, step)));
   }
-  if (mode === "vertex" && pointer) {
+  if (mode === "vertex" && pointer && !axis) {
     const hit = ui.webgl?.pickSubElement?.(pointer[0], pointer[1], ui.canvas.width, ui.canvas.height, "vertex");
     if (hit?.point && !session.snapshots.some((item) => item.object.id === hit.objectId)) {
       const transformedPivot = positions.reduce((sum, position) => add(sum, position), [0, 0, 0])
@@ -78,7 +87,7 @@ export function updateModalTransform(ui, event) {
     const amount = typed ?? (dx - dy) * worldScale * precision;
     const delta = axis ? mul(axis, amount) : add(mul(basis.right, dx * worldScale * precision), mul(basis.up, -dy * worldScale * precision));
     positions = positions.map((position) => add(position, delta));
-    positions = snappedGroupOffset(ui, session, positions, pointer, event.ctrlKey || event.metaKey);
+    positions = snappedGroupOffset(ui, session, positions, pointer, event.ctrlKey || event.metaKey, axis, session.snapshots.map((item) => item.transform.position));
   }
 
   const angle = session.mode === "rotate" ? (typed ?? (dx - dy) * 0.5 * precision) : 0;

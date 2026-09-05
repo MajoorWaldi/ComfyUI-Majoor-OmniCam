@@ -76,7 +76,7 @@ function dopeSheet() {
     <div class="oc-dope">
       <div class="oc-dope-body">
         <div class="oc-dope-labels">${labels}</div>
-        <div class="oc-dope-tracks" data-role="dope-tracks">
+        <div class="oc-dope-tracks" data-role="dope-tracks" tabindex="-1">
           <div class="oc-ruler" data-role="ruler" title="${t("Drag to scrub the timeline")}"></div>
           <div class="keys" data-role="keys" tabindex="0" aria-label="${t("Camera keyframe timeline")}"></div>
           <div class="oc-dope-rows" data-role="dope-rows"></div>
@@ -139,7 +139,7 @@ function graphEditor() {
       <div class="oc-graph-body">
         <div class="oc-graph-legend" data-role="curve-legend"></div>
         <div class="oc-graph-stage">
-          <canvas class="curve-canvas" data-role="curve-canvas" title="${t("Drag a key point vertically or drag tangent handles on either side. Scroll to zoom. Right-click for curve actions.")}"></canvas>
+          <canvas class="curve-canvas" data-role="curve-canvas" tabindex="-1" title="${t("Drag a key point vertically or drag tangent handles on either side. Scroll to zoom. Right-click for curve actions.")}"></canvas>
           <div class="oc-gdope" data-role="graph-dope" hidden></div>
           <div class="oc-gsequence" data-role="graph-sequence" tabindex="0" hidden></div>
         </div>

@@ -82,7 +82,7 @@ function viewTab() {
   return `
     <details class="toolbar-menu" data-menu="view"><summary><i class="pi pi-compass"></i> ${t("View")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
       <div class="menu-title">${t("Navigation & Selection")}</div>
-      <label>${t("Navigation profile")} <select data-role="navigation-profile"><option value="maya">Maya</option><option value="blender">Blender</option></select></label>
+      <label title="${t("Middle drag orbits, Shift+middle pans, Ctrl+middle dollies -- no Alt needed anywhere. Alt+left/middle/right are aliases for orbit/pan/dolly; with no middle button, Ctrl+drag over empty space orbits and Ctrl+Shift+drag pans. The profile only decides whether Alt+right dollies (Maya) or does nothing (Blender).")}">${t("Navigation profile")} <select data-role="navigation-profile"><option value="maya">Maya</option><option value="blender">Blender</option></select></label>
       <div class="menu-section" data-density-min="advanced">
         <label>${t("Select mode")} <select data-role="select-mode">
           <option value="object" selected>${t("Object (4)")}</option>
@@ -90,7 +90,7 @@ function viewTab() {
           <option value="edge">${t("Edge (2)")}</option>
           <option value="face">${t("Face (3)")}</option>
         </select></label>
-        <label>${t("Transform space")} <select data-role="gizmo-space"><option value="world">${t("World")}</option><option value="local">${t("Local")}</option></select></label>
+        <label title="${t("Applies to Move only. Scale and Rotate always use the object's own axes, as Maya's manipulators do: a size triple and an XYZ euler only exist in the object's own frame, so a world-axis scale would shear it and a world-axis rotation cannot be expressed at all.")}">${t("Transform space")} <select data-role="gizmo-space"><option value="world">${t("World")}</option><option value="local">${t("Local")}</option></select></label>
         <label>${t("Spatial snapping")} <select data-role="spatial-snap-mode"><option value="none">${t("No Snap")}</option><option value="grid">${t("Grid")}</option><option value="vertex">${t("Vertex")}</option></select></label>
         <label>${t("Spatial grid size")} <input data-role="spatial-grid-size" type="number" min="0.01" max="100" step="0.01" value="0.5"></label>
       </div>

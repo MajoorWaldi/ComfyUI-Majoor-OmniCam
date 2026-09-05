@@ -429,16 +429,11 @@ export { focalLengthToFov };
 
 export function applyCinemaLens(ui, focalLengthMm) {
   const fov = focalLengthToFov(focalLengthMm);
-  const activeCam = ui.activeCameraTrack();
-  if (activeCam?.keyframes?.length && ui.activeKeyframe()) {
-    ui.activeKeyframe().camera.fov = fov;
-    ui.scheduleSerialize();
-    ui.render();
-    ui.refreshKeyEditor();
-  } else {
-    ui.camera.fov = fov;
-    ui.render();
-  }
+  ui.checkpoint(`Lens: ${focalLengthMm}mm`);
+  ui.beginCameraEdit();
+  ui.camera.fov = fov;
+  ui.commitCameraEdit();
+  ui.finishCameraEdit();
   for (const el of ui.root.querySelectorAll('[data-role="camera-fov"]')) el.value = String(fov.toFixed(1));
   for (const el of ui.root.querySelectorAll('[data-role="camera-focal"]')) el.value = formatFocalLength(fov);
   ui.setStatus(`Lens: ${focalLengthMm}mm (FOV ${fov.toFixed(1)}°)`);

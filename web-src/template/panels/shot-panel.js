@@ -33,14 +33,14 @@ export function shotPanel() {
           <button type="button" class="key-interp-btn" data-interp="hold">${t("Hold")}</button>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Position")}</span>
-          <label class="oc-axis x">X<input data-role="key-px" type="number" step="0.1"></label>
-          <label class="oc-axis y">Y<input data-role="key-py" type="number" step="0.1"></label>
-          <label class="oc-axis z">Z<input data-role="key-pz" type="number" step="0.1"></label>
+          <label class="oc-axis x"><input data-role="key-px" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="key-py" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="key-pz" type="number" step="0.1" aria-label="Z"></label>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Target XYZ")}</span>
-          <label class="oc-axis x">X<input data-role="key-tx" type="number" step="0.1"></label>
-          <label class="oc-axis y">Y<input data-role="key-ty" type="number" step="0.1"></label>
-          <label class="oc-axis z">Z<input data-role="key-tz" type="number" step="0.1"></label>
+          <label class="oc-axis x"><input data-role="key-tx" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="key-ty" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="key-tz" type="number" step="0.1" aria-label="Z"></label>
         </div>
         <div class="oc-field-row"><span class="oc-field-label">${t("FOV")}</span><input data-role="key-fov" type="number" min="5" max="150" step="0.1"></div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Roll")}</span><input data-role="key-roll" type="number" min="-180" max="180" step="0.1"></div>

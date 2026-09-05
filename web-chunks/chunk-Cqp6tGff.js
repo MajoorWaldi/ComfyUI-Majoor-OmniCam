@@ -1,4 +1,4 @@
-import { a as p, e as f, a5 as N } from "./chunk-BZZ_o2vU.js";
+import { a as p, e as f, ac as N } from "./chunk-COnft398.js";
 import { g as I, l as A } from "./chunk-Dy7UfHJT.js";
 const J = `
       .majoor-omnicam .oc-lower{display:grid;grid-template-columns:236px minmax(0,1fr);gap:8px;padding:0 8px 8px}
@@ -173,18 +173,18 @@ const J = `
         .majoor-omnicam .oc-transport{flex-wrap:wrap}
       }
 `, y = 24, k = 5, j = 150, _ = Math.PI / 180;
-function S(o, e, a) {
+function E(o, e, a) {
   return Math.min(a, Math.max(e, o));
 }
 function T(o, e = y) {
-  const a = S(Number(o) || 0, k, j);
+  const a = E(Number(o) || 0, k, j);
   return e / (2 * Math.tan(a * _ / 2));
 }
 function z(o, e = y) {
   const a = Math.max(1e-6, Number(o) || 0), r = 2 * Math.atan(e / (2 * a)) / _;
-  return S(r, k, j);
+  return E(r, k, j);
 }
-function M(o) {
+function F(o) {
   const e = T(o);
   return e >= 100 ? e.toFixed(0) : e.toFixed(1);
 }
@@ -206,7 +206,7 @@ const B = [14, 24, 35, 50, 85, 135], w = [
   "#8b5cf6"
   // Camera 8 - Violet
 ];
-function F(o) {
+function M(o) {
   const e = `camera_${Date.now().toString(36)}`;
   let a = e, r = 2;
   for (; o.cameras.some((t) => t.id === a); ) a = `${e}_${r++}`;
@@ -221,12 +221,12 @@ function q(o, e) {
 function L(o, e, { label: a = "Extracted Camera" } = {}) {
   const r = Array.isArray(e?.keyframes) ? e.keyframes : [];
   if (!r.length) throw new Error(p("no camera keys in this solve"));
-  const t = Number(o.state.fps) || 24, n = Number(e.fps) || t, c = n > 0 ? t / n : 1, i = F(o.state), s = o.state.cameras.length, m = q(o.state, a || "Extracted Camera"), d = w[s % w.length], b = r.map((u) => ({
+  const t = Number(o.state.fps) || 24, n = Number(e.fps) || t, c = n > 0 ? t / n : 1, i = M(o.state), s = o.state.cameras.length, m = q(o.state, a || "Extracted Camera"), d = w[s % w.length], v = r.map((u) => ({
     ...u,
     frame: Math.round((Number(u.frame) || 0) * c),
     camera: f(u.camera)
   }));
-  if (o.state.cameras.push({ id: i, name: m, color: d, camera: f(b[0].camera), keyframes: b }), Number.isFinite(Number(e.duration_frames))) {
+  if (o.state.cameras.push({ id: i, name: m, color: d, camera: f(v[0].camera), keyframes: v }), Number.isFinite(Number(e.duration_frames))) {
     const u = Math.round(Number(e.duration_frames) * c);
     o.state.duration_frames = Math.max(o.state.duration_frames || 1, u);
   }
@@ -234,9 +234,9 @@ function L(o, e, { label: a = "Extracted Camera" } = {}) {
 }
 function Y(o, e) {
   const a = z(e);
-  o.activeCameraTrack()?.keyframes?.length && o.activeKeyframe() ? (o.activeKeyframe().camera.fov = a, o.scheduleSerialize(), o.render(), o.refreshKeyEditor()) : (o.camera.fov = a, o.render());
-  for (const t of o.root.querySelectorAll('[data-role="camera-fov"]')) t.value = String(a.toFixed(1));
-  for (const t of o.root.querySelectorAll('[data-role="camera-focal"]')) t.value = M(a);
+  o.checkpoint(`Lens: ${e}mm`), o.beginCameraEdit(), o.camera.fov = a, o.commitCameraEdit(), o.finishCameraEdit();
+  for (const r of o.root.querySelectorAll('[data-role="camera-fov"]')) r.value = String(a.toFixed(1));
+  for (const r of o.root.querySelectorAll('[data-role="camera-focal"]')) r.value = F(a);
   o.setStatus(`Lens: ${e}mm (FOV ${a.toFixed(1)}°)`);
 }
 function O(o) {
@@ -266,7 +266,7 @@ function Q(o, e, {
     }
   }), o.syncActiveCameraTrack(), o.setFrame(0), o.refreshKeys(), o.render(), o.scheduleSerialize(), s && o.setStatus(p("Imported {count} camera keys from {name}").replace("{count}", String(m.length)).replace("{name}", a)), m.length;
 }
-const R = "omnicam_extractor_result_v2", h = "omnicam_extracted_motion_scene_json", g = "omnicam_extracted_track_fingerprint", E = "omnicam_extractor_source";
+const R = "omnicam_extractor_result_v2", g = "omnicam_extracted_motion_scene_json", h = "omnicam_extracted_track_fingerprint", S = "omnicam_extractor_source";
 function C(o) {
   if (!o || o.version !== 1 || !Array.isArray(o.cameras)) return null;
   const e = String(o.playblast_camera_id || o.active_camera_id || ""), r = o.cameras.find((t) => String(t?.id || "") === e)?.track;
@@ -319,7 +319,7 @@ function l(o, e) {
 }
 function W(o) {
   const e = [];
-  for (const a of [h, g]) {
+  for (const a of [g, h]) {
     let r = l(o, a);
     if (!r) {
       if (r = o.addWidget?.("text", a, "", () => {
@@ -334,7 +334,7 @@ function eo(o) {
   const e = o?.widgets_values, a = o?.widgets;
   if (!Array.isArray(e) || !Array.isArray(a)) return 0;
   let r = 0;
-  for (const t of [h, g, E]) {
+  for (const t of [g, h, S]) {
     const n = a.findIndex((i) => i?.name === t);
     if (n < 0 || n >= e.length) continue;
     const c = e[n];
@@ -344,17 +344,17 @@ function eo(o) {
 }
 function ao(o, e) {
   W(o);
-  const a = l(o, h), r = l(o, g), t = String(r?.value || "") !== e.fingerprint;
+  const a = l(o, g), r = l(o, h), t = String(r?.value || "") !== e.fingerprint;
   return a && (a.value = JSON.stringify(e.motionScene)), r && (r.value = e.fingerprint), t;
 }
 function ro(o, e) {
-  const a = l(o, E);
+  const a = l(o, S);
   if (!a || !e) return !1;
   const r = String(e), t = String(a.value || "") !== r;
   return a.value = r, t;
 }
 function $(o) {
-  const e = String(l(o, g)?.value || ""), a = String(l(o, h)?.value || "");
+  const e = String(l(o, h)?.value || ""), a = String(l(o, g)?.value || "");
   if (!e || !a) return null;
   let r;
   try {
@@ -370,23 +370,23 @@ function to(o) {
   return `${a} · ${r} f · ${t} keys · Solver Coverage ${n}%`;
 }
 const P = "solved_scene";
-function K(o) {
+function G(o) {
   return String(o?.comfyClass || o?.type || o?.constructor?.type || "");
 }
-function G(o) {
+function U(o) {
   const e = o?.node, a = e?.graph;
   if (!a) return null;
   for (const r of e.inputs || []) {
     if (String(r?.name || "").toLowerCase() !== P || r.link == null) continue;
     const t = A(a, r.link);
-    if (t && K(t) === N) return t;
+    if (t && G(t) === N) return t;
   }
   return null;
 }
-function U(o) {
+function V(o) {
   return String(o?.state?.metadata?.[x]?.fingerprint || "");
 }
-function V(o, e, a) {
+function K(o, e, a) {
   o.state.metadata = {
     ...o.state.metadata,
     [x]: {
@@ -396,7 +396,7 @@ function V(o, e, a) {
     }
   };
 }
-function v(o) {
+function b(o) {
   const e = o.root?.querySelector('[data-role="extractor-import-banner"]');
   if (!e) return;
   const a = o.pendingExtractorImport;
@@ -405,22 +405,22 @@ function v(o) {
   r && (r.textContent = p("{count} camera keys ready from {name} — import as a new camera?").replace("{count}", String(a.keyCount)).replace("{name}", a.label));
 }
 function no(o) {
-  const e = G(o), a = e ? $(e) : null;
+  const e = U(o), a = e ? $(e) : null;
   let r = !1;
-  return a ? a.fingerprint !== U(o) && o.pendingExtractorImport?.fingerprint !== a.fingerprint && (o.pendingExtractorImport = {
+  return a ? a.fingerprint !== V(o) && o.pendingExtractorImport?.fingerprint !== a.fingerprint && (o.pendingExtractorImport = {
     track: a.track,
     fingerprint: a.fingerprint,
     originNodeId: e.id,
     label: String(e.title || p("OmniCam Extractor")),
     keyCount: a.track.keyframes?.length || 0
-  }, V(o, a.fingerprint, e), r = !0) : o.pendingExtractorImport && (o.pendingExtractorImport = null, r = !0), v(o), r;
+  }, K(o, a.fingerprint, e), r = !0) : o.pendingExtractorImport && (o.pendingExtractorImport = null, r = !0), b(o), r;
 }
 function io(o) {
   const e = o.pendingExtractorImport;
-  return e ? (o.checkpoint("Import extracted camera"), L(o, e.track, { label: e.label }), o.pendingExtractorImport = null, v(o), o.setStatus?.(p("Imported {count} camera keys from {name}").replace("{count}", String(e.keyCount)).replace("{name}", e.label)), o.scheduleSerialize(), o.render(), !0) : !1;
+  return e ? (o.checkpoint("Import extracted camera"), L(o, e.track, { label: e.label }), o.pendingExtractorImport = null, b(o), o.setStatus?.(p("Imported {count} camera keys from {name}").replace("{count}", String(e.keyCount)).replace("{name}", e.label)), o.scheduleSerialize(), o.render(), !0) : !1;
 }
 function co(o) {
-  return o.pendingExtractorImport ? (o.pendingExtractorImport = null, v(o), o.render(), o.setStatus?.(p("Extracted camera preview dismissed")), !0) : !1;
+  return o.pendingExtractorImport ? (o.pendingExtractorImport = null, b(o), o.render(), o.setStatus?.(p("Extracted camera preview dismissed")), !0) : !1;
 }
 function mo(o) {
   const e = o?.graph;
@@ -438,11 +438,11 @@ function mo(o) {
   return t;
 }
 export {
-  g as F,
+  h as F,
   J as L,
-  E as S,
+  S,
   B as a,
-  M as b,
+  F as b,
   io as c,
   co as d,
   Y as e,
@@ -452,7 +452,7 @@ export {
   ro as i,
   to as j,
   $ as k,
-  h as l,
+  g as l,
   Z as m,
   mo as n,
   Q as o,

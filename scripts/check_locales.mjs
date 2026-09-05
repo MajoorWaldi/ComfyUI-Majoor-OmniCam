@@ -30,7 +30,7 @@ for (const file of await jsFiles(SOURCE_DIR)) {
 // A template literal can never match a catalogue key, so every t(`...`) call is
 // a permanently untranslatable string. The count is ratcheted: it may fall, but
 // a change that adds one fails, so the debt can only shrink.
-const DYNAMIC_KEY_BUDGET = 77;
+const DYNAMIC_KEY_BUDGET = 76;
 const DYNAMIC_KEY = /\bt\(\s*`/g;
 
 let dynamic = 0;

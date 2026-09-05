@@ -18,19 +18,55 @@ copy/paste, duplicate, `Space`, `Escape`) fires from any zone.
 
 ## Viewport navigation
 
-The navigation profile is chosen in the toolbar's **Navigation & Selection**
-menu (and seeded per node by *Settings → OmniCam → Navigation*):
+Every camera gesture has **at least two independent bindings, and none of the
+primary ones needs `Alt`**. That is deliberate: `Alt` never reaches the page on
+a number of real setups -- a Linux window manager that claims `Alt` + drag to
+move windows, a desktop shell that opens its menu bar on `Alt`, or a keyboard
+whose right `Alt` is `AltGr` (which reports `Ctrl`+`Alt`, not `Alt`). A viewport
+whose only orbit lives behind `Alt` is simply not navigable there.
 
-- **Maya** — `Alt`/`Option` + left / middle / right drag for orbit / pan /
-  dolly.
-- **Blender** — middle drag orbits, `Shift` + middle pans, `Ctrl`/`Cmd` +
-  middle dollies. A plain left drag in empty space starts a marquee selection.
+| Gesture | Primary (no `Alt`) | `Alt` aliases | Left button only |
+|---|---|---|---|
+| Orbit | Middle drag | `Alt` + left | `Ctrl`/`Cmd` + drag over empty space |
+| Pan | `Shift` + middle | `Alt` + middle, `Alt`+`Shift` + left | `Ctrl`+`Shift` + drag over empty space |
+| Dolly | `Ctrl`/`Cmd` + middle, mouse wheel | `Alt` + right (Maya), `Alt`+`Ctrl` + left | Mouse wheel |
+
+The middle-button family is Blender's, needs no modifier at all, and is what
+this node's timeline and curve editor already use to pan. The `Ctrl` + left
+fallbacks are for hardware with no middle button; they only fire over **empty
+space**, so multi-select (`Ctrl` + *click*, which reaches the picker first) is
+untouched.
+
+The profile chosen in the toolbar's **Navigation & Selection** menu (seeded per
+node by *Settings → OmniCam → Navigation*) now only decides one thing: `Alt` +
+right drag dollies in **Maya**, while **Blender** binds no camera gesture to the
+secondary button. Every other gesture above is identical in both.
+
+`Alt`/`Option` always means navigation and never opens a menu: an
+`Alt` + right drag dollies without the context menu appearing on release.
+An orthographic view has no orbit to give, so every orbit gesture pans there
+instead; an unmodified drag still starts a marquee, as in perspective.
+
+Explicit navigation gestures preserve the current selection, even when started
+over an object or gizmo. In Fly mode, a primary drag looks around in both
+profiles. The status bar identifies Orbit, Pan, Dolly or Fly while starting a
+navigation gesture. Pan uses the displayed viewport size and camera FOV; wheel
+input is normalized for devices reporting pixels, lines or pages.
+
+`F` fits all selected visible objects with a margin, accounting for the viewport
+aspect ratio and orthographic zoom. Loaded geometry bounds are used when
+available, with animated world transforms as the fallback.
+
+`Escape` cancels the current drag or marquee. A click without movement does not
+consume an undo step. Losing pointer capture cancels the gesture and clears its
+cursor/capture state, so the next interaction starts cleanly.
 
 | Control | Action |
 |---|---|
 | Mouse wheel | Dolly in / out |
 | Double-click in the viewport | Place the camera target under the cursor |
 | `F` or `Numpad .` | Frame the selection (or the target) |
+| `A` or `Home` | Frame every visible object (Maya `A`, Blender `Home`) |
 | `C`, or `Shift` + `` ` `` | Toggle Fly mode |
 | `W` `A` `S` `D` `Q` `E` (Fly mode only) | Fly move; `Shift` flies faster |
 | Mouse wheel (Fly mode) | Adjust fly speed |
@@ -40,11 +76,14 @@ menu (and seeded per node by *Settings → OmniCam → Navigation*):
 | `Numpad 1` / `Ctrl`/`Cmd` + `Numpad 1` | Front / back view |
 | `Numpad 3` / `Ctrl`/`Cmd` + `Numpad 3` | Right / left view |
 | `Numpad 7` / `Ctrl`/`Cmd` + `Numpad 7` | Top / bottom view |
-| `Numpad 9` | Bottom view |
+| `Numpad 9` | Flip to the opposite view (half turn from a free view) |
+| `Numpad 4` / `Numpad 6` | Orbit left / right by 15 degrees |
+| `Numpad 8` / `Numpad 2` | Orbit up / down by 15 degrees |
 | `Numpad 5` | Toggle camera / perspective view |
 | `N` | Toggle the Inspector panel |
 
 Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
+`A` frames the scene outside Fly mode and strafes left inside it.
 
 ## Selection and transformation (viewport zone)
 
@@ -52,8 +91,7 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 |---|---|
 | Click | Select an object |
 | `Shift`/`Ctrl`/`Cmd` + click | Add / remove from the selection |
-| `Ctrl`/`Cmd` + drag in empty space | Marquee selection (Maya profile) |
-| Left drag in empty space | Marquee selection (Blender profile) |
+| Left drag in empty space | Marquee selection (both profiles) |
 | Hold `Shift` when the marquee starts | Additive marquee |
 | `Shift` + `G` | Select the active object and all its descendants |
 | `T` | Modal translate |
@@ -68,6 +106,16 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 | `1` `2` `3` `4` (not numpad) | Component select mode: vertex / edge / face / object |
 | `H` / `Alt`+`H` | Hide the selected object / show all |
 | `Delete` / `Backspace` | Delete the selected object or camera |
+
+The toolbar's **Transform space** (World / Local) applies to **Move only**.
+Scale and Rotate always use the object's own axes, as Maya's own manipulators
+do, because that is the only frame their stored data has: handle *N* writes
+`size[N]` or `rotation[N]`, a size triple lives in the object's frame, and an
+XYZ euler composes as `Rz*Ry*Rx` so `rotation[0]` is a turn about the object's
+own X. Drawing those handles along world axes promised a transform the data
+cannot perform -- a world scale shears, and a world rotation has to recompose
+the euler -- so a cube turned 90 degrees on Z grew and spun about the axis next
+to the one whose handle was grabbed.
 
 `T`/`R`/`S` transform every selected object around their shared pivot. Locked
 objects stay selectable but are not transformed. The toolbar's **Spatial Snap**
@@ -172,3 +220,10 @@ camera and the target in frame. The radar is never drawn during a playblast.
 4. Test the additive marquee and `Shift`+`G` on a hierarchy.
 5. Switch Maya / Blender and check orbit, pan and dolly in each profile.
 6. Enter Fly with `C`, move with `W`/`A`/`S`/`D`/`Q`/`E`, exit with `Esc`.
+7. Alt-drag over an object in Maya; check that the selection stays unchanged.
+8. Frame two distant objects with `F` in perspective and front views, including
+   a narrow viewport. Both objects must fit; Undo must restore the prior view.
+9. Cancel a navigation drag and a Blender marquee with `Esc`; then start another
+   drag. A stationary click followed by `Esc` must preserve the previous edit.
+10. Compare pan at different display scales and wheel/trackpad zoom. Save and
+    reload the workflow; the editor view and authored camera must survive.

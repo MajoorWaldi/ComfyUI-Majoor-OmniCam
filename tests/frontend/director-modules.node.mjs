@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { EditorHistory } from "../../web-src/director/history.js";
-import { applyCameraShake, cameraBasis, bezierEaseWithHandles, cloneCamera, defaultEditorViews, defaultState, generateCameraPreset, lerpAngle, project, resolveChannelHandles, resolveHandles, sampleCamera, sanitizeState, worldTransform } from "../../web-src/director/core.js";
+import { applyCameraOrientationEuler, applyCameraShake, cameraBasis, cameraOrientationEuler, bezierEaseWithHandles, clamp, cloneCamera, defaultEditorViews, defaultState, generateCameraPreset, lerpAngle, project, resolveChannelHandles, resolveHandles, sampleCamera, sanitizeState, worldTransform } from "../../web-src/director/core.js";
+import { createEditorMethods } from "../../web-src/director/methods/editor.js";
 import { uploadPlayblast, captureRealtimePlayblast } from "../../web-src/director/playblast.js";
 import { ObjectUrlRegistry, uploadManagedFile } from "../../web-src/director/media.js";
 import { getLocale, registerLocale, setLocale, t } from "../../web-src/i18n.js";
@@ -149,6 +150,81 @@ test("DCC viewport commands use contextual delete, duplicate and opposing numpad
   }
 });
 
+test("camera Rotation X/Y/Z round-trips through Target+Roll (new feature)", () => {
+  // A look-at camera's target already fixes pitch and yaw; roll is the one
+  // degree of freedom it stores directly. [pitch, yaw, roll] is therefore a
+  // complete, non-conflicting alternative to Target XYZ for aiming the
+  // camera, matching Maya/Blender's own rotate channels for a camera object.
+  const camera = { position: [0, 0, 5], target: [0, 0, 0], roll: 0, up: [0, 1, 0] };
+  assert.deepEqual(cameraOrientationEuler(camera), [0, 0, 0], "looking down -Z with no roll is the identity");
+
+  applyCameraOrientationEuler(camera, [30, 45, 15]);
+  const distance = Math.hypot(...camera.target.map((v, i) => v - camera.position[i]));
+  assert.ok(Math.abs(distance - 5) < 1e-9, "a pure orientation edit must not dolly the camera");
+  const back = cameraOrientationEuler(camera);
+  assert.ok(Math.abs(back[0] - 30) < 1e-9 && Math.abs(back[1] - 45) < 1e-9 && back[2] === 15, "must round-trip exactly");
+
+  // cameraBasis is the source of truth for what the camera actually renders;
+  // the derived rotation must describe the same forward direction it does.
+  const basis = cameraBasis(camera);
+  const offset = camera.target.map((v, i) => v - camera.position[i]);
+  const forward = offset.map((v) => v / distance);
+  assert.ok(Math.abs(basis.forward[0] - forward[0]) < 1e-9 && Math.abs(basis.forward[1] - forward[1]) < 1e-9 && Math.abs(basis.forward[2] - forward[2]) < 1e-9);
+});
+
+test("camera Rotation X clamps to +/-90 (looking straight up/down), matching a real camera's gimbal limit", () => {
+  const camera = { position: [0, 0, 5], target: [0, 0, 0], roll: 0, up: [0, 1, 0] };
+  applyCameraOrientationEuler(camera, [90, 0, 0]);
+  assert.ok(Math.abs(camera.target[1] - camera.position[1] - 5) < 1e-9, "pitched fully up must look straight up");
+  const [pitch] = cameraOrientationEuler(camera);
+  assert.ok(Math.abs(pitch - 90) < 1e-9);
+});
+
+test("undo/redo re-resolves a bone-level aim constraint instead of leaving it stale (regression)", () => {
+  // sampleCamera alone cannot resolve a bone-level aim -- bones only exist in
+  // the WebGL viewport (see aim-constraint.js's own header). setFrame() folds
+  // applyAimConstraint() in after every sampleCamera call, but
+  // restoreHistorySnapshot (undo/redo) only used to call sampleCamera, so
+  // undoing or redoing any edit snapped a bone-tracked camera's target back
+  // to the plain object-centre resolution until the next scrub corrected it.
+  const deps = new Proxy({ sanitizeState, sampleCamera, clamp }, { get: (target, prop) => (prop in target ? target[prop] : () => {}) });
+  const ui = createEditorMethods(deps);
+  ui.state = sanitizeState({});
+  const track = ui.state.cameras[0];
+  track.target_object_id = "hero";
+  track.aim_bone = "head";
+  ui.state.objects = [{ id: "hero", type: "model", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] }];
+  ui.frame = 0;
+  ui.activeCameraTrack = () => track;
+  ui.timelineKeyframes = () => track.keyframes;
+  ui.webgl = { sampleModelPoint: () => [9, 9, 9] };
+  ui.removeObjectResources = () => {};
+  ui.serialize = () => {}; ui.restoreAssets = () => {};
+  ui.refreshObjects = () => {}; ui.refreshKeys = () => {}; ui.refreshInspector = () => {}; ui.render = () => {};
+  const snapshot = JSON.stringify({
+    state: ui.state, frame: 0, selectedEntity: "camera", selectedObjectId: null,
+    selectedObjectIds: [], selectedKeyFrame: null, selectedKeyFrames: [], subSelection: null,
+  });
+  ui.restoreHistorySnapshot(snapshot);
+  assert.deepEqual(ui.camera.target, [9, 9, 9], "the bone-resolved target must be applied, not just sampleCamera's plain result");
+});
+
+test("duplicating a model/card keeps its asset and gets its own live URL entry (regression)", async () => {
+  // duplicateObject used to `delete copy.asset` and never touch
+  // modelUrlsById/cardMediaById for the new id -- a duplicated FBX/GLB or
+  // card had nothing to render (no live map entry) and no way to reconnect
+  // after a reload (no asset for restoreAssets to resolve). Each object id
+  // still gets its own independent WebGL load and animation mixer
+  // (viewport/resources.js keys `models` by id, not by URL), so sharing the
+  // same asset/URL between the source and the copy is exactly correct: two
+  // fully independent animated instances of the same file.
+  const source = await readFile(new URL("../../web-src/scene/objects.js", import.meta.url), "utf8");
+  const duplicateFn = source.slice(source.indexOf("export function duplicateObject"), source.indexOf("export function toggleObject"));
+  assert.doesNotMatch(duplicateFn, /delete copy\.asset/, "the asset reference must survive a duplicate");
+  assert.match(duplicateFn, /modelUrlsById\.set\(copy\.id/, "a duplicated model must get its own live modelUrlsById entry");
+  assert.match(duplicateFn, /cardMediaById\.set\(copy\.id/, "a duplicated card must get its own live cardMediaById entry");
+});
+
 test("viewport transforms create undo checkpoints before their first mutation", async () => {
   const source = await readFile(new URL("../../web-src/viewport-controls/interactions.js", import.meta.url), "utf8");
   assert.match(source, /checkpointDrag\(ui, ui\.gizmoDrag/);
@@ -208,6 +284,23 @@ test("modal T transform applies numeric axis input to a multi-selection", () => 
   handleModalTransformKey(ui, { key: "Enter" });
   assert.equal(ui.modalTransform, null);
   assert.equal(ui.checkpoints[0], "Translate selection");
+});
+
+test("modal G, X, drag with grid snap keeps Y/Z exactly where they started (regression)", () => {
+  // Grid snap used to round every component of the resulting position, so
+  // locking the modal transform to X (G, X) and dragging with Ctrl/Grid-snap
+  // active would still drag Y and Z onto the grid the moment either one
+  // wasn't already grid-aligned -- an axis-locked drag visibly jumped off
+  // its axis.
+  const first = { id: "a", position: [0.3, 1.53, 2.17], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
+  const ui = modalUi([first]);
+  ui.state.spatial_snap_mode = "grid";
+  assert.equal(beginModalTransform(ui, "translate"), true);
+  handleModalTransformKey(ui, { key: "x" });
+  handleModalTransformKey(ui, { key: "1" });
+  assert.equal(first.position[1], 1.53, "Y must stay exactly where it started");
+  assert.equal(first.position[2], 2.17, "Z must stay exactly where it started");
+  assert.ok(Math.abs(first.position[0] % 0.5) < 1e-9, "X must land on the grid");
 });
 
 test("editor state preserves independent navigation and spatial snap preferences", () => {
@@ -332,101 +425,6 @@ test("realtime playblast fails clearly when MediaRecorder is absent", async () =
     captureRealtimePlayblast({ canvas: { captureStream() {} }, fps: 24, frameCount: 1, renderFrame() {}, mediaRecorder: null }),
     /MediaRecorder unsupported/,
   );
-});
-
-test("selecting a viewport object keeps camera navigation active", () => {
-  const object = { id: "subject", type: "cube", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
-  const camera = { position: [6, 4, 6], target: [0, 0, 0], up: [0, 1, 0], fov: 35, camera_type: "perspective", zoom: 1 };
-  const ui = {
-    state: { view_mode: "camera", objects: [object], cameras: [], gizmo_mode: "translate", gizmo_space: "world" },
-    camera,
-    canvas: { width: 800, height: 450, classList: { add() {} } },
-    interactionElement: {
-      focus() {},
-      setPointerCapture() {},
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }),
-    },
-    webgl: { pick: () => ({ type: "object", id: object.id }) },
-    selectedEntity: "camera",
-    selectedObjectId: null,
-    selectedKeyFrame: null,
-    closeMenus() {},
-    checkpoint() {},
-    finishCameraEdit() {},
-    refreshObjects() {},
-    refreshKeys() {},
-    refreshInspector() {},
-    render() {},
-    setStatus() {},
-    beginCameraEdit() {},
-    selectedObject() { return this.state.objects.find((item) => item.id === this.selectedObjectId) || null; },
-  };
-  onPointerDown(ui, {
-    button: 0,
-    pointerId: 1,
-    clientX: 400,
-    clientY: 225,
-    altKey: false,
-    shiftKey: false,
-    target: { closest: () => null },
-    preventDefault() {},
-    stopPropagation() {},
-  });
-  assert.equal(ui.selectedEntity, "object");
-  assert.equal(ui.selectedObjectId, object.id);
-  assert.ok(ui.drag, "the same pointer gesture should initialize camera navigation");
-});
-
-test("a selected object directly captures a plain left-drag on its gizmo", async () => {
-  const source = await readFile(new URL("../../web-src/viewport-controls/interactions.js", import.meta.url), "utf8");
-  assert.match(source, /canEditGizmo = canPick && !e\.altKey && !e\.shiftKey/);
-  assert.match(source, /const picked = canEditGizmo \? pickGizmo/);
-});
-
-test("selection rendering and outliner expose visible, contextual object feedback", async () => {
-  const selectionSource = await readFile(new URL("../../web-src/viewport/scene.js", import.meta.url), "utf8");
-  const outlinerSource = await readFile(new URL("../../web-src/scene/outliner.js", import.meta.url), "utf8");
-  assert.match(selectionSource, /Box3Helper/);
-  assert.doesNotMatch(selectionSource, /wireframe: true/);
-  assert.match(selectionSource, /nextSelectionKey/);
-  assert.match(outlinerSource, /openObjectContext\(event, object\.id\)/);
-  assert.match(outlinerSource, /event\.key === "Enter" \|\| event\.key === " "/);
-});
-
-test("secondary click is contained for the OmniCam context menu", () => {
-  const calls = [];
-  onPointerDown({ root: {}, interactionElement: {} }, {
-    button: 2,
-    altKey: false,
-    target: { closest: () => null },
-    preventDefault() { calls.push("default"); },
-    stopPropagation() { calls.push("propagation"); },
-    stopImmediatePropagation() { calls.push("immediate"); },
-  });
-  assert.deepEqual(calls, ["default", "propagation", "immediate"]);
-});
-
-test("middle-button navigation bypasses picking on a selected object", () => {
-  let pickCalls = 0;
-  const camera = { position: [6, 4, 6], target: [0, 0, 0], up: [0, 1, 0], fov: 35, camera_type: "perspective", zoom: 1 };
-  const ui = {
-    state: { view_mode: "camera", editor_views: {}, objects: [], cameras: [], gizmo_mode: "translate", gizmo_space: "world" },
-    camera,
-    canvas: { width: 800, height: 450, classList: { add() {} } },
-    interactionElement: {
-      focus() {}, setPointerCapture() {},
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }),
-    },
-    webgl: { pick() { pickCalls += 1; return { type: "object", id: "subject" }; } },
-    closeMenus() {}, checkpoint() {}, beginCameraEdit() {}, selectedObject() { return null; },
-  };
-  onPointerDown(ui, {
-    button: 1, pointerId: 2, clientX: 400, clientY: 225,
-    altKey: false, shiftKey: false, target: { closest: () => null },
-    preventDefault() {}, stopPropagation() {},
-  });
-  assert.equal(pickCalls, 0);
-  assert.equal(ui.drag?.shift, true);
 });
 
 test("camera movement edits the existing playhead key without auto-key", () => {

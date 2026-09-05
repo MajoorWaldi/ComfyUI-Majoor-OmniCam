@@ -176,3 +176,43 @@ test("S splits the shot under the playhead from the sequence editor", () => {
   assert.deepEqual(ui.state.sequence.cuts.map((c) => c.start), [0, 40]);
   assert.equal(ui.state.sequence.cuts[1].camera_id, "b", "the new half takes the next camera");
 });
+
+test("A and Home frame the whole scene from the viewport, but only outside Fly mode", () => {
+  const calls = [];
+  const ui = baseUi({ frameTarget: (options) => calls.push(options), isNavigatingFly: false });
+  assert.equal(press(ui, ["viewport-wrap"], { key: "a", code: "KeyA" }), true);
+  assert.equal(press(ui, ["viewport-wrap"], { key: "Home", code: "Home" }), true);
+  assert.deepEqual(calls, [{ all: true }, { all: true }]);
+
+  // In Fly mode A strafes left; claiming it for framing would ground the user.
+  ui.isNavigatingFly = true;
+  ui.viewportCamera = () => ({ position: [0, 0, 5], target: [0, 0, 0], fov: 35 });
+  ui.beginCameraEdit = () => {}; ui.commitCameraEdit = () => {}; ui.finishCameraEdit = () => {};
+  ui.cameraSpeed = 1;
+  ui.serialize = () => {}; ui.render = () => {};
+  press(ui, ["viewport-wrap"], { key: "a", code: "KeyA" });
+  assert.equal(calls.length, 2, "Fly mode must not frame the scene");
+});
+
+test("the numpad orbit keys turn the viewport camera around its target", () => {
+  const camera = { position: [0, 0, 5], target: [0, 0, 0], fov: 35 };
+  const ui = baseUi({
+    state: { ...baseUi().state, view_mode: "perspective" },
+    viewportCamera: () => camera,
+    serialize() {}, render() {},
+  });
+  assert.equal(press(ui, ["viewport-wrap"], { key: "4", code: "Numpad4" }), true);
+  assert.ok(camera.position[0] > 0.1, "Numpad 4 must orbit left around the target");
+  assert.ok(Math.abs(Math.hypot(...camera.position) - 5) < 1e-6, "orbiting must preserve the distance");
+
+  camera.position = [0, 0, 5];
+  press(ui, ["viewport-wrap"], { key: "8", code: "Numpad8" });
+  assert.ok(camera.position[1] > 0.1, "Numpad 8 must orbit up");
+});
+
+test("Numpad 9 flips to the opposite orthographic view", () => {
+  const modes = [];
+  const ui = baseUi({ state: { ...baseUi().state, view_mode: "front" }, setViewMode: (mode) => modes.push(mode) });
+  press(ui, ["viewport-wrap"], { key: "9", code: "Numpad9" });
+  assert.deepEqual(modes, ["back"]);
+});

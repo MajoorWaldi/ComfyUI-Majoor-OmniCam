@@ -20,6 +20,7 @@ import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
 import { cancelMotionCreation } from "./motion-tracks/creation.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
 import { anyDirectorsLive, directorForTarget } from "./settings.js";
+import { oppositeViewFor, orbitView } from "./view-navigation.js";
 import {
   autoSequenceCuts, cutAtFrame, removeCut, sequenceCuts, splitCutAtFrame,
 } from "./director/sequence.js";
@@ -202,6 +203,14 @@ function viewportKeymap(ui, event) {
     if (!event.repeat) ui.frameTarget();
     return true;
   }
+  // Maya frames the whole scene with A, Blender with Home. Neither is claimed
+  // by anything else in the viewport zone -- A only moves the camera while Fly
+  // mode is on, and Home is a timeline-zone key. Shift+A stays unbound, the way
+  // both packages reserve it for their own add menu.
+  if ((key === "a" || event.key === "Home") && !ui.isNavigatingFly && !event.shiftKey) {
+    if (!event.repeat) ui.frameTarget({ all: true });
+    return true;
+  }
   if (key === "n") {
     if (!event.repeat) ui.toggleInspector();
     return true;
@@ -222,7 +231,24 @@ function viewportKeymap(ui, event) {
   if (code === "Numpad1") { ui.setViewMode(event.ctrlKey || event.metaKey ? "back" : "front"); return true; }
   if (code === "Numpad3") { ui.setViewMode(event.ctrlKey || event.metaKey ? "left" : "right"); return true; }
   if (code === "Numpad7") { ui.setViewMode(event.ctrlKey || event.metaKey ? "bottom" : "top"); return true; }
-  if (code === "Numpad9") { ui.setViewMode("bottom"); return true; }
+  // Numpad 9 flips to the far side of the current orthographic view (Blender's
+  // own binding); from a free view there is no opposite to name, so it spins a
+  // half turn instead. Ctrl+Numpad 7 remains the way to ask for "bottom".
+  if (code === "Numpad9") {
+    const opposite = oppositeViewFor(ui.state.view_mode);
+    if (opposite) ui.setViewMode(opposite);
+    else orbitView(ui, Math.PI, 0);
+    return true;
+  }
+  // Stepped orbit, 15 degrees a press, for trackpads and for nudging a view
+  // without touching the mouse. In an orthographic editor view it swings the
+  // view direction off its axis, exactly as Blender's own numpad orbit does.
+  const ORBIT_STEP = Math.PI / 12;
+  const orbitKeys = { Numpad4: [ORBIT_STEP, 0], Numpad6: [-ORBIT_STEP, 0], Numpad8: [0, ORBIT_STEP], Numpad2: [0, -ORBIT_STEP] };
+  if (orbitKeys[code]) {
+    orbitView(ui, orbitKeys[code][0], orbitKeys[code][1]);
+    return true;
+  }
   if (code === "Numpad5") { ui.setViewMode(ui.state.view_mode === "camera" ? "perspective" : "camera"); return true; }
 
   if (key === "h" && !event.ctrlKey && !event.metaKey && !event.altKey) {

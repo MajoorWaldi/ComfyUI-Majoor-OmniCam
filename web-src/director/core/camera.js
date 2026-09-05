@@ -1,4 +1,4 @@
-import { add, clamp, cross, dot, mul, norm, resolveSampleSegment, sampleChannel, sub } from "../core.js";
+import { add, clamp, cross, dot, length, mul, norm, resolveSampleSegment, sampleChannel, sub } from "../core.js";
 import { cloneCamera, defaultCamera, sampleObjectWorldTransform } from "../core.js";
 import { annotatedAssetUrl as sharedAnnotatedAssetUrl } from "../../shared/managed-assets.js";
 
@@ -39,6 +39,35 @@ export function cameraBasis(camera) {
   let up = norm(cross(right, forward));
   if (Math.abs(camera.roll || 0) > 1e-9) { const radians = camera.roll * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians), rolledRight = add(mul(right, cosine), mul(up, sine)); up = add(mul(up, cosine), mul(right, -sine)); right = rolledRight; }
   return { right, up, forward };
+}
+
+// A look-at camera's target already removes two rotational degrees of
+// freedom (pitch and yaw are exactly the direction from position to target);
+// roll is the one that stays free, and this app already stores it as its own
+// field. [pitch, yaw, roll] in degrees is therefore a complete, gimbal-free
+// (away from straight up/down) orientation for a camera aimed this way --
+// applyCameraOrientationEuler below is its exact inverse, so a Rotation X/Y/Z
+// field can edit the same camera Maya/Blender would via rotate channels,
+// without inventing a second, conflicting notion of "rotation".
+export function cameraOrientationEuler(camera) {
+  const offset = sub(camera.target, camera.position);
+  const dist = length(offset);
+  const forward = dist < 1e-6 ? [0, 0, -1] : mul(offset, 1 / dist);
+  const pitch = Math.asin(clamp(forward[1], -1, 1)) * 180 / Math.PI;
+  const yaw = Math.atan2(forward[0], -forward[2]) * 180 / Math.PI;
+  return [pitch, yaw, camera.roll || 0];
+}
+
+/** Inverse of cameraOrientationEuler. Keeps the camera's position and its
+ * current distance to the target -- a pure orientation edit must not also
+ * dolly the camera in or out. */
+export function applyCameraOrientationEuler(camera, rotation) {
+  const [pitch, yaw, roll] = rotation;
+  const dist = Math.max(1e-4, length(sub(camera.target, camera.position)));
+  const pitchRad = pitch * Math.PI / 180, yawRad = yaw * Math.PI / 180;
+  const forward = [Math.sin(yawRad) * Math.cos(pitchRad), Math.sin(pitchRad), -Math.cos(yawRad) * Math.cos(pitchRad)];
+  camera.target = add(camera.position, mul(forward, dist));
+  camera.roll = roll;
 }
 
 export function project(point, camera, width, height) {

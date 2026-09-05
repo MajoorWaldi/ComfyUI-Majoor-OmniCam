@@ -89,6 +89,11 @@ pycolmap, OpenCV/SIFT) are all optional and installed separately — see the
 
 ### OmniCam Director
 
+The viewport supports Maya/Blender navigation profiles, selection-preserving
+navigation gestures, display-scale-aware pan and normalized wheel zoom. Press
+`F` to fit the entire selection in perspective or orthographic views, and
+`Escape` to cancel a drag. See [controls and shortcuts](docs/SHORTCUTS.md).
+
 ![OmniCam Director](docs/assets/director-panel.png)
 
 A small shot-layout tool in a live 3D viewport. Animate cameras and scene

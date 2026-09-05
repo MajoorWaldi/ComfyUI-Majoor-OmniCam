@@ -1,50 +1,50 @@
 import { app as U } from "../../scripts/app.js";
-import { api as Ka } from "../../scripts/api.js";
-const Va = "MajoorOmniCam", Ga = new URL("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20256%20256'%20role='img'%20aria-labelledby='title'%3e%3ctitle%20id='title'%3eMajoor%20OmniCam%3c/title%3e%3c!--%20Vector%20twin%20of%20web/assets/omnicam-icon.png:%20same%20mark,%20~1%20KB%20so%20the%20eagerly-loaded%20node-branding%20chunk%20stays%20cheap.%20Keep%20the%20two%20in%20sync.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='102'%20fill='%23031228'/%3e%3ccircle%20cx='128'%20cy='128'%20r='53'%20fill='%23f7f6ff'/%3e%3ccircle%20cx='128'%20cy='128'%20r='43'%20fill='%238873fd'/%3e%3c/svg%3e", import.meta.url).href, G = 20;
+import { api as Ua } from "../../scripts/api.js";
+const Xa = "MajoorOmniCam", Ya = new URL("data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20256%20256'%20role='img'%20aria-labelledby='title'%3e%3ctitle%20id='title'%3eMajoor%20OmniCam%3c/title%3e%3c!--%20Vector%20twin%20of%20web/assets/omnicam-icon.png:%20same%20mark,%20~1%20KB%20so%20the%20eagerly-loaded%20node-branding%20chunk%20stays%20cheap.%20Keep%20the%20two%20in%20sync.%20--%3e%3ccircle%20cx='128'%20cy='128'%20r='102'%20fill='%23031228'/%3e%3ccircle%20cx='128'%20cy='128'%20r='53'%20fill='%23f7f6ff'/%3e%3ccircle%20cx='128'%20cy='128'%20r='43'%20fill='%238873fd'/%3e%3c/svg%3e", import.meta.url).href, B = 20;
 let ne = null;
-function Ba() {
-  return ne || typeof Image > "u" || (ne = new Image(), ne.src = Ga), ne;
+function Za() {
+  return ne || typeof Image > "u" || (ne = new Image(), ne.src = Ya), ne;
 }
-function qa() {
+function Qa() {
   const t = Date.now() % 2600 / 2600;
   return 0.12 + 0.1 * (0.5 - 0.5 * Math.cos(t * Math.PI * 2));
 }
-function Ha(e) {
+function Ja(e) {
   e.registerExtension({
     name: "MajoorOmniCam.NodeBranding",
     beforeRegisterNodeDef(t, a) {
-      if (!String(a?.name || a?.node_id || t?.comfyClass || t?.type || "").startsWith(Va)) return;
+      if (!String(a?.name || a?.node_id || t?.comfyClass || t?.type || "").startsWith(Xa)) return;
       const r = t.prototype.onDrawForeground;
       t.prototype.onDrawForeground = function(n) {
         if (r?.apply(this, arguments), this.flags?.collapsed) return;
-        const s = Ba();
+        const s = Za();
         if (!s?.complete || !s.naturalWidth) return;
-        const i = Math.max(4, Number(this.size?.[0] || 160) - G - 6), l = -26, m = i + G / 2, c = l + G / 2;
+        const i = Math.max(4, Number(this.size?.[0] || 160) - B - 6), c = -26, m = i + B / 2, l = c + B / 2;
         if (n.save(), this.selected) {
-          const p = qa(), d = n.createRadialGradient(m, c, G * 0.35, m, c, G * 1.15);
-          d.addColorStop(0, `rgba(136, 115, 253, ${p})`), d.addColorStop(1, "rgba(136, 115, 253, 0)"), n.fillStyle = d, n.beginPath(), n.arc(m, c, G * 1.15, 0, Math.PI * 2), n.fill();
+          const d = Qa(), p = n.createRadialGradient(m, l, B * 0.35, m, l, B * 1.15);
+          p.addColorStop(0, `rgba(136, 115, 253, ${d})`), p.addColorStop(1, "rgba(136, 115, 253, 0)"), n.fillStyle = p, n.beginPath(), n.arc(m, l, B * 1.15, 0, Math.PI * 2), n.fill();
         }
-        n.globalAlpha = 0.96, n.drawImage(s, i, l, G, G), n.restore();
+        n.globalAlpha = 0.96, n.drawImage(s, i, c, B, B), n.restore();
       };
     }
   });
 }
-const et = "en", xe = /* @__PURE__ */ new Map([[et, {}]]);
-function Wa(e, t) {
-  xe.set(e, { ...xe.get(e) || {}, ...t || {} });
+const rt = "en", ke = /* @__PURE__ */ new Map([[rt, {}]]);
+function eo(e, t) {
+  ke.set(e, { ...ke.get(e) || {}, ...t || {} });
 }
-let Ge = et;
-function $a(e) {
-  xe.has(e) && (Ge = e);
+let $e = rt;
+function to(e) {
+  ke.has(e) && ($e = e);
 }
-function _(e) {
-  return Ge === et ? e : xe.get(Ge)?.[e] || e;
+function w(e) {
+  return $e === rt ? e : ke.get($e)?.[e] || e;
 }
-const Ua = "__sequence__";
-function Xa() {
+const ao = "__sequence__";
+function oo() {
   return { enabled: !1, cuts: [], recording_path: "" };
 }
-function Ya(e, t = []) {
+function ro(e, t = []) {
   const a = e && typeof e == "object" ? e : {}, o = new Set(t), r = /* @__PURE__ */ new Set(), n = (Array.isArray(a.cuts) ? a.cuts : []).filter((s) => s && typeof s == "object" && o.has(String(s.camera_id))).map((s) => ({
     camera_id: String(s.camera_id),
     start: Math.max(0, Math.round(Number(s.start) || 0))
@@ -55,7 +55,7 @@ function Ya(e, t = []) {
     recording_path: typeof a.recording_path == "string" ? a.recording_path : ""
   };
 }
-function Ce(e) {
+function je(e) {
   const t = Math.max(0, (e?.duration_frames || 1) - 1), a = (e?.sequence?.cuts || []).filter((o) => o.start <= t);
   return a.map((o, r) => ({
     camera_id: o.camera_id,
@@ -63,18 +63,18 @@ function Ce(e) {
     end: r + 1 < a.length ? a[r + 1].start - 1 : t
   }));
 }
-function Zr(e) {
-  return !!e?.sequence?.enabled && Ce(e).length > 0;
+function pn(e) {
+  return !!e?.sequence?.enabled && je(e).length > 0;
 }
-function Mt(e, t) {
-  const a = Ce(e);
+function Tt(e, t) {
+  const a = je(e);
   if (!a.length) return null;
   const o = Math.max(0, Math.round(Number(t) || 0));
   for (let r = a.length - 1; r >= 0; r--)
     if (o >= a[r].start) return a[r];
   return a[0];
 }
-function Za(e) {
+function no(e) {
   const t = e?.cameras || [], a = Math.max(0, (e?.duration_frames || 1) - 1);
   if (!t.length) return [];
   const o = (a + 1) / t.length, r = t.map((s, i) => ({
@@ -83,7 +83,7 @@ function Za(e) {
   })), n = /* @__PURE__ */ new Set();
   return r.filter((s) => s.start > a || n.has(s.start) ? !1 : (n.add(s.start), !0));
 }
-function Qr(e, t, a) {
+function fn(e, t, a) {
   const o = e?.sequence?.cuts || [];
   if (t <= 0 || t >= o.length) return !1;
   const r = o[t - 1].start + 1, n = (t + 1 < o.length ? o[t + 1].start : e.duration_frames || 1) - 1;
@@ -91,38 +91,38 @@ function Qr(e, t, a) {
   const s = Math.max(r, Math.min(n, Math.round(Number(a) || 0)));
   return s === o[t].start ? !1 : (o[t].start = s, !0);
 }
-function Qa(e, t) {
+function so(e, t) {
   const a = e?.cameras || [];
   if (!a.length) return t;
   const o = a.findIndex((r) => r.id === t);
   return a[(o + 1) % a.length].id;
 }
-function Ja(e, t, a = null) {
+function io(e, t, a = null) {
   const o = e?.sequence?.cuts || [], r = Math.max(0, Math.round(Number(t) || 0));
   if (!o.length || r <= 0 || o.some((i) => i.start === r)) return !1;
-  const s = Mt(e, r)?.camera_id || o[0].camera_id;
-  return o.push({ camera_id: a || Qa(e, s), start: r }), o.sort((i, l) => i.start - l.start), !0;
+  const s = Tt(e, r)?.camera_id || o[0].camera_id;
+  return o.push({ camera_id: a || so(e, s), start: r }), o.sort((i, c) => i.start - c.start), !0;
 }
-function eo(e, t) {
+function co(e, t) {
   const a = e?.sequence?.cuts || [];
   return t < 0 || t >= a.length || a.length === 1 ? !1 : (a.splice(t, 1), a.length && (a[0].start = 0), !0);
 }
-const xt = Object.freeze(["select", "track", "anchor", "project", "erase"]), Ct = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), Dt = Object.freeze(["linear", "smooth", "hold"]), le = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, ct = (e) => Math.max(0, Math.min(1, le(e)));
-function to(e, t) {
+const Et = Object.freeze(["select", "track", "anchor", "project", "erase"]), It = Object.freeze(["manual_2d", "static_anchor", "world_point", "object_point", "camera_field"]), At = Object.freeze(["linear", "smooth", "hold"]), le = (e, t = 0) => Number.isFinite(Number(e)) ? Number(e) : t, pt = (e) => Math.max(0, Math.min(1, le(e)));
+function lo(e, t) {
   return {
     time_seconds: Math.max(0, Math.min(t, le(e?.time_seconds))),
-    x: ct(e?.x),
-    y: ct(e?.y),
+    x: pt(e?.x),
+    y: pt(e?.y),
     visible: e?.visible !== !1,
-    interpolation: Dt.includes(e?.interpolation) ? e.interpolation : "linear"
+    interpolation: At.includes(e?.interpolation) ? e.interpolation : "linear"
   };
 }
-function ao(e) {
+function mo(e) {
   const t = Math.max(1 / Math.max(1, le(e.fps, 24)), le(e.duration_frames, 120) / Math.max(1, le(e.fps, 24))), a = /* @__PURE__ */ new Set();
   return e.motion_layers = (Array.isArray(e.motion_layers) ? e.motion_layers : []).slice(0, 256).map((o, r) => {
     let n = String(o?.id || `motion_${r + 1}`);
     a.has(n) && (n = `motion_${r + 1}`), a.add(n);
-    const s = Ct.includes(o?.source_kind) ? o.source_kind : "manual_2d", i = (Array.isArray(o?.keys) ? o.keys : []).slice(0, 1e4).map((l) => to(l, t)).sort((l, m) => l.time_seconds - m.time_seconds);
+    const s = It.includes(o?.source_kind) ? o.source_kind : "manual_2d", i = (Array.isArray(o?.keys) ? o.keys : []).slice(0, 1e4).map((c) => lo(c, t)).sort((c, m) => c.time_seconds - m.time_seconds);
     return {
       id: n,
       label: String(o?.label || `Motion ${r + 1}`).slice(0, 80),
@@ -132,9 +132,9 @@ function ao(e) {
       keys: i,
       source: o?.source && typeof o.source == "object" ? { ...o.source } : {}
     };
-  }).filter((o) => o.keys.length), e.motion_tool = xt.includes(e.motion_tool) ? e.motion_tool : "select", e.selected_motion_layer_id = e.motion_layers.some((o) => o.id === e.selected_motion_layer_id) ? e.selected_motion_layer_id : e.motion_layers[0]?.id || null, e;
+  }).filter((o) => o.keys.length), e.motion_tool = Et.includes(e.motion_tool) ? e.motion_tool : "select", e.selected_motion_layer_id = e.motion_layers.some((o) => o.id === e.selected_motion_layer_id) ? e.selected_motion_layer_id : e.motion_layers[0]?.id || null, e;
 }
-function oo(e) {
+function po(e) {
   const t = String(e || "").trim().replaceAll("\\", "/");
   if (!t || t.length > 1024 || t.includes("\0") || t.includes("://")) return null;
   const a = t.match(/^(.*?)(?:\s+\[(input|output|temp)\])?$/);
@@ -144,134 +144,142 @@ function oo(e) {
   const r = o.lastIndexOf("/"), n = r >= 0 ? o.slice(r + 1) : o, s = r >= 0 ? o.slice(0, r) : "";
   return !n || n === "." ? null : { filename: n, subfolder: s, type: a[2] || "input" };
 }
-function ro(e, t) {
-  const a = oo(t);
+function fo(e, t) {
+  const a = po(t);
   if (!a) return "";
   const o = `/view?filename=${encodeURIComponent(a.filename)}&subfolder=${encodeURIComponent(a.subfolder)}&type=${encodeURIComponent(a.type)}`;
   return e?.apiURL ? e.apiURL(o) : o;
 }
-function Jr(e) {
-  return ro({ apiURL: jt }, e);
+function un(e) {
+  return fo({ apiURL: Ot }, e);
 }
-let jt = (e) => e;
-const Ne = /* @__PURE__ */ new WeakMap();
-function en({ api: e }) {
-  jt = (t) => e.apiURL ? e.apiURL(t) : t;
+let Ot = (e) => e;
+const Ve = /* @__PURE__ */ new WeakMap();
+function hn({ api: e }) {
+  Ot = (t) => e.apiURL ? e.apiURL(t) : t;
 }
-function no(e, t, a) {
-  const o = e.keyframes, r = Ne.get(e);
+function uo(e, t, a) {
+  const o = e.keyframes, r = Ve.get(e);
   if (r?.source === o && a >= r.frame && r.index < t.length - 1) {
     let s = r.index;
     for (; s + 1 < t.length - 1 && a >= t[s + 1].frame; ) s += 1;
     if (t[s].frame < a && a < t[s + 1].frame)
-      return Ne.set(e, { source: o, frame: a, index: s }), { leftIndex: s, left: t[s], right: t[s + 1] };
+      return Ve.set(e, { source: o, frame: a, index: s }), { leftIndex: s, left: t[s], right: t[s + 1] };
   }
-  const n = tt(t, a);
-  return Ne.set(e, { source: o, frame: a, index: n?.leftIndex ?? 0 }), n;
+  const n = nt(t, a);
+  return Ve.set(e, { source: o, frame: a, index: n?.leftIndex ?? 0 }), n;
 }
 function L(e) {
-  const t = O(e.target, e.position), a = Math.sqrt(ee(t, t)) < 1e-6 ? [0, 0, -1] : de(t);
+  const t = E(e.target, e.position), a = Math.sqrt(ee(t, t)) < 1e-6 ? [0, 0, -1] : de(t);
   let o = e.up || [0, 1, 0], r = me(a, o);
   Math.sqrt(ee(r, r)) < 1e-6 && (o = Math.abs(a[1]) > 0.9 ? [0, 0, a[1] > 0 ? -1 : 1] : [0, 1, 0], r = me(a, o)), r = de(r);
   let n = de(me(r, a));
   if (Math.abs(e.roll || 0) > 1e-9) {
-    const s = e.roll * Math.PI / 180, i = Math.cos(s), l = Math.sin(s), m = M(C(r, i), C(n, l));
-    n = M(C(n, i), C(r, -l)), r = m;
+    const s = e.roll * Math.PI / 180, i = Math.cos(s), c = Math.sin(s), m = C(D(r, i), D(n, c));
+    n = C(D(n, i), D(r, -c)), r = m;
   }
   return { right: r, up: n, forward: a };
 }
-function F(e, t, a, o) {
-  const { right: r, up: n, forward: s } = L(t), i = O(e, t.position), l = ee(i, s);
-  if (l <= Math.max(1e-4, t.near || 0.01) || l >= (t.far || 1e4)) return null;
-  const m = ee(i, r), c = ee(i, n);
+function gn(e) {
+  const t = E(e.target, e.position), a = G(t), o = a < 1e-6 ? [0, 0, -1] : D(t, 1 / a), r = Math.asin(k(o[1], -1, 1)) * 180 / Math.PI, n = Math.atan2(o[0], -o[2]) * 180 / Math.PI;
+  return [r, n, e.roll || 0];
+}
+function yn(e, t) {
+  const [a, o, r] = t, n = Math.max(1e-4, G(E(e.target, e.position))), s = a * Math.PI / 180, i = o * Math.PI / 180, c = [Math.sin(i) * Math.cos(s), Math.sin(s), -Math.cos(i) * Math.cos(s)];
+  e.target = C(e.position, D(c, n)), e.roll = r;
+}
+function R(e, t, a, o) {
+  const { right: r, up: n, forward: s } = L(t), i = E(e, t.position), c = ee(i, s);
+  if (c <= Math.max(1e-4, t.near || 0.01) || c >= (t.far || 1e4)) return null;
+  const m = ee(i, r), l = ee(i, n);
   if (t.camera_type === "orthographic") {
-    const d = 5 / Math.max(0.01, t.zoom || 1), u = d * a / Math.max(1, o);
-    return [a * (0.5 + m / (2 * u)), o * (0.5 - c / (2 * d)), l];
+    const p = 5 / Math.max(0.01, t.zoom || 1), f = p * a / Math.max(1, o);
+    return [a * (0.5 + m / (2 * f)), o * (0.5 - l / (2 * p)), c];
   }
-  const p = 0.5 * o / Math.tan(Math.max(1e-3, t.fov) * Math.PI / 360);
-  return [a * 0.5 + m * p / l, o * 0.5 - c * p / l, l];
+  const d = 0.5 * o / Math.tan(Math.max(1e-3, t.fov) * Math.PI / 360);
+  return [a * 0.5 + m * d / c, o * 0.5 - l * d / c, c];
 }
 function fe(e, t, a = null) {
-  const o = (e.keyframes || []).map((f) => ({
-    ...f,
-    camera: R(f.camera || f || e.camera || te())
+  const o = (e.keyframes || []).map((h) => ({
+    ...h,
+    camera: F(h.camera || h || e.camera || te())
   }));
-  if (!o.length) return R(e.camera || te());
-  const r = no(e, o, t), n = I(o, t, "pos_x", (f) => (f.camera || f).position[0], !1, r), s = I(o, t, "pos_y", (f) => (f.camera || f).position[1], !1, r), i = I(o, t, "pos_z", (f) => (f.camera || f).position[2], !1, r);
-  let l = I(o, t, "target_x", (f) => (f.camera || f).target[0], !1, r), m = I(o, t, "target_y", (f) => (f.camera || f).target[1], !1, r), c = I(o, t, "target_z", (f) => (f.camera || f).target[2], !1, r);
-  const p = e.constraints?.look_at, u = p?.status === void 0 || p?.status === "active" ? p?.object_id || e.target_object_id || e.camera?.target_object_id : null, h = a || e.objects;
-  if (u && Array.isArray(h)) {
-    const f = h.find((x) => x.id === u);
-    if (f && f.enabled !== !1) {
-      const x = Tt(h, f, t), T = p?.offset || e.target_offset || e.camera?.target_offset || [0, 0, 0];
-      l = (x.position?.[0] ?? 0) + (T[0] || 0), m = (x.position?.[1] ?? 1.5) + (T[1] || 0), c = (x.position?.[2] ?? 0) + (T[2] || 0);
+  if (!o.length) return F(e.camera || te());
+  const r = uo(e, o, t), n = A(o, t, "pos_x", (h) => (h.camera || h).position[0], !1, r), s = A(o, t, "pos_y", (h) => (h.camera || h).position[1], !1, r), i = A(o, t, "pos_z", (h) => (h.camera || h).position[2], !1, r);
+  let c = A(o, t, "target_x", (h) => (h.camera || h).target[0], !1, r), m = A(o, t, "target_y", (h) => (h.camera || h).target[1], !1, r), l = A(o, t, "target_z", (h) => (h.camera || h).target[2], !1, r);
+  const d = e.constraints?.look_at, f = d?.status === void 0 || d?.status === "active" ? d?.object_id || e.target_object_id || e.camera?.target_object_id : null, u = a || e.objects;
+  if (f && Array.isArray(u)) {
+    const h = u.find((S) => S.id === f);
+    if (h && h.enabled !== !1) {
+      const S = Pt(u, h, t), T = d?.offset || e.target_offset || e.camera?.target_offset || [0, 0, 0];
+      c = (S.position?.[0] ?? 0) + (T[0] || 0), m = (S.position?.[1] ?? 1.5) + (T[1] || 0), l = (S.position?.[2] ?? 0) + (T[2] || 0);
     }
   }
-  const g = I(o, t, "fov", (f) => Number((f.camera || f).fov ?? 35), !1, r), v = I(o, t, "roll", (f) => Number((f.camera || f).roll ?? 0), !0, r), y = I(o, t, "zoom", (f) => Number((f.camera || f).zoom ?? 1), !1, r), b = I(o, t, "near", (f) => Number((f.camera || f).near ?? 0.01), !1, r), S = I(o, t, "far", (f) => Number((f.camera || f).far ?? 1e4), !1, r), D = o[0]?.camera || o[0] || te();
-  let w = o[0];
-  for (const f of o)
-    if ((f.frame ?? 0) <= t) w = f;
+  const g = A(o, t, "fov", (h) => Number((h.camera || h).fov ?? 35), !1, r), b = A(o, t, "roll", (h) => Number((h.camera || h).roll ?? 0), !0, r), y = A(o, t, "zoom", (h) => Number((h.camera || h).zoom ?? 1), !1, r), _ = A(o, t, "near", (h) => Number((h.camera || h).near ?? 0.01), !1, r), v = A(o, t, "far", (h) => Number((h.camera || h).far ?? 1e4), !1, r), x = o[0]?.camera || o[0] || te();
+  let M = o[0];
+  for (const h of o)
+    if ((h.frame ?? 0) <= t) M = h;
     else break;
-  const k = (w.camera || w).camera_type;
+  const j = (M.camera || M).camera_type;
   return {
     position: [n, s, i],
-    target: [l, m, c],
-    fov: j(g, 5, 150),
-    roll: v,
-    camera_type: k || "perspective",
+    target: [c, m, l],
+    fov: k(g, 5, 150),
+    roll: b,
+    camera_type: j || "perspective",
     zoom: Math.max(0.01, y),
-    near: Math.max(1e-4, b),
-    far: Math.max(b + 1e-4, S),
-    ...D.up ? { up: [...D.up] } : {}
+    near: Math.max(1e-4, _),
+    far: Math.max(_ + 1e-4, v),
+    ...x.up ? { up: [...x.up] } : {}
   };
 }
-const j = (e, t, a) => Math.max(t, Math.min(a, e)), so = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i, se = (e, t = null) => typeof e == "string" && so.test(e.trim()) ? e.trim() : t, M = (e, t) => [e[0] + t[0], e[1] + t[1], e[2] + t[2]], O = (e, t) => [e[0] - t[0], e[1] - t[1], e[2] - t[2]], C = (e, t) => [e[0] * t, e[1] * t, e[2] * t], ee = (e, t) => e[0] * t[0] + e[1] * t[1] + e[2] * t[2], me = (e, t) => [e[1] * t[2] - e[2] * t[1], e[2] * t[0] - e[0] * t[2], e[0] * t[1] - e[1] * t[0]], $ = (e) => Math.sqrt(Math.max(1e-12, ee(e, e))), de = (e) => C(e, 1 / $(e));
-function io(e, t, a) {
-  const o = [a[0] - t[0], a[1] - t[1]], r = [e[0] - t[0], e[1] - t[1]], n = Math.max(1e-9, o[0] * o[0] + o[1] * o[1]), s = j((r[0] * o[0] + r[1] * o[1]) / n, 0, 1);
+const k = (e, t, a) => Math.max(t, Math.min(a, e)), ho = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i, se = (e, t = null) => typeof e == "string" && ho.test(e.trim()) ? e.trim() : t, C = (e, t) => [e[0] + t[0], e[1] + t[1], e[2] + t[2]], E = (e, t) => [e[0] - t[0], e[1] - t[1], e[2] - t[2]], D = (e, t) => [e[0] * t, e[1] * t, e[2] * t], ee = (e, t) => e[0] * t[0] + e[1] * t[1] + e[2] * t[2], me = (e, t) => [e[1] * t[2] - e[2] * t[1], e[2] * t[0] - e[0] * t[2], e[0] * t[1] - e[1] * t[0]], G = (e) => Math.sqrt(Math.max(1e-12, ee(e, e))), de = (e) => D(e, 1 / G(e));
+function go(e, t, a) {
+  const o = [a[0] - t[0], a[1] - t[1]], r = [e[0] - t[0], e[1] - t[1]], n = Math.max(1e-9, o[0] * o[0] + o[1] * o[1]), s = k((r[0] * o[0] + r[1] * o[1]) / n, 0, 1);
   return Math.hypot(e[0] - t[0] - o[0] * s, e[1] - t[1] - o[1] * s);
 }
-function co(e, t = "ease") {
-  return e = j(e, 0, 1), t === "hold" ? 0 : t === "linear" ? e : t === "ease_in" ? e * e : t === "ease_out" ? 1 - (1 - e) * (1 - e) : t === "smooth" ? e * e * e * (e * (e * 6 - 15) + 10) : t === "bezier" ? 0.15 * (1 - e) * (1 - e) * e + 2.85 * (1 - e) * e * e + e * e * e : e * e * (3 - 2 * e);
+function yo(e, t = "ease") {
+  return e = k(e, 0, 1), t === "hold" ? 0 : t === "linear" ? e : t === "ease_in" ? e * e : t === "ease_out" ? 1 - (1 - e) * (1 - e) : t === "smooth" ? e * e * e * (e * (e * 6 - 15) + 10) : t === "bezier" ? 0.15 * (1 - e) * (1 - e) * e + 2.85 * (1 - e) * e * e + e * e * e : e * e * (3 - 2 * e);
 }
-const lo = ["auto", "vector", "free", "aligned", "flat"];
-function mo(e, t) {
+const bo = ["auto", "vector", "free", "aligned", "flat"];
+function _o(e, t) {
   const a = e?.tangents;
   return !a || typeof a != "object" ? {} : a.channels && typeof a.channels == "object" && a.channels[t] ? a.channels[t] : a;
 }
-function lt(e, t, a, o, r) {
-  const n = mo(e, t), s = lo.includes(n.mode) ? n.mode : e?.tangents?.mode || "auto", i = r ? r(e) : 0, l = a && r ? r(a) : i, m = o && r ? r(o) : i, c = Math.max(1e-6, e.frame - (a?.frame ?? e.frame - 1)), p = Math.max(1e-6, (o?.frame ?? e.frame + 1) - e.frame), d = () => {
-    const b = (i - l) / c, S = (m - i) / p;
-    let D = (b + S) * 0.5;
-    return a ? o || (D = b) : D = S, b * S <= 0 && a && o && (D = 0), {
+function ft(e, t, a, o, r) {
+  const n = _o(e, t), s = bo.includes(n.mode) ? n.mode : e?.tangents?.mode || "auto", i = r ? r(e) : 0, c = a && r ? r(a) : i, m = o && r ? r(o) : i, l = Math.max(1e-6, e.frame - (a?.frame ?? e.frame - 1)), d = Math.max(1e-6, (o?.frame ?? e.frame + 1) - e.frame), p = () => {
+    const _ = (i - c) / l, v = (m - i) / d;
+    let x = (_ + v) * 0.5;
+    return a ? o || (x = _) : x = v, _ * v <= 0 && a && o && (x = 0), {
       out_x: 1 / 3,
-      out_y: D * p * (1 / 3),
+      out_y: x * d * (1 / 3),
       in_x: -1 / 3,
-      in_y: -D * c * (1 / 3)
+      in_y: -x * l * (1 / 3)
     };
   };
   if (s === "vector") {
-    const b = (i - l) / c, S = (m - i) / p;
+    const _ = (i - c) / l, v = (m - i) / d;
     return {
       out_x: 1 / 3,
-      out_y: S * p * (1 / 3),
+      out_y: v * d * (1 / 3),
       in_x: -1 / 3,
-      in_y: -b * c * (1 / 3),
+      in_y: -_ * l * (1 / 3),
       mode: s
     };
   }
   if (s === "flat")
     return { out_x: 1 / 3, out_y: 0, in_x: -1 / 3, in_y: 0, mode: s };
   if (s === "auto")
-    return { ...d(), mode: s };
-  const u = d(), h = j(Number(n.out_x ?? u.out_x), 0.01, 0.99), g = Number(n.out_y ?? u.out_y);
-  let v = j(Number(n.in_x ?? u.in_x), -0.99, -0.01), y = Number(n.in_y ?? u.in_y);
+    return { ...p(), mode: s };
+  const f = p(), u = k(Number(n.out_x ?? f.out_x), 0.01, 0.99), g = Number(n.out_y ?? f.out_y);
+  let b = k(Number(n.in_x ?? f.in_x), -0.99, -0.01), y = Number(n.in_y ?? f.in_y);
   if (s === "aligned") {
-    const b = Math.hypot(h, g) || 1e-6, S = Math.hypot(v, y) || 1e-6;
-    v = -h / b * S, y = -g / b * S;
+    const _ = Math.hypot(u, g) || 1e-6, v = Math.hypot(b, y) || 1e-6;
+    b = -u / _ * v, y = -g / _ * v;
   }
-  return { out_x: h, out_y: g, in_x: v, in_y: y, mode: s };
+  return { out_x: u, out_y: g, in_x: b, in_y: y, mode: s };
 }
-function tt(e, t) {
+function nt(e, t) {
   if (!e.length || t <= e[0].frame || t >= e[e.length - 1].frame) return null;
   let a = 0, o = e.length - 1;
   for (; a + 1 < o; ) {
@@ -280,33 +288,33 @@ function tt(e, t) {
   }
   return { leftIndex: a, left: e[a], right: e[a + 1] };
 }
-function I(e, t, a, o, r = !1, n = null) {
+function A(e, t, a, o, r = !1, n = null) {
   if (!e.length) return 0;
   if (t <= e[0].frame) return o(e[0]);
   if (t >= e[e.length - 1].frame) return o(e[e.length - 1]);
-  const s = n || tt(e, t), { leftIndex: i, left: l, right: m } = s, c = i > 0 ? e[i - 1] : null, p = i + 2 < e.length ? e[i + 2] : null, d = Math.max(1, m.frame - l.frame), u = j((t - l.frame) / d, 0, 1);
-  let h = o(l), g = o(m);
+  const s = n || nt(e, t), { leftIndex: i, left: c, right: m } = s, l = i > 0 ? e[i - 1] : null, d = i + 2 < e.length ? e[i + 2] : null, p = Math.max(1, m.frame - c.frame), f = k((t - c.frame) / p, 0, 1);
+  let u = o(c), g = o(m);
   if (r) {
-    const b = ((g - h + 540) % 360 + 360) % 360 - 180;
-    g = h + b;
+    const _ = ((g - u + 540) % 360 + 360) % 360 - 180;
+    g = u + _;
   }
-  if (l.interpolation === "bezier" || m.interpolation === "bezier") {
-    const b = lt(l, a, c, m, o), S = lt(m, a, l, p, o), D = h, w = h + (b.out_y || 0), k = g + (S.in_y || 0), f = g, x = j(Number(b.out_x ?? 1 / 3), 0, 1), T = j(1 + Number(S.in_x ?? -1 / 3), 0, 1);
+  if (c.interpolation === "bezier" || m.interpolation === "bezier") {
+    const _ = ft(c, a, l, m, o), v = ft(m, a, c, d, o), x = u, M = u + (_.out_y || 0), j = g + (v.in_y || 0), h = g, S = k(Number(_.out_x ?? 1 / 3), 0, 1), T = k(1 + Number(v.in_x ?? -1 / 3), 0, 1);
     let N = 0, X = 1;
-    for (let it = 0; it < 32; it++) {
-      const V = (N + X) * 0.5, ze = 1 - V;
-      3 * ze * ze * V * x + 3 * ze * V * V * T + V * V * V < u ? N = V : X = V;
+    for (let dt = 0; dt < 32; dt++) {
+      const K = (N + X) * 0.5, Le = 1 - K;
+      3 * Le * Le * K * S + 3 * Le * K * K * T + K * K * K < f ? N = K : X = K;
     }
-    const H = (N + X) * 0.5, Y = 1 - H;
-    return Y * Y * Y * D + 3 * Y * Y * H * w + 3 * Y * H * H * k + H * H * H * f;
+    const W = (N + X) * 0.5, Y = 1 - W;
+    return Y * Y * Y * x + 3 * Y * Y * W * M + 3 * Y * W * W * j + W * W * W * h;
   }
-  const y = co(u, l.interpolation);
-  return h + (g - h) * y;
+  const y = yo(f, c.interpolation);
+  return u + (g - u) * y;
 }
 function te() {
   return { position: [6, 4, 6], target: [0, 1.5, 0], fov: 35, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 1e4 };
 }
-function De() {
+function Te() {
   const e = [0, 1, 0], t = (a, o = [0, 1, 0], r = "orthographic") => ({ ...te(), position: a, target: [...e], up: o, camera_type: r, zoom: 1 });
   return {
     perspective: t([8, 6, 8], [0, 1, 0], "perspective"),
@@ -323,21 +331,21 @@ function oe(e) {
   const t = e.size || [1, 1, 1], a = t.length === 2 ? [...t, 0.01] : [...t];
   return { position: [...e.position || [0, 0, 0]], rotation: [...e.rotation || [0, 0, 0]], size: a };
 }
-function Ae(e, t) {
+function Ne(e, t) {
   const a = e.keyframes || [];
   if (!a.length) return oe(e);
-  const o = oe(e), r = (y, b) => (y.transform?.position || o.position)[b] ?? 0, n = (y, b) => (y.transform?.rotation || o.rotation)[b] ?? 0, s = (y, b) => (y.transform?.size || o.size)[b] ?? (b === 2 ? 0.01 : 1), i = tt(a, t), l = I(a, t, "pos_x", (y) => r(y, 0), !1, i), m = I(a, t, "pos_y", (y) => r(y, 1), !1, i), c = I(a, t, "pos_z", (y) => r(y, 2), !1, i), p = I(a, t, "rot_x", (y) => n(y, 0), !0, i), d = I(a, t, "rot_y", (y) => n(y, 1), !0, i), u = I(a, t, "rot_z", (y) => n(y, 2), !0, i), h = I(a, t, "scale_x", (y) => s(y, 0), !1, i), g = I(a, t, "scale_y", (y) => s(y, 1), !1, i), v = I(a, t, "scale_z", (y) => s(y, 2), !1, i);
+  const o = oe(e), r = (y, _) => (y.transform?.position || o.position)[_] ?? 0, n = (y, _) => (y.transform?.rotation || o.rotation)[_] ?? 0, s = (y, _) => (y.transform?.size || o.size)[_] ?? (_ === 2 ? 0.01 : 1), i = nt(a, t), c = A(a, t, "pos_x", (y) => r(y, 0), !1, i), m = A(a, t, "pos_y", (y) => r(y, 1), !1, i), l = A(a, t, "pos_z", (y) => r(y, 2), !1, i), d = A(a, t, "rot_x", (y) => n(y, 0), !0, i), p = A(a, t, "rot_y", (y) => n(y, 1), !0, i), f = A(a, t, "rot_z", (y) => n(y, 2), !0, i), u = A(a, t, "scale_x", (y) => s(y, 0), !1, i), g = A(a, t, "scale_y", (y) => s(y, 1), !1, i), b = A(a, t, "scale_z", (y) => s(y, 2), !1, i);
   return {
-    position: [Number.isFinite(l) ? l : o.position[0], Number.isFinite(m) ? m : o.position[1], Number.isFinite(c) ? c : o.position[2]],
-    rotation: [Number.isFinite(p) ? p : o.rotation[0], Number.isFinite(d) ? d : o.rotation[1], Number.isFinite(u) ? u : o.rotation[2]],
+    position: [Number.isFinite(c) ? c : o.position[0], Number.isFinite(m) ? m : o.position[1], Number.isFinite(l) ? l : o.position[2]],
+    rotation: [Number.isFinite(d) ? d : o.rotation[0], Number.isFinite(p) ? p : o.rotation[1], Number.isFinite(f) ? f : o.rotation[2]],
     size: [
-      Math.max(0.01, Number.isFinite(h) ? h : o.size[0]),
+      Math.max(0.01, Number.isFinite(u) ? u : o.size[0]),
       Math.max(0.01, Number.isFinite(g) ? g : o.size[1]),
-      Math.max(0.01, Number.isFinite(v) ? v : o.size[2])
+      Math.max(0.01, Number.isFinite(b) ? b : o.size[2])
     ]
   };
 }
-function tn(e = "balanced", t = "all_views", a = null) {
+function bn(e = "balanced", t = "all_views", a = null) {
   const o = {
     none: 0,
     0: 0,
@@ -349,48 +357,48 @@ function tn(e = "balanced", t = "all_views", a = null) {
   if (r <= 0)
     return { points: [], colors: [] };
   const n = [], s = [];
-  let i = 0.65, l = 0.72, m = 0.82;
+  let i = 0.65, c = 0.72, m = 0.82;
   if (typeof a == "string" && a.startsWith("#")) {
-    const d = a.replace("#", "");
-    d.length === 6 && (i = parseInt(d.slice(0, 2), 16) / 255, l = parseInt(d.slice(2, 4), 16) / 255, m = parseInt(d.slice(4, 6), 16) / 255);
+    const p = a.replace("#", "");
+    p.length === 6 && (i = parseInt(p.slice(0, 2), 16) / 255, c = parseInt(p.slice(2, 4), 16) / 255, m = parseInt(p.slice(4, 6), 16) / 255);
   }
-  const c = 0.618033988749895, p = 0.324717957244746;
-  for (let d = 0; d < r; d++) {
-    const u = d * c % 1, h = d * p % 1, g = (d + 0.5) * 0.7548776662466927 % 1;
-    let v = 0, y = 0, b = 0, S = 0.65, D = 0.72, w = 0.82;
+  const l = 0.618033988749895, d = 0.324717957244746;
+  for (let p = 0; p < r; p++) {
+    const f = p * l % 1, u = p * d % 1, g = (p + 0.5) * 0.7548776662466927 % 1;
+    let b = 0, y = 0, _ = 0, v = 0.65, x = 0.72, M = 0.82;
     if (t === "ground_focus")
-      if (u < 0.6) {
-        const k = 0.4 + Math.sqrt(h) * 24, f = g * Math.PI * 2 + d * 2.399963229728653;
-        v = Math.cos(f) * k, b = Math.sin(f) * k, y = 0.01 + u * 0.75, S = 0.86, D = 0.9, w = 0.98;
+      if (f < 0.6) {
+        const j = 0.4 + Math.sqrt(u) * 24, h = g * Math.PI * 2 + p * 2.399963229728653;
+        b = Math.cos(h) * j, _ = Math.sin(h) * j, y = 0.01 + f * 0.75, v = 0.86, x = 0.9, M = 0.98;
       } else {
-        const k = 1 + Math.sqrt(h) * 18, f = g * Math.PI * 2 + d * 2.399963229728653;
-        v = Math.cos(f) * k, b = Math.sin(f) * k, y = 0.75 + (u - 0.6) * 8.5, S = 0.62, D = 0.7, w = 0.82;
+        const j = 1 + Math.sqrt(u) * 18, h = g * Math.PI * 2 + p * 2.399963229728653;
+        b = Math.cos(h) * j, _ = Math.sin(h) * j, y = 0.75 + (f - 0.6) * 8.5, v = 0.62, x = 0.7, M = 0.82;
       }
     else if (t === "dome") {
-      const k = u * Math.PI * 2, f = 1 - 2 * h, x = Math.sqrt(Math.max(0, 1 - f * f)), T = 1.5 + Math.cbrt(g) * 20;
-      v = Math.cos(k) * x * T, b = Math.sin(k) * x * T, y = Math.max(0.01, f * T * 0.75 + 2.5), S = 0.72, D = 0.78, w = 0.88;
+      const j = f * Math.PI * 2, h = 1 - 2 * u, S = Math.sqrt(Math.max(0, 1 - h * h)), T = 1.5 + Math.cbrt(g) * 20;
+      b = Math.cos(j) * S * T, _ = Math.sin(j) * S * T, y = Math.max(0.01, h * T * 0.75 + 2.5), v = 0.72, x = 0.78, M = 0.88;
     } else {
-      const k = d % 4;
-      if (k === 0) {
-        const f = 0.3 + Math.sqrt(h) * 28, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 0.01 + g * 0.34, S = 0.9, D = 0.94, w = 1;
-      } else if (k === 1) {
-        const f = 0.6 + Math.sqrt(h) * 18, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 0.35 + g * 3.15, S = 0.68, D = 0.76, w = 0.86;
-      } else if (k === 2) {
-        const f = 2 + Math.sqrt(h) * 24, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 3.5 + g * 11.5, S = 0.55, D = 0.65, w = 0.78;
+      const j = p % 4;
+      if (j === 0) {
+        const h = 0.3 + Math.sqrt(u) * 28, S = p * 2.399963229728653;
+        b = Math.cos(S) * h, _ = Math.sin(S) * h, y = 0.01 + g * 0.34, v = 0.9, x = 0.94, M = 1;
+      } else if (j === 1) {
+        const h = 0.6 + Math.sqrt(u) * 18, S = p * 2.399963229728653;
+        b = Math.cos(S) * h, _ = Math.sin(S) * h, y = 0.35 + g * 3.15, v = 0.68, x = 0.76, M = 0.86;
+      } else if (j === 2) {
+        const h = 2 + Math.sqrt(u) * 24, S = p * 2.399963229728653;
+        b = Math.cos(S) * h, _ = Math.sin(S) * h, y = 3.5 + g * 11.5, v = 0.55, x = 0.65, M = 0.78;
       } else {
-        const f = 0.5 + h * 6.5, x = d * 2.399963229728653;
-        v = Math.cos(x) * f, b = Math.sin(x) * f, y = 0.05 + g * 4.95, S = 0.8, D = 0.86, w = 0.94;
+        const h = 0.5 + u * 6.5, S = p * 2.399963229728653;
+        b = Math.cos(S) * h, _ = Math.sin(S) * h, y = 0.05 + g * 4.95, v = 0.8, x = 0.86, M = 0.94;
       }
     }
-    n.push(v, y, b), s.push(a ? S * i : S, a ? D * l : D, a ? w * m : w);
+    n.push(b, y, _), s.push(a ? v * i : v, a ? x * c : x, a ? M * m : M);
   }
   return { points: n, colors: s };
 }
-function po() {
-  const e = te(), t = [{ frame: 0, camera: R(e), interpolation: "ease" }];
+function vo() {
+  const e = te(), t = [{ frame: 0, camera: F(e), interpolation: "ease" }];
   return {
     schema_version: 1,
     fps: 24,
@@ -400,7 +408,7 @@ function po() {
     render_mode: "omni_ref",
     camera: e,
     keyframes: t,
-    cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: R(e), keyframes: t }],
+    cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: F(e), keyframes: t }],
     active_camera_id: "camera_1",
     playblast_camera_id: "camera_1",
     objects: [{ id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: !0, asset: "" }],
@@ -436,7 +444,7 @@ function po() {
     auto_key: !1,
     view_mode: "camera",
     camera_view_visible: !0,
-    editor_views: De(),
+    editor_views: Te(),
     ui_density: "advanced",
     snap_enabled: !0,
     snap_frames: 1,
@@ -453,10 +461,10 @@ function po() {
     motion_layers: [],
     selected_motion_layer_id: null,
     motion_tool: "select",
-    sequence: Xa()
+    sequence: oo()
   };
 }
-function R(e) {
+function F(e) {
   const t = te();
   if (!e || typeof e != "object") return t;
   const a = Array.isArray(e.position) ? [...e.position] : [...t.position], o = Array.isArray(e.target) ? [...e.target] : [...t.target], r = Math.max(1e-4, Number.isFinite(Number(e.near)) ? Number(e.near) : 0.01), n = Number.isFinite(Number(e.far)) ? Number(e.far) : 1e4;
@@ -481,116 +489,116 @@ const ge = {
 function ye(e, t, a, o) {
   if (e == null || e === "") return t;
   const r = Number(e);
-  return Number.isFinite(r) ? j(r, a, o) : t;
+  return Number.isFinite(r) ? k(r, a, o) : t;
 }
-function an(e) {
-  const t = po();
+function _n(e) {
+  const t = vo();
   if (!e || typeof e != "object") return t;
   const a = { ...t, ...e };
   a.fps = Math.round(ye(a.fps, 24, 1, 120)), a.duration_frames = Math.round(ye(a.duration_frames, 120, 1, ge.maxDurationFrames)), a.width = Math.round(ye(a.width, 1280, 64, 4096)), a.height = Math.round(ye(a.height, 720, 64, 4096));
-  const o = (c, p) => (Array.isArray(c) ? c : []).slice(0, ge.maxKeysPerTrack).map((d) => ({
-    frame: Math.max(0, Math.round(Number(d.frame || 0))),
-    camera: R(d.camera || d || p),
-    interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(d.interpolation) ? d.interpolation : "ease",
-    ...d.tangents && typeof d.tangents == "object" ? { tangents: { ...d.tangents } } : {},
-    ...Array.isArray(d.references) ? { references: d.references.map((u) => ({ ...u })) } : {}
-  })), r = R(a.camera || t.camera);
+  const o = (l, d) => (Array.isArray(l) ? l : []).slice(0, ge.maxKeysPerTrack).map((p) => ({
+    frame: Math.max(0, Math.round(Number(p.frame || 0))),
+    camera: F(p.camera || p || d),
+    interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(p.interpolation) ? p.interpolation : "ease",
+    ...p.tangents && typeof p.tangents == "object" ? { tangents: { ...p.tangents } } : {},
+    ...Array.isArray(p.references) ? { references: p.references.map((f) => ({ ...f })) } : {}
+  })), r = F(a.camera || t.camera);
   let n = o(a.keyframes, r);
-  n = [...new Map(n.map((c) => [c.frame, c])).values()].sort((c, p) => c.frame - p.frame), n.length || (n = [{ frame: 0, camera: R(r), interpolation: "ease" }]);
+  n = [...new Map(n.map((l) => [l.frame, l])).values()].sort((l, d) => l.frame - d.frame), n.length || (n = [{ frame: 0, camera: F(r), interpolation: "ease" }]);
   const s = Array.isArray(a.cameras) && a.cameras.length ? a.cameras : [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: r, keyframes: n }], i = /* @__PURE__ */ new Set();
-  a.cameras = s.slice(0, ge.maxCameras).map((c, p) => {
-    let d = String(c?.id || `camera_${p + 1}`);
-    i.has(d) && (d = `camera_${p + 1}`), i.add(d);
-    const u = R(c?.camera || c?.keyframes?.[0]?.camera || r);
-    let h = o(c?.keyframes, u);
-    return h = [...new Map(h.map((g) => [g.frame, g])).values()].sort((g, v) => g.frame - v.frame), h.length || (h = [{ frame: 0, camera: R(u), interpolation: "ease" }]), {
-      id: d,
-      name: String(c?.name || `Camera ${p + 1}`),
-      color: se(c?.color),
-      camera: u,
-      keyframes: h,
-      target_object_id: typeof c?.target_object_id == "string" ? c.target_object_id : typeof a.target_object_id == "string" ? a.target_object_id : null,
-      target_offset: Array.isArray(c?.target_offset) ? c.target_offset.map(Number) : [0, 0, 0],
+  a.cameras = s.slice(0, ge.maxCameras).map((l, d) => {
+    let p = String(l?.id || `camera_${d + 1}`);
+    i.has(p) && (p = `camera_${d + 1}`), i.add(p);
+    const f = F(l?.camera || l?.keyframes?.[0]?.camera || r);
+    let u = o(l?.keyframes, f);
+    return u = [...new Map(u.map((g) => [g.frame, g])).values()].sort((g, b) => g.frame - b.frame), u.length || (u = [{ frame: 0, camera: F(f), interpolation: "ease" }]), {
+      id: p,
+      name: String(l?.name || `Camera ${d + 1}`),
+      color: se(l?.color),
+      camera: f,
+      keyframes: u,
+      target_object_id: typeof l?.target_object_id == "string" ? l.target_object_id : typeof a.target_object_id == "string" ? a.target_object_id : null,
+      target_offset: Array.isArray(l?.target_offset) ? l.target_offset.map(Number) : [0, 0, 0],
       // Bone the camera aims at inside the tracked model; null tracks it whole.
-      aim_bone: typeof c?.aim_bone == "string" && c.aim_bone ? c.aim_bone : null,
-      locked: !!c?.locked,
-      muted: !!c?.muted,
-      solo: !!c?.solo,
-      recording_path: typeof c?.recording_path == "string" ? c.recording_path : ""
+      aim_bone: typeof l?.aim_bone == "string" && l.aim_bone ? l.aim_bone : null,
+      locked: !!l?.locked,
+      muted: !!l?.muted,
+      solo: !!l?.solo,
+      recording_path: typeof l?.recording_path == "string" ? l.recording_path : ""
     };
-  }), a.active_camera_id = a.cameras.some((c) => c.id === a.active_camera_id) ? a.active_camera_id : a.cameras[0].id, a.sequence = Ya(a.sequence, a.cameras.map((c) => c.id)), a.playblast_camera_id = a.playblast_camera_id === Ua && a.sequence.cuts.length || a.cameras.some((c) => c.id === a.playblast_camera_id) ? a.playblast_camera_id : a.active_camera_id;
-  const l = a.cameras.find((c) => c.id === a.active_camera_id);
-  a.camera = l.camera, a.keyframes = l.keyframes, a.target_object_id = l.target_object_id || null, a.target_offset = l.target_offset || [0, 0, 0], a.aim_bone = l.aim_bone || null, a.objects = (Array.isArray(a.objects) ? a.objects : t.objects).slice(0, ge.maxObjects).map((c) => ({
-    ...c,
-    color: se(c?.color),
-    locked: !!c.locked,
-    parent_id: typeof c.parent_id == "string" ? c.parent_id : null,
-    position: Array.isArray(c.position) ? c.position.map(Number) : [0, 0, 0],
-    rotation: Array.isArray(c.rotation) ? c.rotation.map(Number) : [0, 0, 0],
-    size: Array.isArray(c.size) ? c.size.length === 2 ? [...c.size.map(Number), 0.01] : c.size.map(Number) : [1, 1, 1],
-    material_mode: ["textured", "checker", "neutral", "wireframe"].includes(c.material_mode) ? c.material_mode : "textured",
-    keyframes: (Array.isArray(c.keyframes) ? c.keyframes : []).map((p) => ({
-      frame: Math.max(0, Math.round(Number(p.frame || 0))),
-      transform: oe(p.transform || c),
-      interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(p.interpolation) ? p.interpolation : "ease",
-      ...p.tangents && typeof p.tangents == "object" ? { tangents: { ...p.tangents } } : {}
-    })).sort((p, d) => p.frame - d.frame)
-  })), a.gizmo_mode = ["translate", "rotate", "scale"].includes(a.gizmo_mode) ? a.gizmo_mode : "translate", a.gizmo_space = a.gizmo_space === "local" ? "local" : "world", a.navigation_profile = a.navigation_profile === "blender" ? "blender" : "maya", a.spatial_snap_mode = ["none", "grid", "vertex"].includes(a.spatial_snap_mode) ? a.spatial_snap_mode : "none", a.spatial_grid_size = j(Number(a.spatial_grid_size) || 0.5, 0.01, 100), a.ui_density = ["basic", "animation", "advanced"].includes(a.ui_density) ? a.ui_density : "advanced", a.select_mode = ["object", "vertex", "edge", "face"].includes(a.select_mode) ? a.select_mode : "object", a.show_grid = a.show_grid !== !1, a.show_camera_paths = a.show_camera_paths !== !1, a.show_camera_gizmos = a.show_camera_gizmos !== !1, a.show_look_at = a.show_look_at !== !1, a.show_helper_axes = a.show_helper_axes !== !1, a.show_gizmo = a.show_gizmo !== !1, a.show_wireframe = !!a.show_wireframe, a.show_vertices = !!a.show_vertices, a.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(a.point_density) ? a.point_density : "balanced", a.point_spread = ["all_views", "ground_focus", "dome"].includes(a.point_spread) ? a.point_spread : "all_views", a.point_color = se(a.point_color, "#cbd5e1"), a.viewport_bg_color = se(a.viewport_bg_color, "#121212"), a.viewport_bg_image = typeof a.viewport_bg_image == "string" ? a.viewport_bg_image : "", a.viewport_bg_sequence = Array.isArray(a.viewport_bg_sequence) ? a.viewport_bg_sequence.map(String) : [], a.snap_enabled = a.snap_enabled !== !1, a.snap_frames = Math.max(1, Math.round(Number(a.snap_frames) || 1)), a.timecode_mode = ["time", "timecode"].includes(a.timecode_mode) ? a.timecode_mode : "time", a.loop_playback = !!a.loop_playback, a.playback_range = Array.isArray(a.playback_range) && a.playback_range.length === 2 ? [j(Math.round(Number(a.playback_range[0]) || 0), 0, a.duration_frames - 1), j(Math.round(Number(a.playback_range[1]) || a.duration_frames - 1), 0, a.duration_frames - 1)] : null, a.markers = (Array.isArray(a.markers) ? a.markers : []).filter((c) => c && Number.isFinite(Number(c.frame))).map((c, p) => ({ frame: Math.max(0, Math.round(Number(c.frame))), name: String(c.name || `Marker ${p + 1}`).slice(0, 40), color: se(c.color, "#f2d06b") })), a.preview_layout = ["auto", "1", "2", "4"].includes(String(a.preview_layout)) ? String(a.preview_layout) : "auto", a.maximized_camera_id = typeof a.maximized_camera_id == "string" ? a.maximized_camera_id : null, a.safe_areas = !!a.safe_areas, a.resolution_gate = !!a.resolution_gate, a.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(a.aspect_ratio) ? a.aspect_ratio : "auto", a.auto_key = !!a.auto_key, a.playblast_grid = !!a.playblast_grid, a.playblast_resolution = ["viewport", "half", "output", "double"].includes(a.playblast_resolution) ? a.playblast_resolution : "output", a.reference_index = Math.max(0, Number(a.reference_index || 0)), a.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(a.view_mode) ? a.view_mode : "camera", a.camera_view_visible = a.camera_view_visible !== !1;
-  const m = De();
-  return a.editor_views = Object.fromEntries(Object.entries(m).map(([c, p]) => [c, R(a.editor_views?.[c] || p)])), ao(a);
+  }), a.active_camera_id = a.cameras.some((l) => l.id === a.active_camera_id) ? a.active_camera_id : a.cameras[0].id, a.sequence = ro(a.sequence, a.cameras.map((l) => l.id)), a.playblast_camera_id = a.playblast_camera_id === ao && a.sequence.cuts.length || a.cameras.some((l) => l.id === a.playblast_camera_id) ? a.playblast_camera_id : a.active_camera_id;
+  const c = a.cameras.find((l) => l.id === a.active_camera_id);
+  a.camera = c.camera, a.keyframes = c.keyframes, a.target_object_id = c.target_object_id || null, a.target_offset = c.target_offset || [0, 0, 0], a.aim_bone = c.aim_bone || null, a.objects = (Array.isArray(a.objects) ? a.objects : t.objects).slice(0, ge.maxObjects).map((l) => ({
+    ...l,
+    color: se(l?.color),
+    locked: !!l.locked,
+    parent_id: typeof l.parent_id == "string" ? l.parent_id : null,
+    position: Array.isArray(l.position) ? l.position.map(Number) : [0, 0, 0],
+    rotation: Array.isArray(l.rotation) ? l.rotation.map(Number) : [0, 0, 0],
+    size: Array.isArray(l.size) ? l.size.length === 2 ? [...l.size.map(Number), 0.01] : l.size.map(Number) : [1, 1, 1],
+    material_mode: ["textured", "checker", "neutral", "wireframe"].includes(l.material_mode) ? l.material_mode : "textured",
+    keyframes: (Array.isArray(l.keyframes) ? l.keyframes : []).map((d) => ({
+      frame: Math.max(0, Math.round(Number(d.frame || 0))),
+      transform: oe(d.transform || l),
+      interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(d.interpolation) ? d.interpolation : "ease",
+      ...d.tangents && typeof d.tangents == "object" ? { tangents: { ...d.tangents } } : {}
+    })).sort((d, p) => d.frame - p.frame)
+  })), a.gizmo_mode = ["translate", "rotate", "scale"].includes(a.gizmo_mode) ? a.gizmo_mode : "translate", a.gizmo_space = a.gizmo_space === "local" ? "local" : "world", a.navigation_profile = a.navigation_profile === "blender" ? "blender" : "maya", a.spatial_snap_mode = ["none", "grid", "vertex"].includes(a.spatial_snap_mode) ? a.spatial_snap_mode : "none", a.spatial_grid_size = k(Number(a.spatial_grid_size) || 0.5, 0.01, 100), a.ui_density = ["basic", "animation", "advanced"].includes(a.ui_density) ? a.ui_density : "advanced", a.select_mode = ["object", "vertex", "edge", "face"].includes(a.select_mode) ? a.select_mode : "object", a.show_grid = a.show_grid !== !1, a.show_camera_paths = a.show_camera_paths !== !1, a.show_camera_gizmos = a.show_camera_gizmos !== !1, a.show_look_at = a.show_look_at !== !1, a.show_helper_axes = a.show_helper_axes !== !1, a.show_gizmo = a.show_gizmo !== !1, a.show_wireframe = !!a.show_wireframe, a.show_vertices = !!a.show_vertices, a.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(a.point_density) ? a.point_density : "balanced", a.point_spread = ["all_views", "ground_focus", "dome"].includes(a.point_spread) ? a.point_spread : "all_views", a.point_color = se(a.point_color, "#cbd5e1"), a.viewport_bg_color = se(a.viewport_bg_color, "#121212"), a.viewport_bg_image = typeof a.viewport_bg_image == "string" ? a.viewport_bg_image : "", a.viewport_bg_sequence = Array.isArray(a.viewport_bg_sequence) ? a.viewport_bg_sequence.map(String) : [], a.snap_enabled = a.snap_enabled !== !1, a.snap_frames = Math.max(1, Math.round(Number(a.snap_frames) || 1)), a.timecode_mode = ["time", "timecode"].includes(a.timecode_mode) ? a.timecode_mode : "time", a.loop_playback = !!a.loop_playback, a.playback_range = Array.isArray(a.playback_range) && a.playback_range.length === 2 ? [k(Math.round(Number(a.playback_range[0]) || 0), 0, a.duration_frames - 1), k(Math.round(Number(a.playback_range[1]) || a.duration_frames - 1), 0, a.duration_frames - 1)] : null, a.markers = (Array.isArray(a.markers) ? a.markers : []).filter((l) => l && Number.isFinite(Number(l.frame))).map((l, d) => ({ frame: Math.max(0, Math.round(Number(l.frame))), name: String(l.name || `Marker ${d + 1}`).slice(0, 40), color: se(l.color, "#f2d06b") })), a.preview_layout = ["auto", "1", "2", "4"].includes(String(a.preview_layout)) ? String(a.preview_layout) : "auto", a.maximized_camera_id = typeof a.maximized_camera_id == "string" ? a.maximized_camera_id : null, a.safe_areas = !!a.safe_areas, a.resolution_gate = !!a.resolution_gate, a.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(a.aspect_ratio) ? a.aspect_ratio : "auto", a.auto_key = !!a.auto_key, a.playblast_grid = !!a.playblast_grid, a.playblast_resolution = ["viewport", "half", "output", "double"].includes(a.playblast_resolution) ? a.playblast_resolution : "output", a.reference_index = Math.max(0, Number(a.reference_index || 0)), a.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(a.view_mode) ? a.view_mode : "camera", a.camera_view_visible = a.camera_view_visible !== !1;
+  const m = Te();
+  return a.editor_views = Object.fromEntries(Object.entries(m).map(([l, d]) => [l, F(a.editor_views?.[l] || d)])), mo(a);
 }
-function je(e, t) {
-  const [a, o, r] = (t || [0, 0, 0]).map((l) => l * Math.PI / 180);
+function Ee(e, t) {
+  const [a, o, r] = (t || [0, 0, 0]).map((c) => c * Math.PI / 180);
   let [n, s, i] = e;
   return [s, i] = [s * Math.cos(a) - i * Math.sin(a), s * Math.sin(a) + i * Math.cos(a)], [n, i] = [n * Math.cos(o) + i * Math.sin(o), -n * Math.sin(o) + i * Math.cos(o)], [n, s] = [n * Math.cos(r) - s * Math.sin(r), n * Math.sin(r) + s * Math.cos(r)], [n, s, i];
 }
-function Be(e = [0, 0, 0]) {
-  const [t, a, o] = e.map((c) => c * Math.PI / 360), r = Math.cos(t), n = Math.sin(t), s = Math.cos(a), i = Math.sin(a), l = Math.cos(o), m = Math.sin(o);
-  return [n * s * l + r * i * m, r * i * l - n * s * m, r * s * m + n * i * l, r * s * l - n * i * m];
+function Ue(e = [0, 0, 0]) {
+  const [t, a, o] = e.map((l) => l * Math.PI / 360), r = Math.cos(t), n = Math.sin(t), s = Math.cos(a), i = Math.sin(a), c = Math.cos(o), m = Math.sin(o);
+  return [n * s * c + r * i * m, r * i * c - n * s * m, r * s * m + n * i * c, r * s * c - n * i * m];
 }
-function fo(e, t) {
+function wo(e, t) {
   return [e[3] * t[0] + e[0] * t[3] + e[1] * t[2] - e[2] * t[1], e[3] * t[1] - e[0] * t[2] + e[1] * t[3] + e[2] * t[0], e[3] * t[2] + e[0] * t[1] - e[1] * t[0] + e[2] * t[3], e[3] * t[3] - e[0] * t[0] - e[1] * t[1] - e[2] * t[2]];
 }
-function uo(e, [t, a, o, r]) {
-  const [n, s, i] = e, l = r * n + a * i - o * s, m = r * s + o * n - t * i, c = r * i + t * s - a * n, p = -t * n - a * s - o * i;
-  return [l * r - p * t - m * o + c * a, m * r - p * a - c * t + l * o, c * r - p * o - l * a + m * t];
+function Mo(e, [t, a, o, r]) {
+  const [n, s, i] = e, c = r * n + a * i - o * s, m = r * s + o * n - t * i, l = r * i + t * s - a * n, d = -t * n - a * s - o * i;
+  return [c * r - d * t - m * o + l * a, m * r - d * a - l * t + c * o, l * r - d * o - c * a + m * t];
 }
-function ho([e, t, a, o]) {
-  const r = 1 - 2 * (t * t + a * a), n = 2 * (e * t - a * o), s = 2 * (e * a + t * o), i = 1 - 2 * (e * e + a * a), l = 2 * (t * a - e * o), m = 2 * (t * a + e * o), c = 1 - 2 * (e * e + t * t), p = Math.asin(Math.max(-1, Math.min(1, s))), [d, u] = Math.abs(s) < 0.9999999 ? [Math.atan2(-l, c), Math.atan2(-n, r)] : [Math.atan2(m, i), 0];
-  return [d, p, u].map((h) => h * 180 / Math.PI);
+function So([e, t, a, o]) {
+  const r = 1 - 2 * (t * t + a * a), n = 2 * (e * t - a * o), s = 2 * (e * a + t * o), i = 1 - 2 * (e * e + a * a), c = 2 * (t * a - e * o), m = 2 * (t * a + e * o), l = 1 - 2 * (e * e + t * t), d = Math.asin(Math.max(-1, Math.min(1, s))), [p, f] = Math.abs(s) < 0.9999999 ? [Math.atan2(-c, l), Math.atan2(-n, r)] : [Math.atan2(m, i), 0];
+  return [p, d, f].map((u) => u * 180 / Math.PI);
 }
-function kt(e, t) {
-  const a = t.quaternion || Be(t.rotation), o = fo(a, e.quaternion || Be(e.rotation));
-  return { position: M(uo(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: ho(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
+function zt(e, t) {
+  const a = t.quaternion || Ue(t.rotation), o = wo(a, e.quaternion || Ue(e.rotation));
+  return { position: C(Mo(e.position.map((r, n) => r * t.size[n]), a), t.position), rotation: So(o), quaternion: o, size: e.size.map((r, n) => r * t.size[n]) };
 }
-function go(e, t) {
+function xo(e, t) {
   const a = new Map(e.map((r) => [r.id, r])), o = (r, n = /* @__PURE__ */ new Set()) => {
-    const s = { ...oe(r), quaternion: Be(r.rotation) };
+    const s = { ...oe(r), quaternion: Ue(r.rotation) };
     if (!r?.id || n.has(r.id)) return s;
     const i = r.parent_id ? a.get(r.parent_id) : null;
     if (!i) return s;
-    const l = new Set(n);
-    return l.add(r.id), kt(s, o(i, l));
+    const c = new Set(n);
+    return c.add(r.id), zt(s, o(i, c));
   };
   return o(t);
 }
-function Tt(e, t, a, o = /* @__PURE__ */ new Set()) {
-  const r = Ae(t, a);
+function Pt(e, t, a, o = /* @__PURE__ */ new Set()) {
+  const r = Ne(t, a);
   if (!t?.id || o.has(t.id)) return r;
   const n = new Set(o);
   n.add(t.id);
-  const s = t.parent_id ? e.find((l) => l.id === t.parent_id) : null;
+  const s = t.parent_id ? e.find((c) => c.id === t.parent_id) : null;
   if (!s) return r;
-  const i = Tt(e, s, a, n);
-  return kt(r, i);
+  const i = Pt(e, s, a, n);
+  return zt(r, i);
 }
-const mt = ["speed", "angular_speed", "acceleration", "jerk"], Re = ["ok", "warn", "over"], Et = 0.8, yo = [0, 1.5, 0];
-function dt(e, t) {
+const ut = ["speed", "angular_speed", "acceleration", "jerk"], Ke = ["ok", "warn", "over"], Nt = 0.8, Co = [0, 1.5, 0];
+function ht(e, t) {
   const a = [0];
   for (let o = 1; o < e.length; o++) a.push(Math.abs(e[o] - e[o - 1]) * t);
   return a;
 }
-function bo(e, t) {
+function Do(e, t) {
   const a = [0];
   for (let o = 1; o < e.length; o++) {
     const r = e[o - 1].position, n = e[o].position;
@@ -598,43 +606,43 @@ function bo(e, t) {
   }
   return a;
 }
-function _o(e, t) {
+function ko(e, t) {
   const a = [0];
   for (let o = 1; o < e.length; o++) {
     const r = L(e[o - 1]), n = L(e[o]), s = ["right", "up", "forward"].reduce(
-      (l, m) => l + r[m][0] * n[m][0] + r[m][1] * n[m][1] + r[m][2] * n[m][2],
+      (c, m) => c + r[m][0] * n[m][0] + r[m][1] * n[m][1] + r[m][2] * n[m][2],
       0
     ), i = Math.max(-1, Math.min(1, (s - 1) * 0.5));
     a.push(Math.acos(i) * 180 / Math.PI * t);
   }
   return a;
 }
-function vo(e, t = null) {
+function jo(e, t = null) {
   if (t) return t.map(Number);
   const a = (e.objects || []).find((o) => o?.id === "subject");
-  return Array.isArray(a?.position) ? a.position.slice(0, 3).map(Number) : [...yo];
+  return Array.isArray(a?.position) ? a.position.slice(0, 3).map(Number) : [...Co];
 }
-function wo(e, t, a, o) {
+function To(e, t, a, o) {
   return e.map((r) => {
-    const n = F(t, r, a, o);
+    const n = R(t, r, a, o);
     return !!(n && n[0] >= 0 && n[0] < a && n[1] >= 0 && n[1] < o);
   });
 }
-function pt(e, t) {
-  return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * Et ? "warn" : "ok";
+function gt(e, t) {
+  return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * Nt ? "warn" : "ok";
 }
-function ft(e) {
-  for (let t = Re.length - 1; t >= 0; t--) if (e.includes(Re[t])) return Re[t];
+function yt(e) {
+  for (let t = Ke.length - 1; t >= 0; t--) if (e.includes(Ke[t])) return Ke[t];
   return "ok";
 }
-function So(e, t) {
+function Eo(e, t) {
   return e.length === t.length && e.every((a, o) => a === t[o]);
 }
-function Mo(e, t) {
+function Io(e, t) {
   const a = [];
   for (let o = 0; o < e.length; o++) {
     const r = [...t[o]].sort(), n = a[a.length - 1];
-    if (n && n.grade === e[o] && So(n.metrics, r)) {
+    if (n && n.grade === e[o] && Eo(n.metrics, r)) {
       n.end = o;
       continue;
     }
@@ -642,71 +650,71 @@ function Mo(e, t) {
   }
   return a;
 }
-function It(e, t = {}, a = null, o = "generic") {
-  const r = Math.max(1, Number(e.fps) || 24), n = Math.max(1, Number(e.duration_frames) || 1), s = Math.max(1, Number(e.width) || 1280), i = Math.max(1, Number(e.height) || 720), l = [];
-  for (let f = 0; f < n; f++) l.push(fe(e, f, e.objects));
-  const m = bo(l, r), c = _o(l, r), p = dt(m, r), d = dt(p, r), u = { speed: m, angular_speed: c, acceleration: p, jerk: d }, h = vo(e, a), g = wo(l, h, s, i), v = l.map((f) => f.fov), y = t.allow_framing_loss === !0, b = [], S = [];
-  for (let f = 0; f < n; f++) {
-    const x = [], T = [];
-    for (const N of mt) {
-      const X = pt(u[N][f], t[`max_${N}`]);
-      x.push(X), X !== "ok" && T.push(N);
+function Ft(e, t = {}, a = null, o = "generic") {
+  const r = Math.max(1, Number(e.fps) || 24), n = Math.max(1, Number(e.duration_frames) || 1), s = Math.max(1, Number(e.width) || 1280), i = Math.max(1, Number(e.height) || 720), c = [];
+  for (let h = 0; h < n; h++) c.push(fe(e, h, e.objects));
+  const m = Do(c, r), l = ko(c, r), d = ht(m, r), p = ht(d, r), f = { speed: m, angular_speed: l, acceleration: d, jerk: p }, u = jo(e, a), g = To(c, u, s, i), b = c.map((h) => h.fov), y = t.allow_framing_loss === !0, _ = [], v = [];
+  for (let h = 0; h < n; h++) {
+    const S = [], T = [];
+    for (const N of ut) {
+      const X = gt(f[N][h], t[`max_${N}`]);
+      S.push(X), X !== "ok" && T.push(N);
     }
-    !g[f] && !y && (x.push("over"), T.push("framing_loss")), b.push(ft(x)), S.push(T);
+    !g[h] && !y && (S.push("over"), T.push("framing_loss")), _.push(yt(S)), v.push(T);
   }
-  const D = g.filter((f) => !f).length, w = {
+  const x = g.filter((h) => !h).length, M = {
     profile: o,
-    warn_ratio: Et,
+    warn_ratio: Nt,
     limits: t,
-    subject: h,
+    subject: u,
     duration_frames: n,
     fps: r,
     max_speed: Math.max(...m),
-    max_angular_speed: Math.max(...c),
-    max_acceleration: Math.max(...p),
-    max_jerk: Math.max(...d),
-    max_fov_change: Math.max(...v) - Math.min(...v),
-    framing_loss_frames: D,
-    series: u,
+    max_angular_speed: Math.max(...l),
+    max_acceleration: Math.max(...d),
+    max_jerk: Math.max(...p),
+    max_fov_change: Math.max(...b) - Math.min(...b),
+    framing_loss_frames: x,
+    series: f,
     framing: g,
-    frame_grades: b,
-    segments: Mo(b, S),
+    frame_grades: _,
+    segments: Io(_, v),
     violations: []
   };
-  for (const f of [...mt, "fov_drift"]) {
-    const x = f === "fov_drift" ? "max_fov_change" : `max_${f}`, T = t[x];
-    T != null && w[x] > Number(T) && w.violations.push({ metric: x, value: w[x], recommended_max: Number(T) });
+  for (const h of [...ut, "fov_drift"]) {
+    const S = h === "fov_drift" ? "max_fov_change" : `max_${h}`, T = t[S];
+    T != null && M[S] > Number(T) && M.violations.push({ metric: S, value: M[S], recommended_max: Number(T) });
   }
-  D && !y && w.violations.push({ metric: "framing_loss_frames", value: D, recommended_max: 0 });
-  const k = pt(w.max_fov_change, t.max_fov_change);
-  return w.track_grades = { fov_drift: k }, w.grade = ft([...b, k]), w.trajectory_valid = w.violations.length === 0, w.ok = w.trajectory_valid, w;
+  x && !y && M.violations.push({ metric: "framing_loss_frames", value: x, recommended_max: 0 });
+  const j = gt(M.max_fov_change, t.max_fov_change);
+  return M.track_grades = { fov_drift: j }, M.grade = yt([..._, j]), M.trajectory_valid = M.violations.length === 0, M.ok = M.trajectory_valid, M;
 }
-function xo(e) {
+function Ao(e) {
   return e.segments.filter((t) => t.grade !== "ok").sort((t, a) => (a.grade === "over") - (t.grade === "over") || a.end - a.start - (t.end - t.start));
 }
-function qe(e, t) {
-  const a = Math.max(1, e.state.duration_frames - 1), o = j(Number(e.timelineZoom) || 1, 0.1, 50), r = Number(e.timelinePan) || 0, n = a / o;
+function Xe(e, t) {
+  const a = Math.max(1, e.state.duration_frames - 1), o = k(Number(e.timelineZoom) || 1, 0.1, 50), r = Number(e.timelinePan) || 0, n = a / o;
   return (t - r) / Math.max(1e-6, n) * 100;
 }
-function At(e, t, a) {
-  const o = a.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = j(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, i = r / n, l = (t.clientX - o.left) / Math.max(1, o.width);
-  return j(Math.round(s + l * i), 0, r);
+function Rt(e, t, a) {
+  const o = a.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = k(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, i = r / n, c = (t.clientX - o.left) / Math.max(1, o.width);
+  return k(Math.round(s + c * i), 0, r);
 }
-function on(e, t) {
+function vn(e, t) {
   t.preventDefault(), t.stopPropagation();
   const a = Math.max(1, e.state.duration_frames - 1), o = t.deltaY < 0 ? 1.18 : 0.85;
   if (t.shiftKey)
-    e.timelinePan = j((Number(e.timelinePan) || 0) + (t.deltaY > 0 ? 4 : -4), -a * 0.5, a);
+    e.timelinePan = k((Number(e.timelinePan) || 0) + (t.deltaY > 0 ? 4 : -4), -a * 0.5, a);
   else {
-    const n = t.currentTarget.getBoundingClientRect(), s = (t.clientX - n.left) / Math.max(1, n.width), i = j(Number(e.timelineZoom) || 1, 0.2, 30), l = j(i * o, 0.2, 30), m = a / i, c = a / l, p = (Number(e.timelinePan) || 0) + s * m;
-    e.timelinePan = j(p - s * c, -a * 0.5, a), e.timelineZoom = l;
+    const n = t.currentTarget.getBoundingClientRect(), s = (t.clientX - n.left) / Math.max(1, n.width), i = k(Number(e.timelineZoom) || 1, 0.2, 30), c = k(i * o, 0.2, 30), m = a / i, l = a / c, d = (Number(e.timelinePan) || 0) + s * m;
+    e.timelinePan = k(d - s * l, -a * 0.5, a), e.timelineZoom = c;
   }
-  e.refreshKeys(), e.setStatus(_(`Timeline zoom: ${(e.timelineZoom * 100).toFixed(0)}%`));
+  e.refreshKeys(), e.setStatus(w(`Timeline zoom: ${(e.timelineZoom * 100).toFixed(0)}%`));
 }
-function rn(e) {
-  e.timelineZoom = 1, e.timelinePan = 0, e.refreshKeys(), e.setStatus(_("Timeline view fitted"));
+function wn(e) {
+  e.timelineZoom = 1, e.timelinePan = 0, e.refreshKeys(), e.setStatus(w("Timeline view fitted"));
 }
-function nn(e, t) {
+function Mn(e, t) {
   if (t.target.closest?.(".key")) return;
   t.preventDefault(), t.stopPropagation(), e.exitKeyEdit(!0);
   const a = t.currentTarget;
@@ -723,9 +731,9 @@ function nn(e, t) {
     e.boxSelect = { box: a, pointerId: t.pointerId, startX: t.clientX - o.left, currentX: t.clientX - o.left };
     return;
   }
-  e.selectedKeyFrames = null, e.timelineDrag = { box: a, pointerId: t.pointerId }, e.setFrame(At(e, t, a));
+  e.selectedKeyFrames = null, e.timelineDrag = { box: a, pointerId: t.pointerId }, e.setFrame(Rt(e, t, a));
 }
-function sn(e, t) {
+function Sn(e, t) {
   if (e.timelinePanDrag && t.pointerId === e.timelinePanDrag.pointerId) {
     t.preventDefault(), t.stopPropagation();
     const a = t.clientX - e.timelinePanDrag.startX, o = e.timelineDrag?.box || e.root.querySelector('[data-role="dope-tracks"]'), n = Math.max(1, e.state.duration_frames - 1) / (Number(e.timelineZoom) || 1);
@@ -742,191 +750,191 @@ function sn(e, t) {
     o.style.left = `${r}px`, o.style.width = `${Math.abs(e.boxSelect.currentX - e.boxSelect.startX)}px`, o.style.top = "0", o.style.bottom = "0";
     return;
   }
-  !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.setFrame(At(e, t, e.timelineDrag.box)));
+  !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.setFrame(Rt(e, t, e.timelineDrag.box), !1, !1));
 }
-function cn(e, t) {
+function xn(e, t) {
   if (e.timelinePanDrag && t.pointerId === e.timelinePanDrag.pointerId) {
     e.timelinePanDrag = null;
     return;
   }
   if (e.boxSelect && t.pointerId === e.boxSelect.pointerId) {
     t.preventDefault(), t.stopPropagation();
-    const a = e.boxSelect.box.getBoundingClientRect(), o = Math.max(1, e.state.duration_frames - 1), r = j(Number(e.timelineZoom) || 1, 0.1, 50), n = Number(e.timelinePan) || 0, s = o / r, i = (p) => j(n + p / Math.max(1, a.width) * s, 0, o), l = Math.min(i(e.boxSelect.startX), i(e.boxSelect.currentX)), m = Math.max(i(e.boxSelect.startX), i(e.boxSelect.currentX));
+    const a = e.boxSelect.box.getBoundingClientRect(), o = Math.max(1, e.state.duration_frames - 1), r = k(Number(e.timelineZoom) || 1, 0.1, 50), n = Number(e.timelinePan) || 0, s = o / r, i = (d) => k(n + d / Math.max(1, a.width) * s, 0, o), c = Math.min(i(e.boxSelect.startX), i(e.boxSelect.currentX)), m = Math.max(i(e.boxSelect.startX), i(e.boxSelect.currentX));
     e.boxSelect.overlay?.remove(), e.boxSelect = null;
-    const c = e.timelineKeyframes().filter((p) => p.frame >= l && p.frame <= m).map((p) => p.frame);
-    c.length && (e.selectedKeyFrames = new Set(c), e.selectedKeyFrame = c[0], e.updateKeyVisualState(), e.refreshKeyEditor(), e.setStatus(_(`${c.length} keys selected`)));
+    const l = e.timelineKeyframes().filter((d) => d.frame >= c && d.frame <= m).map((d) => d.frame);
+    l.length && (e.selectedKeyFrames = new Set(l), e.selectedKeyFrame = l[0], e.updateKeyVisualState(), e.refreshKeyEditor(), e.setStatus(w(`${l.length} keys selected`)));
     return;
   }
-  !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.timelineDrag.box.hasPointerCapture?.(t.pointerId) && e.timelineDrag.box.releasePointerCapture(t.pointerId), e.timelineDrag = null);
+  !e.timelineDrag || t.pointerId !== e.timelineDrag.pointerId || (t.preventDefault(), t.stopPropagation(), e.timelineDrag.box.hasPointerCapture?.(t.pointerId) && e.timelineDrag.box.releasePointerCapture(t.pointerId), e.timelineDrag = null, e.refreshKeys());
 }
-const Co = 4;
-function Do(e, t) {
+const Oo = 4;
+function zo(e, t) {
   const a = e.keyDrag;
   if (!a) return;
   if (!a.engaged) {
-    if (Math.hypot(t.clientX - (a.startClientX ?? t.clientX), t.clientY - (a.startClientY ?? t.clientY)) < Co) return;
+    if (Math.hypot(t.clientX - (a.startClientX ?? t.clientX), t.clientY - (a.startClientY ?? t.clientY)) < Oo) return;
     a.engaged = !0;
   }
-  const o = a.box.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = j(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, i = r / n;
-  let l = Math.round(j(s + (t.clientX - o.left) / Math.max(1, o.width) * i, 0, r));
-  l = e.snapFrame(l);
-  const m = l - a.startPointerFrame;
-  let c = a.badge;
-  c || (c = document.createElement("div"), c.className = "floating-retime-badge", a.box.appendChild(c), a.badge = c);
-  const p = qe(e, l);
-  if (c.style.left = `${p}%`, c.textContent = a.isDuplicate ? `+Copy F${l}` : `F${l}${m !== 0 ? ` (${m > 0 ? "+" : ""}${m})` : ""}`, a.moving && a.moving.length > 1) {
+  const o = a.box.getBoundingClientRect(), r = Math.max(1, e.state.duration_frames - 1), n = k(Number(e.timelineZoom) || 1, 0.1, 50), s = Number(e.timelinePan) || 0, i = r / n;
+  let c = Math.round(k(s + (t.clientX - o.left) / Math.max(1, o.width) * i, 0, r));
+  c = e.snapFrame(c);
+  const m = c - a.startPointerFrame;
+  let l = a.badge;
+  l || (l = document.createElement("div"), l.className = "floating-retime-badge", a.box.appendChild(l), a.badge = l);
+  const d = Xe(e, c);
+  if (l.style.left = `${d}%`, l.textContent = a.isDuplicate ? `+Copy F${c}` : `F${c}${m !== 0 ? ` (${m > 0 ? "+" : ""}${m})` : ""}`, a.moving && a.moving.length > 1) {
     if (m === a.lastDelta) return;
     a.lastDelta = m;
-    const d = e.timelineKeyframes(), u = new Set(d.filter((h) => !e.selectedKeyFrames.has(h.frame)).map((h) => h.frame));
-    for (const h of a.moving) {
-      let g = j(h.startFrame + m, 0, e.state.duration_frames - 1);
-      for (; u.has(g) && g > 0 && g < e.state.duration_frames - 1; ) g += Math.sign(m || 1);
-      h.key.frame = u.has(g) ? h.key.frame : g;
+    const p = e.timelineKeyframes(), f = new Set(p.filter((u) => !e.selectedKeyFrames.has(u.frame)).map((u) => u.frame));
+    for (const u of a.moving) {
+      let g = k(u.startFrame + m, 0, e.state.duration_frames - 1);
+      for (; f.has(g) && g > 0 && g < e.state.duration_frames - 1; ) g += Math.sign(m || 1);
+      u.key.frame = f.has(g) ? u.key.frame : g;
     }
-    d.sort((h, g) => h.frame - g.frame), e.editingKeyFrame = a.key.frame, e.scheduleSerialize(), e.setFrame(a.key.frame, !1, !0);
+    p.sort((u, g) => u.frame - g.frame), e.editingKeyFrame = a.key.frame, e.scheduleSerialize(), e.setFrame(a.key.frame, !1, !0);
     return;
   }
-  l !== a.key.frame && (e.editingKeyFrame = a.key.frame, e.retimeSelectedKey(l, !0));
+  c !== a.key.frame && (e.editingKeyFrame = a.key.frame, e.retimeSelectedKey(c, !0));
 }
-function jo(e, t) {
+function Po(e, t) {
   const a = e.camera?.position || [0, 0, 0], o = t.camera?.position || [0, 0, 0];
   return Math.sqrt((o[0] - a[0]) ** 2 + (o[1] - a[1]) ** 2 + (o[2] - a[2]) ** 2);
 }
-function ke(e) {
+function Ie(e) {
   return (e || []).map((t) => ({
     ...t,
     camera: { ...t.camera || {}, position: [...t.camera?.position || []], target: [...t.camera?.target || []] }
   }));
 }
-function ko(e, t) {
-  const a = ke(e);
+function No(e, t) {
+  const a = Ie(e);
   if (a.length < 3 || t < 2) return a;
   const o = [0];
-  for (let l = 1; l < a.length; l++)
-    o.push(o[l - 1] + jo(a[l - 1], a[l]));
+  for (let c = 1; c < a.length; c++)
+    o.push(o[c - 1] + Po(a[c - 1], a[c]));
   const r = o[o.length - 1];
   if (r <= 1e-9) return a;
   const n = a[0].frame ?? 0, s = (a[a.length - 1].frame ?? t) - n;
   if (s <= 0) return a;
   let i = n;
-  for (let l = 1; l < a.length - 1; l++) {
-    const m = n + Math.round(s * (o[l] / r));
-    a[l].frame = Math.min(t - 1, Math.max(i + 1, m)), i = a[l].frame;
+  for (let c = 1; c < a.length - 1; c++) {
+    const m = n + Math.round(s * (o[c] / r));
+    a[c].frame = Math.min(t - 1, Math.max(i + 1, m)), i = a[c].frame;
   }
   return a;
 }
-function Ot(e, t) {
+function Lt(e, t) {
   return t.some((a) => e >= a.start && e <= a.end);
 }
-function To(e, t, a = 0.6) {
-  const o = ke(e), r = Math.min(1, Math.max(0, Number(a) || 0));
+function Fo(e, t, a = 0.6) {
+  const o = Ie(e), r = Math.min(1, Math.max(0, Number(a) || 0));
   if (!r || o.length < 3 || !t?.length) return o;
-  const n = ke(o);
+  const n = Ie(o);
   for (let s = 1; s < o.length - 1; s++)
-    if (Ot(o[s].frame ?? 0, t))
+    if (Lt(o[s].frame ?? 0, t))
       for (const i of ["position", "target"]) {
-        const l = [o[s - 1], o[s], o[s + 1]].map((p) => p.camera?.[i]).filter((p) => Array.isArray(p) && p.length >= 3), m = o[s].camera?.[i];
-        if (l.length < 3 || !Array.isArray(m)) continue;
-        const c = [0, 1, 2].map((p) => l.reduce((d, u) => d + Number(u[p] || 0), 0) / l.length);
-        n[s].camera[i] = m.map((p, d) => Number(p) + (c[d] - Number(p)) * r);
+        const c = [o[s - 1], o[s], o[s + 1]].map((d) => d.camera?.[i]).filter((d) => Array.isArray(d) && d.length >= 3), m = o[s].camera?.[i];
+        if (c.length < 3 || !Array.isArray(m)) continue;
+        const l = [0, 1, 2].map((d) => c.reduce((p, f) => p + Number(f[d] || 0), 0) / c.length);
+        n[s].camera[i] = m.map((d, p) => Number(d) + (l[p] - Number(d)) * r);
       }
   return n;
 }
-function Eo(e, t, a) {
-  const o = ke(e);
+function Ro(e, t, a) {
+  const o = Ie(e);
   if (!t?.length || !Array.isArray(a)) return o;
   const r = a.slice(0, 3).map(Number);
   for (const n of o)
-    Ot(n.frame ?? 0, t) && (n.camera.target = [...r]);
+    Lt(n.frame ?? 0, t) && (n.camera.target = [...r]);
   return o;
 }
-function Io(e, t) {
+function Lo(e, t) {
   return e.segments.filter((a) => a.grade !== "ok" && a.metrics.includes(t)).map((a) => ({ start: a.start, end: a.end }));
 }
-function Ao(e) {
+function Vo(e) {
   return e.segments.filter((t) => t.grade !== "ok").map((t) => ({ start: t.start, end: t.end }));
 }
-function Oe(e) {
+function Fe(e) {
   return {
-    speed: _("Travel speed"),
-    angular_speed: _("Rotation speed"),
-    acceleration: _("Acceleration"),
-    jerk: _("Jerk"),
-    framing_loss: _("Subject out of frame"),
-    fov_drift: _("FOV change")
+    speed: w("Travel speed"),
+    angular_speed: w("Rotation speed"),
+    acceleration: w("Acceleration"),
+    jerk: w("Jerk"),
+    framing_loss: w("Subject out of frame"),
+    fov_drift: w("FOV change")
   }[e] || e;
 }
-function Oo(e) {
+function Ko(e) {
   return {
-    ok: _("Within limits"),
-    warn: _("Near the limit"),
-    over: _("Over the limit")
+    ok: w("Within limits"),
+    warn: w("Near the limit"),
+    over: w("Over the limit")
   }[e] || e;
 }
-let be = null, He = null;
-function Po(e) {
-  He = e;
+let be = null, Ye = null;
+function Go(e) {
+  Ye = e;
 }
-async function ln() {
+async function Cn() {
   if (be) return be;
   try {
-    if (!He) return null;
-    const e = await He.fetchApi("/majoor/omnicam/motion_profiles");
+    if (!Ye) return null;
+    const e = await Ye.fetchApi("/majoor/omnicam/motion_profiles");
     return e.ok ? (be = await e.json(), be) : null;
   } catch {
     return null;
   }
 }
-function zo(e) {
+function Bo(e) {
   return e.root.querySelector('[data-role="health-profile"]')?.value || e.state?.health_profile || "generic";
 }
-function No(e, t) {
+function qo(e, t) {
   const a = e.motionProfiles?.profiles?.find((o) => o.id === t);
   return a ? a.limits : null;
 }
 function ue(e) {
-  const t = zo(e), a = No(e, t);
-  return a ? It(e.state, a, null, t) : null;
+  const t = Bo(e), a = qo(e, t);
+  return a ? Ft(e.state, a, null, t) : null;
 }
-function ut(e) {
+function bt(e) {
   return Number(e).toFixed(Math.abs(e) >= 100 ? 0 : 1);
 }
 function ie(e, t, a, o) {
-  const r = a == null ? _("no limit") : `${ut(t)} / ${ut(a)}`;
+  const r = a == null ? w("no limit") : `${bt(t)} / ${bt(a)}`;
   return `
     <div class="oc-health-metric" data-grade="${o}">
       <span class="oc-health-dot"></span>
-      <span class="oc-health-metric-name">${Oe(e)}</span>
+      <span class="oc-health-metric-name">${Fe(e)}</span>
       <span class="oc-health-metric-value">${r}</span>
     </div>`;
 }
 function _e(e, t, a) {
   return t == null || t <= 0 ? "ok" : e > t ? "over" : e > t * a ? "warn" : "ok";
 }
-function Ro(e) {
-  const t = xo(e);
+function Ho(e) {
+  const t = Ao(e);
   return t.length ? t.slice(0, 6).map((a) => {
-    const o = a.metrics.map((n) => Oe(n)).join(", "), r = a.start === a.end ? _("Frame {frame}").replace("{frame}", String(a.start)) : _("Frames {start}-{end}").replace("{start}", String(a.start)).replace("{end}", String(a.end));
+    const o = a.metrics.map((n) => Fe(n)).join(", "), r = a.start === a.end ? w("Frame {frame}").replace("{frame}", String(a.start)) : w("Frames {start}-{end}").replace("{start}", String(a.start)).replace("{end}", String(a.end));
     return `
       <button type="button" class="oc-health-zone" data-grade="${a.grade}" data-zone-start="${a.start}"
-              title="${_("Jump the playhead to this zone")}">
+              title="${w("Jump the playhead to this zone")}">
         <span class="oc-health-dot"></span><span class="oc-health-zone-range">${r}</span>
         <span class="oc-health-zone-reason">${o}</span>
       </button>`;
-  }).join("") : `<div class="oc-health-empty">${_("No problem zone on this shot.")}</div>`;
+  }).join("") : `<div class="oc-health-empty">${w("No problem zone on this shot.")}</div>`;
 }
-function Fo(e) {
+function Wo(e) {
   const t = e.root.querySelector('[data-role="health-body"]'), a = e.root.querySelector('[data-role="health-badge"]');
   if (!t || !a) return;
   if (!e.motionProfiles) {
-    a.className = "oc-health-badge", a.textContent = _("Unavailable"), t.innerHTML = `<div class="oc-health-empty">${_("Could not load the recommended limits from the OmniCam server. The panel will not guess a threshold.")}</div>`;
+    a.className = "oc-health-badge", a.textContent = w("Unavailable"), t.innerHTML = `<div class="oc-health-empty">${w("Could not load the recommended limits from the OmniCam server. The panel will not guess a threshold.")}</div>`;
     return;
   }
   const o = ue(e);
   if (!o) return;
   e.healthReport = o;
   const { warn_ratio: r } = o;
-  a.className = `oc-health-badge ${o.grade}`, a.textContent = Oo(o.grade);
+  a.className = `oc-health-badge ${o.grade}`, a.textContent = Ko(o.grade);
   const n = [
     ie(
       "speed",
@@ -954,87 +962,87 @@ function Fo(e) {
     ),
     ie("fov_drift", o.max_fov_change, o.limits.max_fov_change, o.track_grades.fov_drift)
   ].join(""), s = o.framing_loss_frames ? `<div class="oc-health-metric" data-grade="over"><span class="oc-health-dot"></span>
-         <span class="oc-health-metric-name">${Oe("framing_loss")}</span>
-         <span class="oc-health-metric-value">${_("{count} frames").replace("{count}", String(o.framing_loss_frames))}</span>
+         <span class="oc-health-metric-name">${Fe("framing_loss")}</span>
+         <span class="oc-health-metric-value">${w("{count} frames").replace("{count}", String(o.framing_loss_frames))}</span>
        </div>` : "";
   t.innerHTML = `
     <div class="oc-health-metrics">${n}${s}</div>
-    <div class="oc-section">${_("Problem zones")}</div>
-    <div class="oc-health-zones" data-role="health-zones">${Ro(o)}</div>
+    <div class="oc-section">${w("Problem zones")}</div>
+    <div class="oc-health-zones" data-role="health-zones">${Ho(o)}</div>
     <div class="oc-card-actions oc-health-actions">
-      <button data-act="health-slow" title="${_("Respace the keys so the shot travels at a constant speed")}"><i class="pi pi-clock"></i> ${_("Slow to limits")}</button>
-      <button data-act="health-smooth" title="${_("Blend the keys inside the flagged zones only")}"><i class="pi pi-chart-line"></i> ${_("Smooth flagged")}</button>
-      <button data-act="health-recenter" title="${_("Aim the keys of the flagged zones back at the subject")}"><i class="pi pi-crosshairs"></i> ${_("Recenter subject")}</button>
+      <button data-act="health-slow" title="${w("Respace the keys so the shot travels at a constant speed")}"><i class="pi pi-clock"></i> ${w("Slow to limits")}</button>
+      <button data-act="health-smooth" title="${w("Blend the keys inside the flagged zones only")}"><i class="pi pi-chart-line"></i> ${w("Smooth flagged")}</button>
+      <button data-act="health-recenter" title="${w("Aim the keys of the flagged zones back at the subject")}"><i class="pi pi-crosshairs"></i> ${w("Recenter subject")}</button>
     </div>
-    <p class="oc-health-note">${_("A valid trajectory stays inside the limits recommended for this model. It is not a guarantee about the generated video.")}</p>`;
+    <p class="oc-health-note">${w("A valid trajectory stays inside the limits recommended for this model. It is not a guarantee about the generated video.")}</p>`;
 }
-function mn(e, t) {
+function Dn(e, t) {
   if (!t || !e.motionProfiles) return;
   const a = ue(e);
   if (a) {
     e.healthReport = a;
     for (const o of a.segments) {
       if (o.grade === "ok") continue;
-      const r = qe(e, o.start), n = qe(e, o.end + 1);
+      const r = Xe(e, o.start), n = Xe(e, o.end + 1);
       if (n < -5 || r > 105) continue;
       const s = document.createElement("div");
-      s.className = "oc-health-band", s.dataset.grade = o.grade, s.style.left = `${r}%`, s.style.width = `${Math.max(0.4, n - r)}%`, s.title = o.metrics.map((i) => Oe(i)).join(", "), t.appendChild(s);
+      s.className = "oc-health-band", s.dataset.grade = o.grade, s.style.left = `${r}%`, s.style.width = `${Math.max(0.4, n - r)}%`, s.title = o.metrics.map((i) => Fe(i)).join(", "), t.appendChild(s);
     }
   }
 }
-function Te(e, t, a, o) {
+function Ae(e, t, a, o) {
   const r = e.activeCameraTrack();
-  r && (e.checkpoint(a), r.keyframes = t, e.state.keyframes = t, e.syncActiveCameraTrack(), e.refreshKeys(), e.setFrame(e.frame, !1, !1), e.setStatus(o), Fo(e));
+  r && (e.checkpoint(a), r.keyframes = t, e.state.keyframes = t, e.syncActiveCameraTrack(), e.refreshKeys(), e.setFrame(e.frame, !1, !1), e.setStatus(o), Wo(e));
 }
-function dn(e) {
+function kn(e) {
   const t = ue(e);
   if (!t) return;
   const a = t.limits.max_speed;
   if (!a) {
-    e.setStatus(_("This profile sets no speed limit."));
+    e.setStatus(w("This profile sets no speed limit."));
     return;
   }
-  const o = Math.max(1, e.state.duration_frames - 1), r = ko(e.state.keyframes, o), n = It({ ...e.state, keyframes: r }, t.limits, null, t.profile);
+  const o = Math.max(1, e.state.duration_frames - 1), r = No(e.state.keyframes, o), n = Ft({ ...e.state, keyframes: r }, t.limits, null, t.profile);
   if (n.max_speed <= a) {
-    Te(e, r, "Slow to limits", _("Speed flattened; the shot keeps its length."));
+    Ae(e, r, "Slow to limits", w("Speed flattened; the shot keeps its length."));
     return;
   }
   const s = n.max_speed / a * (e.state.duration_frames / Math.max(1, e.state.fps));
-  Te(e, r, "Slow to limits", _("Speed flattened, still over: this path needs about {seconds}s to fit the limit.").replace("{seconds}", s.toFixed(1)));
+  Ae(e, r, "Slow to limits", w("Speed flattened, still over: this path needs about {seconds}s to fit the limit.").replace("{seconds}", s.toFixed(1)));
 }
-function pn(e) {
+function jn(e) {
   const t = ue(e);
   if (!t) return;
-  const a = Ao(t);
+  const a = Vo(t);
   if (!a.length) {
-    e.setStatus(_("Nothing is flagged on this shot."));
+    e.setStatus(w("Nothing is flagged on this shot."));
     return;
   }
-  const o = To(e.state.keyframes, a, 0.6);
-  Te(
+  const o = Fo(e.state.keyframes, a, 0.6);
+  Ae(
     e,
     o,
     "Smooth flagged zones",
-    _("Smoothed {count} flagged zone(s).").replace("{count}", String(a.length))
+    w("Smoothed {count} flagged zone(s).").replace("{count}", String(a.length))
   );
 }
-function fn(e) {
+function Tn(e) {
   const t = ue(e);
   if (!t) return;
-  const a = Io(t, "framing_loss");
+  const a = Lo(t, "framing_loss");
   if (!a.length) {
-    e.setStatus(_("The subject stays in frame on this shot."));
+    e.setStatus(w("The subject stays in frame on this shot."));
     return;
   }
-  const o = Eo(e.state.keyframes, a, t.subject);
-  Te(
+  const o = Ro(e.state.keyframes, a, t.subject);
+  Ae(
     e,
     o,
     "Recenter subject",
-    _("Recentred {count} zone(s) on the subject.").replace("{count}", String(a.length))
+    w("Recentred {count} zone(s) on the subject.").replace("{count}", String(a.length))
   );
 }
-const Lo = {
+const $o = {
   "Add static screen anchor": "Ajouter une ancre écran fixe",
   "Balanced camera field": "Champ caméra équilibré",
   Binding: "Liaison",
@@ -1272,6 +1280,11 @@ const Lo = {
   "Move speed": "Vitesse de déplacement",
   "Navigation & Selection": "Navigation et sélection",
   "Navigation profile": "Profil de navigation",
+  "Middle drag orbits, Shift+middle pans, Ctrl+middle dollies -- no Alt needed anywhere. Alt+left/middle/right are aliases for orbit/pan/dolly; with no middle button, Ctrl+drag over empty space orbits and Ctrl+Shift+drag pans. The profile only decides whether Alt+right dollies (Maya) or does nothing (Blender).": "Le glisser bouton du milieu orbite, Maj+milieu fait un pan, Ctrl+milieu un dolly — aucun Alt nécessaire. Alt+gauche/milieu/droit sont des alias pour orbite/pan/dolly ; sans bouton du milieu, Ctrl+glisser sur une zone vide orbite et Ctrl+Maj+glisser fait un pan. Le profil ne décide plus que d'une chose : Alt+droit fait un dolly (Maya) ou rien (Blender).",
+  "Applies to Move only. Scale and Rotate always use the object's own axes, as Maya's manipulators do: a size triple and an XYZ euler only exist in the object's own frame, so a world-axis scale would shear it and a world-axis rotation cannot be expressed at all.": "S'applique au déplacement uniquement. L'échelle et la rotation utilisent toujours les axes propres de l'objet, comme les manipulateurs de Maya : un triplet de tailles et un euler XYZ n'existent que dans le repère de l'objet, donc une échelle sur un axe monde le cisaillerait et une rotation sur un axe monde est tout simplement inexprimable.",
+  "Framed: all objects": "Cadré : tous les objets",
+  "Framed: {name}": "Cadré : {name}",
+  "{name} is locked": "{name} est verrouillée",
   "Near Clip": "Plan rapproché",
   Neutral: "Neutre",
   "New key interpolation": "Interpolation des nouvelles clés",
@@ -1563,21 +1576,21 @@ const Lo = {
   "More viewport views": "Plus de vues",
   "World axis navigation": "Navigation des axes monde",
   "View: {axis} axis": "Vue : axe {axis}"
-}, W = ["OmniCam", "Director"], Pt = "MajoorOmniCam.Locale", zt = "MajoorOmniCam.Defaults.Fps", Nt = "MajoorOmniCam.Defaults.DurationSeconds", Rt = "MajoorOmniCam.Defaults.Width", Ft = "MajoorOmniCam.Defaults.Height", Lt = "MajoorOmniCam.Defaults.RenderMode", Kt = "MajoorOmniCam.Defaults.Encoder", Vt = "MajoorOmniCam.Defaults.PlayblastResolution", Gt = "MajoorOmniCam.Defaults.PlayblastGrid", Bt = "MajoorOmniCam.Proxy.PointDensity", qt = "MajoorOmniCam.Proxy.PointSpread", Ht = "MajoorOmniCam.Proxy.PointColor", Wt = "MajoorOmniCam.Proxy.CardFit", $t = "MajoorOmniCam.Viewport.Quality", Ut = "MajoorOmniCam.Viewport.Adaptive", Xt = "MajoorOmniCam.Viewport.BackgroundColor", Yt = "MajoorOmniCam.Display.Grid", Zt = "MajoorOmniCam.Display.Radar", Qt = "MajoorOmniCam.Display.CameraPaths", Jt = "MajoorOmniCam.Display.CameraGizmos", ea = "MajoorOmniCam.Display.LookAt", ta = "MajoorOmniCam.Display.HelperAxes", aa = "MajoorOmniCam.Display.Gizmo", oa = "MajoorOmniCam.Display.Guides", ra = "MajoorOmniCam.Display.SafeAreas", na = "MajoorOmniCam.Display.ResolutionGate", sa = "MajoorOmniCam.Display.AspectRatio", ia = "MajoorOmniCam.Display.BurnIn", ca = "MajoorOmniCam.Display.SpeedHeatmap", la = "MajoorOmniCam.Display.Wireframe", ma = "MajoorOmniCam.Display.Vertices", da = "MajoorOmniCam.Tools.SelectMode", pa = "MajoorOmniCam.Tools.GizmoMode", fa = "MajoorOmniCam.Tools.GizmoSpace", ua = "MajoorOmniCam.Tools.SpatialSnapMode", ha = "MajoorOmniCam.Tools.SpatialGridSize", ga = "MajoorOmniCam.Navigation.Profile", ya = "MajoorOmniCam.Navigation.FlySpeed", ba = "MajoorOmniCam.Navigation.ViewMode", _a = "MajoorOmniCam.Timeline.SnapEnabled", va = "MajoorOmniCam.Timeline.SnapFrames", wa = "MajoorOmniCam.Timeline.AutoKey", Sa = "MajoorOmniCam.Timeline.TimecodeMode", Ma = "MajoorOmniCam.Timeline.LoopPlayback", xa = "MajoorOmniCam.Interface.Density", Ca = "MajoorOmniCam.Interface.PreviewLayout", Da = "MajoorOmniCam.Interface.CameraPreviews", ja = "MajoorOmniCam.History.Limit";
-function E(e, t, a, o, r) {
-  return { id: e, category: [...W, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
+}, $ = ["OmniCam", "Director"], Vt = "MajoorOmniCam.Locale", Kt = "MajoorOmniCam.Defaults.Fps", Gt = "MajoorOmniCam.Defaults.DurationSeconds", Bt = "MajoorOmniCam.Defaults.Width", qt = "MajoorOmniCam.Defaults.Height", Ht = "MajoorOmniCam.Defaults.RenderMode", Wt = "MajoorOmniCam.Defaults.Encoder", $t = "MajoorOmniCam.Defaults.PlayblastResolution", Ut = "MajoorOmniCam.Defaults.PlayblastGrid", Xt = "MajoorOmniCam.Proxy.PointDensity", Yt = "MajoorOmniCam.Proxy.PointSpread", Zt = "MajoorOmniCam.Proxy.PointColor", Qt = "MajoorOmniCam.Proxy.CardFit", Jt = "MajoorOmniCam.Viewport.Quality", ea = "MajoorOmniCam.Viewport.Adaptive", ta = "MajoorOmniCam.Viewport.BackgroundColor", aa = "MajoorOmniCam.Display.Grid", oa = "MajoorOmniCam.Display.Radar", ra = "MajoorOmniCam.Display.CameraPaths", na = "MajoorOmniCam.Display.CameraGizmos", sa = "MajoorOmniCam.Display.LookAt", ia = "MajoorOmniCam.Display.HelperAxes", ca = "MajoorOmniCam.Display.Gizmo", la = "MajoorOmniCam.Display.Guides", ma = "MajoorOmniCam.Display.SafeAreas", da = "MajoorOmniCam.Display.ResolutionGate", pa = "MajoorOmniCam.Display.AspectRatio", fa = "MajoorOmniCam.Display.BurnIn", ua = "MajoorOmniCam.Display.SpeedHeatmap", ha = "MajoorOmniCam.Display.Wireframe", ga = "MajoorOmniCam.Display.Vertices", ya = "MajoorOmniCam.Tools.SelectMode", ba = "MajoorOmniCam.Tools.GizmoMode", _a = "MajoorOmniCam.Tools.GizmoSpace", va = "MajoorOmniCam.Tools.SpatialSnapMode", wa = "MajoorOmniCam.Tools.SpatialGridSize", Ma = "MajoorOmniCam.Navigation.Profile", Sa = "MajoorOmniCam.Navigation.FlySpeed", xa = "MajoorOmniCam.Navigation.ViewMode", Ca = "MajoorOmniCam.Timeline.SnapEnabled", Da = "MajoorOmniCam.Timeline.SnapFrames", ka = "MajoorOmniCam.Timeline.AutoKey", ja = "MajoorOmniCam.Timeline.TimecodeMode", Ta = "MajoorOmniCam.Timeline.LoopPlayback", Ea = "MajoorOmniCam.Interface.Density", Ia = "MajoorOmniCam.Interface.PreviewLayout", Aa = "MajoorOmniCam.Interface.CameraPreviews", Oa = "MajoorOmniCam.History.Limit";
+function I(e, t, a, o, r) {
+  return { id: e, category: [...$, t], name: a, tooltip: o, type: "boolean", defaultValue: r };
 }
-function P(e, t, a, o, r, n) {
-  return { id: e, category: [...W, t], name: a, tooltip: o, type: "combo", options: r, defaultValue: n };
+function z(e, t, a, o, r, n) {
+  return { id: e, category: [...$, t], name: a, tooltip: o, type: "combo", options: r, defaultValue: n };
 }
-function B(e, t, a, o, r, n) {
-  return { id: e, category: [...W, t], name: a, tooltip: o, type: "slider", attrs: r, defaultValue: n };
+function q(e, t, a, o, r, n) {
+  return { id: e, category: [...$, t], name: a, tooltip: o, type: "slider", attrs: r, defaultValue: n };
 }
-function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
+function Uo({ onLocaleChange: e, onQualityChange: t } = {}) {
   return [
     {
-      id: Pt,
-      category: [...W, "Language"],
+      id: Vt,
+      category: [...$, "Language"],
       name: "Viewport language",
       tooltip: "Language of the OmniCam Director viewport. 'Follow ComfyUI' uses the ComfyUI locale.",
       type: "combo",
@@ -1589,48 +1602,48 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       defaultValue: "auto",
       onChange: () => e?.()
     },
-    B(
-      zt,
+    q(
+      Kt,
       "Defaults",
       "Default FPS",
       "Frame rate applied to newly created Director nodes.",
       { min: 1, max: 120, step: 1 },
       24
     ),
-    B(
-      Nt,
+    q(
+      Gt,
       "Defaults",
       "Default duration (seconds)",
       "Timeline duration applied to newly created Director nodes.",
       { min: 1, max: 120, step: 1 },
       5
     ),
-    B(
-      Rt,
+    q(
+      Bt,
       "Defaults",
       "Default width",
       "Output width applied to newly created Director nodes.",
       { min: 64, max: 4096, step: 16 },
       1280
     ),
-    B(
-      Ft,
+    q(
+      qt,
       "Defaults",
       "Default height",
       "Output height applied to newly created Director nodes.",
       { min: 64, max: 4096, step: 16 },
       720
     ),
-    P(
-      Lt,
+    z(
+      Ht,
       "Defaults",
       "Default proxy render mode",
       "Render mode applied to newly created Director nodes.",
       ["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"],
       "omni_ref"
     ),
-    P(
-      Kt,
+    z(
+      Wt,
       "Defaults",
       "Default playblast encoder",
       "WebCodecs is deterministic; realtime is the MediaRecorder fallback.",
@@ -1640,8 +1653,8 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "auto"
     ),
-    P(
-      Vt,
+    z(
+      $t,
       "Defaults",
       "Default playblast resolution",
       "Drawing-buffer size of the recorded playblast. 'Match node output' locks it to the node's width x height.",
@@ -1653,23 +1666,23 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "viewport"
     ),
-    E(
-      Gt,
+    I(
+      Ut,
       "Defaults",
       "Keep the grid in the playblast",
       "Records the floor grid into the playblast instead of hiding it for the capture.",
       !1
     ),
-    P(
-      Bt,
+    z(
+      Xt,
       "Proxy",
       "Default point density",
       "Point count of the omni-reference point field.",
       ["none", "sparse", "balanced", "dense", "ultra"],
       "balanced"
     ),
-    P(
-      qt,
+    z(
+      Yt,
       "Proxy",
       "Default point spread",
       "How the reference points are distributed around the scene.",
@@ -1681,15 +1694,15 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       "all_views"
     ),
     {
-      id: Ht,
-      category: [...W, "Proxy"],
+      id: Zt,
+      category: [...$, "Proxy"],
       name: "Default point colour",
       tooltip: "Colour of the reference point field.",
       type: "color",
       defaultValue: "cbd5e1"
     },
-    P(
-      Wt,
+    z(
+      Qt,
       "Proxy",
       "Default card fit",
       "How media is fitted inside a subject card.",
@@ -1701,8 +1714,8 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       "contain"
     ),
     {
-      id: $t,
-      category: [...W, "Viewport"],
+      id: Jt,
+      category: [...$, "Viewport"],
       name: "Studio quality",
       tooltip: "Image-based lighting and soft shadows in the editing viewport. Lower it on a modest GPU.",
       type: "combo",
@@ -1714,153 +1727,153 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       defaultValue: "balanced",
       onChange: (a) => t?.(a)
     },
-    E(
-      Ut,
+    I(
+      ea,
       "Viewport",
       "Drop quality when the viewport stutters",
       "Steps the studio quality down automatically if navigation falls below ~40fps, and leaves it there for the session.",
       !0
     ),
     {
-      id: Xt,
-      category: [...W, "Viewport"],
+      id: ta,
+      category: [...$, "Viewport"],
       name: "Default background colour",
       tooltip: "Viewport background. Leave it at the default to keep the studio sky.",
       type: "color",
       defaultValue: "121212"
     },
-    E(
-      Yt,
+    I(
+      aa,
       "Display",
       "Show grid by default",
       "Shows the viewport floor grid on newly created Director nodes.",
       !0
     ),
-    E(
-      Zt,
+    I(
+      oa,
       "Display",
       "Show camera mini-map by default",
       "Shows the radar mini-map on newly created Director nodes.",
       !1
     ),
-    E(
-      Qt,
+    I(
+      ra,
       "Display",
       "Show camera paths by default",
       "Shows camera trajectories on newly created Director nodes.",
       !0
     ),
-    E(
-      Jt,
+    I(
+      na,
       "Display",
       "Show camera gizmos by default",
       "Shows camera bodies and frustums on newly created Director nodes.",
       !0
     ),
-    E(
-      ea,
+    I(
+      sa,
       "Display",
       "Show look-at targets by default",
       "Shows camera look-at lines and target crosshairs on newly created Director nodes.",
       !0
     ),
-    E(
-      ta,
+    I(
+      ia,
       "Display",
       "Show helper axes by default",
       "Shows null-object axis helpers on newly created Director nodes.",
       !0
     ),
-    E(
-      aa,
+    I(
+      ca,
       "Display",
       "Show transform gizmo by default",
       "Shows transform and axis gizmos on newly created Director nodes.",
       !0
     ),
-    E(
-      oa,
+    I(
+      la,
       "Display",
       "Show rule-of-thirds guides by default",
       "Shows the rule-of-thirds grid and centre crosshair in camera view.",
       !0
     ),
-    E(
-      ra,
+    I(
+      ma,
       "Display",
       "Show safe areas by default",
       "Shows the 90% action-safe and 80% title-safe rectangles.",
       !1
     ),
-    E(
-      na,
+    I(
+      da,
       "Display",
       "Show resolution gate by default",
       "Masks the viewport down to the node's output width x height.",
       !1
     ),
-    P(
-      sa,
+    z(
+      pa,
       "Display",
       "Default aspect ratio",
       "Framing ratio used by the resolution gate. 'Auto' follows the node output.",
       ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"],
       "auto"
     ),
-    E(
-      ia,
+    I(
+      fa,
       "Display",
       "Show burn-in data by default",
       "Overlays frame, fps, FOV and render mode along the bottom of the viewport.",
       !1
     ),
-    E(
-      ca,
+    I(
+      ua,
       "Display",
       "Show speed map by default",
       "Colours the camera path by travel speed.",
       !1
     ),
-    E(
-      la,
+    I(
+      ha,
       "Display",
       "Show wireframe by default",
       "Draws mesh edges over scene objects. Skinned models follow their animation.",
       !1
     ),
-    E(
-      ma,
+    I(
+      ga,
       "Display",
       "Show mesh vertices by default",
       "Draws mesh vertices as points over scene objects.",
       !1
     ),
-    P(
-      da,
+    z(
+      ya,
       "Tools",
       "Default selection mode",
       "Component level the viewport selects at.",
       ["object", "vertex", "edge", "face"],
       "object"
     ),
-    P(
-      pa,
+    z(
+      ba,
       "Tools",
       "Default transform mode",
       "Transform the gizmo starts in.",
       ["translate", "rotate", "scale"],
       "translate"
     ),
-    P(
-      fa,
+    z(
+      _a,
       "Tools",
       "Default gizmo space",
       "World-aligned axes, or the selected object's own orientation.",
       ["world", "local"],
       "world"
     ),
-    P(
-      ua,
+    z(
+      va,
       "Tools",
       "Default spatial snapping",
       "Snap dragged transforms to a grid increment or to nearby vertices.",
@@ -1871,16 +1884,16 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "none"
     ),
-    B(
-      ha,
+    q(
+      wa,
       "Tools",
       "Default snap grid size",
       "Grid increment used by spatial grid snapping, in scene units.",
       { min: 0.01, max: 10, step: 0.01 },
       0.5
     ),
-    P(
-      ga,
+    z(
+      Ma,
       "Navigation",
       "Default navigation profile",
       "Viewport navigation profile applied to newly created Director nodes.",
@@ -1890,46 +1903,46 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "maya"
     ),
-    B(
-      ya,
+    q(
+      Sa,
       "Navigation",
       "Default fly speed",
       "WASD / QE fly speed applied to newly created Director nodes.",
       { min: 0.05, max: 5, step: 0.05 },
       1
     ),
-    P(
-      ba,
+    z(
+      xa,
       "Navigation",
       "Default view",
       "View a newly created Director node opens in.",
       ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"],
       "camera"
     ),
-    E(
-      _a,
+    I(
+      Ca,
       "Timeline",
       "Enable timeline snapping by default",
       "Snaps dragged keyframes to the frame increment below.",
       !0
     ),
-    B(
-      va,
+    q(
+      Da,
       "Timeline",
       "Default timeline snap",
       "Frame increment used by timeline snapping on newly created Director nodes.",
       { min: 1, max: 24, step: 1 },
       1
     ),
-    E(
-      wa,
+    I(
+      ka,
       "Timeline",
       "Enable Auto Key by default",
       "Enables Auto Key on newly created Director nodes.",
       !1
     ),
-    P(
-      Sa,
+    z(
+      ja,
       "Timeline",
       "Default time display",
       "Elapsed time, or HH:MM:SS:FF timecode.",
@@ -1939,15 +1952,15 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "time"
     ),
-    E(
-      Ma,
+    I(
+      Ta,
       "Timeline",
       "Loop playback by default",
       "Restarts playback at the first frame instead of stopping at the last.",
       !1
     ),
-    P(
-      xa,
+    z(
+      Ea,
       "Interface",
       "Default interface density",
       "How much of the editor chrome is shown.",
@@ -1958,8 +1971,8 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "advanced"
     ),
-    P(
-      Ca,
+    z(
+      Ia,
       "Interface",
       "Default camera preview layout",
       "How the camera preview tiles are arranged.",
@@ -1971,15 +1984,15 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
       ],
       "auto"
     ),
-    E(
-      Da,
+    I(
+      Aa,
       "Interface",
       "Show camera previews by default",
       "Opens newly created Director nodes with the camera preview strip visible.",
       !0
     ),
-    B(
-      ja,
+    q(
+      Oa,
       "History",
       "Undo history limit",
       "Maximum number of Undo steps held by each Director editor.",
@@ -1988,131 +2001,131 @@ function Ko({ onLocaleChange: e, onQualityChange: t } = {}) {
     )
   ];
 }
-const Vo = Ko({
-  onLocaleChange: () => Ta(),
-  onQualityChange: (e) => Wo(e)
+const Xo = Uo({
+  onLocaleChange: () => Pa(),
+  onQualityChange: (e) => er(e)
 });
-let ka = null;
-function K(e, t) {
+let za = null;
+function V(e, t) {
   try {
-    const a = ka?.extensionManager?.setting?.get(e);
+    const a = za?.extensionManager?.setting?.get(e);
     return a ?? t;
   } catch {
     return t;
   }
 }
-function q(e, t, a, o, r = !1) {
-  const n = Number(K(e, t)), s = Number.isFinite(n) ? Math.min(o, Math.max(a, n)) : t;
+function H(e, t, a, o, r = !1) {
+  const n = Number(V(e, t)), s = Number.isFinite(n) ? Math.min(o, Math.max(a, n)) : t;
   return r ? Math.round(s) : s;
 }
-function A(e, t) {
-  const a = K(e, t);
+function O(e, t) {
+  const a = V(e, t);
   return typeof a == "boolean" ? a : t;
 }
-function z(e, t, a) {
-  const o = String(K(e, t));
+function P(e, t, a) {
+  const o = String(V(e, t));
   return a.includes(o) ? o : t;
 }
-function ht(e, t) {
-  const a = String(K(e, t) || "").trim(), o = a.startsWith("#") ? a.slice(1) : a;
+function _t(e, t) {
+  const a = String(V(e, t) || "").trim(), o = a.startsWith("#") ? a.slice(1) : a;
   return /^[0-9a-fA-F]{6}$/.test(o) ? `#${o.toLowerCase()}` : t;
 }
-function Ta() {
-  const e = String(K(Pt, "auto")), t = String(K("Comfy.Locale", "en") || "en").slice(0, 2).toLowerCase();
-  $a(e === "auto" ? t : e);
+function Pa() {
+  const e = String(V(Vt, "auto")), t = String(V("Comfy.Locale", "en") || "en").slice(0, 2).toLowerCase();
+  to(e === "auto" ? t : e);
 }
 const he = /* @__PURE__ */ new Set();
-function Go(e) {
+function Yo(e) {
   he.add(e);
 }
-function un(e) {
+function En(e) {
   he.delete(e);
 }
-function Bo() {
+function Zo() {
   for (const e of he)
     if (!e.disposed) return !0;
   return !1;
 }
-function qo(e) {
+function Qo(e) {
   if (!(e instanceof Node)) return null;
   for (const t of he)
     if (!t.disposed && t.root?.contains(e)) return t;
   return null;
 }
-function Ea() {
-  return String(K($t, "balanced"));
+function Na() {
+  return String(V(Jt, "balanced"));
 }
-function Ho() {
-  return K(Ut, !0) !== !1;
+function Jo() {
+  return V(ea, !0) !== !1;
 }
-function Wo(e = Ea()) {
+function er(e = Na()) {
   for (const t of he)
     t.webgl?.setViewportQuality?.(e), t.cameraWebgl?.setViewportQuality?.(e), t.invalidate?.();
 }
-function $o() {
+function tr() {
   return {
-    fps: q(zt, 24, 1, 120, !0),
-    durationSeconds: q(Nt, 5, 1, 120, !0),
-    width: q(Rt, 1280, 64, 4096, !0),
-    height: q(Ft, 720, 64, 4096, !0),
-    renderMode: String(K(Lt, "omni_ref")),
-    encoder: String(K(Kt, "auto")),
-    playblastResolution: z(Vt, "output", ["viewport", "half", "output", "double"]),
-    playblastGrid: A(Gt, !1),
-    pointDensity: z(Bt, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
-    pointSpread: z(qt, "all_views", ["all_views", "ground_focus", "dome"]),
-    pointColor: ht(Ht, "#cbd5e1"),
-    cardFit: z(Wt, "contain", ["contain", "cover", "stretch"]),
-    backgroundColor: ht(Xt, "#121212"),
-    showGrid: A(Yt, !0),
-    showRadar: A(Zt, !1),
-    showCameraPaths: A(Qt, !0),
-    showCameraGizmos: A(Jt, !0),
-    showLookAt: A(ea, !0),
-    showHelperAxes: A(ta, !0),
-    showGizmo: A(aa, !0),
-    guides: A(oa, !0),
-    safeAreas: A(ra, !1),
-    resolutionGate: A(na, !1),
-    aspectRatio: z(sa, "auto", ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"]),
-    burnIn: A(ia, !1),
-    speedHeatmap: A(ca, !1),
-    showWireframe: A(la, !1),
-    showVertices: A(ma, !1),
-    selectMode: z(da, "object", ["object", "vertex", "edge", "face"]),
-    gizmoMode: z(pa, "translate", ["translate", "rotate", "scale"]),
-    gizmoSpace: z(fa, "world", ["world", "local"]),
-    spatialSnapMode: z(ua, "none", ["none", "grid", "vertex"]),
-    spatialGridSize: q(ha, 0.5, 0.01, 100),
-    navigationProfile: z(ga, "maya", ["maya", "blender"]),
-    flySpeed: q(ya, 1, 0.05, 5),
-    viewMode: z(ba, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
-    snapEnabled: A(_a, !0),
-    snapFrames: q(va, 1, 1, 24, !0),
-    autoKey: A(wa, !1),
-    timecodeMode: z(Sa, "time", ["time", "timecode"]),
-    loopPlayback: A(Ma, !1),
-    uiDensity: z(xa, "advanced", ["basic", "animation", "advanced"]),
-    previewLayout: z(Ca, "auto", ["auto", "1", "2", "4"]),
-    cameraViewVisible: A(Da, !0),
-    undoLimit: q(ja, 100, 10, 500, !0)
+    fps: H(Kt, 24, 1, 120, !0),
+    durationSeconds: H(Gt, 5, 1, 120, !0),
+    width: H(Bt, 1280, 64, 4096, !0),
+    height: H(qt, 720, 64, 4096, !0),
+    renderMode: String(V(Ht, "omni_ref")),
+    encoder: String(V(Wt, "auto")),
+    playblastResolution: P($t, "output", ["viewport", "half", "output", "double"]),
+    playblastGrid: O(Ut, !1),
+    pointDensity: P(Xt, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
+    pointSpread: P(Yt, "all_views", ["all_views", "ground_focus", "dome"]),
+    pointColor: _t(Zt, "#cbd5e1"),
+    cardFit: P(Qt, "contain", ["contain", "cover", "stretch"]),
+    backgroundColor: _t(ta, "#121212"),
+    showGrid: O(aa, !0),
+    showRadar: O(oa, !1),
+    showCameraPaths: O(ra, !0),
+    showCameraGizmos: O(na, !0),
+    showLookAt: O(sa, !0),
+    showHelperAxes: O(ia, !0),
+    showGizmo: O(ca, !0),
+    guides: O(la, !0),
+    safeAreas: O(ma, !1),
+    resolutionGate: O(da, !1),
+    aspectRatio: P(pa, "auto", ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"]),
+    burnIn: O(fa, !1),
+    speedHeatmap: O(ua, !1),
+    showWireframe: O(ha, !1),
+    showVertices: O(ga, !1),
+    selectMode: P(ya, "object", ["object", "vertex", "edge", "face"]),
+    gizmoMode: P(ba, "translate", ["translate", "rotate", "scale"]),
+    gizmoSpace: P(_a, "world", ["world", "local"]),
+    spatialSnapMode: P(va, "none", ["none", "grid", "vertex"]),
+    spatialGridSize: H(wa, 0.5, 0.01, 100),
+    navigationProfile: P(Ma, "maya", ["maya", "blender"]),
+    flySpeed: H(Sa, 1, 0.05, 5),
+    viewMode: P(xa, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
+    snapEnabled: O(Ca, !0),
+    snapFrames: H(Da, 1, 1, 24, !0),
+    autoKey: O(ka, !1),
+    timecodeMode: P(ja, "time", ["time", "timecode"]),
+    loopPlayback: O(Ta, !1),
+    uiDensity: P(Ea, "advanced", ["basic", "animation", "advanced"]),
+    previewLayout: P(Ia, "auto", ["auto", "1", "2", "4"]),
+    cameraViewVisible: O(Aa, !0),
+    undoLimit: H(Oa, 100, 10, 500, !0)
   };
 }
-function Uo(e) {
-  ka = e, Wa("fr", Lo), Ta();
+function ar(e) {
+  za = e, eo("fr", $o), Pa();
 }
-function Xo(e) {
-  const t = Ea(), a = Ho();
+function or(e) {
+  const t = Na(), a = Jo();
   for (const o of [e.webgl, e.cameraWebgl])
     o && (o.adaptiveQuality = a, o.onQualityDowngrade = (r) => e.setStatus?.(
-      _("Studio quality lowered to {level} to keep the viewport responsive").replace("{level}", r)
+      w("Studio quality lowered to {level} to keep the viewport responsive").replace("{level}", r)
     ), o.setViewportQuality?.(t));
 }
-function Yo(e) {
-  Go(e), Xo(e);
+function rr(e) {
+  Yo(e), or(e);
 }
-function Zo(e) {
-  const t = $o();
+function nr(e) {
+  const t = tr();
   e.fpsWidget && (e.fpsWidget.value = t.fps), e.durationWidget && (e.durationWidget.value = t.durationSeconds), e.widthWidget && (e.widthWidget.value = t.width), e.heightWidget && (e.heightWidget.value = t.height), e.modeWidget && (e.modeWidget.value = t.renderMode);
   const a = e.root?.querySelector('[data-role="encoder"]');
   a && (a.value = t.encoder), e.cameraSpeed = t.flySpeed, e.history && (e.history.limit = t.undoLimit), Object.assign(e.state, {
@@ -2155,25 +2168,25 @@ function Zo(e) {
     camera_view_visible: t.cameraViewVisible
   }), e.syncFromWidgets?.();
 }
-function Qo(e, t) {
+function sr(e, t) {
   return e[0] * t[0] + e[1] * t[1] + e[2] * t[2];
 }
-function Jo(e, t, a, o, r) {
-  const { right: n, up: s, forward: i } = L(t), l = t.position, m = [a[0] - l[0], a[1] - l[1], a[2] - l[2]], c = Qo(m, i);
-  let p, d;
+function ir(e, t, a, o, r) {
+  const { right: n, up: s, forward: i } = L(t), c = t.position, m = [a[0] - c[0], a[1] - c[1], a[2] - c[2]], l = sr(m, i);
+  let d, p;
   if (t.camera_type === "orthographic") {
-    const u = 5 / Math.max(0.01, t.zoom || 1), h = u * o / Math.max(1, r);
-    p = (e[0] / Math.max(1, o) - 0.5) * 2 * h, d = (0.5 - e[1] / Math.max(1, r)) * 2 * u;
+    const f = 5 / Math.max(0.01, t.zoom || 1), u = f * o / Math.max(1, r);
+    d = (e[0] / Math.max(1, o) - 0.5) * 2 * u, p = (0.5 - e[1] / Math.max(1, r)) * 2 * f;
   } else {
-    const u = 0.5 * r / Math.tan(Math.max(1e-3, t.fov) * Math.PI / 360);
-    p = (e[0] - o / 2) * c / u, d = (r / 2 - e[1]) * c / u;
+    const f = 0.5 * r / Math.tan(Math.max(1e-3, t.fov) * Math.PI / 360);
+    d = (e[0] - o / 2) * l / f, p = (r / 2 - e[1]) * l / f;
   }
-  return [0, 1, 2].map((u) => l[u] + i[u] * c + n[u] * p + s[u] * d);
+  return [0, 1, 2].map((f) => c[f] + i[f] * l + n[f] * d + s[f] * p);
 }
-function er(e) {
+function cr(e) {
   return e === "bezier" ? "bezier" : "smooth";
 }
-function hn(e) {
+function In(e) {
   for (let t = e?.object; t; t = t.parent)
     if (t.userData?.omnicamPathKey) return t.userData.omnicamPathKey;
   return null;
@@ -2181,62 +2194,62 @@ function hn(e) {
 function re(e) {
   return e.recording ? e.playblastCameraAtFrame() : e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode];
 }
-function tr(e, t, a) {
-  const o = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], r = a?.rotation || t?.rotation || [0, 0, 0];
-  return e.state.gizmo_space === "local" ? o.map((n) => je(n, r)) : o;
+function lr(e, t, a, { forceLocal: o = !1 } = {}) {
+  const r = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], n = a?.rotation || t?.rotation || [0, 0, 0];
+  return o || e.state.gizmo_space === "local" ? r.map((s) => Ee(s, n)) : r;
 }
-function ar(e) {
+function mr(e) {
   if (e.selectedEntity === "object") {
     const t = e.selectedObject();
     if (!t || t.locked) return null;
-    const a = t.type === "model" || t.type === "glb" ? e.webgl?.getObjectWorldCenter?.(t.id) : null, o = t.keyframes?.length ? Ae(t, e.frame) : t, r = a || o.position || [0, 0, 0];
+    const a = t.keyframes?.length ? Ne(t, e.frame) : t, o = a.position || [0, 0, 0];
     return {
       type: "object",
       object: t,
-      position: r,
-      rotation: o.rotation || [0, 0, 0],
-      size: o.size || [1, 1, 1]
+      position: o,
+      origin: o,
+      rotation: a.rotation || [0, 0, 0],
+      size: a.size || [1, 1, 1]
     };
   }
   if (e.state.view_mode !== "camera") {
-    if (e.selectedEntity === "camera_target") {
-      const t = e.activeCameraTrack();
+    const t = e.activeCameraTrack();
+    if (t?.locked) return null;
+    if (e.selectedEntity === "camera_target")
       return { type: "camera_target", position: fe(t, e.frame, e.state.objects).target || e.camera.target || [0, 1.5, 0], rotation: [0, 0, 0] };
-    }
-    if (e.selectedEntity === "camera") {
-      const t = e.activeCameraTrack();
+    if (e.selectedEntity === "camera")
       return { type: "camera", position: fe(t, e.frame, e.state.objects).position || e.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
-    }
   }
   return null;
 }
-function or(e) {
-  const t = ar(e);
+function dr(e) {
+  const t = mr(e);
   if (!t) return null;
   const a = re(e), o = t.position;
   if (!o || !Number.isFinite(o[0]) || !Number.isFinite(o[1]) || !Number.isFinite(o[2])) return null;
-  const r = F(o, a, e.canvas.width, e.canvas.height);
+  const r = R(o, a, e.canvas.width, e.canvas.height);
   if (!r || !Number.isFinite(r[0]) || !Number.isFinite(r[1])) return null;
-  const n = Math.max(0.7, $(O(a.position, o)) * 0.12), s = t.type === "object" ? tr(e, t.object, t) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const n = Math.max(0.7, G(E(a.position, o)) * 0.12), s = e.state.gizmo_mode === "scale" || e.state.gizmo_mode === "rotate", i = t.type === "object" ? lr(e, t.object, t, { forceLocal: s }) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  if (e.state.gizmo_mode === "scale" && t.type !== "object") return null;
   if (e.state.gizmo_mode !== "rotate" || t.type === "camera_target")
     return {
       entity: t,
       center: r,
       worldLength: n,
-      handles: s.map((l, m) => ({ index: m, axis: l, points: [r, F(M(o, C(l, n)), a, e.canvas.width, e.canvas.height)] })).filter((l) => l.points[1] && Number.isFinite(l.points[1][0]) && Number.isFinite(l.points[1][1]))
+      handles: i.map((m, l) => ({ index: l, axis: m, points: [r, R(C(o, D(m, n)), a, e.canvas.width, e.canvas.height)] })).filter((m) => m.points[1] && Number.isFinite(m.points[1][0]) && Number.isFinite(m.points[1][1]))
     };
-  const i = s.map((l, m) => {
-    const c = Math.abs(l[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], p = de(me(l, c)), d = de(me(l, p)), u = [];
-    for (let h = 0; h <= 48; h++) {
-      const g = h / 48 * Math.PI * 2, v = F(M(o, M(C(p, Math.cos(g) * n), C(d, Math.sin(g) * n))), a, e.canvas.width, e.canvas.height);
-      v && Number.isFinite(v[0]) && Number.isFinite(v[1]) && u.push(v);
+  const c = i.map((m, l) => {
+    const d = Math.abs(m[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], p = de(me(m, d)), f = de(me(m, p)), u = [];
+    for (let g = 0; g <= 48; g++) {
+      const b = g / 48 * Math.PI * 2, y = R(C(o, C(D(p, Math.cos(b) * n), D(f, Math.sin(b) * n))), a, e.canvas.width, e.canvas.height);
+      y && Number.isFinite(y[0]) && Number.isFinite(y[1]) && u.push(y);
     }
-    return { index: m, axis: l, points: u };
+    return { index: l, axis: m, points: u };
   });
-  return { entity: t, center: r, worldLength: n, handles: i };
+  return { entity: t, center: r, worldLength: n, handles: c };
 }
-function Ia(e, t) {
-  const a = or(e);
+function Fa(e, t) {
+  const a = dr(e);
   if (!a) return null;
   const o = Math.min(2, window.devicePixelRatio || 1), r = Math.hypot(t[0] - a.center[0], t[1] - a.center[1]);
   if (a.entity.type === "object" && (e.state.gizmo_mode === "translate" || e.state.gizmo_mode === "scale") && r <= 11 * o) {
@@ -2253,21 +2266,21 @@ function Ia(e, t) {
   }
   let s = null;
   for (const i of a.handles)
-    for (let l = 0; l < i.points.length - 1; l++) {
-      const m = i.points[l], c = i.points[l + 1], p = io(t, m, c);
-      (!s || p < s.distance) && (s = { ...i, distance: p, segment: [m, c], worldLength: a.worldLength, entity: a.entity });
+    for (let c = 0; c < i.points.length - 1; c++) {
+      const m = i.points[c], l = i.points[c + 1], d = go(t, m, l);
+      (!s || d < s.distance) && (s = { ...i, distance: d, segment: [m, l], worldLength: a.worldLength, entity: a.entity });
     }
   return s?.distance <= 18 * o ? s : null;
 }
-function rr(e, t) {
+function pr(e, t) {
   const a = e.webgl?.pick?.(t[0], t[1], e.canvas.width, e.canvas.height);
   if (a) {
     if (typeof a == "string") {
-      const i = e.state.objects.find((l) => l.id === a);
+      const i = e.state.objects.find((c) => c.id === a);
       return i ? { type: "object", object: i } : null;
     }
     if (a.type === "camera" || a.type === "camera_target") {
-      const i = e.state.cameras.find((l) => l.id === a.id);
+      const i = e.state.cameras.find((c) => c.id === a.id);
       return i ? { type: a.type, camera: i } : null;
     }
     const s = e.state.objects.find((i) => i.id === a.id);
@@ -2276,26 +2289,26 @@ function rr(e, t) {
   const o = re(e);
   if (e.state.view_mode !== "camera") {
     for (const s of e.state.cameras) {
-      for (const c of s.keyframes || []) {
-        const p = c.camera?.position;
-        if (!p) continue;
-        const d = F(p, o, e.canvas.width, e.canvas.height);
-        if (d && Math.hypot(t[0] - d[0], t[1] - d[1]) <= 16 * Math.min(2, window.devicePixelRatio || 1))
-          return { type: "camera_keyframe", camera: s, keyframe: c };
+      for (const l of s.keyframes || []) {
+        const d = l.camera?.position;
+        if (!d) continue;
+        const p = R(d, o, e.canvas.width, e.canvas.height);
+        if (p && Math.hypot(t[0] - p[0], t[1] - p[1]) <= 16 * Math.min(2, window.devicePixelRatio || 1))
+          return { type: "camera_keyframe", camera: s, keyframe: l };
       }
-      const i = fe(s, e.frame, e.state.objects), l = F(i.target || [0, 1.5, 0], o, e.canvas.width, e.canvas.height);
-      if (l && Math.hypot(t[0] - l[0], t[1] - l[1]) <= 18 * Math.min(2, window.devicePixelRatio || 1))
+      const i = fe(s, e.frame, e.state.objects), c = R(i.target || [0, 1.5, 0], o, e.canvas.width, e.canvas.height);
+      if (c && Math.hypot(t[0] - c[0], t[1] - c[1]) <= 18 * Math.min(2, window.devicePixelRatio || 1))
         return { type: "camera_target", camera: s };
-      const m = F(i.position || [6, 4, 6], o, e.canvas.width, e.canvas.height);
+      const m = R(i.position || [6, 4, 6], o, e.canvas.width, e.canvas.height);
       if (m && Math.hypot(t[0] - m[0], t[1] - m[1]) <= 22 * Math.min(2, window.devicePixelRatio || 1))
         return { type: "camera", camera: s };
     }
     for (const s of e.state.objects)
       if (s.enabled !== !1)
         for (const i of s.keyframes || []) {
-          const l = i.transform?.position;
-          if (!l) continue;
-          const m = F(l, o, e.canvas.width, e.canvas.height);
+          const c = i.transform?.position;
+          if (!c) continue;
+          const m = R(c, o, e.canvas.width, e.canvas.height);
           if (m && Math.hypot(t[0] - m[0], t[1] - m[1]) <= 16 * Math.min(2, window.devicePixelRatio || 1))
             return { type: "object_keyframe", object: s, keyframe: i };
         }
@@ -2303,47 +2316,47 @@ function rr(e, t) {
   let n = null;
   for (const s of e.state.objects) {
     if (s.enabled === !1) continue;
-    const i = s.keyframes?.length ? Ae(s, e.frame) : s, l = F(i.position || [0, 0, 0], o, e.canvas.width, e.canvas.height);
-    if (!l) continue;
-    const m = Math.hypot(t[0] - l[0], t[1] - l[1]);
+    const i = s.keyframes?.length ? Ne(s, e.frame) : s, c = R(i.position || [0, 0, 0], o, e.canvas.width, e.canvas.height);
+    if (!c) continue;
+    const m = Math.hypot(t[0] - c[0], t[1] - c[1]);
     (!n || m < n.distance) && (n = { object: s, distance: m });
   }
   return n?.distance <= 22 * Math.min(2, window.devicePixelRatio || 1) ? { type: "object", object: n.object } : null;
 }
-const We = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, $e = (e, t) => Math.round(e / t) * t;
-function Aa(e) {
+const Ze = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, Oe = (e, t) => Math.round(e / t) * t;
+function Ra(e) {
   const t = e.selectedObjectIds instanceof Set && e.selectedObjectIds.size ? e.selectedObjectIds : new Set(e.selectedObjectId ? [e.selectedObjectId] : []);
   return e.state.objects.filter((a) => t.has(a.id) && !a.locked);
 }
-function nr(e, t) {
-  const a = Aa(e);
+function fr(e, t) {
+  const a = Ra(e);
   if (!a.length || !["translate", "rotate", "scale"].includes(t)) return !1;
   e.checkpoint(`${t[0].toUpperCase()}${t.slice(1)} selection`);
   for (const m of a) e.beginObjectEdit(m);
-  const o = a.map((m) => ({ object: m, transform: oe(m) })), r = o.reduce((m, c) => M(m, c.transform.position), [0, 0, 0]).map((m) => m / o.length), n = [e.canvas.width * 0.5, e.canvas.height * 0.5], s = e.lastViewportPointer || n, i = e.interactionElement.getBoundingClientRect(), l = e.lastPointerEvent || { clientX: i.left + s[0] * i.width / e.canvas.width, clientY: i.top + s[1] * i.height / e.canvas.height };
-  return e.modalTransform = { mode: t, axis: null, numeric: "", start: s, lastEvent: l, snapshots: o, pivot: r }, e.setTransformMode(t), e.setStatus(`${t.toUpperCase()} · move mouse · X/Y/Z constrain · type value · Enter confirm · Esc cancel`), e.render(), !0;
+  const o = a.map((m) => ({ object: m, transform: oe(m) })), r = o.reduce((m, l) => C(m, l.transform.position), [0, 0, 0]).map((m) => m / o.length), n = [e.canvas.width * 0.5, e.canvas.height * 0.5], s = e.lastViewportPointer || n, i = e.interactionElement.getBoundingClientRect(), c = e.lastPointerEvent || { clientX: i.left + s[0] * i.width / e.canvas.width, clientY: i.top + s[1] * i.height / e.canvas.height };
+  return e.modalTransform = { mode: t, axis: null, numeric: "", start: s, lastEvent: c, snapshots: o, pivot: r }, e.setTransformMode(t), e.setStatus(`${t.toUpperCase()} · move mouse · X/Y/Z constrain · type value · Enter confirm · Esc cancel`), e.render(), !0;
 }
-function sr(e) {
+function ur(e) {
   if (!e.numeric || e.numeric === "-" || e.numeric === ".") return null;
   const t = Number(e.numeric);
   return Number.isFinite(t) ? t : null;
 }
-function ir(e, t, a, o, r) {
-  const n = r ? "grid" : e.state.spatial_snap_mode;
-  if (n === "grid") {
-    const s = e.state.spatial_grid_size || 0.5;
-    return a.map((i) => i.map((l) => $e(l, s)));
+function hr(e, t, a, o, r, n, s) {
+  const i = r ? "grid" : e.state.spatial_snap_mode;
+  if (i === "grid") {
+    const c = e.state.spatial_grid_size || 0.5;
+    return n ? a.map((m, l) => m.map((d, p) => Math.abs(n[p]) > 1e-6 ? Oe(d, c) : s[l][p])) : a.map((m) => m.map((l) => Oe(l, c)));
   }
-  if (n === "vertex" && o) {
-    const s = e.webgl?.pickSubElement?.(o[0], o[1], e.canvas.width, e.canvas.height, "vertex");
-    if (s?.point && !t.snapshots.some((i) => i.object.id === s.objectId)) {
-      const i = a.reduce((m, c) => M(m, c), [0, 0, 0]).map((m) => m / a.length), l = O(s.point, i);
-      return a.map((m) => M(m, l));
+  if (i === "vertex" && o && !n) {
+    const c = e.webgl?.pickSubElement?.(o[0], o[1], e.canvas.width, e.canvas.height, "vertex");
+    if (c?.point && !t.snapshots.some((m) => m.object.id === c.objectId)) {
+      const m = a.reduce((d, p) => C(d, p), [0, 0, 0]).map((d) => d / a.length), l = E(c.point, m);
+      return a.map((d) => C(d, l));
     }
   }
   return a;
 }
-function Me(e, t) {
+function Se(e, t) {
   const a = e.modalTransform;
   if (!a) return !1;
   a.lastEvent = t;
@@ -2352,60 +2365,106 @@ function Me(e, t) {
     (t.clientY - o.top) * e.canvas.height / Math.max(1, o.height)
   ];
   e.lastViewportPointer = r;
-  const n = r[0] - a.start[0], s = r[1] - a.start[1], i = t.shiftKey ? 0.1 : 1, l = sr(a), m = a.axis ? We[a.axis] : null, c = e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode], p = L(c), d = c.camera_type === "orthographic" ? 10 / (Math.max(0.01, c.zoom || 1) * Math.max(1, e.canvas.height)) : Math.hypot(...O(c.position, c.target)) * 25e-4;
-  let u = a.snapshots.map((S) => [...S.transform.position]);
+  const n = r[0] - a.start[0], s = r[1] - a.start[1], i = t.shiftKey ? 0.1 : 1, c = ur(a), m = a.axis ? Ze[a.axis] : null, l = e.state.view_mode === "camera" ? e.camera : e.state.editor_views[e.state.view_mode], d = L(l), p = l.camera_type === "orthographic" ? 10 / (Math.max(0.01, l.zoom || 1) * Math.max(1, e.canvas.height)) : Math.hypot(...E(l.position, l.target)) * 25e-4;
+  let f = a.snapshots.map((v) => [...v.transform.position]);
   if (a.mode === "translate") {
-    const S = l ?? (n - s) * d * i, D = m ? C(m, S) : M(C(p.right, n * d * i), C(p.up, -s * d * i));
-    u = u.map((w) => M(w, D)), u = ir(e, a, u, r, t.ctrlKey || t.metaKey);
+    const v = c ?? (n - s) * p * i, x = m ? D(m, v) : C(D(d.right, n * p * i), D(d.up, -s * p * i));
+    f = f.map((M) => C(M, x)), f = hr(e, a, f, r, t.ctrlKey || t.metaKey, m, a.snapshots.map((M) => M.transform.position));
   }
-  const h = a.mode === "rotate" ? l ?? (n - s) * 0.5 * i : 0, g = a.mode === "scale" ? Math.max(0.01, l ?? 1 + (n - s) * 0.01 * i) : 1, v = m || We.z, y = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
-  a.snapshots.forEach((S, D) => {
-    const w = S.object;
-    if (a.mode === "translate" && (w.position = u[D]), a.mode === "rotate") {
-      const k = y ? $e(h, 15) : h, f = C(v, k);
-      w.position = M(a.pivot, je(O(S.transform.position, a.pivot), f)), w.rotation = M(S.transform.rotation, f);
+  const u = a.mode === "rotate" ? c ?? (n - s) * 0.5 * i : 0, g = a.mode === "scale" ? Math.max(0.01, c ?? 1 + (n - s) * 0.01 * i) : 1, b = m || Ze.z, y = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
+  a.snapshots.forEach((v, x) => {
+    const M = v.object;
+    if (a.mode === "translate" && (M.position = f[x]), a.mode === "rotate") {
+      const j = y ? Oe(u, 15) : u, h = D(b, j);
+      M.position = C(a.pivot, Ee(E(v.transform.position, a.pivot), h)), M.rotation = C(v.transform.rotation, h);
     }
     if (a.mode === "scale") {
-      const k = y ? $e(g, 0.1) : g, f = m ? m.map((T) => T ? k : 1) : [k, k, k], x = O(S.transform.position, a.pivot);
-      w.position = M(a.pivot, x.map((T, N) => T * f[N])), w.size = S.transform.size.map((T, N) => Math.max(0.01, T * f[N]));
+      const j = y ? Oe(g, 0.1) : g, h = m ? m.map((T) => T ? j : 1) : [j, j, j], S = E(v.transform.position, a.pivot);
+      M.position = C(a.pivot, S.map((T, N) => T * h[N])), M.size = v.transform.size.map((T, N) => Math.max(0.01, T * h[N]));
     }
-    e.commitObjectEdit(w);
+    e.commitObjectEdit(M);
   }), e.refreshInspector(), e.render();
-  const b = `${a.axis ? ` ${a.axis.toUpperCase()}` : ""}${a.numeric ? ` = ${a.numeric}` : ""}`;
-  return e.setStatus(`${a.mode.toUpperCase()}${b}`), !0;
+  const _ = `${a.axis ? ` ${a.axis.toUpperCase()}` : ""}${a.numeric ? ` = ${a.numeric}` : ""}`;
+  return e.setStatus(`${a.mode.toUpperCase()}${_}`), !0;
 }
-function Oa(e) {
+function La(e) {
   return e.modalTransform ? (e.modalTransform = null, e.editingKeyFrame = null, e.scheduleSerialize(), e.refreshKeys(), e.drawCurveEditor(), e.render(), e.setStatus("Transform confirmed"), !0) : !1;
 }
-function Pa(e) {
+function Va(e) {
   return e.modalTransform ? (e.modalTransform = null, e.undo(), e.setStatus("Transform cancelled"), !0) : !1;
 }
-function cr(e, t) {
+function gr(e, t) {
   const a = e.modalTransform;
   if (!a) return !1;
   const o = t.key.toLowerCase();
-  return o === "escape" ? Pa(e) : o === "enter" || o === " " ? Oa(e) : We[o] ? (a.axis = a.axis === o ? null : o, Me(e, a.lastEvent), !0) : /^[0-9]$/.test(o) || o === "." || o === "," || o === "-" && !a.numeric ? (a.numeric += o === "," ? "." : o, Me(e, a.lastEvent), !0) : (o === "backspace" && (a.numeric = a.numeric.slice(0, -1), Me(e, a.lastEvent)), !0);
+  return o === "escape" ? Va(e) : o === "enter" || o === " " ? La(e) : Ze[o] ? (a.axis = a.axis === o ? null : o, Se(e, a.lastEvent), !0) : /^[0-9]$/.test(o) || o === "." || o === "," || o === "-" && !a.numeric ? (a.numeric += o === "," ? "." : o, Se(e, a.lastEvent), !0) : (o === "backspace" && (a.numeric = a.numeric.slice(0, -1), Se(e, a.lastEvent)), !0);
+}
+const xe = "orbit", Ce = "pan", Ge = "dolly";
+function Ka(e, t, { includeCtrlFallback: a }) {
+  const o = !!(t.ctrlKey || t.metaKey);
+  return t.button === 1 ? o ? Ge : t.shiftKey || t.altKey ? Ce : xe : t.button === 2 ? t.altKey && e === "maya" ? Ge : null : t.button !== 0 ? null : t.altKey ? o ? Ge : t.shiftKey ? Ce : xe : o && a ? t.shiftKey ? Ce : xe : null;
+}
+function yr(e, t, a) {
+  const o = e.state.navigation_profile === "blender" ? "blender" : "maya", r = Ka(o, t, { includeCtrlFallback: !0 });
+  return r === xe && a?.camera_type === "orthographic" ? Ce : r;
+}
+function br(e, t) {
+  if (e.isNavigatingFly) return !0;
+  const a = e.state.navigation_profile === "blender" ? "blender" : "maya";
+  return Ka(a, t, { includeCtrlFallback: !1 }) !== null;
+}
+function _r(e, t) {
+  const a = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? Math.max(1, t) : 1;
+  return Number.isFinite(e.deltaY) ? e.deltaY * a : 0;
+}
+function Qe(e, t) {
+  return (e.camera_type === "orthographic" ? 10 / Math.max(0.01, e.zoom || 1) : 2 * G(E(e.position, e.target)) * Math.tan((e.fov || 35) * Math.PI / 360)) / Math.max(1, t);
+}
+function De(e) {
+  const t = e.activePointerId;
+  e.activePointerId = null, t != null && e.interactionElement.hasPointerCapture?.(t) && e.interactionElement.releasePointerCapture(t), e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default");
 }
 function ve(e, t, a) {
   !t || t.historyCheckpointed || (e.checkpoint(a), t.historyCheckpointed = !0);
 }
-function lr(e) {
+function vt(e, t) {
+  const a = e.activeCameraTrack?.();
+  a && (a.target_offset = t, a.id === e.state.active_camera_id && (e.state.target_offset = t), e.setFrame(e.frame, !1, !1));
+}
+function vr(e) {
   const t = globalThis.performance?.now?.() ?? Date.now();
   (!Number.isFinite(e.lastViewportWheelAt) || t - e.lastViewportWheelAt > 300) && e.checkpoint("Dolly viewport"), e.lastViewportWheelAt = t;
 }
-const ce = (e, t) => Math.round(e / t) * t, mr = (e, t) => e.map((a) => ce(a, t)), Ue = (e, t) => e.camera_type === "orthographic" ? 10 / (Math.max(0.01, e.zoom || 1) * Math.max(1, t)) : $(O(e.position, e.target)) * 25e-4;
-function Z(e, t, a, o = []) {
-  const n = e.currentTransformEvent?.ctrlKey || e.currentTransformEvent?.metaKey ? "grid" : e.state.spatial_snap_mode;
-  if (n === "grid") return mr(t, e.state.spatial_grid_size || 0.5);
-  if (n === "vertex" && a) {
-    const s = e.webgl?.pickSubElement?.(a[0], a[1], e.canvas.width, e.canvas.height, "vertex");
-    if (s?.point && !o.includes(s.objectId)) return [...s.point];
+const Q = (e, t) => Math.round(e / t) * t, wr = (e, t) => e.map((a) => Q(a, t));
+function Mr(e, t, a) {
+  const o = t.keyframes?.length ? Ne(t, e.frame) : t, r = o.position || [0, 0, 0], n = e.webgl?.getObjectWorldBounds?.(t.id);
+  let s, i;
+  if (n)
+    ({ min: s, max: i } = n);
+  else {
+    const p = (o.size || [1, 1, 1]).map((f) => Math.max(0.01, Math.abs(f)) / 2);
+    s = p.map((f, u) => r[u] - f), i = p.map((f, u) => r[u] + f);
+  }
+  let c = 1 / 0, m = 1 / 0, l = -1 / 0, d = -1 / 0;
+  for (const p of [s[0], i[0]]) for (const f of [s[1], i[1]]) for (const u of [s[2], i[2]]) {
+    const g = R([p, f, u], a, e.canvas.width, e.canvas.height);
+    g && (c = Math.min(c, g[0]), l = Math.max(l, g[0]), m = Math.min(m, g[1]), d = Math.max(d, g[1]));
+  }
+  return Number.isFinite(c) ? { minX: c, minY: m, maxX: l, maxY: d } : null;
+}
+function ce(e, t, a, o = [], r = null) {
+  const s = e.currentTransformEvent?.ctrlKey || e.currentTransformEvent?.metaKey ? "grid" : e.state.spatial_snap_mode, i = e.state.spatial_grid_size || 0.5;
+  if (s === "grid")
+    return r ? t.map((c, m) => Math.abs(r.axis[m]) > 1e-6 ? Q(c, i) : r.base[m]) : wr(t, i);
+  if (s === "vertex" && a && !r) {
+    const c = e.webgl?.pickSubElement?.(a[0], a[1], e.canvas.width, e.canvas.height, "vertex");
+    if (c?.point && !o.includes(c.objectId)) return [...c.point];
   }
   return t;
 }
-function gn(e, t) {
+function An(e, t) {
   if (e.modalTransform) {
-    t.preventDefault?.(), t.stopPropagation?.(), t.button === 0 ? Oa(e) : t.button === 2 && Pa(e);
+    t.preventDefault?.(), t.stopPropagation?.(), t.button === 0 ? La(e) : t.button === 2 && Va(e);
     return;
   }
   if (t.target?.closest?.("button,input,select")) return;
@@ -2414,108 +2473,130 @@ function gn(e, t) {
     return;
   }
   t.preventDefault?.(), t.stopPropagation?.(), e.closeMenus(), e.interactionElement.focus({ preventScroll: !0 }), e.interactionElement.setPointerCapture?.(t.pointerId), e.activePointerId = t.pointerId, e.canvas.classList.add("dragging");
-  const a = e.interactionElement.getBoundingClientRect(), o = (t.clientX - a.left) * e.canvas.width / Math.max(1, a.width), r = (t.clientY - a.top) * e.canvas.height / Math.max(1, a.height), n = re(e), s = e.state.view_mode !== "camera", i = t.button === 0, l = i && !t.altKey && !t.shiftKey;
-  if (l && e.webgl?.pickPathKey) {
-    const g = e.webgl.pickPathKey([o, r]);
-    if (g) {
-      const y = ((e.state.cameras || []).find((b) => b.id === g.cameraId)?.keyframes || []).find((b) => b.frame === g.frame);
-      if (y) {
-        e.checkpoint("Move path key"), e.pathDrag = { cameraId: g.cameraId, frame: g.frame, anchor: [...y.camera.position] }, e.interactionElement.style && (e.interactionElement.style.cursor = "grabbing"), e.selectKeyframe?.(y);
+  const a = e.interactionElement.getBoundingClientRect(), o = (t.clientX - a.left) * e.canvas.width / Math.max(1, a.width), r = (t.clientY - a.top) * e.canvas.height / Math.max(1, a.height), n = re(e), s = e.state.view_mode !== "camera", i = br(e, t), c = t.button === 0 && !i, m = c && !t.altKey && !t.shiftKey;
+  if (m && e.webgl?.pickPathKey) {
+    const b = e.webgl.pickPathKey([o, r]);
+    if (b) {
+      const _ = ((e.state.cameras || []).find((v) => v.id === b.cameraId)?.keyframes || []).find((v) => v.frame === b.frame);
+      if (_) {
+        e.pathDrag = { cameraId: b.cameraId, frame: b.frame, anchor: [..._.camera.position], startX: o, startY: r, moved: !1, historyCheckpointed: !1 }, e.interactionElement.style && (e.interactionElement.style.cursor = "grabbing"), e.selectKeyframe?.(_);
         return;
       }
     }
   }
-  const m = l ? Ia(e, [o, r]) : null;
-  if (m) {
-    const [g, v] = m.segment, y = Math.max(1, Math.hypot(v[0] - g[0], v[1] - g[1])), b = {
+  const l = m ? Fa(e, [o, r]) : null;
+  if (l) {
+    const [b, y] = l.segment, _ = Math.max(1, Math.hypot(y[0] - b[0], y[1] - b[1])), v = {
       pointer: [o, r],
-      axis: m.axis,
-      axisIndex: m.index,
-      screen: [(v[0] - g[0]) / y, (v[1] - g[1]) / y],
-      worldLength: m.worldLength,
-      screenLength: y,
-      free: !!m.free
+      axis: l.axis,
+      axisIndex: l.index,
+      screen: [(y[0] - b[0]) / _, (y[1] - b[1]) / _],
+      worldLength: l.worldLength,
+      screenLength: _,
+      free: !!l.free
     };
-    if (e.interactionElement.style && (e.interactionElement.style.cursor = "grabbing"), m.entity.type === "camera_target") {
-      e.checkpoint("Move camera target"), e.beginCameraEdit(), e.gizmoDrag = {
-        ...b,
+    if (e.interactionElement.style && (e.interactionElement.style.cursor = "grabbing"), l.entity.type === "camera_target") {
+      e.checkpoint("Move camera target"), e.beginCameraEdit();
+      const x = e.activeCameraTrack?.(), M = !!x?.target_object_id;
+      e.gizmoDrag = {
+        ...v,
         type: "camera_target",
         historyCheckpointed: !0,
-        target: [...m.entity.position || e.camera.target]
+        tracking: M,
+        target: M ? [...x.target_offset || [0, 0, 0]] : [...l.entity.position || e.camera.target]
       };
       return;
     }
-    if (m.entity.type === "camera") {
+    if (l.entity.type === "camera") {
       e.checkpoint("Transform camera"), e.beginCameraEdit(), e.gizmoDrag = {
-        ...b,
+        ...v,
         type: "camera",
         historyCheckpointed: !0,
-        position: [...m.entity.position || e.camera.position],
+        position: [...l.entity.position || e.camera.position],
         target: [...e.camera.target]
       };
       return;
     }
-    if (m.entity.type === "object") {
-      const S = m.entity.object;
+    if (l.entity.type === "object") {
+      const x = l.entity.object;
       e.checkpoint("Transform object");
-      const D = Aa(e), w = (D.length ? D : [S]).map((f) => ({ object: f, transform: oe(f) }));
-      for (const f of w) e.beginObjectEdit(f.object);
-      const k = w.reduce((f, x) => M(f, x.transform.position), [0, 0, 0]).map((f) => f / w.length);
+      const M = Ra(e), j = (M.length ? M : [x]).map((S) => ({ object: S, transform: oe(S) }));
+      for (const S of j) e.beginObjectEdit(S.object);
+      const h = j.reduce((S, T) => C(S, T.transform.position), [0, 0, 0]).map((S) => S / j.length);
       e.gizmoDrag = {
-        ...b,
+        ...v,
         type: "object",
         historyCheckpointed: !0,
-        object: S,
-        group: w,
-        groupPivot: k,
-        position: [...m.entity.position],
-        rotation: [...m.entity.rotation],
-        size: [...m.entity.size],
+        object: x,
+        group: j,
+        groupPivot: h,
+        // Same value as picked.entity.position -- the gizmo always sits at the
+        // object's own origin (see activeGizmoEntity) -- `origin` is the name
+        // that documents this is the drag base, in case a future entity type
+        // ever needs its display position to differ from its transform again.
+        position: [...l.entity.origin || l.entity.position],
+        rotation: [...l.entity.rotation],
+        size: [...l.entity.size],
         viewRight: L(n).right,
         viewUp: L(n).up,
-        freeScale: n.camera_type === "orthographic" ? Ue(n, e.canvas.height) : $(O(n.position, m.entity.position)) * (2 * Math.tan((n.fov || 35) * Math.PI / 360)) / e.canvas.height
+        freeScale: n.camera_type === "orthographic" ? Qe(n, e.canvas.height) : G(E(n.position, l.entity.position)) * (2 * Math.tan((n.fov || 35) * Math.PI / 360)) / e.canvas.height
       };
       return;
     }
   }
-  const c = i ? rr(e, [o, r]) : null;
-  if (e.pointerHit = !!(m || c), c) {
-    if (c.type === "camera_keyframe") {
-      e.finishCameraEdit(), e.selectedEntity = "camera", e.selectedObjectId = null, e.editingKeyFrame = null, e.activateCamera(c.camera.id), e.setFrame(c.keyframe.frame), e.selectKeyframe(c.keyframe), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${c.camera.name} · Keyframe @ F${c.keyframe.frame} selected`));
+  const d = c ? pr(e, [o, r]) : null;
+  if (e.pointerHit = !!(l || d), d) {
+    if (d.type === "camera_keyframe") {
+      e.finishCameraEdit(), e.selectedEntity = "camera", e.selectedObjectId = null, e.editingKeyFrame = null, e.activateCamera(d.camera.id), e.setFrame(d.keyframe.frame), e.selectKeyframe(d.keyframe), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(w(`${d.camera.name} · Keyframe @ F${d.keyframe.frame} selected`));
       return;
     }
-    if (c.type === "object_keyframe") {
-      e.finishCameraEdit(), e.selectedEntity = "object", e.selectedObjectId = c.object.id, e.editingKeyFrame = null, e.setFrame(c.keyframe.frame), e.selectKeyframe(c.keyframe), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${c.object.name || c.object.type} · Keyframe @ F${c.keyframe.frame} selected`));
+    if (d.type === "object_keyframe") {
+      e.finishCameraEdit(), e.selectedEntity = "object", e.selectedObjectId = d.object.id, e.editingKeyFrame = null, e.setFrame(d.keyframe.frame), e.selectKeyframe(d.keyframe), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(w(`${d.object.name || d.object.type} · Keyframe @ F${d.keyframe.frame} selected`));
       return;
     }
-    if (c.type === "camera_target") {
-      e.finishCameraEdit(), e.selectedEntity = "camera_target", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.editingKeyFrame = null, e.activateCamera(c.camera.id), e.checkpoint("Move camera target"), e.beginCameraEdit();
-      const { right: g, up: v } = L(n), y = [...e.camera.target], b = $(O(n.position, y)), S = (n.fov || 35) * Math.PI / 360;
+    if (d.type === "camera_target") {
+      if (e.finishCameraEdit(), e.selectedEntity = "camera_target", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.editingKeyFrame = null, e.activateCamera(d.camera.id), d.camera.locked) {
+        e.setStatus(w("{name} is locked").replace("{name}", d.camera.name)), e.refreshObjects(), e.refreshInspector(), e.render();
+        return;
+      }
+      e.checkpoint("Move camera target"), e.beginCameraEdit();
+      const { right: b, up: y } = L(n), _ = [...e.camera.target], v = e.activeCameraTrack?.(), x = !!v?.target_object_id;
       e.targetFreeDrag = {
         pointer: [o, r],
-        target: y,
-        right: g,
-        up: v,
-        scale: b * (n.camera_type === "orthographic" ? 25e-4 : 2 * Math.tan(S) / e.canvas.height),
+        target: x ? [...v.target_offset || [0, 0, 0]] : _,
+        tracking: x,
+        right: b,
+        up: y,
+        // Identical to the old perspective expression, and finally correct for
+        // an orthographic view: that branch scaled by distance and ignored
+        // `zoom` entirely, so the target ran away from the cursor as soon as
+        // the view was zoomed (5x zoom moved it more than five times too far).
+        // The pointer deltas here are backing pixels, hence canvas.height.
+        scale: Qe(n, e.canvas.height),
         historyCheckpointed: !0
-      }, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${c.camera.name} · Target aim selected`));
+      }, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(w(`${d.camera.name} · Target aim selected`));
       return;
     }
-    if (c.type === "camera" && (e.finishCameraEdit(), e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.editingKeyFrame = null, e.activateCamera(c.camera.id), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_(`${c.camera.name} selected`))), c.type === "object" && c.object) {
-      if (e.finishCameraEdit(), e.selectedEntity = "object", e.selectedObjectIds ||= /* @__PURE__ */ new Set(), t.shiftKey || t.ctrlKey || t.metaKey ? e.selectedObjectIds.has(c.object.id) ? e.selectedObjectIds.delete(c.object.id) : e.selectedObjectIds.add(c.object.id) : e.selectedObjectIds = /* @__PURE__ */ new Set([c.object.id]), e.selectedObjectId = e.selectedObjectIds.has(c.object.id) ? c.object.id : [...e.selectedObjectIds].at(-1) || null, e.selectedKeyFrame = c.object.keyframes?.find((g) => g.frame === e.frame)?.frame ?? null, e.editingKeyFrame = null, e.state.select_mode && e.state.select_mode !== "object") {
-        const g = e.webgl?.pickSubElement?.(o, r, e.canvas.width, e.canvas.height, e.state.select_mode);
-        if (g) {
-          e.subSelection = g;
-          const v = g.point.map((b) => Math.round(b * 100) / 100).join(", "), y = g.mode === "vertex" ? "Vertex" : g.mode === "edge" ? "Edge" : "Face";
-          e.setStatus(_(`${y} selected at [${v}] · Press F to focus`));
+    if (d.type === "camera") {
+      e.finishCameraEdit(), e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.editingKeyFrame = null, e.activateCamera(d.camera.id), e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(w(`${d.camera.name} selected`));
+      return;
+    }
+    if (d.type === "object" && d.object) {
+      if (e.finishCameraEdit(), e.selectedEntity = "object", e.selectedObjectIds ||= /* @__PURE__ */ new Set(), t.shiftKey || t.ctrlKey || t.metaKey ? e.selectedObjectIds.has(d.object.id) ? e.selectedObjectIds.delete(d.object.id) : e.selectedObjectIds.add(d.object.id) : e.selectedObjectIds = /* @__PURE__ */ new Set([d.object.id]), e.selectedObjectId = e.selectedObjectIds.has(d.object.id) ? d.object.id : [...e.selectedObjectIds].at(-1) || null, e.selectedKeyFrame = d.object.keyframes?.find((b) => b.frame === e.frame)?.frame ?? null, e.editingKeyFrame = null, e.state.select_mode && e.state.select_mode !== "object") {
+        const b = e.webgl?.pickSubElement?.(o, r, e.canvas.width, e.canvas.height, e.state.select_mode);
+        if (b) {
+          e.subSelection = b;
+          const y = b.point.map((v) => Math.round(v * 100) / 100).join(", "), _ = b.mode === "vertex" ? "Vertex" : b.mode === "edge" ? "Edge" : "Face";
+          e.setStatus(w(`${_} selected at [${y}] · Press F to focus`));
         } else
           e.subSelection = null;
       } else
-        e.subSelection = null, e.setStatus(_(`${c.object.name || c.object.type} selected`));
+        e.subSelection = null, e.setStatus(w(`${d.object.name || d.object.type} selected`));
       e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render();
+      return;
     }
   }
-  if (!c && i && !t.ctrlKey && !t.metaKey && e.state.navigation_profile === "blender") {
+  if (!d && c && !t.ctrlKey && !t.metaKey) {
     e.boxSelection = {
       start: [o, r],
       current: [o, r],
@@ -2524,218 +2605,231 @@ function gn(e, t) {
     }, e.drag = null, e.interactionElement.style && (e.interactionElement.style.cursor = "crosshair"), e.render();
     return;
   }
-  const p = e.state.navigation_profile === "blender", d = p ? t.button === 1 && t.shiftKey || n.camera_type === "orthographic" : t.button === 1 || t.altKey && t.button === 1 || t.shiftKey && (t.button === 0 || t.button === 1) || n.camera_type === "orthographic", u = p ? t.button === 1 && (t.ctrlKey || t.metaKey) : t.altKey && t.button === 2 || t.button === 2 && !e.isNavigatingFly, h = !!e.isNavigatingFly;
-  s || (e.checkpoint("Move camera"), e.beginCameraEdit()), s && !e.state.editor_views && (e.state.editor_views = De()), e.drag = {
+  const p = !!e.isNavigatingFly, f = yr(e, t, n);
+  if (!p && !f) return;
+  const u = !p && f === "pan", g = !p && f === "dolly";
+  s && !e.state.editor_views && (e.state.editor_views = Te()), e.drag = {
     x: t.clientX,
     y: t.clientY,
-    shift: d,
-    dolly: u,
-    fly: h,
-    camera: R(n),
-    target: s ? e.state.editor_views[e.state.view_mode] || (e.state.editor_views[e.state.view_mode] = De()[e.state.view_mode]) : e.camera,
+    shift: u,
+    dolly: g,
+    fly: p,
+    camera: F(n),
+    target: s ? e.state.editor_views[e.state.view_mode] || (e.state.editor_views[e.state.view_mode] = Te()[e.state.view_mode]) : e.camera,
     editorView: s,
-    historyCheckpointed: !s
-  }, e.interactionElement.style && (e.interactionElement.style.cursor = u ? "ns-resize" : d ? "move" : "grabbing");
+    navigationOnly: i,
+    historyCheckpointed: !1
+  }, e.interactionElement.style && (e.interactionElement.style.cursor = g ? "ns-resize" : u ? "move" : "grabbing"), e.setStatus?.(w(p ? "Fly" : g ? "Dolly" : u ? "Pan" : "Orbit"));
 }
-function yn(e, t) {
+function On(e, t) {
   if (e.lastPointerEvent = t, e.modalTransform) {
-    Me(e, t);
+    Se(e, t);
     return;
   }
   if (e.pathDrag) {
-    const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), i = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), m = ((e.state.cameras || []).find((c) => c.id === e.pathDrag.cameraId)?.keyframes || []).find((c) => c.frame === e.pathDrag.frame);
-    m && (m.camera.position = Jo(
-      [s, i],
+    const s = e.interactionElement.getBoundingClientRect(), i = (t.clientX - s.left) * e.canvas.width / Math.max(1, s.width), c = (t.clientY - s.top) * e.canvas.height / Math.max(1, s.height);
+    if (!e.pathDrag.moved && Math.hypot(i - e.pathDrag.startX, c - e.pathDrag.startY) < 3) return;
+    e.pathDrag.moved = !0, ve(e, e.pathDrag, "Move path key");
+    const l = ((e.state.cameras || []).find((d) => d.id === e.pathDrag.cameraId)?.keyframes || []).find((d) => d.frame === e.pathDrag.frame);
+    l && (l.camera.position = ir(
+      [i, c],
       re(e),
       e.pathDrag.anchor,
       e.canvas.width,
       e.canvas.height
-    ), m.interpolation = er(m.interpolation), e.webgl && (e.webgl.pathKey = ""), e.setFrame(e.frame, !1, !1), e.render());
+    ), l.interpolation = cr(l.interpolation), e.webgl && (e.webgl.pathKey = ""), e.setFrame(e.frame, !1, !1), e.render());
     return;
   }
   if (e.boxSelection) {
-    const n = e.interactionElement.getBoundingClientRect();
+    const s = e.interactionElement.getBoundingClientRect();
     e.boxSelection.current = [
-      (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width),
-      (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height)
+      (t.clientX - s.left) * e.canvas.width / Math.max(1, s.width),
+      (t.clientY - s.top) * e.canvas.height / Math.max(1, s.height)
     ], e.render();
     return;
   }
   if (e.currentTransformEvent = t, e.keyDrag) {
-    Do(e, t);
+    zo(e, t);
     return;
   }
   if (e.targetFreeDrag) {
     ve(e, e.targetFreeDrag, "Move camera target");
-    const n = e.interactionElement.getBoundingClientRect(), s = (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width), i = (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height), l = s - e.targetFreeDrag.pointer[0], m = i - e.targetFreeDrag.pointer[1], c = t.shiftKey ? 0.1 : 1, p = M(C(e.targetFreeDrag.right, l * e.targetFreeDrag.scale * c), C(e.targetFreeDrag.up, -m * e.targetFreeDrag.scale * c)), d = M(e.targetFreeDrag.target, p);
-    e.camera.target = Z(e, d, [s, i]), e.commitCameraEdit(), e.refreshInspector(), e.render();
+    const s = e.interactionElement.getBoundingClientRect(), i = (t.clientX - s.left) * e.canvas.width / Math.max(1, s.width), c = (t.clientY - s.top) * e.canvas.height / Math.max(1, s.height), m = i - e.targetFreeDrag.pointer[0], l = c - e.targetFreeDrag.pointer[1], d = t.shiftKey ? 0.1 : 1, p = C(D(e.targetFreeDrag.right, m * e.targetFreeDrag.scale * d), D(e.targetFreeDrag.up, -l * e.targetFreeDrag.scale * d)), f = ce(e, C(e.targetFreeDrag.target, p), [i, c]);
+    e.targetFreeDrag.tracking ? vt(e, f) : e.camera.target = f, e.commitCameraEdit(), e.refreshInspector(), e.render();
     return;
   }
   if (e.gizmoDrag) {
     ve(e, e.gizmoDrag, e.gizmoDrag.type === "object" ? "Transform object" : "Transform camera");
-    const n = e.interactionElement.getBoundingClientRect(), s = [
-      (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width),
-      (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height)
-    ], i = t.shiftKey ? 0.1 : 1, l = ((s[0] - e.gizmoDrag.pointer[0]) * e.gizmoDrag.screen[0] + (s[1] - e.gizmoDrag.pointer[1]) * e.gizmoDrag.screen[1]) * i, m = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
+    const s = e.interactionElement.getBoundingClientRect(), i = [
+      (t.clientX - s.left) * e.canvas.width / Math.max(1, s.width),
+      (t.clientY - s.top) * e.canvas.height / Math.max(1, s.height)
+    ], c = t.shiftKey ? 0.1 : 1, m = ((i[0] - e.gizmoDrag.pointer[0]) * e.gizmoDrag.screen[0] + (i[1] - e.gizmoDrag.pointer[1]) * e.gizmoDrag.screen[1]) * c, l = t.ctrlKey || t.metaKey || e.state.spatial_snap_mode === "grid";
     if (e.gizmoDrag.type === "camera_target") {
-      const d = M(e.gizmoDrag.target, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
-      e.camera.target = Z(e, d, s), e.commitCameraEdit(), e.refreshInspector(), e.render();
+      const f = C(e.gizmoDrag.target, D(e.gizmoDrag.axis, m * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength)), u = ce(e, f, i, [], { base: e.gizmoDrag.target, axis: e.gizmoDrag.axis });
+      e.gizmoDrag.tracking ? vt(e, u) : e.camera.target = u, e.commitCameraEdit(), e.refreshInspector(), e.render();
       return;
     }
     if (e.gizmoDrag.type === "camera") {
       if (e.state.gizmo_mode === "translate") {
-        const d = M(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
-        e.camera.position = Z(e, d, s);
+        const f = C(e.gizmoDrag.position, D(e.gizmoDrag.axis, m * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+        e.camera.position = ce(e, f, i, [], { base: e.gizmoDrag.position, axis: e.gizmoDrag.axis });
       } else {
-        const d = m ? ce(l * 0.015, Math.PI / 12) : l * 0.015, u = O(e.gizmoDrag.target, e.gizmoDrag.position), h = je(u, C(e.gizmoDrag.axis, d * (180 / Math.PI)));
-        e.camera.target = M(e.gizmoDrag.position, h);
+        const f = l ? Q(m * 0.015, Math.PI / 12) : m * 0.015, u = E(e.gizmoDrag.target, e.gizmoDrag.position), g = Ee(u, D(e.gizmoDrag.axis, f * (180 / Math.PI)));
+        e.camera.target = C(e.gizmoDrag.position, g);
       }
       e.commitCameraEdit(), e.refreshInspector(), e.render();
       return;
     }
     if (e.state.gizmo_mode === "translate")
       if (e.gizmoDrag.free) {
-        const d = (s[0] - e.gizmoDrag.pointer[0]) * i, u = (s[1] - e.gizmoDrag.pointer[1]) * i, h = M(
+        const f = (i[0] - e.gizmoDrag.pointer[0]) * c, u = (i[1] - e.gizmoDrag.pointer[1]) * c, g = C(
           e.gizmoDrag.position,
-          M(C(e.gizmoDrag.viewRight, d * e.gizmoDrag.freeScale), C(e.gizmoDrag.viewUp, -u * e.gizmoDrag.freeScale))
+          C(D(e.gizmoDrag.viewRight, f * e.gizmoDrag.freeScale), D(e.gizmoDrag.viewUp, -u * e.gizmoDrag.freeScale))
         );
-        e.gizmoDrag.object.position = Z(e, h, s, [e.gizmoDrag.object.id]);
+        e.gizmoDrag.object.position = ce(e, g, i, [e.gizmoDrag.object.id]);
       } else {
-        const d = M(e.gizmoDrag.position, C(e.gizmoDrag.axis, l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
-        e.gizmoDrag.object.position = Z(e, d, s, [e.gizmoDrag.object.id]);
+        const f = C(e.gizmoDrag.position, D(e.gizmoDrag.axis, m * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength));
+        e.gizmoDrag.object.position = ce(e, f, i, [e.gizmoDrag.object.id], { base: e.gizmoDrag.position, axis: e.gizmoDrag.axis });
       }
     else if (e.state.gizmo_mode === "scale")
       if (e.gizmoDrag.free) {
-        const d = (s[0] - e.gizmoDrag.pointer[0]) * i, u = (s[1] - e.gizmoDrag.pointer[1]) * i, h = (d - u) * e.gizmoDrag.freeScale, g = e.gizmoDrag.size.map((v) => {
-          const y = v + h;
-          return Math.max(0.01, m ? ce(y, 0.1) : y);
+        const f = (i[0] - e.gizmoDrag.pointer[0]) * c, u = (i[1] - e.gizmoDrag.pointer[1]) * c, g = (f - u) * e.gizmoDrag.freeScale, b = e.gizmoDrag.size.map((y) => {
+          const _ = y + g;
+          return Math.max(0.01, l ? Q(_, 0.1) : _);
         });
-        e.gizmoDrag.object.size = g;
+        e.gizmoDrag.object.size = b;
       } else {
-        const d = [...e.gizmoDrag.size], u = d[e.gizmoDrag.axisIndex] + l * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength;
-        d[e.gizmoDrag.axisIndex] = Math.max(0.01, m ? ce(u, 0.1) : u), e.gizmoDrag.object.size = d;
+        const f = [...e.gizmoDrag.size], u = f[e.gizmoDrag.axisIndex] + m * e.gizmoDrag.worldLength / e.gizmoDrag.screenLength;
+        f[e.gizmoDrag.axisIndex] = Math.max(0.01, l ? Q(u, 0.1) : u), e.gizmoDrag.object.size = f;
       }
     else {
-      const d = [...e.gizmoDrag.rotation], u = d[e.gizmoDrag.axisIndex] + l * 0.75;
-      d[e.gizmoDrag.axisIndex] = m ? ce(u, 15) : u, e.gizmoDrag.object.rotation = d;
+      const f = [...e.gizmoDrag.rotation], u = f[e.gizmoDrag.axisIndex] + m * 0.75;
+      f[e.gizmoDrag.axisIndex] = l ? Q(u, 15) : u, e.gizmoDrag.object.rotation = f;
     }
-    const c = e.gizmoDrag.group || [], p = c.find((d) => d.object === e.gizmoDrag.object)?.transform;
-    if (c.length > 1 && p)
+    const d = e.gizmoDrag.group || [], p = d.find((f) => f.object === e.gizmoDrag.object)?.transform;
+    if (d.length > 1 && p)
       if (e.state.gizmo_mode === "translate") {
-        const d = O(e.gizmoDrag.object.position, p.position);
-        for (const u of c) u.object.position = M(u.transform.position, d);
+        const f = E(e.gizmoDrag.object.position, p.position);
+        for (const u of d) u.object.position = C(u.transform.position, f);
       } else if (e.state.gizmo_mode === "rotate") {
-        const d = O(e.gizmoDrag.object.rotation, p.rotation);
-        for (const u of c)
-          u.object.position = M(e.gizmoDrag.groupPivot, je(O(u.transform.position, e.gizmoDrag.groupPivot), d)), u.object.rotation = M(u.transform.rotation, d);
+        const f = E(e.gizmoDrag.object.rotation, p.rotation);
+        for (const u of d)
+          u.object.position = C(e.gizmoDrag.groupPivot, Ee(E(u.transform.position, e.gizmoDrag.groupPivot), f)), u.object.rotation = C(u.transform.rotation, f);
       } else {
-        const d = e.gizmoDrag.object.size.map((u, h) => u / Math.max(0.01, p.size[h]));
-        for (const u of c) {
-          const h = O(u.transform.position, e.gizmoDrag.groupPivot);
-          u.object.position = M(e.gizmoDrag.groupPivot, h.map((g, v) => g * d[v])), u.object.size = u.transform.size.map((g, v) => Math.max(0.01, g * d[v]));
+        const f = e.gizmoDrag.object.size.map((u, g) => u / Math.max(0.01, p.size[g]));
+        for (const u of d) {
+          const g = E(u.transform.position, e.gizmoDrag.groupPivot);
+          u.object.position = C(e.gizmoDrag.groupPivot, g.map((b, y) => b * f[y])), u.object.size = u.transform.size.map((b, y) => Math.max(0.01, b * f[y]));
         }
       }
-    for (const d of c.length ? c : [{ object: e.gizmoDrag.object }]) e.commitObjectEdit(d.object);
+    for (const f of d.length ? d : [{ object: e.gizmoDrag.object }]) e.commitObjectEdit(f.object);
     e.refreshInspector(), e.render();
     return;
   }
-  if (e.objectDrag) {
-    ve(e, e.objectDrag, "Move object");
-    const n = t.clientX - e.objectDrag.x, s = t.clientY - e.objectDrag.y, { right: i, up: l } = L(e.objectDrag.camera), m = Ue(e.objectDrag.camera, e.canvas.height) * (t.shiftKey ? 0.1 : 1), c = M(e.objectDrag.position, M(C(i, n * m), C(l, -s * m)));
-    e.objectDrag.object.position = Z(e, c, null, [e.objectDrag.object.id]), e.commitObjectEdit(e.objectDrag.object), e.refreshInspector(), e.render();
-    return;
-  }
   if (!e.drag) {
-    const n = e.interactionElement.getBoundingClientRect(), s = Ia(e, [
-      (t.clientX - n.left) * e.canvas.width / Math.max(1, n.width),
-      (t.clientY - n.top) * e.canvas.height / Math.max(1, n.height)
-    ]), i = s ? s.free ? "free" : s.index : null;
-    i !== e.hoveredGizmoHandle && (e.hoveredGizmoHandle = i, e.interactionElement.style && (e.interactionElement.style.cursor = s ? "grab" : "default"), e.render());
+    const s = e.interactionElement.getBoundingClientRect(), i = Fa(e, [
+      (t.clientX - s.left) * e.canvas.width / Math.max(1, s.width),
+      (t.clientY - s.top) * e.canvas.height / Math.max(1, s.height)
+    ]), c = i ? i.free ? "free" : i.index : null;
+    c !== e.hoveredGizmoHandle && (e.hoveredGizmoHandle = c, e.interactionElement.style && (e.interactionElement.style.cursor = i ? "grab" : "default"), e.render());
     return;
   }
-  ve(e, e.drag, e.drag.editorView ? "Navigate viewport" : "Move camera");
-  const a = t.clientX - e.drag.x, o = t.clientY - e.drag.y, r = e.drag.camera;
+  const a = t.clientX - e.drag.x, o = t.clientY - e.drag.y;
+  if (!e.drag.historyCheckpointed && Math.hypot(a, o) < 3) return;
+  const r = !e.drag.historyCheckpointed && !e.drag.editorView;
+  ve(e, e.drag, e.drag.editorView ? "Navigate viewport" : "Move camera"), r && e.beginCameraEdit();
+  const n = e.drag.camera;
   if (e.drag.dolly) {
-    const n = Math.exp(o * 5e-3), s = O(r.position, r.target);
-    e.drag.target.position = M(r.target, C(s, n)), e.drag.target.camera_type === "orthographic" && (e.drag.target.zoom = Math.max(0.01, (r.zoom || 1) / n));
+    const s = Math.exp(o * 5e-3), i = E(n.position, n.target);
+    e.drag.target.position = C(n.target, D(i, s)), e.drag.target.camera_type === "orthographic" && (e.drag.target.zoom = Math.max(0.01, (n.zoom || 1) / s));
   } else if (e.drag.fly) {
-    const n = O(r.target, r.position), s = $(n);
-    let i = Math.atan2(n[0], n[2]), l = Math.asin(j(n[1] / s, -0.999, 0.999));
-    i -= a * 8e-3, l = j(l - o * 8e-3, -1.45, 1.45), e.drag.target.target = [
-      r.position[0] + s * Math.sin(i) * Math.cos(l),
-      r.position[1] + s * Math.sin(l),
-      r.position[2] + s * Math.cos(i) * Math.cos(l)
+    const s = E(n.target, n.position), i = G(s);
+    let c = Math.atan2(s[0], s[2]), m = Math.asin(k(s[1] / i, -0.999, 0.999));
+    c -= a * 8e-3, m = k(m - o * 8e-3, -1.45, 1.45), e.drag.target.target = [
+      n.position[0] + i * Math.sin(c) * Math.cos(m),
+      n.position[1] + i * Math.sin(m),
+      n.position[2] + i * Math.cos(c) * Math.cos(m)
     ];
   } else if (e.drag.shift) {
-    const { right: n, up: s } = L(r), i = Ue(r, e.canvas.height), l = M(C(n, -a * i), C(s, o * i));
-    e.drag.target.position = M(r.position, l), e.drag.target.target = M(r.target, l);
+    const { right: s, up: i } = L(n), c = Qe(n, e.interactionElement.getBoundingClientRect().height), m = C(D(s, -a * c), D(i, o * c));
+    e.drag.target.position = C(n.position, m), e.drag.target.target = C(n.target, m);
   } else {
-    const n = O(r.position, r.target), s = $(n);
-    let i = Math.atan2(n[0], n[2]), l = Math.asin(j(n[1] / s, -0.999, 0.999));
-    i -= a * 8e-3, l = j(l + o * 8e-3, -1.45, 1.45), e.drag.target.position = [
-      r.target[0] + s * Math.sin(i) * Math.cos(l),
-      r.target[1] + s * Math.sin(l),
-      r.target[2] + s * Math.cos(i) * Math.cos(l)
+    const s = E(n.position, n.target), i = G(s);
+    let c = Math.atan2(s[0], s[2]), m = Math.asin(k(s[1] / i, -0.999, 0.999));
+    c -= a * 8e-3, m = k(m + o * 8e-3, -1.45, 1.45), e.drag.target.position = [
+      n.target[0] + i * Math.sin(c) * Math.cos(m),
+      n.target[1] + i * Math.sin(m),
+      n.target[2] + i * Math.cos(c) * Math.cos(m)
     ];
   }
   e.drag.editorView ? (e.serialize(), e.render()) : e.commitCameraEdit();
 }
-function dr(e) {
-  return !e.drag && !e.gizmoDrag && !e.objectDrag && !e.targetFreeDrag ? !1 : (e.undo(), e.activePointerId !== null && e.interactionElement.hasPointerCapture?.(e.activePointerId) && e.interactionElement.releasePointerCapture(e.activePointerId), e.activePointerId = null, e.drag = null, e.objectDrag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), e.finishCameraEdit(), e.refreshInspector(), e.render(), e.setStatus(_("Interaction cancelled")), !0);
+function Ga(e) {
+  if (!e.drag && !e.gizmoDrag && !e.targetFreeDrag && !e.boxSelection && !e.pathDrag) return !1;
+  const t = [e.drag, e.gizmoDrag, e.targetFreeDrag, e.pathDrag].some((a) => a?.historyCheckpointed);
+  return e.drag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.boxSelection = null, e.pathDrag = null, De(e), t && e.undo(), e.finishCameraEdit(), e.refreshInspector(), e.render(), e.setStatus(w("Interaction cancelled")), !0;
 }
-function bn(e, t) {
+function zn(e, t) {
+  if (t?.type === "pointercancel" || t?.type === "lostpointercapture") {
+    t.pointerId === e.activePointerId && Ga(e);
+    return;
+  }
   if (e.pathDrag) {
-    e.pathDrag = null, e.interactionElement.style && (e.interactionElement.style.cursor = ""), e.interactionElement.releasePointerCapture?.(t.pointerId), e.activePointerId = null, e.canvas.classList.remove("dragging"), e.scheduleSerialize(), e.refreshKeys(), e.setStatus(_("Path key moved"));
+    const n = e.pathDrag.moved;
+    e.pathDrag = null, De(e), n && (e.scheduleSerialize(), e.refreshKeys(), e.setStatus(w("Path key moved")));
     return;
   }
   if (e.boxSelection) {
-    const n = e.boxSelection, s = re(e), i = Math.min(n.start[0], n.current[0]), l = Math.max(n.start[0], n.current[0]), m = Math.min(n.start[1], n.current[1]), c = Math.max(n.start[1], n.current[1]), p = n.additive ? new Set(n.initial) : /* @__PURE__ */ new Set();
-    for (const d of e.state.objects) {
-      if (d.enabled === !1) continue;
-      const u = d.keyframes?.length ? Ae(d, e.frame) : d, h = F(u.position || [0, 0, 0], s, e.canvas.width, e.canvas.height);
-      h && h[0] >= i && h[0] <= l && h[1] >= m && h[1] <= c && p.add(d.id);
+    const n = e.boxSelection, s = re(e), i = Math.min(n.start[0], n.current[0]), c = Math.max(n.start[0], n.current[0]), m = Math.min(n.start[1], n.current[1]), l = Math.max(n.start[1], n.current[1]), d = n.additive ? new Set(n.initial) : /* @__PURE__ */ new Set();
+    for (const p of e.state.objects) {
+      if (p.enabled === !1) continue;
+      const f = Mr(e, p, s);
+      f && f.maxX >= i && f.minX <= c && f.maxY >= m && f.minY <= l && d.add(p.id);
     }
-    e.selectedObjectIds = p, e.selectedObjectId = [...p].at(-1) || null, e.selectedEntity = p.size ? "object" : "camera", e.boxSelection = null, e.interactionElement.style && (e.interactionElement.style.cursor = "default"), e.refreshObjects(), e.refreshInspector(), e.render(), e.setStatus(_(`${p.size} object(s) selected`));
+    e.selectedObjectIds = d, e.selectedObjectId = [...d].at(-1) || null, e.selectedEntity = d.size ? "object" : "camera", e.boxSelection = null, De(e), e.refreshObjects(), e.refreshInspector(), e.render(), e.setStatus(w(`${d.size} object(s) selected`));
     return;
   }
-  const a = e.keyDrag, o = !!(e.drag && !e.drag.editorView || e.targetFreeDrag), r = !!(e.gizmoDrag || e.objectDrag);
-  !e.pointerHit && !e.gizmoDrag && !e.objectDrag && !e.targetFreeDrag && e.drag && t && Math.hypot(t.clientX - e.drag.x, t.clientY - e.drag.y) < 5 && (t.button === 0 || t.button === void 0) && (e.selectedEntity === "object" || e.selectedObjectId !== null || e.selectedEntity === "camera_target") && (e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.selectedKeyFrame = null, e.subSelection = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(_("Deselected"))), t?.pointerId === e.activePointerId && e.interactionElement.hasPointerCapture?.(t.pointerId) && e.interactionElement.releasePointerCapture(t.pointerId), e.activePointerId = null, e.drag = null, e.objectDrag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.keyDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), a && (a.badge?.remove(), e.editingKeyFrame = null, e.updateKeyVisualState(), e.root.focus({ preventScroll: !0 })), o && e.finishCameraEdit(), r && (e.editingKeyFrame = null, e.updateKeyVisualState(), e.drawCurveEditor());
+  const a = e.keyDrag, o = !!(e.drag && !e.drag.editorView || e.targetFreeDrag), r = !!e.gizmoDrag;
+  !e.pointerHit && !e.gizmoDrag && !e.targetFreeDrag && e.drag && !e.drag.navigationOnly && t && Math.hypot(t.clientX - e.drag.x, t.clientY - e.drag.y) < 5 && (t.button === 0 || t.button === void 0) && (e.selectedEntity === "object" || e.selectedObjectId !== null || e.selectedEntity === "camera_target") && (e.selectedEntity = "camera", e.selectedObjectId = null, e.selectedObjectIds = /* @__PURE__ */ new Set(), e.selectedKeyFrame = null, e.subSelection = null, e.refreshObjects(), e.refreshKeys(), e.refreshInspector(), e.render(), e.setStatus(w("Deselected"))), De(e), e.drag = null, e.gizmoDrag = null, e.targetFreeDrag = null, e.keyDrag = null, e.pointerHit = !1, e.canvas.classList.remove("dragging"), e.interactionElement.style && (e.interactionElement.style.cursor = "default"), a && (a.badge?.remove(), e.editingKeyFrame = null, e.updateKeyVisualState(), e.root.focus({ preventScroll: !0 })), o && e.finishCameraEdit(), r && (e.editingKeyFrame = null, e.updateKeyVisualState(), e.drawCurveEditor());
 }
-function _n(e, t) {
+function Pn(e, t) {
   if (t.target.closest?.(".viewport-inspector, .scene-tree, .menu-panel, .context-menu, .viewport-quick-bar"))
     return;
-  if (t.preventDefault(), t.stopPropagation(), e.closeMenus(), e.isNavigatingFly) {
-    e.cameraSpeed = j(e.cameraSpeed * Math.exp(-t.deltaY * 1e-3), 0.05, 20), e.setStatus(_(`Fly speed: ${e.cameraSpeed.toFixed(2)}x`));
+  t.preventDefault(), t.stopPropagation(), e.closeMenus();
+  const a = _r(t, e.interactionElement.getBoundingClientRect().height);
+  if (!a) return;
+  if (e.isNavigatingFly) {
+    e.cameraSpeed = k(e.cameraSpeed * Math.exp(-a * 1e-3), 0.05, 20), e.setStatus(w(`Fly speed: ${e.cameraSpeed.toFixed(2)}x`));
     return;
   }
-  lr(e);
-  const a = e.state.view_mode !== "camera", o = re(e);
-  a || e.beginCameraEdit();
-  const r = j(t.deltaY * 1e-3, -0.4, 0.4), n = O(o.position, o.target);
-  o.position = M(o.target, C(n, Math.exp(r))), o.camera_type === "orthographic" && (o.zoom = Math.max(0.01, (o.zoom || 1) * Math.exp(-r))), a ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
+  vr(e);
+  const o = e.state.view_mode !== "camera", r = re(e);
+  o || e.beginCameraEdit();
+  const n = k(a * 1e-3, -0.4, 0.4), s = E(r.position, r.target);
+  r.position = C(r.target, D(s, Math.exp(n))), r.camera_type === "orthographic" && (r.zoom = Math.max(0.01, (r.zoom || 1) * Math.exp(-n))), o ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
 }
-const pr = (e) => {
+const Sr = (e) => {
   const t = new Set((e.motion_layers || []).map((o) => o.id));
   let a = t.size + 1;
   for (; t.has(`motion_${a}`); ) a += 1;
   return `motion_${a}`;
 };
-function Ee(e, { sourceKind: t = "manual_2d", label: a, keys: o, source: r = {} }) {
-  if (!Ct.includes(t)) throw new Error(`Unsupported motion source: ${t}`);
-  const n = pr(e), s = { id: n, label: a || `Motion ${n.split("_").at(-1)}`, enabled: !0, semantic: "screen_point", source_kind: t, keys: o.map((i) => ({ visible: !0, interpolation: "linear", ...i })), source: { ...r } };
+function ze(e, { sourceKind: t = "manual_2d", label: a, keys: o, source: r = {} }) {
+  if (!It.includes(t)) throw new Error(`Unsupported motion source: ${t}`);
+  const n = Sr(e), s = { id: n, label: a || `Motion ${n.split("_").at(-1)}`, enabled: !0, semantic: "screen_point", source_kind: t, keys: o.map((i) => ({ visible: !0, interpolation: "linear", ...i })), source: { ...r } };
   return e.motion_layers ||= [], e.motion_layers.push(s), e.selected_motion_layer_id = n, s;
 }
-function Fe(e) {
+function Be(e) {
   return (e.motion_layers || []).find((t) => t.id === e.selected_motion_layer_id) || null;
 }
-function at(e, t) {
-  return e.motion_tool = xt.includes(t) ? t : "select", e.motion_tool;
+function st(e, t) {
+  return e.motion_tool = Et.includes(t) ? t : "select", e.motion_tool;
 }
-function fr(e, t) {
-  if (Dt.includes(t))
+function xr(e, t) {
+  if (At.includes(t))
     for (const a of e.keys) a.interpolation = t;
 }
-function ur(e, t, a) {
+function Cr(e, t, a) {
   if (!e?.keys?.length || a < t) return;
   if (e.keys.length === 1) {
     e.keys[0].time_seconds = t;
@@ -2746,32 +2840,32 @@ function ur(e, t, a) {
     r.time_seconds = t + o * n;
   });
 }
-function za(e, t) {
+function Ba(e, t) {
   e.motion_layers = (e.motion_layers || []).filter((a) => a.id !== t), e.selected_motion_layer_id === t && (e.selected_motion_layer_id = e.motion_layers[0]?.id || null);
 }
-function hr(e, t) {
+function Dr(e, t) {
   const a = t.getBoundingClientRect();
   return {
     x: Math.max(0, Math.min(1, (e.clientX - a.left) / Math.max(1, a.width))),
     y: Math.max(0, Math.min(1, (e.clientY - a.top) / Math.max(1, a.height)))
   };
 }
-function gr(e, t, a, o, r) {
+function kr(e, t, a, o, r) {
   const n = fe(e, a, e.objects);
   let s = t?.point;
   if (t?.object_id) {
-    const c = e.objects.find((u) => u.id === t.object_id);
-    if (!c) return null;
-    const p = go(e.objects, c), d = Array.isArray(t.local_point) ? t.local_point : [0, 0, 0];
-    s = [p.position[0] + d[0] * p.size[0], p.position[1] + d[1] * p.size[1], p.position[2] + d[2] * p.size[2]];
+    const l = e.objects.find((f) => f.id === t.object_id);
+    if (!l) return null;
+    const d = xo(e.objects, l), p = Array.isArray(t.local_point) ? t.local_point : [0, 0, 0];
+    s = [d.position[0] + p[0] * d.size[0], d.position[1] + p[1] * d.size[1], d.position[2] + p[2] * d.size[2]];
   }
   if (!Array.isArray(s)) return null;
-  const i = F(s, n, o, r);
+  const i = R(s, n, o, r);
   if (!i) return null;
-  const l = i[0] / o, m = i[1] / r;
-  return { x: l, y: m, visible: l >= 0 && l <= 1 && m >= 0 && m <= 1 };
+  const c = i[0] / o, m = i[1] / r;
+  return { x: c, y: m, visible: c >= 0 && c <= 1 && m >= 0 && m <= 1 };
 }
-function yr(e, t = 6e-3) {
+function jr(e, t = 6e-3) {
   if (e.length < 3) return e;
   const a = [e[0]];
   for (const o of e.slice(1, -1)) {
@@ -2780,7 +2874,7 @@ function yr(e, t = 6e-3) {
   }
   return a.push(e.at(-1)), a;
 }
-function Na(e, t, a = 0.035) {
+function qa(e, t, a = 0.035) {
   let o = null, r = a;
   for (const n of e || []) for (const s of n.keys || []) {
     const i = Math.hypot(s.x - t.x, s.y - t.y);
@@ -2788,189 +2882,220 @@ function Na(e, t, a = 0.035) {
   }
   return o;
 }
-function br(e, t, a, o) {
-  const r = yr(t);
+function Tr(e, t, a, o) {
+  const r = jr(t);
   if (r.length < 2) return null;
   const n = Math.max(0, o - a);
-  return Ee(e, {
+  return ze(e, {
     sourceKind: "manual_2d",
     label: `Track ${(e.motion_layers || []).length + 1}`,
     keys: r.map((s, i) => ({ ...s, time_seconds: a + n * i / (r.length - 1) }))
   });
 }
-function Le(e, t) {
-  return hr(t, e.interactionElement);
+function qe(e, t) {
+  return Dr(t, e.interactionElement);
 }
-function _r(e, t) {
-  const a = Na(e.motion_layers, t);
-  return a ? (za(e, a.id), a) : null;
+function Er(e, t) {
+  const a = qa(e.motion_layers, t);
+  return a ? (Ba(e, a.id), a) : null;
 }
-const Ke = (e) => {
+const He = (e) => {
   e.preventDefault(), e.stopPropagation(), e.stopImmediatePropagation?.();
-}, gt = (e) => {
+}, wt = (e) => {
   const t = e.state.playback_range || [e.frame, e.state.duration_frames - 1];
   return [t[0] / e.state.fps, t[1] / e.state.fps];
-}, Q = (e, t) => {
+}, Z = (e, t) => {
   e.serialize(), e.render(), e.setStatus(t);
 };
-function Ie(e) {
+function Pe(e) {
   for (const t of e.root.querySelectorAll("[data-motion-tool]")) {
     const a = t.dataset.motionTool === e.state.motion_tool;
     t.classList.toggle("active", a), t.setAttribute("aria-pressed", String(a));
   }
   e.interactionElement.dataset.motionTool = e.state.motion_tool;
 }
-function vr(e, t) {
-  const a = e.state.objects.find((m) => m.id === e.selectedObjectId), o = e.motionCreationKind, n = (o === "object" || o !== "world" && !!a) && a ? "object_point" : "world_point", s = n === "object_point" ? { object_id: a.id, local_point: [0, 0, 0] } : { point: e.webgl?.intersectScenePoint?.(t.x * e.canvas.width, t.y * e.canvas.height, e.canvas.width, e.canvas.height) || [...e.camera.target] }, i = gr(e.state, s, e.frame, e.canvas.width, e.canvas.height) || t, l = n === "object_point" ? `${a.name || a.id} Track` : "World Anchor";
-  return Ee(e.state, { sourceKind: n, label: l, keys: [{ time_seconds: e.frame / e.state.fps, x: i.x, y: i.y, visible: i.visible !== !1 }], source: s });
+function Ir(e, t) {
+  const a = e.state.objects.find((m) => m.id === e.selectedObjectId), o = e.motionCreationKind, n = (o === "object" || o !== "world" && !!a) && a ? "object_point" : "world_point", s = n === "object_point" ? { object_id: a.id, local_point: [0, 0, 0] } : { point: e.webgl?.intersectScenePoint?.(t.x * e.canvas.width, t.y * e.canvas.height, e.canvas.width, e.canvas.height) || [...e.camera.target] }, i = kr(e.state, s, e.frame, e.canvas.width, e.canvas.height) || t, c = n === "object_point" ? `${a.name || a.id} Track` : "World Anchor";
+  return ze(e.state, { sourceKind: n, label: c, keys: [{ time_seconds: e.frame / e.state.fps, x: i.x, y: i.y, visible: i.visible !== !1 }], source: s });
 }
-function vn(e, t) {
+function Nn(e, t) {
   for (const r of e.root.querySelectorAll("[data-motion-tool]"))
     r.addEventListener("click", () => {
-      e.motionCreationKind = "", at(e.state, r.dataset.motionTool), Ie(e), e.render();
+      e.motionCreationKind = "", st(e.state, r.dataset.motionTool), Pe(e), e.render();
     }, { signal: t });
   for (const r of e.root.querySelectorAll("[data-motion-preset]"))
     r.addEventListener("click", () => {
-      e.checkpoint("Add camera field"), Ee(e.state, { sourceKind: "camera_field", label: `${r.dataset.motionPreset} Field`, keys: [{ time_seconds: 0, x: 0.5, y: 0.5 }], source: { preset: r.dataset.motionPreset, point: [...e.camera.target] } }), Q(e, `Camera field: ${r.dataset.motionPreset}`);
+      e.checkpoint("Add camera field"), ze(e.state, { sourceKind: "camera_field", label: `${r.dataset.motionPreset} Field`, keys: [{ time_seconds: 0, x: 0.5, y: 0.5 }], source: { preset: r.dataset.motionPreset, point: [...e.camera.target] } }), Z(e, `Camera field: ${r.dataset.motionPreset}`);
     }, { signal: t });
   e.root.querySelector('[data-role="motion-interpolation"]')?.addEventListener("change", (r) => {
-    const n = Fe(e.state);
-    n && (e.checkpoint("Set motion interpolation"), fr(n, r.target.value), Q(e, `Motion interpolation: ${r.target.value}`));
+    const n = Be(e.state);
+    n && (e.checkpoint("Set motion interpolation"), xr(n, r.target.value), Z(e, `Motion interpolation: ${r.target.value}`));
   }, { signal: t }), e.root.querySelector('[data-role="motion-key-visible"]')?.addEventListener("change", (r) => {
-    const n = Fe(e.state);
+    const n = Be(e.state);
     if (!n?.keys?.length) return;
-    const s = e.frame / e.state.fps, i = n.keys.reduce((l, m) => Math.abs(m.time_seconds - s) < Math.abs(l.time_seconds - s) ? m : l);
-    e.checkpoint("Set motion visibility"), i.visible = r.target.checked, Q(e, `Motion key ${i.visible ? "visible" : "hidden"}`);
+    const s = e.frame / e.state.fps, i = n.keys.reduce((c, m) => Math.abs(m.time_seconds - s) < Math.abs(c.time_seconds - s) ? m : c);
+    e.checkpoint("Set motion visibility"), i.visible = r.target.checked, Z(e, `Motion key ${i.visible ? "visible" : "hidden"}`);
   }, { signal: t });
   for (const r of e.root.querySelectorAll("[data-motion-layer-action]"))
     r.addEventListener("click", () => {
-      const n = Fe(e.state);
+      const n = Be(e.state);
       if (!n) return;
       const s = r.dataset.motionLayerAction;
-      if (e.checkpoint(s === "delete" ? "Delete motion layer" : s === "retime" ? "Retime motion layer" : "Toggle motion layer"), s === "delete") za(e.state, n.id);
+      if (e.checkpoint(s === "delete" ? "Delete motion layer" : s === "retime" ? "Retime motion layer" : "Toggle motion layer"), s === "delete") Ba(e.state, n.id);
       else if (s === "retime") {
-        const [i, l] = gt(e);
-        ur(n, i, l);
+        const [i, c] = wt(e);
+        Cr(n, i, c);
       } else n.enabled = !n.enabled;
-      Q(e, s === "delete" ? "Motion layer deleted" : s === "retime" ? "Motion layer retimed" : `Motion layer ${n.enabled ? "enabled" : "disabled"}`);
+      Z(e, s === "delete" ? "Motion layer deleted" : s === "retime" ? "Motion layer retimed" : `Motion layer ${n.enabled ? "enabled" : "disabled"}`);
     }, { signal: t });
   const a = e.interactionElement;
   a.addEventListener("pointerdown", (r) => {
     const n = e.state.motion_tool;
     if (n === "select" || r.button !== 0) return;
-    Ke(r), a.setPointerCapture?.(r.pointerId);
-    const s = Le(e, r);
+    He(r), a.setPointerCapture?.(r.pointerId);
+    const s = qe(e, r);
     if (n === "track") {
       e.checkpoint("Draw motion track"), e.motionTrackDraft = { pointerId: r.pointerId, points: [s] };
       return;
     }
-    e.checkpoint(n === "erase" ? "Erase motion track" : "Add motion anchor"), n === "anchor" ? Ee(e.state, { sourceKind: "static_anchor", label: `Anchor ${(e.state.motion_layers || []).length + 1}`, keys: [{ time_seconds: e.frame / e.state.fps, ...s, interpolation: "hold" }] }) : n === "project" ? vr(e, s) : n === "erase" && _r(e.state, s), Q(e, `Motion tool: ${n}`);
+    e.checkpoint(n === "erase" ? "Erase motion track" : "Add motion anchor"), n === "anchor" ? ze(e.state, { sourceKind: "static_anchor", label: `Anchor ${(e.state.motion_layers || []).length + 1}`, keys: [{ time_seconds: e.frame / e.state.fps, ...s, interpolation: "hold" }] }) : n === "project" ? Ir(e, s) : n === "erase" && Er(e.state, s), Z(e, `Motion tool: ${n}`);
   }, { capture: !0, signal: t }), a.addEventListener("pointermove", (r) => {
-    e.motionTrackDraft?.pointerId === r.pointerId && (Ke(r), e.motionTrackDraft.points.push(Le(e, r)), e.render());
+    e.motionTrackDraft?.pointerId === r.pointerId && (He(r), e.motionTrackDraft.points.push(qe(e, r)), e.render());
   }, { capture: !0, signal: t });
   const o = (r) => {
     const n = e.motionTrackDraft;
     if (n?.pointerId !== r.pointerId) return;
-    Ke(r), e.motionTrackDraft = null;
-    const [s, i] = gt(e), l = br(e.state, n.points, s, i);
-    Q(e, l ? `Motion track: ${l.label}` : "Motion track needs a longer stroke");
+    He(r), e.motionTrackDraft = null;
+    const [s, i] = wt(e), c = Tr(e.state, n.points, s, i);
+    Z(e, c ? `Motion track: ${c.label}` : "Motion track needs a longer stroke");
   };
   a.addEventListener("pointerup", o, { capture: !0, signal: t }), a.addEventListener("pointercancel", o, { capture: !0, signal: t }), a.addEventListener("click", (r) => {
     if (e.state.motion_tool !== "select" || r.button !== 0) return;
-    const n = Na(e.state.motion_layers, Le(e, r));
+    const n = qa(e.state.motion_layers, qe(e, r));
     n && (e.state.selected_motion_layer_id = n.id, e.render());
-  }, { signal: t }), Ie(e);
+  }, { signal: t }), Pe(e);
 }
-const wr = {
+const Ar = {
   draw: { tool: "track", label: "Draw Path", hint: "Draw a trajectory in the Camera View. Release to finish, Esc to cancel." },
   object: { tool: "project", label: "Track Object", hint: "Click the selected object in the viewport to follow it." },
   world: { tool: "project", label: "World Point", hint: "Click a surface or point in the viewport to pin a fixed 3D point." },
   anchor: { tool: "anchor", label: "Screen Anchor", hint: "Click to place a control point at a fixed screen position." }
 };
-function Sr(e, t) {
-  const a = wr[t];
+function Or(e, t) {
+  const a = Ar[t];
   if (a) {
     if (t === "object" && !(e.state.objects || []).some((o) => o.id === e.selectedObjectId)) {
       e.setStatus("Select a scene object first, then choose Track Object.");
       return;
     }
-    e.checkpoint?.(`Motion: ${a.label}`), at(e.state, a.tool), e.motionCreatingLabel = a.label, e.motionCreationKind = t, Ie(e), e.render(), e.setStatus(a.hint);
+    e.checkpoint?.(`Motion: ${a.label}`), st(e.state, a.tool), e.motionCreatingLabel = a.label, e.motionCreationKind = t, Pe(e), e.render(), e.setStatus(a.hint);
   }
 }
-function Ra(e) {
-  return (e.state.motion_tool || "select") === "select" && !e.motionTrackDraft ? !1 : (at(e.state, "select"), e.motionTrackDraft = null, e.motionCreatingLabel = "", e.motionCreationKind = "", Ie(e), e.render(), e.setStatus("Motion creation cancelled."), !0);
+function Ha(e) {
+  return (e.state.motion_tool || "select") === "select" && !e.motionTrackDraft ? !1 : (st(e.state, "select"), e.motionTrackDraft = null, e.motionCreatingLabel = "", e.motionCreationKind = "", Pe(e), e.render(), e.setStatus("Motion creation cancelled."), !0);
 }
-function wn(e, t) {
+function Fn(e, t) {
   for (const a of e.root.querySelectorAll("[data-motion-create]"))
-    a.addEventListener("click", () => Sr(e, a.dataset.motionCreate), { signal: t });
-  e.root.querySelector("[data-motion-create-cancel]")?.addEventListener("click", () => Ra(e), { signal: t });
+    a.addEventListener("click", () => Or(e, a.dataset.motionCreate), { signal: t });
+  e.root.querySelector("[data-motion-create-cancel]")?.addEventListener("click", () => Ha(e), { signal: t });
 }
-const yt = { t: "translate", r: "rotate", s: "scale" }, Mr = [
+const zr = Object.freeze({
+  x: ["right", "left"],
+  y: ["top", "bottom"],
+  z: ["front", "back"]
+}), Pr = Object.freeze({
+  front: "back",
+  back: "front",
+  right: "left",
+  left: "right",
+  top: "bottom",
+  bottom: "top"
+});
+function Rn(e, t) {
+  const a = zr[e];
+  return a ? t === a[0] ? a[1] : a[0] : null;
+}
+function Nr(e) {
+  return Pr[e] || null;
+}
+function Mt(e, t, a) {
+  const o = e.viewportCamera(), r = e.state.view_mode !== "camera", n = E(o.position, o.target), s = G(n);
+  if (!(s > 1e-4)) return;
+  const i = Math.atan2(n[0], n[2]) + t, c = k(Math.asin(k(n[1] / s, -0.999, 0.999)) + a, -1.45, 1.45);
+  r || e.beginCameraEdit(), o.position = C(o.target, D([
+    Math.sin(i) * Math.cos(c),
+    Math.sin(c),
+    Math.cos(i) * Math.cos(c)
+  ], s)), r ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit());
+}
+const St = { t: "translate", r: "rotate", s: "scale" }, Fr = [
   ["viewport", ".viewport-wrap"],
   ["sequence", '[data-role="graph-sequence"]'],
   ["graph", ".oc-graph"],
   ["timeline", ".oc-timeline"]
-], xr = 'button,summary,a[href],[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="checkbox"],[role="switch"]';
-function Cr(e) {
-  return e instanceof HTMLElement || e instanceof SVGElement ? !!e.closest?.(xr) : !1;
+], Rr = 'button,summary,a[href],[role="button"],[role="menuitem"],[role="tab"],[role="option"],[role="checkbox"],[role="switch"]';
+function Lr(e) {
+  return e instanceof HTMLElement || e instanceof SVGElement ? !!e.closest?.(Rr) : !1;
 }
-function Dr(e) {
+function Vr(e) {
   return !(e instanceof HTMLElement) || ["INPUT", "SELECT", "TEXTAREA"].includes(e.tagName) || e.isContentEditable || !!e.closest?.('[contenteditable="true"],span.property_value');
 }
-function jr(e) {
+function Kr(e) {
   const t = e instanceof HTMLElement ? e : null;
-  for (const [a, o] of Mr)
+  for (const [a, o] of Fr)
     if (t?.closest?.(o)) return a;
   return null;
 }
-function kr(e, t) {
-  return jr(e) || t?.lastKeyZone || "viewport";
+function Gr(e, t) {
+  return Kr(e) || t?.lastKeyZone || "viewport";
 }
-let bt = !1;
-function Tr() {
-  bt || typeof window > "u" || (bt = !0, window.addEventListener("keydown", (e) => {
-    if (!Bo()) return;
-    const t = e.composedPath?.()[0] || e.target, a = qo(t);
-    !a || a.disposed || Er(a, e) && (e.preventDefault(), e.stopImmediatePropagation?.(), e.stopPropagation());
+let xt = !1;
+function Br() {
+  xt || typeof window > "u" || (xt = !0, window.addEventListener("keydown", (e) => {
+    if (!Zo()) return;
+    const t = e.composedPath?.()[0] || e.target, a = Qo(t);
+    !a || a.disposed || qr(a, e) && (e.preventDefault(), e.stopImmediatePropagation?.(), e.stopPropagation());
   }, { capture: !0 }));
 }
-function Er(e, t) {
+function qr(e, t) {
   const a = t.composedPath?.()[0] || t.target;
-  if (Dr(a) || (t.code === "Space" || t.key === "Enter") && Cr(a)) return !1;
+  if (Vr(a) || (t.code === "Space" || t.key === "Enter") && Lr(a)) return !1;
   if (e.contextMenu.onKey(t)) return !0;
   if (e.modalTransform)
-    return cr(e, t), !0;
-  if (Ir(e, t)) return !0;
+    return gr(e, t), !0;
+  if (Hr(e, t)) return !0;
   const o = t.code;
   if ((t.ctrlKey || t.metaKey) && !o.startsWith("Numpad") || t.altKey) return !1;
-  switch (kr(a, e)) {
+  switch (Gr(a, e)) {
     case "viewport":
-      return Ar(e, t);
+      return Wr(e, t);
     case "sequence":
-      return Pr(e, t);
+      return Ur(e, t);
     case "timeline":
     case "graph":
-      return Or(e, t);
+      return $r(e, t);
     default:
       return !1;
   }
 }
-function Ir(e, t) {
+function Hr(e, t) {
   const a = t.key.toLowerCase(), o = t.ctrlKey || t.metaKey;
-  return a === "escape" ? dr(e) || Ra(e) ? !0 : e.isNavigatingFly ? (e.isNavigatingFly = !1, e.setStatus("Fly Mode OFF"), !0) : !1 : o && a === "z" ? (t.repeat || (t.shiftKey ? e.redo() : e.undo()), !0) : o && a === "y" ? (t.repeat || e.redo(), !0) : o && a === "c" ? e.selectedKeyframe() ? (e.copyKeyframe(), !0) : !1 : o && a === "v" ? e.copiedKeyframe ? (e.pasteKeyframe(), !0) : !1 : o && a === "d" ? (t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.duplicateObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.duplicateCamera(e.state.active_camera_id)), !0) : t.altKey && a === "h" ? (t.repeat || e.showAllObjects(), !0) : t.code === "Space" ? (t.repeat || e.togglePlay(), !0) : !1;
+  return a === "escape" ? Ga(e) || Ha(e) ? !0 : e.isNavigatingFly ? (e.isNavigatingFly = !1, e.setStatus("Fly Mode OFF"), !0) : !1 : o && a === "z" ? (t.repeat || (t.shiftKey ? e.redo() : e.undo()), !0) : o && a === "y" ? (t.repeat || e.redo(), !0) : o && a === "c" ? e.selectedKeyframe() ? (e.copyKeyframe(), !0) : !1 : o && a === "v" ? e.copiedKeyframe ? (e.pasteKeyframe(), !0) : !1 : o && a === "d" ? (t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.duplicateObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.duplicateCamera(e.state.active_camera_id)), !0) : t.altKey && a === "h" ? (t.repeat || e.showAllObjects(), !0) : t.code === "Space" ? (t.repeat || e.togglePlay(), !0) : !1;
 }
-function Ar(e, t) {
+function Wr(e, t) {
   const a = t.key.toLowerCase(), o = t.code;
   if (t.shiftKey && a === "g" && !e.isNavigatingFly)
     return e.selectHierarchy(), !0;
-  if (yt[a] && !e.isNavigatingFly)
-    return t.repeat || nr(e, yt[a]), !0;
+  if (St[a] && !e.isNavigatingFly)
+    return t.repeat || fr(e, St[a]), !0;
   if (a === "tab") {
-    const n = e.state.select_mode === "object" ? "vertex" : "object";
-    return e.setSelectMode(n), e.setStatus(n === "object" ? "Object Mode" : "Component Mode: Vertex"), !0;
+    const i = e.state.select_mode === "object" ? "vertex" : "object";
+    return e.setSelectMode(i), e.setStatus(i === "object" ? "Object Mode" : "Component Mode: Vertex"), !0;
   }
   if (a === "f" || o === "NumpadDecimal")
     return t.repeat || e.frameTarget(), !0;
+  if ((a === "a" || t.key === "Home") && !e.isNavigatingFly && !t.shiftKey)
+    return t.repeat || e.frameTarget({ all: !0 }), !0;
   if (a === "n")
     return t.repeat || e.toggleInspector(), !0;
   if (t.shiftKey && (o === "Backquote" || a === "~") || a === "c" && !t.shiftKey && !t.altKey && !t.ctrlKey)
@@ -2986,8 +3111,13 @@ function Ar(e, t) {
     return e.setViewMode(t.ctrlKey || t.metaKey ? "left" : "right"), !0;
   if (o === "Numpad7")
     return e.setViewMode(t.ctrlKey || t.metaKey ? "bottom" : "top"), !0;
-  if (o === "Numpad9")
-    return e.setViewMode("bottom"), !0;
+  if (o === "Numpad9") {
+    const i = Nr(e.state.view_mode);
+    return i ? e.setViewMode(i) : Mt(e, Math.PI, 0), !0;
+  }
+  const n = Math.PI / 12, s = { Numpad4: [n, 0], Numpad6: [-n, 0], Numpad8: [0, n], Numpad2: [0, -n] };
+  if (s[o])
+    return Mt(e, s[o][0], s[o][1]), !0;
   if (o === "Numpad5")
     return e.setViewMode(e.state.view_mode === "camera" ? "perspective" : "camera"), !0;
   if (a === "h" && !t.ctrlKey && !t.metaKey && !t.altKey)
@@ -2995,12 +3125,12 @@ function Ar(e, t) {
   if (t.key === "Delete" || t.key === "Backspace")
     return t.repeat || (e.selectedEntity === "object" && e.selectedObjectId ? e.deleteObject(e.selectedObjectId) : e.selectedEntity === "camera" && e.deleteCamera(e.state.active_camera_id)), !0;
   if (["w", "a", "s", "d", "q", "e"].includes(a) && e.isNavigatingFly) {
-    const n = e.viewportCamera(), s = e.state.view_mode !== "camera", { right: i, up: l, forward: m } = L(n), c = (t.shiftKey ? 0.6 : 0.18) * e.cameraSpeed, p = { w: C(m, c), s: C(m, -c), d: C(i, c), a: C(i, -c), e: C(l, c), q: C(l, -c) }[a];
-    return s || e.beginCameraEdit(), n.position = M(n.position, p), n.target = M(n.target, p), s ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit()), !0;
+    const i = e.viewportCamera(), c = e.state.view_mode !== "camera", { right: m, up: l, forward: d } = L(i), p = (t.shiftKey ? 0.6 : 0.18) * e.cameraSpeed, f = { w: D(d, p), s: D(d, -p), d: D(m, p), a: D(m, -p), e: D(l, p), q: D(l, -p) }[a];
+    return c || e.beginCameraEdit(), i.position = C(i.position, f), i.target = C(i.target, f), c ? (e.serialize(), e.render()) : (e.commitCameraEdit(), e.finishCameraEdit()), !0;
   }
   return !1;
 }
-function Or(e, t) {
+function $r(e, t) {
   const a = t.key.toLowerCase(), o = t.code;
   if (a === "i" || a === "k")
     return t.repeat || e.insertKeyframe(), !0;
@@ -3022,10 +3152,10 @@ function Or(e, t) {
   }
   return !1;
 }
-function Ve(e) {
+function We(e) {
   e.scheduleSerialize(), e.refreshKeys(), e.refreshCameraSelectors(), e.render();
 }
-function Pr(e, t) {
+function Ur(e, t) {
   const a = t.key.toLowerCase();
   if (t.key === "ArrowLeft")
     return e.setFrame(e.frame - 1), !0;
@@ -3036,15 +3166,15 @@ function Pr(e, t) {
   if (t.key === "End")
     return e.setFrame(e.state.duration_frames - 1), !0;
   if (a === "s" || a === "a")
-    return t.repeat || (!Ce(e.state).length || a === "a" ? (e.checkpoint("Auto-split shots"), e.state.sequence = { ...e.state.sequence || { recording_path: "" }, enabled: !0, cuts: Za(e.state) }, Ve(e)) : (e.checkpoint("Split shot"), Ja(e.state, e.frame, null) ? Ve(e) : e.setStatus("Move the playhead inside a shot first"))), !0;
+    return t.repeat || (!je(e.state).length || a === "a" ? (e.checkpoint("Auto-split shots"), e.state.sequence = { ...e.state.sequence || { recording_path: "" }, enabled: !0, cuts: no(e.state) }, We(e)) : (e.checkpoint("Split shot"), io(e.state, e.frame, null) ? We(e) : e.setStatus("Move the playhead inside a shot first"))), !0;
   if (t.key === "Delete" || t.key === "Backspace") {
     if (t.repeat) return !0;
-    const o = Ce(e.state), r = Mt(e.state, e.frame), n = r ? o.findIndex((s) => s.start === r.start) : -1;
-    return n >= 0 && (e.checkpoint("Remove shot"), eo(e.state, n) && Ve(e)), !0;
+    const o = je(e.state), r = Tt(e.state, e.frame), n = r ? o.findIndex((s) => s.start === r.start) : -1;
+    return n >= 0 && (e.checkpoint("Remove shot"), co(e.state, n) && We(e)), !0;
   }
   return !1;
 }
-function ot(e, t) {
+function it(e, t) {
   let a = !1;
   const o = e.onRemoved, r = function(...s) {
     a = !0, o?.apply(this, s);
@@ -3059,41 +3189,41 @@ function ot(e, t) {
     n(), console.error("OmniCam: node UI failed to load", s);
   });
 }
-const Xe = "MajoorOmniCamDirector", Ye = "MajoorOmniCamExtractor", Ze = "MajoorOmniCamMonitor";
-function Pe(e) {
+const Je = "MajoorOmniCamDirector", et = "MajoorOmniCamExtractor", tt = "MajoorOmniCamMonitor";
+function Re(e) {
   return String(e?.comfyClass || e?.type || e?.constructor?.type || "");
 }
-const Fa = {
-  [Xe]: { default: [1313, 1633], min: [760, 760] },
-  [Ye]: { default: [761, 1458], min: [700, 760] },
-  [Ze]: { default: [798, 1634], min: [640, 680] }
-}, zr = 0.92, Nr = 0.88;
-function Rr([e, t], [a, o]) {
+const Wa = {
+  [Je]: { default: [1313, 1633], min: [760, 760] },
+  [et]: { default: [761, 1458], min: [700, 760] },
+  [tt]: { default: [798, 1634], min: [640, 680] }
+}, Xr = 0.92, Yr = 0.88;
+function Zr([e, t], [a, o]) {
   if (typeof window > "u") return [e, t];
-  const r = Math.round((window.innerWidth || e) * zr), n = Math.round((window.innerHeight || t) * Nr);
+  const r = Math.round((window.innerWidth || e) * Xr), n = Math.round((window.innerHeight || t) * Yr);
   return [
     Math.max(a, Math.min(e, r)),
     Math.max(o, Math.min(t, n))
   ];
 }
-function Fr(e, t) {
-  const a = Fa[t];
-  return !a || !e?.setSize ? !1 : (e.setSize(Rr(a.default, a.min)), !0);
+function Qr(e, t) {
+  const a = Wa[t];
+  return !a || !e?.setSize ? !1 : (e.setSize(Zr(a.default, a.min)), !0);
 }
-function Lr(e, t, a) {
-  const o = Fa[t];
+function Jr(e, t, a) {
+  const o = Wa[t];
   if (!o || !e?.setSize) return !1;
-  const r = Array.isArray(a) ? a : Array.isArray(e.size) ? e.size : [0, 0], n = Array.isArray(e.size) ? e.size : [0, 0], [s, i] = o.min, l = Math.max(Number(r[0]) || 0, s), m = Math.max(Number(r[1]) || 0, i);
-  return l === n[0] && m === n[1] ? !1 : (e.setSize([l, m]), !0);
+  const r = Array.isArray(a) ? a : Array.isArray(e.size) ? e.size : [0, 0], n = Array.isArray(e.size) ? e.size : [0, 0], [s, i] = o.min, c = Math.max(Number(r[0]) || 0, s), m = Math.max(Number(r[1]) || 0, i);
+  return c === n[0] && m === n[1] ? !1 : (e.setSize([c, m]), !0);
 }
-const _t = "oc-help-css", we = "#8b7bd8", La = /* @__PURE__ */ new Map();
-function rt(e, t) {
-  e && t && La.set(e, t);
+const Ct = "oc-help-css", we = "#8b7bd8", $a = /* @__PURE__ */ new Map();
+function ct(e, t) {
+  e && t && $a.set(e, t);
 }
-function Qe(e) {
-  return e && La.get(e) || null;
+function at(e) {
+  return e && $a.get(e) || null;
 }
-const Kr = `
+const en = `
 .oc-help-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;
   align-items:center;justify-content:center;z-index:10000;font:12px/1.35 system-ui,
   -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -3128,15 +3258,15 @@ const Kr = `
 .oc-help-tip{margin-top:2px;padding:8px 10px;background:rgba(139,123,216,.12);
   border-left:2px solid ${we};border-radius:3px;color:#ddd;font-size:11.5px}
 `;
-function Vr() {
-  if (document.getElementById(_t)) return;
+function tn() {
+  if (document.getElementById(Ct)) return;
   const e = document.createElement("style");
-  e.id = _t, e.textContent = Kr, document.head.appendChild(e);
+  e.id = Ct, e.textContent = en, document.head.appendChild(e);
 }
 function J(e) {
   return String(e ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/`([^`]+)`/g, (a, o) => `<code>${o}</code>`);
 }
-function Gr(e) {
+function an(e) {
   const t = document.createElement("div");
   if (t.className = "oc-help-section", e.heading) {
     const a = document.createElement("div");
@@ -3170,11 +3300,11 @@ function Gr(e) {
   return t;
 }
 let pe = null;
-function Br() {
+function on() {
   pe && pe();
 }
-function vt(e) {
-  e = e || {}, Vr(), Br();
+function Dt(e) {
+  e = e || {}, tn(), on();
   const t = document.createElement("div");
   t.className = "oc-help-backdrop";
   const a = document.createElement("div");
@@ -3189,38 +3319,38 @@ function vt(e) {
   s.className = "oc-help-close", s.type = "button", s.textContent = "✕", s.title = "Close (Esc)", o.appendChild(r), o.appendChild(n), o.appendChild(s), a.appendChild(o);
   const i = document.createElement("div");
   if (i.className = "oc-help-body", e.tagline) {
-    const d = document.createElement("p");
-    d.className = "oc-help-p", d.style.color = "#e6e6e6", d.innerHTML = J(e.tagline), i.appendChild(d);
+    const p = document.createElement("p");
+    p.className = "oc-help-p", p.style.color = "#e6e6e6", p.innerHTML = J(e.tagline), i.appendChild(p);
   }
-  const l = Array.isArray(e.sections) ? e.sections : [];
-  for (const d of l)
+  const c = Array.isArray(e.sections) ? e.sections : [];
+  for (const p of c)
     try {
-      i.appendChild(Gr(d));
-    } catch (u) {
-      console.warn("[OmniCam] help: skipped a malformed section", u);
+      i.appendChild(an(p));
+    } catch (f) {
+      console.warn("[OmniCam] help: skipped a malformed section", f);
     }
   if (e.footer) {
-    const d = document.createElement("div");
-    d.className = "oc-help-tip", d.innerHTML = J(e.footer), i.appendChild(d);
+    const p = document.createElement("div");
+    p.className = "oc-help-tip", p.innerHTML = J(e.footer), i.appendChild(p);
   }
   a.appendChild(i);
   let m = !1;
-  const c = () => {
-    document.removeEventListener("keydown", p, !0), t.remove(), pe === c && (pe = null);
+  const l = () => {
+    document.removeEventListener("keydown", d, !0), t.remove(), pe === l && (pe = null);
   };
-  pe = c;
-  const p = (d) => {
-    d.key === "Escape" && (d.stopPropagation(), d.preventDefault(), c());
+  pe = l;
+  const d = (p) => {
+    p.key === "Escape" && (p.stopPropagation(), p.preventDefault(), l());
   };
-  return document.addEventListener("keydown", p, !0), s.addEventListener("click", (d) => {
-    d.stopPropagation(), c();
-  }), t.addEventListener("mousedown", (d) => {
-    m = d.target === t;
-  }), t.addEventListener("click", (d) => {
-    d.target === t && m && c(), m = !1;
-  }), a.addEventListener("mousedown", (d) => d.stopPropagation()), document.body.appendChild(t), c;
+  return document.addEventListener("keydown", d, !0), s.addEventListener("click", (p) => {
+    p.stopPropagation(), l();
+  }), t.addEventListener("mousedown", (p) => {
+    m = p.target === t;
+  }), t.addEventListener("click", (p) => {
+    p.target === t && m && l(), m = !1;
+  }), a.addEventListener("mousedown", (p) => p.stopPropagation()), document.body.appendChild(t), l;
 }
-rt("MajoorOmniCamDirector", {
+ct("MajoorOmniCamDirector", {
   title: "OmniCam Director",
   tagline: "Interactive motion-scene authoring: block cameras and tracks in a live 3D viewport and record a clean playblast.",
   sections: [
@@ -3249,7 +3379,7 @@ rt("MajoorOmniCamDirector", {
   ],
   footer: "An Extractor MotionScene can be connected to Director and imported as a new editable camera."
 });
-rt("MajoorOmniCamExtractor", {
+ct("MajoorOmniCamExtractor", {
   title: "OmniCam Extractor",
   tagline: "Solve a real video's camera motion into a canonical OmniCam MotionScene, ready for Director.",
   sections: [
@@ -3282,7 +3412,7 @@ rt("MajoorOmniCamExtractor", {
   ],
   footer: "Low Solver Coverage usually means low-texture footage, motion blur, or a shot the solver treated as multiple cuts - check report first."
 });
-rt("MajoorOmniCamMonitor", {
+ct("MajoorOmniCamMonitor", {
   title: "OmniCam Monitor",
   tagline: "Compile a MotionScene for one video model, and report what the translation cannot carry.",
   sections: [
@@ -3328,18 +3458,18 @@ When the connected MotionScene comes straight from a Director, the preflight is 
   ],
   footer: "Switching profile never changes the MotionScene, only which Monitor output you connect: the compiler is universal, the sockets are typed."
 });
-const wt = "MajoorOmniCam.ShowHelp", Je = "oc-help-toolbar-icon", St = "oc-help-toolbar-css", qr = "#8b7bd8";
-function Hr() {
-  if (document.getElementById(St)) return;
+const kt = "MajoorOmniCam.ShowHelp", ot = "oc-help-toolbar-icon", jt = "oc-help-toolbar-css", rn = "#8b7bd8";
+function nn() {
+  if (document.getElementById(jt)) return;
   const e = document.createElement("style");
-  e.id = St, e.textContent = `
-    .${Je}{display:inline-flex;align-items:center;justify-content:center;
-      width:16px;height:16px;border-radius:50%;background:${qr};color:#fff;
+  e.id = jt, e.textContent = `
+    .${ot}{display:inline-flex;align-items:center;justify-content:center;
+      width:16px;height:16px;border-radius:50%;background:${rn};color:#fff;
       font-weight:700;font-size:11px;line-height:1}
-    .${Je}::before{content:"?"}
+    .${ot}::before{content:"?"}
   `, document.head.appendChild(e);
 }
-function Wr() {
+function sn() {
   const e = U.canvas;
   if (!e) return [];
   const t = [];
@@ -3348,9 +3478,9 @@ function Wr() {
       a && a.comfyClass && t.push(a);
   return t;
 }
-function $r() {
-  for (const e of Wr()) {
-    const t = Qe(e.comfyClass);
+function cn() {
+  for (const e of sn()) {
+    const t = at(e.comfyClass);
     if (t) return t;
   }
   return null;
@@ -3359,12 +3489,12 @@ U.registerExtension({
   name: "MajoorOmniCam.HelpToolbar",
   commands: [
     {
-      id: wt,
+      id: kt,
       label: "Help",
-      icon: Je,
+      icon: ot,
       function: () => {
-        const e = $r();
-        e && vt(e);
+        const e = cn();
+        e && Dt(e);
       }
     }
   ],
@@ -3374,24 +3504,24 @@ U.registerExtension({
   // simply never shown (harmless).
   getSelectionToolboxCommands(e) {
     const t = e && e.comfyClass;
-    return t && Qe(t) ? [wt] : [];
+    return t && at(t) ? [kt] : [];
   },
   // Right-click fallback so help is reachable even without the selection
   // toolbar hook.
   getNodeMenuItems(e) {
-    const t = Qe(e?.comfyClass);
-    return t ? [null, { content: "? Help", callback: () => vt(t) }] : [];
+    const t = at(e?.comfyClass);
+    return t ? [null, { content: "? Help", callback: () => Dt(t) }] : [];
   },
   setup() {
-    Hr();
+    nn();
   }
 });
-Po(Ka);
+Go(Ua);
 let ae = !1;
-function nt(e, t, a, o) {
-  a ? Fr(e, t) : Lr(e, t, o);
+function lt(e, t, a, o) {
+  a ? Qr(e, t) : Jr(e, t, o);
 }
-function st(e) {
+function mt(e) {
   if (typeof e.configure != "function") return () => null;
   let t = null;
   const a = e.configure.bind(e);
@@ -3399,16 +3529,16 @@ function st(e) {
     return t === null && Array.isArray(o?.size) && (t = [...o.size]), a(o);
   }, () => t;
 }
-function Se(e, t) {
+function Me(e, t) {
   const a = globalThis.__majoorOmniCamCiTrace;
-  Array.isArray(a) && a.push({ stage: e, nodeId: t?.id ?? null, nodeClass: Pe(t), configuringGraph: ae });
+  Array.isArray(a) && a.push({ stage: e, nodeId: t?.id ?? null, nodeClass: Re(t), configuringGraph: ae });
 }
-Tr();
-Ha(U);
-Uo(U);
+Br();
+Ja(U);
+ar(U);
 U.registerExtension({
   name: "Majoor.OmniCam.Director",
-  settings: Vo,
+  settings: Xo,
   beforeConfigureGraph() {
     ae = !0;
   },
@@ -3416,94 +3546,101 @@ U.registerExtension({
     ae = !1;
   },
   async nodeCreated(e) {
-    if (Pe(e) !== Xe) return;
-    Se("director:nodeCreated", e);
-    const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => {
-      Se("director:import:start", e);
-      const { attachDirector: r } = await import("./chunk-Cmn1DyXm.js").then((n) => n.f);
-      return Se("director:import:resolved", e), r;
+    if (Re(e) !== Je) return;
+    Me("director:nodeCreated", e);
+    const t = !ae, a = t ? null : mt(e);
+    await it(e, async () => {
+      Me("director:import:start", e);
+      const { attachDirector: r } = await import("./chunk-D1Oq610x.js").then((n) => n.f);
+      return Me("director:import:resolved", e), r;
     });
     const o = e.__majoorOmniCam;
-    o && (Se("director:attach:complete", e), Yo(o), t && Zo(o), nt(e, Xe, t, a?.()));
+    o && (Me("director:attach:complete", e), rr(o), t && nr(o), lt(e, Je, t, a?.()));
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Extractor",
   async nodeCreated(e) {
-    if (Pe(e) !== Ye) return;
-    const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => (await import("./chunk-D7NGSVSw.js")).attachExtractor), e.__majoorOmniCamExtractor && nt(e, Ye, t, a?.());
+    if (Re(e) !== et) return;
+    const t = !ae, a = t ? null : mt(e);
+    await it(e, async () => (await import("./chunk-DKxbqM8r.js")).attachExtractor), e.__majoorOmniCamExtractor && lt(e, et, t, a?.());
   }
 });
 U.registerExtension({
   name: "Majoor.OmniCam.Monitor",
   async nodeCreated(e) {
-    if (Pe(e) !== Ze) return;
-    const t = !ae, a = t ? null : st(e);
-    await ot(e, async () => (await import("./chunk-BSWixFRm.js")).attachMonitor), e.__majoorOmniCamMonitor && nt(e, Ze, t, a?.());
+    if (Re(e) !== tt) return;
+    const t = !ae, a = t ? null : mt(e);
+    await it(e, async () => (await import("./chunk-B178jiSG.js")).attachMonitor), e.__majoorOmniCamMonitor && lt(e, tt, t, a?.());
   }
 });
 export {
-  yn as $,
-  vn as A,
-  wn as B,
-  Jr as C,
-  F as D,
-  M as E,
-  tn as F,
-  $ as G,
-  O as H,
-  go as I,
-  mn as J,
-  de as K,
-  C as L,
-  je as M,
-  me as N,
-  io as O,
-  te as P,
-  L as Q,
-  un as R,
-  Ua as S,
-  Br as T,
-  Xo as U,
-  Er as V,
-  nn as W,
-  sn as X,
-  cn as Y,
-  rn as Z,
-  gn as _,
-  _ as a,
-  bn as a0,
-  _n as a1,
-  en as a2,
-  ro as a3,
-  It as a4,
-  Ye as a5,
-  hn as a6,
-  At as b,
-  j as c,
+  or as $,
+  Cn as A,
+  Wo as B,
+  kn as C,
+  jn as D,
+  Tn as E,
+  Rn as F,
+  kr as G,
+  qa as H,
+  Va as I,
+  Nn as J,
+  Fn as K,
+  un as L,
+  R as M,
+  bn as N,
+  G as O,
+  xo as P,
+  Dn as Q,
+  de as R,
+  ao as S,
+  Ee as T,
+  me as U,
+  go as V,
+  gn as W,
+  yn as X,
+  te as Y,
+  En as Z,
+  on as _,
+  w as a,
+  qr as a0,
+  Mn as a1,
+  Sn as a2,
+  xn as a3,
+  wn as a4,
+  An as a5,
+  On as a6,
+  zn as a7,
+  Pn as a8,
+  hn as a9,
+  fo as aa,
+  Ft as ab,
+  et as ac,
+  In as ad,
+  Rt as b,
+  k as c,
   oe as d,
-  R as e,
-  Ae as f,
-  Ce as g,
-  Ja as h,
-  eo as i,
-  Qr as j,
-  Za as k,
-  Mt as l,
-  an as m,
-  Zr as n,
-  on as o,
-  ln as p,
-  Fo as q,
-  lt as r,
+  F as e,
+  Ne as f,
+  je as g,
+  io as h,
+  co as i,
+  fn as j,
+  no as k,
+  L as l,
+  E as m,
+  ee as n,
+  vn as o,
+  D as p,
+  Pt as q,
+  ft as r,
   fe as s,
-  qe as t,
-  dn as u,
-  pn as v,
-  fn as w,
-  gr as x,
-  Na as y,
-  Pa as z
+  Xe as t,
+  Ue as u,
+  C as v,
+  Mo as w,
+  Tt as x,
+  _n as y,
+  pn as z
 };

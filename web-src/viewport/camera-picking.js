@@ -14,7 +14,27 @@ export function createCameraPickingMethods(dependencies) {
         const key = pathKeyFromHit(hit);
         if (key) return { ...key, position: hit.object.position.toArray() };
       }
-      return null;
+      // The marker sphere has a fixed world-space radius, so it shrinks to a
+      // few screen pixels (or less) once the camera is far away or the view
+      // is zoomed out -- an exact geometric raycast alone makes it
+      // effectively unclickable at distance. Every other viewport handle
+      // (the transform gizmo, the camera/target icons in pickSceneObject)
+      // picks with a fixed pixel radius instead; fall back to the same idea
+      // here, still preferring the closest marker on screen.
+      const threshold = 16 * Math.min(2, window.devicePixelRatio || 1);
+      let best = null;
+      const projected = new THREE.Vector3();
+      for (const child of this.path.children) {
+        const key = child.userData?.omnicamPathKey;
+        if (!key) continue;
+        projected.copy(child.position).project(this.activeCamera);
+        if (projected.z < -1 || projected.z > 1) continue;
+        const screenX = (projected.x * 0.5 + 0.5) * this.canvas.width;
+        const screenY = (1 - (projected.y * 0.5 + 0.5)) * this.canvas.height;
+        const distance = Math.hypot(pointer[0] - screenX, pointer[1] - screenY);
+        if (distance <= threshold && (!best || distance < best.distance)) best = { key, position: child.position.toArray(), distance };
+      }
+      return best ? { ...best.key, position: best.position } : null;
     },
   configureCamera(cameraState, aspect) {
     const cam = cameraState || defaultCamera();

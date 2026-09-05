@@ -1,5 +1,7 @@
 // OmniCam Director methods extracted from the UI facade.
 
+import { applyAimConstraint } from "../../aim-constraint.js";
+
 // Smallest horizontal resolution a camera preview is rendered at.
 const MIN_PREVIEW_WIDTH = 220;
 
@@ -71,6 +73,12 @@ export function createEditorMethods(dependencies) {
       : [...this.selectedKeyFrames].at(-1) ?? null;
     this.subSelection = value.subSelection || null;
     this.camera = sampleCamera(this.state, this.frame);
+    // sampleCamera alone cannot resolve a bone-level aim (bones only exist in
+    // the WebGL viewport -- see aim-constraint.js). Without this, undoing or
+    // redoing any edit snapped a bone-tracked camera's target back to the
+    // plain object-centre resolution for one frame, until the next scrub
+    // corrected it -- a real constraint never shows a stale value like that.
+    applyAimConstraint(this, this.activeCameraTrack(), this.camera, this.frame);
     this.cameraPreviewSignature = "";
     this.serialize();
     if (previousAssets !== assetSignature(this.state)) this.restoreAssets();
@@ -155,6 +163,13 @@ export function createEditorMethods(dependencies) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation?.();
+    // Alt+right-drag dollies the camera in Maya profile (onPointerDown's own
+    // context-menu swallow uses this exact condition, `!e.altKey`, to let the
+    // drag through in the first place). The browser fires `contextmenu` on
+    // release regardless, so without this a dolly ended by lifting the right
+    // button popped up a menu at the release point -- something real Maya
+    // never does; Alt always means navigation, never a menu request.
+    if (event.altKey) return;
     const target = event.target, preview = target.closest?.(".camera-preview-tile"), sceneItem = target.closest?.(".scene-item"), keyElement = target.closest?.(".key");
     if (preview) return this.openCameraContext(event, preview.dataset.cameraId, !0);
     if (sceneItem?.dataset.cameraId) return this.openCameraContext(event, sceneItem.dataset.cameraId, !1);

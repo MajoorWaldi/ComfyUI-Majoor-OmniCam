@@ -18,6 +18,15 @@ export function onCurvePointerDown(ui, event) {
   event.preventDefault();
   event.stopPropagation();
   const canvas = event.currentTarget;
+  // stopPropagation above keeps this click from ever reaching the root-level
+  // pointerdown listener that focuses ui.root as a fallback (editor-global.js),
+  // and the canvas is not a native form control, so without this the Graph
+  // Editor never had DOM focus inside the node. Ctrl+Z's global capture
+  // listener resolves its target Director from the currently focused element
+  // (see installGlobalKeyInterceptor in commands.js) -- with focus stuck
+  // outside ui.root, it fell straight through to ComfyUI's own graph-level
+  // undo instead of OmniCam's.
+  canvas.focus({ preventScroll: true });
   const { x, y } = getCurveCanvasCoords(canvas, event);
 
   // Pan with Middle Click or Alt + Left Click or Right Click on empty space
@@ -50,8 +59,14 @@ export function onCurvePointerDown(ui, event) {
       return;
     }
 
-    // Start Box Selection in empty canvas
-    ui.curveBoxSelect = { startX: x, startY: y, currentX: x, currentY: y, pointerId: event.pointerId };
+    // Start Box Selection in empty canvas. Shift merges with whatever is
+    // already selected -- the same "additive marquee" the viewport and the
+    // Timeline/Dope Sheet already support -- instead of always replacing it.
+    ui.curveBoxSelect = {
+      startX: x, startY: y, currentX: x, currentY: y, pointerId: event.pointerId,
+      additive: event.shiftKey,
+      initial: new Set(ui.selectedKeyFrames || (ui.selectedKeyFrame !== null ? [ui.selectedKeyFrame] : [])),
+    };
     canvas.setPointerCapture?.(event.pointerId);
     return;
   }
@@ -61,6 +76,17 @@ export function onCurvePointerDown(ui, event) {
     ui.editingKeyFrame = null;
     ui.updateKeyVisualState();
     ui.refreshKeyEditor();
+  } else if (event.shiftKey) {
+    // Add/remove this one key, same toggle the Timeline and Dope Sheet
+    // already use for Shift+click -- the Graph Editor was the one place in
+    // the app where Shift+click on a key still just replaced the selection.
+    ui.selectedKeyFrames = new Set(ui.selectedKeyFrames || [ui.selectedKeyFrame].filter((frame) => frame !== null));
+    ui.selectedKeyFrames.has(hit.point.key.frame) ? ui.selectedKeyFrames.delete(hit.point.key.frame) : ui.selectedKeyFrames.add(hit.point.key.frame);
+    ui.selectedKeyFrame = ui.selectedKeyFrames.has(hit.point.key.frame) ? hit.point.key.frame : [...ui.selectedKeyFrames].at(-1) ?? null;
+    ui.setFrame(hit.point.key.frame);
+    ui.updateKeyVisualState();
+    ui.refreshKeyEditor();
+    return;
   } else {
     ui.selectKeyframe(hit.point.key);
     ui.setFrame(hit.point.key.frame);
@@ -117,8 +143,10 @@ export function onCurvePointerMove(ui, event) {
     const hits = (ui.curveHitPoints || [])
       .filter((p) => !p.handle && p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY)
       .map((p) => p.key.frame);
-    ui.selectedKeyFrames = new Set(hits);
-    if (hits.length) ui.selectedKeyFrame = hits[0];
+    const merged = new Set(ui.curveBoxSelect.additive ? ui.curveBoxSelect.initial : []);
+    for (const frame of hits) merged.add(frame);
+    ui.selectedKeyFrames = merged;
+    if (merged.size) ui.selectedKeyFrame = [...merged].at(-1);
     ui.updateKeyVisualState();
     ui.drawCurveEditor();
     return;

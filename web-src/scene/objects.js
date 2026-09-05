@@ -1,7 +1,7 @@
 // Scene object creation, selection and inspector operations.
 
 import { refreshAimBoneOptions } from "../aim-constraint.js";
-import { add, clamp, cloneTransform } from "../director/core.js";
+import { add, applyCameraOrientationEuler, cameraOrientationEuler, clamp, cloneTransform } from "../director/core.js";
 import { confirmAction, promptText } from "../director/ui-services.js";
 import { t } from "../i18n.js";
 import { beginCameraEdit, commitCameraEdit, finishCameraEdit, refreshKeyEditor, selectedKeyframe, updateKeyVisualState } from "../scene.js";
@@ -51,10 +51,22 @@ export function duplicateObject(ui, id) {
   if (!source) return;
   ui.checkpoint("Duplicate object");
   const copy = JSON.parse(JSON.stringify(source));
-  copy.id = `${source.type}_${Date.now().toString(36)}`;
+  copy.id = `${source.type}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
   copy.name = `${source.name || source.type} Copy`;
   copy.position = add(copy.position || [0, 0, 0], [0.35, 0, 0.35]);
-  if (copy.asset) delete copy.asset;
+  // A duplicated model/card has nothing new to upload -- it points at the
+  // exact file the source already resolved to. Deleting `asset` (as this
+  // used to) orphaned the copy: `restoreAssets` needs it to reconnect the
+  // managed file after a reload, and without registering the live map entry
+  // here too, the duplicate rendered as nothing at all until then. Each
+  // object id still gets its own independent WebGL load and animation mixer
+  // (viewport/resources.js keys `models` by id, not by URL), so two objects
+  // sharing one asset animate and pose completely independently.
+  if ((copy.type === "model" || copy.type === "glb") && ui.modelUrlsById.has(source.id)) {
+    ui.modelUrlsById.set(copy.id, ui.modelUrlsById.get(source.id));
+  } else if (copy.type === "card" && ui.cardMediaById.has(source.id)) {
+    ui.cardMediaById.set(copy.id, ui.cardMediaById.get(source.id));
+  }
   ui.state.objects.push(copy);
   ui.selectedEntity = "object";
   ui.selectedObjectId = copy.id;
@@ -173,8 +185,8 @@ export function refreshInspector(ui) {
   }
   refreshAimBoneOptions(ui);
 
-  const values = [...ui.camera.position, ...ui.camera.target, ui.camera.fov, ui.camera.roll || 0, ui.camera.near, ui.camera.far];
-  ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far"].forEach((role, index) => {
+  const values = [...ui.camera.position, ...ui.camera.target, ui.camera.fov, ui.camera.roll || 0, ui.camera.near, ui.camera.far, ...cameraOrientationEuler(ui.camera)];
+  ["camera-px", "camera-py", "camera-pz", "camera-tx", "camera-ty", "camera-tz", "camera-fov", "camera-roll", "camera-near", "camera-far", "camera-rx", "camera-ry", "camera-rz"].forEach((role, index) => {
     for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
       if (document.activeElement !== el) el.value = String(Math.round(values[index] * 1e4) / 1e4);
     }
@@ -341,6 +353,65 @@ export function commitObjectEdit(ui, object) {
   ui.drawCurveEditor();
 }
 
+/** Repaint camera-rx/ry/rz from the camera's actual position/target/roll.
+ * Rotation is a *view* onto that data (see cameraOrientationEuler), never a
+ * value of its own, so every edit that can change orientation -- including
+ * ones that never touch the rotation fields themselves -- must call this or
+ * the Rotation box goes stale relative to Target/Roll. */
+function syncCameraRotationDisplay(ui) {
+  const rotation = cameraOrientationEuler(ui.camera);
+  ["camera-rx", "camera-ry", "camera-rz"].forEach((role, index) => {
+    for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      if (document.activeElement !== el) el.value = String(Math.round(rotation[index] * 1e4) / 1e4);
+    }
+  });
+}
+
+/** Repaint camera-tx/ty/tz from the camera's actual target. The inverse
+ * counterpart of syncCameraRotationDisplay: editing Rotation X/Y/Z moves the
+ * target (see applyCameraOrientationEuler), so Target must stay in sync too. */
+function syncCameraTargetDisplay(ui) {
+  ["camera-tx", "camera-ty", "camera-tz"].forEach((role, index) => {
+    for (const el of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
+      if (document.activeElement !== el) el.value = String(Math.round(ui.camera.target[index] * 1e4) / 1e4);
+    }
+  });
+}
+
+/** Rotation X/Y is the look-at direction and Rotation Z is Roll -- aiming at
+ * a target already fixes two of a camera's three rotational degrees of
+ * freedom, so this is a complete, non-conflicting alternative to editing
+ * Target directly (see cameraOrientationEuler's own note). Kept separate
+ * from updateCameraFromHud on purpose: that function re-reads every HUD
+ * field on each call, and Target/Rotation both ultimately drive
+ * camera.target, so folding this in would have the last-read field silently
+ * overwrite whichever one the user did not just edit.
+ */
+export function updateCameraRotationFromHud(ui) {
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  if (!Number.isFinite(ui.lastCameraHudEditAt) || now - ui.lastCameraHudEditAt > 300) ui.checkpoint("Edit camera");
+  ui.lastCameraHudEditAt = now;
+  const read = (role, fallback) => {
+    const el = ui.root.querySelector(`[data-role="${role}"]`);
+    if (!el || el.value === "") return fallback;
+    const value = Number(el.value);
+    return Number.isFinite(value) ? value : fallback;
+  };
+  const current = cameraOrientationEuler(ui.camera);
+  const rotation = [
+    clamp(read("camera-rx", current[0]), -90, 90),
+    read("camera-ry", current[1]),
+    clamp(read("camera-rz", current[2]), -180, 180),
+  ];
+  ui.beginCameraEdit();
+  applyCameraOrientationEuler(ui.camera, rotation);
+  ui.commitCameraEdit();
+  ui.finishCameraEdit();
+  syncCameraRotationDisplay(ui);
+  syncCameraTargetDisplay(ui);
+  ui.render();
+}
+
 export function updateCameraFromHud(ui) {
   const now = globalThis.performance?.now?.() ?? Date.now();
   if (!Number.isFinite(ui.lastCameraHudEditAt) || now - ui.lastCameraHudEditAt > 300) ui.checkpoint("Edit camera");
@@ -360,6 +431,7 @@ export function updateCameraFromHud(ui) {
   ui.beginCameraEdit();
   ui.commitCameraEdit();
   ui.finishCameraEdit();
+  syncCameraRotationDisplay(ui);
   ui.render();
 }
 

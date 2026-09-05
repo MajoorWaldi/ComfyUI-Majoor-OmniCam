@@ -123,7 +123,14 @@ export function onTimelinePointerMove(ui, event) {
   if (!ui.timelineDrag || event.pointerId !== ui.timelineDrag.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
-  ui.setFrame(timelineFrameFromEvent(ui, event, ui.timelineDrag.box));
+  // refreshTimeline=false: the full rebuild refreshKeys() would otherwise do
+  // on every single pointermove also recomputes the whole Camera Health
+  // report (see motion-health.js/renderHealthZones), an O(duration_frames)
+  // pass over the whole track -- scrubbing a long animation reran that, plus
+  // a full keyframe-lane DOM rebuild, at pointermove frequency. The playhead
+  // still tracks the cursor via the light path's updatePlayhead(); the health
+  // zones and keys lane catch up once, on release (see onTimelinePointerUp).
+  ui.setFrame(timelineFrameFromEvent(ui, event, ui.timelineDrag.box), false, false);
 }
 
 export function onTimelinePointerUp(ui, event) {
@@ -159,6 +166,9 @@ export function onTimelinePointerUp(ui, event) {
   event.stopPropagation();
   if (ui.timelineDrag.box.hasPointerCapture?.(event.pointerId)) ui.timelineDrag.box.releasePointerCapture(event.pointerId);
   ui.timelineDrag = null;
+  // Catch up the one full rebuild (keyframe lane + Camera Health zones) the
+  // drag itself skipped on every intermediate frame.
+  ui.refreshKeys();
 }
 
 // Pixels the pointer must travel before a key-drag actually retimes anything.

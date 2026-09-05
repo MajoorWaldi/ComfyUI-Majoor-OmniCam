@@ -41,24 +41,6 @@ export function bindViewportSettings(ui, q, signal) {
   for (const el of ui.root.querySelectorAll('[data-role="scrub"]')) {
     el.addEventListener("input", (e) => ui.setFrame(Number(e.target.value)), { signal });
   }
-  for (const el of ui.root.querySelectorAll('[data-role="camera-fov"]')) {
-    const handler = (e) => {
-      const val = clamp(Number(e.target.value), 5, 150);
-      ui.activeCameraTrack().keyframes.length && ui.activeKeyframe() ? (ui.activeKeyframe().camera.fov = val, ui.scheduleSerialize(), ui.render(), ui.refreshKeyEditor()) : (ui.camera.fov = val, ui.render());
-      for (const o of ui.root.querySelectorAll('[data-role="camera-fov"]')) o.value = String(val);
-    };
-    el.addEventListener("input", handler, { signal });
-    el.addEventListener("change", handler, { signal });
-  }
-  for (const el of ui.root.querySelectorAll('[data-role="camera-roll"]')) {
-    const handler = (e) => {
-      const val = clamp(Number(e.target.value), -180, 180);
-      ui.activeCameraTrack().keyframes.length && ui.activeKeyframe() ? (ui.activeKeyframe().camera.roll = val, ui.scheduleSerialize(), ui.render(), ui.refreshKeyEditor()) : (ui.camera.roll = val, ui.render());
-      for (const o of ui.root.querySelectorAll('[data-role="camera-roll"]')) o.value = String(val);
-    };
-    el.addEventListener("input", handler, { signal });
-    el.addEventListener("change", handler, { signal });
-  }
   for (const btn of ui.root.querySelectorAll("[data-view]")) {
     btn.addEventListener("click", () => ui.setViewMode(btn.dataset.view), { signal });
   }

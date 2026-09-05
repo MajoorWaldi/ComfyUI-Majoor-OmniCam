@@ -23,14 +23,20 @@ export function inspectorPanel() {
 
         <div class="oc-section">${t("Transform")}</div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Position")}</span>
-          <label class="oc-axis x">X<input data-role="camera-px" type="number" step="0.1"></label>
-          <label class="oc-axis y">Y<input data-role="camera-py" type="number" step="0.1"></label>
-          <label class="oc-axis z">Z<input data-role="camera-pz" type="number" step="0.1"></label>
+          <label class="oc-axis x"><input data-role="camera-px" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="camera-py" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="camera-pz" type="number" step="0.1" aria-label="Z"></label>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Target XYZ")}</span>
-          <label class="oc-axis x">X<input data-role="camera-tx" type="number" step="0.1"></label>
-          <label class="oc-axis y">Y<input data-role="camera-ty" type="number" step="0.1"></label>
-          <label class="oc-axis z">Z<input data-role="camera-tz" type="number" step="0.1"></label>
+          <label class="oc-axis x"><input data-role="camera-tx" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="camera-ty" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="camera-tz" type="number" step="0.1" aria-label="Z"></label>
+        </div>
+        <div class="oc-vec-row" title="${t("Pitch/Yaw/Roll: an alternative to Target XYZ, aiming the camera directly like a Maya/Blender rotate channel. Editing either one keeps the other in sync.")}">
+          <span class="oc-field-label">${t("Rotation")}</span>
+          <label class="oc-axis x"><input data-role="camera-rx" type="number" min="-90" max="90" step="1" aria-label="X"></label>
+          <label class="oc-axis y"><input data-role="camera-ry" type="number" step="1" aria-label="Y"></label>
+          <label class="oc-axis z"><input data-role="camera-rz" type="number" min="-180" max="180" step="1" aria-label="Z"></label>
         </div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Roll")}</span>
           <input data-role="camera-roll" type="number" min="-180" max="180" step="0.1"><span class="oc-unit">°</span>

@@ -383,6 +383,16 @@ export function createSceneMethods(dependencies) {
     return point;
   },
 
+  getObjectWorldBounds(objectId) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return null;
+    node.updateWorldMatrix(true, true);
+    const box = new THREE.Box3().setFromObject(node, true);
+    const min = box.min.toArray();
+    const max = box.max.toArray();
+    return !box.isEmpty() && [...min, ...max].every(Number.isFinite) ? { min, max } : null;
+  },
+
   getObjectWorldCenter(objectId) {
     const node = this.objectNodes.get(objectId);
     if (!node) return null;
@@ -417,5 +427,4 @@ export function createSceneMethods(dependencies) {
 
   };
 }
-
 
