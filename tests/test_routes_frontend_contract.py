@@ -76,6 +76,8 @@ def test_every_frontend_api_path_is_registered():
     assert "/majoor/omnicam/motion_profiles" in frontend, (
         "expected the Health panel roster fetch to still be in web-src"
     )
+    assert "/majoor/omnicam/reconstruction/jobs" in registered
+    assert "/majoor/omnicam/reconstruction/capabilities" in registered
     missing = {
         path: sorted(set(callers))
         for path, callers in frontend.items()

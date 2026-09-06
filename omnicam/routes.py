@@ -680,3 +680,6 @@ async def import_camera_route(request: web.Request):
 # module so this one stays readable.
 from . import routes_chunks as _routes_chunks  # noqa: E402,F401
 from .extractor.jobs import routes as _routes_extractor_jobs  # noqa: E402,F401
+from .reconstruction.jobs import routes as _routes_reconstruction_jobs  # noqa: E402
+
+_routes_reconstruction_jobs.register_on_prompt_server()
