@@ -1,6 +1,6 @@
 // Provider capabilities loader and selector population.
 //
-// Reads capabilities once from /majoor/omnicam/reconstruction/capabilities.
+// Reads capabilities once from /majoor/omnicam/reconstruction/capabilities
 // Never triggers a reconstruction run to probe.
 
 export async function loadReconstructionCapabilities(

@@ -174,7 +174,8 @@ export function notifyDownstreamDirectors(extractorNode) {
   return notified;
 }
 
-export { adoptReconstructedScene } from "./reconstruction/director-adopt.js";
+import { adoptReconstructedScene } from "./reconstruction/director-adopt.js";
+export { adoptReconstructedScene };
 
 export function adoptReconstructionIntoDownstreamDirectors(extractorNode, result) {
   const graph = extractorNode?.graph;

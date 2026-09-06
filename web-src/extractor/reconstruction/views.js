@@ -47,7 +47,8 @@ export function renderReconstructionView(root, state) {
       summaryEl.hidden = false;
       const s = state.summary;
       const tri = s.mesh_triangles != null ? Number(s.mesh_triangles).toLocaleString() : null;
-      const fov = s.camera_fov_x != null ? Number(s.camera_fov_x).toFixed(1) : null;
+      const fovVal = s.camera_fov_x != null ? s.camera_fov_x : s.camera_fov;
+      const fov = fovVal != null ? Number(fovVal).toFixed(1) : null;
       const ground = s.ground_detected ? t("ground plane detected") : null;
       const parts = [];
       if (tri) parts.push(`${tri} ${t("triangles")}`);

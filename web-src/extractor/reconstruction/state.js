@@ -56,13 +56,24 @@ export function initialReconstructionState() {
 export function reconstructionActions(state) {
   const jobState = state?.jobState || "IDLE";
   const active = ACTIVE_STATES.has(jobState);
+  const src = state?.source;
   const hasValidSource = Boolean(
-    state?.source && (state.source.available || state.source.value)
+    src && (
+      typeof src === "string" ||
+      src.available ||
+      src.value ||
+      src.ref ||
+      src.info ||
+      src.kind
+    )
   );
 
   const canStart = !active && jobState !== "STOPPING" && hasValidSource;
   const canStop = active;
-  const canOpenDirector = jobState === "DONE" && Boolean(state?.result?.motion_scene);
+  const hasResult = Boolean(
+    state?.result && (state.result.motion_scene || state.result.objects || state.result.version)
+  );
+  const canOpenDirector = jobState === "DONE" && hasResult;
 
   return {
     canStart,

@@ -190,6 +190,7 @@ export function refreshObjects(ui) {
       ui.render();
       ui.setStatus(t(`Selected: ${object.name || object.type}`));
     };
+    element.addEventListener("click", selectObjectRow);
     element.addEventListener("dblclick", () => ui.toggleObject(object.id));
     element.addEventListener("contextmenu", (event) => {
       event.preventDefault();

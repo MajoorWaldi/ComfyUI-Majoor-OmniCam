@@ -1,6 +1,7 @@
 // Adoption of reconstructed scene assets and cameras into OmniCam Director.
 
-import { annotatedAssetUrl } from "../../director/core.js";
+import { annotatedAssetUrl } from "../../director/core/camera.js";
+import { sampleCamera, sanitizeState } from "../../director/core.js";
 
 export function uniqueSceneId(existingIds, baseId) {
   if (!existingIds || !existingIds.has(baseId)) return baseId;
@@ -36,7 +37,8 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
 
   if (mode === "replace") {
     directorUi.checkpoint?.("Adopt reconstructed scene (replace)");
-    directorUi.state = JSON.parse(JSON.stringify(scene));
+    directorUi.state = sanitizeState(JSON.parse(JSON.stringify(scene)));
+    directorUi.camera = sampleCamera(directorUi.state, directorUi.frame || 0);
 
     for (const object of directorUi.state.objects || []) {
       if ((object.type === "glb" || object.type === "model") && object.asset) {

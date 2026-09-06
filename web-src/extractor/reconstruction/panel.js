@@ -28,6 +28,10 @@ export class ReconstructionPanelController {
 
     this.client = new ReconstructionJobClient(api);
     this.state = initialReconstructionState();
+    const initialSource = this.getSource();
+    if (initialSource) {
+      this.state.source = initialSource;
+    }
 
     this.events = new ReconstructionEventSubscription(
       api,
@@ -38,7 +42,12 @@ export class ReconstructionPanelController {
         done: async (payload) => {
           try {
             const res = await this.client.getJobResult(payload.job_id);
-            this.dispatch({ type: "DONE", result: res.result || res, summary: res.summary, warnings: res.warnings });
+            this.dispatch({
+              type: "DONE",
+              result: res.result || res.motion_scene || res,
+              summary: res.summary,
+              warnings: res.warnings,
+            });
           } catch (err) {
             this.dispatch({ type: "ERROR", error: { message: err.message } });
           }
@@ -113,7 +122,8 @@ export class ReconstructionPanelController {
 
   openDirector() {
     if (this.state.result) {
-      this.onAdopt(this.state.result);
+      const scene = this.state.result.motion_scene || this.state.result;
+      this.onAdopt(scene);
     }
   }
 

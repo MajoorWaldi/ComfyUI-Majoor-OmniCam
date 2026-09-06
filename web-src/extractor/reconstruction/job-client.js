@@ -1,6 +1,6 @@
 // HTTP client for scene reconstruction jobs.
 //
-// Every method here talks strictly to /majoor/omnicam/reconstruction/...
+// Every method here talks strictly to /majoor/omnicam/reconstruction
 // It never touches queuePrompt or /prompt.
 
 import { ACTIVE_STATES } from "./state.js";

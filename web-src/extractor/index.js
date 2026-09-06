@@ -132,7 +132,10 @@ export class ExtractorUI {
 
     const camModeBtn = this.$("extract-mode-camera");
     const reconModeBtn = this.$("extract-mode-reconstruct");
-    if (camModeBtn) this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
+    if (camModeBtn) {
+      camModeBtn.classList.add("active");
+      this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
+    }
     if (reconModeBtn) this.listen(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
 
     this.bind();
@@ -266,7 +269,11 @@ export class ExtractorUI {
   // -- source ------------------------------------------------------------
 
   refreshSource() {
-    return refreshExtractorSource(this);
+    const resolved = refreshExtractorSource(this);
+    if (this.reconstruction && resolved) {
+      this.reconstruction.setSource(resolved.ref || resolved);
+    }
+    return resolved;
   }
 
   /**
@@ -692,12 +699,38 @@ export class ExtractorUI {
     this.extractMode = mode;
     const isReconstruct = mode === "scene_reconstruct";
     const reconPanel = this.$("reconstruction-panel");
-    if (reconPanel) reconPanel.hidden = !isReconstruct;
+    const stage = this.$("stage");
+
+    if (reconPanel) {
+      if (isReconstruct) {
+        reconPanel.removeAttribute("hidden");
+      } else {
+        reconPanel.setAttribute("hidden", "");
+      }
+    }
+    if (stage) {
+      if (isReconstruct) {
+        stage.setAttribute("hidden", "");
+      } else {
+        stage.removeAttribute("hidden");
+      }
+    }
 
     const camBtn = this.$("extract-mode-camera");
-    if (camBtn) camBtn.setAttribute("aria-selected", !isReconstruct ? "true" : "false");
+    if (camBtn) {
+      camBtn.setAttribute("aria-selected", !isReconstruct ? "true" : "false");
+      camBtn.classList.toggle("active", !isReconstruct);
+    }
     const reconBtn = this.$("extract-mode-reconstruct");
-    if (reconBtn) reconBtn.setAttribute("aria-selected", isReconstruct ? "true" : "false");
+    if (reconBtn) {
+      reconBtn.setAttribute("aria-selected", isReconstruct ? "true" : "false");
+      reconBtn.classList.toggle("active", isReconstruct);
+    }
+
+    if (isReconstruct && this.reconstruction) {
+      const src = this.state.source?.ref || this.state.source;
+      if (src) this.reconstruction.setSource(src);
+    }
 
     const modeWidget = widget(this.node, "extract_mode");
     if (modeWidget && modeWidget.value !== mode) {
