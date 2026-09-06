@@ -81,6 +81,12 @@ class ReconstructionJobManager:
     ) -> ReconstructionJob:
         """Create and start an asynchronous reconstruction job in a background thread."""
         job = self.create_job(node_id, client_id, source, settings)
+        if on_event is None:
+            from omnicam.reconstruction.jobs.events import ReconstructionEventPublisher
+
+            pub = ReconstructionEventPublisher(job)
+            on_event = pub.as_event_callback()
+
         thread = threading.Thread(
             target=self.execute_job,
             args=(job.job_id,),
