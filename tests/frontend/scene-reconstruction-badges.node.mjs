@@ -5,8 +5,8 @@ import {
   reconstructionBadge,
   getReconstructionAppearance,
   setReconstructionAppearance,
-  toggleObjectLock,
 } from "../../web-src/scene/reconstruction-badges.js";
+import { toggleObjectLock } from "../../web-src/scene/object-lock.js";
 
 test("reconstructionBadge returns null for non-reconstructed objects", () => {
   assert.equal(reconstructionBadge(null), null);

@@ -11,10 +11,10 @@ import numpy as np
 import torch
 from PIL import Image
 
-from omnicam.reconstruction.pipeline import run_reconstruction_pipeline
-from omnicam.reconstruction.providers import get_provider
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import ReconstructionSource
+from .pipeline import run_reconstruction_pipeline
+from .providers import get_provider
+from .settings import ReconstructionSettings
+from .types import ReconstructionSource
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def execute_reconstruction(
     ground_conf = output.summary.get("ground_confidence")
     confidence = float(ground_conf) if ground_conf is not None else 1.0
 
-    tri_count = output.summary.get("mesh_triangles", 0)
+    tri_count = output.summary.get("triangle_count", 0)
     fov_x = output.summary.get("camera_fov_x", 53.0)
     prov_name = output.summary.get("provider", active_settings.provider)
     report = (

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from omnicam.reconstruction.providers import get_provider, list_providers
+from .providers import get_provider, list_providers
 
 
 def get_reconstruction_capabilities() -> dict[str, Any]:

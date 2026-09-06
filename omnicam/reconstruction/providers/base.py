@@ -6,8 +6,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import GeometryEvidence, ReconstructionSource
+from ..settings import ReconstructionSettings
+from ..types import GeometryEvidence, ReconstructionSource
 
 ProgressSink = Callable[[str, float, str], None]
 

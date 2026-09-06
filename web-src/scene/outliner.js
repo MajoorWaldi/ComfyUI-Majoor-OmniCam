@@ -1,6 +1,7 @@
 // Scene outliner tree rendering and item actions.
 
 import { t } from "../i18n.js";
+import { toggleObjectLock } from "./object-lock.js";
 
 export function refreshObjects(ui) {
   const box = ui.root.querySelector('[data-role="objects"]');
@@ -155,12 +156,7 @@ export function refreshObjects(ui) {
     const actions = document.createElement("div");
     actions.className = "scene-item-actions";
     actions.appendChild(createActionBtn(isEnabled ? "pi-eye" : "pi-eye-slash", isEnabled ? "Hide object" : "Show object", !isEnabled, () => ui.toggleObject(object.id), "color:#ef4444;opacity:.7"));
-    actions.appendChild(createActionBtn("pi-lock", "Lock object", object.locked, () => {
-      ui.checkpoint("Lock object");
-      object.locked = !object.locked;
-      ui.serialize();
-      ui.refreshObjects();
-    }));
+    actions.appendChild(createActionBtn("pi-lock", "Lock object", object.locked, () => toggleObjectLock(ui, object)));
     actions.appendChild(createActionBtn("pi-ellipsis-v", "Object actions", false, (event) => ui.openObjectContext(event, object.id)));
 
     element.append(objectIcon, label, actions);
@@ -190,7 +186,8 @@ export function refreshObjects(ui) {
       ui.render();
       ui.setStatus(t(`Selected: ${object.name || object.type}`));
     };
-    element.addEventListener("click", selectObjectRow);
+    // Selection arrives through the delegated .scene-item handler in
+    // event-bindings/editor-global.js -- binding it here too toggles twice.
     element.addEventListener("dblclick", () => ui.toggleObject(object.id));
     element.addEventListener("contextmenu", (event) => {
       event.preventDefault();

@@ -47,6 +47,10 @@ class GeometryEvidence:
     scale_mode: str = "relative"
     confidence: float = 1.0
     warnings: list[str] = field(default_factory=list)
+    #: True when ``intrinsics`` are expressed in normalized image coordinates
+    #: (x, y in [0, 1]) rather than pixels. MoGe reports normalized intrinsics;
+    #: providers that emit pixel intrinsics leave this False.
+    normalized_intrinsics: bool = False
 
 
 @dataclass(slots=True)

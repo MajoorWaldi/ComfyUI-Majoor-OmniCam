@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import torch
 
-from omnicam.reconstruction.coordinates import fov_from_intrinsics
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import GeometryEvidence, ReconstructedCamera
+from .coordinates import fov_from_intrinsics
+from .settings import ReconstructionSettings
+from .types import GeometryEvidence, ReconstructedCamera
 
 DEFAULT_FOV_DEGREES = 53.0
 
@@ -46,8 +46,11 @@ def reconstruct_camera_from_evidence(
             k = intrinsics[batch_index] if batch_index < intrinsics.shape[0] else intrinsics[0]
         else:
             k = intrinsics
+        # Normalized intrinsics describe a unit image plane, so the projection
+        # width and height are 1.0 rather than the pixel dimensions.
+        k_width, k_height = (1.0, 1.0) if evidence.normalized_intrinsics else (w, h)
         try:
-            fov_x, fov_y = fov_from_intrinsics(k, width=w, height=h)
+            fov_x, fov_y = fov_from_intrinsics(k, width=k_width, height=k_height)
         except (ValueError, TypeError, IndexError, ZeroDivisionError):
             fov_x = DEFAULT_FOV_DEGREES
             fov_y = DEFAULT_FOV_DEGREES

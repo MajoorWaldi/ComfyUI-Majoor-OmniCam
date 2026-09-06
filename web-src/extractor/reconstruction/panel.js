@@ -36,8 +36,10 @@ export class ReconstructionPanelController {
     this.events = new ReconstructionEventSubscription(
       api,
       {
-        state: (payload) => this.dispatch({ type: "STATE", jobState: payload.job_state, jobId: payload.job_id }),
-        progress: (payload) => this.dispatch({ type: "PROGRESS", progress: payload.progress, stage: payload.stage, stageProgress: payload.stage_progress }),
+        // Field names follow omnicam/reconstruction/jobs/events.py: the server
+        // sends `state` (not job_state) and has no stage_progress field.
+        state: (payload) => this.dispatch({ type: "STATE", jobState: payload.state, jobId: payload.job_id }),
+        progress: (payload) => this.dispatch({ type: "PROGRESS", progress: payload.progress, stage: payload.stage }),
         preview: (payload) => this.dispatch({ type: "PREVIEW", previewUrl: payload.preview_url }),
         done: async (payload) => {
           try {
@@ -57,7 +59,7 @@ export class ReconstructionPanelController {
       (payload) => matchesReconstructionEvent(payload, { jobId: this.state.jobId, nodeId: this.node?.id })
     );
 
-    bindReconstructionControls(this.root, {
+    this.unbindControls = bindReconstructionControls(this.root, {
       onRun: () => this.run(),
       onStop: () => this.stop(),
       onOpenDirector: () => this.openDirector(),
@@ -130,5 +132,7 @@ export class ReconstructionPanelController {
   dispose() {
     stopActiveReconstructionOnDispose(this.client, this.state);
     this.events.dispose();
+    this.unbindControls?.();
+    this.unbindControls = null;
   }
 }

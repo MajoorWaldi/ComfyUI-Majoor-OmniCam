@@ -23,16 +23,31 @@ const FILE_BACKED_NODES = {
   LoadVideoFFmpeg: ["file", "video"],
 };
 
-const VIDEO_EXTENSIONS = /\.(mp4|mov|webm|mkv|m4v|avi)(\s|$)/i;
-
-const UNAVAILABLE = {
-  available: false,
-  ref: null,
-  label: "",
-  reason:
-    "Interactive Track requires a file-backed video source. Connect Load Video " +
-    "or choose an Extractor source file. This source exists only during workflow execution.",
+/**
+ * Still-image loaders Scene Reconstruct can read directly. The media socket
+ * accepts IMAGE as well as VIDEO (see media.py), so a plain Load Image node is
+ * the natural, expected thing to connect for a single reference photo.
+ */
+const FILE_BACKED_IMAGE_NODES = {
+  LoadImage: ["image"],
 };
+
+const VIDEO_EXTENSIONS = /\.(mp4|mov|webm|mkv|m4v|avi)(\s|$)/i;
+// Mirrors ALLOWED_IMAGE_EXTENSIONS in omnicam/reconstruction/source.py.
+const IMAGE_EXTENSIONS = /\.(png|jpe?g|webp)(\s|$)/i;
+
+function unavailableFor(isReconstruct) {
+  return {
+    available: false,
+    ref: null,
+    label: "",
+    reason: isReconstruct
+      ? "Scene Reconstruct requires a file-backed still image. Connect Load Image " +
+        "or choose an Extractor source file. This source exists only during workflow execution."
+      : "Interactive Track requires a file-backed video source. Connect Load Video " +
+        "or choose an Extractor source file. This source exists only during workflow execution.",
+  };
+}
 
 function nodeClassOf(node) {
   return String(node?.comfyClass || node?.type || node?.constructor?.type || "");
@@ -63,16 +78,27 @@ export function managedSourceOf(node) {
 }
 
 /**
- * Resolve the video an interactive solve should read.
+ * Resolve the footage an interactive solve or reconstruction should read.
  *
  * A connected file-backed loader wins over the picked file, because that is
  * what the graph will actually execute with; the picker exists for when there
- * is no such node.
+ * is no such node. `mode` decides what "file-backed" means: camera_track wants
+ * a video loader, scene_reconstruct wants a still-image loader -- the media
+ * socket accepts both (see media.py), so which one is expected depends on
+ * which mode the Extractor is in right now.
  */
-export function resolveInteractiveExtractorSource(node, graph = node?.graph) {
+export function resolveInteractiveExtractorSource(node, graph = node?.graph, mode = "camera_track") {
+  const isReconstruct = mode === "scene_reconstruct";
+  const nodeMap = isReconstruct ? FILE_BACKED_IMAGE_NODES : FILE_BACKED_NODES;
+  const extPattern = isReconstruct ? IMAGE_EXTENSIONS : VIDEO_EXTENSIONS;
+  const loaderHint = isReconstruct ? "Load Image" : "Load Video";
+  const mediaWord = isReconstruct ? "an image" : "a video";
+  const verb = isReconstruct ? "reconstruct" : "track";
+  const unavailable = unavailableFor(isReconstruct);
+
   const origin = upstreamVideoNode(node, graph);
   if (origin) {
-    const names = FILE_BACKED_NODES[nodeClassOf(origin)];
+    const names = nodeMap[nodeClassOf(origin)];
     if (!names) {
       const executed = managedSourceOf(node);
       if (executed) {
@@ -86,10 +112,10 @@ export function resolveInteractiveExtractorSource(node, graph = node?.graph) {
         };
       }
       return {
-        ...UNAVAILABLE,
+        ...unavailable,
         reason:
           `${nodeClassOf(origin) || "This node"} produces its footage only while the workflow runs. ` +
-          "Connect Load Video, or choose an Extractor source file, to track without running.",
+          `Connect ${loaderHint}, or choose an Extractor source file, to ${verb} without running.`,
         // Cannot be solved without a real file, but the origin may already
         // have rendered something (a previous run, an upload thumbnail) --
         // showing it at least confirms what is actually connected.
@@ -98,10 +124,10 @@ export function resolveInteractiveExtractorSource(node, graph = node?.graph) {
     }
     const filename = widgetValue(origin, names);
     if (!filename) {
-      return { ...UNAVAILABLE, reason: "The connected Load Video node has no file selected yet." };
+      return { ...unavailable, reason: `The connected ${loaderHint} node has no file selected yet.` };
     }
-    if (!VIDEO_EXTENSIONS.test(filename)) {
-      return { ...UNAVAILABLE, reason: `${filename} does not look like a video file.` };
+    if (!extPattern.test(filename)) {
+      return { ...unavailable, reason: `${filename} does not look like ${mediaWord} file.` };
     }
     return {
       available: true,
@@ -122,7 +148,7 @@ export function resolveInteractiveExtractorSource(node, graph = node?.graph) {
       originNodeId: null,
     };
   }
-  return { ...UNAVAILABLE, reason: "Connect Load Video, or choose a source file, to track." };
+  return { ...unavailable, reason: `Connect ${loaderHint}, or choose a source file, to ${verb}.` };
 }
 
 /** One line describing the resolved source for the SOURCE strip. */

@@ -1,24 +1,30 @@
 // Reconstruction state reducer and action queries.
 
+// These mirror omnicam/reconstruction/jobs/types.py exactly. They are the
+// states the server actually reports; anything else here leaves the panel
+// thinking a running job is idle -- Run stays clickable mid-job, and Stop
+// never lights up.
 export const RECONSTRUCTION_STATES = [
   "IDLE",
   "PREPARING",
-  "ESTIMATING_DEPTH",
-  "EXTRACTING_GEOMETRY",
-  "ANALYZING_PLANES",
-  "BUILDING_SCENE",
-  "DONE",
-  "FAILED",
+  "INFER_GEOMETRY",
+  "BUILD_MESH",
+  "ANALYZE_LAYOUT",
+  "SAVE_ASSETS",
+  "FINALIZING",
   "STOPPING",
   "STOPPED",
+  "DONE",
+  "FAILED",
 ];
 
 export const ACTIVE_STATES = new Set([
   "PREPARING",
-  "ESTIMATING_DEPTH",
-  "EXTRACTING_GEOMETRY",
-  "ANALYZING_PLANES",
-  "BUILDING_SCENE",
+  "INFER_GEOMETRY",
+  "BUILD_MESH",
+  "ANALYZE_LAYOUT",
+  "SAVE_ASSETS",
+  "FINALIZING",
 ]);
 
 export function initialReconstructionSettings() {
@@ -26,8 +32,8 @@ export function initialReconstructionSettings() {
     provider: "comfy_moge",
     mode: "geometry",
     quality: "balanced",
-    triangle_budget: 100000,
-    edge_threshold: 1.0,
+    triangle_budget: 120000,
+    discontinuity_threshold: 0.04,
     scene_scale: 1.0,
     detect_ground: true,
     detect_walls: false,
@@ -122,7 +128,8 @@ export function reduceReconstructionState(state, action) {
       return {
         ...state,
         jobState: "DONE",
-        progress: 100,
+        // Progress is a 0..1 fraction throughout, matching the server.
+        progress: 1,
         result: action.result,
         summary: action.summary ?? action.result?.summary ?? null,
         warnings: action.warnings ?? action.result?.warnings ?? [],

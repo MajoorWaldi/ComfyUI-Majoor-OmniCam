@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 
 from omnicam.reconstruction.providers.base import (
     CancelToken,
@@ -19,17 +20,26 @@ def test_provider_base_import_triggers_no_comfyui():
     # Verify importing provider base in a fresh interpreter does not drag in ComfyUI or comfy_api
     import subprocess
 
+    # The repo root goes on sys.path inside the child rather than through
+    # PYTHONPATH: an embedded interpreter pinned by a ._pth file ignores the
+    # environment variable, and the subprocess would then fail on
+    # ModuleNotFoundError -- passing judgement on the wrong thing entirely.
+    repo_root = Path(__file__).resolve().parents[2]
+    prelude = f"import sys; sys.path.insert(0, {str(repo_root)!r}); "
+
     proc = subprocess.run(
         [
             sys.executable,
             "-c",
-            "import sys; from omnicam.reconstruction.providers.base import ReconstructionProvider; "
+            prelude
+            + "from omnicam.reconstruction.providers.base import ReconstructionProvider; "
             "assert not any(m == 'comfy' or m.startswith('comfy.') for m in sys.modules); "
             "assert 'folder_paths' not in sys.modules",
         ],
         capture_output=True,
         text=True,
         check=False,
+        cwd=str(repo_root),
     )
     assert proc.returncode == 0, f"Import dragged in comfy modules: {proc.stderr}"
 

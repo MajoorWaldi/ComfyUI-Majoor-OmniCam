@@ -7,14 +7,10 @@ from typing import Any
 
 from aiohttp import web
 
-try:
-    from omnicam.comfy_compat.server import PromptServer
-except ImportError:
-    PromptServer = None
-from omnicam.http_json import read_bounded_json_object
-from omnicam.reconstruction.capabilities import get_reconstruction_capabilities
-from omnicam.reconstruction.jobs import api
-from omnicam.reconstruction.jobs.manager import ReconstructionJobManager
+from ...http_json import read_bounded_json_object
+from ..capabilities import get_reconstruction_capabilities
+from . import api
+from .manager import ReconstructionJobManager
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +51,7 @@ _STATUS_EXCEPTIONS = {
     403: web.HTTPForbidden,
     404: web.HTTPNotFound,
     409: web.HTTPConflict,
+    429: web.HTTPTooManyRequests,
 }
 
 
@@ -115,7 +112,7 @@ def create_reconstruction_routes_table(
 def register_on_prompt_server() -> None:
     """Register reconstruction routes onto PromptServer.instance.routes if available."""
     try:
-        from omnicam.comfy_compat.server import PromptServer
+        from ...comfy_compat.server import PromptServer
 
         if hasattr(PromptServer, "instance") and hasattr(PromptServer.instance, "routes"):
             existing = {
@@ -130,5 +127,3 @@ def register_on_prompt_server() -> None:
     except Exception:  # noqa: BLE001
         logger.debug("PromptServer.instance.routes not available for auto-binding")
 
-
-register_on_prompt_server()

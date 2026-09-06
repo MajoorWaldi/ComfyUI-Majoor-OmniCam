@@ -90,16 +90,6 @@ export function toggleObject(ui, id) {
   ui.setStatus(t(`${object.name || object.type} ${object.enabled ? "shown" : "hidden"}`));
 }
 
-export function toggleObjectLock(ui, object) {
-  if (!object) return;
-  ui.checkpoint("Toggle object lock");
-  object.locked = !object.locked;
-  ui.serialize();
-  ui.refreshObjects?.();
-  ui.refreshInspector?.();
-  ui.render?.();
-}
-
 export async function deleteObject(ui, id) {
   if (id === "subject") return ui.setStatus(t("The subject card cannot be deleted"));
   const object = ui.state.objects.find((item) => item.id === id);

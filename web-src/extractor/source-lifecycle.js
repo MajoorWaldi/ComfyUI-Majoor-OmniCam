@@ -4,7 +4,8 @@ import { resizeTrackingOverlay, syncUpstreamPreviewCanvas } from "./source-stage
 import { resolveInteractiveExtractorSource } from "./source-resolver.js";
 
 export function refreshExtractorSource(ui) {
-  const resolved = resolveInteractiveExtractorSource(ui.node, ui.node.graph);
+  const mode = ui.extractMode || "camera_track";
+  const resolved = resolveInteractiveExtractorSource(ui.node, ui.node.graph, mode);
   const sourceKey = resolved.ref ? `${resolved.ref.kind}:${resolved.ref.value}` : "";
   const sourceChanged = sourceKey !== (ui.sourceKey || "");
   if (sourceChanged) {
@@ -22,8 +23,13 @@ export function refreshExtractorSource(ui) {
   );
   if (sourceChanged) ui.coordinator.seek(0, "source");
   ui.dispatch({ type: "SOURCE", source: reloaded ? { ...resolved, playbackError: "" } : resolved });
-  if (resolved.available && resolved.ref) void describeExtractorSource(ui, resolved);
-  else adoptExtractorSourceLength(ui, 0);
+  // Scene Reconstruct reads a still image and has its own progress UI; the
+  // frame-count/rate description below exists for the camera-track scrubber
+  // and calls a video-only backend route that a still image cannot satisfy.
+  if (mode !== "scene_reconstruct") {
+    if (resolved.available && resolved.ref) void describeExtractorSource(ui, resolved);
+    else adoptExtractorSourceLength(ui, 0);
+  }
   syncUpstreamPreviewCanvas(ui, resolved);
   return resolved;
 }

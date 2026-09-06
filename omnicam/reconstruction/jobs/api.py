@@ -7,14 +7,15 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-from omnicam.reconstruction.jobs.manager import (
+from ..settings import ReconstructionSettings
+from ..types import ReconstructionSource
+from .manager import (
     JobAccessDeniedError,
+    JobLimitReachedError,
     JobNotFoundError,
     ReconstructionJobManager,
 )
-from omnicam.reconstruction.jobs.types import DONE, ReconstructionJob
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import ReconstructionSource
+from .types import DONE, ReconstructionJob
 
 MAX_REQUEST_BYTES = 256 * 1024
 ALLOWED_START_KEYS = frozenset({"node_id", "client_id", "source", "settings"})
@@ -96,13 +97,16 @@ def handle_start_job(
 ) -> dict[str, Any]:
     """Validate payload and launch background reconstruction job."""
     validated = validate_start_payload(payload)
-    job = manager.start_job(
-        node_id=validated["node_id"],
-        client_id=validated["client_id"],
-        source=validated["source"],
-        settings=validated["settings"],
-        on_event=on_event,
-    )
+    try:
+        job = manager.start_job(
+            node_id=validated["node_id"],
+            client_id=validated["client_id"],
+            source=validated["source"],
+            settings=validated["settings"],
+            on_event=on_event,
+        )
+    except JobLimitReachedError as err:
+        raise ReconstructionApiError(429, str(err), code="RECON_JOB_LIMIT") from err
     return job.to_dict()
 
 

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from .manager import JobAccessDeniedError, JobNotFoundError, ReconstructionJobManager
+from .manager import (
+    JobAccessDeniedError,
+    JobLimitReachedError,
+    JobNotFoundError,
+    ReconstructionJobManager,
+)
 from .runner import run_reconstruction_job
 from .types import (
     ACTIVE_STATES,
@@ -41,6 +46,7 @@ __all__ = [
     "TERMINAL_STATES",
     "JobAccessDeniedError",
     "JobCancelToken",
+    "JobLimitReachedError",
     "JobNotFoundError",
     "JobStateError",
     "ReconstructionJob",

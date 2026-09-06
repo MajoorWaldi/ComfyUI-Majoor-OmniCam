@@ -14,8 +14,10 @@ export function readReconstructionSettings(root) {
     source_texture: getChecked("reconstruction-source-texture"),
     detect_ground: getChecked("reconstruction-detect-ground"),
     detect_walls: getChecked("reconstruction-detect-walls"),
-    triangle_budget: Number(getVal("reconstruction-triangle-budget")) || 100000,
-    edge_threshold: Number(getVal("reconstruction-edge-threshold")) || 1.0,
+    triangle_budget: Number(getVal("reconstruction-triangle-budget")) || 120000,
+    // The backend field is discontinuity_threshold (ReconstructionSettings);
+    // "edge_threshold" is only the DOM role name.
+    discontinuity_threshold: Number(getVal("reconstruction-edge-threshold")) || 0.04,
     scene_scale: Number(getVal("reconstruction-scene-scale")) || 1.0,
   };
 }
@@ -31,6 +33,12 @@ export function bindReconstructionControls(
   } = {}
 ) {
   if (!root) return () => {};
+
+  const unbinders = [];
+  const track = (target, event, handler) => {
+    listen(target, event, handler);
+    unbinders.push(() => target?.removeEventListener?.(event, handler));
+  };
 
   const roles = [
     "reconstruction-provider",
@@ -54,16 +62,20 @@ export function bindReconstructionControls(
     const el = root.querySelector(`[data-role="${role}"]`);
     if (!el) continue;
     const evtName = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
-    listen(el, evtName, handleInput);
+    track(el, evtName, handleInput);
   }
 
   const runBtn = root.querySelector('[data-role="reconstruction-run"]');
-  if (runBtn) listen(runBtn, "click", onRun);
+  if (runBtn) track(runBtn, "click", onRun);
 
   const stopBtn = root.querySelector('[data-role="reconstruction-stop"]');
-  if (stopBtn) listen(stopBtn, "click", onStop);
+  if (stopBtn) track(stopBtn, "click", onStop);
 
   const openBtn = root.querySelector('[data-role="reconstruction-open-director"]');
-  if (openBtn) listen(openBtn, "click", onOpenDirector);
+  if (openBtn) track(openBtn, "click", onOpenDirector);
+
+  return () => {
+    for (const off of unbinders.splice(0)) off();
+  };
 }
 

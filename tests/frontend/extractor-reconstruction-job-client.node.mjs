@@ -119,7 +119,7 @@ test("stopActiveReconstructionOnDispose cancels active reconstruction jobs", asy
   // Active state: should stop
   const didStop = stopActiveReconstructionOnDispose(client, {
     jobId: "job_active",
-    jobState: "ESTIMATING_DEPTH",
+    jobState: "INFER_GEOMETRY",
   });
   assert.equal(didStop, true);
   assert.equal(api.calls.length, 1);

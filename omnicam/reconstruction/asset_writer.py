@@ -21,7 +21,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-from omnicam.reconstruction.geometry import ProxyMesh
+from .geometry import ProxyMesh
 
 HEX_FINGERPRINT_PATTERN = re.compile(r"^[0-9a-fA-F]{1,64}$")
 
@@ -85,7 +85,9 @@ def write_reconstruction_assets(
 
     target_dir.mkdir(parents=True, exist_ok=True)
     glb_path = target_dir / "environment.glb"
-    json_path = target_dir / "reconstruction.json"
+    # Deliberately not reconstruction.json: that name belongs to the cache
+    # manifest written by omnicam.reconstruction.cache, which would clobber this.
+    json_path = target_dir / "asset.json"
 
     pil_texture = _convert_texture_to_pil(mesh.texture)
 

@@ -23,21 +23,22 @@ import numpy as np
 import torch
 from PIL import Image, ImageOps
 
-from omnicam.reconstruction.errors import (
+from ..errors import (
     ReconCancelledError,
     ReconGpuOomError,
     ReconInferenceFailedError,
     ReconModelMissingError,
     ReconProviderUnavailableError,
+    ReconSourceInvalidError,
 )
-from omnicam.reconstruction.providers.base import (
+from ..settings import ReconstructionSettings
+from ..types import GeometryEvidence, ReconstructionSource
+from .base import (
     CancelToken,
     ProgressSink,
     ProviderCapabilities,
     ReconstructionProvider,
 )
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import GeometryEvidence, ReconstructionSource
 
 logger = logging.getLogger(__name__)
 
@@ -156,9 +157,15 @@ class ComfyMoGeProvider(ReconstructionProvider):
             )
 
         if resolved_path is None:
-            from omnicam.reconstruction.source import resolve_managed_source
+            from ..source import (
+                ReconstructionSourceResolutionError,
+                resolve_reconstruction_source,
+            )
 
-            resolved_path = resolve_managed_source(source)
+            try:
+                resolved_path = resolve_reconstruction_source(source)
+            except ReconstructionSourceResolutionError as err:
+                raise ReconSourceInvalidError(str(err)) from err
 
         checkpoint_name = checkpoints[0]
 
@@ -230,4 +237,7 @@ class ComfyMoGeProvider(ReconstructionProvider):
             coordinate_system="opencv_x_right_y_down_z_forward",
             provider_version="native-core",
             scale_mode="relative",
+            # MoGe returns intrinsics in normalized image coordinates
+            # (x, y in [0, 1]; cx = cy = 0.5), not pixels.
+            normalized_intrinsics=True,
         )

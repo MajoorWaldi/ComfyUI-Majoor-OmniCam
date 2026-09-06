@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Any
 
-from omnicam.reconstruction.settings import ReconstructionSettings
+from .settings import ReconstructionSettings
 
 GEOMETRY_SETTINGS_KEYS = (
     "detect_ground",

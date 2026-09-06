@@ -7,8 +7,11 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
-from omnicam.reconstruction.errors import ReconCancelledError, ReconstructionError
-from omnicam.reconstruction.jobs.types import (
+from ..errors import ReconCancelledError, ReconstructionError
+from ..pipeline import run_reconstruction_pipeline
+from ..providers import get_provider
+from ..providers.base import ReconstructionProvider
+from .types import (
     DONE,
     FAILED,
     PREPARING,
@@ -17,9 +20,6 @@ from omnicam.reconstruction.jobs.types import (
     ReconstructionJob,
     can_transition,
 )
-from omnicam.reconstruction.pipeline import run_reconstruction_pipeline
-from omnicam.reconstruction.providers import get_provider
-from omnicam.reconstruction.providers.base import ReconstructionProvider
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +65,11 @@ def run_reconstruction_job(
             if on_event:
                 on_event("progress", job)
 
-        active_provider = provider or get_provider(job.settings.provider)
-
         try:
+            # Provider lookup lives inside the try: an unregistered provider id
+            # would otherwise kill the worker thread and strand the job in
+            # PREPARING with no error ever reaching the client.
+            active_provider = provider or get_provider(job.settings.provider)
             output = pipe_fn(
                 source=job.source,
                 settings=job.settings,

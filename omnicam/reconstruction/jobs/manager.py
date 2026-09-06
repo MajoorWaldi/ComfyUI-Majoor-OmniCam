@@ -9,20 +9,28 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from omnicam.reconstruction.jobs.runner import run_reconstruction_job
-from omnicam.reconstruction.jobs.types import (
+from ..settings import ReconstructionSettings
+from ..types import ReconstructionSource
+from .runner import run_reconstruction_job
+from .types import (
     ACTIVE_STATES,
     STOPPING,
     TERMINAL_STATES,
     ReconstructionJob,
     can_transition,
 )
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import ReconstructionSource
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_TTL_SECONDS = 1800.0
+
+#: Ceiling on jobs held in memory. Each finished job retains a full MotionScene,
+#: and each pending one holds a worker thread parked on the GPU semaphore.
+DEFAULT_MAX_JOBS = 32
+
+
+class JobLimitReachedError(RuntimeError):
+    """Too many reconstruction jobs are already in flight."""
 
 
 class JobNotFoundError(KeyError):
@@ -42,11 +50,13 @@ class ReconstructionJobManager:
         ttl_seconds: float = DEFAULT_TTL_SECONDS,
         gpu_semaphore: threading.Semaphore | None = None,
         runner: Callable[..., Any] = run_reconstruction_job,
+        max_jobs: int = DEFAULT_MAX_JOBS,
     ) -> None:
         self._jobs: dict[str, ReconstructionJob] = {}
         self._threads: dict[str, threading.Thread] = {}
         self._lock = threading.RLock()
         self._ttl = float(ttl_seconds)
+        self._max_jobs = int(max_jobs)
         self._semaphore = gpu_semaphore if gpu_semaphore is not None else threading.Semaphore(1)
         self._runner = runner
 
@@ -58,6 +68,15 @@ class ReconstructionJobManager:
         settings: ReconstructionSettings,
     ) -> ReconstructionJob:
         """Instantiate and register a new reconstruction job without starting thread."""
+        # Reclaim finished jobs before admitting a new one, so a long-lived
+        # server does not accumulate MotionScenes forever.
+        self.sweep_stale_jobs()
+        with self._lock:
+            if len(self._jobs) >= self._max_jobs:
+                raise JobLimitReachedError(
+                    f"Too many reconstruction jobs in memory ({len(self._jobs)}); "
+                    "wait for one to finish or delete a completed job"
+                )
         job_id = uuid.uuid4().hex[:16]
         job = ReconstructionJob(
             job_id=job_id,
@@ -82,7 +101,7 @@ class ReconstructionJobManager:
         """Create and start an asynchronous reconstruction job in a background thread."""
         job = self.create_job(node_id, client_id, source, settings)
         if on_event is None:
-            from omnicam.reconstruction.jobs.events import ReconstructionEventPublisher
+            from .events import ReconstructionEventPublisher
 
             pub = ReconstructionEventPublisher(job)
             on_event = pub.as_event_callback()
@@ -125,7 +144,10 @@ class ReconstructionJobManager:
             job = self._jobs.get(str(job_id))
             if job is None:
                 raise JobNotFoundError(f"Reconstruction job {job_id!r} not found")
-            if client_id and job.client_id != str(client_id):
+            # ``client_id=None`` is the in-process bypass; any string that
+            # reaches this from HTTP -- including the empty string produced by a
+            # request that omitted clientId -- must match the owner.
+            if client_id is not None and job.client_id and job.client_id != str(client_id):
                 raise JobAccessDeniedError(f"Client {client_id!r} does not own job {job_id!r}")
             job.touch()
             return job

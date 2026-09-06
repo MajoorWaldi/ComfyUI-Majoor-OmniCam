@@ -80,3 +80,26 @@ def test_source_install_docs_include_frontend_build_step() -> None:
     install = guide[guide.index("## Install"):]
     assert "npm ci" in install
     assert "npm run build" in install
+
+
+def test_package_never_imports_itself_by_absolute_name() -> None:
+    """ComfyUI loads a custom node under its *directory* name.
+
+    So inside the ComfyUI process the package is
+    ``ComfyUI-Majoor-OmniCam.omnicam``, the repository root is not on
+    ``sys.path``, and any ``from omnicam.x import y`` raises
+    ``ModuleNotFoundError`` at load time -- taking every OmniCam node down with
+    it. The test suite runs from the repository root, where those imports do
+    resolve, so only this static check catches the regression.
+    """
+    offenders: list[str] = []
+    for path in sorted((ROOT / "omnicam").rglob("*.py")):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith(("from omnicam.", "from omnicam ", "import omnicam")):
+                offenders.append(f"{path.relative_to(ROOT).as_posix()}:{number}: {stripped}")
+
+    assert not offenders, (
+        "omnicam/ must import itself with relative imports only; found:\n  "
+        + "\n  ".join(offenders)
+    )

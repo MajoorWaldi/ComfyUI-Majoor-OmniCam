@@ -3,6 +3,11 @@
 import { t } from "../../i18n.js";
 import { reconstructionActions } from "./state.js";
 
+/** Progress travels as a 0..1 fraction throughout; only the view speaks percent. */
+function percent(state) {
+  return Math.round(Math.min(1, Math.max(0, state?.progress || 0)) * 100);
+}
+
 export function renderReconstructionView(root, state) {
   if (!root) return;
 
@@ -19,8 +24,7 @@ export function renderReconstructionView(root, state) {
 
   const progressBar = root.querySelector('[data-role="reconstruction-progress"]');
   if (progressBar) {
-    const pct = Math.min(100, Math.max(0, state?.progress || 0));
-    progressBar.style.width = `${pct}%`;
+    progressBar.style.width = `${percent(state)}%`;
   }
 
   const stageLabel = root.querySelector('[data-role="reconstruction-stage"]');
@@ -30,10 +34,10 @@ export function renderReconstructionView(root, state) {
       stageLabel.textContent = msg;
       stageLabel.dataset.state = "error";
     } else if (state?.stage) {
-      stageLabel.textContent = `${state.stage} (${state.progress || 0}%)`;
+      stageLabel.textContent = `${state.stage} (${percent(state)}%)`;
       stageLabel.dataset.state = "active";
     } else if (state?.jobState && state.jobState !== "IDLE") {
-      stageLabel.textContent = `${state.jobState} (${state.progress || 0}%)`;
+      stageLabel.textContent = `${state.jobState} (${percent(state)}%)`;
       stageLabel.dataset.state = state.jobState === "DONE" ? "ok" : "active";
     } else {
       stageLabel.textContent = t("Ready to reconstruct");
@@ -46,10 +50,12 @@ export function renderReconstructionView(root, state) {
     if (state?.summary) {
       summaryEl.hidden = false;
       const s = state.summary;
-      const tri = s.mesh_triangles != null ? Number(s.mesh_triangles).toLocaleString() : null;
+      // Keys mirror the pipeline summary in omnicam/reconstruction/pipeline.py.
+      const triVal = s.triangle_count != null ? s.triangle_count : s.mesh_triangles;
+      const tri = triVal != null ? Number(triVal).toLocaleString() : null;
       const fovVal = s.camera_fov_x != null ? s.camera_fov_x : s.camera_fov;
       const fov = fovVal != null ? Number(fovVal).toFixed(1) : null;
-      const ground = s.ground_detected ? t("ground plane detected") : null;
+      const ground = Number(s.ground_confidence) > 0 ? t("ground plane detected") : null;
       const parts = [];
       if (tri) parts.push(`${tri} ${t("triangles")}`);
       if (fov) parts.push(`FOV ${fov}°`);

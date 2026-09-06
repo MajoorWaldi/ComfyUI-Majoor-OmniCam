@@ -9,24 +9,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from omnicam.reconstruction.asset_writer import write_reconstruction_assets
-from omnicam.reconstruction.cache import CacheEntry, lookup_cache, write_cache_manifest
-from omnicam.reconstruction.camera import reconstruct_camera_from_evidence
-from omnicam.reconstruction.errors import (
+from .asset_writer import write_reconstruction_assets
+from .cache import CacheEntry, lookup_cache, write_cache_manifest
+from .camera import reconstruct_camera_from_evidence
+from .errors import (
     ReconCancelledError,
     ReconEmptyGeometryError,
     ReconInferenceFailedError,
     ReconMeshTooLargeError,
     ReconSourceInvalidError,
 )
-from omnicam.reconstruction.fingerprint import compute_reconstruction_fingerprint
-from omnicam.reconstruction.geometry import EmptyGeometryError, MeshTooLargeError, build_proxy_mesh
-from omnicam.reconstruction.planes import detect_planes
-from omnicam.reconstruction.providers.base import CancelToken, ProgressSink, ReconstructionProvider
-from omnicam.reconstruction.scene_builder import build_reconstructed_scene
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.source import ReconstructionSourceResolutionError, resolve_reconstruction_source
-from omnicam.reconstruction.types import (
+from .fingerprint import compute_reconstruction_fingerprint
+from .geometry import EmptyGeometryError, MeshTooLargeError, build_proxy_mesh
+from .planes import detect_planes, scale_planes
+from .providers.base import CancelToken, ProgressSink, ReconstructionProvider
+from .scene_builder import build_reconstructed_scene
+from .settings import ReconstructionSettings
+from .source import ReconstructionSourceResolutionError, resolve_reconstruction_source
+from .types import (
     ReconstructedAsset,
     ReconstructionMetrics,
     ReconstructionResult,
@@ -149,7 +149,9 @@ def run_reconstruction_pipeline(
     # 5. Layout Analysis (camera + ground/walls)
     report("ANALYZE_LAYOUT", 0.72, "Reconstructing camera and detecting layout")
     camera = reconstruct_camera_from_evidence(evidence, settings)
-    planes = detect_planes(evidence, settings, seed=fp)
+    # Detection runs in provider units; the proxy mesh is scaled by
+    # settings.scene_scale, so the planes follow it into the same space.
+    planes = scale_planes(detect_planes(evidence, settings, seed=fp), settings.scene_scale)
 
     ground_plane = next((p for p in planes if p.plane_type == "ground"), None)
     ground_conf = ground_plane.confidence if ground_plane else 0.0

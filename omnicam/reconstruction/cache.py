@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from omnicam.reconstruction.asset_writer import HEX_FINGERPRINT_PATTERN
+from .asset_writer import HEX_FINGERPRINT_PATTERN
 
 logger = logging.getLogger(__name__)
 

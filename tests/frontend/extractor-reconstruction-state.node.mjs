@@ -46,13 +46,15 @@ test("reconstructionActions canStart/canStop/canOpenDirector across states", () 
   assert.equal(actions.canStop, false);
   assert.equal(actions.canOpenDirector, false);
 
-  // Active states: canStop is true, canStart is false
+  // Active states: canStop is true, canStart is false. Mirrors the server's
+  // job state machine (omnicam/reconstruction/jobs/types.py).
   const activeStates = [
     "PREPARING",
-    "ESTIMATING_DEPTH",
-    "EXTRACTING_GEOMETRY",
-    "ANALYZING_PLANES",
-    "BUILDING_SCENE",
+    "INFER_GEOMETRY",
+    "BUILD_MESH",
+    "ANALYZE_LAYOUT",
+    "SAVE_ASSETS",
+    "FINALIZING",
   ];
   for (const st of activeStates) {
     actions = reconstructionActions({ ...readyState, jobState: st, jobId: "job_1" });
@@ -151,13 +153,14 @@ test("reduceReconstructionState handles state transitions and events", () => {
   state = reduceReconstructionState(state, {
     type: "DONE",
     result: { motion_scene: { version: 1 } },
-    summary: { mesh_triangles: 50000 },
+    summary: { triangle_count: 50000 },
     warnings: ["low confidence ground"],
   });
   assert.equal(state.jobState, "DONE");
-  assert.equal(state.progress, 100);
+  // Progress is the server's 0..1 fraction; only the view renders percent.
+  assert.equal(state.progress, 1);
   assert.deepEqual(state.warnings, ["low confidence ground"]);
-  assert.deepEqual(state.summary, { mesh_triangles: 50000 });
+  assert.deepEqual(state.summary, { triangle_count: 50000 });
   assert.ok(state.result.motion_scene);
 
   // ERROR action

@@ -6,7 +6,7 @@ import contextlib
 import logging
 from pathlib import Path
 
-from omnicam.reconstruction.types import ReconstructionSource
+from .types import ReconstructionSource
 
 logger = logging.getLogger(__name__)
 

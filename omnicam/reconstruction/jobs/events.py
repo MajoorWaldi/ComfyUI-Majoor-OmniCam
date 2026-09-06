@@ -7,7 +7,7 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from omnicam.reconstruction.jobs.types import ReconstructionJob
+from .types import ReconstructionJob
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ THROTTLE_SECONDS = 0.1
 def _send_sync(event: str, payload: dict[str, Any], client_id: str) -> None:
     """Send websocket event through ComfyUI PromptServer."""
     try:
-        from omnicam.comfy_compat.server import PromptServer
+        from ...comfy_compat.server import PromptServer
 
         instance = getattr(PromptServer, "instance", None)
         if instance is None:

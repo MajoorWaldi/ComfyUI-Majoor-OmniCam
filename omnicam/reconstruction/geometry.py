@@ -8,9 +8,9 @@ from typing import Any
 
 import torch
 
-from omnicam.reconstruction.coordinates import flip_winding, opencv_points_to_omnicam
-from omnicam.reconstruction.settings import QUALITY_PRESETS, ReconstructionSettings
-from omnicam.reconstruction.types import GeometryEvidence
+from .coordinates import flip_winding, opencv_points_to_omnicam
+from .settings import QUALITY_PRESETS, ReconstructionSettings
+from .types import GeometryEvidence
 
 
 class MeshTooLargeError(ValueError):

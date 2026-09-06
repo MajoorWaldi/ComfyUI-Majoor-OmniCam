@@ -58,9 +58,9 @@ export function extractorMarkup() {
         </div>
         <div class="oc-inline">
           <label for="oc-recon-triangle-budget">${t("Triangle Budget")}</label>
-          <input id="oc-recon-triangle-budget" data-role="reconstruction-triangle-budget" type="number" min="1000" max="1000000" step="5000" value="100000">
+          <input id="oc-recon-triangle-budget" data-role="reconstruction-triangle-budget" type="number" min="1000" max="500000" step="5000" value="120000">
           <label for="oc-recon-edge-threshold">${t("Edge Threshold")}</label>
-          <input id="oc-recon-edge-threshold" data-role="reconstruction-edge-threshold" type="number" min="0.1" max="10" step="0.1" value="1.0">
+          <input id="oc-recon-edge-threshold" data-role="reconstruction-edge-threshold" type="number" min="0.01" max="1" step="0.01" value="0.04">
           <label for="oc-recon-scene-scale">${t("Scene Scale")}</label>
           <input id="oc-recon-scene-scale" data-role="reconstruction-scene-scale" type="number" min="0.01" max="100" step="0.1" value="1.0">
         </div>

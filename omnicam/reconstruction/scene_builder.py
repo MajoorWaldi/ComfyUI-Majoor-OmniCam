@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from omnicam.core.motion_scene import MotionScene
-from omnicam.reconstruction.types import ReconstructionResult
+from ..core.motion_scene import MotionScene
+from .types import ReconstructionResult
 
 
 def build_reconstructed_scene(

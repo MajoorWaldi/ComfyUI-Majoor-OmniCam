@@ -55,6 +55,10 @@ class ReconstructionSettings:
             raise ValueError(
                 f"Unknown reconstruction mode {self.mode!r}; expected one of {sorted(KNOWN_MODES)}"
             )
+        if self.quality not in KNOWN_QUALITIES:
+            raise ValueError(
+                f"Unknown reconstruction quality {self.quality!r}; expected one of {sorted(KNOWN_QUALITIES)}"
+            )
         if not (1 <= self.triangle_budget <= MAX_TRIANGLE_BUDGET):
             raise ValueError(
                 f"triangle_budget must be between 1 and {MAX_TRIANGLE_BUDGET}, got {self.triangle_budget}"

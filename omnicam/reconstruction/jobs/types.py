@@ -8,9 +8,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from omnicam.reconstruction.pipeline import PipelineOutput
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import ReconstructionSource
+from ..pipeline import PipelineOutput
+from ..settings import ReconstructionSettings
+from ..types import ReconstructionSource
 
 
 class ReconstructionState(str, Enum):

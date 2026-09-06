@@ -8,14 +8,23 @@ from typing import Any
 import numpy as np
 import torch
 
-from omnicam.reconstruction.confidence import calculate_plane_confidence
-from omnicam.reconstruction.coordinates import opencv_points_to_omnicam
-from omnicam.reconstruction.settings import ReconstructionSettings
-from omnicam.reconstruction.types import GeometryEvidence, ReconstructedPlane
+from .confidence import calculate_plane_confidence
+from .coordinates import opencv_points_to_omnicam
+from .settings import ReconstructionSettings
+from .types import GeometryEvidence, ReconstructedPlane
 
 MAX_SAMPLE_POINTS = 50_000
 RANSAC_ITERATIONS = 160
+
+#: Fallback inlier distance, used only when the cloud has no measurable extent.
 DISTANCE_THRESHOLD = 0.03
+
+#: Inlier distance as a fraction of the cloud's own 5-95 percentile diagonal.
+#: Providers like MoGe report relative scale (GeometryEvidence.scale_mode), so a
+#: fixed metric threshold means something different for every image; tying it to
+#: the cloud keeps the fit equivalent whatever the units turn out to be. The
+#: ratio is set so a roughly room-sized cloud lands back on DISTANCE_THRESHOLD.
+DISTANCE_THRESHOLD_RATIO = 0.005
 MIN_GROUND_INLIER_RATIO = 0.08
 UP_DOT_THRESHOLD = 0.82
 MIN_PLANE_CONFIDENCE = 0.45
@@ -28,11 +37,53 @@ def _to_numpy_points(points: Any) -> np.ndarray:
     return np.asarray(points)
 
 
+def _cloud_extent(points: np.ndarray) -> float:
+    """Robust diagonal of the point cloud, from per-axis 5-95 percentiles."""
+    if points.size == 0:
+        return 0.0
+    low = np.percentile(points, 5, axis=0)
+    high = np.percentile(points, 95, axis=0)
+    span = np.asarray(high, dtype=np.float64) - np.asarray(low, dtype=np.float64)
+    extent = float(np.linalg.norm(span))
+    return extent if np.isfinite(extent) else 0.0
+
+
+def _inlier_distance(points: np.ndarray) -> float:
+    """Scale-relative inlier distance for ``points``."""
+    extent = _cloud_extent(points)
+    if extent <= 0.0:
+        return DISTANCE_THRESHOLD
+    return extent * DISTANCE_THRESHOLD_RATIO
+
+
 def _seed_to_int(seed: int | str) -> int:
     if isinstance(seed, int):
         return seed
     digest = hashlib.sha256(str(seed).encode("utf-8")).hexdigest()[:8]
     return int(digest, 16)
+
+
+def scale_planes(planes: list[ReconstructedPlane], scale: float) -> list[ReconstructedPlane]:
+    """Return ``planes`` expressed in a scene scaled by ``scale``.
+
+    Plane fitting runs in the provider's own units so its distance thresholds
+    stay meaningful; the mesh is scaled in :func:`build_proxy_mesh`, so the
+    planes have to travel the same distance to stay aligned with it.
+    """
+    factor = float(scale)
+    if factor == 1.0:
+        return planes
+    return [
+        ReconstructedPlane(
+            plane_type=p.plane_type,
+            center=(p.center[0] * factor, p.center[1] * factor, p.center[2] * factor),
+            normal=p.normal,
+            size=(p.size[0] * factor, p.size[1] * factor),
+            confidence=p.confidence,
+            inlier_ratio=p.inlier_ratio,
+        )
+        for p in planes
+    ]
 
 
 def detect_planes(
@@ -89,6 +140,7 @@ def detect_planes(
 
             candidates = flat_pts[candidate_indices]
             n_candidates = len(candidates)
+            distance_threshold = _inlier_distance(candidates)
 
             best_inliers: np.ndarray | None = None
             best_normal: np.ndarray | None = None
@@ -114,7 +166,7 @@ def detect_planes(
 
                 d = -float(np.dot(n, p1))
                 dist = np.abs(np.dot(candidates, n) + d)
-                inliers = dist < DISTANCE_THRESHOLD
+                inliers = dist < distance_threshold
                 count = int(np.sum(inliers))
 
                 if best_inliers is None or count > int(np.sum(best_inliers)):
@@ -144,7 +196,10 @@ def detect_planes(
                     center = (center_x, center_y, center_z)
 
                     orientation_score = min(1.0, max(0.0, float(best_normal[1])))
-                    coverage_score = min(1.0, (size_x * size_z) / 4.0)
+                    span_x = float(np.percentile(candidates[:, 0], 95) - np.percentile(candidates[:, 0], 5))
+                    span_z = float(np.percentile(candidates[:, 2], 95) - np.percentile(candidates[:, 2], 5))
+                    footprint = max(span_x, 1e-6) * max(span_z, 1e-6)
+                    coverage_score = min(1.0, (size_x * size_z) / footprint)
 
                     conf = calculate_plane_confidence(
                         inlier_ratio=inlier_ratio,
@@ -175,8 +230,8 @@ def detect_planes(
             wall_indices = rng.choice(wall_indices, size=MAX_SAMPLE_POINTS, replace=False)
 
         candidates = flat_pts[wall_indices]
-        n_candidates = len(candidates)
         remaining_candidates = candidates
+        wall_distance_threshold = _inlier_distance(candidates)
 
         walls_found = 0
         while walls_found < MAX_WALLS and len(remaining_candidates) >= 50:
@@ -200,7 +255,7 @@ def detect_planes(
 
                 d = -float(np.dot(n, p1))
                 dist = np.abs(np.dot(remaining_candidates, n) + d)
-                inliers = dist < DISTANCE_THRESHOLD
+                inliers = dist < wall_distance_threshold
                 count = int(np.sum(inliers))
 
                 if best_inliers is None or count > int(np.sum(best_inliers)):

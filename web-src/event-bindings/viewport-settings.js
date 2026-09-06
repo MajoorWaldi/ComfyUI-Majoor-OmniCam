@@ -9,7 +9,8 @@ import { onTimelineWheel } from "../timeline-interaction.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { t } from "../i18n.js";
 import { axisViewFor } from "../view-navigation.js";
-import { setReconstructionAppearance, toggleObjectLock } from "../scene/reconstruction-badges.js";
+import { toggleObjectLock } from "../scene/object-lock.js";
+import { setReconstructionAppearance } from "../scene/reconstruction-badges.js";
 
 export function bindViewportSettings(ui, q, signal) {
   const axisGizmo = ui.root.querySelector('[data-role="viewport-axis"]');

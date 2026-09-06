@@ -8,12 +8,14 @@ export function reconstructionBadge(object) {
       ? Number(object.reconstruction.confidence)
       : 1.0;
 
+  // Thresholds mirror confidence_band() in omnicam/reconstruction/confidence.py
+  // so a score never reads as one tier in the badge and another server-side.
   let band = "low";
   let label = "Low";
-  if (conf >= 0.8) {
+  if (conf >= 0.75) {
     band = "high";
     label = "High";
-  } else if (conf >= 0.6) {
+  } else if (conf >= 0.45) {
     band = "medium";
     label = "Medium";
   }
@@ -40,16 +42,6 @@ export function setReconstructionAppearance(ui, appearance) {
   ui.state.reconstruction_appearance =
     appearance === "source_texture" ? "source_texture" : "neutral";
   ui.serialize?.();
-  ui.render?.();
-}
-
-export function toggleObjectLock(ui, object) {
-  if (!object) return;
-  ui.checkpoint?.("Toggle object lock");
-  object.locked = !object.locked;
-  ui.serialize?.();
-  ui.refreshObjects?.();
-  ui.refreshInspector?.();
   ui.render?.();
 }
 

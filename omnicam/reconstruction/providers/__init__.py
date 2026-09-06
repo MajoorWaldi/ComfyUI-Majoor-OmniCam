@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from omnicam.reconstruction.errors import ReconProviderUnavailableError
-
+from ..errors import ReconProviderUnavailableError
 from .base import CancelToken, ProgressSink, ProviderCapabilities, ReconstructionProvider
 
 _REGISTRY: dict[str, Any] = {}
