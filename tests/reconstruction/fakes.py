@@ -96,14 +96,14 @@ class FakeReconstructionProvider:
         z = np.full((h, w), self.distance, dtype=np.float32)
         # Add a floor slant to the bottom 40% of rows
         floor_cutoff = int(h * 0.6)
-        # Tilt bottom into a ground plane
+        # Horizontal floor at Y = 1.0 (in OpenCV, pointing down)
         for r in range(floor_cutoff, h):
-            # As r increases, Y increases (downward), Z increases (further)
-            frac = (r - floor_cutoff) / float(h - floor_cutoff)
-            z[r, :] = self.distance + frac * 2.0
+            delta_v = max(0.5, float(r - cy + 0.5))
+            z[r, :] = (1.0 * fy) / delta_v
 
         x = (x_indices - cx) * z / fx
         y = (y_indices - cy) * z / fy
+        y[floor_cutoff:, :] = 1.0  # Exactly horizontal floor
 
         pts_np = np.stack([x, y, z], axis=-1).astype(np.float32)
         points = torch.from_numpy(pts_np).unsqueeze(0)  # [1, H, W, 3]
