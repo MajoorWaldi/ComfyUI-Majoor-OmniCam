@@ -4,7 +4,7 @@
 
 import { annotatedAssetUrl, clamp } from "./director/core.js";
 import { syncExtractorCameraTrack } from "./extractor/director-link.js";
-import { uploadManagedFile } from "./omnicam-media.js";
+import { uploadManagedFile } from "./director/media.js";
 import { t } from "./i18n.js";
 import { upstreamPreviewMedia } from "./shared/upstream-preview.js";
 import { linkedOrigin } from "./graph-links.js";

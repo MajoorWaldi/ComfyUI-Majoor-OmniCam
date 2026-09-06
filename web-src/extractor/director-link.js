@@ -173,3 +173,29 @@ export function notifyDownstreamDirectors(extractorNode) {
   }
   return notified;
 }
+
+export { adoptReconstructedScene } from "./reconstruction/director-adopt.js";
+
+export function adoptReconstructionIntoDownstreamDirectors(extractorNode, result) {
+  const graph = extractorNode?.graph;
+  if (!graph) return 0;
+  const outputs = extractorNode.outputs || [];
+  const seen = new Set();
+  let adopted = 0;
+  for (const output of outputs) {
+    for (const linkId of output?.links || []) {
+      const link = graphLink(graph, linkId);
+      const targetId = link?.target_id ?? link?.targetId;
+      if (!link || targetId == null || seen.has(targetId)) continue;
+      seen.add(targetId);
+      const target = graph.getNodeById?.(targetId);
+      const ui = target?.__majoorOmniCam;
+      if (ui) {
+        adoptReconstructedScene(ui, result);
+        adopted += 1;
+      }
+    }
+  }
+  return adopted;
+}
+

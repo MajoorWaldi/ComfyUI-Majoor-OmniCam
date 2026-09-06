@@ -6,6 +6,7 @@ import { renderSourceStageMedia } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
+import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
 import { RefineController } from "./refine-controls.js";
 import {
@@ -125,7 +126,7 @@ export class ExtractorUI {
       node: this.node,
       api,
       getSource: () => this.state.source?.ref || null,
-      onAdopt: () => {},
+      onAdopt: (result) => adoptReconstructionIntoDownstreamDirectors(this.node, result),
       listen: (target, event, handler) => this.listen(target, event, handler),
     });
 
