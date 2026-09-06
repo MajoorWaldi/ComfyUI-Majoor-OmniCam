@@ -6,6 +6,7 @@ import { confirmAction, promptText } from "../director/ui-services.js";
 import { t } from "../i18n.js";
 import { beginCameraEdit, commitCameraEdit, finishCameraEdit, refreshKeyEditor, selectedKeyframe, updateKeyVisualState } from "../scene.js";
 import { findEditableKey } from "./edit-target.js";
+import { reconstructionBadge } from "./reconstruction-badges.js";
 
 export function addPrimitive(ui, type) {
   ui.checkpoint("Create object");
@@ -45,6 +46,8 @@ export async function renameObject(ui, id) {
   ui.refreshKeys();
   ui.setStatus(t(`Object renamed: ${object.name}`));
 }
+
+export { toggleObjectLock } from "./reconstruction-badges.js";
 
 export function duplicateObject(ui, id) {
   const source = ui.state.objects.find((item) => item.id === id);
@@ -205,6 +208,8 @@ export function refreshInspector(ui) {
   }
 
   if (!object) {
+    const badgeEl = q('[data-role="object-recon-badge"]');
+    if (badgeEl) badgeEl.hidden = true;
     const selName = q('[data-role="selected-name"]');
     if (selName) selName.textContent = `${activeCamera.name} · F${ui.frame}`;
     relabelCurveGroups(q, {
@@ -214,6 +219,25 @@ export function refreshInspector(ui) {
       lens: t("FOV / Roll / Zoom"),
     });
     return;
+  }
+  const badgeEl = q('[data-role="object-recon-badge"]');
+  if (badgeEl) {
+    const badge = reconstructionBadge(object);
+    if (badge) {
+      badgeEl.hidden = false;
+      badgeEl.textContent = `${badge.label} (${Math.round(badge.confidence * 100)}%)`;
+      badgeEl.title = badge.title;
+      badgeEl.className = `oc-recon-badge oc-badge-${badge.band}`;
+    } else {
+      badgeEl.hidden = true;
+    }
+  }
+  const lockBtn = q('[data-role="object-lock-toggle"]');
+  if (lockBtn) {
+    lockBtn.classList.toggle("locked", Boolean(object.locked));
+    lockBtn.title = object.locked ? t("Unlock object") : t("Lock object");
+    const icon = lockBtn.querySelector("i");
+    if (icon) icon.className = `pi ${object.locked ? "pi-lock" : "pi-lock-open"}`;
   }
   const position = object.position || [0, 0, 0];
   const selName = q('[data-role="selected-name"]');
@@ -297,6 +321,10 @@ export function refreshInspector(ui) {
 export function updateSelectedObject(ui) {
   const object = selectedObject(ui);
   if (!object) return;
+  if (object.locked) {
+    ui.setStatus?.(t("Object is locked"));
+    return;
+  }
   const read = (role, fallback) => {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
     if (!el || el.value === "") return fallback;

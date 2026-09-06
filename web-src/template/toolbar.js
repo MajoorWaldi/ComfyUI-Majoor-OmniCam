@@ -135,6 +135,10 @@ function displayTab() {
       <label><span>${t("Look-At Targets")}</span><input data-role="show-look-at" type="checkbox" checked></label>
       <label><span>${t("Helper Axes (nulls)")}</span><input data-role="show-helper-axes" type="checkbox" checked></label>
       <label><span>${t("Keep the grid in the playblast")}</span><input data-role="playblast-grid" type="checkbox"></label>
+      <label>${t("Reconstruction Appearance")} <select data-role="reconstruction-appearance">
+        <option value="neutral">${t("Neutral")}</option>
+        <option value="source_texture">${t("Source Texture")}</option>
+      </select></label>
       <div class="menu-section" data-density-min="advanced">
         <label title="${t("Resolution of the recorded playblast video")}">${t("Playblast Resolution")} <select data-role="playblast-resolution">
           <option value="viewport">${t("Viewport (fast)")}</option>

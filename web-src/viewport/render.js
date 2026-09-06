@@ -94,6 +94,8 @@ export function createRenderMethods(dependencies) {
       state.point_spread,
       Boolean(state.show_wireframe),
       Boolean(state.show_vertices),
+      state.reconstruction_appearance || "neutral",
+      Boolean(cleanCapture),
       state.objects.map((object) => {
         const { position, rotation, keyframes, size, ...shape } = object;
         if (object.type === "card") shape.size = size;
@@ -103,7 +105,7 @@ export function createRenderMethods(dependencies) {
     const mediaSignature = [...mediaById.entries()].map(([id, media]) => `${id}:${media?.src || ""}`).join("|");
     const modelSignature = [...modelUrlsById.entries()].map(([id, url]) => `${id}:${url}`).join("|");
     if (sceneKey !== this.sceneKey || mediaSignature !== this.mediaSignature || modelSignature !== this.modelSignature) {
-      this.sceneKey = sceneKey; this.mediaSignature = mediaSignature; this.modelSignature = modelSignature; this.rebuild(state, mediaById, modelUrlsById);
+      this.sceneKey = sceneKey; this.mediaSignature = mediaSignature; this.modelSignature = modelSignature; this.rebuild(state, mediaById, modelUrlsById, cleanCapture);
     }
     for (const model of this.models.values()) {
       if (model.mixer && model.duration > 0) model.mixer.setTime((frame / Math.max(1, state.fps || 24)) % model.duration);

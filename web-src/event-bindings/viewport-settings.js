@@ -9,6 +9,7 @@ import { onTimelineWheel } from "../timeline-interaction.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { t } from "../i18n.js";
 import { axisViewFor } from "../view-navigation.js";
+import { setReconstructionAppearance, toggleObjectLock } from "../scene/reconstruction-badges.js";
 
 export function bindViewportSettings(ui, q, signal) {
   const axisGizmo = ui.root.querySelector('[data-role="viewport-axis"]');
@@ -333,6 +334,17 @@ export function bindViewportSettings(ui, q, signal) {
         ui.serialize();
         ui.render();
       }
+    }, { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-object-lock"]')) {
+    btn.addEventListener("click", () => {
+      const obj = ui.selectedObject?.();
+      if (obj) toggleObjectLock(ui, obj);
+    }, { signal });
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="reconstruction-appearance"]')) {
+    el.addEventListener("change", (e) => {
+      setReconstructionAppearance(ui, e.target.value);
     }, { signal });
   }
   for (const el of ui.root.querySelectorAll('[data-role="object-color"]')) {

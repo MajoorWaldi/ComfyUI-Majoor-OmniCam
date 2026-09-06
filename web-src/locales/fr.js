@@ -561,6 +561,11 @@ export const FR = {
   "OPEN IN DIRECTOR": "OUVRIR DANS DIRECTOR",
   "Ready to reconstruct": "Prêt pour la reconstruction",
   "ground plane detected": "plan de sol détecté",
-  "triangles": "triangles"
+  "triangles": "triangles",
+  "Reconstruction Appearance": "Apparence de la reconstruction",
+  "Lock object": "Verrouiller l'objet",
+  "Unlock object": "Déverrouiller l'objet",
+  "Lock / unlock object": "Verrouiller / déverrouiller l'objet",
+  "Object is locked": "L'objet est verrouillé"
 };
 export default FR;

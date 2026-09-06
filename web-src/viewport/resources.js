@@ -22,7 +22,7 @@ export function createResourceMethods(dependencies) {
     this.invalidate();
   },
 
-  rebuild(state, mediaById, modelUrlsById) {
+  rebuild(state, mediaById, modelUrlsById, cleanCapture = false) {
     this.content.traverse((parent) => {
       for (const child of [...parent.children]) {
         if (!child.userData.omnicamHelper) continue;
@@ -63,7 +63,10 @@ export function createResourceMethods(dependencies) {
         const model = this.models.get(object.id);
         const format = object.format || (object.type === "glb" ? "glb" : "");
         if (url && (model?.url !== url || model?.format !== format)) this.loadModel(object.id, url, format);
-        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, object.material_mode || "textured"); }
+        const effectiveAppearance = object.reconstruction
+          ? (state.reconstruction_appearance === "source_texture" && !cleanCapture ? "textured" : "neutral")
+          : (object.material_mode || "textured");
+        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance); }
         else mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2] || 1), wire.clone());
       } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode));
       else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));

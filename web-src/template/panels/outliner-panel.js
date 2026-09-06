@@ -20,7 +20,13 @@ export function outlinerPanel() {
       </div>
       <div class="scene-tree" data-role="objects"></div>
       <div class="oc-card" data-role="object-panel">
-        <div class="oc-card-title" data-role="selected-name">${t("Object Transform")}</div>
+        <div class="oc-card-title" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <span data-role="selected-name">${t("Object Transform")}</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <span class="oc-recon-badge" data-role="object-recon-badge" hidden></span>
+            <button class="icon-button oc-lock-btn" type="button" data-act="toggle-object-lock" data-role="object-lock-toggle" title="${t("Lock / unlock object")}"><i class="pi pi-lock-open"></i></button>
+          </div>
+        </div>
         <div class="oc-field-row">
           <span class="oc-field-label">${t("Material")}</span>
           <select data-role="object-material" title="${t("Viewport material")}">
