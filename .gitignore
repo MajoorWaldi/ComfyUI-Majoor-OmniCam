@@ -12,9 +12,15 @@ test-results/
 dist/
 *.log
 
-# Vite build output (web-chunks/, web/omnicam.js) is committed. Note the chunk
-# names are Rollup content-hashes and are not byte-reproducible across OSes, so
-# a rebuild on a different platform will churn filenames.
+# Vite build output. Never commit it: a Windows checkout and Linux CI resolve
+# a genuinely different module graph for the same web-src/ (268 vs 260 modules
+# measured 2026-09-06; 266 vs 258 previously), not just different chunk-hash
+# filenames. Committing whichever platform happened to build last has already
+# been tried twice (515c835, dbdcc22) and reverted once for exactly this
+# reason (8ec2bba) -- the frontend CI job and the publish job both run
+# `npm run build` to regenerate it fresh, on Linux, right before it matters.
+/web-chunks/
+/web/omnicam.js
 .DS_Store
 Thumbs.db
 

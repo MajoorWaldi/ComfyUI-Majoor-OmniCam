@@ -23,43 +23,41 @@ def test_registry_force_includes_generated_frontend() -> None:
     assert '"web-chunks"' in pyproject or "'web-chunks'" in pyproject
 
 
-def test_generated_frontend_is_committed_not_synthesized_at_publish() -> None:
-    """web-chunks/ and web/omnicam.js ship as tracked Git content, not a
-    build produced in the publish job.
+def test_generated_frontend_is_gitignored_not_committed() -> None:
+    """web-chunks/ and web/omnicam.js must never be tracked in Git.
 
-    Rollup's chunk-name hashes are not guaranteed byte-reproducible across
-    OSes, so regenerating them in CI (Ubuntu) right before packaging made the
-    published archive a synthesis nothing on GitHub showed byte-for-byte --
-    a fair thing for an automated Registry review to distrust. Publishing the
-    checked-out commit as-is instead means these files must actually be
-    tracked, which `git ls-files` confirms directly rather than trusting
-    .gitignore not to have silently reclaimed them.
+    A Windows checkout and Linux CI resolve a genuinely different Vite module
+    graph for the same web-src/ (268 vs 260 modules measured 2026-09-06; 266
+    vs 258 previously) -- not just different Rollup chunk-hash filenames.
+    Committing whichever platform happened to build last has already been
+    tried twice (515c835, dbdcc22) and reverted once for exactly this reason
+    (8ec2bba); this regression test exists because it was tried a third time
+    in between. Only building fresh, in the same job that packages/publishes,
+    guarantees the shipped bytes are the ones actually exercised by tests.
     """
+    gitignore = _text(".gitignore")
+    assert "web-chunks" in gitignore
+    assert "web/omnicam.js" in gitignore
     result = subprocess.run(
         ["git", "ls-files", "web-chunks", "web/omnicam.js"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
-    tracked = result.stdout.splitlines()
-    assert any(path.startswith("web-chunks/") for path in tracked)
-    assert "web/omnicam.js" in tracked
+    assert result.stdout.strip() == ""
 
 
-def test_publish_workflow_does_not_rebuild_the_frontend() -> None:
-    """The publish job must not regenerate what test_generated_frontend_is_
-    committed_not_synthesized_at_publish requires to already be tracked --
-    doing so would defeat the point of committing it. Delegating to the
-    official action is fine as long as its own checkout is skipped: our job
-    already checked out this commit, and nothing runs afterward that a second
-    checkout's git-clean could wipe -- unlike when this job used to build an
-    uncommitted, git-ignored bundle immediately before packaging.
+def test_publish_workflow_does_not_recheckout_after_frontend_build() -> None:
+    """The publish job must build web-chunks/ and web/omnicam.js itself,
+    immediately before packaging, and never hand off to an action whose own
+    checkout would git-clean that freshly built, gitignored bundle before
+    `comfy node publish` can pack it.
     """
     workflow = _text(".github/workflows/publish_action.yml")
-    publish_job = workflow[workflow.index("publish-node:"):]
-    assert "npm run build" not in publish_job
-    assert "npm ci" not in publish_job
-    assert "actions/setup-node" not in publish_job
-    if "Comfy-Org/publish-node-action" in publish_job:
-        assert "skip_checkout: true" in publish_job
+    build_command = "          npm run build"
+    publish_command = "          comfy --skip-prompt --no-enable-telemetry node publish"
+    build = workflow.index(build_command)
+    publish = workflow.index(publish_command)
+    assert build < publish
+    assert "Comfy-Org/publish-node-action" not in workflow
     assert "contents: read" in workflow
 
 
