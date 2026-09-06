@@ -6,6 +6,7 @@ import { renderSourceStageMedia } from "./source-stage.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
+import { ReconstructionPanelController } from "./reconstruction/panel.js";
 import { RefineController } from "./refine-controls.js";
 import {
   FINGERPRINT_WIDGET,
@@ -57,35 +58,7 @@ function widget(node, name) {
   return node?.widgets?.find((item) => item.name === name) || null;
 }
 
-const INTERNAL_WIDGETS = [SCENE_WIDGET, FINGERPRINT_WIDGET, SOURCE_WIDGET];
-
-function hideInternalWidgets(node) {
-  for (const name of INTERNAL_WIDGETS) {
-    const item = widget(node, name);
-    if (!item) continue;
-    item.computeSize = () => [0, -4];
-    item.draw = () => {};
-    item.hidden = true;
-    item.type = "hidden";
-    item.options = { ...(item.options || {}), hideInVueNodes: true, serialize: true };
-  }
-  node.setDirtyCanvas?.(true, true);
-}
-
-/**
- * Hide them again once the node has actually mounted.
- *
- * Flags set during `nodeCreated` are read before the Vue node builds its widget
- * rows, so they had no effect and the cached track JSON was rendered on the
- * node as a text field. Re-applying after a frame is what makes it stick.
- */
-function hideInternalWidgetsWhenMounted(node) {
-  hideInternalWidgets(node);
-  globalThis.requestAnimationFrame?.(() => hideInternalWidgets(node));
-  setTimeout(() => hideInternalWidgets(node), 250);
-}
-
-class ExtractorUI {
+export class ExtractorUI {
   constructor(node) {
     this.node = node;
     this.root = buildExtractorRoot();
@@ -145,6 +118,21 @@ class ExtractorUI {
       completed: (payload) => this.onCompleted(payload),
       failed: (payload) => this.dispatch({ type: "FAILED", error: payload.error }),
     }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
+
+    this.extractMode = "camera_track";
+    this.reconstruction = new ReconstructionPanelController({
+      root: this.root,
+      node: this.node,
+      api,
+      getSource: () => this.state.source?.ref || null,
+      onAdopt: () => {},
+      listen: (target, event, handler) => this.listen(target, event, handler),
+    });
+
+    const camModeBtn = this.$("extract-mode-camera");
+    const reconModeBtn = this.$("extract-mode-reconstruct");
+    if (camModeBtn) this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
+    if (reconModeBtn) this.listen(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
 
     this.bind();
     this.loadMotionLimits();
@@ -699,8 +687,27 @@ class ExtractorUI {
     this.acceptSolvedResult(result, "queued");
   }
 
+  setExtractMode(mode) {
+    this.extractMode = mode;
+    const isReconstruct = mode === "scene_reconstruct";
+    const reconPanel = this.$("reconstruction-panel");
+    if (reconPanel) reconPanel.hidden = !isReconstruct;
+
+    const camBtn = this.$("extract-mode-camera");
+    if (camBtn) camBtn.setAttribute("aria-selected", !isReconstruct ? "true" : "false");
+    const reconBtn = this.$("extract-mode-reconstruct");
+    if (reconBtn) reconBtn.setAttribute("aria-selected", isReconstruct ? "true" : "false");
+
+    const modeWidget = widget(this.node, "extract_mode");
+    if (modeWidget && modeWidget.value !== mode) {
+      modeWidget.value = mode;
+      this.node.setDirtyCanvas?.(true, true);
+    }
+  }
+
   dispose() {
     stopActiveSolveOnDispose(this.client, this.state);
+    this.reconstruction?.dispose();
     this.disposed = true;
     closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
     this.requests.dispose();
@@ -718,59 +725,5 @@ class ExtractorUI {
   }
 }
 
-// Called by web-src/main.js once the Extractor chunk has loaded. This module
-// has no startup side effects, which is what keeps it out of the eager chunk.
-export function attachExtractor(node) {
-  if (node.__majoorOmniCamExtractor) return;
-  ensureCacheWidgets(node);
-  if (!widget(node, SOURCE_WIDGET)) {
-    const item = node.addWidget?.("text", SOURCE_WIDGET, "", () => {}, { serialize: true });
-    if (item) {
-      item.computeSize = () => [0, -4];
-      item.draw = () => {};
-      item.hidden = true;
-    }
-  }
-  hideInternalWidgetsWhenMounted(node);
-  // Before the UI is built: its constructor restores the cached solve from
-  // these widgets, and they are only now able to hold what was saved.
-  restoreLateWidgetValues(node);
-
-  const ui = new ExtractorUI(node);
-  node.__majoorOmniCamExtractor = ui;
-  const preferredHeight = () => Math.max(700, ui.root.scrollHeight || 0);
-  node.addDOMWidget("majoor_omnicam_extractor", "omnicam", ui.root, {
-    serialize: false, hideOnZoom: false, getMinHeight: () => 700,
-    getHeight: preferredHeight, getMaxHeight: preferredHeight,
-  });
-  // Initial and minimum sizing is centralized in main.js's nodeCreated
-  // (web-src/shared/node-layout.js), which alone knows whether this is a
-  // fresh node or one being restored from a saved workflow.
-
-  const removed = node.onRemoved;
-  node.onRemoved = function () {
-    ui.dispose();
-    removed?.apply(this, arguments);
-  };
-  const executed = node.onExecuted;
-  node.onExecuted = function (message) {
-    executed?.apply(this, arguments);
-    ui.executed(message);
-  };
-  const changed = node.onConnectionsChange;
-  node.onConnectionsChange = function () {
-    changed?.apply(this, arguments);
-    ui.refreshSource();
-    // A just-picked upstream image can still be mid-decode: one more look
-    // shortly after catches the client-only preview once it finishes,
-    // without polling for the rest of the node's life.
-    setTimeout(() => { if (!ui.disposed) ui.refreshSource(); }, 400);
-  };
-  const configured = node.onAfterGraphConfigured;
-  node.onAfterGraphConfigured = function () {
-    configured?.apply(this, arguments);
-    ui.refreshSource();
-    ui.recoverStatus();
-  };
-}
+export { attachExtractor } from "./lifecycle.js";
 

@@ -5,6 +5,7 @@
 // string, which is what keeps a filename with an angle bracket in it from
 // becoming markup.
 
+import { t } from "../i18n.js";
 import { brandMarkup } from "../template/brand.js";
 import { EXTRACTOR_STYLES } from "./styles.js";
 
@@ -22,8 +23,57 @@ export function extractorMarkup() {
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
     </header>
 
+    <div class="oc-mode-bar" role="tablist" aria-label="Extractor mode">
+      <button type="button" class="oc-tab" data-role="extract-mode-camera" aria-selected="true">${t("Camera Track")}</button>
+      <button type="button" class="oc-tab" data-role="extract-mode-reconstruct" aria-selected="false">${t("Scene Reconstruct")}</button>
+    </div>
+
     <div class="oc-source" data-role="source-strip" data-available="false">
       <span class="oc-source-label" data-role="source-label">Connect a VIDEO input to track.</span>
+    </div>
+
+    <div class="oc-card oc-reconstruction-panel" data-role="reconstruction-panel" hidden>
+      <div class="oc-section">${t("Scene Reconstruction")}</div>
+      <div class="oc-rows">
+        <div class="oc-inline">
+          <label for="oc-recon-provider">${t("Provider")}</label>
+          <select id="oc-recon-provider" data-role="reconstruction-provider"></select>
+          <label for="oc-recon-mode">${t("Mode")}</label>
+          <select id="oc-recon-mode" data-role="reconstruction-mode">
+            <option value="geometry">${t("Geometry")}</option>
+            <option value="layout">${t("Layout")}</option>
+          </select>
+          <label for="oc-recon-quality">${t("Quality")}</label>
+          <select id="oc-recon-quality" data-role="reconstruction-quality">
+            <option value="fast">${t("Fast")}</option>
+            <option value="balanced" selected>${t("Balanced")}</option>
+            <option value="high">${t("High")}</option>
+          </select>
+        </div>
+        <div class="oc-inline">
+          <label class="oc-inline"><input data-role="reconstruction-recover-fov" type="checkbox" checked> ${t("Recover FOV")}</label>
+          <label class="oc-inline"><input data-role="reconstruction-source-texture" type="checkbox" checked> ${t("Source Texture")}</label>
+          <label class="oc-inline"><input data-role="reconstruction-detect-ground" type="checkbox" checked> ${t("Detect Ground")}</label>
+          <label class="oc-inline"><input data-role="reconstruction-detect-walls" type="checkbox"> ${t("Detect Walls")}</label>
+        </div>
+        <div class="oc-inline">
+          <label for="oc-recon-triangle-budget">${t("Triangle Budget")}</label>
+          <input id="oc-recon-triangle-budget" data-role="reconstruction-triangle-budget" type="number" min="1000" max="1000000" step="5000" value="100000">
+          <label for="oc-recon-edge-threshold">${t("Edge Threshold")}</label>
+          <input id="oc-recon-edge-threshold" data-role="reconstruction-edge-threshold" type="number" min="0.1" max="10" step="0.1" value="1.0">
+          <label for="oc-recon-scene-scale">${t("Scene Scale")}</label>
+          <input id="oc-recon-scene-scale" data-role="reconstruction-scene-scale" type="number" min="0.01" max="100" step="0.1" value="1.0">
+        </div>
+        <div class="oc-progress"><i data-role="reconstruction-progress" style="width:0%"></i></div>
+        <div data-role="reconstruction-stage" class="oc-stage-label"></div>
+        <div data-role="reconstruction-summary" class="oc-summary-box" hidden></div>
+        <div data-role="reconstruction-warnings" class="oc-warnings-box" hidden></div>
+        <div class="oc-actions">
+          <button type="button" class="oc-primary" data-role="reconstruction-run">${t("▶ RECONSTRUCT")}</button>
+          <button type="button" data-role="reconstruction-stop" disabled>${t("■ STOP")}</button>
+          <button type="button" class="oc-primary" data-role="reconstruction-open-director" disabled>${t("OPEN IN DIRECTOR")}</button>
+        </div>
+      </div>
     </div>
 
     <main class="oc-body">
