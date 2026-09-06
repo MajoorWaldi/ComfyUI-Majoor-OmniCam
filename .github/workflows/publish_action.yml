@@ -39,20 +39,13 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Set up Node
-        uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-      - name: Build the frontend bundle
-        # web-chunks/ and web/omnicam.js are generated, not committed. Build
-        # immediately before packaging and keep this workspace intact through
-        # `comfy node publish`; a second checkout would git-clean these files.
-        run: |
-          npm ci
-          npm run build
-          test -f web/omnicam.js
-          test -d web-chunks
+      # No frontend build here: web-chunks/ and web/omnicam.js are committed
+      # (see .gitignore), and the `frontend` job above (this workflow's
+      # `needs: test`) already builds and tests them from source on every run.
+      # Publishing the checked-out tree as-is, instead of regenerating it in
+      # this job, means the archive the Registry receives is byte-for-byte
+      # what this commit shows on GitHub -- nothing is synthesized here for a
+      # reviewer to take on faith.
       - name: Fetch current external adapter contracts
         run: |
           git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git .adapter-release/ltx
@@ -62,12 +55,12 @@ jobs:
         # contract OmniCam pins has drifted. The weekly canary stays advisory;
         # this step is blocking.
         run: python scripts/adapter_contract_canary.py .adapter-release/ltx .adapter-release/wan-video-wrapper
-      - name: Install Comfy CLI
-        run: pip install comfy-cli
       - name: Publish Custom Node
-        # Do not use the pinned publish-node composite action here: that action
-        # performs its own actions/checkout, whose default git clean removes the
-        # generated, git-ignored frontend immediately before packaging.
-        run: |
-          comfy --skip-prompt --no-enable-telemetry env
-          comfy --skip-prompt --no-enable-telemetry node publish --token "${{ secrets.REGISTRY_ACCESS_TOKEN }}"
+        # The official action's own checkout is redundant now that nothing is
+        # generated in this job (skip_checkout avoids doing it twice); its
+        # earlier git-clean risk to a freshly built, uncommitted bundle no
+        # longer applies, so there is no more reason to hand-roll comfy-cli.
+        uses: Comfy-Org/publish-node-action@main
+        with:
+          personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          skip_checkout: true

@@ -38,3 +38,9 @@ requirements-dev.txt
 AGENTS.md
 .template-contract.json
 docs/superpowers/
+
+# README/doc illustrations: 8.2 of the package's 11.4 MB, and nothing at
+# runtime reads them. They are already served from raw.githubusercontent.com
+# (README.md points there, as do the Registry's banner_url and icon), so
+# shipping them only made every install download 8 MB of pictures.
+docs/assets/

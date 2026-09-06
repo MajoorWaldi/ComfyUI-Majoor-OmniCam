@@ -26,14 +26,14 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/omnicam-cover.png" width="900" alt="Majoor OmniCam — camera control for generative video: Extract, Direct, Monitor">
+  <img src="https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-cover.png" width="900" alt="Majoor OmniCam — camera control for generative video: Extract, Direct, Monitor">
 </p>
 
 <p align="center">
-  <img src="docs/assets/omnicam-demo.gif" width="760" alt="Authoring a camera move in the OmniCam Director viewport">
+  <img src="https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-demo.gif" width="760" alt="Authoring a camera move in the OmniCam Director viewport">
 </p>
 
-<p align="center"><em><a href="docs/assets/omnicam-preview.mp4">▶ Full walkthrough (MP4)</a></em></p>
+<p align="center"><em><a href="https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-preview.mp4">▶ Full walkthrough (MP4)</a></em></p>
 
 Video models do not agree on how to be told about motion. One wants camera
 extrinsics, another wants 2D trajectories, a third wants a reference video and a
@@ -54,7 +54,7 @@ retain authoring-grid information (canvas size, authoring fps, duration) where
 required, and compile to any model resolution or frame rate. It is what travels
 between the nodes.
 
-![The full OmniCam graph: Load Video, Extractor, Director, Monitor, Save Video](docs/assets/omnicam-overview.png)
+![The full OmniCam graph: Load Video, Extractor, Director, Monitor, Save Video](https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-overview.png)
 
 ## Install
 
@@ -94,7 +94,7 @@ navigation gestures, display-scale-aware pan and normalized wheel zoom. Press
 `F` to fit the entire selection in perspective or orthographic views, and
 `Escape` to cancel a drag. See [controls and shortcuts](docs/SHORTCUTS.md).
 
-![OmniCam Director](docs/assets/director-panel.png)
+![OmniCam Director](https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/director-panel.png)
 
 A small shot-layout tool in a live 3D viewport. Animate cameras and scene
 references, draw motion layers over the frame, cut between cameras, and record a
@@ -102,7 +102,7 @@ neutral proxy playblast. This is where a MotionScene is authored.
 
 ### OmniCam Extractor
 
-![OmniCam Extractor](docs/assets/extractor-panel.png)
+![OmniCam Extractor](https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/extractor-panel.png)
 
 Recover a relative 6DoF camera track from one continuous reference shot and hand
 it on as a solved MotionScene. Connect it to the Director's `solved_scene` input
@@ -114,7 +114,7 @@ server-decoded frames when a container will not decode in the browser.
 
 ### OmniCam Monitor
 
-![OmniCam Monitor](docs/assets/monitor-panel.png)
+![OmniCam Monitor](https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/monitor-panel.png)
 
 The model compiler. Pick a target profile; Monitor resolves the timeline,
 compiles the MotionScene into that model's representation, and runs a preflight

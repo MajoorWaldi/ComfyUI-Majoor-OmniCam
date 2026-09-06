@@ -1,6 +1,6 @@
 [project]
 name = "majoor-omnicam"
-version = "0.1.1"
+version = "0.1.2"
 description = "Interactive camera authoring and proxy-reference playblasts for ComfyUI video models."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,9 +28,11 @@ DisplayName = "Majoor OmniCam"
 Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.png"
 Banner = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-cover.png"
 requires-comfyui = ">=0.31.0"
-# Vite output is intentionally git-ignored because Rollup chunk hashes are not
-# byte-reproducible across OSes. Registry `includes` is the official mechanism
-# for forcing generated frontend directories into the published archive.
+# web-chunks/ and web/omnicam.js are committed (see .gitignore), not built at
+# publish time -- what the Registry receives is exactly this repo's tracked
+# tree. `includes` is still needed because comfy-cli's own packer applies its
+# usual source/tooling heuristics on top of .comfyignore, and a built JS
+# bundle looks like exactly the kind of generated output it otherwise omits.
 includes = ["web", "web-chunks"]
 
 [tool.ruff]

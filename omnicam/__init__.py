@@ -5,6 +5,6 @@ and tests can run in normal Python tooling outside a live ComfyUI process.
 The custom-node entrypoint lives in the repository root ``__init__.py``.
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = ["__version__"]
