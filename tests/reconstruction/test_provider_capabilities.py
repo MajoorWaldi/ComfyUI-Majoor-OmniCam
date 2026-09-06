@@ -16,11 +16,22 @@ from omnicam.reconstruction.types import GeometryEvidence, ReconstructionSource
 
 
 def test_provider_base_import_triggers_no_comfyui():
-    # Verify importing provider base does not drag in ComfyUI or comfy_api
-    loaded_modules = set(sys.modules.keys())
-    # Should not have loaded comfy or folder_paths
-    assert not any(m == "comfy" or m.startswith("comfy.") for m in loaded_modules)
-    assert "folder_paths" not in loaded_modules
+    # Verify importing provider base in a fresh interpreter does not drag in ComfyUI or comfy_api
+    import subprocess
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; from omnicam.reconstruction.providers.base import ReconstructionProvider; "
+            "assert not any(m == 'comfy' or m.startswith('comfy.') for m in sys.modules); "
+            "assert 'folder_paths' not in sys.modules",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 0, f"Import dragged in comfy modules: {proc.stderr}"
 
 
 def test_provider_capabilities_json_safe():

@@ -51,6 +51,15 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                     ),
                 ),
                 IO.Combo.Input(
+                    "extract_mode",
+                    options=["camera_track", "scene_reconstruct"],
+                    default="camera_track",
+                    tooltip=(
+                        "Mode: camera_track solves 6DoF camera motion from video; "
+                        "scene_reconstruct recovers 3D proxy scene from a single still image."
+                    ),
+                ),
+                IO.Combo.Input(
                     "method",
                     options=["auto", "dpvo", "pycolmap", "opencv_sift"],
                     default="auto",
@@ -87,7 +96,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         )
 
     @classmethod
-    def execute(
+    def _execute_camera_track(
         cls,
         video,
         method: str,
@@ -129,6 +138,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         motion_scene = motion_scene_from_camera_track(result.track).to_dict()
         envelope = {
             "kind": RESULT_ENVELOPE_KIND,
+            "mode": "camera_track",
             "fingerprint": result.fingerprint,
             "motion_scene": motion_scene,
             "solver_coverage": result.confidence,
@@ -140,4 +150,52 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             result.confidence,
             result.report,
             ui=UI.PreviewText(json.dumps(envelope, separators=(",", ":"))),
+        )
+
+    @classmethod
+    def execute(
+        cls,
+        video,
+        extract_mode: str = "camera_track",
+        method: str = "auto",
+        lens_mode: str = "auto",
+        fov_degrees: float = 53.0,
+        focal_length_mm: float = 24.0,
+        sensor_width_mm: float = 36.0,
+        max_dimension: int = 840,
+        frame_step: int = 1,
+        normalize_origin: bool = True,
+        motion_scale: float = 1.0,
+        position_smoothing: float = 0.15,
+        rotation_smoothing: float = 0.10,
+        simplify_keys: bool = True,
+        position_tolerance: float = 0.01,
+        rotation_tolerance_deg: float = 0.25,
+    ) -> IO.NodeOutput:
+        if extract_mode == "scene_reconstruct":
+            from ..reconstruction.node_bridge import execute_reconstruction
+
+            motion_scene, confidence, report, envelope = execute_reconstruction(video)
+            return IO.NodeOutput(
+                motion_scene,
+                confidence,
+                report,
+                ui=UI.PreviewText(json.dumps(envelope, separators=(",", ":"))),
+            )
+        return cls._execute_camera_track(
+            video=video,
+            method=method,
+            lens_mode=lens_mode,
+            fov_degrees=fov_degrees,
+            focal_length_mm=focal_length_mm,
+            sensor_width_mm=sensor_width_mm,
+            max_dimension=max_dimension,
+            frame_step=frame_step,
+            normalize_origin=normalize_origin,
+            motion_scale=motion_scale,
+            position_smoothing=position_smoothing,
+            rotation_smoothing=rotation_smoothing,
+            simplify_keys=simplify_keys,
+            position_tolerance=position_tolerance,
+            rotation_tolerance_deg=rotation_tolerance_deg,
         )

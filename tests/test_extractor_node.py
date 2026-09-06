@@ -81,6 +81,7 @@ def test_node_execution_emits_a_one_camera_motion_scene_and_a_ui_envelope(clip, 
 
     envelope = json.loads(output.ui.as_dict()["text"][0])
     assert envelope["kind"] == RESULT_ENVELOPE_KIND
+    assert envelope["mode"] == "camera_track"
     assert envelope["fingerprint"] == track["metadata"]["extractor_fingerprint"]
     assert envelope["motion_scene"] == motion_scene
     assert envelope["solver_coverage"] == solver_coverage

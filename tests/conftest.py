@@ -4,13 +4,33 @@ The extractor needs a real decodable clip, and writing one per test module
 would encode the same PyAV incantation three times.
 """
 
+import sys
 from fractions import Fraction
+from pathlib import Path
 
-import numpy as np
-import pytest
+# Ensure server and folder_paths stubs exist so tests don't load host ComfyUI's CUDA server
+if "server" not in sys.modules:
+    import types
+    try:
+        from aiohttp import web
+        _routes = web.RouteTableDef()
+    except ImportError:
+        _routes = []
+    _server_stub = types.ModuleType("server")
+    _server_stub.PromptServer = types.SimpleNamespace(
+        instance=types.SimpleNamespace(routes=_routes, send_sync=lambda *args, **kwargs: None)
+    )
+    sys.modules["server"] = _server_stub
 
-from omnicam.adapters.registry import ADAPTER_INFO
-from omnicam.capabilities import detect_capabilities
+_comfy_root = Path(__file__).resolve().parents[3]
+if (_comfy_root / "comfy_api").is_dir() and str(_comfy_root) not in sys.path:
+    sys.path.insert(0, str(_comfy_root))
+
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+
+from omnicam.adapters.registry import ADAPTER_INFO  # noqa: E402
+from omnicam.capabilities import detect_capabilities  # noqa: E402
 
 
 class FakeVideo:
