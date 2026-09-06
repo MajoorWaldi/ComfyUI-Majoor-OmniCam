@@ -95,3 +95,4 @@ export function attachExtractor(node) {
     ui.recoverStatus();
   };
 }
+

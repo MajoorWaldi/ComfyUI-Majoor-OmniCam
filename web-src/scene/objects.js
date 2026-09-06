@@ -47,8 +47,6 @@ export async function renameObject(ui, id) {
   ui.setStatus(t(`Object renamed: ${object.name}`));
 }
 
-export { toggleObjectLock } from "./reconstruction-badges.js";
-
 export function duplicateObject(ui, id) {
   const source = ui.state.objects.find((item) => item.id === id);
   if (!source) return;
@@ -90,6 +88,16 @@ export function toggleObject(ui, id) {
   ui.refreshObjects();
   ui.render();
   ui.setStatus(t(`${object.name || object.type} ${object.enabled ? "shown" : "hidden"}`));
+}
+
+export function toggleObjectLock(ui, object) {
+  if (!object) return;
+  ui.checkpoint("Toggle object lock");
+  object.locked = !object.locked;
+  ui.serialize();
+  ui.refreshObjects?.();
+  ui.refreshInspector?.();
+  ui.render?.();
 }
 
 export async function deleteObject(ui, id) {

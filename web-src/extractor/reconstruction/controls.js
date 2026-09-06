@@ -66,3 +66,4 @@ export function bindReconstructionControls(
   const openBtn = root.querySelector('[data-role="reconstruction-open-director"]');
   if (openBtn) listen(openBtn, "click", onOpenDirector);
 }
+

@@ -118,6 +118,8 @@ export const EXTRACTOR_STYLES = `${SHARED_STYLES}${LOWER_DECK_STYLES}
   /* Layout rules set a display value, which outranks the user-agent [hidden]
      rule. Without these the view buttons stayed on screen in SOURCE mode
      however often the panel set hidden=true. */
+  .oc-extractor [hidden]{display:none}
+  .oc-extractor .oc-views[hidden]{display:none}
   .oc-extractor .oc-mode-bar{display:flex;gap:6px;padding:6px 12px;background:var(--oc-panel);border-bottom:1px solid var(--oc-line)}
   .oc-extractor .oc-mode-btn{padding:4px 10px;font-size:12px;font-weight:600;background:var(--oc-sunken);border:1px solid var(--oc-line);color:var(--oc-text-dim);cursor:pointer;border-radius:5px}
   .oc-extractor .oc-mode-btn[aria-selected="true"]{background:var(--oc-accent);border-color:var(--oc-accent);color:var(--oc-accent-ink)}

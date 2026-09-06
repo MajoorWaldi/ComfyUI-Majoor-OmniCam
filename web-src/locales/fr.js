@@ -566,6 +566,7 @@ export const FR = {
   "Lock object": "Verrouiller l'objet",
   "Unlock object": "Déverrouiller l'objet",
   "Lock / unlock object": "Verrouiller / déverrouiller l'objet",
-  "Object is locked": "L'objet est verrouillé"
+  "Object is locked": "L'objet est verrouillé",
 };
 export default FR;
+
