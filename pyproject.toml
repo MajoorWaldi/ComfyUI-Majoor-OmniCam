@@ -1,6 +1,6 @@
 [project]
 name = "majoor-omnicam"
-version = "0.1.2"
+version = "0.2.0"
 description = "Interactive camera authoring and proxy-reference playblasts for ComfyUI video models."
 readme = "README.md"
 requires-python = ">=3.10"
