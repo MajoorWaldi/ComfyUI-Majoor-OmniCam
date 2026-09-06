@@ -244,6 +244,20 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
         raise ValidationError(f"{path}.asset must be a media annotation string")
     if isinstance(asset, str) and len(asset) > 512:
         raise ValidationError(f"{path}.asset annotation is too long")
+    recon = obj.get("reconstruction")
+    if recon is not None:
+        if not isinstance(recon, dict):
+            raise ValidationError(f"{path}.reconstruction must be an object")
+        recon_dict = dict(recon)
+        if "confidence" in recon_dict:
+            recon_dict["confidence"] = clamp_number(recon_dict["confidence"], 0.0, 1.0, f"{path}.reconstruction.confidence")
+        for str_key in ("provider", "role", "source_kind"):
+            if str_key in recon_dict:
+                val = str(recon_dict[str_key])
+                if len(val) > 80:
+                    raise ValidationError(f"{path}.reconstruction.{str_key} must be at most 80 characters")
+                recon_dict[str_key] = val
+        obj["reconstruction"] = recon_dict
     return obj
 
 
