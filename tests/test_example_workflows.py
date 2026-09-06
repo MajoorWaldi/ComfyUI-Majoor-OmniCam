@@ -68,11 +68,13 @@ def test_node_sockets_match_the_live_schemas(path: Path):
     pytest.importorskip("comfy_api.latest")
 
     from omnicam.nodes.director import MajoorOmniCamDirector
+    from omnicam.nodes.extractor import MajoorOmniCamExtractor
     from omnicam.nodes.monitor import MajoorOmniCamMonitor
 
     schemas = {
         "MajoorOmniCamDirector": MajoorOmniCamDirector.define_schema(),
         "MajoorOmniCamMonitor": MajoorOmniCamMonitor.define_schema(),
+        "MajoorOmniCamExtractor": MajoorOmniCamExtractor.define_schema(),
     }
 
     for node in _load(path)["nodes"]:

@@ -361,6 +361,65 @@ only the largest is used, and it is reported as a warning rather than silently
 bridged. Unlike DPVO, `pip install pycolmap` is the entire installation: it
 ships prebuilt Windows wheels with no CUDA extension to compile.
 
+### Scene Reconstruction Mode
+
+Extractor features two operating modes:
+- **Camera Track** (`extract_mode: "camera_track"`, default): recovers relative 6DoF camera motion from continuous video footage.
+- **Scene Reconstruct** (`extract_mode: "scene_reconstruct"`): recovers a 3D proxy scene (mesh, hold camera, and ground/wall planes) from a single still reference image.
+
+When switched to Scene Reconstruct mode, the panel provides interactive 3D proxy scene recovery without queueing a ComfyUI prompt or running diffusion models.
+
+#### Providers & Capabilities
+
+- **`comfy_moge`**: Uses ComfyUI's native geometry estimation subsystem (`comfy_extras.nodes_moge`). Requires a MoGe checkpoint placed in `ComfyUI/models/geometry_estimation/`.
+- **No auto-download policy**: OmniCam never triggers silent package installs or weight downloads. If a checkpoint is missing, the panel surfaces a clear status message with placement instructions.
+
+#### Reconstruction Controls & Quality Presets
+
+| Quality Preset | Resolution | Triangle Budget | Use Case |
+|---|---|---|---|
+| `fast` | 360 px | 32,000 | Fast preview and coarse blocking |
+| `balanced` | 512 px | 64,000 | Default setting; good surface detail |
+| `high` | 720 px | 120,000 | Detailed proxy geometry and contours |
+
+Options:
+- **Ground Plane** (default on): Runs seeded deterministic RANSAC on the estimated point cloud to identify the dominant ground surface and generate a ground proxy plane.
+- **Wall Planes** (default off): Identifies vertical surface planes and emits bounded proxy boxes.
+- **Source Texture** (default on): Projects and bakes the input image UV texture onto the exported proxy GLB mesh.
+
+#### Reconstruction Routes
+
+Interactive reconstruction uses dedicated no-prompt HTTP routes:
+
+```text
+GET    /majoor/omnicam/reconstruction/capabilities
+POST   /majoor/omnicam/reconstruction/jobs
+GET    /majoor/omnicam/reconstruction/jobs/{job_id}
+POST   /majoor/omnicam/reconstruction/jobs/{job_id}/stop
+GET    /majoor/omnicam/reconstruction/jobs/{job_id}/result
+DELETE /majoor/omnicam/reconstruction/jobs/{job_id}
+```
+
+Progress events are delivered over WebSocket (`omnicam.reconstruction.progress`, `omnicam.reconstruction.status`) with monotonic progress through documented bands (`PREPARING`, `ESTIMATING`, `SURFACING`, `ANALYZING`, `WRITING`, `DONE`).
+
+#### Output & MotionScene Additive Contract
+
+Scene reconstruction compiles into a canonical `OMNICAM_MOTION_SCENE` v1 document:
+- **`MotionScene.version` is unchanged (1)**: Full backward and forward compatibility.
+- Environment mesh is saved as a managed GLB asset below `ComfyUI/input/majoor_omnicam/reconstruction/<fingerprint>/environment.glb`.
+- Reconstructed objects carry additive metadata under `object.reconstruction`:
+  - `provider`: provider identifier (e.g. `"comfy_moge"`).
+  - `provider_version`: provider version string.
+  - `role`: `"environment"`, `"ground"`, or `"wall"`.
+  - `source_kind`: `"image"`.
+  - `confidence`: float in `[0.0, 1.0]` (computed from inlier ratio, orientation, coverage).
+  - `quality_preset`: `"fast"`, `"balanced"`, or `"high"`.
+  - `fingerprint`: 16-character content-addressed digest.
+  - `scale_mode`: `"relative"` or `"metric"`.
+  - `normals_valid`: boolean indicating geometry normal validity.
+- Objects start with `locked: true` to prevent accidental editing, with confidence badges rendered in Director.
+- The scene includes a source hold camera at frame 0 matching the recovered FOV.
+
 ---
 
 ## OmniCam Monitor — `MajoorOmniCamMonitor`

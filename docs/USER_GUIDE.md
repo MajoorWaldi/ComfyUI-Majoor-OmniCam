@@ -37,6 +37,25 @@ reference, not a final render.
 
 Extractor returns relative camera motion. It does not reconstruct metric scene scale or stitch across hard cuts.
 
+## Reconstruct 3D Scene from an Image
+
+1. Add **OmniCam Extractor**.
+2. Connect an image (via `Load Image` or any `IMAGE` socket).
+3. Switch the Extractor panel mode to **Scene Reconstruct**.
+4. Choose a quality preset:
+   - **Fast**: 360px resolution, 32k triangle budget — quick turnaround.
+   - **Balanced** (default): 512px resolution, 64k triangle budget — balanced detail.
+   - **High**: 720px resolution, 120k triangle budget — fine geometry contours.
+5. Choose detection options:
+   - **Ground Plane**: detects the dominant floor plane with RANSAC and adds a calibrated ground proxy.
+   - **Wall Planes**: fits vertical surface planes (disabled by default).
+   - **Source Texture**: embeds the image UV texture into the proxy GLB.
+6. Click **Reconstruct Scene** to run geometry estimation interactively (runs outside the Comfy prompt queue).
+7. Click **Open in Director** to adopt the reconstructed environment mesh and camera hold into the Director viewport.
+
+In Director, reconstructed objects appear locked by default to prevent accidental moves, with confidence badges (`High`, `Medium`, `Low`) reflecting estimation inlier ratios. Toggle **Reconstruction Appearance** between `Neutral` (ideal for `omni_ref` conditioning playblasts) and `Source Texture` (for interactive shot staging).
+
+
 ## Deliver to a Video Workflow
 
 1. Connect `motion_scene` from Director or Extractor to **OmniCam Monitor**.
@@ -110,6 +129,16 @@ the first one actually installed. See
 [Installing DPVO](TECHNICAL_REFERENCE.md#installing-dpvo) for the DPVO build
 procedure, and the rest of the [Technical Reference](TECHNICAL_REFERENCE.md)
 for runtime details.
+
+### Geometry Estimation (Scene Reconstruction)
+
+Scene Reconstruction uses ComfyUI's native geometry estimation backend (`comfy_extras.nodes_moge`). It requires a MoGe checkpoint placed in:
+
+```text
+ComfyUI/models/geometry_estimation/
+```
+
+OmniCam adheres to a strict **no auto-download policy**: models and packages are never downloaded automatically in the background. If the checkpoint is absent, Extractor surfaces clear setup instructions while camera-tracking continues to operate normally.
 
 ## Help and Troubleshooting
 

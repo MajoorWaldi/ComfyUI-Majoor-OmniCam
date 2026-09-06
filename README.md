@@ -104,13 +104,11 @@ neutral proxy playblast. This is where a MotionScene is authored.
 
 ![OmniCam Extractor](https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/extractor-panel.png)
 
-Recover a relative 6DoF camera track from one continuous reference shot and hand
-it on as a solved MotionScene. Connect it to the Director's `solved_scene` input
-to keep editing the recovered move, or take it straight to Monitor.
+Two extraction modes:
+- **Camera Track**: Recover a relative 6DoF camera track from one continuous reference shot and hand it on as a solved MotionScene. Connect it to the Director's `solved_scene` input to keep editing the recovered move, or take it straight to Monitor.
+- **Scene Reconstruct**: Reconstruct a 3D proxy scene (environment mesh, hold camera, and ground/wall planes) from a single still reference image using ComfyUI's native geometry estimation (MoGe). Adopt the proxy environment directly into Director with lock controls, confidence badges, and neutral/textured playblast rendering.
 
-Solves run outside the prompt queue, so you are not queueing a workflow to see a
-trajectory. Preview uses native browser video first and falls back to
-server-decoded frames when a container will not decode in the browser.
+Solves and reconstructions run interactively outside the prompt queue without loading diffusion models or executing the workflow. Preview uses native browser video first and falls back to server-decoded frames when a container will not decode in the browser.
 
 ### OmniCam Monitor
 
@@ -155,7 +153,7 @@ Switching profile never changes the MotionScene. It does change which Monitor ou
 4. Read the preflight, then connect the output named in the table above.
 
 To start from footage instead, put **OmniCam Extractor** in front and wire its
-`motion_scene` output to the Director's `solved_scene` input.
+`motion_scene` output to the Director's `solved_scene` input. To start from a still image, use Extractor in Scene Reconstruct mode to create a 3D proxy environment and open it in Director.
 
 Complete runnable graphs are in [`examples/workflows/`](examples/workflows):
 each is the official Comfy-Org template for that model with its motion source

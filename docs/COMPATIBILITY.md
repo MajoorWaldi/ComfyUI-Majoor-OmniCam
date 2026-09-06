@@ -51,3 +51,12 @@ results live in [CONFORMANCE.md](CONFORMANCE.md).
 | auto | DPVO → pycolmap → OpenCV/SIFT |
 
 OmniCam never installs these packages at runtime.
+
+## Geometry Estimation Providers (Scene Reconstruction)
+
+| Provider | Host Subsystem | Required Checkpoint Path | State | Policy |
+|---|---|---|---|---|
+| `comfy_moge` | `comfy_extras.nodes_moge` | `ComfyUI/models/geometry_estimation/` | optional / native core | No auto-download; graceful degradation if missing |
+
+When the MoGe checkpoint is not present, `/majoor/omnicam/reconstruction/capabilities` reports `available: false` with the target folder path. Extractor displays this requirement in the UI and keeps camera tracking functional without runtime exceptions.
+

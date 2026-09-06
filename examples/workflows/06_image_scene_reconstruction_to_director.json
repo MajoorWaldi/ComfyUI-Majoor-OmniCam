@@ -1,0 +1,382 @@
+{
+  "id": "e812d450-9c2b-41ec-b5a9-352f21f0cc7d",
+  "revision": 0,
+  "last_node_id": 6,
+  "last_link_id": 6,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        -2800,
+        100
+      ],
+      "size": [
+        330,
+        360
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "input_room.png",
+        "image"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "MajoorOmniCamExtractor",
+      "pos": [
+        -2400,
+        100
+      ],
+      "size": [
+        520,
+        680
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "IMAGE,VIDEO",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "solver_coverage",
+          "type": "FLOAT",
+          "links": null,
+          "slot_index": 1
+        },
+        {
+          "name": "report",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamExtractor"
+      },
+      "widgets_values": [
+        "scene_reconstruct",
+        "auto",
+        "auto",
+        53.0,
+        24.0,
+        36.0,
+        840,
+        1,
+        true,
+        1.0,
+        0.15,
+        0.1,
+        true,
+        0.01,
+        0.25
+      ]
+    },
+    {
+      "id": 3,
+      "type": "MajoorOmniCamDirector",
+      "pos": [
+        -1800,
+        100
+      ],
+      "size": [
+        880,
+        680
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE,VIDEO",
+          "link": null
+        },
+        {
+          "name": "video",
+          "type": "VIDEO,IMAGE",
+          "link": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "scene_3d",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "solved_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO",
+          "links": [
+            4
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": null,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamDirector"
+      },
+      "widgets_values": [
+        "{}",
+        "",
+        "",
+        1280,
+        720,
+        24,
+        5.0,
+        "omni_ref"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "MajoorOmniCamMonitor",
+      "pos": [
+        -850,
+        100
+      ],
+      "size": [
+        420,
+        340
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 3
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO,IMAGE",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_prompt",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 0
+        },
+        {
+          "name": "reference_video",
+          "type": "VIDEO",
+          "links": [
+            5
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "links": null,
+          "slot_index": 2
+        },
+        {
+          "name": "camera_embedding",
+          "type": "WAN_CAMERA_EMBEDDING",
+          "links": null,
+          "slot_index": 3
+        },
+        {
+          "name": "native_tracks",
+          "type": "TRACKS",
+          "links": null,
+          "slot_index": 4
+        },
+        {
+          "name": "tracks_json",
+          "type": "STRING",
+          "links": null,
+          "slot_index": 5
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "links": null,
+          "slot_index": 6
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "links": null,
+          "slot_index": 7
+        },
+        {
+          "name": "target_length",
+          "type": "INT",
+          "links": null,
+          "slot_index": 8
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamMonitor"
+      },
+      "widgets_values": [
+        "Cinematic slow push-in through the reconstructed room.",
+        "h3_api",
+        1280,
+        720,
+        5.0,
+        24.0
+      ]
+    },
+    {
+      "id": 5,
+      "type": "SaveVideo",
+      "pos": [
+        -380,
+        100
+      ],
+      "size": [
+        350,
+        110
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "properties": {},
+      "widgets_values": [
+        "video/Reconstruction_Reference",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "MarkdownNote",
+      "pos": [
+        -2800,
+        -180
+      ],
+      "size": [
+        650,
+        240
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# OmniCam — Still Image Scene Reconstruction to Director\n\nConvert a single still image into an editable 3D proxy scene, block camera moves in Director, and compile conditioning for video models.\n\n### How to use\n1. Feed a still image into `MajoorOmniCamExtractor`.\n2. In the Extractor panel, click **Scene Reconstruct** mode, choose a quality preset, and click **▶ RECONSTRUCT**.\n3. Click **OPEN IN DIRECTOR** to adopt the reconstructed environment mesh and fitted ground plane.\n4. Animate your camera in Director, record a playblast, and queue to compile through Monitor."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      2,
+      0,
+      3,
+      4,
+      "OMNICAM_MOTION_SCENE"
+    ],
+    [
+      3,
+      3,
+      0,
+      4,
+      0,
+      "OMNICAM_MOTION_SCENE"
+    ],
+    [
+      4,
+      3,
+      1,
+      4,
+      1,
+      "VIDEO"
+    ],
+    [
+      5,
+      4,
+      1,
+      5,
+      0,
+      "VIDEO"
+    ]
+  ]
+}
