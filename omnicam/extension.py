@@ -6,6 +6,7 @@ from .comfy_compat import ComfyExtension, register_shutdown_callback
 from .extractor.jobs.manager import solve_manager
 from .extractor.materialize import cleanup_runtime_videos
 from .node_registry import get_registered_nodes
+from .reconstruction.jobs.routes import get_reconstruction_job_manager
 
 
 def _shutdown_extractor_runtime() -> None:
@@ -13,10 +14,15 @@ def _shutdown_extractor_runtime() -> None:
     cleanup_runtime_videos()
 
 
+def _shutdown_reconstruction_runtime() -> None:
+    get_reconstruction_job_manager().shutdown()
+
+
 class MajoorOmniCamExtension(ComfyExtension):
     async def on_load(self) -> None:
         cleanup_runtime_videos()
         register_shutdown_callback("extractor-workers", _shutdown_extractor_runtime)
+        register_shutdown_callback("reconstruction-jobs", _shutdown_reconstruction_runtime)
 
     @override
     async def get_node_list(self):

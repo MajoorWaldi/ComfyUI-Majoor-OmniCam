@@ -1,34 +1,47 @@
 // Lower deck: camera preview, transport bar, dope sheet, graph editor.
 
 export const LOWER_DECK_STYLES = `
-      .majoor-omnicam .oc-lower{display:grid;grid-template-columns:236px minmax(0,1fr);gap:8px;padding:0 8px 8px}
+      /* The Outliner tab escapes the shared 520px side-panel scroll box: its
+         list has an explicit, drag-controlled height (see .scene-tree) and the
+         node grows to fit, so a nested max-height here would just re-introduce
+         the cramped inner scrollbar the resize handle exists to avoid. The
+         other tabs (Inspector, Shot, Health) keep the shared cap. */
+      .majoor-omnicam .oc-side-body[data-tab-panel="scene"]{max-height:none;overflow:visible}
+      .majoor-omnicam .oc-lower{display:grid;grid-template-columns:var(--oc-preview-w,236px) 9px minmax(0,1fr);gap:8px;padding:0 8px 8px}
       .majoor-omnicam .oc-preview{display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);position:static;width:auto}
       .majoor-omnicam .oc-preview-head{display:flex;align-items:center;gap:6px;color:var(--oc-text-dim);font-size:11px}
       .majoor-omnicam .oc-preview-head>span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .majoor-omnicam .oc-preview .camera-strip-close{position:static;width:24px;height:24px;min-width:24px;padding:0;flex:none}
-      /* The strip moved from a full-width row under the viewport into a 236px
-         sidebar column, but kept the row rules: grid-auto-flow:column with a
-         220px minimum per tile and overflow-x:auto. Four cameras then needed
-         898px of horizontal scroll inside a 216px box, so none of them was
-         fully visible. In the sidebar the tiles stack downward instead. */
-      .majoor-omnicam .oc-preview .camera-preview-strip{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:minmax(0,1fr);grid-auto-rows:auto;gap:6px;max-height:min(46vh,420px);overflow-x:hidden;overflow-y:auto;padding:0;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
+      /* Flex column, not grid: an aspect-ratio grid item inside a max-height,
+         overflow:auto grid track gets its row shrunk below its own computed
+         height in Chromium/Edge, so consecutive tiles drew on top of each
+         other and no camera framed correctly. A flex column with flex:0 0 auto
+         tiles simply stacks -- each tile keeps its full aspect height and the
+         strip grows to fit (the node grows with it), so every camera view is
+         whole. The strip is no longer capped: widening the column via the
+         splitter is meant to enlarge the previews. */
+      .majoor-omnicam .oc-preview .camera-preview-strip{display:flex;flex-direction:column;flex-wrap:nowrap;gap:6px;max-height:none;overflow:visible;padding:0;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-preview .camera-preview-strip:empty{min-height:120px}
       /* A preview whose box is not the shot's shape shows a framing the render
          will not produce. The tile takes the shot aspect; --shot-aspect is set
          from state.width/height in refreshCameraPreviews(). */
-      .majoor-omnicam .oc-preview .camera-preview-tile{height:auto;min-height:0;aspect-ratio:var(--shot-aspect,16/9)}
+      .majoor-omnicam .oc-preview .camera-preview-tile{flex:0 0 auto;width:100%;height:auto;min-height:0;aspect-ratio:var(--shot-aspect,16/9)}
       .majoor-omnicam .oc-preview .camera-preview-head{min-height:0;padding:2px 5px;font-size:9.5px}
       /* The sidebar tile is ~120px tall; the badge repeats what the header
          already says and only collides with the tile edge at this size. */
       .majoor-omnicam .oc-preview .camera-view-badge{display:none}
+      /* preview_layout 2 / 4: two tiles per row instead of one tall column. */
       .majoor-omnicam .oc-preview .camera-preview-strip[data-layout="2"],
-      .majoor-omnicam .oc-preview .camera-preview-strip[data-layout="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}
-      .majoor-omnicam .oc-preview .camera-preview-strip[data-layout="1"]{grid-template-columns:minmax(0,1fr)}
+      .majoor-omnicam .oc-preview .camera-preview-strip[data-layout="4"]{flex-flow:row wrap}
+      .majoor-omnicam .oc-preview .camera-preview-strip[data-layout="2"] .camera-preview-tile,
+      .majoor-omnicam .oc-preview .camera-preview-strip[data-layout="4"] .camera-preview-tile{flex:1 1 calc(50% - 3px);width:calc(50% - 3px)}
 
       /* Hiding the preview sets [hidden] on it, which takes it out of the grid
          entirely -- so the timeline became the first item and landed in the
-         236px column, with 902px sitting empty beside it. */
+         236px column, with 902px sitting empty beside it. The splitter has
+         nothing to split then, so it collapses too. */
       .majoor-omnicam .oc-lower:has(>.oc-preview[hidden]){grid-template-columns:minmax(0,1fr)}
+      .majoor-omnicam .oc-lower:has(>.oc-preview[hidden])>.oc-resize-h{display:none}
 
       .majoor-omnicam .oc-timeline{display:flex;flex-direction:column;gap:8px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);min-width:0}
       .majoor-omnicam .oc-transport{display:flex;align-items:center;gap:7px;flex-wrap:nowrap;min-width:0}
@@ -162,6 +175,7 @@ export const LOWER_DECK_STYLES = `
       @container (max-width:820px){
         .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr)}
         .majoor-omnicam .oc-lower{grid-template-columns:minmax(0,1fr)}
+        .majoor-omnicam .oc-lower>.oc-resize-h{display:none}
         .majoor-omnicam .oc-side-body{max-height:340px}
         .majoor-omnicam .vp-hint{display:none}
       }

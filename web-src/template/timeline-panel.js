@@ -151,6 +151,8 @@ export function timelinePanelMarkup() {
   return `
     <div class="oc-lower">
       ${previewPanel()}
+      <div class="oc-resize-h" data-role="preview-resize" role="separator" aria-orientation="vertical" tabindex="0"
+           title="${t("Drag to resize the camera view — double-click to reset")}" aria-label="${t("Resize the camera view")}"></div>
       <div class="timeline oc-timeline">
         ${transportBar()}
         ${dopeSheet()}

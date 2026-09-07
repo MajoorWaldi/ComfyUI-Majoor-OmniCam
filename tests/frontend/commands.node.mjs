@@ -199,7 +199,7 @@ test("the numpad orbit keys turn the viewport camera around its target", () => {
   const ui = baseUi({
     state: { ...baseUi().state, view_mode: "perspective" },
     viewportCamera: () => camera,
-    serialize() {}, render() {},
+    serialize() {}, scheduleSerialize() {}, render() {},
   });
   assert.equal(press(ui, ["viewport-wrap"], { key: "4", code: "Numpad4" }), true);
   assert.ok(camera.position[0] > 0.1, "Numpad 4 must orbit left around the target");

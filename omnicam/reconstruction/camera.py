@@ -11,20 +11,22 @@ from .types import GeometryEvidence, ReconstructedCamera
 DEFAULT_FOV_DEGREES = 53.0
 
 
-def reconstruct_camera_from_evidence(
+def resolve_source_dimensions(
     evidence: GeometryEvidence,
-    settings: ReconstructionSettings,
     *,
-    width: float = 1280.0,
-    height: float = 720.0,
-    batch_index: int = 0,
-) -> ReconstructedCamera:
-    """Reconstruct single-image source camera at origin pointing down -Z."""
-    fov_x = DEFAULT_FOV_DEGREES
-    fov_y = DEFAULT_FOV_DEGREES
+    default_width: float = 1280.0,
+    default_height: float = 720.0,
+) -> tuple[float, float]:
+    """The source photo's actual pixel dimensions, read off the evidence tensors.
 
-    w = width
-    h = height
+    Falls back to the batched-guess defaults only when neither the image nor
+    the point map is a tensor -- a fake/test provider, say. Shared by camera
+    reconstruction (which needs it to un-normalize intrinsics) and the scene
+    builder (which needs it so the canvas matches the photo instead of always
+    landing on a 1280x720 landscape default).
+    """
+    w = default_width
+    h = default_height
     if evidence.image is not None and isinstance(evidence.image, torch.Tensor):
         if evidence.image.ndim == 4:
             h = float(evidence.image.shape[1])
@@ -39,6 +41,22 @@ def reconstruct_camera_from_evidence(
         elif evidence.points.ndim == 3:
             h = float(evidence.points.shape[0])
             w = float(evidence.points.shape[1])
+    return w, h
+
+
+def reconstruct_camera_from_evidence(
+    evidence: GeometryEvidence,
+    settings: ReconstructionSettings,
+    *,
+    width: float = 1280.0,
+    height: float = 720.0,
+    batch_index: int = 0,
+) -> ReconstructedCamera:
+    """Reconstruct single-image source camera at origin pointing down -Z."""
+    fov_x = DEFAULT_FOV_DEGREES
+    fov_y = DEFAULT_FOV_DEGREES
+
+    w, h = resolve_source_dimensions(evidence, default_width=width, default_height=height)
 
     if settings.recover_fov and evidence.intrinsics is not None:
         intrinsics = evidence.intrinsics

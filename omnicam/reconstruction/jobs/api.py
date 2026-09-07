@@ -7,6 +7,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from ..errors import ReconGpuBusyError
 from ..settings import ReconstructionSettings
 from ..types import ReconstructionSource
 from .manager import (
@@ -107,6 +108,8 @@ def handle_start_job(
         )
     except JobLimitReachedError as err:
         raise ReconstructionApiError(429, str(err), code="RECON_JOB_LIMIT") from err
+    except ReconGpuBusyError as err:
+        raise ReconstructionApiError(503, str(err), code=err.code) from err
     return job.to_dict()
 
 
@@ -192,3 +195,18 @@ def handle_delete_job(
         raise ReconstructionApiError(404, str(err), code="RECON_JOB_NOT_FOUND") from err
     except JobAccessDeniedError as err:
         raise ReconstructionApiError(403, str(err), code="RECON_ACCESS_DENIED") from err
+
+
+def handle_clear_cache(input_root: Any = None) -> dict[str, Any]:
+    """Delete every cached reconstruction (manifests, GLBs, source images) from disk.
+
+    Scoped to the managed reconstruction subtree only -- see
+    clear_reconstruction_cache. Does not touch in-memory jobs; a caller
+    should stop its own active job first if one is running. ``input_root``
+    exists for hermetic testing; the route never passes it, so production
+    always resolves ComfyUI's real input directory.
+    """
+    from ..cache import clear_reconstruction_cache
+
+    result = clear_reconstruction_cache(input_root=input_root)
+    return {"cleared": True, "entries_removed": result.entries_removed, "bytes_freed": result.bytes_freed}

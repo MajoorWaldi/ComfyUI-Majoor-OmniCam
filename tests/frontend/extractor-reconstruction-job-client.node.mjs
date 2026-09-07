@@ -32,7 +32,7 @@ test("ReconstructionJobClient propagates clientId and only targets /majoor/omnic
   assert.ok(!call.url.includes("/extractor/jobs"), "Must never target camera namespace");
 });
 
-test("ReconstructionJobClient supports all six job methods plus capabilities and preview", async () => {
+test("ReconstructionJobClient supports every job route the server exposes", async () => {
   const api = createMockApi({ json: { ok: true } });
   const client = new ReconstructionJobClient(api, { clientId: "custom_client_456" });
 
@@ -80,19 +80,15 @@ test("ReconstructionJobClient supports all six job methods plus capabilities and
   assert.equal(deleteCall.options.method, "DELETE");
   assert.ok(deleteCall.url.startsWith("/majoor/omnicam/reconstruction/jobs/job_123"));
 
-  // 7. preview / getJobPreview
-  await client.getJobPreview("job_123");
-  const previewCall = api.calls[6];
-  assert.equal(previewCall.options.method ?? "GET", "GET");
-  assert.ok(previewCall.url.startsWith("/majoor/omnicam/reconstruction/jobs/job_123/preview"));
-
   // Assert method aliases exist and work
   assert.equal(typeof client.start, "function");
   assert.equal(typeof client.status, "function");
   assert.equal(typeof client.stop, "function");
   assert.equal(typeof client.result, "function");
   assert.equal(typeof client.remove, "function");
-  assert.equal(typeof client.preview, "function");
+  // No server-side /preview route exists; the client must not offer one either.
+  assert.equal(client.getJobPreview, undefined);
+  assert.equal(client.preview, undefined);
 });
 
 test("ReconstructionJobClient extracts structured error or text response", async () => {

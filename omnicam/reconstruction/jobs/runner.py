@@ -7,6 +7,8 @@ import threading
 from collections.abc import Callable
 from typing import Any
 
+from ...comfy_compat.execution import execution_busy
+from ...comfy_compat.gpu_guard import GpuContentionGuard
 from ..errors import ReconCancelledError, ReconstructionError
 from ..pipeline import run_reconstruction_pipeline
 from ..providers import get_provider
@@ -31,9 +33,11 @@ def run_reconstruction_job(
     pipeline_fn: Callable[..., Any] | None = None,
     gpu_semaphore: threading.Semaphore | None = None,
     on_event: Callable[[str, ReconstructionJob], None] | None = None,
+    execution_probe: Callable[[], bool] = execution_busy,
 ) -> None:
     """Execute reconstruction job out-of-band without enqueuing ComfyUI prompt graphs."""
     pipe_fn = pipeline_fn or run_reconstruction_pipeline
+    gpu_guard = GpuContentionGuard(execution_probe=execution_probe)
 
     def _execute() -> None:
         if job.cancel_token.is_cancelled():
@@ -76,6 +80,7 @@ def run_reconstruction_job(
                 provider=active_provider,
                 progress=on_progress,
                 cancel=job.cancel_token,
+                gpu_guard=gpu_guard,
             )
             job.result = output
             job.warnings = list(output.warnings)

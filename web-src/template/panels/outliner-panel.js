@@ -19,6 +19,8 @@ export function outlinerPanel() {
         <button data-object-type="null" title="${t("Add Null (+)")}"><i class="pi pi-plus"></i> ${t("Null")}</button>
       </div>
       <div class="scene-tree" data-role="objects"></div>
+      <div class="oc-resize-v" data-role="outliner-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+           title="${t("Drag to resize the outliner — double-click to reset")}" aria-label="${t("Resize the outliner")}"></div>
       <div class="oc-card" data-role="object-panel">
         <div class="oc-card-title" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
           <span data-role="selected-name">${t("Object Transform")}</span>

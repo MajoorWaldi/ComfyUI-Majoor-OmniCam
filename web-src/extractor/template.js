@@ -21,6 +21,7 @@ export function extractorMarkup() {
     <header class="oc-header">
       ${brandMarkup("OmniCam Extractor")}
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
+      <button type="button" class="icon-button" data-role="clear-cache" title="${t("Clear cached tracks and reconstructions, and reset this node")}"><i class="pi pi-trash"></i></button>
     </header>
 
     <div class="oc-mode-bar" role="tablist" aria-label="Extractor mode">
@@ -48,6 +49,13 @@ export function extractorMarkup() {
             <option value="fast">${t("Fast")}</option>
             <option value="balanced" selected>${t("Balanced")}</option>
             <option value="high">${t("High")}</option>
+            <option value="custom">${t("Custom")}</option>
+          </select>
+        </div>
+        <div class="oc-inline">
+          <label for="oc-recon-checkpoint">${t("Geometry Model")}</label>
+          <select id="oc-recon-checkpoint" data-role="reconstruction-checkpoint">
+            <option value="auto" selected>${t("Auto")}</option>
           </select>
         </div>
         <div class="oc-inline">

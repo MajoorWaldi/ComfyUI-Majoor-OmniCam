@@ -539,6 +539,9 @@ export const FR = {
   "More viewport views": "Plus de vues",
   "View: {axis} axis": "Vue : axe {axis}",
   "Camera Track": "Trajectoire caméra",
+  "Clear Cache": "Vider le cache",
+  "Clear cached tracks and reconstructions, and reset this node": "Vider les trajectoires et reconstructions en cache, et réinitialiser ce nœud",
+  "Deletes every cached reconstruction (GLBs, manifests, source images) from disk, and forgets this node's cached track and reconstruction results. This cannot be undone.": "Supprime du disque chaque reconstruction en cache (GLB, manifestes, images source), et oublie la trajectoire et les résultats de reconstruction mis en cache par ce nœud. Cette action est irréversible.",
   "Scene Reconstruct": "Reconstruction de scène",
   "Scene Reconstruction": "Reconstruction de scène",
   "Provider": "Fournisseur",
@@ -549,6 +552,9 @@ export const FR = {
   "Fast": "Rapide",
   "Balanced": "Équilibré",
   "High": "Élevée",
+  "Custom": "Personnalisé",
+  "Geometry Model": "Modèle de géométrie",
+  "Auto": "Auto",
   "Recover FOV": "Récupérer le FOV",
   "Source Texture": "Texture source",
   "Detect Ground": "Détecter le sol",
@@ -567,6 +573,17 @@ export const FR = {
   "Unlock object": "Déverrouiller l'objet",
   "Lock / unlock object": "Verrouiller / déverrouiller l'objet",
   "Object is locked": "L'objet est verrouillé",
+  "World axis navigation": "Navigation par axes du monde",
+  "Pitch/Yaw/Roll: an alternative to Target XYZ, aiming the camera directly like a Maya/Blender rotate channel. Editing either one keeps the other in sync.":
+    "Tangage/Lacet/Roulis : une alternative à Cible XYZ, orientant la caméra directement comme un canal de rotation Maya/Blender. Modifier l'un garde l'autre synchronisé.",
+  "3D scene viewport. Drag to orbit, scroll to zoom, F to frame the selection, right-click for the context menu.":
+    "Fenêtre de scène 3D. Glisser pour orbiter, molette pour zoomer, F pour cadrer la sélection, clic droit pour le menu contextuel.",
+  "Language updated — reload the workflow to translate every label.":
+    "Langue mise à jour — rechargez le workflow pour traduire tous les libellés.",
+  "Drag to resize the outliner — double-click to reset": "Glisser pour redimensionner l'outliner — double-clic pour réinitialiser",
+  "Resize the outliner": "Redimensionner l'outliner",
+  "Drag to resize the camera view — double-click to reset": "Glisser pour redimensionner la vue caméra — double-clic pour réinitialiser",
+  "Resize the camera view": "Redimensionner la vue caméra",
 };
 export default FR;
 

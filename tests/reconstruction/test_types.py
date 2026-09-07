@@ -75,6 +75,7 @@ def test_reconstruction_settings_round_trip():
         "triangle_budget": 50_000,
         "discontinuity_threshold": 0.08,
         "scene_scale": 2.5,
+        "checkpoint": "moge_v2.safetensors",
     }
     settings = ReconstructionSettings.from_dict(data)
     assert settings.to_dict() == data

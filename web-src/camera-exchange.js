@@ -15,6 +15,7 @@ import { AnimationMixer, Quaternion, Vector3 } from "./three-runtime.js";
 import { applyCanonicalTrack } from "./canonical-track-import.js";
 import { t } from "./i18n.js";
 import { activeCameraTrack } from "./omnicam-state-sync.js";
+import { fileSizeError } from "./shared/upload-limits.js";
 
 /** The canonical payload the backend writers expect. */
 function exportableTrack(ui) {
@@ -92,6 +93,14 @@ export function pickCameraFile(ui) {
 export async function importCameraFile(ui, file) {
   if (!file) return;
   const extension = `.${(file.name.split(".").pop() || "").toLowerCase()}`;
+  // FBX is decoded in the browser (file.arrayBuffer() + FBXLoader.parse); a
+  // huge one freezes the tab. Text / glTF go to the backend, which has its own
+  // MAX_EXPORT_JSON_BYTES gate, so only the local FBX path is checked here.
+  const tooBig = extension === ".fbx" ? fileSizeError(file, "fbx") : null;
+  if (tooBig) {
+    ui.setStatus(tooBig);
+    return;
+  }
   ui.setStatus(t("Reading camera from {name}…").replace("{name}", file.name));
   try {
     const track = extension === ".fbx"

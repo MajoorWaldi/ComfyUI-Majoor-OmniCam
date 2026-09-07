@@ -116,3 +116,26 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   const stage = extractorHost.locator('[data-role="stage"]');
   await expect(stage).toBeVisible();
 });
+
+test("Scene Reconstruct mode restores correctly after a workflow reload", async ({ page }) => {
+  // The extract_mode widget was saved as scene_reconstruct in a previous
+  // session; the node must come up showing that, not silently reset the
+  // visible UI to Camera Track while the backend widget stays
+  // scene_reconstruct underneath it.
+  await page.goto("/tests/frontend/scene-reconstruction-mount.html?mode=scene_reconstruct");
+  await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
+
+  const extractorHost = page.locator("#extractor-host");
+  const camModeBtn = extractorHost.locator('[data-role="extract-mode-camera"]');
+  const reconModeBtn = extractorHost.locator('[data-role="extract-mode-reconstruct"]');
+  const reconPanel = extractorHost.locator('[data-role="reconstruction-panel"]');
+
+  // No click happened -- this is what the node shows on its own at load.
+  await expect(reconModeBtn).toHaveClass(/active/);
+  await expect(camModeBtn).not.toHaveClass(/active/);
+  await expect(reconPanel).not.toHaveAttribute("hidden");
+
+  // The widget itself was never rewritten (no unnecessary dirtying).
+  const widgetValue = await page.evaluate(() => window.omnicamExtractor.widgets.find((w) => w.name === "extract_mode").value);
+  expect(widgetValue).toBe("scene_reconstruct");
+});

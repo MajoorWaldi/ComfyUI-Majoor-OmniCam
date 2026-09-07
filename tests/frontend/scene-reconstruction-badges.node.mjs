@@ -5,6 +5,7 @@ import {
   reconstructionBadge,
   getReconstructionAppearance,
   setReconstructionAppearance,
+  reconstructionMaterialMode,
 } from "../../web-src/scene/reconstruction-badges.js";
 import { toggleObjectLock } from "../../web-src/scene/object-lock.js";
 
@@ -102,9 +103,13 @@ test("lock toggle flips object.locked and allows normal editing when unlocked", 
   assert.equal(obj.locked, true);
 });
 
-test("Reconstruction Appearance control defaults to Neutral and supports Source Texture", () => {
+test("Reconstruction Appearance control defaults to Source Texture and supports Neutral", () => {
+  // Interactive viewing shows the recovered texture by default; omni_ref
+  // conditioning playblasts force Neutral independently of this value (see
+  // the cleanCapture check in viewport/resources.js), so this default never
+  // leaks into a conditioning reference.
   const emptyState = {};
-  assert.equal(getReconstructionAppearance(emptyState), "neutral");
+  assert.equal(getReconstructionAppearance(emptyState), "source_texture");
 
   const mockUi = {
     state: {},
@@ -121,4 +126,24 @@ test("Reconstruction Appearance control defaults to Neutral and supports Source 
   setReconstructionAppearance(mockUi, "neutral");
   assert.equal(mockUi.state.reconstruction_appearance, "neutral");
   assert.equal(getReconstructionAppearance(mockUi.state), "neutral");
+});
+
+test("reconstructionMaterialMode never lets a clean capture show the source texture", () => {
+  const reconstructed = { id: "recon_environment", type: "glb", reconstruction: { role: "environment" } };
+  const ordinary = { id: "cube_1", type: "cube" };
+
+  // Interactive: follows the toggle.
+  assert.equal(reconstructionMaterialMode(reconstructed, { reconstruction_appearance: "source_texture" }, false), "textured");
+  assert.equal(reconstructionMaterialMode(reconstructed, { reconstruction_appearance: "neutral" }, false), "neutral");
+  // Missing/invalid state falls back to source_texture for interactive viewing.
+  assert.equal(reconstructionMaterialMode(reconstructed, {}, false), "textured");
+
+  // omni_ref conditioning playblast (cleanCapture): always Neutral, regardless
+  // of the toggle -- this is the one guarantee that must never regress.
+  assert.equal(reconstructionMaterialMode(reconstructed, { reconstruction_appearance: "source_texture" }, true), "neutral");
+  assert.equal(reconstructionMaterialMode(reconstructed, { reconstruction_appearance: "neutral" }, true), "neutral");
+
+  // Non-reconstructed objects are untouched by any of this.
+  assert.equal(reconstructionMaterialMode(ordinary, { reconstruction_appearance: "source_texture" }, false), null);
+  assert.equal(reconstructionMaterialMode(null, {}, false), null);
 });

@@ -9,6 +9,7 @@ import { t } from "./i18n.js";
 import { upstreamPreviewMedia } from "./shared/upstream-preview.js";
 import { linkedOrigin } from "./graph-links.js";
 import { adoptUpstreamMediaMetadata } from "./upstream-media-metadata.js";
+import { fileSizeError } from "./shared/upload-limits.js";
 
 let comfyApi = null;
 
@@ -16,8 +17,39 @@ export function configureDomMedia({ api }) {
   comfyApi = api;
 }
 
+// Media elements this module created (blob / managed-file loads), as opposed
+// to elements borrowed from another node's DOM. Only our own may be stopped
+// and unloaded when they are replaced -- tearing down a borrowed <video> is
+// the origin node's decision, not ours.
+const ownedMedia = new WeakSet();
+
+/** Fully release a decoded <video>: stop playback and drop its source so the
+ * browser tears the decoder down instead of keeping it warm behind a dropped
+ * map reference. A no-op for <img> and for anything that is not a video. */
+export function stopDomMedia(media) {
+  if (typeof HTMLVideoElement === "undefined" || !(media instanceof HTMLVideoElement)) return;
+  try {
+    media.pause();
+    media.removeAttribute("src");
+    media.srcObject = null;
+    media.load();
+  } catch (_) {}
+}
+
+/** Register `media` for card id `id`, stopping the previous element first when
+ * we own it. `owned` marks a element we created so a later replacement (or a
+ * dispose) can release it. */
+function setCardMedia(ui, id, media, owned = false) {
+  const previous = ui.cardMediaById.get(id);
+  if (previous && previous !== media && ownedMedia.has(previous)) stopDomMedia(previous);
+  if (owned) ownedMedia.add(media);
+  ui.cardMediaById.set(id, media);
+  if (id === "subject") ui.cardMedia = media;
+}
+
 export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVideo = null) {
   if (!object || !url) return;
+  const stillWanted = () => !ui.disposed && isCurrent();
   // A caller that already knows the real filename (before it became a `/view?`
   // query string with the extension no longer at the end) should say so
   // directly, rather than have this guess from a URL the check cannot match.
@@ -33,21 +65,23 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVi
       video.addEventListener("loadeddata", resolve, { once: true });
       video.addEventListener("error", resolve, { once: true });
     });
-    if (!isCurrent()) { video.pause(); video.removeAttribute("src"); video.load(); return; }
+    if (!stillWanted()) { stopDomMedia(video); return; }
     // Matches loadCardFile: an upstream card is meant to read as a live
     // texture, not a frozen first frame. Playback failing (autoplay policy,
     // a source with no video track) still leaves a usable still image.
     await video.play().catch(() => {});
-    ui.cardMediaById.set(object.id, video);
-    if (object.id === "subject") ui.cardMedia = video;
+    // play() awaited: the node may have gone away, or a newer sync may have
+    // superseded this one, while it resolved.
+    if (!stillWanted()) { stopDomMedia(video); return; }
+    setCardMedia(ui, object.id, video, true);
   } else {
     const image = new Image();
     image.src = url;
     await image.decode().catch(() => {});
-    if (!isCurrent()) { image.src = ""; return; }
-    ui.cardMediaById.set(object.id, image);
-    if (object.id === "subject") ui.cardMedia = image;
+    if (!stillWanted()) { image.src = ""; return; }
+    setCardMedia(ui, object.id, image, true);
   }
+  if (ui.disposed) return null;
   ui.render();
   return ui.cardMediaById.get(object.id) || null;
 }
@@ -75,6 +109,13 @@ function upstreamAssetValue(value, subfolder = "") {
 }
 
 export function restoreAssets(ui) {
+  // Rapid workflow reloads can fire restoreAssets() again before the previous
+  // pass's async media loads settle. A generation stamp lets those stale
+  // loads see they have been superseded and bail instead of writing a torn
+  // element back into the maps.
+  const generation = (ui.assetRestoreGeneration || 0) + 1;
+  ui.assetRestoreGeneration = generation;
+  const restoreIsCurrent = () => !ui.disposed && ui.assetRestoreGeneration === generation;
   if (ui.state.viewport_bg_image) {
     const image = new Image();
     image.src = annotatedAssetUrl(ui.state.viewport_bg_image);
@@ -99,7 +140,7 @@ export function restoreAssets(ui) {
     }
     const url = annotatedAssetUrl(object.asset);
     if (object.type === "glb" || object.type === "model") ui.modelUrlsById.set(object.id, url);
-    else if (object.type === "card" && !ui.cardMediaById.has(object.id)) ui.loadMediaUrl(object, url);
+    else if (object.type === "card" && !ui.cardMediaById.has(object.id)) ui.loadMediaUrl(object, url, restoreIsCurrent);
   }
 }
 
@@ -124,6 +165,8 @@ export async function loadModelFile(ui, file) {
   if (!file) return;
   const format = file.name.split(".").pop()?.toLowerCase();
   if (!["glb", "obj", "fbx", "stl", "ply"].includes(format)) return ui.setStatus(t("Supported scenes: GLB, OBJ, FBX, STL, PLY. Convert ABC first."));
+  const tooBig = fileSizeError(file, format === "fbx" ? "fbx" : "model");
+  if (tooBig) return ui.setStatus(tooBig);
   const id = `model_${Date.now().toString(36)}`;
   const object = {
     id,
@@ -175,6 +218,8 @@ export async function loadModelFile(ui, file) {
 
 export async function loadCardFile(ui, file) {
   if (!file) return;
+  const tooBig = fileSizeError(file, "card");
+  if (tooBig) return ui.setStatus(tooBig);
   const object = ui.selectedObject()?.type === "card" ? ui.selectedObject() : ui.state.objects.find((item) => item.id === "subject");
   ui.cardUrl = ui.objectUrls.replace(object.id, file);
   if (file.type.startsWith("video/")) {
@@ -184,14 +229,14 @@ export async function loadCardFile(ui, file) {
     video.muted = true;
     video.playsInline = true;
     await video.play().catch(() => {});
-    ui.cardMediaById.set(object.id, video);
-    if (object.id === "subject") ui.cardMedia = video;
+    if (ui.disposed) { stopDomMedia(video); return; }
+    setCardMedia(ui, object.id, video, true);
   } else {
     const image = new Image();
     image.src = ui.cardUrl;
     await image.decode().catch(() => {});
-    ui.cardMediaById.set(object.id, image);
-    if (object.id === "subject") ui.cardMedia = image;
+    if (ui.disposed) { image.src = ""; return; }
+    setCardMedia(ui, object.id, image, true);
   }
   ui.render();
   ui.setStatus(t("Uploading card…"));
@@ -238,8 +283,9 @@ export function loadSelectedReference(ui) {
   if (!result) return;
   const image = new Image();
   image.onload = () => {
-    ui.cardMedia = image;
-    ui.cardMediaById.set("subject", image);
+    // onload fires a turn or more later; the node may be gone by then.
+    if (ui.disposed) return;
+    setCardMedia(ui, "subject", image);
     ui.render();
     ui.setStatus(t("Upstream media refreshed"));
   };
@@ -314,8 +360,7 @@ export async function syncUpstreamInputs(ui) {
           // origin node's own business; this only asks it to play again, it
           // never fails the sync if that request is refused.
           if (media instanceof HTMLVideoElement && media.paused) media.play().catch(() => {});
-          ui.cardMediaById.set("subject", media);
-          ui.cardMedia = media;
+          setCardMedia(ui, "subject", media);
           adoptUpstreamMediaMetadata(ui, media, { frameCount: media instanceof HTMLVideoElement ? 0 : 1 });
           ui.upstreamImageConnected = true;
           anyUpdated = true;
@@ -400,6 +445,8 @@ export async function syncUpstreamInputs(ui) {
   // Handle Disconnections / Removals
   // 1. Cleanup disconnected Image/Video
   if (!hasImageLink && ui.upstreamImageConnected) {
+    const previousSubject = ui.cardMediaById.get("subject");
+    if (previousSubject && ownedMedia.has(previousSubject)) stopDomMedia(previousSubject);
     ui.cardMedia = null;
     ui.cardMediaById.delete("subject");
     const subject = ui.state.objects.find((o) => o.id === "subject");

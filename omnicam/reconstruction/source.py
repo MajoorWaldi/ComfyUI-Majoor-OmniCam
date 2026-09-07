@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_IMAGE_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".webp"})
 MAX_IMAGE_BYTES = 100 * 1024 * 1024  # 100 MB
+#: A small file can still decode into an enormous pixel buffer (a
+#: decompression bomb) -- MAX_IMAGE_BYTES bounds what's read from disk, this
+#: bounds what providers actually decode and allocate tensors for.
+MAX_DECODED_PIXELS = 64_000_000  # 64 MP, e.g. 8000x8000
 
 
 class ReconstructionSourceResolutionError(ValueError):
@@ -86,11 +90,32 @@ def _annotated_filepath(value: str) -> str:
         ) from exc
 
 
+def _reject_oversized_image(path: Path, max_pixels: int) -> None:
+    """Read only the image header (PIL does not decode pixel data for .size)
+    and reject anything that would blow past the decode budget once a
+    provider actually opens and converts it."""
+    from PIL import Image
+
+    try:
+        with Image.open(path) as img:
+            width, height = img.size
+    except Exception as exc:
+        raise ReconstructionSourceResolutionError(f"Cannot read image dimensions: {exc}") from exc
+
+    pixels = int(width) * int(height)
+    if pixels > max_pixels:
+        raise ReconstructionSourceResolutionError(
+            f"Image is {width}x{height} ({pixels:,} pixels), exceeding the "
+            f"{max_pixels:,}-pixel decode limit"
+        )
+
+
 def resolve_reconstruction_source(
     source: ReconstructionSource,
     *,
     roots: list[Path] | None = None,
     max_bytes: int = MAX_IMAGE_BYTES,
+    max_pixels: int = MAX_DECODED_PIXELS,
 ) -> Path:
     """Resolve a ReconstructionSource into a verified local file Path.
 
@@ -129,5 +154,7 @@ def resolve_reconstruction_source(
         raise ReconstructionSourceResolutionError(
             f"Image file size ({size} bytes) exceeds limit ({max_bytes} bytes)"
         )
+
+    _reject_oversized_image(candidate, max_pixels)
 
     return candidate

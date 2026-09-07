@@ -192,6 +192,15 @@ class MonitorUI {
       return;
     }
     const payload = liveRequestPayload(origin, monitorWidgetValues(this.node));
+    // Cheap change gate. The Director's state_json plus this Monitor's own
+    // settings fully determine the request, and state_json is already a
+    // reference here -- so an exact match skips schedule()'s full-payload
+    // JSON.stringify (which would otherwise re-encode the entire scene four
+    // times a second while nothing is being edited).
+    const director = payload.director;
+    const liveKey = `${director.state_json} ${JSON.stringify(payload.monitor)} ${director.recording_path} ${director.card_asset} ${director.width}x${director.height}@${director.fps}/${director.duration_seconds}:${director.render_mode}`;
+    if (liveKey === this._liveKey) return;
+    this._liveKey = liveKey;
     this.refreshController.schedule(payload);
   }
 

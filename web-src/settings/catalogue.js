@@ -97,7 +97,7 @@ function slider(id, group, name, tooltip, attrs, defaultValue) {
  *   rather than imported, so this data module never depends on the runtime that
  *   consumes it.
  */
-export function buildOmniCamSettings({ onLocaleChange, onQualityChange } = {}) {
+export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdaptiveChange } = {}) {
   return [
     {
       id: SETTING_LOCALE,
@@ -172,8 +172,11 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange } = {}) {
       defaultValue: "balanced",
       onChange: (value) => onQualityChange?.(value),
     },
-    toggle(SETTING_ADAPTIVE, "Viewport", "Drop quality when the viewport stutters",
-      "Steps the studio quality down automatically if navigation falls below ~40fps, and leaves it there for the session.", true),
+    {
+      ...toggle(SETTING_ADAPTIVE, "Viewport", "Drop quality when the viewport stutters",
+        "Steps the studio quality down automatically if navigation falls below ~40fps, and leaves it there for the session.", true),
+      onChange: () => onAdaptiveChange?.(),
+    },
     { id: SETTING_BG_COLOR, category: [...CATEGORY, "Viewport"], name: "Default background colour",
       tooltip: "Viewport background. Leave it at the default to keep the studio sky.",
       type: "color", defaultValue: "121212" },

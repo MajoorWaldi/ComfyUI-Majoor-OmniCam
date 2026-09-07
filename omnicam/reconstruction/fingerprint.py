@@ -9,6 +9,7 @@ from typing import Any
 from .settings import ReconstructionSettings
 
 GEOMETRY_SETTINGS_KEYS = (
+    "checkpoint",
     "detect_ground",
     "detect_walls",
     "discontinuity_threshold",

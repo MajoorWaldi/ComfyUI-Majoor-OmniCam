@@ -186,6 +186,11 @@ class ReconstructionResult:
     metrics: ReconstructionMetrics = field(default_factory=ReconstructionMetrics)
     warnings: list[str] = field(default_factory=list)
     confidence: float = 1.0
+    #: Pixel dimensions of the source photo. The canvas and the source camera
+    #: it feeds must reproduce this frame exactly -- a landscape photo cannot
+    #: honestly reconstruct into a 1280x720 canvas it never had.
+    source_width: int = 1280
+    source_height: int = 720
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -197,6 +202,8 @@ class ReconstructionResult:
             "metrics": self.metrics.to_dict(),
             "warnings": list(self.warnings),
             "confidence": float(self.confidence),
+            "source_width": int(self.source_width),
+            "source_height": int(self.source_height),
         }
 
     @classmethod
@@ -209,5 +216,7 @@ class ReconstructionResult:
             planes=[ReconstructedPlane.from_dict(p) for p in data.get("planes", [])],
             metrics=ReconstructionMetrics.from_dict(data.get("metrics", {})),
             warnings=[str(w) for w in data.get("warnings", [])],
+            source_width=int(data.get("source_width", 1280)),
+            source_height=int(data.get("source_height", 720)),
             confidence=float(data.get("confidence", 1.0)),
         )

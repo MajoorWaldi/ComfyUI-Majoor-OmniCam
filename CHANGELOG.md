@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Resizable Director panels**: the Outliner object list and the lower-deck
+  camera-preview column can be dragged to any size (a horizontal splitter
+  between the previews and the timeline, a vertical handle under the object
+  list). Both handles are keyboard-operable (`role="separator"`, arrow keys to
+  nudge, `Shift`+arrow for a larger step, `Home` / double-click to reset), and
+  the chosen sizes persist in the editor state (`outliner_height`,
+  `preview_width`) so a saved workflow reopens with the same layout. The
+  Outliner list gets an explicit, drag-controlled height and the node grows to
+  fit, so a long scene is read at full height instead of through a cramped
+  inner scrollbar.
+
+### Changed
+- Camera-preview strip re-laid-out as a flex column (was a CSS grid whose
+  aspect-ratio tiles could overlap and mis-frame in Chromium/Edge when the
+  column was widened); the strip is no longer height-capped, so a wider column
+  genuinely enlarges each preview.
+- Playback no longer rebuilds the whole timeline every frame. A frame tick now
+  updates only the playhead / timecode / viewport / motion heads; the keyframe
+  lane, the audio-waveform canvas and the `O(duration)` Camera Health pass are
+  rebuilt only when the timeline structure changes.
+- Camera previews render round-robin during playback (active camera every
+  frame, the rest one per frame) instead of a full WebGL scene render per tile
+  per frame.
+- A single `requestRender()` frame scheduler coalesces high-frequency repaint
+  sources (playback, viewport drags, wheel / keyboard navigation) into one
+  render per frame; editorial-view navigation defers full state serialization
+  to the rAF-batched path.
+- The Monitor's live poll memoizes the motion-scene fingerprint by exact
+  `state_json` and skips re-encoding the preflight payload when nothing an
+  edit could touch has changed.
+- A live viewport-language change now re-renders the state-driven parts of every
+  mounted Director and states plainly that a reload is needed for the rest.
+
+### Fixed
+- Media lifecycle: a replaced `<video>` is stopped and unloaded, `ui.disposed`
+  / request-generation guards run after every `await`, and node removal tears
+  down its decoder — no more decoding continuing behind a dropped reference.
+- Oversized uploads are refused in the browser before the file is read into
+  memory (FBX, model, card, audio, background image / sequence), mirroring the
+  `omnicam/routes.py` ceilings.
+- Viewport quality / adaptive-quality settings now repaint mounted Directors
+  immediately (the previous `ui.invalidate()` call did nothing).
+- Point-field 2D fallback caches its static geometry, caps the drawn point
+  count and batches by colour + radius instead of one `fillStyle` / `arc` /
+  `fill` per point.
+
+### Accessibility
+- The per-node help popup is a real modal dialog (`role="dialog"`,
+  `aria-modal`, initial focus, focus trap, focus returned to the opener on
+  close). The Director status pill is a polite live region; the 3D viewport
+  canvas has an accessible name.
+
+### Internal
+- `viewport-controls/interactions.js` drag/snap/marquee helpers extracted to
+  `viewport-controls/drag-helpers.js`.
+- New non-blocking Playwright frame-budget suite
+  (`tests/frontend/playback-budget.spec.js`).
+
+---
+
 ## [0.2.0] - 2026-09-06
 
 ### Added

@@ -3,6 +3,7 @@ import { RequestLifetime } from "../request-lifetime.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
+import { clearExtractorCache } from "./clear-cache.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
@@ -10,9 +11,6 @@ import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
 import { RefineController } from "./refine-controls.js";
 import {
-  FINGERPRINT_WIDGET,
-  SOURCE_WIDGET,
-  SCENE_WIDGET,
   cacheExtractorResult,
   cacheExtractorSource,
   ensureCacheWidgets,
@@ -120,7 +118,13 @@ export class ExtractorUI {
       failed: (payload) => this.dispatch({ type: "FAILED", error: payload.error }),
     }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
 
-    this.extractMode = "camera_track";
+    // Read back whatever the workflow saved, rather than always booting into
+    // camera_track: the widget can carry "scene_reconstruct" from a previous
+    // save while this line ran unconditionally, leaving the visible UI on
+    // Camera Track even though the backend widget (and Director, on the next
+    // execution) would use Scene Reconstruct -- three different answers to
+    // "what mode is this node in" for the same node at the same moment.
+    this.extractMode = String(widget(this.node, "extract_mode")?.value || "camera_track");
     this.reconstruction = new ReconstructionPanelController({
       root: this.root,
       node: this.node,
@@ -132,11 +136,16 @@ export class ExtractorUI {
 
     const camModeBtn = this.$("extract-mode-camera");
     const reconModeBtn = this.$("extract-mode-reconstruct");
-    if (camModeBtn) {
-      camModeBtn.classList.add("active");
-      this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
-    }
+    if (camModeBtn) this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
     if (reconModeBtn) this.listen(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
+    // setExtractMode only dirties the canvas when the widget's value actually
+    // changes (see below), so replaying the mode we just read back is a safe,
+    // idempotent way to sync every other bit of UI (tab classes, panel
+    // visibility, the reconstruction panel's source) to it.
+    this.setExtractMode(this.extractMode);
+
+    const clearCacheBtn = this.$("clear-cache");
+    if (clearCacheBtn) this.listen(clearCacheBtn, "click", () => this.clearCache());
 
     this.bind();
     this.loadMotionLimits();
@@ -310,6 +319,15 @@ export class ExtractorUI {
   }
 
   // -- solve control -----------------------------------------------------
+
+  /**
+   * Delete every cached reconstruction from disk and forget this node's own
+   * cached results, in both modes: the camera-track scene/fingerprint/source
+   * widgets (result-cache.js) and the reconstruction panel's job state.
+   */
+  async clearCache() {
+    return clearExtractorCache(this);
+  }
 
   async startSolve() {
     const source = this.refreshSource();

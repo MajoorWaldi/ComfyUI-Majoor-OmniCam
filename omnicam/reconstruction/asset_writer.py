@@ -111,7 +111,15 @@ def write_reconstruction_assets(
     uvs = mesh.uvs
     if uvs is not None and not isinstance(uvs, torch.Tensor):
         uvs = torch.as_tensor(uvs)
+    normals = mesh.normals
+    if normals is not None and not isinstance(normals, torch.Tensor):
+        normals = torch.as_tensor(normals)
 
+    # save_glb only takes the KHR_materials_unlit path when there is no
+    # texture; a reconstruction always embeds the source photo, so this is a
+    # normally-lit PBR material regardless of an unlit=True flag -- and
+    # without a NORMAL accessor that renders solid black. Pass normals, not
+    # unlit.
     save_glb_fn(
         vertices=verts,
         faces=faces,
@@ -119,7 +127,7 @@ def write_reconstruction_assets(
         metadata=metadata,
         uvs=uvs,
         texture_image=pil_texture,
-        unlit=True,
+        normals=normals,
     )
 
     manifest_data = {

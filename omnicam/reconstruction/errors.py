@@ -59,3 +59,20 @@ class ReconCancelledError(ReconstructionError):
 
 class ReconResultInvalidError(ReconstructionError):
     code = "RECON_RESULT_INVALID"
+
+
+class ReconGpuContentionError(ReconstructionError):
+    """A ComfyUI workflow claimed the GPU while reconstruction was using it.
+
+    Deliberately not a ReconCancelledError: the user did not ask for this, and
+    a silent STOPPED would leave them staring at a job that abandoned itself
+    for no visible reason.
+    """
+
+    code = "RECON_GPU_CONTENTION"
+
+
+class ReconGpuBusyError(ReconstructionError):
+    """ComfyUI is already executing a workflow; refused to start reconstruction."""
+
+    code = "RECON_GPU_BUSY"

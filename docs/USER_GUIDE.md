@@ -92,6 +92,8 @@ Use the [Node Guide](NODES.md) for exact sockets and profile requirements, and
 
 Director offers Basic, Animation, and Advanced interface modes. They reveal progressively more of the same shot editor; camera data and workflow serialization remain unchanged.
 
+The **Outliner** list and the **camera-preview column** are drag-resizable: pull the handle under the object list to give a long scene the height it needs, and the splitter between the previews and the timeline to enlarge the camera views for framing. Both handles take the keyboard (arrow keys, `Shift`+arrow for a bigger step, `Home` or double-click to reset), and the sizes are saved with the workflow.
+
 Use [Shortcuts](SHORTCUTS.md) for the complete viewport and timeline control reference.
 
 ## Install

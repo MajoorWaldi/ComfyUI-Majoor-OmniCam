@@ -76,8 +76,11 @@ export function bindViewportSettings(ui, q, signal) {
       }
       // Re-render on the switch so the 2D motion path preview can measure its
       // box once the Motion panel is actually visible, and so the contextual
-      // viewport toolbar repaints.
+      // viewport toolbar repaints. Re-fit the node too: the Outliner tab can be
+      // much taller than the others, so its height must not linger when another
+      // tab takes over (and vice versa).
       ui.render?.();
+      ui.refitNode?.();
     }, { signal });
   }
   for (const el of ui.root.querySelectorAll('[data-role="active-camera-select"]')) {

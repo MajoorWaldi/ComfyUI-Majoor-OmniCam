@@ -9,12 +9,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..comfy_compat.gpu_guard import GpuContentionDetected, GpuContentionGuard
 from .asset_writer import write_reconstruction_assets
 from .cache import CacheEntry, lookup_cache, write_cache_manifest
-from .camera import reconstruct_camera_from_evidence
+from .camera import reconstruct_camera_from_evidence, resolve_source_dimensions
 from .errors import (
     ReconCancelledError,
     ReconEmptyGeometryError,
+    ReconGpuContentionError,
     ReconInferenceFailedError,
     ReconMeshTooLargeError,
     ReconSourceInvalidError,
@@ -42,6 +44,44 @@ class PipelineOutput:
     fingerprint: str
 
 
+_HASH_CHUNK_BYTES = 1024 * 1024
+
+
+def _hash_file(path: Path) -> str:
+    """First 16 hex chars of the file's SHA-256, read in bounded chunks.
+
+    MAX_IMAGE_BYTES (source.py) already caps this at 100 MB, but a whole-file
+    read_bytes() still means a second full-size buffer briefly alive
+    alongside whatever the caller does with the path next; streaming keeps
+    memory bounded by _HASH_CHUNK_BYTES regardless of source size.
+    """
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(_HASH_CHUNK_BYTES), b""):
+            digest.update(chunk)
+    return digest.hexdigest()[:16]
+
+
+def _resolve_provider_version(metadata: dict[str, Any]) -> str:
+    """A cache-busting version string identifying what actually ran.
+
+    lookup_cache treats a provider_version mismatch as a cache miss, so this
+    is the mechanism that must catch "the checkpoint on disk changed since
+    this GLB was generated" -- a plain static "1.0" (the old default, when no
+    provider surfaced anything more specific) never invalidates anything. A
+    provider that reports an active_checkpoint (name + size + mtime) gets a
+    version built from it; one that doesn't falls back to its own declared
+    "version", then "1.0".
+    """
+    checkpoint = metadata.get("active_checkpoint")
+    if isinstance(checkpoint, dict) and checkpoint.get("name"):
+        name = checkpoint["name"]
+        size = checkpoint.get("size", "")
+        mtime_ns = checkpoint.get("mtime_ns", "")
+        return f"{name}:{size}:{mtime_ns}"
+    return str(metadata.get("version", "1.0"))
+
+
 def run_reconstruction_pipeline(
     *,
     source: ReconstructionSource,
@@ -52,13 +92,29 @@ def run_reconstruction_pipeline(
     input_root: Path | str | None = None,
     triangulate_fn: Callable[..., Any] | None = None,
     save_glb_fn: Callable[..., Any] | None = None,
+    gpu_guard: GpuContentionGuard | None = None,
 ) -> PipelineOutput:
-    """Execute the complete reconstruction pipeline from image source to MotionScene."""
+    """Execute the complete reconstruction pipeline from image source to MotionScene.
+
+    ``gpu_guard``, when given, is armed just before the provider touches the
+    GPU (loading a model, running inference) and polled -- throttled -- at
+    every progress checkpoint after that. A ComfyUI workflow queued mid-run
+    raises ReconGpuContentionError rather than letting both sides fight the
+    same VRAM into an OOM. See omnicam/comfy_compat/gpu_guard.py.
+    """
     start_time = time.time()
 
     def check_cancel() -> None:
         if cancel and cancel.is_cancelled():
             raise ReconCancelledError("Reconstruction cancelled by user")
+        if gpu_guard is not None:
+            try:
+                gpu_guard.check()
+            except GpuContentionDetected as exc:
+                raise ReconGpuContentionError(
+                    "Scene reconstruction stopped because a ComfyUI workflow "
+                    "started using the GPU."
+                ) from exc
 
     def report(stage: str, pct: float, msg: str) -> None:
         check_cancel()
@@ -77,11 +133,10 @@ def run_reconstruction_pipeline(
         raise ReconSourceInvalidError(str(exc)) from exc
 
     try:
-        source_bytes = resolved_path.read_bytes()
+        source_fp = _hash_file(resolved_path)
     except OSError as exc:
         raise ReconSourceInvalidError(f"Cannot read image file {resolved_path}: {exc}") from exc
 
-    source_fp = hashlib.sha256(source_bytes).hexdigest()[:16]
     fp = compute_reconstruction_fingerprint(
         source_fingerprint=source_fp,
         provider=provider.provider_id,
@@ -91,7 +146,7 @@ def run_reconstruction_pipeline(
     report("PREPARING", 0.08, "Checking reconstruction cache")
 
     caps = provider.capabilities()
-    provider_version = str(caps.metadata.get("version", "1.0"))
+    provider_version = _resolve_provider_version(caps.metadata)
 
     # 2. Check cache
     cached = lookup_cache(
@@ -109,7 +164,10 @@ def run_reconstruction_pipeline(
             fingerprint=fp,
         )
 
-    # 3. Geometry Inference
+    # 3. Geometry Inference -- the provider is about to touch the GPU, so this
+    # is where a queued ComfyUI workflow starts contending for the same VRAM.
+    if gpu_guard is not None:
+        gpu_guard.arm()
     report("INFER_GEOMETRY", 0.10, "Starting geometry estimation")
 
     def inference_progress(_stage: str, sub_pct: float, sub_msg: str) -> None:
@@ -149,6 +207,7 @@ def run_reconstruction_pipeline(
     # 5. Layout Analysis (camera + ground/walls)
     report("ANALYZE_LAYOUT", 0.72, "Reconstructing camera and detecting layout")
     camera = reconstruct_camera_from_evidence(evidence, settings)
+    source_width, source_height = resolve_source_dimensions(evidence)
     # Detection runs in provider units; the proxy mesh is scaled by
     # settings.scene_scale, so the planes follow it into the same space.
     planes = scale_planes(detect_planes(evidence, settings, seed=fp), settings.scene_scale)
@@ -200,11 +259,15 @@ def run_reconstruction_pipeline(
         metrics=metrics,
         warnings=list(evidence.warnings),
         confidence=evidence.confidence,
+        source_width=int(source_width),
+        source_height=int(source_height),
     )
 
     motion_scene = build_reconstructed_scene(
         result,
         source_asset_ref=source.value,
+        canvas_width=int(source_width),
+        canvas_height=int(source_height),
     )
 
     summary = {
@@ -212,6 +275,12 @@ def run_reconstruction_pipeline(
         "mode": settings.mode,
         "triangle_count": proxy_mesh.triangle_count,
         "camera_fov_x": round(camera.fov_x_degrees, 1),
+        # Overall reconstruction confidence, not the ground plane's -- an
+        # excellent mesh over a scene with no detectable floor is not a
+        # confidence of 0. node_bridge.py reports this as solver_coverage;
+        # ground_confidence stays alongside it for anything that specifically
+        # wants the plane fit's own quality.
+        "confidence": round(evidence.confidence, 4),
         "ground_confidence": round(ground_conf, 2),
         "object_count": len(motion_scene.get("objects", [])),
         "motion_scene": motion_scene,

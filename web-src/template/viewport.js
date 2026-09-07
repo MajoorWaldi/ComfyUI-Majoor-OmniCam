@@ -64,7 +64,7 @@ function motionTools() {
 export function viewportMarkup() {
   return `
     <div class="viewport-wrap">
-      <canvas tabindex="0"></canvas>
+      <canvas tabindex="0" role="img" aria-label="${t("3D scene viewport. Drag to orbit, scroll to zoom, F to frame the selection, right-click for the context menu.")}"></canvas>
 
       <div class="viewport-tally-banner" data-role="tally-banner" hidden>
         <span class="tally-dot"></span>

@@ -8,7 +8,7 @@
 
 // `t` was used by applyDirectorDefaults() without being imported, so a quality
 // downgrade threw a ReferenceError instead of showing its status message.
-import { registerLocale, setLocale, t } from "./i18n.js";
+import { getLocale, registerLocale, setLocale, t } from "./i18n.js";
 import { FR } from "./locales/fr.js";
 import {
   SETTING_ADAPTIVE, SETTING_ASPECT_RATIO, SETTING_AUTO_KEY, SETTING_BG_COLOR, SETTING_BURN_IN,
@@ -31,6 +31,7 @@ export * from "./settings/catalogue.js";
 export const OMNICAM_SETTINGS = buildOmniCamSettings({
   onLocaleChange: () => applyLocale(),
   onQualityChange: (value) => applyViewportQuality(value),
+  onAdaptiveChange: () => applyViewportQuality(),
 });
 
 let appRef = null;
@@ -73,7 +74,27 @@ function colorSetting(id, fallback) {
 export function applyLocale() {
   const preference = String(readSetting(SETTING_LOCALE, "auto"));
   const comfyLocale = String(readSetting("Comfy.Locale", "en") || "en").slice(0, 2).toLowerCase();
-  setLocale(preference === "auto" ? comfyLocale : preference);
+  const next = preference === "auto" ? comfyLocale : preference;
+  const changed = next !== getLocale();
+  setLocale(next);
+  if (!changed) return;
+  // Templates resolve their t() strings once, at build time, so a live switch
+  // only reaches the parts that re-render from state. Re-run those on every
+  // mounted Director, and say plainly that the rest needs a reload rather than
+  // leaving a half-translated UI with no explanation.
+  for (const ui of liveDirectors) {
+    if (ui.disposed) continue;
+    try {
+      ui.syncFromWidgets?.(false);
+      ui.refreshKeys?.();
+      ui.refreshObjects?.();
+      ui.refreshInspector?.();
+      ui.render?.();
+      ui.setStatus?.(t("Language updated — reload the workflow to translate every label."));
+    } catch (error) {
+      console.warn("OmniCam: live locale refresh failed", error);
+    }
+  }
 }
 
 /** Every mounted Director, so a settings change reaches all of them at once. */
@@ -114,9 +135,15 @@ export function adaptiveQualityEnabled() {
 
 export function applyViewportQuality(quality = viewportQuality()) {
   for (const ui of liveDirectors) {
-    ui.webgl?.setViewportQuality?.(quality);
-    ui.cameraWebgl?.setViewportQuality?.(quality);
-    ui.invalidate?.();
+    if (ui.disposed) continue;
+    // configureDirectorViewports() reapplies both the quality preset and the
+    // adaptive-downgrade flag to the already-mounted viewports. DirectorUI has
+    // no invalidate() (the old call here was a silent no-op), so repaint
+    // through the real path instead.
+    configureDirectorViewports(ui);
+    if (ui.requestRender) ui.requestRender("quality");
+    else ui.render?.();
+    ui.renderCameraView?.();
   }
 }
 

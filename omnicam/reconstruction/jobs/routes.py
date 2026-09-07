@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 PREFIX = "/majoor/omnicam/reconstruction/jobs"
 CAPABILITIES_PATH = "/majoor/omnicam/reconstruction/capabilities"
+CACHE_PATH = "/majoor/omnicam/reconstruction/cache"
 
 _MANAGER: ReconstructionJobManager | None = None
 
@@ -46,15 +47,6 @@ async def _body(request: web.Request) -> dict[str, Any]:
     )
 
 
-_STATUS_EXCEPTIONS = {
-    400: web.HTTPBadRequest,
-    403: web.HTTPForbidden,
-    404: web.HTTPNotFound,
-    409: web.HTTPConflict,
-    429: web.HTTPTooManyRequests,
-}
-
-
 def _respond(handler: Any, *args: Any, **kwargs: Any) -> web.Response:
     try:
         return web.json_response(handler(*args, **kwargs))
@@ -63,8 +55,12 @@ def _respond(handler: Any, *args: Any, **kwargs: Any) -> web.Response:
             raise web.HTTPRequestEntityTooLarge(
                 max_size=api.MAX_REQUEST_BYTES, actual_size=api.MAX_REQUEST_BYTES + 1
             ) from exc
-        factory = _STATUS_EXCEPTIONS.get(exc.status, web.HTTPBadRequest)
-        raise factory(text=exc.message) from exc
+        # A plain-text HTTPException body (the previous shape here) drops the
+        # stable RECON_* code the frontend's error reader looks for -- see
+        # job-client.js's readError(), which already expects
+        # {"error": {"code", "message"}} and only degrades to raw text when
+        # that JSON parse fails.
+        return web.json_response(exc.to_dict(), status=exc.status)
 
 
 def create_reconstruction_routes_table(
@@ -77,6 +73,10 @@ def create_reconstruction_routes_table(
     @routes.get(CAPABILITIES_PATH)
     async def capabilities_route(request: web.Request) -> web.Response:
         return web.json_response(get_reconstruction_capabilities())
+
+    @routes.delete(CACHE_PATH)
+    async def clear_cache_route(request: web.Request) -> web.Response:
+        return _respond(api.handle_clear_cache)
 
     @routes.post(PREFIX)
     async def start_job_route(request: web.Request) -> web.Response:
@@ -110,7 +110,15 @@ def create_reconstruction_routes_table(
 
 
 def register_on_prompt_server() -> None:
-    """Register reconstruction routes onto PromptServer.instance.routes if available."""
+    """Register reconstruction routes onto PromptServer.instance.routes if available.
+
+    Uses RouteTableDef.route(), the same public method ComfyUI's own
+    PromptServer.add_routes() uses to re-register its table under an /api
+    prefix (server.py) -- not the table's private _items list. This works
+    because custom nodes import (and this module's register_on_prompt_server()
+    call) happen before PromptServer.add_routes() consumes the table into the
+    live app.
+    """
     try:
         from ...comfy_compat.server import PromptServer
 
@@ -122,8 +130,8 @@ def register_on_prompt_server() -> None:
             }
             new_table = create_reconstruction_routes_table()
             for r in new_table:
-                if (r.method, r.path) not in existing:
-                    PromptServer.instance.routes._items.append(r)
+                if isinstance(r, web.RouteDef) and (r.method, r.path) not in existing:
+                    PromptServer.instance.routes.route(r.method, r.path)(r.handler, **r.kwargs)
     except Exception:  # noqa: BLE001
         logger.debug("PromptServer.instance.routes not available for auto-binding")
 

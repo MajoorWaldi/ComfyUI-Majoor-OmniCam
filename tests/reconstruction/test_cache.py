@@ -5,6 +5,7 @@ from __future__ import annotations
 from omnicam.reconstruction.cache import (
     CACHE_VERSION,
     CacheEntry,
+    clear_reconstruction_cache,
     lookup_cache,
     write_cache_manifest,
 )
@@ -129,3 +130,41 @@ def test_cache_miss_on_missing_or_corrupt_asset(tmp_path):
         )
         is None
     )
+
+
+def test_clear_reconstruction_cache_removes_every_cached_entry(tmp_path):
+    for fp in ("0123456789abcdef0123", "fedcba9876543210fedc"):
+        entry_dir = tmp_path / "majoor_omnicam" / "reconstruction" / fp
+        entry_dir.mkdir(parents=True)
+        (entry_dir / "environment.glb").write_bytes(b"x" * 100)
+        (entry_dir / "reconstruction.json").write_text("{}", encoding="utf-8")
+    inputs_dir = tmp_path / "majoor_omnicam" / "reconstruction" / "inputs"
+    inputs_dir.mkdir()
+    (inputs_dir / "recon_input_abc.png").write_bytes(b"y" * 50)
+
+    result = clear_reconstruction_cache(input_root=tmp_path)
+
+    assert result.entries_removed == 5
+    assert result.bytes_freed == 100 + len(b"{}") + 100 + len(b"{}") + 50
+    recon_dir = tmp_path / "majoor_omnicam" / "reconstruction"
+    assert recon_dir.is_dir()  # recreated empty, not left missing
+    assert list(recon_dir.iterdir()) == []
+
+
+def test_clear_reconstruction_cache_on_an_empty_tree_is_a_noop(tmp_path):
+    result = clear_reconstruction_cache(input_root=tmp_path)
+    assert result.entries_removed == 0
+    assert result.bytes_freed == 0
+
+
+def test_clear_reconstruction_cache_never_touches_sibling_directories(tmp_path):
+    sibling = tmp_path / "some_other_upload.png"
+    sibling.write_bytes(b"do not delete me")
+    recon_dir = tmp_path / "majoor_omnicam" / "reconstruction" / "abc"
+    recon_dir.mkdir(parents=True)
+    (recon_dir / "environment.glb").write_bytes(b"z")
+
+    clear_reconstruction_cache(input_root=tmp_path)
+
+    assert sibling.is_file()
+    assert sibling.read_bytes() == b"do not delete me"

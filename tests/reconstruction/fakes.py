@@ -42,12 +42,14 @@ class FakeReconstructionProvider:
         fov_deg: float = 60.0,
         available: bool = True,
         fail: bool = False,
+        capabilities_metadata: dict | None = None,
     ) -> None:
         self.grid_size = grid_size
         self.distance = distance
         self.fov_deg = fov_deg
         self.available = available
         self.fail = fail
+        self.capabilities_metadata = capabilities_metadata
 
     def capabilities(self) -> ProviderCapabilities:
         return ProviderCapabilities(
@@ -57,7 +59,7 @@ class FakeReconstructionProvider:
             source_kinds=["annotated_input", "annotated_output"],
             reason="" if self.available else "Fake provider intentionally disabled",
             recommended=False,
-            metadata={"synthetic": True},
+            metadata=self.capabilities_metadata if self.capabilities_metadata is not None else {"synthetic": True},
         )
 
     def reconstruct(

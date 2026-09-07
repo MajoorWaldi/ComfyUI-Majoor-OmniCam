@@ -18,7 +18,7 @@
 // rendered pixels.
 
 import { annotatedAssetUrl } from "../shared/managed-assets.js";
-import { motionFingerprint } from "../shared/motion-fingerprint.js";
+import { motionFingerprintFromJson } from "../shared/motion-fingerprint.js";
 
 const DIRECTOR_CLASS = "MajoorOmniCamDirector";
 
@@ -30,9 +30,13 @@ function widgetValue(node, name) {
   return node?.widgets?.find((item) => item.name === name)?.value;
 }
 
-function parsedStateOf(node) {
+function stateJsonOf(node) {
+  return String(widgetValue(node, "state_json") ?? "{}");
+}
+
+function parseState(stateJson) {
   try {
-    const state = JSON.parse(String(widgetValue(node, "state_json") ?? "{}"));
+    const state = JSON.parse(stateJson);
     return state && typeof state === "object" ? state : {};
   } catch {
     return {};
@@ -46,10 +50,10 @@ function parsedStateOf(node) {
  * evidence either way, and a permanent false warning on every pre-existing
  * recording would train users to ignore the real ones.
  */
-function isOutdated(manifest, state) {
+function isOutdated(manifest, stateJson) {
   const recorded = manifest?.motion_scene_fingerprint;
   if (!recorded) return false;
-  return recorded !== motionFingerprint(state);
+  return recorded !== motionFingerprintFromJson(stateJson);
 }
 
 /**
@@ -64,7 +68,8 @@ export function directorPlayblastSource(api, originNode) {
   if (!recordingPath) return null;
   const url = annotatedAssetUrl(api, recordingPath);
   if (!url) return null;
-  const state = parsedStateOf(originNode);
+  const stateJson = stateJsonOf(originNode);
+  const state = parseState(stateJson);
   const manifest = state?.metadata?.playblast && typeof state.metadata.playblast === "object"
     ? state.metadata.playblast
     : {};
@@ -77,7 +82,7 @@ export function directorPlayblastSource(api, originNode) {
     height: Number(manifest.height) || undefined,
     durationSeconds: Number(manifest.duration_seconds) || undefined,
     encoder: typeof manifest.encoder === "string" ? manifest.encoder : undefined,
-    outdated: isOutdated(manifest, state),
+    outdated: isOutdated(manifest, stateJson),
   };
 }
 

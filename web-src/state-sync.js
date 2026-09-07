@@ -4,6 +4,7 @@
 import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./director/core.js";
 import { SEQUENCE_TARGET, cutAtFrame, sequenceActive } from "./director/sequence.js";
 import { motionFingerprint } from "./shared/motion-fingerprint.js";
+import { applyPanelLayout } from "./event-bindings/panel-resize.js";
 
 export function activeCameraTrack(ui) {
   if (!ui?.state?.cameras?.length) {
@@ -154,6 +155,7 @@ export function syncFromWidgets(ui, persist = true) {
   for (const el of ui.root.querySelectorAll('[data-role="view-mode"]')) el.value = ui.state.view_mode || "camera";
   for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) el.value = ui.state.ui_density || "advanced";
   ui.root.dataset.density = ui.state.ui_density || "advanced";
+  applyPanelLayout(ui);
   for (const el of ui.root.querySelectorAll('[data-role="camera-view-row"]')) el.hidden = !ui.state.camera_view_visible;
   for (const tcv of ui.root.querySelectorAll('[data-act="toggle-camera-view"]')) {
     tcv.classList.toggle("active", ui.state.camera_view_visible);

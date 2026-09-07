@@ -371,6 +371,23 @@ export function createEditorMethods(dependencies) {
       this.render();
     });
   },
+  // Re-fit the LiteGraph node to the DOM widget's current content height. The
+  // DOM widget reports Math.max(700, root.scrollHeight) from getHeight(), but
+  // ComfyUI only re-reads that on a layout pass -- so a resizable panel that
+  // just grew (the Outliner list, the camera-preview strip) needs to ask for
+  // one explicitly or the node clips the taller content behind a scrollbar.
+  refitNode() {
+    if (this.disposed) return;
+    const node = this.node;
+    try {
+      if (node && typeof node.computeSize === "function" && typeof node.setSize === "function") {
+        const size = node.computeSize();
+        if (Array.isArray(size)) node.setSize([node.size?.[0] ?? size[0], size[1]]);
+      }
+      node?.graph?.setDirtyCanvas?.(true, true);
+    } catch (_) {}
+    this.scheduleResizeAndRender();
+  },
   resizeCanvas() {
     const wrap = this.root.querySelector(".viewport-wrap");
     if (!wrap) return;

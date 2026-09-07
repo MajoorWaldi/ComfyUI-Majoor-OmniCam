@@ -75,7 +75,12 @@ export class ReconstructionPanelController {
     try {
       const select = this.root.querySelector('[data-role="reconstruction-provider"]');
       const status = this.root.querySelector('[data-role="reconstruction-stage"]');
-      await loadReconstructionCapabilities(this.client, { selectElement: select, statusElement: status });
+      const checkpointSelect = this.root.querySelector('[data-role="reconstruction-checkpoint"]');
+      await loadReconstructionCapabilities(this.client, {
+        selectElement: select,
+        statusElement: status,
+        checkpointSelectElement: checkpointSelect,
+      });
     } catch {
       // Degrades gracefully
     }
@@ -106,10 +111,38 @@ export class ReconstructionPanelController {
         source,
         settings,
       });
-      this.dispatch({ type: "STATE", jobState: resp.state || "PREPARING", jobId: resp.job_id });
+      this.applyJobResponse(resp);
     } catch (err) {
       this.dispatch({ type: "ERROR", error: { message: err.message } });
     }
+  }
+
+  /**
+   * A cache hit can finish the job on its background thread before this
+   * POST even returns, racing the "done" WebSocket event: it may already
+   * have fired and been dropped (state.jobId was still empty when it
+   * matched against it), or it may never fire before this response lands.
+   * The HTTP response is the source of truth (job.to_dict() always embeds
+   * "result" once job.result is set), so a job that is already DONE/FAILED
+   * by the time we see it is resolved right here instead of waiting on a
+   * socket event that may not come.
+   */
+  applyJobResponse(resp) {
+    if (resp.result) {
+      this.dispatch({
+        type: "DONE",
+        jobId: resp.job_id,
+        result: resp.result.motion_scene || resp.result,
+        summary: resp.result.summary,
+        warnings: resp.result.warnings,
+      });
+      return;
+    }
+    if (resp.state === "FAILED") {
+      this.dispatch({ type: "ERROR", error: resp.error || { message: "Reconstruction failed" } });
+      return;
+    }
+    this.dispatch({ type: "STATE", jobState: resp.state || "PREPARING", jobId: resp.job_id });
   }
 
   async stop() {

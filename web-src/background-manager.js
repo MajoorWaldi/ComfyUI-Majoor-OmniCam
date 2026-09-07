@@ -2,6 +2,7 @@
 
 import { annotatedAssetUrl } from "./director/core.js";
 import { uploadManagedFile } from "./director/media.js";
+import { fileSizeError, sequenceLengthError } from "./shared/upload-limits.js";
 
 let comfyApi = null;
 
@@ -33,6 +34,11 @@ function beginBackgroundRequest(ui) {
 
 export async function loadViewportBgFile(ui, file) {
   if (!file) return;
+  const tooBig = fileSizeError(file, "image");
+  if (tooBig) {
+    ui.setStatus(tooBig);
+    return;
+  }
   const requestId = beginBackgroundRequest(ui);
   let uploaded = null;
   try {
@@ -61,6 +67,16 @@ export async function loadViewportBgFile(ui, file) {
 
 export async function loadViewportBgSequence(ui, files) {
   if (!files || !files.length) return;
+  const tooMany = sequenceLengthError(files.length);
+  if (tooMany) {
+    ui.setStatus(tooMany);
+    return;
+  }
+  const oversized = Array.from(files).map((file) => fileSizeError(file, "image")).find(Boolean);
+  if (oversized) {
+    ui.setStatus(oversized);
+    return;
+  }
   const requestId = beginBackgroundRequest(ui);
   files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
   const uploaded = [];

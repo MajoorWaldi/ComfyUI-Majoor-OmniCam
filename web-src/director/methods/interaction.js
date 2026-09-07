@@ -231,8 +231,8 @@ export function createInteractionMethods(dependencies) {
   frameTarget(options) {
     frameTarget(this, options);
   },
-  async loadMediaUrl(object, url) {
-    return loadMediaUrl(this, object, url);
+  async loadMediaUrl(object, url, isCurrent, isVideo) {
+    return loadMediaUrl(this, object, url, isCurrent, isVideo);
   },
   restoreAssets() {
     restoreAssets(this);

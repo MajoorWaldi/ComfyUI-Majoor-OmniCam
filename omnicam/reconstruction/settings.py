@@ -45,6 +45,11 @@ class ReconstructionSettings:
     triangle_budget: int = 120_000
     discontinuity_threshold: float = 0.04
     scene_scale: float = 1.0
+    # "auto" (default) keeps today's behavior of silently picking the
+    # provider's first checkpoint; anything else names one explicitly, so a
+    # user with several geometry_estimation checkpoints installed is not
+    # stuck on whichever one folder_paths happens to list first.
+    checkpoint: str = "auto"
 
     def __post_init__(self) -> None:
         if self.provider not in KNOWN_PROVIDERS:
@@ -82,6 +87,7 @@ class ReconstructionSettings:
             "triangle_budget": int(self.triangle_budget),
             "discontinuity_threshold": float(self.discontinuity_threshold),
             "scene_scale": float(self.scene_scale),
+            "checkpoint": self.checkpoint,
         }
 
     @classmethod
@@ -99,4 +105,5 @@ class ReconstructionSettings:
             triangle_budget=int(data.get("triangle_budget", 120_000)),
             discontinuity_threshold=float(data.get("discontinuity_threshold", 0.04)),
             scene_scale=float(data.get("scene_scale", 1.0)),
+            checkpoint=str(data.get("checkpoint", "auto")),
         )

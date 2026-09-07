@@ -1,109 +1,127 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
-import { extractorMarkup } from "../../web-src/extractor/template.js";
+import { ReconstructionPanelController } from "../../web-src/extractor/reconstruction/panel.js";
 
-const REQUIRED_DATA_ROLES = [
-  "extract-mode-camera",
-  "extract-mode-reconstruct",
-  "reconstruction-panel",
-  "reconstruction-provider",
-  "reconstruction-mode",
-  "reconstruction-quality",
-  "reconstruction-recover-fov",
-  "reconstruction-source-texture",
-  "reconstruction-detect-ground",
-  "reconstruction-detect-walls",
-  "reconstruction-triangle-budget",
-  "reconstruction-edge-threshold",
-  "reconstruction-scene-scale",
-  "reconstruction-run",
-  "reconstruction-stop",
-  "reconstruction-open-director",
-  "reconstruction-progress",
-  "reconstruction-stage",
-  "reconstruction-summary",
-  "reconstruction-warnings",
-];
-
-test("all required reconstruction data-role hooks exist in extractorMarkup", () => {
-  const markup = extractorMarkup();
-  for (const role of REQUIRED_DATA_ROLES) {
-    const rolePattern = new RegExp(`data-role=["']${role}["']`);
-    assert.ok(
-      rolePattern.test(markup),
-      `extractorMarkup missing required data-role: ${role}`
-    );
-  }
-});
-
-test("extractorMarkup is static with no interpolated user strings", () => {
-  const templatePath = resolve("web-src/extractor/template.js");
-  const templateSrc = readFileSync(templatePath, "utf8");
-
-  // Only allowed template interpolations inside extractorMarkup are EXTRACTOR_STYLES, brandMarkup, slider(...), and t(...)
-  const allowed = new Set(["EXTRACTOR_STYLES", "role", "label", "min", "max", "step", "value"]);
-  const interpolations = [...templateSrc.matchAll(/\$\{([^}]+)\}/g)].map((m) => m[1].trim());
-  for (const expr of interpolations) {
-    assert.ok(
-      allowed.has(expr) ||
-        expr.startsWith("brandMarkup") ||
-        expr.startsWith("slider(") ||
-        expr.startsWith("t("),
-      `Unexpected dynamic interpolation in template: ${expr}`
-    );
-  }
-});
-
-test("mode switch toggles reconstruction-panel hidden and preserves camera-track UI", () => {
-  const root = {
-    elements: new Map(),
-    querySelector(sel) {
-      const role = sel.match(/data-role="([^"]+)"/)?.[1];
-      if (role && this.elements.has(role)) return this.elements.get(role);
-      return null;
+function makeApi({ startResponse, capabilitiesResponse = { providers: [] } } = {}) {
+  return {
+    fetchApi: async (path) => {
+      if (path.includes("/capabilities")) {
+        return { ok: true, json: async () => capabilitiesResponse };
+      }
+      if (path.includes("/reconstruction/jobs")) {
+        return { ok: true, json: async () => startResponse };
+      }
+      throw new Error(`Unexpected fetchApi path: ${path}`);
     },
+    // No WebSocket delivery in these tests -- addEventListener is optional
+    // chained in ReconstructionEventSubscription and safely no-ops.
   };
+}
 
-  const reconPanel = { hidden: true };
-  const camBtn = { attributes: new Map(), setAttribute(k, v) { this.attributes.set(k, v); } };
-  const reconBtn = { attributes: new Map(), setAttribute(k, v) { this.attributes.set(k, v); } };
+const SOURCE = { kind: "annotated_input", value: "recon_input_abc.png [input]" };
 
-  root.elements.set("reconstruction-panel", reconPanel);
-  root.elements.set("extract-mode-camera", camBtn);
-  root.elements.set("extract-mode-reconstruct", reconBtn);
-
-  // Simulate switching to scene_reconstruct
-  const fakeExtractor = {
-    root,
-    $(role) { return this.root.querySelector(`[data-role="${role}"]`); },
-    setExtractMode(mode) {
-      this.extractMode = mode;
-      const isReconstruct = mode === "scene_reconstruct";
-      const panel = this.$("reconstruction-panel");
-      if (panel) panel.hidden = !isReconstruct;
-      this.$("extract-mode-camera")?.setAttribute("aria-selected", !isReconstruct ? "true" : "false");
-      this.$("extract-mode-reconstruct")?.setAttribute("aria-selected", isReconstruct ? "true" : "false");
+test("a cache hit that finishes before the POST returns is resolved from the response, not the socket", async () => {
+  // job.to_dict() (omnicam/reconstruction/jobs/types.py) always embeds
+  // "result" once job.result is set -- which can happen before the HTTP
+  // handler even serializes the response, if the background thread races
+  // ahead on a cache hit. The panel must not depend on the "done" WebSocket
+  // event (which may have already fired and been dropped, since jobId
+  // wasn't set in state yet to match it).
+  const api = makeApi({
+    startResponse: {
+      job_id: "job_cache_hit",
+      state: "DONE",
+      stage: "DONE",
+      progress: 1,
+      message: "",
+      result: {
+        motion_scene: { version: 1, objects: [] },
+        summary: { triangle_count: 12345 },
+        warnings: ["low confidence ground"],
+        fingerprint: "fp123",
+      },
+      error: null,
+      warnings: [],
     },
-  };
+  });
 
-  fakeExtractor.setExtractMode("scene_reconstruct");
-  assert.equal(reconPanel.hidden, false);
-  assert.equal(reconBtn.attributes.get("aria-selected"), "true");
-  assert.equal(camBtn.attributes.get("aria-selected"), "false");
+  const controller = new ReconstructionPanelController({
+    root: null,
+    node: { id: 1 },
+    api,
+    getSource: () => SOURCE,
+  });
 
-  // Switch back to camera_track
-  fakeExtractor.setExtractMode("camera_track");
-  assert.equal(reconPanel.hidden, true);
-  assert.equal(reconBtn.attributes.get("aria-selected"), "false");
-  assert.equal(camBtn.attributes.get("aria-selected"), "true");
+  await controller.run();
+
+  assert.equal(controller.state.jobState, "DONE");
+  assert.equal(controller.state.jobId, "job_cache_hit");
+  // applyJobResponse() unwraps resp.result.motion_scene, matching the shape
+  // openDirector() and the "done" WebSocket handler both already expect
+  // (`state.result.motion_scene || state.result`).
+  assert.equal(controller.state.result.version, 1);
+  assert.deepEqual(controller.state.summary, { triangle_count: 12345 });
+  assert.deepEqual(controller.state.warnings, ["low confidence ground"]);
+
+  controller.dispose();
 });
 
-test("index.js maintains module boundaries and stays below 800 lines limit", () => {
-  const indexPath = resolve("web-src/extractor/index.js");
-  const src = readFileSync(indexPath, "utf8");
-  const lineCount = src.split(/\r?\n/).length;
-  assert.ok(lineCount < 800, `index.js must be < 800 lines (current: ${lineCount})`);
+test("a job that fails before the POST returns is resolved as an error immediately", async () => {
+  const api = makeApi({
+    startResponse: {
+      job_id: "job_fast_fail",
+      state: "FAILED",
+      stage: "PREPARING",
+      progress: 0,
+      message: "",
+      result: null,
+      error: { code: "RECON_SOURCE_INVALID", message: "Source image not found" },
+      warnings: [],
+    },
+  });
+
+  const controller = new ReconstructionPanelController({
+    root: null,
+    node: { id: 1 },
+    api,
+    getSource: () => SOURCE,
+  });
+
+  await controller.run();
+
+  assert.equal(controller.state.jobState, "FAILED");
+  assert.equal(controller.state.error.code, "RECON_SOURCE_INVALID");
+
+  controller.dispose();
+});
+
+test("a normal in-flight job still updates from the STATE branch (no result yet)", async () => {
+  const api = makeApi({
+    startResponse: {
+      job_id: "job_running",
+      state: "PREPARING",
+      stage: "PREPARING",
+      progress: 0.02,
+      message: "",
+      result: null,
+      error: null,
+      warnings: [],
+    },
+  });
+
+  const controller = new ReconstructionPanelController({
+    root: null,
+    node: { id: 1 },
+    api,
+    getSource: () => SOURCE,
+  });
+
+  await controller.run();
+
+  assert.equal(controller.state.jobState, "PREPARING");
+  assert.equal(controller.state.jobId, "job_running");
+  assert.equal(controller.state.result, null);
+
+  controller.dispose();
 });

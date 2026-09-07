@@ -25,20 +25,54 @@ export function drawGrid(ui) {
   }
 }
 
+// The point field's geometry depends only on density, spread and colour --
+// never on the camera or the frame -- so generate it once and reuse it until
+// one of those three changes.
+function pointFieldFor(ui) {
+  const density = ui.state.point_density || "balanced";
+  const spread = ui.state.point_spread || "all_views";
+  const color = ui.state.point_color || null;
+  const key = `${density}|${spread}|${color}`;
+  if (ui._pointFieldCache?.key !== key) {
+    ui._pointFieldCache = { key, ...generatePointField(density, spread, color) };
+  }
+  return ui._pointFieldCache;
+}
+
+// This 2D path runs on GPUs with no WebGL at all; an 1800- or 3500-point field
+// is thousands of individual fillStyle / beginPath / arc / fill calls there.
+// Cap what the fallback draws and batch the survivors by colour + radius so a
+// state change and a path flush happen a handful of times, not once per point.
+const FALLBACK_MAX_POINTS = 600;
+
 export function drawPointField(ui) {
-  const { points, colors } = generatePointField(ui.state.point_density || "balanced", ui.state.point_spread || "all_views", ui.state.point_color || null);
+  const { points, colors } = pointFieldFor(ui);
   if (!points.length) return;
   const camera = ui.viewportCamera();
-  for (let i = 0; i < points.length; i += 3) {
-    const p = project([points[i], points[i + 1], points[i + 2]], camera, ui.canvas.width, ui.canvas.height);
+  const width = ui.canvas.width, height = ui.canvas.height;
+  const total = points.length / 3;
+  const stride = 3 * Math.max(1, Math.ceil(total / FALLBACK_MAX_POINTS));
+  const buckets = new Map();
+  for (let i = 0; i < points.length; i += stride) {
+    const p = project([points[i], points[i + 1], points[i + 2]], camera, width, height);
     if (!p) continue;
-    const radius = clamp(5 / Math.sqrt(p[2]), 1, 4);
-    const r = Math.round(colors[i] * 255);
-    const g = Math.round(colors[i + 1] * 255);
-    const b = Math.round(colors[i + 2] * 255);
-    ui.ctx.fillStyle = `rgb(${r},${g},${b})`;
+    const radius = clamp(Math.round(5 / Math.sqrt(p[2])), 1, 4);
+    const key = `${Math.round(colors[i] * 255)},${Math.round(colors[i + 1] * 255)},${Math.round(colors[i + 2] * 255)}|${radius}`;
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = { fill: `rgb(${key.slice(0, key.indexOf("|"))})`, radius, xs: [], ys: [] };
+      buckets.set(key, bucket);
+    }
+    bucket.xs.push(p[0]);
+    bucket.ys.push(p[1]);
+  }
+  for (const bucket of buckets.values()) {
+    ui.ctx.fillStyle = bucket.fill;
     ui.ctx.beginPath();
-    ui.ctx.arc(p[0], p[1], radius, 0, Math.PI * 2);
+    for (let j = 0; j < bucket.xs.length; j += 1) {
+      ui.ctx.moveTo(bucket.xs[j] + bucket.radius, bucket.ys[j]);
+      ui.ctx.arc(bucket.xs[j], bucket.ys[j], bucket.radius, 0, Math.PI * 2);
+    }
     ui.ctx.fill();
   }
 }

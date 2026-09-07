@@ -5,7 +5,7 @@
 
 export async function loadReconstructionCapabilities(
   client,
-  { selectElement = null, statusElement = null } = {}
+  { selectElement = null, statusElement = null, checkpointSelectElement = null } = {}
 ) {
   const caps = await client.capabilities();
   const providers = Array.isArray(caps?.providers) ? caps.providers : [];
@@ -45,6 +45,45 @@ export async function loadReconstructionCapabilities(
 
   const activeProviderId = selectElement?.value || recommended;
   const activeProvider = providers.find((p) => p.provider_id === activeProviderId);
+
+  if (checkpointSelectElement) {
+    if (typeof checkpointSelectElement.replaceChildren === "function") {
+      checkpointSelectElement.replaceChildren();
+    } else if (Array.isArray(checkpointSelectElement.options)) {
+      checkpointSelectElement.options.length = 0;
+    }
+
+    const makeOption = (value, label) => {
+      let opt;
+      if (typeof document !== "undefined" && typeof document.createElement === "function") {
+        opt = document.createElement("option");
+      } else {
+        opt = { value: "", textContent: "" };
+      }
+      opt.value = value;
+      opt.textContent = label;
+      return opt;
+    };
+    const addOption = (opt) => {
+      if (typeof checkpointSelectElement.appendChild === "function") {
+        checkpointSelectElement.appendChild(opt);
+      } else if (Array.isArray(checkpointSelectElement.options)) {
+        checkpointSelectElement.options.push(opt);
+      }
+    };
+
+    // "Auto" always exists, even when the provider has no checkpoints list at
+    // all (e.g. not comfy_moge) -- it just means "let the provider decide",
+    // which is also the only option that ever worked before this selector.
+    addOption(makeOption("auto", "Auto"));
+    const checkpoints = Array.isArray(activeProvider?.metadata?.checkpoints)
+      ? activeProvider.metadata.checkpoints
+      : [];
+    for (const name of checkpoints) {
+      addOption(makeOption(name, name));
+    }
+    checkpointSelectElement.value = "auto";
+  }
 
   if (statusElement) {
     if (activeProvider && !activeProvider.available) {

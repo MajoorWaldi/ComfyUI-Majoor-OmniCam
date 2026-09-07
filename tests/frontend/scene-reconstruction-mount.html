@@ -44,12 +44,16 @@
           setDirtyCanvas() {},
         };
 
+        // ?mode=scene_reconstruct lets a spec simulate a workflow reload that
+        // saved the node in Scene Reconstruct mode, without a second mount file.
+        const initialMode = new URLSearchParams(location.search).get("mode") || "camera_track";
+
         const extractorNode = {
           id: 1,
           comfyClass: "MajoorOmniCamExtractor",
           graph,
           widgets: [
-            { name: "extract_mode", value: "camera_track" },
+            { name: "extract_mode", value: initialMode },
             { name: "source_ref", value: "test_room.png [input]" },
             { name: "scene_json", value: "" },
             { name: "fingerprint", value: "" },

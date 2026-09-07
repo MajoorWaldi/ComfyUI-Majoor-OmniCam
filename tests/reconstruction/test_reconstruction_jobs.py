@@ -8,9 +8,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from omnicam.reconstruction.errors import ReconCancelledError
+from omnicam.reconstruction.errors import ReconCancelledError, ReconGpuBusyError
 from omnicam.reconstruction.jobs.manager import (
     JobAccessDeniedError,
+    JobLimitReachedError,
     JobNotFoundError,
     ReconstructionJobManager,
 )
@@ -98,7 +99,7 @@ def test_semaphore_serializes_concurrent_jobs(tmp_path):
     max_concurrent = 0
     lock = threading.Lock()
 
-    def fake_run(job, *, progress_cb=None):
+    def fake_run(job, *, progress_cb=None, **_kwargs):
         nonlocal active_runs, max_concurrent
         with lock:
             active_runs += 1
@@ -223,3 +224,170 @@ def test_stop_transitions_to_stopped_and_releases_semaphore():
     acquired = sem.acquire(blocking=False)
     assert acquired is True
     sem.release()
+
+
+def test_reconstruction_refuses_gpu_when_prompt_is_running():
+    """Mirrors omnicam/extractor/jobs/manager.py's own start() gate: refuse
+    to even admit a GPU job while ComfyUI's queue is already running one."""
+    manager = ReconstructionJobManager(execution_probe=lambda: True)
+
+    with pytest.raises(ReconGpuBusyError, match="currently executing a workflow"):
+        manager.start_job(
+            "node_1",
+            "client_1",
+            ReconstructionSource(kind="annotated_input", value="room.png"),
+            ReconstructionSettings(),
+        )
+
+    # No job was admitted; the queue stayed empty.
+    assert manager._jobs == {}
+
+
+def test_reconstruction_starts_normally_when_comfyui_is_idle():
+    manager = ReconstructionJobManager(
+        execution_probe=lambda: False,
+        runner=lambda job, **kwargs: job.transition(PREPARING) or job.transition(DONE),
+    )
+
+    job = manager.start_job(
+        "node_1",
+        "client_1",
+        ReconstructionSource(kind="annotated_input", value="room.png"),
+        ReconstructionSettings(),
+    )
+    assert job.job_id in manager._jobs
+
+
+def test_execution_probe_reaches_the_runner_for_mid_run_polling():
+    """The manager's own probe -- not some independent default -- must be the
+    one the runner (and therefore the pipeline's mid-run guard) polls, so an
+    injected fake probe in a test is the single source of truth end to end."""
+    seen_probes = []
+
+    def fake_runner(job, *, execution_probe=None, **_kwargs):
+        seen_probes.append(execution_probe)
+        job.transition(PREPARING)
+        job.transition(DONE)
+
+    probe = lambda: False  # noqa: E731
+    manager = ReconstructionJobManager(execution_probe=probe, runner=fake_runner)
+
+    job = manager.create_job(
+        "node_1", "client_1",
+        ReconstructionSource(kind="annotated_input", value="room.png"),
+        ReconstructionSettings(),
+    )
+    manager.execute_job(job.job_id)
+
+    assert seen_probes == [probe]
+
+
+def test_terminal_jobs_do_not_consume_active_job_limit():
+    """32 finished results sitting in memory (TTL not yet elapsed) must not
+    block a 33rd job when there is zero GPU work actually running -- the
+    manager should evict the oldest terminal job to make room, not refuse."""
+    manager = ReconstructionJobManager(max_jobs=2, ttl_seconds=1800.0)
+    source = ReconstructionSource(kind="annotated_input", value="room.png")
+    settings = ReconstructionSettings()
+
+    job1 = manager.create_job("node_1", "client_1", source, settings)
+    job1.transition(PREPARING)
+    job1.transition(DONE)
+    job1.last_access = time.time() - 100  # older
+
+    job2 = manager.create_job("node_2", "client_2", source, settings)
+    job2.transition(PREPARING)
+    job2.transition(DONE)
+    job2.last_access = time.time() - 10  # newer
+
+    # Both slots are full, but both jobs are terminal (finished, not active).
+    job3 = manager.create_job("node_3", "client_3", source, settings)
+
+    # The oldest terminal job (job1) was evicted to make room; job2 (newer,
+    # still terminal) and job3 (the new admission) remain.
+    with pytest.raises(JobNotFoundError):
+        manager.get_job(job1.job_id)
+    assert manager.get_job(job2.job_id).job_id == job2.job_id
+    assert manager.get_job(job3.job_id).job_id == job3.job_id
+
+
+def test_active_jobs_are_never_evicted_to_make_room():
+    """A job that is actually running (not terminal) must never be silently
+    dropped just because the table is full -- only JobLimitReachedError, so
+    the caller finds out instead of a solve vanishing mid-run."""
+    manager = ReconstructionJobManager(max_jobs=1, ttl_seconds=1800.0)
+    source = ReconstructionSource(kind="annotated_input", value="room.png")
+    settings = ReconstructionSettings()
+
+    active_job = manager.create_job("node_1", "client_1", source, settings)
+    active_job.transition(PREPARING)  # not terminal
+
+    with pytest.raises(JobLimitReachedError):
+        manager.create_job("node_2", "client_2", source, settings)
+
+    # The active job is untouched.
+    assert manager.get_job(active_job.job_id).state == PREPARING
+
+
+class _JoinThread:
+    """A worker-thread stand-in that records how shutdown() joins it.
+
+    Mirrors tests/test_extractor_jobs.py's _JoinThread for the sibling
+    extractor job manager's own shutdown() coverage.
+    """
+
+    def __init__(self, *, alive_after_join: bool = False) -> None:
+        self.name = "omnicam-recon-test-worker"
+        self.join_calls: list[float | None] = []
+        self._alive = alive_after_join
+
+    def join(self, timeout: float | None = None) -> None:
+        self.join_calls.append(timeout)
+
+    def is_alive(self) -> bool:
+        return self._alive
+
+
+def test_shutdown_cancels_every_active_job():
+    manager = ReconstructionJobManager()
+    source = ReconstructionSource(kind="annotated_input", value="room.png")
+    settings = ReconstructionSettings()
+    job = manager.create_job("node_1", "client_1", source, settings)
+
+    manager.shutdown()
+
+    assert job.cancel_token.is_cancelled()
+
+
+def test_shutdown_bounds_the_worker_join():
+    manager = ReconstructionJobManager()
+    source = ReconstructionSource(kind="annotated_input", value="room.png")
+    settings = ReconstructionSettings()
+    job = manager.create_job("node_1", "client_1", source, settings)
+
+    fake = _JoinThread()
+    manager._threads[job.job_id] = fake
+
+    manager.shutdown()
+
+    assert job.cancel_token.is_cancelled()
+    assert fake.join_calls, "shutdown must join the worker thread"
+    assert all(timeout is not None and timeout > 0 for timeout in fake.join_calls)
+
+
+def test_shutdown_warns_but_returns_when_a_worker_will_not_die(caplog):
+    manager = ReconstructionJobManager()
+    source = ReconstructionSource(kind="annotated_input", value="room.png")
+    settings = ReconstructionSettings()
+    job = manager.create_job("node_1", "client_1", source, settings)
+    manager._threads[job.job_id] = _JoinThread(alive_after_join=True)
+
+    with caplog.at_level("WARNING"):
+        manager.shutdown()
+
+    assert "worker threads still alive" in caplog.text
+
+
+def test_shutdown_with_no_jobs_is_a_no_op():
+    manager = ReconstructionJobManager()
+    manager.shutdown()  # must not raise

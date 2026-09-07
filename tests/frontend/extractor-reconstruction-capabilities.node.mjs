@@ -113,3 +113,63 @@ test("loadReconstructionCapabilities clears status when selected provider is ava
   assert.equal(status.textContent, "");
   assert.equal(select.value, "ready_provider");
 });
+
+test("loadReconstructionCapabilities populates the checkpoint select from the active provider's metadata", async () => {
+  const mockClient = {
+    async capabilities() {
+      return {
+        feature: "scene_reconstruction",
+        version: 1,
+        providers: [
+          {
+            provider_id: "comfy_moge",
+            name: "Native MoGe",
+            available: true,
+            reason: "",
+            metadata: {
+              checkpoints: ["moge_v1.safetensors", "moge_v2.safetensors"],
+              active_checkpoint: { name: "moge_v1.safetensors" },
+            },
+          },
+        ],
+        recommended_provider: "comfy_moge",
+      };
+    },
+  };
+
+  const select = new FakeSelect();
+  const checkpointSelect = new FakeSelect();
+
+  await loadReconstructionCapabilities(mockClient, {
+    selectElement: select,
+    checkpointSelectElement: checkpointSelect,
+  });
+
+  assert.deepEqual(
+    checkpointSelect.options.map((o) => o.value),
+    ["auto", "moge_v1.safetensors", "moge_v2.safetensors"]
+  );
+  // Defaults to "auto", not the provider's own active_checkpoint -- auto
+  // *is* today's silent-pick behavior, so it is what a fresh panel keeps.
+  assert.equal(checkpointSelect.value, "auto");
+});
+
+test("loadReconstructionCapabilities gives the checkpoint select only Auto when the provider has none", async () => {
+  const mockClient = {
+    async capabilities() {
+      return {
+        feature: "scene_reconstruction",
+        version: 1,
+        providers: [
+          { provider_id: "fake", name: "Fake", available: true, reason: "", metadata: {} },
+        ],
+        recommended_provider: "fake",
+      };
+    },
+  };
+
+  const checkpointSelect = new FakeSelect();
+  await loadReconstructionCapabilities(mockClient, { checkpointSelectElement: checkpointSelect });
+
+  assert.deepEqual(checkpointSelect.options.map((o) => o.value), ["auto"]);
+});

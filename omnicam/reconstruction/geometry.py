@@ -27,7 +27,28 @@ class ProxyMesh:
     faces: torch.Tensor
     uvs: torch.Tensor | None = None
     texture: Any = None
+    normals: torch.Tensor | None = None
     triangle_count: int = 0
+
+
+def _compute_smooth_vertex_normals(verts: torch.Tensor, faces: torch.Tensor) -> torch.Tensor:
+    """Area-weighted smooth per-vertex normals, in the mesh's final coordinate space.
+
+    save_glb only takes the KHR_materials_unlit branch when there is no
+    texture (comfy_extras/nodes_save_3d.py); a reconstruction always embeds
+    the source photo, so the GLB is a normally-lit PBR material. Without a
+    NORMAL accessor that renders solid black or near-black under real
+    lighting -- there is nothing for the shader's N.L term to work with.
+    """
+    v0, v1, v2 = verts[faces[:, 0]], verts[faces[:, 1]], verts[faces[:, 2]]
+    # Unnormalized cross product: magnitude is proportional to triangle area,
+    # so summing it into each corner vertex naturally area-weights the average.
+    face_normals = torch.cross(v1 - v0, v2 - v0, dim=-1)
+    vertex_normals = torch.zeros_like(verts)
+    for i in range(3):
+        vertex_normals.index_add_(0, faces[:, i], face_normals)
+    lengths = vertex_normals.norm(dim=-1, keepdim=True)
+    return vertex_normals / lengths.clamp_min(1e-12)
 
 
 def build_proxy_mesh(
@@ -70,10 +91,20 @@ def build_proxy_mesh(
         except Exception as exc:  # pragma: no cover
             raise RuntimeError(f"Could not import comfy.ldm.moge.geometry.triangulate_grid_mesh: {exc}") from exc
 
+    # "custom" is the one quality that keeps the caller's own
+    # triangle_budget/discontinuity_threshold; fast/balanced/high are presets,
+    # so they must fully resolve both fields themselves rather than only
+    # initial_decimation -- otherwise switching from "high" to "fast" without
+    # also editing the two number fields silently keeps the "high" budget and
+    # threshold with only the decimation actually changing.
     preset = QUALITY_PRESETS.get(settings.quality, {})
     initial_decimation = int(preset.get("initial_decimation", 1))
-    discontinuity = float(settings.discontinuity_threshold)
-    budget = int(settings.triangle_budget)
+    if settings.quality == "custom":
+        discontinuity = float(settings.discontinuity_threshold)
+        budget = int(settings.triangle_budget)
+    else:
+        discontinuity = float(preset.get("discontinuity_threshold", settings.discontinuity_threshold))
+        budget = int(preset.get("triangle_budget", settings.triangle_budget))
 
     decimation = max(1, initial_decimation)
     verts = None
@@ -120,10 +151,13 @@ def build_proxy_mesh(
         else:
             texture = img
 
+    normals = _compute_smooth_vertex_normals(verts, faces)
+
     return ProxyMesh(
         vertices=verts,
         faces=faces,
         uvs=uvs,
         texture=texture,
+        normals=normals,
         triangle_count=int(faces.shape[0]),
     )

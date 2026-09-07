@@ -32,6 +32,7 @@ export function initialReconstructionSettings() {
     provider: "comfy_moge",
     mode: "geometry",
     quality: "balanced",
+    checkpoint: "auto",
     triangle_budget: 120000,
     discontinuity_threshold: 0.04,
     scene_scale: 1.0,
@@ -128,6 +129,7 @@ export function reduceReconstructionState(state, action) {
       return {
         ...state,
         jobState: "DONE",
+        jobId: action.jobId ?? state.jobId,
         // Progress is a 0..1 fraction throughout, matching the server.
         progress: 1,
         result: action.result,

@@ -3,8 +3,32 @@
 import { refreshAimBoneOptions } from "../aim-constraint.js";
 import { add, applyCameraOrientationEuler, cameraOrientationEuler, clamp, cloneTransform } from "../director/core.js";
 import { confirmAction, promptText } from "../director/ui-services.js";
-import { t } from "../i18n.js";
+import { getLocale, t } from "../i18n.js";
+
+/** Rebuild a <select>'s <option> list only when its content actually changed,
+ * and never while the user is inside it. refreshInspector() runs on every
+ * frame change, so a naive rebuild reallocated these dropdowns 24-120x a
+ * second -- closing an open list and stealing keyboard focus mid-navigation.
+ * A focused select keeps its options untouched and does not even take the new
+ * value; an unfocused one rebuilds only on a signature miss. */
+function syncSelectOptions(select, signature, buildOptions, value) {
+  if (!select) return;
+  if (document.activeElement === select) return;
+  if (select.__omnicamOptionSig !== signature) {
+    select.__omnicamOptionSig = signature;
+    select.replaceChildren(...buildOptions());
+  }
+  select.value = value;
+}
+
+function optionEl(value, label) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = label;
+  return option;
+}
 import { beginCameraEdit, commitCameraEdit, finishCameraEdit, refreshKeyEditor, selectedKeyframe, updateKeyVisualState } from "../scene.js";
+import { stopDomMedia } from "../dom-media.js";
 import { findEditableKey } from "./edit-target.js";
 import { reconstructionBadge } from "./reconstruction-badges.js";
 
@@ -171,18 +195,11 @@ export function refreshInspector(ui) {
   const targetSelect = q('[data-role="camera-target-object"]');
   if (targetSelect) {
     const currentTarget = activeCamera.target_object_id || ui.state.target_object_id || "";
-    targetSelect.innerHTML = "";
-    const manualOpt = document.createElement("option");
-    manualOpt.value = "";
-    manualOpt.textContent = t("Manual Target (No Tracking)");
-    targetSelect.appendChild(manualOpt);
-    for (const sceneObj of ui.state.objects) {
-      const opt = document.createElement("option");
-      opt.value = sceneObj.id;
-      opt.textContent = `${t("Track:")} ${sceneObj.name || sceneObj.type}`;
-      targetSelect.appendChild(opt);
-    }
-    targetSelect.value = currentTarget;
+    const signature = `T${getLocale()}${ui.state.objects.map((sceneObj) => `${sceneObj.id} ${sceneObj.name || sceneObj.type}`).join("|")}`;
+    syncSelectOptions(targetSelect, signature, () => [
+      optionEl("", t("Manual Target (No Tracking)")),
+      ...ui.state.objects.map((sceneObj) => optionEl(sceneObj.id, `${t("Track:")} ${sceneObj.name || sceneObj.type}`)),
+    ], currentTarget);
   }
   refreshAimBoneOptions(ui);
 
@@ -277,11 +294,6 @@ export function refreshInspector(ui) {
   const parentSelect = q('[data-role="object-parent"]');
   if (parentSelect) {
     const currentId = object.id;
-    parentSelect.innerHTML = "";
-    const none = document.createElement("option");
-    none.value = "";
-    none.textContent = t("No parent");
-    parentSelect.appendChild(none);
     // Offer every other object that would not create a cycle.
     const descendants = new Set([currentId]);
     let changed = true;
@@ -293,26 +305,18 @@ export function refreshInspector(ui) {
           changed = true;
         }
     }
-    for (const candidate of ui.state.objects) {
-      if (descendants.has(candidate.id)) continue;
-      const option = document.createElement("option");
-      option.value = candidate.id;
-      option.textContent = candidate.name || candidate.type;
-      parentSelect.appendChild(option);
-    }
-    parentSelect.value = object.parent_id || "";
+    const candidates = ui.state.objects.filter((candidate) => !descendants.has(candidate.id));
+    const signature = `P${getLocale()}${currentId}${candidates.map((candidate) => `${candidate.id} ${candidate.name || candidate.type}`).join("|")}`;
+    syncSelectOptions(parentSelect, signature, () => [
+      optionEl("", t("No parent")),
+      ...candidates.map((candidate) => optionEl(candidate.id, candidate.name || candidate.type)),
+    ], object.parent_id || "");
   }
   const model = ui.modelInfoById.get(object.id);
   if (animationRow) animationRow.hidden = !model?.animations;
   if (animationSelect) {
-    animationSelect.innerHTML = "";
-    for (const [index, name] of (model?.animationNames || []).entries()) {
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = name;
-      animationSelect.appendChild(option);
-    }
-    animationSelect.value = String(object.animation_index || 0);
+    const names = model?.animationNames || [];
+    syncSelectOptions(animationSelect, `A${names.join("|")}`, () => names.map((name, index) => optionEl(String(index), name)), String(object.animation_index || 0));
   }
 }
 
@@ -486,6 +490,9 @@ export { refreshObjects } from "./outliner.js";
 
 export function removeObjectResources(ui, id) {
   ui.objectUrls.revoke(id);
+  // Stop and unload a video before dropping the map reference, otherwise the
+  // browser keeps decoding a clip nothing can display any more.
+  stopDomMedia(ui.cardMediaById.get(id));
   ui.cardMediaById.delete(id);
   ui.modelUrlsById.delete(id);
   ui.modelInfoById.delete(id);

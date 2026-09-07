@@ -44,5 +44,5 @@ export function orbitView(ui, yawStep, pitchStep) {
     Math.sin(pitch),
     Math.cos(yaw) * Math.cos(pitch),
   ], radius));
-  if (editorView) { ui.serialize(); ui.render(); } else { ui.commitCameraEdit(); ui.finishCameraEdit(); }
+  if (editorView) { ui.scheduleSerialize(); ui.render(); } else { ui.commitCameraEdit(); ui.finishCameraEdit(); }
 }

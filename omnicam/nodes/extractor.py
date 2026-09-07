@@ -90,7 +90,13 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             ],
             outputs=[
                 OMNICAM_MOTION_SCENE.Output(display_name="motion_scene"),
-                IO.Float.Output(display_name="solver_coverage"),
+                IO.Float.Output(
+                    display_name="solver_coverage",
+                    tooltip=(
+                        "camera_track: fraction of frames with a solved pose. "
+                        "scene_reconstruct: overall reconstruction confidence."
+                    ),
+                ),
                 IO.String.Output(display_name="report"),
             ],
         )

@@ -88,3 +88,29 @@ function fnv1a(text) {
 export function motionFingerprint(state) {
   return fnv1a(JSON.stringify(stableClone(motionFingerprintInput(state))));
 }
+
+// Single-entry memo keyed by the exact source string. The Monitor recomputes
+// this from an unchanged `state_json` four times a second while nothing is
+// being edited; the stable-clone + JSON.stringify + FNV pass is pure over its
+// input, so an exact string match returns the previous answer for free. One
+// slot is enough: a graph normally has a single connected Director.
+let fingerprintMemo = { json: null, value: null };
+
+/**
+ * Fingerprint a Director state given its raw `state_json` string. Parses once
+ * and reuses the result while the string is unchanged, so a caller polling on
+ * a timer does not pay the parse + hash on every tick.
+ */
+export function motionFingerprintFromJson(stateJson) {
+  const json = typeof stateJson === "string" ? stateJson : "{}";
+  if (json === fingerprintMemo.json) return fingerprintMemo.value;
+  let parsed;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    parsed = {};
+  }
+  const value = motionFingerprint(parsed && typeof parsed === "object" ? parsed : {});
+  fingerprintMemo = { json, value };
+  return value;
+}

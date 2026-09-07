@@ -2,6 +2,7 @@
 
 import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
 import { attachMeshOverlays } from "./mesh-overlays.js";
+import { reconstructionMaterialMode } from "../scene/reconstruction-badges.js";
 
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -63,9 +64,7 @@ export function createResourceMethods(dependencies) {
         const model = this.models.get(object.id);
         const format = object.format || (object.type === "glb" ? "glb" : "");
         if (url && (model?.url !== url || model?.format !== format)) this.loadModel(object.id, url, format);
-        const effectiveAppearance = object.reconstruction
-          ? (state.reconstruction_appearance === "source_texture" && !cleanCapture ? "textured" : "neutral")
-          : (object.material_mode || "textured");
+        const effectiveAppearance = reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
         if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance); }
         else mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2] || 1), wire.clone());
       } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode));

@@ -19,6 +19,7 @@ from omnicam.reconstruction.errors import (
 )
 from omnicam.reconstruction.jobs.api import (
     ReconstructionApiError,
+    handle_clear_cache,
     handle_delete_job,
     handle_get_result,
     handle_get_status,
@@ -179,3 +180,16 @@ def test_handle_start_status_stop_delete():
     with pytest.raises(ReconstructionApiError) as exc:
         handle_get_status(manager, job_id, client_id="client_99")
     assert exc.value.status == 404
+
+
+def test_handle_clear_cache_reports_what_it_removed(tmp_path):
+    entry_dir = tmp_path / "majoor_omnicam" / "reconstruction" / "0123456789abcdef0123"
+    entry_dir.mkdir(parents=True)
+    (entry_dir / "environment.glb").write_bytes(b"x" * 42)
+
+    result = handle_clear_cache(input_root=tmp_path)
+
+    assert result["cleared"] is True
+    assert result["entries_removed"] == 1
+    assert result["bytes_freed"] == 42
+    assert not (entry_dir / "environment.glb").exists()

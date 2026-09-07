@@ -162,6 +162,9 @@ test("reduceReconstructionState handles state transitions and events", () => {
   assert.deepEqual(state.warnings, ["low confidence ground"]);
   assert.deepEqual(state.summary, { triangle_count: 50000 });
   assert.ok(state.result.motion_scene);
+  // jobId carried through from PREPARING/STATE above, unchanged when DONE
+  // does not supply its own.
+  assert.equal(state.jobId, "job_123");
 
   // ERROR action
   state = reduceReconstructionState(state, {
@@ -177,4 +180,18 @@ test("reduceReconstructionState handles state transitions and events", () => {
   assert.equal(state.jobId, "");
   assert.equal(state.error, null);
   assert.equal(state.result, null);
+});
+
+test("DONE action sets jobId directly, for a cache hit that finished before a STATE dispatch ever ran", () => {
+  // panel.js's applyJobResponse() dispatches DONE straight from the startJob
+  // response when a cache hit finished the job before the HTTP request even
+  // returned -- there was never a prior STATE dispatch to seed jobId with
+  // the new job's id, so DONE must be able to set it itself.
+  const state = reduceReconstructionState(initialReconstructionState(), {
+    type: "DONE",
+    jobId: "job_cache_hit",
+    result: { motion_scene: { version: 1 } },
+  });
+  assert.equal(state.jobId, "job_cache_hit");
+  assert.equal(state.jobState, "DONE");
 });

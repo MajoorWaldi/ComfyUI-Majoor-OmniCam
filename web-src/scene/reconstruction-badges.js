@@ -33,7 +33,23 @@ export function reconstructionBadge(object) {
 }
 
 export function getReconstructionAppearance(state) {
-  return state?.reconstruction_appearance || "neutral";
+  return state?.reconstruction_appearance || "source_texture";
+}
+
+/**
+ * The material appearance the viewport should actually render for one
+ * reconstructed object right now.
+ *
+ * This is the one place that decision gets made, so it stays a single,
+ * unit-testable rule: an omni_ref conditioning playblast (cleanCapture) must
+ * never leak the recovered source texture into the reference it feeds a
+ * generation model, no matter what the interactive Reconstruction Appearance
+ * toggle is set to. Non-reconstructed objects aren't affected at all.
+ */
+export function reconstructionMaterialMode(object, state, cleanCapture) {
+  if (!object?.reconstruction) return null;
+  if (cleanCapture) return "neutral";
+  return getReconstructionAppearance(state) === "source_texture" ? "textured" : "neutral";
 }
 
 export function setReconstructionAppearance(ui, appearance) {

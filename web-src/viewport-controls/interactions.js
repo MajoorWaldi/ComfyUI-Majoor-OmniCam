@@ -7,84 +7,14 @@ import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject
 import { t } from "../i18n.js";
 import { cancelModalTransform, confirmModalTransform, selectedTransformObjects, updateModalTransform } from "./modal-transform.js";
 import { isNavigationGesture, navigationGesture, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
-
-function checkpointDrag(ui, drag, label) {
-  if (!drag || drag.historyCheckpointed) return;
-  ui.checkpoint(label);
-  drag.historyCheckpointed = true;
-}
-
-// Writes a dragged camera-target position as the "maintain offset" on top of
-// an active look-at constraint, instead of the raw target sampleCamera would
-// immediately discard (see the camera_target drag sites below). Re-deriving
-// via setFrame folds in applyAimConstraint too, so a bone-aimed camera gets
-// the same live feedback as a plain object-tracked one.
-function applyTrackingOffset(ui, offset) {
-  const track = ui.activeCameraTrack?.();
-  if (!track) return;
-  track.target_offset = offset;
-  if (track.id === ui.state.active_camera_id) ui.state.target_offset = offset;
-  ui.setFrame(ui.frame, false, false);
-}
-
-function checkpointWheelGesture(ui) {
-  const now = globalThis.performance?.now?.() ?? Date.now();
-  if (!Number.isFinite(ui.lastViewportWheelAt) || now - ui.lastViewportWheelAt > 300) {
-    ui.checkpoint("Dolly viewport");
-  }
-  ui.lastViewportWheelAt = now;
-}
-
-const snapValue = (value, step) => Math.round(value / step) * step;
-const snapVector = (value, step) => value.map((component) => snapValue(component, step));
-
-/** The screen-space AABB of an object's world bounds, for marquee overlap
- * tests. Falls back to a box built from position +/- size/2 when there is no
- * WebGL mesh to measure (nulls, primitives the renderer draws procedurally). */
-function projectedObjectScreenBounds(ui, object, camera) {
-  const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
-  const position = transform.position || [0, 0, 0];
-  const worldBounds = ui.webgl?.getObjectWorldBounds?.(object.id);
-  let min, max;
-  if (worldBounds) {
-    ({ min, max } = worldBounds);
-  } else {
-    const half = (transform.size || [1, 1, 1]).map((value) => Math.max(0.01, Math.abs(value)) / 2);
-    min = half.map((h, i) => position[i] - h);
-    max = half.map((h, i) => position[i] + h);
-  }
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const x of [min[0], max[0]]) for (const y of [min[1], max[1]]) for (const z of [min[2], max[2]]) {
-    const point = project([x, y, z], camera, ui.canvas.width, ui.canvas.height);
-    if (!point) continue;
-    minX = Math.min(minX, point[0]); maxX = Math.max(maxX, point[0]);
-    minY = Math.min(minY, point[1]); maxY = Math.max(maxY, point[1]);
-  }
-  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
-}
-
-// `axisLock` restricts snapping to a single-axis drag ({ base, axis }): only
-// the coordinate(s) that axis actually moves get snapped to the world grid,
-// same absolute grid lines the free drag below snaps onto; any coordinate the
-// axis doesn't touch is pinned to its exact pre-drag value instead of being
-// run through the grid too. Without this, grid snap (Ctrl, or the Grid snap
-// mode) rewrote every component of the position, so an axis-constrained drag
-// could visibly jump off its axis the moment an idle coordinate wasn't
-// already grid-aligned.
-function spatiallySnap(ui, position, pointer, excludedIds = [], axisLock = null) {
-  const temporaryGrid = ui.currentTransformEvent?.ctrlKey || ui.currentTransformEvent?.metaKey;
-  const mode = temporaryGrid ? "grid" : ui.state.spatial_snap_mode;
-  const gridSize = ui.state.spatial_grid_size || 0.5;
-  if (mode === "grid") {
-    if (axisLock) return position.map((value, i) => (Math.abs(axisLock.axis[i]) > 1e-6 ? snapValue(value, gridSize) : axisLock.base[i]));
-    return snapVector(position, gridSize);
-  }
-  if (mode === "vertex" && pointer && !axisLock) {
-    const hit = ui.webgl?.pickSubElement?.(pointer[0], pointer[1], ui.canvas.width, ui.canvas.height, "vertex");
-    if (hit?.point && !excludedIds.includes(hit.objectId)) return [...hit.point];
-  }
-  return position;
-}
+import {
+  applyTrackingOffset,
+  checkpointDrag,
+  checkpointWheelGesture,
+  projectedObjectScreenBounds,
+  snapValue,
+  spatiallySnap,
+} from "./drag-helpers.js";
 
 export function onPointerDown(ui, e) {
   if (ui.modalTransform) {
@@ -641,7 +571,11 @@ export function onPointerMove(ui, e) {
     ];
   }
   if (ui.drag.editorView) {
-    ui.serialize();
+    // Repaint now, but fold the full state serialization (JSON.stringify of
+    // the whole scene + every widget write + a ComfyUI canvas invalidation)
+    // into the rAF-batched path so a fast pointer stream cannot trigger
+    // several complete serializations inside one frame.
+    ui.scheduleSerialize();
     ui.render();
   } else ui.commitCameraEdit();
 }
@@ -765,7 +699,8 @@ export function onWheel(ui, e) {
   camera.position = add(camera.target, mul(offset, Math.exp(delta)));
   if (camera.camera_type === "orthographic") camera.zoom = Math.max(0.01, (camera.zoom || 1) * Math.exp(-delta));
   if (editorView) {
-    ui.serialize();
+    // See onPointerMove: repaint immediately, defer the heavy serialization.
+    ui.scheduleSerialize();
     ui.render();
   } else {
     ui.commitCameraEdit();

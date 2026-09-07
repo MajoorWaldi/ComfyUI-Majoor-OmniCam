@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { motionFingerprint, motionFingerprintInput } from "../../web-src/shared/motion-fingerprint.js";
+import { motionFingerprint, motionFingerprintFromJson, motionFingerprintInput } from "../../web-src/shared/motion-fingerprint.js";
 
 function baseState() {
   return {
@@ -129,4 +129,26 @@ test("a camera's actual geometry still changes the fingerprint alongside its rec
   const a = { cameras: [{ id: "camera_1", position: [0, 1, 5], recording_path: "a.webm [temp]" }] };
   const b = { cameras: [{ id: "camera_1", position: [0, 1, 9], recording_path: "a.webm [temp]" }] };
   assert.notEqual(motionFingerprint(a), motionFingerprint(b));
+});
+
+test("motionFingerprintFromJson matches motionFingerprint of the parsed state", () => {
+  const state = baseState();
+  const json = JSON.stringify(state);
+  assert.equal(motionFingerprintFromJson(json), motionFingerprint(state));
+});
+
+test("motionFingerprintFromJson memoizes an unchanged string and re-parses a changed one", () => {
+  const first = JSON.stringify(baseState());
+  const a1 = motionFingerprintFromJson(first);
+  const a2 = motionFingerprintFromJson(first);
+  assert.equal(a1, a2);
+  const moved = baseState();
+  moved.cameras[0].camera.position = [0, 1, 9];
+  assert.notEqual(motionFingerprintFromJson(JSON.stringify(moved)), a1);
+  // back to the original string -> original hash again
+  assert.equal(motionFingerprintFromJson(first), a1);
+});
+
+test("motionFingerprintFromJson treats unusable input as an empty state", () => {
+  assert.equal(motionFingerprintFromJson("not json"), motionFingerprintFromJson("{}"));
 });

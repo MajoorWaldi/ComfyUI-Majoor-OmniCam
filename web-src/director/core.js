@@ -376,12 +376,18 @@ export function defaultState() {
     cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(camera), keyframes }], active_camera_id: "camera_1", playblast_camera_id: "camera_1",
     objects: [{ id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" }],
     metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_resolution: "output", card_fit: "contain", card_asset: "", reference_index: 0,
-    reconstruction_appearance: "neutral",
+    // Interactive inspection defaults to the recovered source texture (the plan's
+    // "interactive layout inspection may use Source Texture"); omni_ref conditioning
+    // playblasts force Neutral regardless of this value (see viewport/resources.js's
+    // cleanCapture check), so this default never leaks a textured proxy into a
+    // conditioning reference.
+    reconstruction_appearance: "source_texture",
     point_density: "balanced", point_spread: "all_views", point_color: "#cbd5e1", viewport_bg_color: "#121212", viewport_bg_image: "", viewport_bg_sequence: [],
     show_grid: true, show_camera_paths: true, show_camera_gizmos: true, show_look_at: true, show_helper_axes: true, show_gizmo: true, show_wireframe: false, show_vertices: false, select_mode: "object",
     gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "maya", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
+    outliner_height: PANEL_LAYOUT.outlinerHeight.default, preview_width: PANEL_LAYOUT.previewWidth.default,
     health_profile: "generic",
     motion_layers: [], selected_motion_layer_id: null, motion_tool: "select",
     sequence: defaultSequence(),
@@ -418,6 +424,19 @@ export const STATE_LIMITS = {
   maxKeysPerTrack: 10000,
   maxDurationFrames: 120 * 120,
   maxNameLength: 120,
+};
+
+// Geometry of the two user-resizable regions -- the Outliner object list and
+// the lower-deck camera-preview column. Persisted in the editor state (like
+// ui_density and preview_layout) so a saved workflow reopens with the same
+// layout. Defaults match the CSS fallbacks in template/styles*.
+export const PANEL_LAYOUT = {
+  // The Outliner list gets an explicit height the handle drives directly, so
+  // dragging it down enlarges the visible box (the node grows to match) rather
+  // than just shifting a cramped inner scrollbar. The ceiling is only a sanity
+  // bound against a corrupt workflow, not a layout limit the user will hit.
+  outlinerHeight: { default: 220, min: 90, max: 1600 },
+  previewWidth: { default: 236, min: 150, max: 760 },
 };
 
 /** Coerce to a finite number inside [min, max], falling back when unusable.
@@ -528,10 +547,16 @@ export function sanitizeState(raw) {
   // Markers survive a shortened timeline for the same reason keyframes do.
   out.markers = (Array.isArray(out.markers) ? out.markers : []).filter((m) => m && Number.isFinite(Number(m.frame))).map((m, i) => ({ frame: Math.max(0, Math.round(Number(m.frame))), name: String(m.name || `Marker ${i + 1}`).slice(0, 40), color: sanitizeColor(m.color, "#f2d06b") }));
   out.preview_layout = ["auto", "1", "2", "4"].includes(String(out.preview_layout)) ? String(out.preview_layout) : "auto";
+  out.outliner_height = Math.round(boundedNumber(out.outliner_height, PANEL_LAYOUT.outlinerHeight.default, PANEL_LAYOUT.outlinerHeight.min, PANEL_LAYOUT.outlinerHeight.max));
+  out.preview_width = Math.round(boundedNumber(out.preview_width, PANEL_LAYOUT.previewWidth.default, PANEL_LAYOUT.previewWidth.min, PANEL_LAYOUT.previewWidth.max));
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
   out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
-  out.reconstruction_appearance = ["neutral", "source_texture"].includes(out.reconstruction_appearance) ? out.reconstruction_appearance : "neutral";
+  // The MotionScene omnicam/reconstruction produces never sets this field (it
+  // isn't part of the canonical schema), so every freshly-adopted reconstruction
+  // falls through to this default -- source_texture, so it doesn't render as an
+  // untextured grey proxy the moment it lands in Director.
+  out.reconstruction_appearance = ["neutral", "source_texture"].includes(out.reconstruction_appearance) ? out.reconstruction_appearance : "source_texture";
   const editorViews = defaultEditorViews(); out.editor_views = Object.fromEntries(Object.entries(editorViews).map(([name, camera]) => [name, cloneCamera(out.editor_views?.[name] || camera)]));
   return sanitizeMotionState(out);
 }

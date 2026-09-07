@@ -1,5 +1,7 @@
 // Playback transport, requestAnimationFrame clock, and WebAudio timeline synchronization for OmniCam Director.
 
+import { fileSizeError } from "./shared/upload-limits.js";
+
 export function togglePlay(ui) {
   if (ui.playing) return stopPlay(ui);
   ui.playing = true;
@@ -68,7 +70,11 @@ export function togglePlay(ui) {
     }
     if (target !== rendered) {
       rendered = target;
-      ui.setFrame(target, true);
+      // Light frame tick: playhead, timecode, viewport, motion heads only.
+      // The keyframe lane, the audio waveform canvas and the O(duration)
+      // Camera Health pass are rebuilt only when the timeline structure
+      // actually changes, not on every frame of playback.
+      ui.setFrame(target, true, false);
     }
     ui.playTimer = requestAnimationFrame(tick);
   };
@@ -118,6 +124,11 @@ export function computeAudioPeaks(ui) {
 
 export async function loadAudioFile(ui, file) {
   if (!file) return;
+  const tooBig = fileSizeError(file, "audio");
+  if (tooBig) {
+    ui.setStatus(tooBig);
+    return;
+  }
   try {
     ui.audioContext = ui.audioContext || new (window.AudioContext || window.webkitAudioContext)();
     if (ui.audioContext.state === "suspended") await ui.audioContext.resume();

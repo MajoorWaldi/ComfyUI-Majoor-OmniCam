@@ -8,6 +8,12 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 
+# omnicam.nodes.extractor imports comfy_compat.IO, which requires the real
+# ComfyUI V3 API (comfy_api) to be on sys.path. The plain `pytest -q` CI jobs
+# never clone ComfyUI, so this must be a collection-time skip, not a hard
+# import -- matching tests/test_extractor_node.py.
+pytest.importorskip("comfy_api.latest")
+
 from omnicam.nodes.extractor import MajoorOmniCamExtractor
 from omnicam.reconstruction.pipeline import PipelineOutput
 

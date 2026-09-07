@@ -204,6 +204,13 @@ Z blue. The axis pointing toward you carries its letter; the one pointing away
 is a dimmed dot. It is an SVG overlay, not a WebGL pass, so it never appears in
 the playblast, which stays a neutral motion reference.
 
+Two panels resize by drag: the handle under the **Outliner** list grows the
+visible object list (the node grows with it), and the splitter between the
+**camera previews** and the **timeline** trades width between them. Both are
+`role="separator"` and keyboard-operable — arrow keys nudge, `Shift`+arrow
+takes a larger step, `Home` or a double-click resets. The sizes serialize with
+the workflow (`outliner_height`, `preview_width`).
+
 ## Mini-radar
 
 *Display → 2D Radar Mini-Map* draws a top-down map at the bottom-right of the

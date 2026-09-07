@@ -41,7 +41,7 @@ export function headerMarkup() {
           <div data-role="setup-issues"></div>
         </div>
       </details>
-      <span class="oc-status-pill" data-role="status"><span class="oc-status-dot"></span>${t("Ready")}</span>
+      <span class="oc-status-pill" data-role="status" role="status" aria-live="polite" aria-atomic="true"><span class="oc-status-dot"></span>${t("Ready")}</span>
     </div>`;
 }
 

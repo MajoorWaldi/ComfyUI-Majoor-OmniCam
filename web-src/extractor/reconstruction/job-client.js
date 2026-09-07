@@ -71,6 +71,11 @@ export class ReconstructionJobClient {
     return this._request("/majoor/omnicam/reconstruction/capabilities");
   }
 
+  /** Delete every cached reconstruction (manifests, GLBs, source images) from disk. */
+  clearCache() {
+    return this._request("/majoor/omnicam/reconstruction/cache", { method: "DELETE" });
+  }
+
   startJob({ nodeId, source, settings }) {
     return this._request(BASE, {
       method: "POST",
@@ -99,10 +104,6 @@ export class ReconstructionJobClient {
     return this._request(`${BASE}/${encodeURIComponent(jobId)}`, { method: "DELETE" });
   }
 
-  getJobPreview(jobId) {
-    return this._request(`${BASE}/${encodeURIComponent(jobId)}/preview`);
-  }
-
   // Aliases matching plan Section 28
   start(args) {
     return this.startJob(args);
@@ -122,9 +123,5 @@ export class ReconstructionJobClient {
 
   remove(jobId) {
     return this.deleteJob(jobId);
-  }
-
-  preview(jobId) {
-    return this.getJobPreview(jobId);
   }
 }

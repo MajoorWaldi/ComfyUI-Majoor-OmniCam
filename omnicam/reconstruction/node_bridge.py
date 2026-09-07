@@ -74,8 +74,15 @@ def execute_reconstruction(
         provider=provider,
     )
 
-    ground_conf = output.summary.get("ground_confidence")
-    confidence = float(ground_conf) if ground_conf is not None else 1.0
+    # solver_coverage must report the overall reconstruction confidence, not
+    # the ground plane's alone -- an excellent mesh over a scene with no
+    # detectable floor is not a confidence of 0. Falls back to
+    # ground_confidence only for a cache entry written before "confidence"
+    # was part of the summary.
+    overall_conf = output.summary.get("confidence")
+    if overall_conf is None:
+        overall_conf = output.summary.get("ground_confidence")
+    confidence = float(overall_conf) if overall_conf is not None else 1.0
 
     tri_count = output.summary.get("triangle_count", 0)
     fov_x = output.summary.get("camera_fov_x", 53.0)

@@ -97,13 +97,57 @@ export function createRenderMethods(dependencies) {
     renderMotionTimeline(this);
     this.renderCameraView();
   },
+  // The single "something changed, repaint soon" entry point. Every
+  // high-frequency source (playback tick, viewport drags, wheel/keyboard
+  // navigation) funnels through here so at most one render() runs per frame
+  // no matter how many events landed between paints. Discrete one-shot
+  // actions can still call render() directly for an immediate repaint.
+  requestRender(reason = "unknown") {
+    (this.renderReasons ||= new Set()).add(reason);
+    this.renderInvalidations = (this.renderInvalidations || 0) + 1;
+    if (this.renderScheduled) return;
+    this.renderScheduled = true;
+    this.renderFrame = requestAnimationFrame(() => {
+      this.renderScheduled = false;
+      if (this.disposed) return;
+      this.lastRenderReasons = [...(this.renderReasons || [])];
+      this.renderReasons?.clear();
+      this.rendersCoalesced = (this.rendersCoalesced || 0) + 1;
+      this.render();
+    });
+  },
   renderCameraView() {
     if (this.state.camera_view_visible) {
+      // The strip can be present in state but visually collapsed / off-screen
+      // (data-role="camera-view-row" is toggled hidden by syncFromWidgets).
+      // A hidden strip has nothing to show, so skip every preview render.
+      const row = this.root.querySelector('[data-role="camera-view-row"]');
+      if (row?.hidden) return;
       this.refreshCameraPreviews();
-      for (const cameraTrack of this.state.cameras) {
+      // Rendering N off-screen previews at full playback cadence turns one
+      // frame into N+1 WebGL scene renders. During playback (and a live
+      // recording) the camera the playhead actually drives repaints every
+      // frame; the rest share one slot per frame, round-robin, so a
+      // five-camera shot costs 2 scene renders per frame instead of 6. Every
+      // other path (a single scrub, an edit) still repaints all previews.
+      this.cameraPreviewTick = (this.cameraPreviewTick || 0) + 1;
+      const cameras = this.state.cameras;
+      const throttle = Boolean(this.playing) && !this.recording && cameras.length > 2;
+      let rotating = null;
+      if (throttle) {
+        const priorityId = this.state.active_camera_id;
+        const secondary = cameras.filter((track) => track.id !== priorityId);
+        rotating = secondary.length ? secondary[this.cameraPreviewTick % secondary.length] : null;
+      }
+      for (const cameraTrack of cameras) {
         const canvas = this.cameraPreviewCanvases.get(cameraTrack.id), context = this.cameraPreviewContexts.get(cameraTrack.id);
         if (!canvas?.width || !context) continue;
         const width = canvas.width, height = canvas.height;
+        // The frame readout is cheap and must stay honest for every tile even
+        // when its WebGL render is skipped this frame.
+        const frameLabel = this.root.querySelector(`[data-camera-frame="${cameraTrack.id}"]`);
+        frameLabel && (frameLabel.textContent = `F${this.frame}`);
+        if (throttle && cameraTrack.id !== this.state.active_camera_id && cameraTrack !== rotating) continue;
         const camera = applyAimConstraint(this, cameraTrack, sampleCamera(cameraTrack, this.frame, this.state.objects), this.frame);
         context.fillStyle = "#111";
         context.fillRect(0, 0, width, height);
@@ -116,8 +160,6 @@ export function createRenderMethods(dependencies) {
           }
         }
         drawPreviewOverlays(this, context, width, height);
-        const frameLabel = this.root.querySelector(`[data-camera-frame="${cameraTrack.id}"]`);
-        frameLabel && (frameLabel.textContent = `F${this.frame}`);
       }
     }
   },
@@ -155,7 +197,7 @@ export function createRenderMethods(dependencies) {
     closeHelpPopup();
     this.backgroundRequestId = (this.backgroundRequestId || 0) + 1;
     this.upstreamSyncId = (this.upstreamSyncId || 0) + 1;
-    this.stopPlay(), clearTimeout(this.previewClickTimer), clearTimeout(this.connectionTimer), cancelAnimationFrame(this.restoreFrame), cancelAnimationFrame(this.serializeFrame), cancelAnimationFrame(this.resizeFrame), this.abortController?.abort(), this.upstreamFetchController?.abort(), this.resizeObserver?.disconnect(), this.contextMenu?.dispose(), this.webgl?.dispose(), this.cameraWebgl?.dispose();
+    this.stopPlay(), clearTimeout(this.previewClickTimer), clearTimeout(this.connectionTimer), cancelAnimationFrame(this.restoreFrame), cancelAnimationFrame(this.serializeFrame), cancelAnimationFrame(this.resizeFrame), cancelAnimationFrame(this.renderFrame), this.abortController?.abort(), this.upstreamFetchController?.abort(), this.resizeObserver?.disconnect(), this.contextMenu?.dispose(), this.webgl?.dispose(), this.cameraWebgl?.dispose();
     if (this.audioSource) { try { this.audioSource.stop(); } catch (_) {} this.audioSource = null; }
     this.audioContext?.close?.().catch?.(() => {}); this.audioContext = null;
     this.objectUrls.clear(), this.cardMediaById.clear(), this.modelUrlsById.clear(), this.modelInfoById.clear();

@@ -105,3 +105,20 @@ def test_routes_py_does_not_contain_reconstruction_handler_bodies():
     assert "def start_reconstruction_route" not in content
     # Only import is allowed
     assert "from .reconstruction.jobs import routes" in content or "reconstruction" in content
+
+
+@pytest.mark.asyncio
+async def test_clear_cache_route(client, monkeypatch, tmp_path):
+    import folder_paths
+
+    monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path))
+    entry_dir = tmp_path / "majoor_omnicam" / "reconstruction" / "0123456789abcdef0123"
+    entry_dir.mkdir(parents=True)
+    (entry_dir / "environment.glb").write_bytes(b"x" * 10)
+
+    resp = await client.delete("/majoor/omnicam/reconstruction/cache")
+    assert resp.status == 200
+    data = await resp.json()
+    assert data["cleared"] is True
+    assert data["entries_removed"] == 1
+    assert not (entry_dir / "environment.glb").exists()

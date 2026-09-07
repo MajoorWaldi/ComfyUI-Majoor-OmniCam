@@ -140,3 +140,41 @@ def lookup_cache(
         summary=summary,
         created_at=created_at,
     )
+
+
+@dataclass(slots=True)
+class CacheClearResult:
+    entries_removed: int
+    bytes_freed: int
+
+
+def clear_reconstruction_cache(input_root: Path | str | None = None) -> CacheClearResult:
+    """Delete every cached reconstruction: manifests, GLB assets, source images.
+
+    Bounded to ``<input_dir>/majoor_omnicam/reconstruction`` -- the same
+    managed subtree write_reconstruction_assets writes into -- so this can
+    never touch anything else under the ComfyUI input directory.
+    """
+    input_dir = _resolve_input_dir(input_root)
+    target_dir = (input_dir / "majoor_omnicam" / "reconstruction").resolve()
+
+    if input_dir != target_dir and input_dir not in target_dir.parents:
+        raise ValueError(f"Refusing to clear {target_dir}: escapes input root {input_dir}")
+
+    if not target_dir.is_dir():
+        return CacheClearResult(entries_removed=0, bytes_freed=0)
+
+    entries_removed = 0
+    bytes_freed = 0
+    for path in target_dir.rglob("*"):
+        if path.is_file():
+            with contextlib.suppress(OSError):
+                bytes_freed += path.stat().st_size
+                entries_removed += 1
+
+    import shutil
+
+    shutil.rmtree(target_dir, ignore_errors=True)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    return CacheClearResult(entries_removed=entries_removed, bytes_freed=bytes_freed)

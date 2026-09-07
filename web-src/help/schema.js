@@ -151,6 +151,13 @@ export function openHelpPopup(helpDef) {
 
   const card = document.createElement("div");
   card.className = "oc-help-card oc-help";
+  // A real modal dialog: screen readers announce it as one, and focus is
+  // trapped inside it and handed back to the opener on close.
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  card.tabIndex = -1;
+  const titleId = `oc-help-title-${Math.random().toString(36).slice(2, 8)}`;
+  card.setAttribute("aria-labelledby", titleId);
   backdrop.appendChild(card);
 
   const header = document.createElement("div");
@@ -160,6 +167,7 @@ export function openHelpPopup(helpDef) {
   icon.textContent = "?";
   const title = document.createElement("div");
   title.className = "oc-help-h-title";
+  title.id = titleId;
   title.textContent = helpDef.title || "Help";
   const close = document.createElement("button");
   close.className = "oc-help-close";
@@ -197,18 +205,44 @@ export function openHelpPopup(helpDef) {
   card.appendChild(body);
 
   let mouseDownOnBackdrop = false;
+  // The element focus should return to when the dialog closes -- almost always
+  // the "?" button that opened it.
+  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const cleanup = () => {
     document.removeEventListener("keydown", onKey, true);
     backdrop.remove();
     if (_openCleanup === cleanup) _openCleanup = null;
+    if (opener && opener.isConnected && typeof opener.focus === "function") {
+      opener.focus({ preventScroll: true });
+    }
   };
   _openCleanup = cleanup;
+
+  const focusable = () => Array.from(
+    card.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+  ).filter((el) => !el.disabled && el.offsetParent !== null);
 
   const onKey = (e) => {
     if (e.key === "Escape") {
       e.stopPropagation();
       e.preventDefault();
       cleanup();
+      return;
+    }
+    // Focus trap: Tab and Shift+Tab cycle within the dialog, never out of it.
+    if (e.key === "Tab") {
+      const items = focusable();
+      if (!items.length) { e.preventDefault(); card.focus(); return; }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !card.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !card.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   };
   document.addEventListener("keydown", onKey, true);
@@ -222,5 +256,8 @@ export function openHelpPopup(helpDef) {
   card.addEventListener("mousedown", (e) => e.stopPropagation());
 
   document.body.appendChild(backdrop);
+  // Move focus into the dialog so the keyboard and screen-reader cursor land
+  // on it, not on whatever was behind the backdrop.
+  (close.isConnected ? close : card).focus({ preventScroll: true });
   return cleanup;
 }

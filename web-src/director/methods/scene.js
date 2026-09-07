@@ -42,7 +42,15 @@ export function createSceneMethods(dependencies) {
       }
       this.refreshKeyEditor(), this.drawCurveEditor();
     }
-    fromPlayback || this.serialize(), this.refreshInspector(), this.render();
+    fromPlayback || this.serialize();
+    this.refreshInspector();
+    // Continuous playback coalesces its repaint through the frame scheduler so
+    // a burst of events between paints costs one render, not one each. A
+    // recording needs exact per-frame pixels, and one-shot fromPlayback
+    // callers (preset apply, motion tools) repaint themselves right after, so
+    // both of those still render synchronously here.
+    if (fromPlayback && this.playing && !this.recording) this.requestRender("frame");
+    else this.render();
   },
   timelineObject() {
     return timelineObject(this);

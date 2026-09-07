@@ -43,6 +43,7 @@ def test_asset_writer_containment_check(tmp_path):
     mesh = ProxyMesh(
         vertices=torch.zeros((3, 3)),
         faces=torch.tensor([[0, 1, 2]]),
+        normals=torch.tensor([[0.0, 1.0, 0.0]] * 3),
         triangle_count=1,
     )
     # Valid 20-char hex
@@ -79,8 +80,13 @@ def test_asset_writer_containment_check(tmp_path):
     assert data["triangles"] == 1
     assert data["fingerprint"] == fp
 
-    # Verify stub arguments
+    # Verify stub arguments. Normals must reach save_glb_fn: without them the
+    # GLB's texture is lit by a missing NORMAL accessor and renders black
+    # (save_glb only takes the unlit/KHR_materials_unlit path when there is
+    # no texture, and a reconstruction always embeds one).
     assert len(saved_calls) == 1
     _, kwargs = saved_calls[0]
-    assert kwargs["unlit"] is True
+    assert kwargs["normals"] is not None
+    assert torch.equal(kwargs["normals"], mesh.normals)
+    assert "unlit" not in kwargs
     assert "producer" in kwargs["metadata"]

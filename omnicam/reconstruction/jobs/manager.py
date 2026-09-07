@@ -9,6 +9,8 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
+from ...comfy_compat.execution import execution_busy
+from ..errors import ReconGpuBusyError
 from ..settings import ReconstructionSettings
 from ..types import ReconstructionSource
 from .runner import run_reconstruction_job
@@ -27,6 +29,10 @@ DEFAULT_TTL_SECONDS = 1800.0
 #: Ceiling on jobs held in memory. Each finished job retains a full MotionScene,
 #: and each pending one holds a worker thread parked on the GPU semaphore.
 DEFAULT_MAX_JOBS = 32
+
+#: Mirrors omnicam/extractor/jobs/manager.py's own SHUTDOWN_JOIN_SECONDS --
+#: same bounded-wait philosophy so a slow reconstruction can't hang process exit.
+SHUTDOWN_JOIN_SECONDS = 5.0
 
 
 class JobLimitReachedError(RuntimeError):
@@ -51,6 +57,7 @@ class ReconstructionJobManager:
         gpu_semaphore: threading.Semaphore | None = None,
         runner: Callable[..., Any] = run_reconstruction_job,
         max_jobs: int = DEFAULT_MAX_JOBS,
+        execution_probe: Callable[[], bool] = execution_busy,
     ) -> None:
         self._jobs: dict[str, ReconstructionJob] = {}
         self._threads: dict[str, threading.Thread] = {}
@@ -59,6 +66,7 @@ class ReconstructionJobManager:
         self._max_jobs = int(max_jobs)
         self._semaphore = gpu_semaphore if gpu_semaphore is not None else threading.Semaphore(1)
         self._runner = runner
+        self._execution_probe = execution_probe
 
     def create_job(
         self,
@@ -73,10 +81,25 @@ class ReconstructionJobManager:
         self.sweep_stale_jobs()
         with self._lock:
             if len(self._jobs) >= self._max_jobs:
-                raise JobLimitReachedError(
-                    f"Too many reconstruction jobs in memory ({len(self._jobs)}); "
-                    "wait for one to finish or delete a completed job"
+                # A DONE/FAILED/STOPPED job is just a kept result, not GPU work
+                # -- there is no reason a history full of finished results
+                # should block a new job outright when the TTL just hasn't
+                # elapsed yet. Make room by evicting the oldest terminal jobs
+                # first, and only refuse if every slot is genuinely active
+                # (still PREPARING..FINALIZING) with nothing left to reclaim.
+                terminal_ids = sorted(
+                    (jid for jid, job in self._jobs.items() if job.state in TERMINAL_STATES),
+                    key=lambda jid: self._jobs[jid].last_access,
                 )
+                overflow = len(self._jobs) - self._max_jobs + 1
+                for jid in terminal_ids[:overflow]:
+                    self._jobs.pop(jid, None)
+                    self._threads.pop(jid, None)
+                if len(self._jobs) >= self._max_jobs:
+                    raise JobLimitReachedError(
+                        f"Too many reconstruction jobs active at once ({len(self._jobs)}); "
+                        "wait for one to finish or stop one before starting another"
+                    )
         job_id = uuid.uuid4().hex[:16]
         job = ReconstructionJob(
             job_id=job_id,
@@ -99,6 +122,16 @@ class ReconstructionJobManager:
         on_event: Callable[[str, ReconstructionJob], None] | None = None,
     ) -> ReconstructionJob:
         """Create and start an asynchronous reconstruction job in a background thread."""
+        # One-shot admission gate: refuse to start a GPU job while ComfyUI's
+        # own queue is already running one. Cheap, and it stops the common
+        # case outright -- the mid-run GpuContentionGuard in the pipeline
+        # covers the window this read can't see (a workflow queued a moment
+        # later). Mirrors omnicam/extractor/jobs/manager.py's start() gate.
+        if self._execution_probe():
+            raise ReconGpuBusyError(
+                "ComfyUI is currently executing a workflow. Wait for GPU execution "
+                "to finish before starting scene reconstruction."
+            )
         job = self.create_job(node_id, client_id, source, settings)
         if on_event is None:
             from .events import ReconstructionEventPublisher
@@ -132,7 +165,7 @@ class ReconstructionJobManager:
             return
 
         run_fn = runner_fn or self._runner
-        kwargs = {}
+        kwargs: dict[str, Any] = {"execution_probe": self._execution_probe}
         if on_event is not None:
             kwargs["on_event"] = on_event
         with self._semaphore:
@@ -169,6 +202,37 @@ class ReconstructionJobManager:
                 job.cancel_token.cancel()
             self._jobs.pop(job_id, None)
             self._threads.pop(job_id, None)
+
+    def shutdown(self) -> None:
+        """Cancel every active job and wait (bounded) for its worker thread to exit.
+
+        Called once from ComfyUI's aiohttp on_shutdown hook (see
+        omnicam/extension.py) via comfy_compat.lifecycle.register_shutdown_callback,
+        the same mechanism omnicam/extractor/jobs/manager.py::shutdown() already
+        uses -- otherwise a reconstruction mid-run leaks a daemon thread (and
+        whatever GPU memory MoGeInference/LoadMoGeModel are still holding)
+        past process exit instead of unwinding cooperatively.
+        """
+        with self._lock:
+            jobs = list(self._jobs.values())
+            threads = list(self._threads.values())
+
+        for job in jobs:
+            job.cancel_token.cancel()
+
+        deadline = time.monotonic() + SHUTDOWN_JOIN_SECONDS
+        for thread in threads:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            thread.join(timeout=remaining)
+
+        alive = [t.name for t in threads if t.is_alive()]
+        if alive:
+            logger.warning(
+                "OmniCam reconstruction shutdown timed out with worker threads still alive: %s",
+                ", ".join(alive),
+            )
 
     def sweep_stale_jobs(self, ttl_seconds: float | None = None) -> int:
         """Evict stale terminal jobs past TTL. Disk assets are never touched."""
