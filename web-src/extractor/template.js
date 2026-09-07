@@ -79,6 +79,12 @@ export function extractorMarkup() {
         <div class="oc-inline" data-role="reconstruction-labels-row">
           <label for="oc-recon-labels">${t("Labels")}</label>
           <input id="oc-recon-labels" data-role="reconstruction-semantic-labels" type="text" placeholder="${t("Default interior taxonomy")}" />
+          <label for="oc-recon-assets">${t("3D assets")}</label>
+          <select id="oc-recon-assets" data-role="reconstruction-blockout-assets" title="${t("Swap fitted boxes for GLB props from the asset library")}">
+            <option value="off" selected>${t("Boxes only")}</option>
+            <option value="proxy">${t("Add props")}</option>
+            <option value="replace">${t("Replace boxes")}</option>
+          </select>
         </div>
         <div class="oc-inline">
           <label class="oc-inline"><input data-role="reconstruction-recover-fov" type="checkbox" checked> ${t("Recover FOV")}</label>

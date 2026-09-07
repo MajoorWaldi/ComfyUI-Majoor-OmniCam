@@ -28,6 +28,49 @@ export function applyReconstructionAdoptionDefaults(object, mode) {
   return object;
 }
 
+// MotionScene v1 nests a camera's motion under `camera.track.keyframes[].camera`
+// and its label under `camera.label`; the Director editor state is flat --
+// `{id, name, camera, keyframes}` -- and reads scene size from top-level
+// `width/height/fps/duration_frames`. Without this conversion sanitizeState
+// drops the reconstructed framing (camera reads "undefined", view is the
+// default) and the keyframes. Objects/metadata pass straight through.
+export function motionSceneToEditorCameras(scene) {
+  return (scene?.cameras || []).map((cam, index) => {
+    const kfs = (cam?.track?.keyframes || cam?.keyframes || []).map((k) => ({
+      frame: Math.max(0, Math.round(Number(k?.frame || 0))),
+      camera: k?.camera || k,
+      interpolation: k?.interpolation || "hold",
+    }));
+    const camera = kfs[0]?.camera || cam?.camera || null;
+    return {
+      id: String(cam?.id || `camera_${index + 1}`),
+      name: String(cam?.label || cam?.name || "Source Camera"),
+      enabled: cam?.enabled !== false,
+      locked: Boolean(cam?.locked),
+      color: cam?.color,
+      camera,
+      keyframes: kfs.length ? kfs : (camera ? [{ frame: 0, camera, interpolation: "hold" }] : []),
+    };
+  });
+}
+
+export function motionSceneToEditorState(scene) {
+  const canvas = scene?.canvas || {};
+  const timeline = scene?.timeline || {};
+  const fps = Math.max(1, Math.round(Number(timeline.authoring_fps || scene?.fps || 24)));
+  const durationSeconds = Number(timeline.duration_seconds || 0);
+  return {
+    ...scene,
+    width: Number(canvas.width || scene?.width || 1280),
+    height: Number(canvas.height || scene?.height || 720),
+    fps,
+    duration_frames: durationSeconds > 0
+      ? Math.max(1, Math.round(durationSeconds * fps))
+      : Number(scene?.duration_frames || fps * 5),
+    cameras: motionSceneToEditorCameras(scene),
+  };
+}
+
 export function uniqueSceneId(existingIds, baseId) {
   if (!existingIds || !existingIds.has(baseId)) return baseId;
   let suffix = 2;
@@ -63,7 +106,9 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
 
   if (mode === "replace") {
     directorUi.checkpoint?.("Adopt reconstructed scene (replace)");
-    directorUi.state = sanitizeState(JSON.parse(JSON.stringify(scene)));
+    directorUi.state = sanitizeState(
+      motionSceneToEditorState(JSON.parse(JSON.stringify(scene))),
+    );
     directorUi.camera = sampleCamera(directorUi.state, directorUi.frame || 0);
 
     for (const object of directorUi.state.objects || []) {
@@ -90,13 +135,12 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
       }
     }
 
-    for (const incomingCam of scene.cameras || []) {
-      const camCopy = JSON.parse(JSON.stringify(incomingCam));
-      const safeCamId = uniqueSceneId(existingCamIds, camCopy.id);
+    for (const editorCam of motionSceneToEditorCameras(scene)) {
+      const safeCamId = uniqueSceneId(existingCamIds, editorCam.id);
       existingCamIds.add(safeCamId);
-      camCopy.id = safeCamId;
-      camCopy.enabled = false; // Disabled secondary camera on merge
-      directorUi.state.cameras.push(camCopy);
+      editorCam.id = safeCamId;
+      editorCam.enabled = false; // Disabled secondary camera on merge
+      directorUi.state.cameras.push(editorCam);
     }
   }
 

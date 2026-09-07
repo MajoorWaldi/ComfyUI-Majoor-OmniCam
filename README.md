@@ -112,6 +112,7 @@ Two extraction modes:
   - **Hybrid**: blockout primitives plus an independently toggleable dense reference.
   - **Scan**: VGGT multi-view / video scene blocking with a single camera trajectory and cross-view object fusion.
   - Optional SAM 3D Objects completion refines weak hidden dimensions (Linux + ≥ 32 GB VRAM; absence does not affect the other modes).
+  - Optional **asset library**: swap each fitted box for a real CC0 GLB prop (interior / exterior furniture + posed humans). Populate once with `python scripts/fetch_blockout_library.py --download` (23 CC0 Kenney props, ~0.5 MB); see [docs/BLOCKOUT_ASSET_LIBRARY.md](docs/BLOCKOUT_ASSET_LIBRARY.md).
 
 Solves and reconstructions run interactively outside the prompt queue without loading diffusion models or executing the workflow. Preview uses native browser video first and falls back to server-decoded frames when a container will not decode in the browser.
 

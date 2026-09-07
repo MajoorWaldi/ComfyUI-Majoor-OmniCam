@@ -13,12 +13,26 @@ KNOWN_PROVIDERS = frozenset({"comfy_moge", "fake", "vggt", "vggt_omega_research"
 KNOWN_MODES = frozenset(
     {"geometry", "layout", "depth_mesh", "blockout", "hybrid", "scan"}
 )
-KNOWN_SOURCE_MODES = frozenset({"auto", "single_image", "multi_view"})
+KNOWN_SOURCE_MODES = frozenset({"auto", "single_image", "multi_view", "video_scan"})
+
+#: Scan view counts per quality preset (design doc section 10.3):
+#: (VGGT geometry views, SAM3 segmentation views). ``custom`` keeps whatever
+#: the explicit ``vggt_max_views`` / ``vggt_segmentation_views`` fields hold.
+SCAN_QUALITY_PRESETS: dict[str, tuple[int, int]] = {
+    "fast": (12, 3),
+    "balanced": (24, 6),
+    "high": (48, 10),
+}
 KNOWN_SEGMENTATION_PROVIDERS = frozenset({"none", "comfy_sam3", "fake"})
 KNOWN_COMPLETION_PROVIDERS = frozenset({"none", "sam3d_objects", "fake"})
 KNOWN_COMPLETION_POLICIES = frozenset(
     {"off", "low_depth_confidence", "selected", "all_bounded"}
 )
+#: Blockout asset-library retrieval (design: "bibliothèque 3D"):
+#:  ``off``     -- deterministic boxes only (default, no library needed)
+#:  ``proxy``   -- add a GLB from the library inside each matched box, box kept
+#:  ``replace`` -- add the GLB and hide the box it stands in for
+KNOWN_BLOCKOUT_ASSET_MODES = frozenset({"off", "proxy", "replace"})
 KNOWN_QUALITIES = frozenset({"fast", "balanced", "high", "custom"})
 
 #: Legacy mode -> current mode. Applied by ``resolved_mode()`` only; the raw
@@ -94,6 +108,11 @@ class ReconstructionSettings:
     max_blockout_objects: int = 24
     completion_policy: str = "off"
     max_completion_objects: int = 4
+    #: Asset-library retrieval. ``blockout_assets`` in KNOWN_BLOCKOUT_ASSET_MODES;
+    #: ``asset_library_path`` empty = the managed default
+    #: (<input>/majoor_omnicam/blockout_library), otherwise an explicit folder.
+    blockout_assets: str = "off"
+    asset_library_path: str = ""
     vggt_checkpoint: str = "auto"
     vggt_max_views: int = 24
     vggt_segmentation_views: int = 6
@@ -130,6 +149,11 @@ class ReconstructionSettings:
             raise ValueError(
                 f"Unknown completion_policy {self.completion_policy!r}; "
                 f"expected one of {sorted(KNOWN_COMPLETION_POLICIES)}"
+            )
+        if self.blockout_assets not in KNOWN_BLOCKOUT_ASSET_MODES:
+            raise ValueError(
+                f"Unknown blockout_assets {self.blockout_assets!r}; "
+                f"expected one of {sorted(KNOWN_BLOCKOUT_ASSET_MODES)}"
             )
         if not (1 <= self.triangle_budget <= MAX_TRIANGLE_BUDGET):
             raise ValueError(
@@ -183,6 +207,19 @@ class ReconstructionSettings:
                     f"semantic label {label!r} exceeds {MAX_SEMANTIC_LABEL_LENGTH} characters"
                 )
 
+    def scan_view_counts(self) -> tuple[int, int]:
+        """(VGGT geometry views, SAM3 segmentation views) for this run.
+
+        Driven by the quality preset (Fast 12/3, Balanced 24/6, High 48/10);
+        ``custom`` quality uses the explicit ``vggt_max_views`` /
+        ``vggt_segmentation_views`` fields verbatim.
+        """
+        preset = SCAN_QUALITY_PRESETS.get(self.quality)
+        if preset is None:
+            return int(self.vggt_max_views), int(self.vggt_segmentation_views)
+        geom, seg = preset
+        return geom, min(seg, geom, 32)
+
     def resolved_mode(self) -> str:
         """Current-name mode, mapping the legacy ``geometry``/``layout`` aliases.
 
@@ -217,6 +254,8 @@ class ReconstructionSettings:
             "max_blockout_objects": int(self.max_blockout_objects),
             "completion_policy": self.completion_policy,
             "max_completion_objects": int(self.max_completion_objects),
+            "blockout_assets": self.blockout_assets,
+            "asset_library_path": self.asset_library_path,
             "vggt_checkpoint": self.vggt_checkpoint,
             "vggt_max_views": int(self.vggt_max_views),
             "vggt_segmentation_views": int(self.vggt_segmentation_views),
@@ -251,6 +290,8 @@ class ReconstructionSettings:
             max_blockout_objects=int(data.get("max_blockout_objects", 24)),
             completion_policy=str(data.get("completion_policy", "off")),
             max_completion_objects=int(data.get("max_completion_objects", 4)),
+            blockout_assets=str(data.get("blockout_assets", "off")),
+            asset_library_path=str(data.get("asset_library_path", "")),
             vggt_checkpoint=str(data.get("vggt_checkpoint", "auto")),
             vggt_max_views=int(data.get("vggt_max_views", 24)),
             vggt_segmentation_views=int(data.get("vggt_segmentation_views", 6)),

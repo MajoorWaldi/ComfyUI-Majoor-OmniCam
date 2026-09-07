@@ -88,6 +88,8 @@ def test_reconstruction_settings_round_trip():
         "max_blockout_objects": 32,
         "completion_policy": "all_bounded",
         "max_completion_objects": 6,
+        "blockout_assets": "proxy",
+        "asset_library_path": "",
         "vggt_checkpoint": "VGGT-1B-Commercial",
         "vggt_max_views": 16,
         "vggt_segmentation_views": 4,

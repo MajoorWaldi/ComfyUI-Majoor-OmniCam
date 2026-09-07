@@ -65,6 +65,25 @@ def _completion_providers() -> list[dict[str, Any]]:
     return out
 
 
+def _asset_library() -> dict[str, Any]:
+    """Status of the blockout asset library (the "bibliothèque 3D")."""
+    try:
+        from .asset_library import load_asset_library
+
+        library = load_asset_library()
+    except Exception as exc:  # noqa: BLE001 - absent / malformed manifest is expected
+        return {"available": False, "reason": str(exc), "entry_count": 0, "categories": {}}
+    available, reason = library.status()
+    return {
+        "available": available,
+        "reason": reason,
+        "name": library.name,
+        "entry_count": library.entry_count,
+        "categories": library.categories(),
+        "classes": sorted(library.entries),
+    }
+
+
 def get_reconstruction_capabilities() -> dict[str, Any]:
     """Aggregated capabilities across geometry, segmentation and completion.
 
@@ -80,5 +99,6 @@ def get_reconstruction_capabilities() -> dict[str, Any]:
         "geometry": geometry,
         "segmentation": _segmentation_providers(),
         "completion": _completion_providers(),
+        "asset_library": _asset_library(),
         "recommended_provider": recommended_provider,
     }

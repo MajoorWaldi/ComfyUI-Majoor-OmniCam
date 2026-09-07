@@ -99,7 +99,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 ),
                 IO.Combo.Input(
                     "recon_source_mode",
-                    options=["auto", "single_image", "multi_view"],
+                    options=["auto", "single_image", "multi_view", "video_scan"],
                     default="auto",
                     advanced=True,
                 ),
@@ -147,6 +147,20 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                     advanced=True,
                 ),
                 IO.Int.Input("recon_max_completion_objects", default=4, min=0, max=16, step=1, advanced=True),
+                IO.Combo.Input(
+                    "recon_blockout_assets",
+                    options=["off", "proxy", "replace"],
+                    default="off",
+                    tooltip=(
+                        "Blockout asset library: swap fitted boxes for real GLB props. "
+                        "'proxy' adds the model beside the box, 'replace' hides the box. "
+                        "Needs scripts/fetch_blockout_library.py to have been run."
+                    ),
+                    advanced=True,
+                ),
+                IO.String.Input(
+                    "recon_asset_library_path", default="", multiline=False, advanced=True
+                ),
                 IO.Boolean.Input("recon_source_texture", default=True, advanced=True),
                 IO.Boolean.Input("recon_detect_ground", default=True, advanced=True),
                 IO.Boolean.Input("recon_detect_walls", default=False, advanced=True),
@@ -256,6 +270,8 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         recon_vggt_segmentation_views: int = 6,
         recon_completion_policy: str = "off",
         recon_max_completion_objects: int = 4,
+        recon_blockout_assets: str = "off",
+        recon_asset_library_path: str = "",
         recon_source_texture: bool = True,
         recon_detect_ground: bool = True,
         recon_detect_walls: bool = False,
@@ -283,6 +299,8 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 recon_vggt_segmentation_views=recon_vggt_segmentation_views,
                 recon_completion_policy=recon_completion_policy,
                 recon_max_completion_objects=recon_max_completion_objects,
+                recon_blockout_assets=recon_blockout_assets,
+                recon_asset_library_path=recon_asset_library_path,
                 recon_source_texture=recon_source_texture,
                 recon_detect_ground=recon_detect_ground,
                 recon_detect_walls=recon_detect_walls,

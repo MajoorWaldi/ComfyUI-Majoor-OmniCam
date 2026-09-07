@@ -83,3 +83,74 @@ class ReconGpuBusyError(ReconstructionError):
     """ComfyUI is already executing a workflow; refused to start reconstruction."""
 
     code = "RECON_GPU_BUSY"
+
+
+# --------------------------------------------------------------------------- #
+# Granular semantic-blockout / scan / completion codes (design doc section 19).
+# Each is a subclass of an existing broad category so ``except`` sites that
+# already catch ReconProviderUnavailableError / ReconInferenceFailedError /
+# ReconRequestInvalidError keep working, while the wire ``code`` is specific.
+# --------------------------------------------------------------------------- #
+class ReconSegmentationUnavailableError(ReconProviderUnavailableError):
+    code = "RECON_SEGMENTATION_UNAVAILABLE"
+
+
+class ReconSegmentationModelMissingError(ReconProviderUnavailableError):
+    code = "RECON_SEGMENTATION_MODEL_MISSING"
+
+
+class ReconSegmentationFailedError(ReconInferenceFailedError):
+    code = "RECON_SEGMENTATION_FAILED"
+
+
+class ReconNoInstancesError(ReconstructionError):
+    code = "RECON_NO_INSTANCES"
+
+
+class ReconBlockoutEmptyError(ReconstructionError):
+    code = "RECON_BLOCKOUT_EMPTY"
+
+
+class ReconVggtUnavailableError(ReconProviderUnavailableError):
+    code = "RECON_VGGT_UNAVAILABLE"
+
+
+class ReconVggtModelMissingError(ReconProviderUnavailableError):
+    code = "RECON_VGGT_MODEL_MISSING"
+
+
+class ReconVggtInferenceFailedError(ReconInferenceFailedError):
+    code = "RECON_VGGT_INFERENCE_FAILED"
+
+
+class ReconSam3dUnavailableError(ReconProviderUnavailableError):
+    code = "RECON_SAM3D_UNAVAILABLE"
+
+
+class ReconSam3dModelMissingError(ReconProviderUnavailableError):
+    code = "RECON_SAM3D_MODEL_MISSING"
+
+
+class ReconSam3dInferenceFailedError(ReconInferenceFailedError):
+    code = "RECON_SAM3D_INFERENCE_FAILED"
+
+
+class ReconSourceSetInvalidError(ReconSourceInvalidError):
+    code = "RECON_SOURCE_SET_INVALID"
+
+
+class ReconTooManyViewsError(ReconRequestInvalidError):
+    code = "RECON_TOO_MANY_VIEWS"
+
+
+class ReconAssetLibraryUnavailableError(ReconProviderUnavailableError):
+    """Blockout asset retrieval was requested but the GLB library is not
+    installed (run ``scripts/fetch_blockout_library.py``)."""
+
+    code = "RECON_ASSET_LIBRARY_UNAVAILABLE"
+
+
+class ReconAssetLibraryInvalidError(ReconRequestInvalidError):
+    """The asset library's ``library.json`` is absent or malformed."""
+
+    code = "RECON_ASSET_LIBRARY_INVALID"

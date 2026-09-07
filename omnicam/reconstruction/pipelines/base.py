@@ -77,12 +77,13 @@ def stage_cache_version(
     settings: Any,
     *,
     segmentation_provider: Any | None = None,
+    asset_library: Any | None = None,
 ) -> str:
     """Combined cache version across every model-bearing stage.
 
-    A change to the geometry checkpoint *or* the segmentation checkpoint must
-    invalidate a cached blockout -- checking only geometry would serve a stale
-    result after the SAM3 checkpoint was swapped.
+    A change to the geometry checkpoint, the segmentation checkpoint *or* the
+    asset library must invalidate a cached blockout -- checking only geometry
+    would serve a stale result after any of them was swapped.
     """
     parts = [f"geo={geometry_provider_version(geometry_provider, settings)}"]
     if segmentation_provider is not None:
@@ -96,6 +97,9 @@ def stage_cache_version(
         if token is None:
             token = f"{getattr(segmentation_provider, 'provider_id', 'seg')}:{getattr(segmentation_provider, 'adapter_version', '')}"
         parts.append(f"seg={token}")
+    if asset_library is not None:
+        ident_fn = getattr(asset_library, "identity_token", None)
+        parts.append(f"assets={ident_fn() if callable(ident_fn) else 'lib'}:{getattr(settings, 'blockout_assets', 'off')}")
     return "|".join(parts)
 
 

@@ -22,6 +22,8 @@ export function reconstructionInspectorRows(object) {
 export function reconstructionAdoptionDefaults(object, mode) {
   const role = object?.reconstruction?.role || "";
   if (role === "blockout_object") return { locked: false, visible: true };
+  // A retrieved library prop is the editable product too -- unlocked, visible.
+  if (role === "asset_proxy") return { locked: false, visible: true };
   if (role === "room" || role === "reference") {
     const hideReference = role === "reference" && String(mode) === "blockout";
     return { locked: true, visible: !hideReference };

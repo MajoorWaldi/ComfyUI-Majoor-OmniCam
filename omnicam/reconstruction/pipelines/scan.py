@@ -16,17 +16,48 @@ from ..blockout.masked_points import extract_masked_points
 from ..blockout.obb import fit_ground_relative_obb
 from ..blockout.primitive_resolver import rule_for_label
 from ..blockout.types import AxisConfidence, BlockoutObject, BlockoutScene
-from ..errors import ReconEmptyGeometryError
-from ..leveling import level_scan_evidence
-from ..multiview.camera_track import build_scan_camera_track
-from ..multiview.sampling import choose_segmentation_views
+from ..errors import (
+    ReconBlockoutEmptyError,
+    ReconSourceSetInvalidError,
+    ReconTooManyViewsError,
+)
+from ..leveling import (
+    _translate_view_camera,
+    level_scan_evidence,
+    recenter_translation,
+)
+from ..multiview.camera_track import _pose, build_scan_camera_track
+from ..multiview.sampling import choose_segmentation_views, uniform_sample_indices
 from ..planes import detect_planes, scale_planes
 from ..segmentation.taxonomy import resolve_semantic_labels
 from ..settings import ReconstructionSettings
-from ..types import ReconstructionSource
+from ..types import ReconstructedCamera, ReconstructionSource
 from .base import GpuContentionGuard, PipelineOutput, make_progress_gate
 
 _MIN_SAMPLES = 20
+#: Performance bounds (design doc section 20, multi-view / Balanced).
+_MAX_INSTANCES_BEFORE_FUSION = 96
+_MAX_SCAN_OBJECTS = 32
+#: Hard ceiling on submitted views regardless of preset.
+_ABSOLUTE_MAX_VIEWS = 128
+
+
+def _anchor_source_camera(view_cam: Any, *, width: int, height: int) -> ReconstructedCamera:
+    """Build a MotionScene source camera from the anchor view (image-set scan)."""
+    import math
+
+    position, forward = _pose(view_cam)
+    fy = float(np.asarray(view_cam.intrinsics, dtype=float)[1, 1])
+    fov_y = math.degrees(2.0 * math.atan((height * 0.5) / fy)) if fy > 1e-6 else 50.0
+    fx = float(np.asarray(view_cam.intrinsics, dtype=float)[0, 0])
+    fov_x = math.degrees(2.0 * math.atan((width * 0.5) / fx)) if fx > 1e-6 else fov_y
+    target = position + forward
+    return ReconstructedCamera(
+        fov_x_degrees=fov_x,
+        fov_y_degrees=fov_y,
+        position=(float(position[0]), float(position[1]), float(position[2])),
+        target=(float(target[0]), float(target[1]), float(target[2])),
+    )
 
 
 @dataclass(slots=True)
@@ -86,6 +117,8 @@ def run_scan_pipeline(
     segmentation_provider: Any,
     samples: list[Any] | None = None,
     completion_provider: Any | None = None,
+    asset_library: Any | None = None,
+    asset_mode: str = "off",
     progress: Any | None = None,
     cancel: Any | None = None,
     input_root: Path | str | None = None,
@@ -99,11 +132,28 @@ def run_scan_pipeline(
     # 1. Register views -------------------------------------------------- #
     report("REGISTER_VIEWS", 0.08, "Registering scan views")
     if samples is None:
-        raise ReconEmptyGeometryError(
+        raise ReconSourceSetInvalidError(
             "scan pipeline needs pre-resolved samples in this build"
         )
-    if not samples:
-        raise ReconEmptyGeometryError("scan source produced no views")
+    if len(samples) < 2:
+        raise ReconSourceSetInvalidError(
+            f"scan needs at least 2 views; got {len(samples)}"
+        )
+
+    geom_views, seg_view_count = settings.scan_view_counts()
+    if len(samples) > _ABSOLUTE_MAX_VIEWS:
+        raise ReconTooManyViewsError(
+            f"{len(samples)} views submitted; the hard ceiling is {_ABSOLUTE_MAX_VIEWS}"
+        )
+    # A video scan drives a read-only trajectory Scan Camera; an unordered
+    # image set only contributes its anchor camera (design doc 10.6).
+    is_video_scan = settings.source_mode == "video_scan"
+
+    # Trim to the preset's geometry-view budget (uniform, deterministic).
+    if len(samples) > geom_views:
+        keep = set(uniform_sample_indices(len(samples), geom_views))
+        samples = [s for i, s in enumerate(samples) if i in keep]
+
     width, height = int(samples[0].width), int(samples[0].height)
 
     # 2. VGGT geometry ---------------------------------------------- #
@@ -112,22 +162,28 @@ def run_scan_pipeline(
     cameras = list(evidence.cameras)
     points_world = np.asarray(evidence.points_world, dtype=float)  # [V, H, W, 3]
 
-    # 2b. Re-level the whole scan (points + every view camera + planes) so a
-    # confident, gently-tilted floor is world-horizontal before any object is
-    # fitted. A cheap early plane pass provides the ground for the decision;
-    # the real room shell is fitted on the levelled points below.
+    # 2b. Re-level + recentre the whole scan (points + every view camera) so a
+    # confident, gently-tilted floor is world-horizontal AND the scene sits on
+    # Director's grid at the origin, before any object is fitted. A cheap early
+    # plane pass provides the ground; the real room shell is fitted on the
+    # transformed points below.
     _early_planes = detect_planes(
         _ScanGeometryEvidence(points=points_world.reshape(-1, 1, 3)), settings, seed="scan-level"
     )
     _early_ground = next((p for p in _early_planes if p.plane_type == "ground"), None)
-    points_world, cameras, _levelled_planes, was_levelled = level_scan_evidence(
+    points_world, cameras, _lvl_planes, was_levelled = level_scan_evidence(
         points_world=points_world, cameras=cameras, planes=_early_planes, ground=_early_ground
     )
+    _ground_for_center = next((p for p in _lvl_planes if p.plane_type == "ground"), None)
+    _offset = recenter_translation(_ground_for_center, points_world)
+    if np.any(np.abs(_offset) > 1e-6):
+        points_world = (points_world + _offset).astype(float)
+        cameras = [_translate_view_camera(c, _offset) for c in cameras]
 
     # 3. Segmentation on selected key views --------------------- #
     report("SEGMENT_SCENE", 0.45, "Segmenting key views")
     labels = resolve_semantic_labels(settings.semantic_labels)
-    seg_views = choose_segmentation_views(len(cameras), settings.vggt_segmentation_views)
+    seg_views = choose_segmentation_views(len(cameras), seg_view_count)
     candidates: list[FusionCandidate] = []
     for view_index in seg_views:
         view_img = samples[view_index].image
@@ -153,6 +209,8 @@ def run_scan_pipeline(
 
     # 4. Fuse across views ------------------------------------- #
     report("FUSE_VIEWS", 0.62, "Fusing cross-view instances")
+    if len(candidates) > _MAX_INSTANCES_BEFORE_FUSION:
+        candidates = sorted(candidates, key=lambda c: -c.score)[:_MAX_INSTANCES_BEFORE_FUSION]
     fused = fuse_candidates(candidates)
 
     # 5. Room shell ------------------------------------------ #
@@ -166,7 +224,9 @@ def run_scan_pipeline(
         _blockout_from_fused(f, i, settings.scene_scale) for i, f in enumerate(fused)
     ]
     objects.sort(key=lambda o: o.confidence, reverse=True)
-    objects = objects[: settings.max_blockout_objects]
+    objects = objects[: min(settings.max_blockout_objects, _MAX_SCAN_OBJECTS)]
+    if not objects:
+        raise ReconBlockoutEmptyError("scan produced no usable blockout objects")
 
     # 6b. Optional bounded completion.
     # Scan fusion merges per-view masks away, so image+mask completion cannot be
@@ -175,15 +235,31 @@ def run_scan_pipeline(
     if completion_provider is not None and settings.completion_policy != "off":
         report("COMPLETE_OBJECTS", 0.86, "Completion not available for scan objects")
 
-    # 7. Camera track ------------------------------------ #
-    report("SAVE_ASSETS", 0.90, "Building scan camera track")
-    duration_frames = max(
-        (int(s.source_frame) + 1 for s in samples if s.source_frame is not None),
-        default=len(samples),
-    )
-    track = build_scan_camera_track(
-        cameras, fps=24.0, duration_frames=duration_frames, width=width, height=height
-    )
+    # 7. Camera ------------------------------------ #
+    # Video scan -> one read-only trajectory Scan Camera track. Unordered image
+    # set -> only the anchor source camera; the rest of the poses live in the
+    # scan_evidence manifest (design doc 10.6).
+    scan_track = None
+    source_camera = None
+    if is_video_scan:
+        report("SAVE_ASSETS", 0.90, "Building scan camera track")
+        duration_frames = max(
+            (int(s.source_frame) + 1 for s in samples if s.source_frame is not None),
+            default=len(samples),
+        )
+        scan_track = build_scan_camera_track(
+            cameras, fps=24.0, duration_frames=duration_frames, width=width, height=height
+        )
+    else:
+        report("SAVE_ASSETS", 0.90, "Placing anchor camera")
+        source_camera = _anchor_source_camera(cameras[0], width=width, height=height)
+
+    asset_placements: list[Any] = []
+    if asset_library is not None and asset_mode != "off":
+        report("SAVE_ASSETS", 0.91, "Retrieving library assets")
+        from ..asset_library import resolve_placements
+
+        asset_placements = resolve_placements(objects, asset_library)
 
     provider_summary = {
         "geometry": getattr(geometry_provider, "provider_id", "vggt"),
@@ -193,12 +269,15 @@ def run_scan_pipeline(
         "segmentation_views": list(seg_views),
         "objects": len(objects),
         "levelled": bool(was_levelled),
+        "scan_kind": "video" if is_video_scan else "image_set",
+        "asset_mode": asset_mode if asset_placements else "off",
+        "assets": len(asset_placements),
     }
     blockout = BlockoutScene(
         objects=objects,
         room_planes=planes,
-        source_camera=None,
-        scan_camera_track=track,
+        source_camera=source_camera,
+        scan_camera_track=scan_track,
         reference_asset=None,
         provider_summary=provider_summary,
         warnings=list(getattr(evidence, "warnings", [])),
@@ -211,6 +290,8 @@ def run_scan_pipeline(
         source_kind="multi_view",
         mode="scan",
         fps=24.0,
+        asset_placements=asset_placements,
+        asset_mode=asset_mode,
     )
 
     with contextlib.suppress(OSError, ValueError):

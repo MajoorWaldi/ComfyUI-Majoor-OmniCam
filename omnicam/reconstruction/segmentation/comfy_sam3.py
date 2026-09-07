@@ -17,9 +17,9 @@ import numpy as np
 
 from ..errors import (
     ReconCancelledError,
-    ReconInferenceFailedError,
-    ReconProviderUnavailableError,
     ReconRequestInvalidError,
+    ReconSegmentationFailedError,
+    ReconSegmentationModelMissingError,
 )
 from ..model_cache import SingleSlotModelCache
 from ..model_identity import ModelIdentity, file_model_identity
@@ -88,7 +88,7 @@ def extract_node_outputs(out: Any, *, expected: int = 2) -> tuple[Any, ...]:
     if not isinstance(candidate, (tuple, list)):
         candidate = (candidate,)
     if len(candidate) < expected:
-        raise ReconInferenceFailedError(
+        raise ReconSegmentationFailedError(
             f"SAM3_Detect returned {len(candidate)} outputs, expected at least {expected}"
         )
     return tuple(candidate[:expected])
@@ -109,7 +109,7 @@ def _as_mask_stack(masks: Any) -> np.ndarray:
         else:
             arr = arr[:, 0, :, :]
     if arr.ndim != 3:
-        raise ReconInferenceFailedError(f"unexpected SAM3 mask shape {arr.shape}")
+        raise ReconSegmentationFailedError(f"unexpected SAM3 mask shape {arr.shape}")
     return arr > 0.5
 
 
@@ -263,8 +263,9 @@ class ComfySam3Provider:
     def resolve_checkpoint(self, requested: str, mods: _Sam3Modules) -> str:
         available = self._sam3_checkpoints(mods)
         if not available:
-            raise ReconProviderUnavailableError(
-                "No sam3* checkpoint found under models/checkpoints"
+            raise ReconSegmentationModelMissingError(
+                "No sam3* checkpoint found under models/checkpoints "
+                "(install e.g. sam3.1_multiplex_fp16.safetensors)"
             )
         if requested and requested != "auto":
             if requested in available:

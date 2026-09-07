@@ -28,9 +28,25 @@ class ViewCameraEvidence:
     view_index: int
     width: int
     height: int
-    extrinsic_camera_from_world: Any  # 4x4 (or 3x4) OpenCV [R|t]
+    extrinsic_camera_from_world: Any  # 4x4 (or 3x4) OpenCV [R|t], world -> camera
     intrinsics: Any  # 3x3 pixel intrinsics
     source_frame: int | None = None
+
+    @property
+    def world_from_camera(self) -> Any:
+        """Inverse of ``extrinsic_camera_from_world`` (camera -> world), the
+        name the design doc section 5.2 uses. 4x4."""
+        import numpy as np
+
+        e = np.asarray(self.extrinsic_camera_from_world, dtype=float)
+        if e.shape == (3, 4):
+            e = np.vstack([e, [0.0, 0.0, 0.0, 1.0]])
+        r = e[:3, :3]
+        t = e[:3, 3]
+        out = np.eye(4)
+        out[:3, :3] = r.T
+        out[:3, 3] = -r.T @ t
+        return out
 
     def to_summary(self) -> dict[str, Any]:
         """JSON-light row for the scan manifest (no dense tensors)."""

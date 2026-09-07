@@ -13,7 +13,11 @@ from pathlib import Path
 from typing import Any
 
 from ..comfy_compat.gpu_guard import GpuContentionGuard
-from .errors import ReconRequestInvalidError
+from .errors import (
+    ReconAssetLibraryUnavailableError,
+    ReconRequestInvalidError,
+    ReconSegmentationUnavailableError,
+)
 from .pipelines.base import (
     _HASH_CHUNK_BYTES,
     PipelineOutput,
@@ -40,6 +44,11 @@ __all__ = [
 
 _DEPTH_MESH_MODES = frozenset({"depth_mesh"})
 _BLOCKOUT_MODES = frozenset({"blockout", "hybrid"})
+#: Geometry providers that only implement ``reconstruct_views`` (multi-view).
+#: Using one outside Scan mode is a request error, not an AttributeError.
+_SCAN_ONLY_PROVIDERS = frozenset({"vggt", "vggt_omega_research"})
+#: Single-view geometry providers valid for depth_mesh / blockout / hybrid.
+_SINGLE_VIEW_PROVIDERS = frozenset({"comfy_moge", "fake", "sam3d", "lucida"})
 
 
 def _resolve_segmentation_provider(settings: ReconstructionSettings) -> Any:
@@ -53,7 +62,7 @@ def _resolve_segmentation_provider(settings: ReconstructionSettings) -> Any:
 
     provider_id = settings.segmentation_provider or "comfy_sam3"
     if provider_id == "none":
-        raise ReconRequestInvalidError(
+        raise ReconSegmentationUnavailableError(
             f"mode {settings.resolved_mode()!r} needs semantic segmentation but "
             "segmentation_provider is 'none'; choose 'comfy_sam3' or switch to Depth Mesh"
         )
@@ -66,6 +75,30 @@ def _resolve_completion_provider(settings: ReconstructionSettings) -> Any | None
     from .completion.registry import get_completion_provider
 
     return get_completion_provider(settings.completion_provider)
+
+
+def _resolve_asset_library(
+    settings: ReconstructionSettings, input_root: Path | str | None
+) -> tuple[Any | None, str]:
+    """(library, mode) for blockout asset retrieval.
+
+    ``blockout_assets='off'`` -> ``(None, 'off')``. Otherwise the library is
+    loaded and its GLBs must be present: a requested-but-missing library raises
+    :class:`ReconAssetLibraryUnavailableError` rather than silently producing
+    boxes only (same "explicit error over silent substitution" rule the
+    segmentation resolver follows).
+    """
+    mode = settings.blockout_assets
+    if mode == "off":
+        return None, "off"
+    from .asset_library import load_asset_library
+
+    path = settings.asset_library_path.strip() or None
+    library = load_asset_library(path, input_root=input_root)
+    available, reason = library.status()
+    if not available:
+        raise ReconAssetLibraryUnavailableError(reason)
+    return library, mode
 
 
 def run_reconstruction_pipeline(
@@ -85,6 +118,21 @@ def run_reconstruction_pipeline(
 ) -> PipelineOutput:
     """Dispatch to the orchestrator for ``settings.resolved_mode()``."""
     mode = settings.resolved_mode()
+    provider_id = getattr(provider, "provider_id", "")
+
+    # A multi-view provider only has reconstruct_views(); routing it into a
+    # single-view orchestrator would blow up with an AttributeError deep in the
+    # stack. Fail fast with an actionable code instead.
+    if provider_id in _SCAN_ONLY_PROVIDERS and mode != "scan":
+        raise ReconRequestInvalidError(
+            f"{provider_id!r} is a multi-view geometry provider and only works in "
+            f"Scan mode; got mode {mode!r}. Select Scan, or use 'comfy_moge' for "
+            "Depth Mesh / Blockout / Hybrid."
+        )
+    if mode == "scan" and provider_id in _SINGLE_VIEW_PROVIDERS and provider_id != "fake":
+        raise ReconRequestInvalidError(
+            f"Scan mode needs a multi-view geometry provider (vggt); got {provider_id!r}."
+        )
 
     if mode in _DEPTH_MESH_MODES:
         return run_depth_mesh_pipeline(
@@ -102,12 +150,15 @@ def run_reconstruction_pipeline(
     if mode in _BLOCKOUT_MODES:
         seg = segmentation_provider or _resolve_segmentation_provider(settings)
         comp = completion_provider or _resolve_completion_provider(settings)
+        asset_library, asset_mode = _resolve_asset_library(settings, input_root)
         return run_single_blockout_pipeline(
             source=source,
             settings=settings,
             geometry_provider=provider,
             segmentation_provider=seg,
             completion_provider=comp,
+            asset_library=asset_library,
+            asset_mode=asset_mode,
             progress=progress,
             cancel=cancel,
             input_root=input_root,
@@ -121,6 +172,7 @@ def run_reconstruction_pipeline(
 
         seg = segmentation_provider or _resolve_segmentation_provider(settings)
         comp = completion_provider or _resolve_completion_provider(settings)
+        asset_library, asset_mode = _resolve_asset_library(settings, input_root)
         return run_scan_pipeline(
             source=source,
             settings=settings,
@@ -128,6 +180,8 @@ def run_reconstruction_pipeline(
             segmentation_provider=seg,
             samples=scan_samples,
             completion_provider=comp,
+            asset_library=asset_library,
+            asset_mode=asset_mode,
             progress=progress,
             cancel=cancel,
             input_root=input_root,

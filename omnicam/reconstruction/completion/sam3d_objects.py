@@ -16,7 +16,11 @@ from typing import Any
 
 import numpy as np
 
-from ..errors import ReconInferenceFailedError, ReconProviderUnavailableError
+from ..errors import (
+    ReconSam3dInferenceFailedError,
+    ReconSam3dModelMissingError,
+    ReconSam3dUnavailableError,
+)
 from ..model_cache import SingleSlotModelCache
 from ..model_identity import ModelIdentity, file_model_identity
 from .base import CancelToken, CompletedObjectEvidence, CompletionCapabilities
@@ -159,7 +163,9 @@ class Sam3dObjectsCompletionProvider:
     ) -> CompletedObjectEvidence:
         caps = self.capabilities()
         if not caps.available:
-            raise ReconProviderUnavailableError(caps.reason)
+            reason = caps.reason or "SAM3D Objects is unavailable"
+            missing = any(w in reason.lower() for w in ("pipeline", "checkpoint", "not installed"))
+            raise (ReconSam3dModelMissingError if missing else ReconSam3dUnavailableError)(reason)
         if cancel is not None and cancel.is_cancelled():
             from ..errors import ReconCancelledError
 
@@ -176,7 +182,7 @@ class Sam3dObjectsCompletionProvider:
         output = engine(image_np, mask_np, seed=int(seed))
         points = _active_gaussian_points(output["gs"], opacity_threshold=0.5)
         if len(points) < 32:
-            raise ReconInferenceFailedError(
+            raise ReconSam3dInferenceFailedError(
                 "SAM3D returned too little usable object geometry"
             )
         return CompletedObjectEvidence(

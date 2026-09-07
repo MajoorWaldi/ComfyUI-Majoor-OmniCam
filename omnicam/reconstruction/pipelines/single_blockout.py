@@ -21,14 +21,16 @@ from ..cache import CacheEntry, lookup_cache, write_cache_manifest
 from ..camera import reconstruct_camera_from_evidence, resolve_source_dimensions
 from ..coordinates import opencv_points_to_omnicam
 from ..errors import (
+    ReconBlockoutEmptyError,
     ReconCancelledError,
     ReconEmptyGeometryError,
     ReconInferenceFailedError,
+    ReconNoInstancesError,
     ReconSourceInvalidError,
 )
 from ..fingerprint import compute_reconstruction_fingerprint
 from ..geometry import EmptyGeometryError, MeshTooLargeError, build_proxy_mesh
-from ..leveling import level_scene
+from ..leveling import level_scene, recenter_scene
 from ..planes import detect_planes, scale_planes
 from ..providers.base import CancelToken, ProgressSink, ReconstructionProvider
 from ..segmentation.base import SegmentationProvider
@@ -70,6 +72,8 @@ def run_single_blockout_pipeline(
     geometry_provider: ReconstructionProvider,
     segmentation_provider: SegmentationProvider,
     completion_provider: Any | None = None,
+    asset_library: Any | None = None,
+    asset_mode: str = "off",
     progress: ProgressSink | None = None,
     cancel: CancelToken | None = None,
     input_root: Path | str | None = None,
@@ -105,7 +109,10 @@ def run_single_blockout_pipeline(
     # load and the segmentation checkpoint -- checking geometry alone would
     # serve a stale blockout after the SAM3 checkpoint was swapped.
     provider_version = stage_cache_version(
-        geometry_provider, settings, segmentation_provider=segmentation_provider
+        geometry_provider,
+        settings,
+        segmentation_provider=segmentation_provider,
+        asset_library=asset_library if asset_mode != "off" else None,
     )
 
     report("PREPARING", 0.08, "Checking reconstruction cache")
@@ -159,6 +166,11 @@ def run_single_blockout_pipeline(
     instances = segmentation_provider.segment(
         evidence.image, labels, settings, progress=_seg_progress, cancel=cancel
     )
+    if not instances:
+        raise ReconNoInstancesError(
+            "Segmentation found no instances for the requested labels; "
+            "try a lower sam3_threshold, different labels, or Depth Mesh mode"
+        )
 
     # 3. Layout ------------------------------------------------------- #
     report("ANALYZE_LAYOUT", 0.58, "Fitting room shell")
@@ -177,6 +189,15 @@ def run_single_blockout_pipeline(
     if was_levelled:
         ground = next((p for p in planes if p.plane_type == "ground"), None)
 
+    # Drop the whole scene onto Director's grid at the origin: the floor plane
+    # goes to Y=0 and the room is centred at XZ=(0,0). Without this the blockout
+    # sits wherever MoGe put it -- in front of the camera at negative Z and
+    # below the grid.
+    points_omnicam, camera, planes, _recenter_offset = recenter_scene(
+        points=points_omnicam, camera=camera, planes=planes, ground=ground
+    )
+    ground = next((p for p in planes if p.plane_type == "ground"), None)
+
     # 4. Fit closed primitives -------------------------------------- #
     report("FIT_BLOCKOUT", 0.66, "Fitting closed primitives")
     objects = []
@@ -192,6 +213,11 @@ def run_single_blockout_pipeline(
             objects.append(obj)
     objects.sort(key=lambda o: o.confidence, reverse=True)
     objects = objects[: settings.max_blockout_objects]
+    if not objects:
+        raise ReconBlockoutEmptyError(
+            f"{len(instances)} instance(s) segmented but none produced a usable "
+            "3D proxy (too few masked points that were finite in the depth map)"
+        )
 
     # 5. Completion (bounded, optional) --------------------------- #
     if completion_provider is not None and settings.completion_policy != "off":
@@ -233,6 +259,14 @@ def run_single_blockout_pipeline(
                 "textured": proxy_mesh.texture is not None,
             }
 
+    # 6b. Asset-library retrieval (optional) -------------------- #
+    asset_placements: list[Any] = []
+    if asset_library is not None and asset_mode != "off":
+        report("SAVE_ASSETS", 0.88, "Retrieving library assets")
+        from ..asset_library import resolve_placements
+
+        asset_placements = resolve_placements(objects, asset_library)
+
     # 7. Compile ------------------------------------------------- #
     report("SAVE_ASSETS", 0.90, "Compiling blockout scene")
     provider_summary = {
@@ -242,6 +276,8 @@ def run_single_blockout_pipeline(
         "instances": len(instances),
         "objects": len(objects),
         "levelled": bool(was_levelled),
+        "asset_mode": asset_mode if asset_placements else "off",
+        "assets": len(asset_placements),
     }
     blockout = BlockoutScene(
         objects=objects,
@@ -259,6 +295,8 @@ def run_single_blockout_pipeline(
         source_asset_ref=source.value,
         source_kind="single_image",
         mode=resolved_mode,
+        asset_placements=asset_placements,
+        asset_mode=asset_mode,
     )
 
     summary = {

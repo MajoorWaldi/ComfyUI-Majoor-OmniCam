@@ -17,7 +17,12 @@ import importlib.util
 from pathlib import Path
 from typing import Any
 
-from ..errors import ReconProviderUnavailableError, ReconRequestInvalidError
+from ..errors import (
+    ReconRequestInvalidError,
+    ReconVggtInferenceFailedError,
+    ReconVggtModelMissingError,
+    ReconVggtUnavailableError,
+)
 from ..gpu_guard import GpuStageGuard
 from ..model_identity import ModelIdentity, file_model_identity
 from ..settings import ReconstructionSettings
@@ -138,8 +143,9 @@ class VggtProvider:
     def resolve_checkpoint(self, requested: str) -> Path:
         available = self._available_checkpoints()
         if not available:
-            raise ReconProviderUnavailableError(
-                "No VGGT checkpoint under models/geometry_estimation/vggt/"
+            raise ReconVggtModelMissingError(
+                "No VGGT checkpoint under models/geometry_estimation/vggt/ "
+                "(place e.g. VGGT-1B-Commercial/model.pt)"
             )
         by_name = {name: path for name, path in available}
         if requested and requested != "auto":
@@ -177,7 +183,7 @@ class VggtProvider:
         """
         caps = self.capabilities()
         if not caps.available:
-            raise ReconProviderUnavailableError(caps.reason or "VGGT provider unavailable")
+            raise ReconVggtUnavailableError(caps.reason or "VGGT provider unavailable")
 
         checkpoint = self.resolve_checkpoint(settings.vggt_checkpoint)
 
@@ -209,6 +215,8 @@ class VggtProvider:
             points = unproject_depth_map_to_point_map(
                 pred["depth"].squeeze(0), extr.squeeze(0), intr.squeeze(0)
             )
+        except RuntimeError as exc:
+            raise ReconVggtInferenceFailedError(f"VGGT forward failed: {exc}") from exc
         finally:
             model.to("cpu")
             del images

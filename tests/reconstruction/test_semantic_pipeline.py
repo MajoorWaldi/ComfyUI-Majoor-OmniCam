@@ -109,9 +109,9 @@ def test_depth_mesh_path_unchanged(tmp_path):
 def test_segmentation_none_is_a_hard_error_not_synthetic_objects(tmp_path):
     import pytest
 
-    from omnicam.reconstruction.errors import ReconRequestInvalidError
+    from omnicam.reconstruction.errors import ReconSegmentationUnavailableError
 
-    with pytest.raises(ReconRequestInvalidError, match="segmentation"):
+    with pytest.raises(ReconSegmentationUnavailableError, match="segmentation") as exc:
         run_reconstruction_pipeline(
             source=_image_source(tmp_path),
             settings=ReconstructionSettings(
@@ -120,6 +120,7 @@ def test_segmentation_none_is_a_hard_error_not_synthetic_objects(tmp_path):
             provider=FakeReconstructionProvider(grid_size=64),
             input_root=tmp_path,
         )
+    assert exc.value.to_dict()["error"]["code"] == "RECON_SEGMENTATION_UNAVAILABLE"
 
 
 def test_blockout_cache_invalidates_when_segmentation_checkpoint_changes(tmp_path):
@@ -141,3 +142,99 @@ def test_blockout_cache_invalidates_when_segmentation_checkpoint_changes(tmp_pat
     assert va != vb
     # geometry-only version is unchanged between the two (only segmentation moved)
     assert va.split("|")[0] == vb.split("|")[0]
+
+
+def test_facade_rejects_vggt_provider_outside_scan_mode(tmp_path):
+    """Regression: a job with provider='vggt' but a single-view mode used to
+    crash with AttributeError deep in run_depth_mesh_pipeline."""
+    import pytest
+
+    from omnicam.reconstruction.errors import ReconRequestInvalidError
+    from omnicam.reconstruction.providers.vggt import VggtProvider
+
+    for mode in ("geometry", "depth_mesh", "blockout", "hybrid"):
+        with pytest.raises(ReconRequestInvalidError, match="Scan mode"):
+            run_reconstruction_pipeline(
+                source=_image_source(tmp_path),
+                settings=ReconstructionSettings(mode=mode, provider="vggt"),
+                provider=VggtProvider(),
+                input_root=tmp_path,
+            )
+
+
+def test_facade_rejects_single_view_provider_in_scan_mode(tmp_path):
+    import pytest
+
+    from omnicam.reconstruction.errors import ReconRequestInvalidError
+
+    class _MoGe:
+        provider_id = "comfy_moge"
+
+    with pytest.raises(ReconRequestInvalidError, match="multi-view"):
+        run_reconstruction_pipeline(
+            source=_image_source(tmp_path),
+            settings=ReconstructionSettings(mode="scan", provider="comfy_moge"),
+            provider=_MoGe(),
+            input_root=tmp_path,
+        )
+
+
+def _fixture_library(input_root: Path, *, with_files=True):
+    import json
+
+    root = input_root / "majoor_omnicam" / "blockout_library"
+    root.mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "version": 1,
+        "name": "fixture",
+        "assets": {
+            "chair": {"category": "interior", "glb": "interior/chair.glb"},
+            "table": {"category": "interior", "glb": "interior/table.glb"},
+        },
+    }
+    (root / "library.json").write_text(json.dumps(manifest), encoding="utf-8")
+    if with_files:
+        for rel in ("interior/chair.glb", "interior/table.glb"):
+            p = root / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(b"glTF")
+    return root
+
+
+def test_blockout_assets_proxy_adds_glb_objects(tmp_path):
+    _fixture_library(tmp_path)
+    out = run_reconstruction_pipeline(
+        source=_image_source(tmp_path),
+        settings=ReconstructionSettings(
+            mode="blockout", provider="fake", segmentation_provider="fake",
+            semantic_labels=("chair", "table"), blockout_assets="proxy",
+        ),
+        provider=FakeReconstructionProvider(grid_size=64),
+        input_root=tmp_path,
+    )
+    objs = out.motion_scene["objects"]
+    proxies = [o for o in objs if o.get("reconstruction", {}).get("role") == "asset_proxy"]
+    assert proxies, "at least one library prop was placed"
+    assert all(o["type"] == "glb" for o in proxies)
+    assert all(o["asset"].startswith("majoor_omnicam/blockout_library/") for o in proxies)
+    assert out.summary["provider_summary"]["asset_mode"] == "proxy"
+    # proxy keeps the fitted boxes.
+    assert any(o.get("reconstruction", {}).get("role") == "blockout_object" and o["enabled"]
+               for o in objs)
+
+
+def test_blockout_assets_requested_but_library_missing_raises(tmp_path):
+    import pytest
+
+    from omnicam.reconstruction.errors import ReconAssetLibraryInvalidError
+
+    with pytest.raises(ReconAssetLibraryInvalidError):
+        run_reconstruction_pipeline(
+            source=_image_source(tmp_path),
+            settings=ReconstructionSettings(
+                mode="blockout", provider="fake", segmentation_provider="fake",
+                blockout_assets="replace",
+            ),
+            provider=FakeReconstructionProvider(grid_size=64),
+            input_root=tmp_path,
+        )

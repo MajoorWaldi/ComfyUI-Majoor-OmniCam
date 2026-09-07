@@ -14,6 +14,7 @@ from PIL import Image
 from .pipeline import run_reconstruction_pipeline
 from .providers import get_provider
 from .settings import (
+    KNOWN_BLOCKOUT_ASSET_MODES,
     KNOWN_COMPLETION_POLICIES,
     KNOWN_COMPLETION_PROVIDERS,
     KNOWN_MODES,
@@ -65,6 +66,8 @@ def reconstruction_settings_from_widgets(
     recon_vggt_segmentation_views: int = 6,
     recon_completion_policy: str = "off",
     recon_max_completion_objects: int = 4,
+    recon_blockout_assets: str = "off",
+    recon_asset_library_path: str = "",
     recon_source_texture: bool = True,
     recon_detect_ground: bool = True,
     recon_detect_walls: bool = False,
@@ -104,6 +107,9 @@ def reconstruction_settings_from_widgets(
         else "off"
     )
     source_mode = recon_source_mode if recon_source_mode in KNOWN_SOURCE_MODES else "auto"
+    blockout_assets = (
+        recon_blockout_assets if recon_blockout_assets in KNOWN_BLOCKOUT_ASSET_MODES else "off"
+    )
 
     vggt_max_views = int(_clamp(int(recon_vggt_max_views), 2, 128))
     vggt_seg_views = int(_clamp(int(recon_vggt_segmentation_views), 1, min(vggt_max_views, 32)))
@@ -125,6 +131,8 @@ def reconstruction_settings_from_widgets(
         max_blockout_objects=int(_clamp(int(recon_max_objects), 1, 128)),
         completion_policy=policy,
         max_completion_objects=int(_clamp(int(recon_max_completion_objects), 0, 16)),
+        blockout_assets=blockout_assets,
+        asset_library_path=str(recon_asset_library_path or "").strip()[:512],
         vggt_checkpoint=str(recon_vggt_checkpoint or "auto"),
         vggt_max_views=vggt_max_views,
         vggt_segmentation_views=vggt_seg_views,
@@ -159,13 +167,22 @@ def execute_reconstruction(
     # single-still contract (and a batch is rejected there, as before).
     scan_samples = None
     if resolved_mode == "scan":
+        from .errors import ReconSourceSetInvalidError
+
         if batch < 2:
-            raise ValueError("Scan reconstruction needs an IMAGE batch of at least 2 views.")
+            raise ReconSourceSetInvalidError(
+                "Scan reconstruction needs an IMAGE batch of at least 2 views."
+            )
         from .multiview.source import sample_image_batch
 
+        geom_views, _seg = active_settings.scan_view_counts()
         scan_samples = sample_image_batch(
-            image_input[..., :3].cpu().numpy(), max_views=active_settings.vggt_max_views
+            image_input[..., :3].cpu().numpy(), max_views=geom_views
         )
+        # A queued IMAGE batch is treated as an unordered image set unless the
+        # widget explicitly says video_scan (the node has no VIDEO socket yet).
+        if active_settings.source_mode in ("auto", "single_image"):
+            active_settings.source_mode = "multi_view"
     elif batch != 1:
         raise ValueError(
             f"{resolved_mode} reconstruction accepts only 1 image [1, H, W, C]; "

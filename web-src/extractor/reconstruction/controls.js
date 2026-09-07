@@ -38,6 +38,8 @@ export function applyQualityPreset(root, quality) {
 // Legacy serialized modes -> current names, matching settings.py _MODE_ALIASES.
 const MODE_ALIASES = { geometry: "depth_mesh", layout: "depth_mesh" };
 const SEMANTIC_MODES = new Set(["blockout", "hybrid", "scan"]);
+// Geometry providers that only work in Scan mode (multi-view).
+const SCAN_ONLY_PROVIDERS = new Set(["vggt", "vggt_omega_research"]);
 
 export function readReconstructionSettings(root) {
   if (!root) return {};
@@ -46,14 +48,20 @@ export function readReconstructionSettings(root) {
   const getChecked = (role) => Boolean(root.querySelector(`[data-role="${role}"]`)?.checked);
 
   const rawMode = getVal("reconstruction-mode") || "depth_mesh";
-  const mode = MODE_ALIASES[rawMode] || rawMode;
+  let mode = MODE_ALIASES[rawMode] || rawMode;
+  const rawProvider = getVal("reconstruction-provider") || "";
+  // A multi-view provider is only valid in Scan mode; coerce rather than send a
+  // combination the backend has to reject (mirrors the scan -> vggt default).
+  if (SCAN_ONLY_PROVIDERS.has(rawProvider)) mode = "scan";
+  const provider = rawProvider || (mode === "scan" ? "vggt" : "comfy_moge");
+
   const labels = String(getVal("reconstruction-semantic-labels") || "")
     .split(/[\n,]/)
     .map((s) => s.trim())
     .filter(Boolean);
 
   const settings = {
-    provider: getVal("reconstruction-provider") || (mode === "scan" ? "vggt" : "comfy_moge"),
+    provider,
     mode,
     quality: getVal("reconstruction-quality") || "balanced",
     checkpoint: getVal("reconstruction-checkpoint") || "auto",
@@ -72,6 +80,7 @@ export function readReconstructionSettings(root) {
     settings.segmentation_provider = getVal("reconstruction-segmentation") || "comfy_sam3";
     settings.completion_policy = getVal("reconstruction-completion-policy") || "off";
     settings.max_blockout_objects = Number(getVal("reconstruction-max-objects")) || 24;
+    settings.blockout_assets = getVal("reconstruction-blockout-assets") || "off";
     if (labels.length) settings.semantic_labels = labels;
   }
   return settings;

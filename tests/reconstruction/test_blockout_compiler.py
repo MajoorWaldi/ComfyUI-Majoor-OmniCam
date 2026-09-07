@@ -112,3 +112,59 @@ def test_validator_rejects_oversized_semantic_and_out_of_range_axis_confidence()
     }
     with pytest.raises(ValidationError):
         validate_object(bad, 120, "objects[1]", DEFAULT_LIMITS)
+
+
+def _placement(source_object_id="chair_1", semantic="chair"):
+    from omnicam.reconstruction.asset_library import AssetPlacement
+
+    return AssetPlacement(
+        source_object_id=source_object_id,
+        semantic_class=semantic,
+        category="interior",
+        asset_ref="majoor_omnicam/blockout_library/interior/chair.glb [input]",
+        position=(1.0, 0.5, -3.0),
+        rotation=(0.0, 20.0, 0.0),
+        size=(0.7, 1.0, 0.7),
+        confidence=0.8,
+    )
+
+
+def test_asset_placements_add_a_glb_branch_and_keep_the_box_in_proxy_mode():
+    scene = compile_blockout_scene(
+        _scene(),
+        canvas_width=1280,
+        canvas_height=720,
+        asset_placements=[_placement()],
+        asset_mode="proxy",
+    )
+    by_id = {o["id"]: o for o in scene["objects"]}
+    assert by_id["reconstruction_assets"]["type"] == "null"
+    asset = by_id["chair_1_asset"]
+    assert asset["type"] == "glb"
+    assert asset["parent_id"] == "reconstruction_assets"
+    assert asset["asset"] == "majoor_omnicam/blockout_library/interior/chair.glb [input]"
+    assert asset["reconstruction"]["role"] == "asset_proxy"
+    assert asset["reconstruction"]["source_object_id"] == "chair_1"
+    # proxy mode keeps the fitted box visible next to the prop.
+    assert by_id["chair_1"]["enabled"] is True
+    assert scene["metadata"]["reconstruction"]["asset_mode"] == "proxy"
+    assert scene["metadata"]["reconstruction"]["asset_count"] == 1
+
+
+def test_replace_mode_hides_the_box_the_prop_stands_in_for():
+    scene = compile_blockout_scene(
+        _scene(),
+        canvas_width=1280,
+        canvas_height=720,
+        asset_placements=[_placement()],
+        asset_mode="replace",
+    )
+    by_id = {o["id"]: o for o in scene["objects"]}
+    assert by_id["chair_1"]["enabled"] is False
+    assert by_id["chair_1_asset"]["enabled"] is True
+
+
+def test_no_placements_leaves_the_scene_and_metadata_untouched():
+    scene = compile_blockout_scene(_scene(), canvas_width=1280, canvas_height=720)
+    assert "reconstruction_assets" not in {o["id"] for o in scene["objects"]}
+    assert scene["metadata"]["reconstruction"]["asset_mode"] == "off"

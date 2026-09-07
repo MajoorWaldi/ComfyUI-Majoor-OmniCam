@@ -123,6 +123,30 @@ def apply_rotation_to_view_camera(view_cam: Any, rot: np.ndarray) -> Any:
     )
 
 
+def _translate_view_camera(view_cam: Any, offset: np.ndarray) -> Any:
+    """Translate a multi-view camera by a world offset ``p' = p + offset``.
+
+    The stored extrinsic is world -> camera, so ``E'[:3, 3] = t - R @ offset``.
+    """
+    from .multiview.types import ViewCameraEvidence
+
+    e = np.asarray(view_cam.extrinsic_camera_from_world, dtype=float)
+    if e.shape == (3, 4):
+        e4 = np.eye(4)
+        e4[:3, :4] = e
+        e = e4
+    e = e.copy()
+    e[:3, 3] = e[:3, 3] - e[:3, :3] @ np.asarray(offset, dtype=float)
+    return ViewCameraEvidence(
+        view_index=view_cam.view_index,
+        width=view_cam.width,
+        height=view_cam.height,
+        extrinsic_camera_from_world=e,
+        intrinsics=np.asarray(view_cam.intrinsics, dtype=float),
+        source_frame=view_cam.source_frame,
+    )
+
+
 def level_scan_evidence(
     *,
     points_world: np.ndarray,
@@ -168,4 +192,77 @@ def level_scene(
         apply_rotation_to_camera(camera, rot),
         [apply_rotation_to_plane(p, rot) for p in planes],
         True,
+    )
+
+
+def _xyz(v: Any) -> tuple[float, float, float]:
+    a = np.asarray(v, dtype=float).reshape(3)
+    return (float(a[0]), float(a[1]), float(a[2]))
+
+
+def _translate_camera(camera: Any, offset: np.ndarray) -> Any:
+    from .types import ReconstructedCamera
+
+    return ReconstructedCamera(
+        fov_x_degrees=camera.fov_x_degrees,
+        fov_y_degrees=camera.fov_y_degrees,
+        position=_xyz(np.asarray(camera.position, dtype=float) + offset),
+        target=_xyz(np.asarray(camera.target, dtype=float) + offset),
+        near=camera.near,
+        far=camera.far,
+        scale_mode=camera.scale_mode,
+    )
+
+
+def _translate_plane(plane: Any, offset: np.ndarray) -> Any:
+    from .types import ReconstructedPlane
+
+    return ReconstructedPlane(
+        plane_type=plane.plane_type,
+        center=_xyz(np.asarray(plane.center, dtype=float) + offset),
+        normal=(float(plane.normal[0]), float(plane.normal[1]), float(plane.normal[2])),
+        size=(float(plane.size[0]), float(plane.size[1])),
+        confidence=float(plane.confidence),
+        inlier_ratio=float(getattr(plane, "inlier_ratio", 0.0)),
+    )
+
+
+def recenter_translation(ground: Any | None, points: np.ndarray) -> np.ndarray:
+    """Translation that drops the scene onto the grid at the world origin.
+
+    With a confident ground plane: its centre goes to ``(0, 0, 0)`` -- the
+    floor sits at ``Y = 0`` (objects rest on Director's grid) and the room is
+    centred at the origin. Without one: the finite point cloud's XZ median goes
+    to the origin and its 2nd-percentile Y (a robust floor estimate) to zero.
+    """
+    if ground is not None and float(getattr(ground, "confidence", 0.0)) >= MIN_GROUND_CONFIDENCE:
+        c = np.asarray(ground.center, dtype=float)
+        return np.array([-c[0], -c[1], -c[2]])
+    pts = np.asarray(points, dtype=float).reshape(-1, 3)
+    pts = pts[np.isfinite(pts).all(axis=1)]
+    if len(pts) == 0:
+        return np.zeros(3)
+    return np.array(
+        [-float(np.median(pts[:, 0])), -float(np.percentile(pts[:, 1], 2)), -float(np.median(pts[:, 2]))]
+    )
+
+
+def recenter_scene(
+    *,
+    points: np.ndarray,
+    camera: Any,
+    planes: list[Any],
+    ground: Any | None,
+) -> tuple[np.ndarray, Any, list[Any], np.ndarray]:
+    """Translate points / camera / planes so the scene sits at the origin on
+    the grid. Returns ``(points, camera, planes, offset)``."""
+    offset = recenter_translation(ground, points)
+    if not np.any(np.abs(offset) > 1e-6):
+        return points, camera, planes, offset
+    pts = np.asarray(points, dtype=float) + offset
+    return (
+        pts.astype(np.float32, copy=False),
+        _translate_camera(camera, offset) if camera is not None else None,
+        [_translate_plane(p, offset) for p in planes],
+        offset,
     )

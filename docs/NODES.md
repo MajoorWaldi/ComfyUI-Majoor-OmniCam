@@ -376,7 +376,7 @@ Scene Reconstruct produces one of four result shapes (`recon_mode`):
 - **Depth Mesh**: the historical visible-surface MoGe depth mesh, kept as a reference proxy.
 - **Blockout**: MoGe (geometry evidence) + native ComfyUI SAM3.1 (semantic instance masks) → deterministically fitted **closed** MotionScene primitives plus a correctly oriented room shell. A 90° Director orbit no longer opens holes in the blocking objects because they are closed volumes, not a 2.5D surface.
 - **Hybrid**: the Blockout primitives *and* an independently toggleable dense reference mesh.
-- **Scan**: VGGT multi-view / video scene blocking — one trajectory camera track plus cross-view-fused closed primitives.
+- **Scan**: VGGT multi-view / video scene blocking with cross-view-fused closed primitives. `recon_source_mode` chooses the camera treatment: `video_scan` compiles the sampled VGGT poses into one read-only **Scan Camera** trajectory track (keyframes at the source-frame indices); `multi_view` (an unordered image set) inserts only the anchor source camera and keeps the other poses in `scan_evidence.json`. Scan view counts follow the quality preset — Fast 12 geometry / 3 segmentation views, Balanced 24 / 6, High 48 / 10 (`custom` uses the explicit `recon_vggt_max_views` / `recon_vggt_segmentation_views` fields).
 
 #### Providers & Capabilities
 
@@ -385,6 +385,7 @@ Scene Reconstruct produces one of four result shapes (`recon_mode`):
 - **`vggt`** (geometry, multi-view / Scan): optional. Needs the `vggt` Python package and a checkpoint under `ComfyUI/models/geometry_estimation/vggt/` (recommended: `VGGT-1B-Commercial/model.pt`) and a CUDA GPU. `VGGT-1B-Commercial` is the documented production checkpoint.
 - **`vggt_omega_research`**: explicitly **non-commercial / research only** (FAIR Noncommercial Research License) and is **never auto-selected**; OmniCam does not fall back to it from the commercial checkpoint.
 - **`sam3d_objects`** (optional completion): improves weak hidden dimensions of individual blockout objects. Official baseline is **Linux 64-bit + an NVIDIA CUDA GPU with ≥ 32 GB VRAM**, the `sam3d_objects` package, and a pipeline config under `ComfyUI/models/sam3d_objects/`. It is capability-gated and its absence does not affect Depth Mesh, Blockout or Scan.
+- **Asset library** (`recon_blockout_assets`: `off` / `proxy` / `replace`): swap each fitted box for a real GLB prop from a local CC0 kit library (23 Kenney props by default; `--download` fetches them). `proxy` adds the prop beside the box; `replace` hides the box. Populate it once with `scripts/fetch_blockout_library.py` — see [BLOCKOUT_ASSET_LIBRARY.md](BLOCKOUT_ASSET_LIBRARY.md). Requesting it without the library installed fails with `RECON_ASSET_LIBRARY_UNAVAILABLE` / `RECON_ASSET_LIBRARY_INVALID` rather than silently producing boxes only. `recon_asset_library_path` points at your own library folder instead of the managed default.
 - **No auto-download policy**: OmniCam never triggers silent package installs or weight downloads. If a checkpoint is missing, the panel surfaces a clear status message with placement instructions; the run button explains a missing SAM3 checkpoint and offers Depth Mesh rather than silently changing the requested mode.
 
 #### Reconstruction Controls & Quality Presets

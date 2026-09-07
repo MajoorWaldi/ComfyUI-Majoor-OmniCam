@@ -7,6 +7,7 @@ import {
   ensureCacheWidgets,
   restoreLateWidgetValues,
 } from "./result-cache.js";
+import { watchGraphConnections } from "../graph-connection-watch.js";
 import { ExtractorUI } from "./index.js";
 
 const INTERNAL_WIDGETS = [SCENE_WIDGET, FINGERPRINT_WIDGET, SOURCE_WIDGET];
@@ -72,6 +73,7 @@ export function attachExtractor(node) {
 
   const removed = node.onRemoved;
   node.onRemoved = function () {
+    ui.unwatchGraphConnections?.();
     ui.dispose();
     removed?.apply(this, arguments);
   };
@@ -80,14 +82,23 @@ export function attachExtractor(node) {
     executed?.apply(this, arguments);
     ui.executed(message);
   };
+  const resync = () => {
+    if (ui.disposed) return;
+    ui.refreshSource();
+    node.setDirtyCanvas?.(true, true);
+  };
   const changed = node.onConnectionsChange;
   node.onConnectionsChange = function () {
     changed?.apply(this, arguments);
-    ui.refreshSource();
-    setTimeout(() => {
-      if (!ui.disposed) ui.refreshSource();
-    }, 400);
+    resync();
+    // The link array is not always updated by the time this fires; a second
+    // pass a frame or two later reads the settled graph.
+    setTimeout(resync, 60);
+    setTimeout(resync, 400);
   };
+  // Backstop for the builds where onConnectionsChange is not delivered here
+  // (upstream node deleted, link re-routed by the Vue graph).
+  ui.unwatchGraphConnections = watchGraphConnections(node, () => setTimeout(resync, 0));
   const configured = node.onAfterGraphConfigured;
   node.onAfterGraphConfigured = function () {
     configured?.apply(this, arguments);

@@ -64,13 +64,20 @@ def _samples(n=4, h=120, w=160):
     return s
 
 
+def _settings(**kw):
+    kw.setdefault("mode", "scan")
+    kw.setdefault("provider", "vggt")
+    kw.setdefault("semantic_labels", ("chair", "table"))
+    kw.setdefault("quality", "custom")  # honour the explicit view fields below
+    kw.setdefault("vggt_segmentation_views", 2)
+    kw.setdefault("source_mode", "video_scan")  # -> trajectory Scan Camera track
+    return ReconstructionSettings(**kw)
+
+
 def _run(**over):
     kw = dict(
         source=None,
-        settings=ReconstructionSettings(
-            mode="scan", provider="vggt", semantic_labels=("chair", "table"),
-            vggt_segmentation_views=2,
-        ),
+        settings=_settings(),
         geometry_provider=FakeVggtProvider(),
         segmentation_provider=FakeSegmentationProvider(),
         samples=_samples(),
@@ -86,22 +93,49 @@ def test_scan_pipeline_output_validates():
     assert out.summary["view_count"] == 4
 
 
-def test_scan_emits_blockout_objects_and_a_single_camera_track():
+def test_video_scan_emits_one_trajectory_camera_track():
     out = _run()
     roles = [o.get("reconstruction", {}).get("role") for o in out.motion_scene["objects"]]
     assert "blockout_object" in roles
     assert len(out.motion_scene["cameras"]) == 1  # one trajectory, not one cam/view
     track = out.motion_scene["cameras"][0]["track"]
     assert len(track["keyframes"]) >= 2
+    assert out.summary["provider_summary"]["scan_kind"] == "video"
 
 
-def test_scan_camera_track_preserves_sampled_source_frames():
+def test_video_scan_camera_track_preserves_sampled_source_frames():
     samples = _samples(n=4)
     out = _run(samples=samples)
     track_frames = {kf["frame"] for kf in out.motion_scene["cameras"][0]["track"]["keyframes"]}
     expected = {int(s.source_frame) for s in samples}
     # frames are clamped into the timeline but the distinct set is preserved
     assert track_frames == expected
+
+
+def test_unordered_image_set_scan_inserts_only_the_anchor_camera():
+    # source_mode "multi_view" -> no trajectory track; one anchor source camera
+    # with a single hold keyframe (design doc 10.6).
+    out = _run(settings=_settings(source_mode="multi_view"))
+    cams = out.motion_scene["cameras"]
+    assert len(cams) == 1
+    kfs = cams[0]["track"]["keyframes"]
+    assert len(kfs) == 1
+    assert out.summary["provider_summary"]["scan_kind"] == "image_set"
+    # still a full blockout
+    assert "blockout_object" in [
+        o.get("reconstruction", {}).get("role") for o in out.motion_scene["objects"]
+    ]
+
+
+def test_scan_view_presets_drive_segmentation_view_count():
+    fast = _settings(quality="fast")
+    balanced = _settings(quality="balanced")
+    high = _settings(quality="high")
+    assert fast.scan_view_counts() == (12, 3)
+    assert balanced.scan_view_counts() == (24, 6)
+    assert high.scan_view_counts() == (48, 10)
+    # custom keeps the explicit fields
+    assert _settings(quality="custom", vggt_max_views=9, vggt_segmentation_views=4).scan_view_counts() == (9, 4)
 
 
 def test_two_views_of_same_chair_do_not_double_count():
@@ -125,14 +159,10 @@ def test_two_physical_chairs_stay_two_objects():
 
 def test_objects_seen_from_more_views_get_a_depth_confidence_bump():
     one_view = _run(
-        settings=ReconstructionSettings(
-            mode="scan", provider="vggt", semantic_labels=("chair",), vggt_segmentation_views=1
-        )
+        settings=_settings(semantic_labels=("chair",), vggt_segmentation_views=1)
     )
     many_view = _run(
-        settings=ReconstructionSettings(
-            mode="scan", provider="vggt", semantic_labels=("chair",), vggt_segmentation_views=4
-        )
+        settings=_settings(semantic_labels=("chair",), vggt_segmentation_views=4)
     )
 
     def _depth_conf(out):

@@ -24,6 +24,7 @@ _ROOT_ID = "reconstruction_root"
 _ROOM_ID = "reconstruction_room"
 _BLOCKOUT_ID = "reconstruction_blockout"
 _REFERENCE_ID = "reconstruction_reference"
+_ASSETS_ID = "reconstruction_assets"
 
 
 def _null(object_id: str, name: str, parent_id: str | None = None) -> dict[str, Any]:
@@ -89,6 +90,37 @@ def _blockout_object(obj: BlockoutObject, provider_summary: dict[str, Any], sour
             "semantic": obj.semantic_class,
             "axis_confidence": obj.axis_confidence.to_dict(),
             "completion_provider": obj.completion_provider,
+        },
+    }
+
+
+def _asset_object(
+    placement: Any, provider_summary: dict[str, Any], source_kind: str
+) -> dict[str, Any]:
+    """A retrieved GLB prop standing in the fitted box of one blockout object."""
+    return {
+        "id": f"{placement.source_object_id}_asset",
+        "name": (placement.semantic_class or "asset").replace("_", " ").title(),
+        "type": "glb",
+        "parent_id": _ASSETS_ID,
+        "position": [float(v) for v in placement.position],
+        "rotation": [float(v) for v in placement.rotation],
+        "size": [max(0.01, float(v)) for v in placement.size],
+        "material_mode": "textured",
+        "keyframes": [],
+        "enabled": True,
+        "locked": False,
+        "asset": str(placement.asset_ref),
+        "reconstruction": {
+            "version": 2,
+            "role": "asset_proxy",
+            "provider": "asset_library",
+            "source_kind": source_kind,
+            "confidence": float(placement.confidence),
+            "semantic": placement.semantic_class,
+            "category": placement.category,
+            "pose": placement.pose,
+            "source_object_id": placement.source_object_id,
         },
     }
 
@@ -182,11 +214,23 @@ def compile_blockout_scene(
     mode: str = "blockout",
     duration_seconds: float = 5.0,
     fps: float = 24.0,
+    asset_placements: list[Any] | None = None,
+    asset_mode: str = "off",
 ) -> dict[str, Any]:
-    """Return a fully validated MotionScene v1 dictionary."""
+    """Return a fully validated MotionScene v1 dictionary.
+
+    ``asset_placements`` (from :mod:`omnicam.reconstruction.asset_library`) adds
+    a ``reconstruction_assets`` branch of retrieved GLB props. ``asset_mode``
+    ``"replace"`` also hides the blockout box each prop stands in for; ``"proxy"``
+    keeps both.
+    """
     width = int(canvas_width)
     height = int(canvas_height)
     provider_summary = dict(blockout.provider_summary)
+    placements = list(asset_placements or [])
+    replaced_ids = (
+        {str(p.source_object_id) for p in placements} if asset_mode == "replace" else set()
+    )
 
     objects: list[dict[str, Any]] = [
         _null(_ROOT_ID, "Reconstructed Scene"),
@@ -198,7 +242,15 @@ def compile_blockout_scene(
         objects.append(_room_object(proxy, provider_summary, source_kind))
 
     for obj in blockout.objects:
-        objects.append(_blockout_object(obj, provider_summary, source_kind))
+        node = _blockout_object(obj, provider_summary, source_kind)
+        if obj.object_id in replaced_ids:
+            node["enabled"] = False  # the retrieved GLB takes its place
+        objects.append(node)
+
+    if placements:
+        objects.append(_null(_ASSETS_ID, "Assets", _ROOT_ID))
+        for placement in placements:
+            objects.append(_asset_object(placement, provider_summary, source_kind))
 
     if blockout.reference_asset:
         objects.append(_null(_REFERENCE_ID, "Reference", _ROOT_ID))
@@ -239,6 +291,8 @@ def compile_blockout_scene(
                 "mode": mode,
                 "coordinate_system": "gltf_y_up_z_back",
                 "provider_summary": provider_summary,
+                "asset_mode": asset_mode if placements else "off",
+                "asset_count": len(placements),
                 "warnings": capped_warnings,
             }
         },

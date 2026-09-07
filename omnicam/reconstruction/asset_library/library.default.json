@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "name": "OmniCam default blockout library (Kenney, CC0)",
+  "license": "CC0-1.0",
+  "attribution": "Kenney (kenney.nl) — CC0. Credit appreciated, not required.",
+  "note": "GLBs are NOT shipped in the repo. Run scripts/fetch_blockout_library.py --from-dir <kits> to populate <ComfyUI>/input/majoor_omnicam/blockout_library/. base_size is the model's approximate authored bounding box in metres; the resolver divides the fitted box by it.",
+  "kits": {
+    "Kenney Furniture Kit": "https://kenney.nl/assets/furniture-kit",
+    "Kenney Car Kit": "https://kenney.nl/assets/car-kit",
+    "Kenney City Kit (Roads)": "https://kenney.nl/assets/city-kit-roads",
+    "Kenney Nature Kit": "https://kenney.nl/assets/nature-kit",
+    "Kenney Blocky Characters": "https://kenney.nl/assets/blocky-characters"
+  },
+  "assets": {
+    "person":     {"category": "human", "fit": "upright", "base_size": [0.6, 1.75, 0.4],
+                   "poses": {"standing": "human/character-a.glb"}, "source": "Kenney Blocky Characters"},
+    "chair":      {"category": "interior", "glb": "interior/chair.glb", "base_size": [0.5, 0.9, 0.5], "source": "Kenney Furniture Kit"},
+    "armchair":   {"category": "interior", "glb": "interior/loungeChair.glb", "base_size": [0.8, 0.85, 0.85], "source": "Kenney Furniture Kit"},
+    "sofa":       {"category": "interior", "glb": "interior/loungeSofa.glb", "base_size": [1.9, 0.8, 0.85], "source": "Kenney Furniture Kit"},
+    "table":      {"category": "interior", "glb": "interior/table.glb", "base_size": [1.1, 0.75, 0.7], "source": "Kenney Furniture Kit"},
+    "desk":       {"category": "interior", "glb": "interior/desk.glb", "base_size": [1.2, 0.75, 0.6], "source": "Kenney Furniture Kit"},
+    "bed":        {"category": "interior", "glb": "interior/bedSingle.glb", "base_size": [1.0, 0.55, 2.0], "source": "Kenney Furniture Kit"},
+    "cabinet":    {"category": "interior", "glb": "interior/kitchenCabinet.glb", "base_size": [0.6, 0.9, 0.6], "source": "Kenney Furniture Kit"},
+    "shelf":      {"category": "interior", "glb": "interior/bookcaseOpen.glb", "base_size": [0.9, 1.8, 0.3], "source": "Kenney Furniture Kit"},
+    "counter":    {"category": "interior", "glb": "interior/kitchenBar.glb", "base_size": [1.0, 0.9, 0.6], "source": "Kenney Furniture Kit"},
+    "television": {"category": "interior", "glb": "interior/televisionModern.glb", "fit": "stretch", "base_size": [1.2, 0.75, 0.15], "source": "Kenney Furniture Kit"},
+    "monitor":    {"category": "interior", "glb": "interior/computerScreen.glb", "fit": "stretch", "base_size": [0.5, 0.4, 0.15], "source": "Kenney Furniture Kit"},
+    "lamp":       {"category": "interior", "glb": "interior/lampSquareFloor.glb", "fit": "upright", "base_size": [0.3, 1.5, 0.3], "source": "Kenney Furniture Kit"},
+    "plant":      {"category": "interior", "glb": "interior/pottedPlant.glb", "fit": "upright", "base_size": [0.4, 0.9, 0.4], "source": "Kenney Furniture Kit"},
+    "door":       {"category": "interior", "glb": "interior/doorwayOpen.glb", "fit": "stretch", "base_size": [1.0, 2.2, 0.2], "source": "Kenney Furniture Kit"},
+    "window":     {"category": "interior", "glb": "interior/wallWindow.glb", "fit": "stretch", "base_size": [1.0, 2.5, 0.1], "source": "Kenney Furniture Kit"},
+    "box":        {"category": "interior", "glb": "interior/cardboardBoxClosed.glb", "fit": "stretch", "base_size": [0.5, 0.5, 0.5], "source": "Kenney Furniture Kit"},
+    "bench":      {"category": "exterior", "glb": "exterior/bench.glb", "base_size": [1.2, 0.5, 0.45], "source": "Kenney Furniture Kit"},
+    "car":        {"category": "exterior", "glb": "exterior/sedan.glb", "fit": "stretch", "base_size": [1.9, 1.4, 4.3], "source": "Kenney Car Kit"},
+    "streetlight":{"category": "exterior", "glb": "exterior/light-square.glb", "fit": "upright", "base_size": [0.5, 5.0, 0.5], "source": "Kenney City Kit (Roads)"},
+    "tree":       {"category": "exterior", "glb": "exterior/tree_default.glb", "fit": "upright", "base_size": [3.5, 5.5, 3.5], "source": "Kenney Nature Kit"},
+    "bush":       {"category": "exterior", "glb": "exterior/plant_bush.glb", "fit": "uniform", "base_size": [1.0, 1.0, 1.0], "source": "Kenney Nature Kit"},
+    "rock":       {"category": "exterior", "glb": "exterior/rock_largeA.glb", "fit": "uniform", "base_size": [1.6, 1.2, 1.6], "source": "Kenney Nature Kit"}
+  }
+}

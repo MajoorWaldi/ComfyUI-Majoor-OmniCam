@@ -89,3 +89,37 @@ def test_blockout_pipeline_levels_a_tilted_ground(tmp_path):
     # The fake provider's floor is exactly horizontal, so nothing to level --
     # the flag is present and False, and the scene still validates.
     assert out.summary["provider_summary"]["levelled"] is False
+
+
+def test_recenter_drops_confident_ground_to_the_origin_on_the_grid():
+    from omnicam.reconstruction.leveling import recenter_scene
+
+    ground = _ground((0.0, 1.0, 0.0), conf=0.85)
+    ground.center = (2.0, -1.5, -4.0)  # somewhere in front of / below the camera
+    pts = np.array([[[2.3, -1.5, -4.2], [1.7, -0.4, -3.6]]], dtype=np.float32)
+    cam = ReconstructedCamera(
+        fov_x_degrees=60.0, fov_y_degrees=45.0, position=(0.0, 0.0, 0.0), target=(0.0, 0.0, -1.0)
+    )
+
+    p2, cam2, planes2, offset = recenter_scene(points=pts, camera=cam, planes=[ground], ground=ground)
+    # ground centre is now the world origin (floor on Director's grid at Y=0).
+    assert np.allclose(planes2[0].center, [0.0, 0.0, 0.0], atol=1e-6)
+    assert np.allclose(offset, [-2.0, 1.5, 4.0], atol=1e-6)
+    # camera moved by the same rigid offset -> its framing of the source is kept.
+    assert np.allclose(cam2.position, [-2.0, 1.5, 4.0], atol=1e-6)
+    assert np.allclose(np.asarray(cam2.target) - np.asarray(cam2.position), [0.0, 0.0, -1.0], atol=1e-6)
+    # a point that was on the floor is now at ~Y=0.
+    assert abs(float(p2.reshape(-1, 3)[0, 1])) < 0.1
+
+
+def test_recenter_without_ground_uses_robust_floor_and_xz_median():
+    from omnicam.reconstruction.leveling import recenter_scene
+
+    rng = np.random.default_rng(0)
+    pts = rng.uniform([-1, 0.2, -6], [3, 2.5, -2], (2000, 3)).astype(np.float32).reshape(1, 2000, 3)
+    cam = ReconstructedCamera(fov_x_degrees=60.0, fov_y_degrees=45.0)
+    p2, _cam, _planes, _offset = recenter_scene(points=pts, camera=cam, planes=[], ground=None)
+    flat = p2.reshape(-1, 3)
+    assert abs(float(np.median(flat[:, 0]))) < 0.05  # XZ median at origin
+    assert abs(float(np.median(flat[:, 2]))) < 0.05
+    assert float(np.percentile(flat[:, 1], 2)) == pytest.approx(0.0, abs=0.05)  # floor at Y=0
