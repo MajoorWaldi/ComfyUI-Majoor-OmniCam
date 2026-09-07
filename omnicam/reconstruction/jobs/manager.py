@@ -30,6 +30,12 @@ DEFAULT_TTL_SECONDS = 1800.0
 #: and each pending one holds a worker thread parked on the GPU semaphore.
 DEFAULT_MAX_JOBS = 32
 
+#: Active-or-pending jobs (state not in TERMINAL_STATES). Each holds a worker
+#: thread; the GPU semaphore is still 1 so only one runs at a time.
+DEFAULT_MAX_ACTIVE_OR_PENDING = 4
+#: Terminal jobs kept for result recovery. Trimmed oldest-first on admission.
+DEFAULT_MAX_HISTORY = 16
+
 #: Mirrors omnicam/extractor/jobs/manager.py's own SHUTDOWN_JOIN_SECONDS --
 #: same bounded-wait philosophy so a slow reconstruction can't hang process exit.
 SHUTDOWN_JOIN_SECONDS = 5.0
@@ -56,14 +62,26 @@ class ReconstructionJobManager:
         ttl_seconds: float = DEFAULT_TTL_SECONDS,
         gpu_semaphore: threading.Semaphore | None = None,
         runner: Callable[..., Any] = run_reconstruction_job,
-        max_jobs: int = DEFAULT_MAX_JOBS,
+        max_jobs: int | None = None,
+        max_active_or_pending: int = DEFAULT_MAX_ACTIVE_OR_PENDING,
+        max_history: int = DEFAULT_MAX_HISTORY,
         execution_probe: Callable[[], bool] = execution_busy,
     ) -> None:
         self._jobs: dict[str, ReconstructionJob] = {}
         self._threads: dict[str, threading.Thread] = {}
         self._lock = threading.RLock()
         self._ttl = float(ttl_seconds)
-        self._max_jobs = int(max_jobs)
+        # ``max_jobs`` is the deprecated single knob -- when given it caps both
+        # the active-or-pending set and the retained history at that number,
+        # matching its historical all-in-one meaning.
+        if max_jobs is not None:
+            self._max_active_or_pending = int(max_jobs)
+            self._max_history = int(max_jobs)
+            self._max_jobs = int(max_jobs)
+        else:
+            self._max_active_or_pending = int(max_active_or_pending)
+            self._max_history = int(max_history)
+            self._max_jobs = self._max_active_or_pending + self._max_history
         self._semaphore = gpu_semaphore if gpu_semaphore is not None else threading.Semaphore(1)
         self._runner = runner
         self._execution_probe = execution_probe
@@ -80,26 +98,20 @@ class ReconstructionJobManager:
         # server does not accumulate MotionScenes forever.
         self.sweep_stale_jobs()
         with self._lock:
-            if len(self._jobs) >= self._max_jobs:
-                # A DONE/FAILED/STOPPED job is just a kept result, not GPU work
-                # -- there is no reason a history full of finished results
-                # should block a new job outright when the TTL just hasn't
-                # elapsed yet. Make room by evicting the oldest terminal jobs
-                # first, and only refuse if every slot is genuinely active
-                # (still PREPARING..FINALIZING) with nothing left to reclaim.
-                terminal_ids = sorted(
-                    (jid for jid, job in self._jobs.items() if job.state in TERMINAL_STATES),
-                    key=lambda jid: self._jobs[jid].last_access,
+            # Only active-or-pending jobs count against admission -- a finished
+            # result sitting in history is not GPU work and must never block a
+            # new job.
+            active = [job for job in self._jobs.values() if job.state not in TERMINAL_STATES]
+            if len(active) >= self._max_active_or_pending:
+                raise JobLimitReachedError(
+                    f"Too many reconstruction jobs active at once ({len(active)}); "
+                    "wait for one to finish or stop one before starting another"
                 )
-                overflow = len(self._jobs) - self._max_jobs + 1
-                for jid in terminal_ids[:overflow]:
-                    self._jobs.pop(jid, None)
-                    self._threads.pop(jid, None)
-                if len(self._jobs) >= self._max_jobs:
-                    raise JobLimitReachedError(
-                        f"Too many reconstruction jobs active at once ({len(self._jobs)}); "
-                        "wait for one to finish or stop one before starting another"
-                    )
+            # Trim terminal history, and if the whole table is still at the
+            # cap, evict oldest terminal jobs to make room for the newcomer.
+            self._evict_terminal_history_locked(self._max_history)
+            while len(self._jobs) >= self._max_jobs and self._evict_one_terminal_locked():
+                pass
         job_id = uuid.uuid4().hex[:16]
         job = ReconstructionJob(
             job_id=job_id,
@@ -111,6 +123,29 @@ class ReconstructionJobManager:
         with self._lock:
             self._jobs[job_id] = job
         return job
+
+    def _terminal_ids_oldest_first(self) -> list[str]:
+        return sorted(
+            (jid for jid, job in self._jobs.items() if job.state in TERMINAL_STATES),
+            key=lambda jid: self._jobs[jid].last_access,
+        )
+
+    def _evict_terminal_history_locked(self, keep: int) -> None:
+        """Trim terminal jobs to the ``keep`` most recently accessed. Caller holds the lock."""
+        terminal_ids = self._terminal_ids_oldest_first()
+        overflow = len(terminal_ids) - max(0, keep)
+        for jid in terminal_ids[: max(0, overflow)]:
+            self._jobs.pop(jid, None)
+            self._threads.pop(jid, None)
+
+    def _evict_one_terminal_locked(self) -> bool:
+        """Drop the single oldest terminal job. Returns False if there is none."""
+        terminal_ids = self._terminal_ids_oldest_first()
+        if not terminal_ids:
+            return False
+        self._jobs.pop(terminal_ids[0], None)
+        self._threads.pop(terminal_ids[0], None)
+        return True
 
     def start_job(
         self,

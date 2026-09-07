@@ -24,6 +24,7 @@ import {
 import { frustumFrames, frustumLines } from "./track-frustums.js";
 import { buildTrackGrid, disposeObject, refreshTrackGrid } from "./track-grid.js";
 import { buildTrackPoints } from "./track-points.js";
+import { SceneOverlay } from "./scene-overlay.js";
 
 export const RAW_COLOR = 0x8a8a9c;
 export const REFINED_COLOR = 0x8b7bd8;
@@ -93,7 +94,13 @@ export class TrackScene {
     this.frustumGroup = new Group();
     this.markerGroup = new Group();
     this.pointGroup = new Group();
-    this.scene.add(this.gridGroup, this.pathGroup, this.frustumGroup, this.markerGroup, this.pointGroup);
+    // Optional: a reconstructed MotionScene drawn alongside (Extractor 3D
+    // preview of a Scene Reconstruct result). Empty until setReconstructedScene.
+    this.sceneOverlay = new SceneOverlay();
+    this.scene.add(
+      this.gridGroup, this.pathGroup, this.frustumGroup, this.markerGroup,
+      this.pointGroup, this.sceneOverlay.group,
+    );
 
     this.currentFrustum = null;
     this.currentMarker = marker(REFINED_COLOR, 0.02);
@@ -129,6 +136,19 @@ export class TrackScene {
     this._clear(this.pointGroup);
     const cloud = buildTrackPoints(points, { extent: this.extent });
     if (cloud.geometry.attributes.position.count) this.pointGroup.add(cloud);
+  }
+
+  /** Draw a reconstructed MotionScene alongside the (usually empty) track. */
+  setReconstructedScene(motionScene, options) {
+    this.sceneOverlay.setScene(motionScene, options);
+    if (this.sceneOverlay.hasContent) {
+      this.extent = Math.max(this.extent, this.sceneOverlay.bounds().extent);
+      refreshTrackGrid(this.gridGroup, this.extent);
+    }
+  }
+
+  hasReconstructedScene() {
+    return this.sceneOverlay.hasContent;
   }
 
   activeTrack() {
@@ -225,7 +245,14 @@ export class TrackScene {
 
   bounds() {
     const points = samplePath(this.activeTrack());
-    return pathBounds(points);
+    const pathB = pathBounds(points);
+    if (!this.sceneOverlay.hasContent) return pathB;
+    const overlayB = this.sceneOverlay.bounds();
+    if (points.length < 2) return { ...overlayB, min: overlayB.centre, max: overlayB.centre };
+    // Both present: centre between them, extent covering the pair.
+    const centre = pathB.centre.map((v, i) => (v + overlayB.centre[i]) / 2);
+    const spread = Math.hypot(...pathB.centre.map((v, i) => v - overlayB.centre[i]));
+    return { ...pathB, centre, extent: Math.max(pathB.extent, overlayB.extent) + spread };
   }
 
   _clear(group) {
@@ -245,6 +272,8 @@ export class TrackScene {
       this._clear(group);
       this.scene.remove(group);
     }
+    this.scene.remove(this.sceneOverlay.group);
+    this.sceneOverlay.dispose();
     disposeObject(this.currentMarker);
     this.tracks = { raw: null, refined: null };
   }

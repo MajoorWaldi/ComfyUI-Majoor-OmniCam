@@ -21,12 +21,12 @@ export function extractorMarkup() {
     <header class="oc-header">
       ${brandMarkup("OmniCam Extractor")}
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
-      <button type="button" class="icon-button" data-role="clear-cache" title="${t("Clear cached tracks and reconstructions, and reset this node")}"><i class="pi pi-trash"></i></button>
     </header>
 
-    <div class="oc-mode-bar" role="tablist" aria-label="Extractor mode">
+    <div class="oc-mode-bar" aria-label="Extractor mode">
       <button type="button" class="oc-tab" data-role="extract-mode-camera" aria-selected="true">${t("Camera Track")}</button>
       <button type="button" class="oc-tab" data-role="extract-mode-reconstruct" aria-selected="false">${t("Scene Reconstruct")}</button>
+      <button type="button" class="icon-button oc-clear-cache" data-role="clear-cache" title="${t("Clear cached tracks and reconstructions, and reset this node")}"><i class="pi pi-trash"></i></button>
     </div>
 
     <div class="oc-source" data-role="source-strip" data-available="false">
@@ -39,10 +39,12 @@ export function extractorMarkup() {
         <div class="oc-inline">
           <label for="oc-recon-provider">${t("Provider")}</label>
           <select id="oc-recon-provider" data-role="reconstruction-provider"></select>
-          <label for="oc-recon-mode">${t("Mode")}</label>
+          <label for="oc-recon-mode">${t("Result")}</label>
           <select id="oc-recon-mode" data-role="reconstruction-mode">
-            <option value="geometry">${t("Geometry")}</option>
-            <option value="layout">${t("Layout")}</option>
+            <option value="depth_mesh">${t("Depth Mesh")}</option>
+            <option value="blockout">${t("Blockout")}</option>
+            <option value="hybrid">${t("Hybrid")}</option>
+            <option value="scan">${t("Scan")}</option>
           </select>
           <label for="oc-recon-quality">${t("Quality")}</label>
           <select id="oc-recon-quality" data-role="reconstruction-quality">
@@ -56,6 +58,32 @@ export function extractorMarkup() {
           <label for="oc-recon-checkpoint">${t("Geometry Model")}</label>
           <select id="oc-recon-checkpoint" data-role="reconstruction-checkpoint">
             <option value="auto" selected>${t("Auto")}</option>
+          </select>
+        </div>
+        <div class="oc-inline" data-role="reconstruction-semantic-row">
+          <label for="oc-recon-segmentation">${t("Objects")}</label>
+          <select id="oc-recon-segmentation" data-role="reconstruction-segmentation">
+            <option value="comfy_sam3" selected>${t("SAM3")}</option>
+            <option value="none">${t("None")}</option>
+          </select>
+          <label for="oc-recon-max-objects">${t("Max objects")}</label>
+          <input id="oc-recon-max-objects" data-role="reconstruction-max-objects" type="number" min="1" max="128" step="1" value="24">
+          <label for="oc-recon-completion">${t("Completion")}</label>
+          <select id="oc-recon-completion" data-role="reconstruction-completion-policy">
+            <option value="off" selected>${t("Off")}</option>
+            <option value="low_depth_confidence">${t("Low confidence")}</option>
+            <option value="selected">${t("Selected")}</option>
+            <option value="all_bounded">${t("All bounded")}</option>
+          </select>
+        </div>
+        <div class="oc-inline" data-role="reconstruction-labels-row">
+          <label for="oc-recon-labels">${t("Labels")}</label>
+          <input id="oc-recon-labels" data-role="reconstruction-semantic-labels" type="text" placeholder="${t("Default interior taxonomy")}" />
+          <label for="oc-recon-assets">${t("3D assets")}</label>
+          <select id="oc-recon-assets" data-role="reconstruction-blockout-assets" title="${t("Swap fitted boxes for GLB props from the asset library")}">
+            <option value="off" selected>${t("Boxes only")}</option>
+            <option value="proxy">${t("Add props")}</option>
+            <option value="replace">${t("Replace boxes")}</option>
           </select>
         </div>
         <div class="oc-inline">
@@ -76,15 +104,23 @@ export function extractorMarkup() {
         <div data-role="reconstruction-stage" class="oc-stage-label"></div>
         <div data-role="reconstruction-summary" class="oc-summary-box" hidden></div>
         <div data-role="reconstruction-warnings" class="oc-warnings-box" hidden></div>
+        <div class="oc-recon-preview" data-role="reconstruction-preview" hidden>
+          <div class="oc-recon-preview-bar">
+            <button type="button" data-role="reconstruction-preview-fit" title="${t("Frame the reconstructed scene")}"><i class="pi pi-search"></i> ${t("Fit")}</button>
+          </div>
+          <canvas data-role="reconstruction-3d" width="960" height="540" aria-label="${t("3D preview of the reconstructed scene")}"></canvas>
+        </div>
         <div class="oc-actions">
           <button type="button" class="oc-primary" data-role="reconstruction-run">${t("▶ RECONSTRUCT")}</button>
           <button type="button" data-role="reconstruction-stop" disabled>${t("■ STOP")}</button>
+          <button type="button" data-role="reconstruction-discard" title="${t("Discard this reconstruction and its cached files so the next run recomputes it")}" disabled>${t("✕ DISCARD")}</button>
+          <button type="button" data-role="reconstruction-preview-toggle" disabled>${t("3D PREVIEW")}</button>
           <button type="button" class="oc-primary" data-role="reconstruction-open-director" disabled>${t("OPEN IN DIRECTOR")}</button>
         </div>
       </div>
     </div>
 
-    <main class="oc-body">
+    <main class="oc-body" data-role="camera-track-body">
       <div class="oc-tabs" role="tablist">
         <button type="button" class="oc-tab" data-tab="source" aria-selected="true">VIDEO</button>
         <button type="button" class="oc-tab" data-tab="track3d" aria-selected="false">TRACK 3D</button>

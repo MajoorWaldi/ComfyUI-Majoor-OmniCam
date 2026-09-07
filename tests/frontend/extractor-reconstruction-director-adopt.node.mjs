@@ -5,6 +5,8 @@ import {
   adoptReconstructedScene,
   uniqueSceneId,
   isDirectorEmpty,
+  motionSceneToEditorCameras,
+  motionSceneToEditorState,
 } from "../../web-src/extractor/reconstruction/director-adopt.js";
 import { restoreAssets } from "../../web-src/dom-media.js";
 
@@ -154,4 +156,140 @@ test("uniqueSceneId resolves collisions deterministically", () => {
   const existing = new Set(["cube_1", "cube_1_2"]);
   assert.equal(uniqueSceneId(existing, "camera_1"), "camera_1");
   assert.equal(uniqueSceneId(existing, "cube_1"), "cube_1_3");
+});
+
+
+test("adoption applies role-based lock/visibility defaults + hides dense reference in Blockout", () => {
+  const scene = {
+    motion_scene: {
+      objects: [
+        { id: "reconstruction_blockout", type: "null", reconstruction: { role: "blockout_object" }, locked: false },
+        { id: "chair_1", type: "cube", reconstruction: { role: "blockout_object", semantic: "chair" } },
+        { id: "reconstruction_ground", type: "ground", reconstruction: { role: "room" }, locked: false, enabled: true },
+        { id: "ref_mesh", type: "glb", reconstruction: { role: "reference" }, enabled: true },
+      ],
+      cameras: [],
+      metadata: { reconstruction: { mode: "blockout" } },
+    },
+  };
+  const ui = { state: { objects: [], cameras: [] }, checkpoint() {}, serialize() {}, refreshObjects() {}, render() {}, setStatus() {} };
+
+  adoptReconstructedScene(ui, scene, { mode: "replace" });
+
+  const byId = Object.fromEntries(ui.state.objects.map((o) => [o.id, o]));
+  assert.equal(byId["chair_1"].locked, false, "blockout object stays unlocked");
+  assert.equal(byId["reconstruction_ground"].locked, true, "room proxy is locked on adopt");
+  assert.equal(byId["ref_mesh"].locked, true);
+  assert.equal(byId["ref_mesh"].enabled, false, "dense reference hidden in Blockout mode");
+});
+
+test("motionSceneToEditorCameras flattens MotionScene v1 nesting (label + track.keyframes)", () => {
+  const scene = {
+    cameras: [
+      {
+        id: "recon_cam",
+        label: "Reconstructed View",
+        track: {
+          keyframes: [
+            { frame: 0, camera: { position: [1, 2, 3], target: [0, 0, 0], fov: 42 }, interpolation: "linear" },
+            { frame: 30, camera: { position: [2, 2, 3], target: [0, 0, 0], fov: 42 } },
+          ],
+        },
+      },
+    ],
+  };
+
+  const [cam] = motionSceneToEditorCameras(scene);
+  assert.equal(cam.id, "recon_cam");
+  assert.equal(cam.name, "Reconstructed View", "camera name comes from MotionScene label, never 'undefined'");
+  assert.equal(cam.camera.fov, 42, "framing lifted from track.keyframes[0].camera");
+  assert.deepEqual(cam.camera.position, [1, 2, 3]);
+  assert.equal(cam.keyframes.length, 2, "nested track keyframes are flattened onto the editor camera");
+  assert.equal(cam.keyframes[1].frame, 30);
+});
+
+test("motionSceneToEditorState flattens canvas/timeline and never yields an undefined camera", () => {
+  const scene = {
+    canvas: { width: 1920, height: 1080 },
+    timeline: { authoring_fps: 30, duration_seconds: 4 },
+    objects: [],
+    cameras: [{ id: "c1", track: { keyframes: [{ frame: 0, camera: { position: [0, 1, 5], target: [0, 0, 0] } }] } }],
+  };
+
+  const state = motionSceneToEditorState(scene);
+  assert.equal(state.width, 1920);
+  assert.equal(state.height, 1080);
+  assert.equal(state.fps, 30);
+  assert.equal(state.duration_frames, 120, "duration_seconds * fps");
+  assert.equal(state.cameras[0].name, "Source Camera");
+  assert.ok(state.cameras[0].camera, "editor camera carries a real camera object");
+});
+
+test("adoptReconstructedScene (replace) keeps the reconstructed framing instead of the default view", () => {
+  const director = createMockDirector({ objects: [] });
+  const reconScene = {
+    canvas: { width: 1600, height: 900 },
+    timeline: { authoring_fps: 24, duration_seconds: 3 },
+    cameras: [
+      {
+        id: "recon_cam",
+        label: "Photo Camera",
+        track: { keyframes: [{ frame: 0, camera: { position: [3, 1.6, 4.2], target: [0, 1, 0], fov: 50 } }] },
+      },
+    ],
+    objects: [{ id: "env_mesh", type: "glb", asset: "majoor_omnicam/reconstruction/abc/environment.glb [input]" }],
+  };
+
+  adoptReconstructedScene(director, { motion_scene: reconScene });
+
+  const cam = director.state.cameras[0];
+  assert.equal(cam.name, "Photo Camera");
+  assert.deepEqual(cam.camera.position, [3, 1.6, 4.2], "adopted camera shows the reconstructed image view");
+  assert.equal(director.state.width, 1600);
+  assert.equal(director.state.height, 900);
+});
+
+test("Hybrid mode keeps the dense reference visible", () => {
+  const scene = {
+    motion_scene: {
+      objects: [{ id: "ref_mesh", type: "glb", reconstruction: { role: "reference" }, enabled: true }],
+      cameras: [],
+      metadata: { reconstruction: { mode: "hybrid" } },
+    },
+  };
+  const ui = { state: { objects: [], cameras: [] }, checkpoint() {}, serialize() {}, refreshObjects() {}, render() {}, setStatus() {} };
+  adoptReconstructedScene(ui, scene, { mode: "replace" });
+  assert.equal(ui.state.objects[0].enabled, true);
+  assert.equal(ui.state.objects[0].locked, true);
+});
+
+test("merge remaps parent_id so a second reconstruction stays under its own group", () => {
+  // First reconstruction already in the scene with the canonical group ids.
+  const director = createMockDirector({
+    objects: [
+      { id: "reconstruction_root", type: "null", keyframes: [] },
+      { id: "reconstruction_blockout", type: "null", parent_id: "reconstruction_root", keyframes: [] },
+      { id: "chair_1", type: "cube", parent_id: "reconstruction_blockout", keyframes: [] },
+    ],
+  });
+
+  const second = {
+    version: 1,
+    cameras: [],
+    objects: [
+      { id: "reconstruction_root", type: "null" },
+      { id: "reconstruction_blockout", type: "null", parent_id: "reconstruction_root" },
+      { id: "chair_1", type: "cube", parent_id: "reconstruction_blockout" },
+    ],
+  };
+
+  adoptReconstructedScene(director, { motion_scene: second }, { mode: "merge" });
+
+  const newChair = director.state.objects.find((o) => o.id !== "chair_1" && o.type === "cube");
+  const newGroup = director.state.objects.find(
+    (o) => o.id !== "reconstruction_blockout" && o.type === "null" && o.parent_id,
+  );
+  assert.ok(newChair && newGroup);
+  assert.equal(newChair.parent_id, newGroup.id, "merged child is parented to the NEW group, not the old one");
+  assert.notEqual(newChair.parent_id, "reconstruction_blockout");
 });

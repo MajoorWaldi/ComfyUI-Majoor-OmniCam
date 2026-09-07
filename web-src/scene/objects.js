@@ -136,6 +136,38 @@ export async function deleteObject(ui, id) {
   ui.setStatus(t(`${object.name || object.type} deleted`));
 }
 
+/**
+ * Delete every object in the outliner multi-selection at once. A single object
+ * (or an empty multi-set with just `selectedObjectId`) falls through to the
+ * per-object `deleteObject` so its wording and confirm are unchanged; two or
+ * more take one confirm, one history checkpoint and one repaint.
+ */
+export async function deleteSelectedObjects(ui) {
+  const ids = [...(ui.selectedObjectIds?.size ? ui.selectedObjectIds : [ui.selectedObjectId])]
+    .filter((id) => id && id !== "subject" && ui.state.objects.some((o) => o.id === id));
+  if (!ids.length) {
+    if (ui.selectedObjectId === "subject") ui.setStatus(t("The subject card cannot be deleted"));
+    return;
+  }
+  if (ids.length === 1) return deleteObject(ui, ids[0]);
+  const prompt = t("Delete {count} objects and their keyframes?").replace("{count}", String(ids.length));
+  if (!(await confirmAction(ui.app, t("Delete objects"), prompt))) return;
+  ui.checkpoint("Delete objects");
+  const doomed = new Set(ids);
+  for (const child of ui.state.objects) if (child.parent_id && doomed.has(child.parent_id)) child.parent_id = null;
+  ui.state.objects = ui.state.objects.filter((item) => !doomed.has(item.id));
+  for (const id of ids) ui.removeObjectResources(id);
+  ui.selectedObjectIds?.clear?.();
+  ui.selectedObjectId = null;
+  ui.selectedEntity = "camera";
+  ui.selectedKeyFrame = ui.state.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
+  ui.serialize();
+  ui.refreshObjects();
+  ui.refreshKeys();
+  ui.render();
+  ui.setStatus(t("{count} objects deleted").replace("{count}", String(ids.length)));
+}
+
 export function addMediaCard(ui) {
   const id = `card_${Date.now().toString(36)}`;
   ui.state.objects.push({
@@ -240,7 +272,8 @@ export function refreshInspector(ui) {
     const badge = reconstructionBadge(object);
     if (badge) {
       badgeEl.hidden = false;
-      badgeEl.textContent = `${badge.label} (${Math.round(badge.confidence * 100)}%)`;
+      const prefix = badge.semantic ? `${badge.semantic} · ` : "";
+      badgeEl.textContent = `${prefix}${badge.label} (${Math.round(badge.confidence * 100)}%)`;
       badgeEl.title = badge.title;
       badgeEl.className = `oc-recon-badge oc-badge-${badge.band}`;
     } else {

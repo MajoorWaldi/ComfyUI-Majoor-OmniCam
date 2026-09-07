@@ -3,6 +3,49 @@
 import { t } from "../i18n.js";
 import { toggleObjectLock } from "./object-lock.js";
 
+// Swap an object-name label for an <input> and rename the object in place on
+// Enter / blur (Escape cancels). Double-clicking the name in the tree is the
+// fast path; the context menu's "Rename" still prompts via a dialog.
+function startInlineRename(ui, object, span) {
+  if (span.querySelector("input")) return;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "oc-inline-rename";
+  input.value = object.name || object.type;
+  input.style.cssText = "width:100%;font:inherit;padding:0 2px;box-sizing:border-box";
+  const prev = span.textContent;
+  span.textContent = "";
+  span.appendChild(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit) => {
+    if (done) return;
+    done = true;
+    input.removeEventListener("blur", onBlur);
+    const name = input.value.trim().slice(0, 80);
+    if (commit && name && name !== object.name) {
+      ui.checkpoint("Rename object");
+      object.name = name;
+      ui.serialize();
+      ui.refreshObjects();
+      ui.refreshKeys?.();
+      ui.setStatus(t("Object renamed: {name}").replace("{name}", object.name));
+    } else {
+      span.textContent = prev;
+    }
+  };
+  const onBlur = () => finish(true);
+  input.addEventListener("blur", onBlur);
+  input.addEventListener("keydown", (event) => {
+    event.stopPropagation();
+    if (event.key === "Enter") { event.preventDefault(); finish(true); }
+    else if (event.key === "Escape") { event.preventDefault(); finish(false); }
+  });
+  input.addEventListener("pointerdown", (event) => event.stopPropagation());
+  input.addEventListener("dblclick", (event) => event.stopPropagation());
+}
+
 export function refreshObjects(ui) {
   const box = ui.root.querySelector('[data-role="objects"]');
   if (!box) return;
@@ -145,6 +188,12 @@ export function refreshObjects(ui) {
     const objectName = document.createElement("span");
     objectName.style.cssText = hasError ? "color:#fca5a5" : isEnabled ? "" : "opacity:.5;text-decoration:line-through";
     objectName.textContent = object.name || object.type;
+    objectName.title = t("Double-click to rename");
+    objectName.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      startInlineRename(ui, object, objectName);
+    });
     label.appendChild(objectName);
     if (hasError) {
       const formatError = document.createElement("span");
@@ -166,10 +215,20 @@ export function refreshObjects(ui) {
       ui.finishCameraEdit();
       ui.selectedEntity = "object";
       ui.selectedObjectIds ||= new Set();
-      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      if (event.ctrlKey || event.metaKey) {
         if (ui.selectedObjectIds.has(object.id)) ui.selectedObjectIds.delete(object.id);
         else ui.selectedObjectIds.add(object.id);
-      } else ui.selectedObjectIds = new Set([object.id]);
+        ui.outlinerAnchorId = object.id;
+      } else if (event.shiftKey && ui.outlinerAnchorId
+        && ui.state.objects.some((o) => o.id === ui.outlinerAnchorId)) {
+        const order = ui.state.objects.map((o) => o.id);
+        const a = order.indexOf(ui.outlinerAnchorId);
+        const b = order.indexOf(object.id);
+        ui.selectedObjectIds = new Set(order.slice(Math.min(a, b), Math.max(a, b) + 1));
+      } else {
+        ui.selectedObjectIds = new Set([object.id]);
+        ui.outlinerAnchorId = object.id;
+      }
       ui.selectedObjectId = ui.selectedObjectIds.has(object.id) ? object.id : [...ui.selectedObjectIds].at(-1) || null;
       ui.selectedEntity = ui.selectedObjectIds.size ? "object" : "camera";
       ui.selectedKeyFrame = ui.selectedObjectId

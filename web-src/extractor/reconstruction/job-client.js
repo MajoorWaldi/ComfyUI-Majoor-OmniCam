@@ -76,6 +76,13 @@ export class ReconstructionJobClient {
     return this._request("/majoor/omnicam/reconstruction/cache", { method: "DELETE" });
   }
 
+  /** Delete just one reconstruction's cache folder, by fingerprint, so a
+   *  re-run with the same settings recomputes it. Other results are untouched. */
+  deleteCacheEntry(fingerprint) {
+    const fp = encodeURIComponent(String(fingerprint || ""));
+    return this._request(`/majoor/omnicam/reconstruction/cache/${fp}`, { method: "DELETE" });
+  }
+
   startJob({ nodeId, source, settings }) {
     return this._request(BASE, {
       method: "POST",

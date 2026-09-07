@@ -1,5 +1,7 @@
 // Confidence badges and reconstruction appearance controls for Director scene objects.
 
+import { reconstructionInspectorRows } from "./reconstruction-inspector.js";
+
 export function reconstructionBadge(object) {
   if (!object?.reconstruction) return null;
 
@@ -20,15 +22,24 @@ export function reconstructionBadge(object) {
     label = "Medium";
   }
 
-  const provider = object.reconstruction.provider || "Reconstructed";
+  const recon = object.reconstruction;
+  const provider = recon.provider || "Reconstructed";
   const pct = Math.round(conf * 100);
-  const title = `${provider} • ${label} (${pct}%)`;
+  // v2 metadata (blockout_object) carries per-axis confidence + semantic; fold
+  // it into the badge tooltip as plain text so the inspector shows the detail
+  // without any new DOM. Older environment/room/depth-mesh metadata just gets
+  // the one-line summary.
+  const rows = reconstructionInspectorRows(object);
+  const detail = rows.length ? "\n" + rows.map(([k, v]) => `${k}: ${v}`).join("\n") : "";
+  const title = `${provider} • ${label} (${pct}%)${detail}`;
 
   return {
     label,
     band,
     title,
     confidence: conf,
+    semantic: String(recon.semantic || ""),
+    role: String(recon.role || ""),
   };
 }
 

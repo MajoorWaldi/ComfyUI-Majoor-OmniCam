@@ -208,6 +208,16 @@ frontend path. OmniCam generates the filename below
 Existing files are reused only when their resolved path is already below a
 ComfyUI input, output or temp root and the VIDEO has no active trim.
 
+### Scene Reconstruction models and scan sources
+
+Model weights load only from fixed managed roots — `ComfyUI/models/geometry_estimation/` (MoGe, VGGT), `ComfyUI/models/checkpoints/` (SAM3), `ComfyUI/models/sam3d_objects/` (SAM 3D Objects). No config, checkpoint or executable path is ever accepted from an HTTP payload or the DOM. There is no runtime `pip`/`mamba`/`pixi` install and no hidden weight download; VGGT's `from_pretrained` (which can pull from Hugging Face) is never called.
+
+Scan input takes a queued `IMAGE` batch (encoded through the managed path, no graph-supplied filename) or a managed `VIDEO` reference. The video resolver is a separate code path from the image resolver: it rejects absolute paths and `..`, resolves only references already under a ComfyUI input/output/temp root, and accepts only `.mp4 .mov .mkv .webm .avi`. Only the uniformly sampled frames are decoded.
+
+Generated scan manifests (`<fingerprint>/blockout.json`, `<fingerprint>/scan_evidence.json`) are written atomically under the managed reconstruction subtree and contain only bounded scalars, strings and camera matrices/FOV — never dense depth tensors, point maps or masks, and no source image pixels unless the user explicitly saved a managed reference asset. Dense model tensors never enter `OMNICAM_MOTION_SCENE`; `max_state_bytes` is not raised to accommodate model evidence.
+
+SAM 3D Objects is capability-gated (Linux 64-bit + CUDA GPU ≥ 32 GB VRAM + package + managed config) and fails that gate cleanly on unsupported systems; removing the package leaves Blockout and Scan fully operational.
+
 DPVO runs in a fresh spawned child process. Its private frame exchange is a
 generated `omnicam-dpvo-*` directory below ComfyUI temp, and cleanup validates
 the exact owned directory before recursive removal. The child receives the

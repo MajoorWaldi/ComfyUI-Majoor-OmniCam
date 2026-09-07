@@ -120,3 +120,70 @@ test("readReconstructionSettings reads whatever the (possibly preset-synced) fie
   assert.equal(settings.triangle_budget, 40000);
   assert.equal(settings.discontinuity_threshold, 0.06);
 });
+
+
+test("readReconstructionSettings aliases legacy modes and stays MoGe-only for depth_mesh", () => {
+  const { root } = makeReconstructionRoot();
+  root.querySelector('[data-role="reconstruction-mode"]').value = "layout";
+  const s = readReconstructionSettings(root);
+  assert.equal(s.mode, "depth_mesh");
+  assert.equal(s.provider, "comfy_moge");
+  assert.equal(s.segmentation_provider, undefined); // no semantic fields on depth mesh
+});
+
+test("readReconstructionSettings emits semantic fields for blockout / hybrid / scan", () => {
+  const elements = {
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "blockout" }),
+    "reconstruction-quality": new FakeElement({ tagName: "SELECT", value: "balanced" }),
+    "reconstruction-segmentation": new FakeElement({ tagName: "SELECT", value: "comfy_sam3" }),
+    "reconstruction-completion-policy": new FakeElement({ tagName: "SELECT", value: "low_depth_confidence" }),
+    "reconstruction-max-objects": new FakeElement({ value: "40" }),
+    "reconstruction-semantic-labels": new FakeElement({ value: "chair, table\nsofa" }),
+    "reconstruction-blockout-assets": new FakeElement({ tagName: "SELECT", value: "proxy" }),
+  };
+  const s = readReconstructionSettings(fakeRoot(elements));
+  assert.equal(s.mode, "blockout");
+  assert.equal(s.segmentation_provider, "comfy_sam3");
+  assert.equal(s.completion_policy, "low_depth_confidence");
+  // A non-off policy must carry a real provider or the backend resolves nothing.
+  assert.equal(s.completion_provider, "sam3d_objects");
+  assert.equal(s.max_blockout_objects, 40);
+  assert.equal(s.blockout_assets, "proxy");
+  assert.deepEqual(s.semantic_labels, ["chair", "table", "sofa"]);
+});
+
+test("completion_provider is 'none' when the policy is off; scan forwards the checkpoint as vggt_checkpoint", () => {
+  const off = readReconstructionSettings(fakeRoot({
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "blockout" }),
+    "reconstruction-completion-policy": new FakeElement({ tagName: "SELECT", value: "off" }),
+  }));
+  assert.equal(off.completion_provider, "none");
+
+  const scan = readReconstructionSettings(fakeRoot({
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "scan" }),
+    "reconstruction-checkpoint": new FakeElement({ value: "VGGT-1B-Commercial" }),
+  }));
+  assert.equal(scan.vggt_checkpoint, "VGGT-1B-Commercial");
+});
+
+test("blockout_assets defaults to 'off' and is omitted for depth_mesh", () => {
+  const semantic = readReconstructionSettings(fakeRoot({
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "hybrid" }),
+  }));
+  assert.equal(semantic.blockout_assets, "off");
+
+  const depthMesh = readReconstructionSettings(fakeRoot({
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "depth_mesh" }),
+  }));
+  assert.equal(depthMesh.blockout_assets, undefined);
+});
+
+test("scan mode defaults its geometry provider to vggt", () => {
+  const elements = {
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "scan" }),
+    "reconstruction-quality": new FakeElement({ tagName: "SELECT", value: "balanced" }),
+  };
+  const s = readReconstructionSettings(fakeRoot(elements));
+  assert.equal(s.mode, "scan");
+  assert.equal(s.provider, "vggt");
+});

@@ -251,12 +251,25 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
         recon_dict = dict(recon)
         if "confidence" in recon_dict:
             recon_dict["confidence"] = clamp_number(recon_dict["confidence"], 0.0, 1.0, f"{path}.reconstruction.confidence")
-        for str_key in ("provider", "role", "source_kind"):
+        for str_key in ("provider", "role", "source_kind", "completion_provider"):
             if str_key in recon_dict:
                 val = str(recon_dict[str_key])
                 if len(val) > 80:
                     raise ValidationError(f"{path}.reconstruction.{str_key} must be at most 80 characters")
                 recon_dict[str_key] = val
+        if "semantic" in recon_dict:
+            semantic = str(recon_dict["semantic"])
+            if len(semantic) > 64:
+                raise ValidationError(f"{path}.reconstruction.semantic must be at most 64 characters")
+            recon_dict["semantic"] = semantic
+        axis_confidence = recon_dict.get("axis_confidence")
+        if axis_confidence is not None:
+            if not isinstance(axis_confidence, dict):
+                raise ValidationError(f"{path}.reconstruction.axis_confidence must be an object")
+            recon_dict["axis_confidence"] = {
+                str(axis): clamp_number(value, 0.0, 1.0, f"{path}.reconstruction.axis_confidence.{axis}")
+                for axis, value in axis_confidence.items()
+            }
         obj["reconstruction"] = recon_dict
     return obj
 

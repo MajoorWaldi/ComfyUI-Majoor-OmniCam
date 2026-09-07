@@ -20,6 +20,23 @@ GEOMETRY_SETTINGS_KEYS = (
     "scene_scale",
     "source_texture",
     "triangle_budget",
+    # semantic blockout + multi-view: every field below changes the produced
+    # MotionScene, so a change to any of them must invalidate a cached result.
+    "source_mode",
+    "segmentation_provider",
+    "completion_provider",
+    "sam3_checkpoint",
+    "sam3_threshold",
+    "sam3_refine_iterations",
+    "semantic_labels",
+    "min_instance_area_ratio",
+    "instance_iou_dedup",
+    "max_blockout_objects",
+    "completion_policy",
+    "max_completion_objects",
+    "vggt_checkpoint",
+    "vggt_max_views",
+    "vggt_segmentation_views",
 )
 
 

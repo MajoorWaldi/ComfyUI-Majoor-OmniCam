@@ -139,3 +139,52 @@ test("Scene Reconstruct mode restores correctly after a workflow reload", async 
   const widgetValue = await page.evaluate(() => window.omnicamExtractor.widgets.find((w) => w.name === "extract_mode").value);
   expect(widgetValue).toBe("scene_reconstruct");
 });
+
+test("Result modes: Blockout reveals the semantic controls, Depth Mesh hides them", async ({ page }) => {
+  await page.goto("/tests/frontend/scene-reconstruction-mount.html?mode=scene_reconstruct");
+  await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
+
+  const host = page.locator("#extractor-host");
+  const resultSelect = host.locator('[data-role="reconstruction-mode"]');
+  // The four current Result modes are present (legacy geometry/layout gone).
+  await expect(resultSelect.locator("option")).toHaveText([
+    "Depth Mesh",
+    "Blockout",
+    "Hybrid",
+    "Scan",
+  ]);
+
+  const semanticRow = host.locator('[data-role="reconstruction-semantic-row"]');
+  const labelsRow = host.locator('[data-role="reconstruction-labels-row"]');
+
+  // Depth Mesh: no object/label controls.
+  await resultSelect.selectOption("depth_mesh");
+  await resultSelect.dispatchEvent("change");
+  await expect(semanticRow).toBeHidden();
+  await expect(labelsRow).toBeHidden();
+
+  // Blockout: segmentation provider + max objects + completion + labels appear.
+  await resultSelect.selectOption("blockout");
+  await resultSelect.dispatchEvent("change");
+  await expect(semanticRow).toBeVisible();
+  await expect(labelsRow).toBeVisible();
+  await expect(host.locator('[data-role="reconstruction-segmentation"]')).toBeVisible();
+  await expect(host.locator('[data-role="reconstruction-completion-policy"]')).toBeVisible();
+  await expect(host.locator('[data-role="reconstruction-max-objects"]')).toBeVisible();
+});
+
+test("capabilities endpoint exposes segmentation + completion so SAM3D reads as unavailable", async ({ page }) => {
+  await page.goto("/tests/frontend/scene-reconstruction-mount.html?mode=scene_reconstruct");
+  await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
+
+  const caps = await page.evaluate(async () => {
+    const { api } = await import("/tests/frontend/stubs/api.js");
+    const resp = await api.fetchApi("/majoor/omnicam/reconstruction/capabilities");
+    return resp.json ? resp.json() : resp;
+  });
+  expect(caps.version).toBe(2);
+  const sam3d = caps.completion.find((c) => c.provider_id === "sam3d_objects");
+  expect(sam3d.available).toBe(false);
+  expect(sam3d.reason).toMatch(/32\s*GB/i);
+  expect(caps.segmentation.some((s) => s.provider_id === "comfy_sam3" && s.available)).toBe(true);
+});

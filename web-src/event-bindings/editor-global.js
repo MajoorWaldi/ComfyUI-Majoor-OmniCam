@@ -200,10 +200,23 @@ export function bindEditorAndGlobal(ui, q, signal) {
       if (!object) return;
       ui.finishCameraEdit();
       ui.selectedObjectIds ||= new Set();
-      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      if (event.ctrlKey || event.metaKey) {
+        // Ctrl/Cmd toggles one row in or out of the selection.
         if (ui.selectedObjectIds.has(object.id)) ui.selectedObjectIds.delete(object.id);
         else ui.selectedObjectIds.add(object.id);
-      } else ui.selectedObjectIds = new Set([object.id]);
+        ui.outlinerAnchorId = object.id;
+      } else if (event.shiftKey && ui.outlinerAnchorId
+        && ui.state.objects.some((o) => o.id === ui.outlinerAnchorId)) {
+        // Shift selects the contiguous run between the anchor and this row,
+        // in outliner (object array) order.
+        const order = ui.state.objects.map((o) => o.id);
+        const a = order.indexOf(ui.outlinerAnchorId);
+        const b = order.indexOf(object.id);
+        ui.selectedObjectIds = new Set(order.slice(Math.min(a, b), Math.max(a, b) + 1));
+      } else {
+        ui.selectedObjectIds = new Set([object.id]);
+        ui.outlinerAnchorId = object.id;
+      }
       ui.selectedObjectId = ui.selectedObjectIds.has(object.id) ? object.id : [...ui.selectedObjectIds].at(-1) || null;
       ui.selectedEntity = ui.selectedObjectIds.size ? "object" : "camera";
       ui.selectedKeyFrame = ui.selectedObjectId

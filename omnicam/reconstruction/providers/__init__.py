@@ -41,6 +41,20 @@ def _ensure_defaults() -> None:
         from .comfy_moge import ComfyMoGeProvider
 
         _REGISTRY["comfy_moge"] = ComfyMoGeProvider
+    if "vggt" not in _REGISTRY:
+        try:
+            from .vggt import VggtProvider
+        except ImportError:
+            pass
+        else:
+            _REGISTRY["vggt"] = VggtProvider
+    if "vggt_omega_research" not in _REGISTRY:
+        try:
+            from .vggt_omega import VggtOmegaResearchProvider
+        except ImportError:
+            pass
+        else:
+            _REGISTRY["vggt_omega_research"] = VggtOmegaResearchProvider
 
 
 __all__ = [

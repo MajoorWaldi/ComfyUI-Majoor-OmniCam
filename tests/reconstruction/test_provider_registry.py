@@ -53,10 +53,14 @@ def test_register_custom_provider():
 def test_aggregate_capabilities_shape(monkeypatch):
     caps = get_reconstruction_capabilities()
     assert caps["feature"] == "scene_reconstruction"
-    assert caps["version"] == 1
+    assert caps["version"] == 2
     assert isinstance(caps["providers"], list)
     assert any(p["provider_id"] == "comfy_moge" for p in caps["providers"])
     assert "recommended_provider" in caps
+    # v2 also aggregates segmentation + completion so the panel can gate
+    # Blockout / Scan / Completion options with a reason.
+    assert any(p["provider_id"] == "comfy_sam3" for p in caps["segmentation"])
+    assert any(p["provider_id"] == "sam3d_objects" for p in caps["completion"])
 
 
 def test_recommended_provider_fallback(monkeypatch):

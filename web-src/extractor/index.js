@@ -1,4 +1,4 @@
-import { api } from "../comfy-runtime.js";
+import { api, app } from "../comfy-runtime.js";
 import { RequestLifetime } from "../request-lifetime.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { closeHelpPopup } from "../help/schema.js";
@@ -60,6 +60,9 @@ function widget(node, name) {
 export class ExtractorUI {
   constructor(node) {
     this.node = node;
+    // The ComfyUI app object -- passed to confirmAction/promptText so the
+    // dialog manager resolves even behind the bundle (see clear-cache.js).
+    this.app = app;
     this.root = buildExtractorRoot();
     this.state = createExtractorState();
     this.disposed = false;
@@ -129,6 +132,7 @@ export class ExtractorUI {
       root: this.root,
       node: this.node,
       api,
+      app,
       getSource: () => this.state.source?.ref || null,
       onAdopt: (result) => adoptReconstructionIntoDownstreamDirectors(this.node, result),
       listen: (target, event, handler) => this.listen(target, event, handler),
@@ -145,7 +149,15 @@ export class ExtractorUI {
     this.setExtractMode(this.extractMode);
 
     const clearCacheBtn = this.$("clear-cache");
-    if (clearCacheBtn) this.listen(clearCacheBtn, "click", () => this.clearCache());
+    if (clearCacheBtn) {
+      this.listen(clearCacheBtn, "click", () => {
+        clearCacheBtn.disabled = true;
+        Promise.resolve()
+          .then(() => this.clearCache())
+          .catch((err) => this.dispatch({ type: "FAILED", error: String(err?.message || err) }))
+          .finally(() => { clearCacheBtn.disabled = false; });
+      });
+    }
 
     this.bind();
     this.loadMotionLimits();
@@ -717,22 +729,14 @@ export class ExtractorUI {
     this.extractMode = mode;
     const isReconstruct = mode === "scene_reconstruct";
     const reconPanel = this.$("reconstruction-panel");
-    const stage = this.$("stage");
+    // The whole camera-track UI -- tabs, stage, transport/dope timeline, Solve
+    // card, cleanup columns -- lives in this one element. Scene Reconstruct has
+    // its own panel (and its own 3D preview), so hide camera track entirely
+    // rather than leaving its menus stacked under the reconstruction panel.
+    const cameraBody = this.$("camera-track-body");
 
-    if (reconPanel) {
-      if (isReconstruct) {
-        reconPanel.removeAttribute("hidden");
-      } else {
-        reconPanel.setAttribute("hidden", "");
-      }
-    }
-    if (stage) {
-      if (isReconstruct) {
-        stage.setAttribute("hidden", "");
-      } else {
-        stage.removeAttribute("hidden");
-      }
-    }
+    if (reconPanel) reconPanel.toggleAttribute("hidden", !isReconstruct);
+    if (cameraBody) cameraBody.toggleAttribute("hidden", isReconstruct);
 
     const camBtn = this.$("extract-mode-camera");
     if (camBtn) {
