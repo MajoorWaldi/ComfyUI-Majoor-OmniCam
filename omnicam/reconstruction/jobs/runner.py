@@ -127,7 +127,7 @@ def run_reconstruction_job(
                 from ..model_release import release_reconstruction_models
 
                 release_reconstruction_models(reason=f"job {job.job_id} {job.state}")
-            except Exception:  # cleanup must never mask the result
+            except Exception:  # noqa: BLE001  # cleanup must never mask the result
                 logger.debug("VRAM release after job %s failed", job.job_id, exc_info=True)
 
     if gpu_semaphore is not None:
