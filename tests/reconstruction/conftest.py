@@ -20,6 +20,12 @@ from __future__ import annotations
 import sys
 import types
 
+import pytest
+
+pytest.importorskip("torch")
+pytest.importorskip("aiohttp")
+pytest.importorskip("PIL")
+
 
 def _missing_checkpoint(*_a: object, **_k: object) -> str:
     raise FileNotFoundError("folder_paths stub: no ComfyUI model tree in this test lane")

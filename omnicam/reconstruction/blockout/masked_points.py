@@ -17,7 +17,7 @@ except ImportError:  # pragma: no cover - torch always present in CI recon job
 
 
 def _to_numpy(value: object) -> np.ndarray:
-    if _HAS_TORCH and torch.is_tensor(value):
+    if _HAS_TORCH and isinstance(value, torch.Tensor):
         return value.detach().cpu().numpy()
     return np.asarray(value)
 
