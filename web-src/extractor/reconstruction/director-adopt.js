@@ -2,6 +2,31 @@
 
 import { annotatedAssetUrl } from "../../director/core/camera.js";
 import { sampleCamera, sanitizeState } from "../../director/core.js";
+import { reconstructionAdoptionDefaults } from "../../scene/reconstruction-inspector.js";
+
+// The Result mode the scene was compiled with (blockout / hybrid / scan / …).
+export function reconstructionModeOf(result) {
+  return (
+    result?.reconstruction?.recon_mode ||
+    result?.motion_scene?.metadata?.reconstruction?.mode ||
+    result?.metadata?.reconstruction?.mode ||
+    ""
+  );
+}
+
+// Apply the role-based lock / visibility defaults to one adopted object, in
+// place. blockout_object -> unlocked; room / reference -> locked; the dense
+// reference is hidden in Blockout mode and kept in Hybrid.
+export function applyReconstructionAdoptionDefaults(object, mode) {
+  const role = object?.reconstruction?.role;
+  if (!role) return object;
+  const defaults = reconstructionAdoptionDefaults(object, mode);
+  if (object.locked === undefined || role === "room" || role === "reference") {
+    object.locked = defaults.locked;
+  }
+  if (role === "reference") object.enabled = defaults.visible;
+  return object;
+}
 
 export function uniqueSceneId(existingIds, baseId) {
   if (!existingIds || !existingIds.has(baseId)) return baseId;
@@ -34,6 +59,7 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
   }
 
   const mode = options.mode || (isDirectorEmpty(directorUi) ? "replace" : "merge");
+  const reconMode = options.reconMode || reconstructionModeOf(result);
 
   if (mode === "replace") {
     directorUi.checkpoint?.("Adopt reconstructed scene (replace)");
@@ -41,6 +67,7 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
     directorUi.camera = sampleCamera(directorUi.state, directorUi.frame || 0);
 
     for (const object of directorUi.state.objects || []) {
+      applyReconstructionAdoptionDefaults(object, reconMode);
       if ((object.type === "glb" || object.type === "model") && object.asset) {
         directorUi.modelUrlsById?.set(object.id, annotatedAssetUrl(object.asset));
       }
@@ -55,6 +82,7 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
       const safeId = uniqueSceneId(existingObjIds, copy.id);
       existingObjIds.add(safeId);
       copy.id = safeId;
+      applyReconstructionAdoptionDefaults(copy, reconMode);
       directorUi.state.objects.push(copy);
 
       if ((copy.type === "glb" || copy.type === "model") && copy.asset) {

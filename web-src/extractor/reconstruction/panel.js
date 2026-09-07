@@ -129,13 +129,7 @@ export class ReconstructionPanelController {
    */
   applyJobResponse(resp) {
     if (resp.result) {
-      this.dispatch({
-        type: "DONE",
-        jobId: resp.job_id,
-        result: resp.result.motion_scene || resp.result,
-        summary: resp.result.summary,
-        warnings: resp.result.warnings,
-      });
+      this.acceptResultEnvelope(resp.job_id, resp.result);
       return;
     }
     if (resp.state === "FAILED") {
@@ -143,6 +137,54 @@ export class ReconstructionPanelController {
       return;
     }
     this.dispatch({ type: "STATE", jobState: resp.state || "PREPARING", jobId: resp.job_id });
+    // The job may already have finished on its worker thread while this POST
+    // was in flight, with the "done" WebSocket event lost (state.jobId was
+    // still empty when it fired). If the response says DONE but carries no
+    // result, pull it over HTTP instead of waiting on a socket event.
+    if (resp.state === "DONE" && resp.job_id) {
+      this.recoverResult(resp.job_id);
+    }
+  }
+
+  acceptResultEnvelope(jobId, result) {
+    this.dispatch({
+      type: "DONE",
+      jobId: jobId || this.state.jobId,
+      result: result.motion_scene || result,
+      summary: result.summary,
+      warnings: result.warnings,
+    });
+  }
+
+  /** Fetch a finished job's result over HTTP after a missed WebSocket "done". */
+  async recoverResult(jobId) {
+    try {
+      const resp = await this.client.result(jobId);
+      const result = resp?.result || resp;
+      if (result && (result.motion_scene || result.summary)) {
+        this.acceptResultEnvelope(jobId, result);
+      }
+    } catch (err) {
+      this.dispatch({ type: "ERROR", error: { message: err.message } });
+    }
+  }
+
+  /** Re-sync state from the server after a WebSocket gap (reconnect, sleep). */
+  async recoverStatus() {
+    if (!this.state.jobId) return;
+    try {
+      const resp = await this.client.status(this.state.jobId);
+      if (resp?.state === "DONE") {
+        if (resp.result) this.acceptResultEnvelope(resp.job_id, resp.result);
+        else await this.recoverResult(this.state.jobId);
+      } else if (resp?.state === "FAILED") {
+        this.dispatch({ type: "ERROR", error: resp.error || { message: "Reconstruction failed" } });
+      } else if (resp?.state) {
+        this.dispatch({ type: "STATE", jobState: resp.state, jobId: this.state.jobId });
+      }
+    } catch {
+      // A failed status poll is not itself an error state; keep what we have.
+    }
   }
 
   async stop() {

@@ -155,3 +155,42 @@ test("uniqueSceneId resolves collisions deterministically", () => {
   assert.equal(uniqueSceneId(existing, "camera_1"), "camera_1");
   assert.equal(uniqueSceneId(existing, "cube_1"), "cube_1_3");
 });
+
+
+test("adoption applies role-based lock/visibility defaults + hides dense reference in Blockout", () => {
+  const scene = {
+    motion_scene: {
+      objects: [
+        { id: "reconstruction_blockout", type: "null", reconstruction: { role: "blockout_object" }, locked: false },
+        { id: "chair_1", type: "cube", reconstruction: { role: "blockout_object", semantic: "chair" } },
+        { id: "reconstruction_ground", type: "ground", reconstruction: { role: "room" }, locked: false, enabled: true },
+        { id: "ref_mesh", type: "glb", reconstruction: { role: "reference" }, enabled: true },
+      ],
+      cameras: [],
+      metadata: { reconstruction: { mode: "blockout" } },
+    },
+  };
+  const ui = { state: { objects: [], cameras: [] }, checkpoint() {}, serialize() {}, refreshObjects() {}, render() {}, setStatus() {} };
+
+  adoptReconstructedScene(ui, scene, { mode: "replace" });
+
+  const byId = Object.fromEntries(ui.state.objects.map((o) => [o.id, o]));
+  assert.equal(byId["chair_1"].locked, false, "blockout object stays unlocked");
+  assert.equal(byId["reconstruction_ground"].locked, true, "room proxy is locked on adopt");
+  assert.equal(byId["ref_mesh"].locked, true);
+  assert.equal(byId["ref_mesh"].enabled, false, "dense reference hidden in Blockout mode");
+});
+
+test("Hybrid mode keeps the dense reference visible", () => {
+  const scene = {
+    motion_scene: {
+      objects: [{ id: "ref_mesh", type: "glb", reconstruction: { role: "reference" }, enabled: true }],
+      cameras: [],
+      metadata: { reconstruction: { mode: "hybrid" } },
+    },
+  };
+  const ui = { state: { objects: [], cameras: [] }, checkpoint() {}, serialize() {}, refreshObjects() {}, render() {}, setStatus() {} };
+  adoptReconstructedScene(ui, scene, { mode: "replace" });
+  assert.equal(ui.state.objects[0].enabled, true);
+  assert.equal(ui.state.objects[0].locked, true);
+});

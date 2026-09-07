@@ -87,6 +87,70 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 IO.Boolean.Input("simplify_keys", default=True),
                 IO.Float.Input("position_tolerance", default=0.01, min=0.0, max=10.0, step=0.001, advanced=True),
                 IO.Float.Input("rotation_tolerance_deg", default=0.25, min=0.0, max=20.0, step=0.05, advanced=True),
+                # --- Scene Reconstruct settings (advanced; the custom panel
+                # mirrors these, and a queued graph run must build the exact
+                # same ReconstructionSettings the panel's Start does). ---
+                IO.Combo.Input(
+                    "recon_mode",
+                    options=["depth_mesh", "blockout", "hybrid", "scan"],
+                    default="depth_mesh",
+                    advanced=True,
+                    tooltip="Depth Mesh (MoGe surface) / Blockout (closed primitives) / Hybrid / Scan (VGGT multi-view).",
+                ),
+                IO.Combo.Input(
+                    "recon_source_mode",
+                    options=["auto", "single_image", "multi_view"],
+                    default="auto",
+                    advanced=True,
+                ),
+                IO.Combo.Input(
+                    "recon_geometry_provider",
+                    options=["comfy_moge", "vggt", "vggt_omega_research"],
+                    default="comfy_moge",
+                    advanced=True,
+                ),
+                IO.Combo.Input(
+                    "recon_segmentation_provider",
+                    options=["comfy_sam3", "none", "fake"],
+                    default="comfy_sam3",
+                    advanced=True,
+                ),
+                IO.Combo.Input(
+                    "recon_completion_provider",
+                    options=["none", "sam3d_objects", "fake"],
+                    default="none",
+                    advanced=True,
+                ),
+                IO.Combo.Input(
+                    "recon_quality",
+                    options=["fast", "balanced", "high", "custom"],
+                    default="balanced",
+                    advanced=True,
+                ),
+                IO.String.Input("recon_sam3_checkpoint", default="auto", multiline=False, advanced=True),
+                IO.Float.Input("recon_sam3_threshold", default=0.55, min=0.0, max=1.0, step=0.01, advanced=True),
+                IO.String.Input(
+                    "recon_semantic_labels",
+                    default="",
+                    multiline=True,
+                    advanced=True,
+                    tooltip="Comma/newline separated labels. Empty = default interior taxonomy.",
+                ),
+                IO.Int.Input("recon_max_objects", default=24, min=1, max=128, step=1, advanced=True),
+                IO.String.Input("recon_vggt_checkpoint", default="auto", multiline=False, advanced=True),
+                IO.Int.Input("recon_vggt_max_views", default=24, min=2, max=128, step=1, advanced=True),
+                IO.Int.Input("recon_vggt_segmentation_views", default=6, min=1, max=32, step=1, advanced=True),
+                IO.Combo.Input(
+                    "recon_completion_policy",
+                    options=["off", "low_depth_confidence", "selected", "all_bounded"],
+                    default="off",
+                    advanced=True,
+                ),
+                IO.Int.Input("recon_max_completion_objects", default=4, min=0, max=16, step=1, advanced=True),
+                IO.Boolean.Input("recon_source_texture", default=True, advanced=True),
+                IO.Boolean.Input("recon_detect_ground", default=True, advanced=True),
+                IO.Boolean.Input("recon_detect_walls", default=False, advanced=True),
+                IO.Float.Input("recon_scene_scale", default=1.0, min=0.001, max=1000.0, step=0.01, advanced=True),
             ],
             outputs=[
                 OMNICAM_MOTION_SCENE.Output(display_name="motion_scene"),
@@ -177,11 +241,56 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         simplify_keys: bool = True,
         position_tolerance: float = 0.01,
         rotation_tolerance_deg: float = 0.25,
+        recon_mode: str = "depth_mesh",
+        recon_source_mode: str = "auto",
+        recon_geometry_provider: str = "comfy_moge",
+        recon_segmentation_provider: str = "comfy_sam3",
+        recon_completion_provider: str = "none",
+        recon_quality: str = "balanced",
+        recon_sam3_checkpoint: str = "auto",
+        recon_sam3_threshold: float = 0.55,
+        recon_semantic_labels: str = "",
+        recon_max_objects: int = 24,
+        recon_vggt_checkpoint: str = "auto",
+        recon_vggt_max_views: int = 24,
+        recon_vggt_segmentation_views: int = 6,
+        recon_completion_policy: str = "off",
+        recon_max_completion_objects: int = 4,
+        recon_source_texture: bool = True,
+        recon_detect_ground: bool = True,
+        recon_detect_walls: bool = False,
+        recon_scene_scale: float = 1.0,
     ) -> IO.NodeOutput:
         if extract_mode == "scene_reconstruct":
-            from ..reconstruction.node_bridge import execute_reconstruction
+            from ..reconstruction.node_bridge import (
+                execute_reconstruction,
+                reconstruction_settings_from_widgets,
+            )
 
-            motion_scene, confidence, report, envelope = execute_reconstruction(video)
+            recon_settings = reconstruction_settings_from_widgets(
+                recon_mode=recon_mode,
+                recon_source_mode=recon_source_mode,
+                recon_geometry_provider=recon_geometry_provider,
+                recon_segmentation_provider=recon_segmentation_provider,
+                recon_completion_provider=recon_completion_provider,
+                recon_quality=recon_quality,
+                recon_sam3_checkpoint=recon_sam3_checkpoint,
+                recon_sam3_threshold=recon_sam3_threshold,
+                recon_semantic_labels=recon_semantic_labels,
+                recon_max_objects=recon_max_objects,
+                recon_vggt_checkpoint=recon_vggt_checkpoint,
+                recon_vggt_max_views=recon_vggt_max_views,
+                recon_vggt_segmentation_views=recon_vggt_segmentation_views,
+                recon_completion_policy=recon_completion_policy,
+                recon_max_completion_objects=recon_max_completion_objects,
+                recon_source_texture=recon_source_texture,
+                recon_detect_ground=recon_detect_ground,
+                recon_detect_walls=recon_detect_walls,
+                recon_scene_scale=recon_scene_scale,
+            )
+            motion_scene, confidence, report, envelope = execute_reconstruction(
+                video, settings=recon_settings
+            )
             return IO.NodeOutput(
                 motion_scene,
                 confidence,

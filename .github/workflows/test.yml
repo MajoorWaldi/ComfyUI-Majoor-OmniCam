@@ -5,6 +5,9 @@ on:
   workflow_call:
 
 jobs:
+  # Lint + types + the full unit suite on every supported interpreter. torch is
+  # in requirements-dev, so the deterministic reconstruction tests (fake
+  # providers, no CUDA) run here too.
   python-core:
     name: python-core (${{ matrix.python-version }})
     strategy:
@@ -22,17 +25,28 @@ jobs:
       - run: ruff check .
       - run: mypy
 
-  python-full:
-    name: python-full
+  # Reconstruction lane: CPU torch + aiohttp + pillow + PyAV so the semantic
+  # blockout / VGGT scan / SAM3D pipelines run end-to-end against their fake
+  # providers, plus the reconstruction frontend node tests. No model weights,
+  # no CUDA -- the real SAM3/VGGT/SAM3D adapters are exercised only by the
+  # manual GPU gates.
+  python-reconstruction:
+    name: python-reconstruction
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
       - run: pip install -r requirements-dev.txt aiohttp pillow av
       - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: pytest -q
+      - run: pytest -q tests/reconstruction tests/test_validation.py tests/test_schemas.py
+      - run: npm ci
+      - run: node --test tests/frontend/extractor-reconstruction-*.node.mjs tests/frontend/reconstruction-inspector.node.mjs
 
   comfyui-integration:
     name: comfyui-integration (${{ matrix.label }})

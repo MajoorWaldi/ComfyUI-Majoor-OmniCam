@@ -16,9 +16,17 @@ from ..types import ReconstructionSource
 class ReconstructionState(str, Enum):
     IDLE = "IDLE"
     PREPARING = "PREPARING"
+    # multi-view scan only
+    REGISTER_VIEWS = "REGISTER_VIEWS"
     INFER_GEOMETRY = "INFER_GEOMETRY"
     BUILD_MESH = "BUILD_MESH"
+    # semantic blockout
+    SEGMENT_SCENE = "SEGMENT_SCENE"
+    FUSE_VIEWS = "FUSE_VIEWS"
     ANALYZE_LAYOUT = "ANALYZE_LAYOUT"
+    FIT_BLOCKOUT = "FIT_BLOCKOUT"
+    COMPLETE_OBJECTS = "COMPLETE_OBJECTS"
+    BUILD_REFERENCE = "BUILD_REFERENCE"
     SAVE_ASSETS = "SAVE_ASSETS"
     FINALIZING = "FINALIZING"
     STOPPING = "STOPPING"
@@ -29,9 +37,15 @@ class ReconstructionState(str, Enum):
 
 IDLE = ReconstructionState.IDLE.value
 PREPARING = ReconstructionState.PREPARING.value
+REGISTER_VIEWS = ReconstructionState.REGISTER_VIEWS.value
 INFER_GEOMETRY = ReconstructionState.INFER_GEOMETRY.value
 BUILD_MESH = ReconstructionState.BUILD_MESH.value
+SEGMENT_SCENE = ReconstructionState.SEGMENT_SCENE.value
+FUSE_VIEWS = ReconstructionState.FUSE_VIEWS.value
 ANALYZE_LAYOUT = ReconstructionState.ANALYZE_LAYOUT.value
+FIT_BLOCKOUT = ReconstructionState.FIT_BLOCKOUT.value
+COMPLETE_OBJECTS = ReconstructionState.COMPLETE_OBJECTS.value
+BUILD_REFERENCE = ReconstructionState.BUILD_REFERENCE.value
 SAVE_ASSETS = ReconstructionState.SAVE_ASSETS.value
 FINALIZING = ReconstructionState.FINALIZING.value
 STOPPING = ReconstructionState.STOPPING.value
@@ -42,9 +56,15 @@ FAILED = ReconstructionState.FAILED.value
 STATES = (
     IDLE,
     PREPARING,
+    REGISTER_VIEWS,
     INFER_GEOMETRY,
     BUILD_MESH,
+    SEGMENT_SCENE,
+    FUSE_VIEWS,
     ANALYZE_LAYOUT,
+    FIT_BLOCKOUT,
+    COMPLETE_OBJECTS,
+    BUILD_REFERENCE,
     SAVE_ASSETS,
     FINALIZING,
     STOPPING,
@@ -54,22 +74,51 @@ STATES = (
 )
 
 ACTIVE_STATES = frozenset(
-    {PREPARING, INFER_GEOMETRY, BUILD_MESH, ANALYZE_LAYOUT, SAVE_ASSETS, FINALIZING, STOPPING}
+    {
+        PREPARING,
+        REGISTER_VIEWS,
+        INFER_GEOMETRY,
+        BUILD_MESH,
+        SEGMENT_SCENE,
+        FUSE_VIEWS,
+        ANALYZE_LAYOUT,
+        FIT_BLOCKOUT,
+        COMPLETE_OBJECTS,
+        BUILD_REFERENCE,
+        SAVE_ASSETS,
+        FINALIZING,
+        STOPPING,
+    }
 )
 TERMINAL_STATES = frozenset({STOPPED, DONE, FAILED})
 
-VALID_TRANSITIONS: dict[str, frozenset[str]] = {
-    IDLE: frozenset({PREPARING, STOPPING, FAILED}),
-    PREPARING: frozenset({INFER_GEOMETRY, STOPPING, FAILED, DONE}),
-    INFER_GEOMETRY: frozenset({BUILD_MESH, STOPPING, FAILED}),
-    BUILD_MESH: frozenset({ANALYZE_LAYOUT, STOPPING, FAILED}),
-    ANALYZE_LAYOUT: frozenset({SAVE_ASSETS, STOPPING, FAILED}),
-    SAVE_ASSETS: frozenset({FINALIZING, STOPPING, FAILED}),
-    FINALIZING: frozenset({DONE, STOPPING, FAILED}),
-    STOPPING: frozenset({STOPPED, FAILED}),
+# Every non-terminal state may also fall through to STOPPING / FAILED; that is
+# folded in below so the individual rows stay readable. The linear depth-mesh
+# chain (INFER_GEOMETRY -> BUILD_MESH -> ANALYZE_LAYOUT -> SAVE_ASSETS) is
+# preserved; blockout and scan add the semantic detours.
+_FORWARD: dict[str, frozenset[str]] = {
+    IDLE: frozenset({PREPARING}),
+    PREPARING: frozenset({REGISTER_VIEWS, INFER_GEOMETRY, DONE}),
+    REGISTER_VIEWS: frozenset({INFER_GEOMETRY}),
+    INFER_GEOMETRY: frozenset({BUILD_MESH, SEGMENT_SCENE, ANALYZE_LAYOUT}),
+    BUILD_MESH: frozenset({ANALYZE_LAYOUT}),
+    SEGMENT_SCENE: frozenset({FUSE_VIEWS, ANALYZE_LAYOUT}),
+    FUSE_VIEWS: frozenset({ANALYZE_LAYOUT}),
+    ANALYZE_LAYOUT: frozenset({FIT_BLOCKOUT, SAVE_ASSETS}),
+    FIT_BLOCKOUT: frozenset({COMPLETE_OBJECTS, BUILD_REFERENCE, SAVE_ASSETS}),
+    COMPLETE_OBJECTS: frozenset({BUILD_REFERENCE, SAVE_ASSETS}),
+    BUILD_REFERENCE: frozenset({SAVE_ASSETS}),
+    SAVE_ASSETS: frozenset({FINALIZING}),
+    FINALIZING: frozenset({DONE}),
+    STOPPING: frozenset({STOPPED}),
     STOPPED: frozenset(),
     DONE: frozenset(),
     FAILED: frozenset(),
+}
+
+VALID_TRANSITIONS: dict[str, frozenset[str]] = {
+    state: (targets | {STOPPING, FAILED} if state not in TERMINAL_STATES else targets)
+    for state, targets in _FORWARD.items()
 }
 
 

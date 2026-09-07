@@ -369,10 +369,23 @@ Extractor features two operating modes:
 
 When switched to Scene Reconstruct mode, the panel provides interactive 3D proxy scene recovery without queueing a ComfyUI prompt or running diffusion models.
 
+#### Result modes
+
+Scene Reconstruct produces one of four result shapes (`recon_mode`):
+
+- **Depth Mesh**: the historical visible-surface MoGe depth mesh, kept as a reference proxy.
+- **Blockout**: MoGe (geometry evidence) + native ComfyUI SAM3.1 (semantic instance masks) → deterministically fitted **closed** MotionScene primitives plus a correctly oriented room shell. A 90° Director orbit no longer opens holes in the blocking objects because they are closed volumes, not a 2.5D surface.
+- **Hybrid**: the Blockout primitives *and* an independently toggleable dense reference mesh.
+- **Scan**: VGGT multi-view / video scene blocking — one trajectory camera track plus cross-view-fused closed primitives.
+
 #### Providers & Capabilities
 
-- **`comfy_moge`**: Uses ComfyUI's native geometry estimation subsystem (`comfy_extras.nodes_moge`). Requires a MoGe checkpoint placed in `ComfyUI/models/geometry_estimation/`.
-- **No auto-download policy**: OmniCam never triggers silent package installs or weight downloads. If a checkpoint is missing, the panel surfaces a clear status message with placement instructions.
+- **`comfy_moge`** (geometry, single view): ComfyUI's native geometry estimation (`comfy_extras.nodes_moge`). MoGe checkpoint in `ComfyUI/models/geometry_estimation/`.
+- **`comfy_sam3`** (segmentation): native ComfyUI SAM3 / SAM3.1 via the official `CheckpointLoaderSimple → CLIPTextEncode → SAM3_Detect` chain. Needs a `sam3*` checkpoint (e.g. `sam3.1_multiplex_fp16.safetensors`) in `ComfyUI/models/checkpoints`. No second segmentation dependency is added.
+- **`vggt`** (geometry, multi-view / Scan): optional. Needs the `vggt` Python package and a checkpoint under `ComfyUI/models/geometry_estimation/vggt/` (recommended: `VGGT-1B-Commercial/model.pt`) and a CUDA GPU. `VGGT-1B-Commercial` is the documented production checkpoint.
+- **`vggt_omega_research`**: explicitly **non-commercial / research only** (FAIR Noncommercial Research License) and is **never auto-selected**; OmniCam does not fall back to it from the commercial checkpoint.
+- **`sam3d_objects`** (optional completion): improves weak hidden dimensions of individual blockout objects. Official baseline is **Linux 64-bit + an NVIDIA CUDA GPU with ≥ 32 GB VRAM**, the `sam3d_objects` package, and a pipeline config under `ComfyUI/models/sam3d_objects/`. It is capability-gated and its absence does not affect Depth Mesh, Blockout or Scan.
+- **No auto-download policy**: OmniCam never triggers silent package installs or weight downloads. If a checkpoint is missing, the panel surfaces a clear status message with placement instructions; the run button explains a missing SAM3 checkpoint and offers Depth Mesh rather than silently changing the requested mode.
 
 #### Reconstruction Controls & Quality Presets
 

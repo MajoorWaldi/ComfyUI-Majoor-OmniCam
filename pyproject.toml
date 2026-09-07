@@ -105,6 +105,20 @@ files = [
   "omnicam/extractor/intrinsics.py",
   "omnicam/extractor/transforms.py",
   "omnicam/extractor/types.py",
+  # Pure reconstruction modules: settings/DTO/math where a type error means
+  # broken output. The dynamic upstream adapters (SAM3 / VGGT / SAM3D) are
+  # covered by tests, not mypy.
+  "omnicam/reconstruction/settings.py",
+  "omnicam/reconstruction/model_identity.py",
+  "omnicam/reconstruction/leveling.py",
+  "omnicam/reconstruction/rotation_utils.py",
+  "omnicam/reconstruction/blockout/types.py",
+  "omnicam/reconstruction/blockout/obb.py",
+  "omnicam/reconstruction/blockout/primitive_resolver.py",
+  "omnicam/reconstruction/blockout/room_shell.py",
+  "omnicam/reconstruction/multiview/types.py",
+  "omnicam/reconstruction/multiview/sampling.py",
+  "omnicam/reconstruction/multiview/coordinates.py",
   "omnicam/monitor/result.py",
   "omnicam/profiles/base.py",
   "omnicam/profiles/catalog.py",

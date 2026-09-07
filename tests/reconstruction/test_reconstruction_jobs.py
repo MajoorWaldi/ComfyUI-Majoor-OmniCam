@@ -391,3 +391,47 @@ def test_shutdown_warns_but_returns_when_a_worker_will_not_die(caplog):
 def test_shutdown_with_no_jobs_is_a_no_op():
     manager = ReconstructionJobManager()
     manager.shutdown()  # must not raise
+
+
+def test_semantic_and_scan_states_have_transitions():
+    from omnicam.reconstruction.jobs.types import (
+        BUILD_REFERENCE,
+        COMPLETE_OBJECTS,
+        FIT_BLOCKOUT,
+        FUSE_VIEWS,
+        REGISTER_VIEWS,
+        SEGMENT_SCENE,
+    )
+
+    # single-image blockout chain
+    assert can_transition(INFER_GEOMETRY, SEGMENT_SCENE)
+    assert can_transition(SEGMENT_SCENE, ANALYZE_LAYOUT)
+    assert can_transition(ANALYZE_LAYOUT, FIT_BLOCKOUT)
+    assert can_transition(FIT_BLOCKOUT, COMPLETE_OBJECTS)
+    assert can_transition(FIT_BLOCKOUT, BUILD_REFERENCE)
+    assert can_transition(FIT_BLOCKOUT, SAVE_ASSETS)
+    assert can_transition(COMPLETE_OBJECTS, BUILD_REFERENCE)
+    assert can_transition(BUILD_REFERENCE, SAVE_ASSETS)
+
+    # scan chain
+    assert can_transition(PREPARING, REGISTER_VIEWS)
+    assert can_transition(REGISTER_VIEWS, INFER_GEOMETRY)
+    assert can_transition(SEGMENT_SCENE, FUSE_VIEWS)
+    assert can_transition(FUSE_VIEWS, ANALYZE_LAYOUT)
+
+    # every non-terminal semantic state can still bail out
+    for s in (SEGMENT_SCENE, FIT_BLOCKOUT, COMPLETE_OBJECTS, BUILD_REFERENCE, FUSE_VIEWS, REGISTER_VIEWS):
+        assert can_transition(s, STOPPING)
+        assert can_transition(s, FAILED)
+
+
+def test_frontend_state_list_mirrors_backend_states():
+    import re
+    from pathlib import Path
+
+    from omnicam.reconstruction.jobs.types import STATES
+
+    src = Path("web-src/extractor/reconstruction/state.js").read_text(encoding="utf-8")
+    block = re.search(r"RECONSTRUCTION_STATES\s*=\s*\[(.*?)\]", src, re.S).group(1)
+    js_states = set(re.findall(r'"([A-Z_]+)"', block))
+    assert js_states == set(STATES), js_states.symmetric_difference(set(STATES))

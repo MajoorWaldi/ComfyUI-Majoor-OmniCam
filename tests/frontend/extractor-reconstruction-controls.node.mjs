@@ -120,3 +120,40 @@ test("readReconstructionSettings reads whatever the (possibly preset-synced) fie
   assert.equal(settings.triangle_budget, 40000);
   assert.equal(settings.discontinuity_threshold, 0.06);
 });
+
+
+test("readReconstructionSettings aliases legacy modes and stays MoGe-only for depth_mesh", () => {
+  const { root } = makeReconstructionRoot();
+  root.querySelector('[data-role="reconstruction-mode"]').value = "layout";
+  const s = readReconstructionSettings(root);
+  assert.equal(s.mode, "depth_mesh");
+  assert.equal(s.provider, "comfy_moge");
+  assert.equal(s.segmentation_provider, undefined); // no semantic fields on depth mesh
+});
+
+test("readReconstructionSettings emits semantic fields for blockout / hybrid / scan", () => {
+  const elements = {
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "blockout" }),
+    "reconstruction-quality": new FakeElement({ tagName: "SELECT", value: "balanced" }),
+    "reconstruction-segmentation": new FakeElement({ tagName: "SELECT", value: "comfy_sam3" }),
+    "reconstruction-completion-policy": new FakeElement({ tagName: "SELECT", value: "low_depth_confidence" }),
+    "reconstruction-max-objects": new FakeElement({ value: "40" }),
+    "reconstruction-semantic-labels": new FakeElement({ value: "chair, table\nsofa" }),
+  };
+  const s = readReconstructionSettings(fakeRoot(elements));
+  assert.equal(s.mode, "blockout");
+  assert.equal(s.segmentation_provider, "comfy_sam3");
+  assert.equal(s.completion_policy, "low_depth_confidence");
+  assert.equal(s.max_blockout_objects, 40);
+  assert.deepEqual(s.semantic_labels, ["chair", "table", "sofa"]);
+});
+
+test("scan mode defaults its geometry provider to vggt", () => {
+  const elements = {
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "scan" }),
+    "reconstruction-quality": new FakeElement({ tagName: "SELECT", value: "balanced" }),
+  };
+  const s = readReconstructionSettings(fakeRoot(elements));
+  assert.equal(s.mode, "scan");
+  assert.equal(s.provider, "vggt");
+});

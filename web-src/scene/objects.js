@@ -240,7 +240,8 @@ export function refreshInspector(ui) {
     const badge = reconstructionBadge(object);
     if (badge) {
       badgeEl.hidden = false;
-      badgeEl.textContent = `${badge.label} (${Math.round(badge.confidence * 100)}%)`;
+      const prefix = badge.semantic ? `${badge.semantic} · ` : "";
+      badgeEl.textContent = `${prefix}${badge.label} (${Math.round(badge.confidence * 100)}%)`;
       badgeEl.title = badge.title;
       badgeEl.className = `oc-recon-badge oc-badge-${badge.band}`;
     } else {

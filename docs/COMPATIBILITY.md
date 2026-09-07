@@ -57,6 +57,10 @@ OmniCam never installs these packages at runtime.
 | Provider | Host Subsystem | Required Checkpoint Path | State | Policy |
 |---|---|---|---|---|
 | `comfy_moge` | `comfy_extras.nodes_moge` | `ComfyUI/models/geometry_estimation/` | optional / native core | No auto-download; graceful degradation if missing |
+| `comfy_sam3` | `comfy_extras.nodes_sam3` (`CheckpointLoaderSimple → CLIPTextEncode → SAM3_Detect`) | `ComfyUI/models/checkpoints/sam3*` (e.g. `sam3.1_multiplex_fp16.safetensors`) | optional / native core | No second segmentation dependency; capability `false` until a `sam3*` checkpoint is installed |
+| `vggt` | `vggt` Python package | `ComfyUI/models/geometry_estimation/vggt/VGGT-1B-Commercial/model.pt` | optional / manual | No auto-download (`from_pretrained` is never called); needs CUDA. `VGGT-1B-Commercial` is the recommended commercial checkpoint |
+| `vggt_omega_research` | `vggt` Python package | `ComfyUI/models/geometry_estimation/vggt/VGGT-Omega/` | optional / research | **Non-commercial / research only** (FAIR Noncommercial Research License); never auto-selected. The Aug 18 2026 benchmark-contamination notice affects benchmark interpretation only |
+| `sam3d_objects` | `sam3d_objects` package | `ComfyUI/models/sam3d_objects/pipeline.yaml` | optional / gated | Official baseline: **Linux 64-bit + NVIDIA CUDA GPU with ≥ 32 GB VRAM** + gated model access. No lower-memory override. Absence does not affect Depth Mesh / Blockout / Scan |
 
-When the MoGe checkpoint is not present, `/majoor/omnicam/reconstruction/capabilities` reports `available: false` with the target folder path. Extractor displays this requirement in the UI and keeps camera tracking functional without runtime exceptions.
+When a required checkpoint is not present, `/majoor/omnicam/reconstruction/capabilities` reports `available: false` with the target folder path and reason. Extractor displays each requirement in the UI (unsupported options stay visible with reason text, not hidden) and keeps camera tracking and the other reconstruction modes functional without runtime exceptions. If SAM3 is missing, the UI may still show Blockout but the run button explains the missing checkpoint and offers Depth Mesh; queued execution never silently changes the requested mode.
 

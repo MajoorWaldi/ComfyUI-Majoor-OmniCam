@@ -39,10 +39,12 @@ export function extractorMarkup() {
         <div class="oc-inline">
           <label for="oc-recon-provider">${t("Provider")}</label>
           <select id="oc-recon-provider" data-role="reconstruction-provider"></select>
-          <label for="oc-recon-mode">${t("Mode")}</label>
+          <label for="oc-recon-mode">${t("Result")}</label>
           <select id="oc-recon-mode" data-role="reconstruction-mode">
-            <option value="geometry">${t("Geometry")}</option>
-            <option value="layout">${t("Layout")}</option>
+            <option value="depth_mesh">${t("Depth Mesh")}</option>
+            <option value="blockout">${t("Blockout")}</option>
+            <option value="hybrid">${t("Hybrid")}</option>
+            <option value="scan">${t("Scan")}</option>
           </select>
           <label for="oc-recon-quality">${t("Quality")}</label>
           <select id="oc-recon-quality" data-role="reconstruction-quality">
@@ -57,6 +59,26 @@ export function extractorMarkup() {
           <select id="oc-recon-checkpoint" data-role="reconstruction-checkpoint">
             <option value="auto" selected>${t("Auto")}</option>
           </select>
+        </div>
+        <div class="oc-inline" data-role="reconstruction-semantic-row">
+          <label for="oc-recon-segmentation">${t("Objects")}</label>
+          <select id="oc-recon-segmentation" data-role="reconstruction-segmentation">
+            <option value="comfy_sam3" selected>${t("SAM3")}</option>
+            <option value="none">${t("None")}</option>
+          </select>
+          <label for="oc-recon-max-objects">${t("Max objects")}</label>
+          <input id="oc-recon-max-objects" data-role="reconstruction-max-objects" type="number" min="1" max="128" step="1" value="24">
+          <label for="oc-recon-completion">${t("Completion")}</label>
+          <select id="oc-recon-completion" data-role="reconstruction-completion-policy">
+            <option value="off" selected>${t("Off")}</option>
+            <option value="low_depth_confidence">${t("Low confidence")}</option>
+            <option value="selected">${t("Selected")}</option>
+            <option value="all_bounded">${t("All bounded")}</option>
+          </select>
+        </div>
+        <div class="oc-inline" data-role="reconstruction-labels-row">
+          <label for="oc-recon-labels">${t("Labels")}</label>
+          <input id="oc-recon-labels" data-role="reconstruction-semantic-labels" type="text" placeholder="${t("Default interior taxonomy")}" />
         </div>
         <div class="oc-inline">
           <label class="oc-inline"><input data-role="reconstruction-recover-fov" type="checkbox" checked> ${t("Recover FOV")}</label>

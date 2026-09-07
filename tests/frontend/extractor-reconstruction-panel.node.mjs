@@ -125,3 +125,51 @@ test("a normal in-flight job still updates from the STATE branch (no result yet)
 
   controller.dispose();
 });
+
+
+test("DONE response with no embedded result is recovered over HTTP (missed 'done' socket event)", async () => {
+  let resultCalls = 0;
+  const api = {
+    fetchApi: async (path) => {
+      if (path.includes("/capabilities")) return { ok: true, json: async () => ({ providers: [] }) };
+      if (path.includes("/result")) {
+        resultCalls += 1;
+        return {
+          ok: true,
+          json: async () => ({
+            result: {
+              motion_scene: { version: 1, objects: [] },
+              summary: { blockout_object_count: 3 },
+              warnings: [],
+            },
+          }),
+        };
+      }
+      if (path.includes("/reconstruction/jobs")) {
+        return {
+          ok: true,
+          json: async () => ({ job_id: "job_no_result", state: "DONE", progress: 1, result: null, error: null }),
+        };
+      }
+      throw new Error(`Unexpected path ${path}`);
+    },
+  };
+
+  const controller = new ReconstructionPanelController({
+    root: null,
+    node: { id: 1 },
+    api,
+    getSource: () => SOURCE,
+  });
+
+  await controller.run();
+  // recoverResult() is async and fired without await inside applyJobResponse.
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(resultCalls, 1, "must fetch /result once when DONE carries no result");
+  assert.equal(controller.state.jobState, "DONE");
+  assert.equal(controller.state.result.version, 1);
+  assert.deepEqual(controller.state.summary, { blockout_object_count: 3 });
+
+  controller.dispose();
+});

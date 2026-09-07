@@ -106,7 +106,12 @@ neutral proxy playblast. This is where a MotionScene is authored.
 
 Two extraction modes:
 - **Camera Track**: Recover a relative 6DoF camera track from one continuous reference shot and hand it on as a solved MotionScene. Connect it to the Director's `solved_scene` input to keep editing the recovered move, or take it straight to Monitor.
-- **Scene Reconstruct**: Reconstruct a 3D proxy scene (environment mesh, hold camera, and ground/wall planes) from a single still reference image using ComfyUI's native geometry estimation (MoGe). Adopt the proxy environment directly into Director with lock controls, confidence badges, and neutral/textured playblast rendering.
+- **Scene Reconstruct**: Turn a still image or a scan into an editable 3D blocking scene, adopted directly into Director with lock controls, confidence badges, and neutral/textured playblast rendering.
+  - **Depth Mesh**: visible-surface MoGe reference proxy.
+  - **Blockout**: MoGe + native ComfyUI SAM3.1 → closed, editable MotionScene primitives + an oriented room shell (no holes on a 90° orbit).
+  - **Hybrid**: blockout primitives plus an independently toggleable dense reference.
+  - **Scan**: VGGT multi-view / video scene blocking with a single camera trajectory and cross-view object fusion.
+  - Optional SAM 3D Objects completion refines weak hidden dimensions (Linux + ≥ 32 GB VRAM; absence does not affect the other modes).
 
 Solves and reconstructions run interactively outside the prompt queue without loading diffusion models or executing the workflow. Preview uses native browser video first and falls back to server-decoded frames when a container will not decode in the browser.
 

@@ -100,3 +100,45 @@ def test_fingerprint_ignores_ui_only_values():
     fp_a = compute_reconstruction_fingerprint(source_fingerprint="abc123", provider="comfy_moge", settings=settings_a)
     fp_b = compute_reconstruction_fingerprint(source_fingerprint="abc123", provider="comfy_moge", settings=settings_b)
     assert fp_a == fp_b
+
+
+def test_blockout_setting_change_invalidates_fingerprint():
+    base = ReconstructionSettings(mode="blockout", sam3_threshold=0.55)
+    changed = ReconstructionSettings(mode="blockout", sam3_threshold=0.65)
+    base_fp = compute_reconstruction_fingerprint(
+        source_fingerprint="abc123", provider="comfy_moge", settings=base
+    )
+    changed_fp = compute_reconstruction_fingerprint(
+        source_fingerprint="abc123", provider="comfy_moge", settings=changed
+    )
+    assert base_fp != changed_fp
+
+
+def test_multiview_and_semantic_fields_are_fingerprinted():
+    base = ReconstructionSettings(mode="scan")
+    base_fp = compute_reconstruction_fingerprint(
+        source_fingerprint="abc123", provider="vggt", settings=base
+    )
+    for changed in (
+        ReconstructionSettings(mode="scan", vggt_max_views=12),
+        ReconstructionSettings(mode="scan", vggt_segmentation_views=3),
+        ReconstructionSettings(mode="scan", segmentation_provider="fake"),
+        ReconstructionSettings(mode="scan", completion_policy="all_bounded"),
+        ReconstructionSettings(mode="scan", semantic_labels=("chair",)),
+    ):
+        changed_fp = compute_reconstruction_fingerprint(
+            source_fingerprint="abc123", provider="vggt", settings=changed
+        )
+        assert base_fp != changed_fp, changed
+
+
+def test_debug_only_completion_flag_does_not_change_fingerprint():
+    base = ReconstructionSettings(mode="blockout")
+    dbg = ReconstructionSettings(mode="blockout", save_completion_debug=True)
+    base_fp = compute_reconstruction_fingerprint(
+        source_fingerprint="abc123", provider="comfy_moge", settings=base
+    )
+    dbg_fp = compute_reconstruction_fingerprint(
+        source_fingerprint="abc123", provider="comfy_moge", settings=dbg
+    )
+    assert base_fp == dbg_fp

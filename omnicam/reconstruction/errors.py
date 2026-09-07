@@ -61,6 +61,13 @@ class ReconResultInvalidError(ReconstructionError):
     code = "RECON_RESULT_INVALID"
 
 
+class ReconRequestInvalidError(ReconstructionError):
+    """The requested reconstruction parameters are not a valid combination
+    (unknown mode, a checkpoint that is not installed, ...)."""
+
+    code = "RECON_REQUEST_INVALID"
+
+
 class ReconGpuContentionError(ReconstructionError):
     """A ComfyUI workflow claimed the GPU while reconstruction was using it.
 
