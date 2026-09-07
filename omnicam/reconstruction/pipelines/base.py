@@ -78,6 +78,7 @@ def stage_cache_version(
     *,
     segmentation_provider: Any | None = None,
     asset_library: Any | None = None,
+    completion_provider: Any | None = None,
 ) -> str:
     """Combined cache version across every model-bearing stage.
 
@@ -100,6 +101,19 @@ def stage_cache_version(
     if asset_library is not None:
         ident_fn = getattr(asset_library, "identity_token", None)
         parts.append(f"assets={ident_fn() if callable(ident_fn) else 'lib'}:{getattr(settings, 'blockout_assets', 'off')}")
+    if completion_provider is not None:
+        cid = getattr(completion_provider, "provider_id", "comp")
+        cver = getattr(completion_provider, "adapter_version", "")
+        ident_fn = getattr(completion_provider, "config_identity", None) or getattr(
+            completion_provider, "identity_token", None
+        )
+        try:
+            token = str(ident_fn()) if callable(ident_fn) else ""
+        except Exception:  # noqa: BLE001
+            token = ""
+        parts.append(
+            f"comp={cid}:{cver}:{token}:{getattr(settings, 'completion_policy', 'off')}"
+        )
     return "|".join(parts)
 
 

@@ -108,3 +108,21 @@ test("clearExtractorCache reports failure and stops short when the server call f
   const sourceWidget = ui.node.widgets.find((w) => w.name === "omnicam_extractor_source");
   assert.equal(sourceWidget.value, "clip.mp4 [input]");
 });
+
+test("clearExtractorCache confirms through ui.app's dialog, not window.app", async () => {
+  const ui = makeUi({ jobId: "job_1" });
+  let askedVia = "";
+  // The real fix: the button passes ExtractorUI.app so the dialog manager
+  // resolves. window.app here is a decoy with NO dialog.
+  ui.app = { extensionManager: { dialog: { confirm: async () => { askedVia = "ui.app"; return true; } } } };
+  const prevWindow = globalThis.window;
+  globalThis.window = { app: { extensionManager: {} } };
+  try {
+    const cleared = await clearExtractorCache(ui);
+    assert.equal(cleared, true);
+    assert.equal(askedVia, "ui.app");
+    assert.ok(ui.calls.some((c) => c[0] === "clearCache"), "the server cache wipe ran");
+  } finally {
+    if (prevWindow === undefined) delete globalThis.window; else globalThis.window = prevWindow;
+  }
+});

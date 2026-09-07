@@ -78,12 +78,16 @@ test("the frame scheduler coalesces a burst of requests into one render", async 
   expect(after - before).toBeLessThanOrEqual(2); // but at most a render or two ran
 });
 
-test("rendering a five-camera shot stays within a loose per-render ceiling", async ({ page }) => {
+test("adding cameras does not make a render super-linear (preview strip stays bounded)", async ({ page }) => {
   await mount(page);
   await loadLongShot(page);
-  const perRenderMs = await page.evaluate(() => {
+  // Absolute ms on a contended CI software renderer is unusably noisy (seen
+  // 5x run-to-run). The regression this guards against -- "every camera
+  // preview re-rendered every frame", i.e. cost going quadratic in camera
+  // count -- is a *ratio*, which is runner-speed independent: measure a
+  // 1-camera render and a 5-camera render in the same session and compare.
+  const { one, five, ratio } = await page.evaluate(() => {
     const ui = window.omnicamNode.__majoorOmniCam;
-    for (let i = 0; i < 4; i += 1) ui.addCamera();
     for (let i = 0; i < 3; i += 1) {
       ui.state.motion_layers.push({
         id: `m_${i}`, label: `Layer ${i}`, source_kind: "manual_2d", enabled: true,
@@ -92,16 +96,25 @@ test("rendering a five-camera shot stays within a loose per-render ceiling", asy
     }
     ui.refreshKeys();
     ui.playing = true;
-    const N = 40;
-    const started = performance.now();
-    for (let i = 0; i < N; i += 1) { ui.frame = i * 10; ui.render(); }
-    const elapsed = performance.now() - started;
+
+    const measure = () => {
+      for (let i = 0; i < 5; i += 1) { ui.frame = i * 10; ui.render(); } // warm up
+      const N = 40;
+      const t0 = performance.now();
+      for (let i = 0; i < N; i += 1) { ui.frame = i * 10; ui.render(); }
+      return (performance.now() - t0) / N;
+    };
+
+    const one = measure(); // 1 camera (the default)
+    for (let i = 0; i < 4; i += 1) ui.addCamera();
+    ui.refreshKeys();
+    const five = measure(); // 5 cameras
     ui.playing = false;
-    return elapsed / N;
+    return { one, five, ratio: five / Math.max(one, 0.01) };
   });
-  // A full synchronous render including the throttled preview strip. Generous
-  // on a software renderer; tighten once real hardware numbers exist.
-  expect(perRenderMs).toBeLessThan(90);
+  // Linear-ish in camera count is fine (~5x for 5x the cameras, plus slack);
+  // quadratic would be ~25x+. A wide ceiling so only a real regression trips it.
+  expect(ratio, `1-cam ${one.toFixed(1)}ms vs 5-cam ${five.toFixed(1)}ms`).toBeLessThan(12);
 });
 
 test("repeated camera add/remove does not accumulate document listeners", async ({ page }) => {

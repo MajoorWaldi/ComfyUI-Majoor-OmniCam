@@ -60,11 +60,15 @@ export function readReconstructionSettings(root) {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  const checkpoint = getVal("reconstruction-checkpoint") || "auto";
   const settings = {
     provider,
     mode,
     quality: getVal("reconstruction-quality") || "balanced",
-    checkpoint: getVal("reconstruction-checkpoint") || "auto",
+    checkpoint,
+    // Scan geometry (VGGT) reads vggt_checkpoint, not the generic `checkpoint`
+    // field; forward the same value so a chosen VGGT weight is actually used.
+    ...(mode === "scan" ? { vggt_checkpoint: checkpoint } : {}),
     recover_fov: getChecked("reconstruction-recover-fov"),
     source_texture: getChecked("reconstruction-source-texture"),
     detect_ground: getChecked("reconstruction-detect-ground"),
@@ -79,6 +83,12 @@ export function readReconstructionSettings(root) {
   if (SEMANTIC_MODES.has(mode)) {
     settings.segmentation_provider = getVal("reconstruction-segmentation") || "comfy_sam3";
     settings.completion_policy = getVal("reconstruction-completion-policy") || "off";
+    // A non-off policy is meaningless without a provider: the backend default
+    // is "none" and the resolver then returns nothing. SAM3D Objects is the
+    // only real completion provider, so select it whenever the policy is on
+    // (it stays capability-gated and errors explicitly if unavailable).
+    settings.completion_provider =
+      settings.completion_policy === "off" ? "none" : "sam3d_objects";
     settings.max_blockout_objects = Number(getVal("reconstruction-max-objects")) || 24;
     settings.blockout_assets = getVal("reconstruction-blockout-assets") || "off";
     if (labels.length) settings.semantic_labels = labels;

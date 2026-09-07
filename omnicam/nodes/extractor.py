@@ -147,6 +147,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                     advanced=True,
                 ),
                 IO.Int.Input("recon_max_completion_objects", default=4, min=0, max=16, step=1, advanced=True),
+                IO.String.Input("recon_completion_object_ids", default="", multiline=False, advanced=True),
                 IO.Combo.Input(
                     "recon_blockout_assets",
                     options=["off", "proxy", "replace"],
@@ -270,6 +271,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         recon_vggt_segmentation_views: int = 6,
         recon_completion_policy: str = "off",
         recon_max_completion_objects: int = 4,
+        recon_completion_object_ids: str = "",
         recon_blockout_assets: str = "off",
         recon_asset_library_path: str = "",
         recon_source_texture: bool = True,
@@ -299,6 +301,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 recon_vggt_segmentation_views=recon_vggt_segmentation_views,
                 recon_completion_policy=recon_completion_policy,
                 recon_max_completion_objects=recon_max_completion_objects,
+                recon_completion_object_ids=recon_completion_object_ids,
                 recon_blockout_assets=recon_blockout_assets,
                 recon_asset_library_path=recon_asset_library_path,
                 recon_source_texture=recon_source_texture,

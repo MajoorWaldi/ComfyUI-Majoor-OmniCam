@@ -100,7 +100,11 @@ class ReconstructionSettings:
     segmentation_provider: str = "comfy_sam3"
     completion_provider: str = "none"
     sam3_checkpoint: str = "auto"
-    sam3_threshold: float = 0.55
+    #: SAM3 is open-vocabulary and hallucinates furniture it "expects" in a room
+    #: (a stray chair / plant / box at ~0.5 score). 0.60 keeps the structural
+    #: detections from the real-hardware sweep (doors, windows, counter, cars,
+    #: people) while dropping the low-score phantoms.
+    sam3_threshold: float = 0.60
     sam3_refine_iterations: int = 2
     semantic_labels: tuple[str, ...] = ()
     min_instance_area_ratio: float = 0.0015
@@ -108,6 +112,9 @@ class ReconstructionSettings:
     max_blockout_objects: int = 24
     completion_policy: str = "off"
     max_completion_objects: int = 4
+    #: Explicit blockout object ids for completion_policy="selected". Empty with
+    #: that policy is a no-op the pipeline reports as "no_targets".
+    completion_object_ids: tuple[str, ...] = ()
     #: Asset-library retrieval. ``blockout_assets`` in KNOWN_BLOCKOUT_ASSET_MODES;
     #: ``asset_library_path`` empty = the managed default
     #: (<input>/majoor_omnicam/blockout_library), otherwise an explicit folder.
@@ -253,6 +260,7 @@ class ReconstructionSettings:
             "instance_iou_dedup": float(self.instance_iou_dedup),
             "max_blockout_objects": int(self.max_blockout_objects),
             "completion_policy": self.completion_policy,
+            "completion_object_ids": list(self.completion_object_ids),
             "max_completion_objects": int(self.max_completion_objects),
             "blockout_assets": self.blockout_assets,
             "asset_library_path": self.asset_library_path,
@@ -282,13 +290,14 @@ class ReconstructionSettings:
             segmentation_provider=str(data.get("segmentation_provider", "comfy_sam3")),
             completion_provider=str(data.get("completion_provider", "none")),
             sam3_checkpoint=str(data.get("sam3_checkpoint", "auto")),
-            sam3_threshold=float(data.get("sam3_threshold", 0.55)),
+            sam3_threshold=float(data.get("sam3_threshold", 0.60)),
             sam3_refine_iterations=int(data.get("sam3_refine_iterations", 2)),
             semantic_labels=tuple(str(x) for x in data.get("semantic_labels", ()) or ()),
             min_instance_area_ratio=float(data.get("min_instance_area_ratio", 0.0015)),
             instance_iou_dedup=float(data.get("instance_iou_dedup", 0.72)),
             max_blockout_objects=int(data.get("max_blockout_objects", 24)),
             completion_policy=str(data.get("completion_policy", "off")),
+            completion_object_ids=tuple(str(x) for x in data.get("completion_object_ids", ()) or ()),
             max_completion_objects=int(data.get("max_completion_objects", 4)),
             blockout_assets=str(data.get("blockout_assets", "off")),
             asset_library_path=str(data.get("asset_library_path", "")),

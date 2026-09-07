@@ -90,6 +90,20 @@ export class TrackViewer {
     this.requestRender();
   }
 
+  /** Draw a reconstructed MotionScene in the same read-only view (Extractor
+   * "Scene 3D" preview). Async GLB props stream in and each triggers a redraw. */
+  setReconstructedScene(motionScene, options = {}) {
+    this.trackScene.setReconstructedScene(motionScene, {
+      ...options,
+      onPropLoaded: () => this.requestRender(),
+    });
+    this.requestRender();
+  }
+
+  hasReconstructedScene() {
+    return this.trackScene.hasReconstructedScene();
+  }
+
   setFrame(frame) {
     this.frame = Math.max(0, Number(frame) || 0);
     const camera = this.trackScene.setFrame(frame);

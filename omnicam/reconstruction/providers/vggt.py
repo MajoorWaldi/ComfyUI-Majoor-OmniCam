@@ -14,6 +14,7 @@ is never auto-selected.
 from __future__ import annotations
 
 import importlib.util
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,8 @@ from ..gpu_guard import GpuStageGuard
 from ..model_identity import ModelIdentity, file_model_identity
 from ..settings import ReconstructionSettings
 from .base import CancelToken, ProgressSink, ProviderCapabilities
+
+_LOG = logging.getLogger(__name__)
 
 _APPROVED_SUBDIR = ("geometry_estimation", "vggt")
 _AUTO_PRIORITY = ("VGGT-1B-Commercial",)
@@ -199,8 +202,21 @@ class VggtProvider:
             gpu_guard.checkpoint()
 
         model = VGGT().eval()
-        state = torch.load(str(checkpoint), map_location="cpu", weights_only=True)
-        model.load_state_dict(state, strict=False)
+        state = _load_vggt_state_dict(checkpoint)
+        result = model.load_state_dict(state, strict=False)
+        missing = list(getattr(result, "missing_keys", []) or [])
+        unexpected = list(getattr(result, "unexpected_keys", []) or [])
+        if missing or unexpected:
+            # strict=False so a checkpoint with extra buffers still loads, but a
+            # large mismatch means the wrong architecture / a corrupt file.
+            if len(missing) > 8:
+                raise ReconVggtInferenceFailedError(
+                    f"VGGT checkpoint {checkpoint.name!r} is missing {len(missing)} weights "
+                    "-- wrong architecture or a corrupt download"
+                )
+            _LOG.warning(
+                "VGGT %s: %d missing / %d unexpected keys ignored", checkpoint.name, len(missing), len(unexpected)
+            )
 
         device = torch.device("cuda")
         dtype = torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float16
@@ -252,6 +268,26 @@ class VggtProvider:
             provider_version=self.adapter_version,
         )
         return normalize_vggt_evidence(evidence)
+
+
+def _load_vggt_state_dict(checkpoint: Path) -> Any:
+    """Load a VGGT state dict with the loader that matches the file format.
+
+    ``.safetensors`` must go through ``safetensors.torch.load_file`` -- passing
+    it to ``torch.load`` raises (or, worse, mis-parses). ``.pt`` / ``.bin`` use
+    ``torch.load(weights_only=True)``.
+    """
+    import torch
+
+    if checkpoint.suffix.lower() == ".safetensors":
+        try:
+            from safetensors.torch import load_file
+        except ImportError as exc:  # pragma: no cover
+            raise ReconVggtModelMissingError(
+                f"{checkpoint.name} is a safetensors file but the 'safetensors' package is not installed"
+            ) from exc
+        return load_file(str(checkpoint), device="cpu")
+    return torch.load(str(checkpoint), map_location="cpu", weights_only=True)
 
 
 #: VGGT's ViT patch size -- every input H and W must be a multiple of this.

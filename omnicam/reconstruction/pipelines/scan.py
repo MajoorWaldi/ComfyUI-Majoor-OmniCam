@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,7 +27,7 @@ from ..leveling import (
 )
 from ..multiview.camera_track import _pose, build_scan_camera_track
 from ..multiview.sampling import choose_segmentation_views, uniform_sample_indices
-from ..planes import detect_planes, scale_planes
+from ..planes import detect_planes
 from ..segmentation.taxonomy import resolve_semantic_labels
 from ..settings import ReconstructionSettings
 from ..types import ReconstructedCamera, ReconstructionSource
@@ -40,6 +39,88 @@ _MAX_INSTANCES_BEFORE_FUSION = 96
 _MAX_SCAN_OBJECTS = 32
 #: Hard ceiling on submitted views regardless of preset.
 _ABSOLUTE_MAX_VIEWS = 128
+
+
+def _scale_view_camera(view_cam: Any, factor: float) -> Any:
+    """Scale a world->camera extrinsic's translation by ``factor`` (world
+    similarity about the origin: ``[R | t] -> [R | factor * t]``)."""
+    from ..multiview.types import ViewCameraEvidence
+
+    e = np.asarray(view_cam.extrinsic_camera_from_world, dtype=float)
+    if e.shape == (3, 4):
+        e = np.vstack([e, [0.0, 0.0, 0.0, 1.0]])
+    e = e.copy()
+    e[:3, 3] = e[:3, 3] * float(factor)
+    return ViewCameraEvidence(
+        view_index=view_cam.view_index,
+        width=view_cam.width,
+        height=view_cam.height,
+        extrinsic_camera_from_world=e,
+        intrinsics=np.asarray(view_cam.intrinsics, dtype=float),
+        source_frame=view_cam.source_frame,
+    )
+
+
+def _scan_fingerprint(samples: list[Any], settings: Any, provider_summary: dict[str, Any]) -> str:
+    """Plain-hex, content-addressed scan key.
+
+    Ordered view pixels + the settings that change the geometry/segmentation
+    result + the provider ids. Two clips that sample the same frame indices no
+    longer share a folder, and the token passes the asset writer's
+    ``^[0-9a-fA-F]{1,64}$`` gate.
+    """
+    import hashlib
+
+    from ..multiview.source import image_batch_fingerprint
+
+    digest = hashlib.sha256()
+    try:
+        stacked = np.stack([np.asarray(s.image) for s in samples], axis=0)
+        digest.update(image_batch_fingerprint(stacked).encode())
+    except (ValueError, TypeError):
+        for s in samples:
+            digest.update(np.ascontiguousarray(np.asarray(s.image)).tobytes())
+    for key in (
+        "provider", "mode", "quality", "scene_scale", "semantic_labels",
+        "min_instance_area_ratio", "instance_iou_dedup", "max_blockout_objects",
+        "vggt_checkpoint", "vggt_max_views", "vggt_segmentation_views", "source_mode",
+        "sam3_checkpoint", "sam3_threshold",
+    ):
+        digest.update(f"{key}={getattr(settings, key, '')}".encode())
+    digest.update(
+        f"geo={provider_summary.get('geometry')}|seg={provider_summary.get('segmentation')}".encode()
+    )
+    return digest.hexdigest()[:40]
+
+
+def _resize_hwc(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
+    """Nearest-neighbour resize of an HWC uint8/float image to ``(H, W)``."""
+    from PIL import Image
+
+    arr = np.asarray(src)
+    if arr.dtype != np.uint8:
+        arr = (np.clip(arr, 0.0, 1.0) * 255.0).astype(np.uint8) if arr.max() <= 1.5 else arr.astype(np.uint8)
+    pil = Image.fromarray(arr[..., :3]).resize((target_hw[1], target_hw[0]), Image.NEAREST)
+    return np.asarray(pil)
+
+
+def _seg_view_image(evidence: Any, samples: list[Any], view_index: int, target_hw: tuple[int, int]) -> np.ndarray:
+    """The image to segment for ``view_index``, in the SAME pixel grid as
+    ``points_world[view_index]``.
+
+    A geometry provider that resizes its input (real VGGT: 518-wide, patch
+    aligned) must hand back the preprocessed frames on ``evidence.images``; the
+    mask then lines up with the point map. Providers that run at native
+    resolution (the fake, and any that leaves ``images`` unset) fall back to a
+    resize of the source frame onto the point-map grid.
+    """
+    imgs = getattr(evidence, "images", None)
+    if imgs is not None:
+        return np.asarray(imgs)[view_index]
+    src = np.asarray(samples[view_index].image)
+    if src.shape[:2] == tuple(target_hw):
+        return src
+    return _resize_hwc(src, target_hw)
 
 
 def _anchor_source_camera(view_cam: Any, *, width: int, height: int) -> ReconstructedCamera:
@@ -119,6 +200,7 @@ def run_scan_pipeline(
     completion_provider: Any | None = None,
     asset_library: Any | None = None,
     asset_mode: str = "off",
+    source_fps: float = 24.0,
     progress: Any | None = None,
     cancel: Any | None = None,
     input_root: Path | str | None = None,
@@ -126,6 +208,7 @@ def run_scan_pipeline(
 ) -> PipelineOutput:
     start_time = time.time()
     report, _check = make_progress_gate(progress, cancel, gpu_guard)
+    track_fps = float(source_fps) if source_fps and source_fps > 0 else 24.0
 
     report("PREPARING", 0.02, "Preparing scan")
 
@@ -154,13 +237,27 @@ def run_scan_pipeline(
         keep = set(uniform_sample_indices(len(samples), geom_views))
         samples = [s for i, s in enumerate(samples) if i in keep]
 
-    width, height = int(samples[0].width), int(samples[0].height)
-
     # 2. VGGT geometry ---------------------------------------------- #
     report("INFER_GEOMETRY", 0.20, "Running VGGT")
+    if gpu_guard is not None:
+        # Same as single-blockout: arm the contention probe so a ComfyUI
+        # workflow grabbing the GPU mid-scan is noticed at the next report().
+        gpu_guard.arm()
     evidence = geometry_provider.reconstruct_views(samples, settings, cancel=cancel)
     cameras = list(evidence.cameras)
     points_world = np.asarray(evidence.points_world, dtype=float)  # [V, H, W, 3]
+    # Everything downstream (masks, fov, canvas) works in the point-map pixel
+    # grid so a provider that resized its input cannot desync masks / intrinsics.
+    _model_h, _model_w = int(points_world.shape[1]), int(points_world.shape[2])
+    width, height = _model_w, _model_h
+
+    # scene_scale as ONE similarity about the origin on points AND every view
+    # camera, so objects (fitted with scene_scale=1.0 below) share the camera
+    # frame instead of being scaled in isolation.
+    _scale = float(settings.scene_scale)
+    if _scale > 0 and abs(_scale - 1.0) > 1e-9:
+        points_world = points_world * _scale
+        cameras = [_scale_view_camera(c, _scale) for c in cameras]
 
     # 2b. Re-level + recentre the whole scan (points + every view camera) so a
     # confident, gently-tilted floor is world-horizontal AND the scene sits on
@@ -186,9 +283,9 @@ def run_scan_pipeline(
     seg_views = choose_segmentation_views(len(cameras), seg_view_count)
     candidates: list[FusionCandidate] = []
     for view_index in seg_views:
-        view_img = samples[view_index].image
-        instances = segmentation_provider.segment(view_img, labels, settings, cancel=cancel)
         view_points = points_world[view_index]
+        view_img = _seg_view_image(evidence, samples, view_index, (_model_h, _model_w))
+        instances = segmentation_provider.segment(view_img, labels, settings, cancel=cancel)
         for inst in instances:
             pts = extract_masked_points(view_points, inst.mask, erode_pixels=1)
             if len(pts) < _MIN_SAMPLES:
@@ -214,15 +311,15 @@ def run_scan_pipeline(
     fused = fuse_candidates(candidates)
 
     # 5. Room shell ------------------------------------------ #
+    # points_world (and the candidate points feeding fusion) are already in the
+    # scaled frame, so planes and objects are fitted at scene_scale=1.0 here.
     report("ANALYZE_LAYOUT", 0.70, "Fitting room shell")
     geo = _ScanGeometryEvidence(points=points_world.reshape(-1, 1, 3))
-    planes = scale_planes(detect_planes(geo, settings, seed="scan"), settings.scene_scale)
+    planes = detect_planes(geo, settings, seed="scan")
 
     # 6. Fit primitives ------------------------------------ #
     report("FIT_BLOCKOUT", 0.80, "Fitting closed primitives")
-    objects = [
-        _blockout_from_fused(f, i, settings.scene_scale) for i, f in enumerate(fused)
-    ]
+    objects = [_blockout_from_fused(f, i, 1.0) for i, f in enumerate(fused)]
     objects.sort(key=lambda o: o.confidence, reverse=True)
     objects = objects[: min(settings.max_blockout_objects, _MAX_SCAN_OBJECTS)]
     if not objects:
@@ -231,9 +328,16 @@ def run_scan_pipeline(
     # 6b. Optional bounded completion.
     # Scan fusion merges per-view masks away, so image+mask completion cannot be
     # located per object here yet -- single-image blockout is the completion
-    # path. Left as an explicit stage marker for parity with the state machine.
-    if completion_provider is not None and settings.completion_policy != "off":
+    # path. Report it as an explicit "unsupported" state, not silence.
+    completion_status: dict[str, Any] = {"state": "disabled", "requested": 0, "applied": 0, "reason": ""}
+    if settings.completion_policy != "off":
         report("COMPLETE_OBJECTS", 0.86, "Completion not available for scan objects")
+        completion_status = {
+            "state": "unsupported",
+            "requested": len(objects),
+            "applied": 0,
+            "reason": "scan fusion drops the per-view masks completion needs; use Blockout for completion",
+        }
 
     # 7. Camera ------------------------------------ #
     # Video scan -> one read-only trajectory Scan Camera track. Unordered image
@@ -248,7 +352,11 @@ def run_scan_pipeline(
             default=len(samples),
         )
         scan_track = build_scan_camera_track(
-            cameras, fps=24.0, duration_frames=duration_frames, width=width, height=height
+            cameras,
+            fps=track_fps,
+            duration_frames=duration_frames,
+            width=width,
+            height=height,
         )
     else:
         report("SAVE_ASSETS", 0.90, "Placing anchor camera")
@@ -265,6 +373,7 @@ def run_scan_pipeline(
         "geometry": getattr(geometry_provider, "provider_id", "vggt"),
         "segmentation": getattr(segmentation_provider, "provider_id", "unknown"),
         "completion": getattr(completion_provider, "provider_id", "none"),
+        "completion_status": completion_status,
         "views": len(cameras),
         "segmentation_views": list(seg_views),
         "objects": len(objects),
@@ -289,15 +398,19 @@ def run_scan_pipeline(
         source_asset_ref=source.value if source is not None else "",
         source_kind="multi_view",
         mode="scan",
-        fps=24.0,
+        fps=track_fps,
         asset_placements=asset_placements,
         asset_mode=asset_mode,
     )
 
-    with contextlib.suppress(OSError, ValueError):
+    # Content-addressed fingerprint: the ordered view pixels + the settings that
+    # change the result + the model identities. Two clips that happen to sample
+    # the same frame indices no longer collide, and a plain-hex token satisfies
+    # the asset writer. Write failures propagate as a warning, not a silent drop.
+    fp_token = _scan_fingerprint(samples, settings, provider_summary)
+    try:
         from ..asset_writer import write_blockout_json, write_scan_evidence_json
 
-        fp_token = f"scan{abs(hash(tuple(int(s.source_frame or 0) for s in samples))):016x}"[:20]
         write_blockout_json(
             fingerprint=fp_token,
             blockout={
@@ -313,8 +426,10 @@ def run_scan_pipeline(
             cameras=[c.to_summary() for c in cameras],
             max_views=settings.vggt_max_views,
             input_root=input_root,
-            extra={"segmentation_views": list(seg_views), "fps": 24.0},
+            extra={"segmentation_views": list(seg_views), "fps": track_fps},
         )
+    except (OSError, ValueError) as exc:  # AssetWriterSecurityError is a ValueError
+        blockout.warnings.append(f"scan sidecars not written: {exc}")
 
     summary = {
         "provider": provider_summary["geometry"],
@@ -325,6 +440,7 @@ def run_scan_pipeline(
         "object_count": len(motion_scene.get("objects", [])),
         "motion_scene": motion_scene,
         "provider_summary": provider_summary,
+        "fingerprint": fp_token,
         "warnings": list(blockout.warnings),
     }
     report("FINALIZING", 1.0, "Scan complete")
@@ -333,5 +449,5 @@ def run_scan_pipeline(
         motion_scene=motion_scene,
         summary=summary,
         warnings=list(blockout.warnings),
-        fingerprint="",
+        fingerprint=fp_token,
     )

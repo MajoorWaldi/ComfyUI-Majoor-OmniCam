@@ -198,3 +198,40 @@ def clear_reconstruction_cache(input_root: Path | str | None = None) -> CacheCle
     target_dir.mkdir(parents=True, exist_ok=True)
 
     return CacheClearResult(entries_removed=entries_removed, bytes_freed=bytes_freed)
+
+
+def delete_reconstruction_cache_entry(
+    fingerprint: str, input_root: Path | str | None = None
+) -> CacheClearResult:
+    """Delete a single cached reconstruction -- the ``<fingerprint>/`` folder
+    (manifest, blockout sidecar, GLBs, source copy) -- and nothing else.
+
+    Lets the panel discard one result the user does not want so the next run
+    with the same settings actually recomputes, without wiping every other
+    cached reconstruction. Bounded to the managed subtree; a fingerprint that
+    is not 1-64 hex chars, or that resolves outside it, is refused.
+    """
+    fp = str(fingerprint).strip()
+    if not HEX_FINGERPRINT_PATTERN.match(fp):
+        raise ValueError(f"invalid reconstruction fingerprint {fingerprint!r}")
+
+    input_dir = _resolve_input_dir(input_root)
+    root = (input_dir / "majoor_omnicam" / "reconstruction").resolve()
+    target_dir = (root / fp).resolve()
+    if target_dir != root and root not in target_dir.parents:
+        raise ValueError(f"Refusing to delete {target_dir}: escapes {root}")
+    if not target_dir.is_dir():
+        return CacheClearResult(entries_removed=0, bytes_freed=0)
+
+    entries_removed = 0
+    bytes_freed = 0
+    for path in target_dir.rglob("*"):
+        if path.is_file():
+            with contextlib.suppress(OSError):
+                bytes_freed += path.stat().st_size
+                entries_removed += 1
+
+    import shutil
+
+    shutil.rmtree(target_dir, ignore_errors=True)
+    return CacheClearResult(entries_removed=entries_removed, bytes_freed=bytes_freed)

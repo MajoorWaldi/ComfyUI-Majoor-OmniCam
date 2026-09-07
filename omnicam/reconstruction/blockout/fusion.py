@@ -73,6 +73,10 @@ def fuse_candidates(candidates: list[FusionCandidate]) -> list[FusedInstance]:
     for cand in ordered:
         placed = False
         for cluster in clusters:
+            # Two detections from the *same* view are, by construction, distinct
+            # instances -- never fuse them however close their proxy boxes fall.
+            if any(member.view_index == cand.view_index for member in cluster):
+                continue
             if any(_associates(cand, member) for member in cluster):
                 cluster.append(cand)
                 placed = True

@@ -8,6 +8,7 @@ runner, tests) do not need to know which path runs.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,8 @@ from .pipelines.single_blockout import run_single_blockout_pipeline
 from .providers.base import CancelToken, ProgressSink, ReconstructionProvider
 from .settings import ReconstructionSettings
 from .types import ReconstructionSource
+
+logger = logging.getLogger(__name__)
 
 # Back-compat re-exports: tests and other modules import these names from here.
 _resolve_provider_version = resolve_provider_version
@@ -92,13 +95,77 @@ def _resolve_asset_library(
     if mode == "off":
         return None, "off"
     from .asset_library import load_asset_library
+    from .asset_library.library import stage_custom_library
 
     path = settings.asset_library_path.strip() or None
     library = load_asset_library(path, input_root=input_root)
     available, reason = library.status()
     if not available:
         raise ReconAssetLibraryUnavailableError(reason)
+    if path is not None:
+        # A library outside the managed folder must be materialised there or its
+        # annotated-input GLB references will not load (F09).
+        try:
+            library = stage_custom_library(library, input_root)
+        except OSError as exc:
+            raise ReconAssetLibraryUnavailableError(
+                f"could not stage custom asset library into the managed folder: {exc}"
+            ) from exc
     return library, mode
+
+
+_VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".mkv", ".webm", ".avi"})
+
+
+def _resolve_scan_input(
+    source: ReconstructionSource | None,
+    settings: ReconstructionSettings,
+    scan_samples: Any | None,
+    input_root: Path | str | None,
+) -> tuple[Any, float]:
+    """(samples, source_fps) for the scan orchestrator.
+
+    Pre-built samples (queued IMAGE batch) pass straight through. Otherwise a
+    managed video source is decoded into frames; a single still is rejected
+    with an actionable message.
+    """
+    from .errors import ReconSourceSetInvalidError
+
+    if scan_samples is not None:
+        return scan_samples, 24.0
+    if source is None:
+        raise ReconSourceSetInvalidError(
+            "Scan needs multiple views: connect a video, or queue an IMAGE batch of 2+ frames."
+        )
+    bare = str(source.value).split(" [")[0].strip()
+    suffix = ("." + bare.rsplit(".", 1)[-1].lower()) if "." in bare else ""
+    if suffix not in _VIDEO_EXTENSIONS:
+        raise ReconSourceSetInvalidError(
+            f"Scan needs a video source or a multi-view IMAGE batch; got {bare!r}. "
+            "Use Blockout or Hybrid for a single photo."
+        )
+    from .multiview.source import sample_video_scan
+    from .source import approved_roots
+
+    roots = [Path(input_root).resolve()] if input_root is not None else approved_roots()
+    geom_views, _seg = settings.scan_view_counts()
+    samples = sample_video_scan(source.value, roots=roots, max_views=geom_views)
+    if settings.source_mode in ("auto", "single_image"):
+        settings.source_mode = "video_scan"
+    return samples, _probe_video_fps(roots[0] / bare)
+
+
+def _probe_video_fps(path: Path) -> float:
+    """Container fps for the trajectory track, or 24.0 if it cannot be read."""
+    try:
+        import av
+
+        with av.open(str(path)) as container:
+            rate = container.streams.video[0].average_rate
+            return float(rate) if rate else 24.0
+    except Exception as exc:  # noqa: BLE001 - fps is a nicety, never fail the run
+        logger.debug("scan fps probe failed for %s: %s", path, exc)
+        return 24.0
 
 
 def run_reconstruction_pipeline(
@@ -173,15 +240,24 @@ def run_reconstruction_pipeline(
         seg = segmentation_provider or _resolve_segmentation_provider(settings)
         comp = completion_provider or _resolve_completion_provider(settings)
         asset_library, asset_mode = _resolve_asset_library(settings, input_root)
+        # The queued node builds scan_samples from its IMAGE batch. The
+        # interactive HTTP job only carries a file-backed `source`; resolve the
+        # views here (a managed video -> decoded frames) so Scan is not dead on
+        # that path -- and fail loudly for a single still rather than deep in
+        # the orchestrator with "samples is None".
+        resolved_samples, source_fps = _resolve_scan_input(
+            source, settings, scan_samples, input_root
+        )
         return run_scan_pipeline(
             source=source,
             settings=settings,
             geometry_provider=provider,
             segmentation_provider=seg,
-            samples=scan_samples,
+            samples=resolved_samples,
             completion_provider=comp,
             asset_library=asset_library,
             asset_mode=asset_mode,
+            source_fps=source_fps,
             progress=progress,
             cancel=cancel,
             input_root=input_root,

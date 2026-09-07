@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -12,6 +13,45 @@ from ..settings import ReconstructionSettings
 from .alignment import merge_completion_into_blockout
 
 _LOW_DEPTH_GATE = 0.55
+
+
+@dataclass(slots=True)
+class CompletionOutcome:
+    """What actually happened to the completion stage, for the summary + a
+    user-visible warning. ``state`` is one of:
+
+    ``disabled``   -- policy is off (or provider is 'none')
+    ``unsupported``-- the provider reports unavailable, or the mode cannot run it
+    ``no_targets`` -- nothing matched the policy (or 'selected' with no ids)
+    ``failed``     -- every attempted object errored
+    ``partial``    -- some applied, some errored / skipped
+    ``applied``    -- every requested object completed
+    """
+
+    state: str = "disabled"
+    requested: int = 0
+    applied: int = 0
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "state": self.state,
+            "requested": int(self.requested),
+            "applied": int(self.applied),
+            "reason": self.reason,
+        }
+
+    @property
+    def warning(self) -> str | None:
+        if self.state in ("applied", "disabled"):
+            return None
+        base = {
+            "unsupported": "Completion was requested but is unavailable",
+            "no_targets": "Completion policy matched no objects",
+            "failed": "Completion failed for every requested object",
+            "partial": f"Completion applied to {self.applied}/{self.requested} objects",
+        }.get(self.state, "Completion did not run as requested")
+        return f"{base}{f': {self.reason}' if self.reason else ''}"
 
 
 def select_completion_objects(
@@ -54,26 +94,41 @@ def apply_completion_policy(
     cancel: Any | None = None,
     points: Any = None,
     completion_object_ids: list[str] | None = None,
-) -> list[BlockoutObject]:
-    """Return ``objects`` with the selected few folded through the provider.
+) -> tuple[list[BlockoutObject], CompletionOutcome]:
+    """Return ``(objects, outcome)``.
 
     Order is preserved; unselected objects pass through untouched. A provider
-    failure on one object is swallowed -- completion is best-effort polish.
+    failure on one object is caught, but -- unlike before -- it is *counted*, so
+    the caller can tell ``disabled`` / ``unsupported`` / ``no_targets`` /
+    ``failed`` / ``partial`` / ``applied`` apart and surface a warning.
     """
-    caps = getattr(provider, "capabilities", lambda: None)()
-    if caps is not None and not getattr(caps, "available", True):
-        return objects
+    if settings.completion_policy == "off":
+        return objects, CompletionOutcome(state="disabled")
 
-    selected = {
-        o.object_id
-        for o in select_completion_objects(objects, settings, explicit_ids=completion_object_ids)
-    }
+    caps = getattr(provider, "capabilities", lambda: None)()
+    if provider is None or (caps is not None and not getattr(caps, "available", True)):
+        return objects, CompletionOutcome(
+            state="unsupported",
+            reason=getattr(caps, "reason", "") or "no completion provider available",
+        )
+
+    explicit = list(completion_object_ids or getattr(settings, "completion_object_ids", ()) or ())
+    selected_objs = select_completion_objects(objects, settings, explicit_ids=explicit)
+    selected = {o.object_id for o in selected_objs}
     if not selected:
-        return objects
+        reason = (
+            "policy 'selected' but no completion_object_ids provided"
+            if settings.completion_policy == "selected"
+            else "no object matched the policy"
+        )
+        return objects, CompletionOutcome(state="no_targets", reason=reason)
 
     image = getattr(evidence, "image", None)
     dense_points = points if points is not None else getattr(evidence, "points", None)
 
+    requested = len(selected)
+    applied = 0
+    errors = 0
     out: list[BlockoutObject] = []
     for obj in objects:
         if obj.object_id not in selected:
@@ -81,11 +136,15 @@ def apply_completion_policy(
             continue
         inst = _instance_for(obj, instances)
         if inst is None or image is None:
+            errors += 1
             out.append(obj)
             continue
         try:
-            completed = provider.complete(image, inst.mask, seed=abs(hash(obj.object_id)) % (2**31), cancel=cancel)
-        except Exception:  # noqa: BLE001 - best-effort polish
+            completed = provider.complete(
+                image, inst.mask, seed=abs(hash(obj.object_id)) % (2**31), cancel=cancel
+            )
+        except Exception:  # noqa: BLE001 - best-effort polish, but counted
+            errors += 1
             out.append(obj)
             continue
 
@@ -97,4 +156,15 @@ def apply_completion_policy(
                 measured = np.empty((0, 3), dtype=np.float32)
 
         out.append(merge_completion_into_blockout(obj, measured, np.asarray(completed.points_local)))
-    return out
+        applied += 1
+
+    if applied == 0:
+        state = "failed"
+    elif applied < requested:
+        state = "partial"
+    else:
+        state = "applied"
+    return out, CompletionOutcome(
+        state=state, requested=requested, applied=applied,
+        reason=f"{errors} object(s) could not be completed" if errors else "",
+    )

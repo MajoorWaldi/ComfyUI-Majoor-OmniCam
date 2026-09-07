@@ -88,6 +88,7 @@ def test_reconstruction_settings_round_trip():
         "max_blockout_objects": 32,
         "completion_policy": "all_bounded",
         "max_completion_objects": 6,
+        "completion_object_ids": ["chair_1", "sofa_2"],
         "blockout_assets": "proxy",
         "asset_library_path": "",
         "vggt_checkpoint": "VGGT-1B-Commercial",

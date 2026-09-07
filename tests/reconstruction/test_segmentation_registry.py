@@ -19,7 +19,12 @@ from omnicam.reconstruction.settings import ReconstructionSettings
 
 def test_default_taxonomy_shape():
     assert "chair" in DEFAULT_BLOCKOUT_LABELS
-    assert len(DEFAULT_BLOCKOUT_LABELS) == 20
+    assert "car" in DEFAULT_BLOCKOUT_LABELS
+    # scene-agnostic: covers exterior too, and drops the indoor-only props SAM3
+    # hallucinates on outdoor scenes (counter / cabinet / desk / monitor / ...).
+    assert {"building", "tree", "truck"} <= set(DEFAULT_BLOCKOUT_LABELS)
+    assert not ({"counter", "cabinet", "desk", "monitor", "armchair"} & set(DEFAULT_BLOCKOUT_LABELS))
+    assert len(DEFAULT_BLOCKOUT_LABELS) == 15
     assert len(set(DEFAULT_BLOCKOUT_LABELS)) == len(DEFAULT_BLOCKOUT_LABELS)
 
 

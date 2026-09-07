@@ -40,3 +40,7 @@ docs/*
 # DPVO build tree: sources upstream, toolkit CUDA portable, archives
 .dpvo-install/
 .vscode/launch.json
+
+# ComfyUI reconstruction cache / staged asset library, if it ever lands in the
+# repo root instead of ComfyUI/input (test artefact, never source).
+/majoor_omnicam/

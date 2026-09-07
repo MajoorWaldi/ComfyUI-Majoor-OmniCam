@@ -60,7 +60,11 @@ def level_rotation_from_normal(
 
 def apply_rotation_to_points(points: np.ndarray, rot: np.ndarray) -> np.ndarray:
     pts = np.asarray(points, dtype=np.float64)
-    flat = pts.reshape(-1, 3) @ rot.T
+    # MoGe returns NaN for unprojectable pixels (sky, holes). Rotating them keeps
+    # them NaN, which is correct -- the fitter filters non-finite points -- so
+    # just don't let numpy warn about the NaNs flowing through the matmul.
+    with np.errstate(invalid="ignore"):
+        flat = pts.reshape(-1, 3) @ rot.T
     return flat.reshape(pts.shape).astype(np.float32, copy=False)
 
 

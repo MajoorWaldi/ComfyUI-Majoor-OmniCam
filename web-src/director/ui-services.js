@@ -151,6 +151,108 @@ export class ContextMenuController {
 }
 
 
+// -- self-contained modal ------------------------------------------------- //
+// ComfyUI's dialog manager (app.extensionManager.dialog) is the preferred
+// surface, but which build exposes it -- and under what shape -- has moved
+// around, and behind our bundle `window.app` can resolve to the wrong
+// instance. When the manager cannot be reached the confirm/prompt helpers used
+// to just return "no", which is exactly what made the Extractor "Clear Cache"
+// button look dead. This modal is our own DOM -- not a blocked browser modal
+// API -- so the buttons always do something.
+
+function omnicamModal({ title, message, withInput = false, defaultValue = "" }) {
+  if (typeof document === "undefined" || !document.body) {
+    return Promise.resolve(withInput ? null : false);
+  }
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "majoor-omnicam oc-modal-backdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    Object.assign(backdrop.style, {
+      position: "fixed", inset: "0", zIndex: "100000",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.55)",
+    });
+
+    const panel = document.createElement("div");
+    panel.className = "oc-modal";
+    Object.assign(panel.style, {
+      maxWidth: "min(440px, 92vw)", padding: "18px 20px", borderRadius: "10px",
+      background: "var(--oc-panel, #1e1f26)", color: "var(--oc-text, #e8e8ec)",
+      border: "1px solid var(--oc-line, #34363f)",
+      boxShadow: "0 12px 48px rgba(0,0,0,0.5)", font: "13px/1.5 system-ui, sans-serif",
+    });
+
+    const heading = document.createElement("h3");
+    heading.textContent = title || "";
+    Object.assign(heading.style, { margin: "0 0 8px", fontSize: "14px" });
+
+    const body = document.createElement("p");
+    body.textContent = message || "";
+    Object.assign(body.style, { margin: "0 0 14px", opacity: "0.85" });
+
+    let input = null;
+    if (withInput) {
+      input = document.createElement("input");
+      input.type = "text";
+      input.value = defaultValue == null ? "" : String(defaultValue);
+      Object.assign(input.style, {
+        width: "100%", boxSizing: "border-box", marginBottom: "14px", padding: "6px 8px",
+        background: "var(--oc-sunken, #16171c)", color: "inherit",
+        border: "1px solid var(--oc-line, #34363f)", borderRadius: "6px",
+      });
+    }
+
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", gap: "8px", justifyContent: "flex-end" });
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "Cancel";
+    const okBtn = document.createElement("button");
+    okBtn.type = "button";
+    okBtn.textContent = "OK";
+    for (const b of [cancelBtn, okBtn]) {
+      Object.assign(b.style, {
+        padding: "6px 14px", borderRadius: "6px", cursor: "pointer",
+        border: "1px solid var(--oc-line, #34363f)", background: "transparent", color: "inherit",
+      });
+    }
+    okBtn.style.background = "var(--oc-accent, #4c6ef5)";
+    okBtn.style.borderColor = "transparent";
+    okBtn.style.color = "#fff";
+    row.append(cancelBtn, okBtn);
+
+    panel.append(heading, body);
+    if (input) panel.append(input);
+    panel.append(row);
+    backdrop.append(panel);
+
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener("keydown", onKey, true);
+      backdrop.remove();
+      resolve(value);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.stopPropagation(); finish(withInput ? null : false); }
+      else if (event.key === "Enter") { event.stopPropagation(); finish(withInput ? input.value : true); }
+    };
+
+    cancelBtn.addEventListener("click", () => finish(withInput ? null : false));
+    okBtn.addEventListener("click", () => finish(withInput ? input.value : true));
+    backdrop.addEventListener("mousedown", (event) => {
+      if (event.target === backdrop) finish(withInput ? null : false);
+    });
+    document.addEventListener("keydown", onKey, true);
+
+    document.body.appendChild(backdrop);
+    (input || okBtn).focus();
+  });
+}
+
 export async function promptText(appOrTitle, titleOrMessage, messageOrValue, initialValue) {
   let app, title, message, defaultValue;
   if (typeof appOrTitle === "object" && appOrTitle !== null) {
@@ -166,8 +268,10 @@ export async function promptText(appOrTitle, titleOrMessage, messageOrValue, ini
   }
   const dialog = app?.extensionManager?.dialog || (typeof window !== "undefined" ? window.app?.extensionManager?.dialog : null);
   if (dialog?.prompt) return dialog.prompt({ title, message, defaultValue });
-  console.warn("OmniCam prompt unavailable: ComfyUI dialog API is not present");
-  return null;
+  // ComfyUI's dialog manager could not be reached (wrong app instance behind
+  // the bundle, or a build that does not expose it). Fall back to our own DOM
+  // modal -- never a blocked browser modal API -- so the control still works.
+  return omnicamModal({ title, message, withInput: true, defaultValue });
 }
 
 export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
@@ -183,6 +287,10 @@ export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
   }
   const dialog = app?.extensionManager?.dialog || (typeof window !== "undefined" ? window.app?.extensionManager?.dialog : null);
   if (dialog?.confirm) return dialog.confirm({ title, message });
-  console.warn("OmniCam confirmation unavailable: ComfyUI dialog API is not present");
-  return false;
+  // ComfyUI's dialog manager could not be reached (wrong app instance behind
+  // the bundle, or a build that does not expose it). Fall back to our own DOM
+  // modal -- never a blocked browser modal API -- so the button still works
+  // instead of silently resolving "no" (this is what made "Clear Cache" look
+  // dead).
+  return omnicamModal({ title, message, withInput: false });
 }

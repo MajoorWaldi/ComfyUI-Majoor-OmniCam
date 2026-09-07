@@ -262,3 +262,34 @@ test("Hybrid mode keeps the dense reference visible", () => {
   assert.equal(ui.state.objects[0].enabled, true);
   assert.equal(ui.state.objects[0].locked, true);
 });
+
+test("merge remaps parent_id so a second reconstruction stays under its own group", () => {
+  // First reconstruction already in the scene with the canonical group ids.
+  const director = createMockDirector({
+    objects: [
+      { id: "reconstruction_root", type: "null", keyframes: [] },
+      { id: "reconstruction_blockout", type: "null", parent_id: "reconstruction_root", keyframes: [] },
+      { id: "chair_1", type: "cube", parent_id: "reconstruction_blockout", keyframes: [] },
+    ],
+  });
+
+  const second = {
+    version: 1,
+    cameras: [],
+    objects: [
+      { id: "reconstruction_root", type: "null" },
+      { id: "reconstruction_blockout", type: "null", parent_id: "reconstruction_root" },
+      { id: "chair_1", type: "cube", parent_id: "reconstruction_blockout" },
+    ],
+  };
+
+  adoptReconstructedScene(director, { motion_scene: second }, { mode: "merge" });
+
+  const newChair = director.state.objects.find((o) => o.id !== "chair_1" && o.type === "cube");
+  const newGroup = director.state.objects.find(
+    (o) => o.id !== "reconstruction_blockout" && o.type === "null" && o.parent_id,
+  );
+  assert.ok(newChair && newGroup);
+  assert.equal(newChair.parent_id, newGroup.id, "merged child is parented to the NEW group, not the old one");
+  assert.notEqual(newChair.parent_id, "reconstruction_blockout");
+});

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
+import pytest
 from PIL import Image
 
 from omnicam.reconstruction.pipeline import run_reconstruction_pipeline
@@ -13,6 +15,23 @@ from omnicam.reconstruction.settings import ReconstructionSettings
 from omnicam.reconstruction.types import ReconstructionSource
 
 from .fakes import FakeReconstructionProvider
+
+
+def _module_available(name: str) -> bool:
+    try:
+        return importlib.util.find_spec(name) is not None
+    except ModuleNotFoundError:
+        return False
+
+
+#: hybrid / depth-mesh routing builds a real dense mesh through
+#: ``comfy.ldm.moge.geometry.triangulate_grid_mesh`` -- only present in a ComfyUI
+#: checkout. The ``python-reconstruction`` lane has none, so skip there rather
+#: than fail collection-adjacent with a bare ModuleNotFoundError.
+requires_moge_mesh = pytest.mark.skipif(
+    not _module_available("comfy.ldm.moge.geometry"),
+    reason="needs comfy.ldm.moge.geometry (a ComfyUI checkout on sys.path)",
+)
 
 
 def _image_source(tmp_path: Path) -> ReconstructionSource:
@@ -67,6 +86,7 @@ def test_facade_routes_blockout_mode(tmp_path):
     assert "blockout_object" in _roles(out.motion_scene)
 
 
+@requires_moge_mesh
 def test_facade_routes_hybrid_and_adds_reference(tmp_path):
     out = run_reconstruction_pipeline(
         source=_image_source(tmp_path),
@@ -79,6 +99,7 @@ def test_facade_routes_hybrid_and_adds_reference(tmp_path):
     assert "reference" in _roles(out.motion_scene)
 
 
+@requires_moge_mesh
 def test_legacy_layout_mode_stays_mo_ge_only(tmp_path):
     # A workflow saved as "layout" before the semantic rework must not suddenly
     # require a SAM3 checkpoint.
@@ -93,6 +114,7 @@ def test_legacy_layout_mode_stays_mo_ge_only(tmp_path):
     assert "blockout_object" not in _roles(out.motion_scene)
 
 
+@requires_moge_mesh
 def test_depth_mesh_path_unchanged(tmp_path):
     out = run_reconstruction_pipeline(
         source=_image_source(tmp_path),
@@ -238,3 +260,114 @@ def test_blockout_assets_requested_but_library_missing_raises(tmp_path):
             provider=FakeReconstructionProvider(grid_size=64),
             input_root=tmp_path,
         )
+
+
+def test_scene_scale_keeps_floor_camera_and_objects_in_one_frame(tmp_path):
+    """F06: scene_scale is one similarity; the floor still lands at Y=0 and
+    objects still rest on it at any scale."""
+
+    def floor_y(scene):
+        ground = next(
+            (o for o in scene["objects"] if o.get("reconstruction", {}).get("role") == "room"),
+            None,
+        )
+        return None if ground is None else ground["position"][1]
+
+    def lowest_object_bottom(scene):
+        vals = []
+        for o in scene["objects"]:
+            if o.get("reconstruction", {}).get("role") == "blockout_object":
+                vals.append(o["position"][1] - o["size"][1] / 2.0)
+        return min(vals) if vals else None
+
+    outs = {}
+    for s in (0.5, 1.0, 2.0):
+        outs[s] = run_reconstruction_pipeline(
+            source=_image_source(tmp_path),
+            settings=ReconstructionSettings(
+                mode="blockout", provider="fake", segmentation_provider="fake",
+                semantic_labels=("chair",), scene_scale=s,
+            ),
+            provider=FakeReconstructionProvider(grid_size=64),
+            input_root=tmp_path,
+        ).motion_scene
+
+    for s, scene in outs.items():
+        fy = floor_y(scene)
+        assert fy is None or abs(fy) < 0.1, (s, fy)
+        bottom = lowest_object_bottom(scene)
+        assert bottom is None or bottom > -0.6, (s, bottom)  # not sunk far below the grid
+
+
+@requires_moge_mesh
+def test_hybrid_reference_mesh_carries_the_scene_transform(tmp_path):
+    """F07: the dense reference is placed with the pipeline's own
+    scale/level/recentre, not an identity transform."""
+    out = run_reconstruction_pipeline(
+        source=_image_source(tmp_path),
+        settings=ReconstructionSettings(
+            mode="hybrid", provider="fake", segmentation_provider="fake",
+            semantic_labels=("chair",), scene_scale=2.0,
+        ),
+        provider=FakeReconstructionProvider(grid_size=64),
+        input_root=tmp_path,
+    )
+    ref = next(o for o in out.motion_scene["objects"] if o["id"] == "reconstruction_reference_mesh")
+    assert ref["size"] == [2.0, 2.0, 2.0]  # scene_scale, not [1,1,1]
+
+
+def test_cross_label_duplicate_proxies_and_background_blobs_are_dropped():
+    """Real SAM3 gives tv/monitor/door/window (or person/armchair) overlapping
+    masks on one surface -> collapsed 3D proxies. The pipeline keeps only the
+    most confident of a near-identical cluster, and rejects a proxy that is big
+    in every axis (a mis-segmented wall)."""
+    import numpy as np
+
+    from omnicam.reconstruction.blockout.types import AxisConfidence, BlockoutObject
+    from omnicam.reconstruction.pipelines.single_blockout import (
+        _dedupe_and_bound_objects,
+        _finite_extent,
+    )
+
+    def obj(oid, sem, pos, size, conf):
+        return BlockoutObject(
+            object_id=oid, label=sem, semantic_class=sem, primitive="cube",
+            position=tuple(pos), rotation=(0.0, 0.0, 0.0), size=tuple(size), confidence=conf,
+            axis_confidence=AxisConfidence(conf, conf, conf, conf),
+            source_instance_ids=[f"i_{oid}"],
+        )
+
+    # a room ~4 units across
+    pts = np.random.default_rng(0).uniform([-2, 0, -2], [2, 2.5, 2], (4000, 3)).astype(np.float32)
+    extent = _finite_extent(pts.reshape(1, -1, 3))
+    assert extent > 0
+
+    objs = [
+        obj("tv", "television", [-0.2, 1.5, -1.0], [4.3, 2.6, 5.0], 0.54),   # background blob
+        obj("person", "person", [-0.7, 1.1, 0.5], [0.34, 1.26, 0.71], 0.85),  # keep
+        obj("armchair", "armchair", [-0.7, 1.1, 0.54], [0.34, 1.23, 0.72], 0.74),  # dup of person
+        obj("bottle", "bottle", [-1.0, 0.85, 0.8], [0.07, 0.15, 0.12], 0.69),  # keep
+        obj("lamp", "lamp", [-1.0, 0.85, 0.8], [0.07, 0.16, 0.12], 0.54),  # dup of bottle
+        obj("plant", "plant", [1.0, 0.8, 1.5], [0.24, 0.28, 0.53], 0.70),  # keep
+    ]
+    kept = _dedupe_and_bound_objects(objs, scene_extent=extent)
+    ids = [o.object_id for o in kept]
+    assert ids == ["person", "bottle", "plant"], ids
+    # the merged duplicates' instance ids are folded into the survivor
+    person = next(o for o in kept if o.object_id == "person")
+    assert set(person.source_instance_ids) == {"i_person", "i_armchair"}
+
+
+def test_dedupe_keeps_two_genuinely_separate_objects_of_the_same_class():
+    from omnicam.reconstruction.blockout.types import AxisConfidence, BlockoutObject
+    from omnicam.reconstruction.pipelines.single_blockout import _dedupe_and_bound_objects
+
+    def chair(oid, x):
+        return BlockoutObject(
+            object_id=oid, label="chair", semantic_class="chair", primitive="cube",
+            position=(x, 0.5, 0.0), rotation=(0.0, 0.0, 0.0), size=(0.5, 1.0, 0.5), confidence=0.7,
+            axis_confidence=AxisConfidence(0.7, 0.7, 0.7, 0.7),
+        )
+
+    kept = _dedupe_and_bound_objects([chair("a", 0.0), chair("b", 2.0)], scene_extent=8.0)
+    assert [o.object_id for o in kept] == ["a", "b"]

@@ -173,3 +173,63 @@ def test_objects_seen_from_more_views_get_a_depth_confidence_bump():
         return chair["reconstruction"]["axis_confidence"]["depth"]
 
     assert _depth_conf(many_view) >= _depth_conf(one_view)
+
+
+def test_scan_fingerprint_is_plain_hex_and_returned():
+    import re
+
+    out = _run()
+    fp = out.fingerprint
+    assert fp and re.fullmatch(r"[0-9a-f]{1,64}", fp), fp
+    assert out.summary["fingerprint"] == fp
+    # Different pixel content -> different key even at the same frame indices.
+    other = _run(samples=[
+        type(s)(view_index=s.view_index, image=np.full_like(np.asarray(s.image), 0.5),
+                source_frame=s.source_frame, width=s.width, height=s.height)
+        for s in _samples()
+    ])
+    assert other.fingerprint != fp
+
+
+def test_scan_segments_on_the_point_map_grid_when_images_are_preprocessed():
+    from omnicam.reconstruction.multiview.coordinates import normalize_vggt_evidence
+    from omnicam.reconstruction.multiview.types import MultiViewEvidence, ViewCameraEvidence
+
+    class ResizingVggt:
+        provider_id = "vggt"
+        adapter_version = "fake"
+
+        def reconstruct_views(self, samples, settings, *, cancel=None, progress=None, gpu_guard=None):
+            v = len(samples)
+            mh, mw = 84, 126  # model resolution differs from the 120x160 source
+            ys, xs = np.mgrid[0:mh, 0:mw]
+            grid = np.stack([(xs / mw - 0.5) * 6, np.full((mh, mw), -1.5), (ys / mh - 0.5) * 6 - 4], -1).astype(float)
+            pts = np.stack([grid] * v, 0)
+            imgs = np.zeros((v, mh, mw, 3), np.float32)
+            cams = [ViewCameraEvidence(view_index=i, width=mw, height=mh,
+                                       extrinsic_camera_from_world=np.eye(4), intrinsics=_K(),
+                                       source_frame=s.source_frame) for i, s in enumerate(samples)]
+            ev = MultiViewEvidence(images=imgs, depth=None, depth_confidence=None, points_world=pts,
+                                   point_confidence=None, cameras=cams, provider_id="vggt", provider_version="fake")
+            return normalize_vggt_evidence(ev)
+
+    out = _run(geometry_provider=ResizingVggt())
+    # Canvas follows the point-map grid so masks / intrinsics / fov stay in one space.
+    assert out.motion_scene["canvas"] == {"width": 126, "height": 84}
+
+
+def test_resolve_scan_input_rejects_a_single_still_and_passes_batches_through():
+    import pytest
+
+    from omnicam.reconstruction.errors import ReconSourceSetInvalidError
+    from omnicam.reconstruction.pipeline import _resolve_scan_input
+    from omnicam.reconstruction.types import ReconstructionSource
+
+    s = _settings()
+    batch = _samples()
+    resolved, fps = _resolve_scan_input(None, s, batch, None)
+    assert resolved is batch and fps == 24.0
+
+    still = ReconstructionSource(kind="annotated_input", value="room.png [input]")
+    with pytest.raises(ReconSourceSetInvalidError, match="video source or a multi-view"):
+        _resolve_scan_input(still, s, None, None)

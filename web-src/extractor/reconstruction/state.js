@@ -66,6 +66,7 @@ export function initialReconstructionState() {
     warnings: [],
     result: null,
     summary: null,
+    fingerprint: "",
     previewUrl: "",
     source: null,
     settings: initialReconstructionSettings(),
@@ -98,6 +99,10 @@ export function reconstructionActions(state) {
     canStart,
     canStop,
     canOpenDirector,
+    canPreview: hasResult,
+    // Discard a result you don't want (deletes its cached files so a re-run
+    // recomputes). Never mid-job.
+    canDiscard: hasResult && !active && jobState !== "STOPPING",
   };
 }
 
@@ -147,6 +152,16 @@ export function reduceReconstructionState(state, action) {
         result: action.result,
         summary: action.summary ?? action.result?.summary ?? null,
         warnings: action.warnings ?? action.result?.warnings ?? [],
+        // Kept so "Discard" can delete exactly this reconstruction's cache
+        // folder. The envelope carries it at the top level; a bare MotionScene
+        // carries it under metadata.reconstruction.
+        fingerprint:
+          action.fingerprint ||
+          action.result?.fingerprint ||
+          action.result?.motion_scene?.metadata?.reconstruction?.fingerprint ||
+          action.result?.metadata?.reconstruction?.fingerprint ||
+          state.fingerprint ||
+          "",
       };
 
     case "ERROR":

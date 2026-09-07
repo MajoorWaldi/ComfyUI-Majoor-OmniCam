@@ -122,11 +122,22 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
     const existingObjIds = new Set((directorUi.state.objects || []).map((o) => o.id));
     const existingCamIds = new Set((directorUi.state.cameras || []).map((c) => c.id));
 
-    for (const incomingObj of scene.objects) {
-      const copy = JSON.parse(JSON.stringify(incomingObj));
+    // Two reconstructions share the same group ids (reconstruction_root, ...).
+    // Suffix every colliding id first, THEN rewrite parent_id against that map,
+    // so a merged child stays parented to its own new group instead of the
+    // previous reconstruction's.
+    const idRemap = new Map();
+    const incoming = scene.objects.map((o) => JSON.parse(JSON.stringify(o)));
+    for (const copy of incoming) {
       const safeId = uniqueSceneId(existingObjIds, copy.id);
       existingObjIds.add(safeId);
+      idRemap.set(copy.id, safeId);
       copy.id = safeId;
+    }
+    for (const copy of incoming) {
+      if (copy.parent_id && idRemap.has(copy.parent_id)) {
+        copy.parent_id = idRemap.get(copy.parent_id);
+      }
       applyReconstructionAdoptionDefaults(copy, reconMode);
       directorUi.state.objects.push(copy);
 

@@ -123,3 +123,23 @@ def test_recenter_without_ground_uses_robust_floor_and_xz_median():
     assert abs(float(np.median(flat[:, 0]))) < 0.05  # XZ median at origin
     assert abs(float(np.median(flat[:, 2]))) < 0.05
     assert float(np.percentile(flat[:, 1], 2)) == pytest.approx(0.0, abs=0.05)  # floor at Y=0
+
+
+def test_apply_rotation_to_points_is_nan_safe_and_silent():
+    """MoGe hands us NaN for unprojectable pixels; rotating them must stay NaN
+    without a RuntimeWarning (seen on a real RTX 4090 run)."""
+    import warnings
+
+    from omnicam.reconstruction.leveling import apply_rotation_to_points
+
+    pts = np.array([[[1.0, 2.0, 3.0], [np.nan, np.nan, np.nan], [np.inf, 0.0, 0.0]]], dtype=np.float32)
+    rot = np.eye(3)
+    rot[0, 0] = 0.0
+    rot[0, 1] = -1.0
+    rot[1, 0] = 1.0
+    rot[1, 1] = 0.0
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # any RuntimeWarning fails the test
+        out = apply_rotation_to_points(pts, rot)
+    assert np.isfinite(out[0, 0]).all()
+    assert np.isnan(out[0, 1]).all()

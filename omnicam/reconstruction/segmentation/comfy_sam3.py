@@ -34,6 +34,10 @@ _AUTO_PRIORITY: tuple[str, ...] = ("sam3.1_multiplex_fp16.safetensors",)
 #: a ``category : N`` suffix (see comfy/text_encoders/sam3_clip.py). Hard cap
 #: so a runaway label cannot ask for thousands of masks.
 _MAX_DETECTIONS_PER_LABEL = 64
+#: Soft per-label cap: one interior photo rarely holds more than a handful of
+#: one furniture type, and a high N invites SAM3 to emit low-quality extras that
+#: only get thrown away downstream.
+_DEFAULT_DETECTIONS_PER_LABEL = 6
 
 #: Process-lifetime, capacity-1. Shared across provider instances (the registry
 #: builds a fresh ``ComfySam3Provider`` per job) so the SAM3 checkpoint is
@@ -339,6 +343,41 @@ class ComfySam3Provider:
             checkpoints=checkpoints,
         )
 
+    @staticmethod
+    def _as_comfy_image(image: Any) -> Any:
+        """Coerce whatever the pipeline holds to the IMAGE contract SAM3 expects:
+        a float tensor ``[B, H, W, 3]`` in ``[0, 1]``.
+
+        The single-image path already passes a ComfyUI IMAGE tensor; the scan
+        path passes an HWC NumPy frame (the VGGT-preprocessed view). SAM3's
+        ``execute`` does ``image.movedim(-1, 1)`` and unpacks four dims, so an
+        HWC array or a uint8 tensor would crash it.
+        """
+        import numpy as np
+        import torch
+
+        if isinstance(image, torch.Tensor):
+            t = image
+        else:
+            arr = np.asarray(image)
+            t = torch.from_numpy(np.ascontiguousarray(arr))
+        t = t.float()
+        if float(t.max()) > 1.5:
+            t = t / 255.0
+        if t.ndim == 2:  # H, W -> H, W, 1
+            t = t.unsqueeze(-1)
+        if t.ndim == 3:  # H, W, C -> 1, H, W, C
+            t = t.unsqueeze(0)
+        if t.ndim != 4:
+            raise ReconSegmentationFailedError(
+                f"SAM3 image must be 2/3/4-D, got shape {tuple(t.shape)}"
+            )
+        if t.shape[-1] == 1:
+            t = t.repeat(1, 1, 1, 3)
+        elif t.shape[-1] >= 3:
+            t = t[..., :3]
+        return t.contiguous()
+
     def segment(
         self,
         image: Any,
@@ -348,6 +387,7 @@ class ComfySam3Provider:
         progress: ProgressSink | None = None,
         cancel: CancelToken | None = None,
     ) -> list[InstanceEvidence]:
+        image = self._as_comfy_image(image)
         mods = self._load_modules()
         checkpoint = self.resolve_checkpoint(settings.sam3_checkpoint, mods)
         identity = self._checkpoint_identity(checkpoint, mods)
@@ -359,7 +399,10 @@ class ComfySam3Provider:
 
         # SAM3 keeps only the single top-scoring detection per category unless
         # the prompt asks for more via a ``category : N`` suffix.
-        max_det = max(1, min(int(settings.max_blockout_objects), _MAX_DETECTIONS_PER_LABEL))
+        max_det = max(
+            1,
+            min(int(settings.max_blockout_objects), _DEFAULT_DETECTIONS_PER_LABEL, _MAX_DETECTIONS_PER_LABEL),
+        )
 
         instances: list[InstanceEvidence] = []
         n_labels = max(1, len(labels))

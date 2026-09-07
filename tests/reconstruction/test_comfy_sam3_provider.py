@@ -186,16 +186,17 @@ def test_segment_loads_model_once_and_requests_multi_detection_per_label():
     instances = provider.segment(image, labels, _settings(max_blockout_objects=8))
 
     assert _FakeCheckpointLoader.calls == 1  # model loaded once for 5 labels
-    # each label encoded once, with a "category : N" multi-detection suffix
-    assert _FakeCLIPTextEncode.calls == [f"{lbl} : 8" for lbl in labels]
-    assert all(e["max_det"] == 8 for e in _FakeSAM3Detect.executions)
+    # each label encoded once, with a "category : N" multi-detection suffix.
+    # N is soft-capped at 6 per label even when max_blockout_objects is higher.
+    assert _FakeCLIPTextEncode.calls == [f"{lbl} : 6" for lbl in labels]
+    assert all(e["max_det"] == 6 for e in _FakeSAM3Detect.executions)
     # 3 detections per label (fake caps its own output at 3)
     assert len(instances) == 15
     assert {i.label for i in instances} == set(labels)
     for inst in instances:
         assert inst.label in inst.instance_id
     assert _FakeSAM3Detect.executions[0]["individual_masks"] is True
-    assert _FakeSAM3Detect.executions[0]["threshold"] == pytest.approx(0.55)
+    assert _FakeSAM3Detect.executions[0]["threshold"] == pytest.approx(0.60)
 
 
 def test_segment_omits_suffix_when_only_one_detection_wanted():

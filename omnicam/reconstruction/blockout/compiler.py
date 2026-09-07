@@ -126,14 +126,18 @@ def _asset_object(
 
 
 def _reference_object(asset: dict[str, Any], provider_summary: dict[str, Any], source_kind: str) -> dict[str, Any]:
+    # The dense mesh is built from the RAW geometry evidence; the pipeline hands
+    # over the same similarity (scale, level rotation, recentre offset) it
+    # applied to the blockout so the two stay superimposed from the source view.
+    xf = asset.get("transform") or {}
     return {
         "id": "reconstruction_reference_mesh",
         "name": "Dense Reference",
         "type": "glb",
         "parent_id": _REFERENCE_ID,
-        "position": [0.0, 0.0, 0.0],
-        "rotation": [0.0, 0.0, 0.0],
-        "size": [1.0, 1.0, 1.0],
+        "position": [float(v) for v in xf.get("position", [0.0, 0.0, 0.0])],
+        "rotation": [float(v) for v in xf.get("rotation", [0.0, 0.0, 0.0])],
+        "size": [float(v) for v in xf.get("size", [1.0, 1.0, 1.0])],
         "material_mode": "textured" if asset.get("textured") else "neutral",
         "keyframes": [],
         "enabled": True,
@@ -259,7 +263,17 @@ def compile_blockout_scene(
     camera_track = _camera_track(
         blockout, width=width, height=height, fps=fps, duration_seconds=duration_seconds
     )
-    camera_item = {"id": "camera_1", "label": "Source Camera", "enabled": True, "track": camera_track}
+    # A scan trajectory is a recovered path, not something to re-author: label it
+    # accordingly and mark it locked so Director adoption keeps it read-only
+    # (docs/NODES.md promises a read-only Scan Camera).
+    is_scan_track = mode == "scan" and blockout.scan_camera_track is not None
+    camera_item = {
+        "id": "camera_1",
+        "label": "Scan Camera" if is_scan_track else "Source Camera",
+        "enabled": True,
+        "locked": bool(is_scan_track),
+        "track": camera_track,
+    }
 
     # A supplied scan track carries its own length; the scene timeline has to
     # agree with it or MotionScene validation rejects the pair.

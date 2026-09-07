@@ -21,12 +21,12 @@ export function extractorMarkup() {
     <header class="oc-header">
       ${brandMarkup("OmniCam Extractor")}
       <span class="oc-status-pill" data-role="solve-status" data-tone="neutral"><i class="oc-status-dot"></i><span data-role="solve-status-text">IDLE</span></span>
-      <button type="button" class="icon-button" data-role="clear-cache" title="${t("Clear cached tracks and reconstructions, and reset this node")}"><i class="pi pi-trash"></i></button>
     </header>
 
-    <div class="oc-mode-bar" role="tablist" aria-label="Extractor mode">
+    <div class="oc-mode-bar" aria-label="Extractor mode">
       <button type="button" class="oc-tab" data-role="extract-mode-camera" aria-selected="true">${t("Camera Track")}</button>
       <button type="button" class="oc-tab" data-role="extract-mode-reconstruct" aria-selected="false">${t("Scene Reconstruct")}</button>
+      <button type="button" class="icon-button oc-clear-cache" data-role="clear-cache" title="${t("Clear cached tracks and reconstructions, and reset this node")}"><i class="pi pi-trash"></i></button>
     </div>
 
     <div class="oc-source" data-role="source-strip" data-available="false">
@@ -104,15 +104,23 @@ export function extractorMarkup() {
         <div data-role="reconstruction-stage" class="oc-stage-label"></div>
         <div data-role="reconstruction-summary" class="oc-summary-box" hidden></div>
         <div data-role="reconstruction-warnings" class="oc-warnings-box" hidden></div>
+        <div class="oc-recon-preview" data-role="reconstruction-preview" hidden>
+          <div class="oc-recon-preview-bar">
+            <button type="button" data-role="reconstruction-preview-fit" title="${t("Frame the reconstructed scene")}"><i class="pi pi-search"></i> ${t("Fit")}</button>
+          </div>
+          <canvas data-role="reconstruction-3d" width="960" height="540" aria-label="${t("3D preview of the reconstructed scene")}"></canvas>
+        </div>
         <div class="oc-actions">
           <button type="button" class="oc-primary" data-role="reconstruction-run">${t("▶ RECONSTRUCT")}</button>
           <button type="button" data-role="reconstruction-stop" disabled>${t("■ STOP")}</button>
+          <button type="button" data-role="reconstruction-discard" title="${t("Discard this reconstruction and its cached files so the next run recomputes it")}" disabled>${t("✕ DISCARD")}</button>
+          <button type="button" data-role="reconstruction-preview-toggle" disabled>${t("3D PREVIEW")}</button>
           <button type="button" class="oc-primary" data-role="reconstruction-open-director" disabled>${t("OPEN IN DIRECTOR")}</button>
         </div>
       </div>
     </div>
 
-    <main class="oc-body">
+    <main class="oc-body" data-role="camera-track-body">
       <div class="oc-tabs" role="tablist">
         <button type="button" class="oc-tab" data-tab="source" aria-selected="true">VIDEO</button>
         <button type="button" class="oc-tab" data-tab="track3d" aria-selected="false">TRACK 3D</button>

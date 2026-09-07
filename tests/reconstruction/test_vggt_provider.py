@@ -120,3 +120,22 @@ def test_preprocess_resizes_to_a_multiple_of_the_patch_size():
     assert h % 14 == 0 and w % 14 == 0
     assert w == 518  # width pinned to target
     assert float(batch.min()) >= 0.0 and float(batch.max()) <= 1.0
+
+
+def test_omega_unavailable_without_its_own_checkpoint(tmp_path):
+    # Only the commercial VGGT weights installed -> Omega must NOT claim them.
+    _make_checkpoint(tmp_path, "VGGT-1B-Commercial")
+    prov = VggtOmegaResearchProvider(model_root=tmp_path, has_vggt_package=True, cuda_available=True)
+    caps = prov.capabilities()
+    assert caps.available is False
+    assert "VGGT-\u03a9" in caps.reason or "omega" in caps.reason.lower()
+    with pytest.raises(ReconProviderUnavailableError):
+        prov.resolve_checkpoint("auto")
+
+
+def test_omega_runs_its_own_checkpoint_when_present(tmp_path):
+    _make_checkpoint(tmp_path, "VGGT-1B-Commercial")
+    _make_checkpoint(tmp_path, "VGGT-Omega-Research")
+    prov = VggtOmegaResearchProvider(model_root=tmp_path, has_vggt_package=True, cuda_available=True)
+    assert prov.capabilities().available is True
+    assert "Omega" in prov.resolve_checkpoint("auto").parent.name

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .alignment import merge_completion_into_blockout
-from .apply import apply_completion_policy, select_completion_objects
+from .apply import CompletionOutcome, apply_completion_policy, select_completion_objects
 from .base import CompletedObjectEvidence, CompletionCapabilities, CompletionProvider
 from .registry import (
     get_completion_provider,
@@ -14,6 +14,7 @@ from .registry import (
 __all__ = [
     "CompletedObjectEvidence",
     "CompletionCapabilities",
+    "CompletionOutcome",
     "CompletionProvider",
     "apply_completion_policy",
     "get_completion_provider",

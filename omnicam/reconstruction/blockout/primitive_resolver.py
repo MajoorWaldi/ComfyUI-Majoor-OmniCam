@@ -51,6 +51,12 @@ _RULES: dict[str, PrimitiveRule] = {
     "box": PrimitiveRule("cube", min_depth_factor=0.55, snap_to_ground=False),
     "suitcase": PrimitiveRule("cube", min_depth_factor=0.35, snap_to_ground=True),
     "car": PrimitiveRule("cube", min_depth_factor=0.40, snap_to_ground=True),
+    "truck": PrimitiveRule("cube", min_depth_factor=0.55, snap_to_ground=True),
+    "bus": PrimitiveRule("cube", min_depth_factor=0.60, snap_to_ground=True),
+    "bicycle": PrimitiveRule("cube", min_depth_factor=0.20, snap_to_ground=True),
+    "motorcycle": PrimitiveRule("cube", min_depth_factor=0.25, snap_to_ground=True),
+    "building": PrimitiveRule("cube", min_depth_factor=0.60, snap_to_ground=True),
+    "tree": PrimitiveRule("cube", min_depth_factor=0.50, snap_to_ground=True),
 }
 
 _FALLBACK = PrimitiveRule("cube", min_depth_factor=0.20, snap_to_ground=True)

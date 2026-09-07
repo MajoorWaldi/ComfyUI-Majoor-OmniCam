@@ -91,6 +91,12 @@ test("reconstructionActions canStart/canStop/canOpenDirector across states", () 
   assert.equal(actions.canStart, true);
   assert.equal(actions.canStop, false);
   assert.equal(actions.canOpenDirector, true);
+  assert.equal(actions.canPreview, true, "3D preview available as soon as a result exists");
+
+  // A result mid-flight (STATUS before DONE) already enables the 3D preview.
+  actions = reconstructionActions({ ...readyState, jobState: "SEGMENT_SCENE", result: { objects: [] } });
+  assert.equal(actions.canPreview, true);
+  assert.equal(actions.canOpenDirector, false, "but Open in Director waits for DONE");
 
   // DONE without motion_scene: canOpenDirector is false
   actions = reconstructionActions({
@@ -100,6 +106,7 @@ test("reconstructionActions canStart/canStop/canOpenDirector across states", () 
     result: {},
   });
   assert.equal(actions.canOpenDirector, false);
+  assert.equal(actions.canPreview, false);
 });
 
 test("reduceReconstructionState handles state transitions and events", () => {

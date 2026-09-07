@@ -145,9 +145,25 @@ test("readReconstructionSettings emits semantic fields for blockout / hybrid / s
   assert.equal(s.mode, "blockout");
   assert.equal(s.segmentation_provider, "comfy_sam3");
   assert.equal(s.completion_policy, "low_depth_confidence");
+  // A non-off policy must carry a real provider or the backend resolves nothing.
+  assert.equal(s.completion_provider, "sam3d_objects");
   assert.equal(s.max_blockout_objects, 40);
   assert.equal(s.blockout_assets, "proxy");
   assert.deepEqual(s.semantic_labels, ["chair", "table", "sofa"]);
+});
+
+test("completion_provider is 'none' when the policy is off; scan forwards the checkpoint as vggt_checkpoint", () => {
+  const off = readReconstructionSettings(fakeRoot({
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "blockout" }),
+    "reconstruction-completion-policy": new FakeElement({ tagName: "SELECT", value: "off" }),
+  }));
+  assert.equal(off.completion_provider, "none");
+
+  const scan = readReconstructionSettings(fakeRoot({
+    "reconstruction-mode": new FakeElement({ tagName: "SELECT", value: "scan" }),
+    "reconstruction-checkpoint": new FakeElement({ value: "VGGT-1B-Commercial" }),
+  }));
+  assert.equal(scan.vggt_checkpoint, "VGGT-1B-Commercial");
 });
 
 test("blockout_assets defaults to 'off' and is omitted for depth_mesh", () => {

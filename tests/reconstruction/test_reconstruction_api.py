@@ -193,3 +193,25 @@ def test_handle_clear_cache_reports_what_it_removed(tmp_path):
     assert result["entries_removed"] == 1
     assert result["bytes_freed"] == 42
     assert not (entry_dir / "environment.glb").exists()
+
+
+def test_handle_delete_cache_entry_removes_one_and_keeps_the_rest(tmp_path):
+    from omnicam.reconstruction.jobs.api import ReconstructionApiError, handle_delete_cache_entry
+
+    keep, drop = "0123456789abcdef0123", "fedcba9876543210fedc"
+    for fp in (keep, drop):
+        d = tmp_path / "majoor_omnicam" / "reconstruction" / fp
+        d.mkdir(parents=True)
+        (d / "environment.glb").write_bytes(b"x" * 10)
+
+    result = handle_delete_cache_entry(drop, input_root=tmp_path)
+
+    assert result["cleared"] is True
+    assert result["fingerprint"] == drop
+    assert result["entries_removed"] == 1
+    assert not (tmp_path / "majoor_omnicam" / "reconstruction" / drop).exists()
+    assert (tmp_path / "majoor_omnicam" / "reconstruction" / keep / "environment.glb").is_file()
+
+    with pytest.raises(ReconstructionApiError) as excinfo:
+        handle_delete_cache_entry("../nope", input_root=tmp_path)
+    assert excinfo.value.status == 400

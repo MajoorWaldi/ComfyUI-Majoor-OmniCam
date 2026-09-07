@@ -103,7 +103,9 @@ def _index_zip_members(zip_dirs: list[Path]) -> list[tuple[zipfile.ZipFile, str]
                 print(f"  ! not a zip: {archive.name}", file=sys.stderr)
                 continue
             for name in zf.namelist():
-                if name.lower().endswith((".glb", ".gltf")):
+                # .glb only: a .gltf is JSON with sidecar .bin / textures that a
+                # plain file copy would leave behind, producing a broken asset.
+                if name.lower().endswith(".glb"):
                     members.append((zf, name))
     return members
 
@@ -139,14 +141,12 @@ def _download_kenney_kits(into: Path) -> list[Path]:
 
 def _best_member(target_rel: str, members: list[tuple[zipfile.ZipFile, str]]):
     stem = Path(target_rel).stem.lower()
-    glb = [m for m in members if m[1].lower().endswith(".glb")]
-    for pool in (glb, members):
-        exact = [m for m in pool if Path(m[1]).stem.lower() == stem]
-        if exact:
-            return exact[0]
-        loose = [m for m in pool if stem in Path(m[1]).stem.lower()]
-        if loose:
-            return sorted(loose, key=lambda m: len(m[1]))[0]
+    exact = [m for m in members if Path(m[1]).stem.lower() == stem]
+    if exact:
+        return exact[0]
+    loose = [m for m in members if stem in Path(m[1]).stem.lower()]
+    if loose:
+        return sorted(loose, key=lambda m: len(m[1]))[0]
     return None
 
 

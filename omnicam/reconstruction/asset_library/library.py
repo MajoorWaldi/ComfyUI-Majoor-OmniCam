@@ -44,6 +44,10 @@ from .types import AssetEntry, AssetPlacement
 LIBRARY_SUBDIR = ("majoor_omnicam", "blockout_library")
 MANIFEST_NAME = "library.json"
 _ANNOTATED_PREFIX = "majoor_omnicam/blockout_library"
+#: Max ratio a single ``stretch`` axis may deviate from the geometric mean of
+#: the three box/base ratios -- keeps a planar prop (window/door) from being
+#: stretched 20x along an unreliable OBB depth.
+_STRETCH_CLAMP = 3.0
 
 
 def resolve_library_root(input_root: Path | str | None = None) -> Path:
@@ -67,6 +71,16 @@ def resolve_library_root(input_root: Path | str | None = None) -> Path:
 
 class AssetLibrary:
     """A loaded ``library.json`` plus its on-disk root."""
+
+    @classmethod
+    def _rooted(cls, root: Path, template: AssetLibrary) -> AssetLibrary:
+        """A copy of ``template`` with a different on-disk root (for staging)."""
+        obj = cls.__new__(cls)
+        obj.root = root
+        obj.name = template.name
+        obj.version = template.version
+        obj.entries = template.entries
+        return obj
 
     def __init__(self, root: Path, manifest: dict[str, Any]) -> None:
         self.root = root
@@ -190,7 +204,16 @@ class AssetLibrary:
     ) -> tuple[float, float, float]:
         rx, ry, rz = (box[0] / base_size[0], box[1] / base_size[1], box[2] / base_size[2])
         if fit == "stretch":
-            sx, sy, sz = rx, ry, rz
+            # A fitted OBB gives a planar object (window / door / tv) an
+            # unreliable thin axis: dividing that box side by the model's own
+            # ~0.1 m thickness blows the scale up 20x. Clamp every axis to a
+            # sane band around the geometric mean of the three ratios so the
+            # prop stays roughly the box's size without grotesque stretching.
+            gmean = (max(rx, 1e-6) * max(ry, 1e-6) * max(rz, 1e-6)) ** (1.0 / 3.0)
+            lo, hi = gmean / _STRETCH_CLAMP, gmean * _STRETCH_CLAMP
+            sx = min(max(rx, lo), hi)
+            sy = min(max(ry, lo), hi)
+            sz = min(max(rz, lo), hi)
         elif fit == "upright":
             sx = sy = sz = ry
         else:  # uniform
@@ -200,6 +223,41 @@ class AssetLibrary:
         if any(not math.isfinite(v) or v <= 0.0 for v in out):
             return (max(1e-3, box[0]), max(1e-3, box[1]), max(1e-3, box[2]))
         return out
+
+
+def stage_custom_library(library: AssetLibrary, input_root: Path | str | None = None) -> AssetLibrary:
+    """Copy a library that lives outside the managed folder into
+    ``<input>/majoor_omnicam/blockout_library/_staged/<token>/`` and return a
+    handle rooted there.
+
+    ``AssetLibrary.resolve`` always emits ``majoor_omnicam/blockout_library/<rel>
+    [input]`` references, so an out-of-tree library would otherwise produce
+    unloadable GLB paths (or silently hit a same-named prop in the default
+    folder). Staging keeps the annotated-input contract intact and preserves the
+    read restrictions -- nothing outside ``library.root`` is ever copied.
+    """
+    managed_default = resolve_library_root(input_root)
+    try:
+        library.root.relative_to(managed_default)
+        return library  # already inside the managed folder
+    except ValueError:
+        pass
+    staged_root = (managed_default / "_staged" / library.identity_token().split(":")[-1]).resolve()
+    for rel in sorted({r for e in library.entries.values() for r in e.glb_candidates()}):
+        src = (library.root / rel).resolve()
+        try:
+            src.relative_to(library.root.resolve())
+        except ValueError:
+            continue  # never copy a path that escapes the library root
+        if not src.is_file():
+            continue
+        dst = staged_root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        if not dst.is_file() or dst.stat().st_size != src.stat().st_size:
+            import shutil
+
+            shutil.copyfile(src, dst)
+    return AssetLibrary._rooted(staged_root, library)
 
 
 def load_asset_library(

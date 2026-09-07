@@ -1,28 +1,33 @@
-"""Default interior blockout taxonomy."""
+"""Default blockout taxonomy.
+
+Kept deliberately small and scene-agnostic. SAM3 is open-vocabulary and will
+force a match for *every* requested label -- ask it for "counter" or "cabinet"
+on a night street scene and it hands back a shopfront at score 0.7. The default
+set is therefore only the layout anchors and large occluders that matter for a
+camera-motion blockout and that SAM3 detects reliably indoors *and* outdoors.
+Narrow, indoor-only props (armchair, desk, cabinet, shelf, counter, monitor,
+lamp, bottle, suitcase) are left out of the default -- a user targeting an
+interior can still list them explicitly via ``semantic_labels``.
+"""
 
 from __future__ import annotations
 
 DEFAULT_BLOCKOUT_LABELS: tuple[str, ...] = (
     "person",
+    "car",
+    "truck",
+    "bicycle",
+    "motorcycle",
     "chair",
-    "armchair",
     "sofa",
     "table",
-    "desk",
     "bed",
-    "cabinet",
-    "shelf",
-    "counter",
     "door",
     "window",
     "television",
-    "monitor",
-    "lamp",
     "plant",
-    "bottle",
-    "box",
-    "suitcase",
-    "car",
+    "building",
+    "tree",
 )
 
 

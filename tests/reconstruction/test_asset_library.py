@@ -47,10 +47,10 @@ def _write_library(root, *, manifest=None, files=("interior/chair.glb", "interio
     return root
 
 
-def _box(object_id="chair_1", semantic="chair", size=(0.6, 1.1, 0.6), yaw=30.0):
+def _box(object_id="chair_1", semantic="chair", size=(0.6, 1.1, 0.6), yaw=30.0, confidence=0.7):
     return BlockoutObject(
         object_id=object_id, label=semantic, semantic_class=semantic, primitive="cube",
-        position=(1.0, 0.55, -2.0), rotation=(0.0, yaw, 0.0), size=size, confidence=0.7,
+        position=(1.0, 0.55, -2.0), rotation=(0.0, yaw, 0.0), size=size, confidence=confidence,
         axis_confidence=AxisConfidence(0.8, 0.8, 0.4, 0.6),
     )
 
@@ -156,6 +156,21 @@ def test_resolve_placements_orders_caps_and_skips(tmp_path):
     ) == 3
 
 
+def test_resolve_placements_gates_low_confidence_detections(tmp_path):
+    """A shaky detection stays a plain blockout box; only confident ones are
+    promoted to a real GLB prop (otherwise SAM3 phantoms show up as furniture)."""
+    root = _write_library(tmp_path / "lib")
+    lib = load_asset_library(root)
+    objects = [
+        _box("chair_hi", "chair", confidence=0.80),
+        _box("chair_lo", "chair", confidence=0.40),  # below the asset floor
+    ]
+    placements = resolve_placements(objects, lib)
+    assert [p.source_object_id for p in placements] == ["chair_hi"]
+    # the floor is overridable (0.0 disables it -> both come back)
+    assert len(resolve_placements(objects, lib, min_confidence=0.0)) == 2
+
+
 def test_identity_token_tracks_the_manifest(tmp_path):
     root = _write_library(tmp_path / "lib")
     before = load_asset_library(root).identity_token()
@@ -212,3 +227,28 @@ def test_shipped_default_manifest_is_valid_and_kenney_cc0():
         for rel in entry.glb_candidates():
             assert rel.split("/")[0] in {"interior", "exterior", "human"}
             assert not rel.startswith(("/", "..")) and ":" not in rel
+
+
+def test_stretch_scale_is_clamped_for_a_planar_prop(tmp_path):
+    """A fitted window OBB has an unreliable thin axis; dividing a large box
+    side by the model's ~0.1 m thickness must not stretch the prop 20x
+    (seen on a real MoGe + SAM3 run)."""
+    root = _write_library(
+        tmp_path / "lib",
+        manifest={
+            "version": 1, "name": "t",
+            "assets": {"window": {"category": "interior", "glb": "interior/window.glb",
+                                  "fit": "stretch", "base_size": [1.0, 2.5, 0.1]}},
+        },
+        files=("interior/window.glb",),
+    )
+    lib = load_asset_library(root)
+    # box thin on X (0.09), tall (1.45), 'deep' 2.25 -> raw stretch would be
+    # (0.09, 0.58, 22.5).
+    p = lib.resolve("window", position=(0, 1, -5), rotation=(0, 0, 0),
+                    size=(0.09, 1.45, 2.25), object_id="w1")
+    assert p is not None
+    assert max(p.size) < 5.0, p.size          # no 22x blow-up
+    assert 0.05 < min(p.size) < 1.0
+    # proportions still roughly follow the box (tallest axis stays tallest-ish)
+    assert p.size[1] > p.size[0]

@@ -7,6 +7,9 @@
 // `npm run check:locales` fails if a key here no longer exists in the source.
 export const FR = {
   "3D assets": "Objets 3D",
+  "3D PREVIEW": "APERÇU 3D",
+  "3D preview of the reconstructed scene": "Aperçu 3D de la scène reconstruite",
+  "Frame the reconstructed scene": "Cadrer la scène reconstruite",
   "Boxes only": "Boîtes seules",
   "Add props": "Ajouter des objets",
   "Replace boxes": "Remplacer les boîtes",
@@ -552,6 +555,10 @@ export const FR = {
   "Clear Cache": "Vider le cache",
   "Clear cached tracks and reconstructions, and reset this node": "Vider les trajectoires et reconstructions en cache, et réinitialiser ce nœud",
   "Deletes every cached reconstruction (GLBs, manifests, source images) from disk, and forgets this node's cached track and reconstruction results. This cannot be undone.": "Supprime du disque chaque reconstruction en cache (GLB, manifestes, images source), et oublie la trajectoire et les résultats de reconstruction mis en cache par ce nœud. Cette action est irréversible.",
+  "✕ DISCARD": "✕ ABANDONNER",
+  "Discard reconstruction": "Abandonner la reconstruction",
+  "Discard this reconstruction and its cached files so the next run recomputes it": "Abandonner cette reconstruction et ses fichiers en cache pour que la prochaine exécution la recalcule",
+  "Removes this reconstruction and its cached files so the next run recomputes it. The camera track and other reconstructions are left untouched.": "Retire cette reconstruction et ses fichiers en cache pour que la prochaine exécution la recalcule. La trajectoire caméra et les autres reconstructions ne sont pas touchées.",
   "Scene Reconstruct": "Reconstruction de scène",
   "Scene Reconstruction": "Reconstruction de scène",
   "Provider": "Fournisseur",
