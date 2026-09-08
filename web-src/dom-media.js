@@ -22,6 +22,7 @@ export function configureDomMedia({ api }) {
 // and unloaded when they are replaced -- tearing down a borrowed <video> is
 // the origin node's decision, not ours.
 const ownedMedia = new WeakSet();
+const mediaUsers = new WeakMap();
 
 /** Fully release a decoded <video>: stop playback and drop its source so the
  * browser tears the decoder down instead of keeping it warm behind a dropped
@@ -39,12 +40,71 @@ export function stopDomMedia(media) {
 /** Register `media` for card id `id`, stopping the previous element first when
  * we own it. `owned` marks a element we created so a later replacement (or a
  * dispose) can release it. */
-function setCardMedia(ui, id, media, owned = false) {
+function retainMedia(media) {
+  if (media && typeof media === "object") mediaUsers.set(media, (mediaUsers.get(media) || 0) + 1);
+}
+
+function releaseMedia(media) {
+  if (!media || typeof media !== "object") return;
+  const count = mediaUsers.get(media) || 0;
+  if (count > 1) {
+    mediaUsers.set(media, count - 1);
+    return;
+  }
+  mediaUsers.delete(media);
+  if (ownedMedia.has(media)) stopDomMedia(media);
+}
+
+export function releaseCardMedia(ui, id) {
   const previous = ui.cardMediaById.get(id);
-  if (previous && previous !== media && ownedMedia.has(previous)) stopDomMedia(previous);
+  if (!previous) return;
+  ui.cardMediaById.delete(id);
+  ui.cardMediaAssetById?.delete?.(id);
+  if (id === "subject" && ui.cardMedia === previous) ui.cardMedia = null;
+  releaseMedia(previous);
+}
+
+export function releaseAllCardMedia(ui) {
+  for (const id of [...(ui.cardMediaById?.keys?.() || [])]) releaseCardMedia(ui, id);
+}
+
+export function setCardMedia(ui, id, media, owned = false, asset = "") {
+  const previous = ui.cardMediaById.get(id);
+  if (previous === media) {
+    ui.cardMediaAssetById ||= new Map();
+    ui.cardMediaAssetById.set(id, asset || media?.__omnicamAsset || "");
+    try { media.__omnicamAsset = asset || media.__omnicamAsset || ""; } catch (_) {}
+    if (id === "subject") ui.cardMedia = media;
+    return;
+  }
+  if (previous && previous !== media) releaseCardMedia(ui, id);
   if (owned) ownedMedia.add(media);
+  retainMedia(media);
+  ui.cardMediaAssetById ||= new Map();
   ui.cardMediaById.set(id, media);
+  ui.cardMediaAssetById.set(id, asset || media?.__omnicamAsset || "");
+  try { media.__omnicamAsset = asset || media.__omnicamAsset || ""; } catch (_) {}
   if (id === "subject") ui.cardMedia = media;
+}
+
+export function waitForMediaEvent(target, events, { signal, timeout = 15000 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("Operation cancelled", "AbortError"));
+    let timer = null;
+    const cleanup = () => {
+      if (timer !== null) clearTimeout(timer);
+      signal?.removeEventListener?.("abort", onAbort);
+      for (const name of events) target.removeEventListener?.(name, onEvent);
+    };
+    const onAbort = () => { cleanup(); reject(new DOMException("Operation cancelled", "AbortError")); };
+    const onEvent = (event) => { cleanup(); resolve(event); };
+    for (const name of events) target.addEventListener?.(name, onEvent, { once: true });
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+    if (timeout > 0) timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for ${events.join("/")}`));
+    }, timeout);
+  });
 }
 
 export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVideo = null) {
@@ -61,10 +121,7 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVi
     video.loop = true;
     video.muted = true;
     video.playsInline = true;
-    await new Promise((resolve) => {
-      video.addEventListener("loadeddata", resolve, { once: true });
-      video.addEventListener("error", resolve, { once: true });
-    });
+    await waitForMediaEvent(video, ["loadeddata", "error"], { signal: ui.abortController?.signal }).catch(() => {});
     if (!stillWanted()) { stopDomMedia(video); return; }
     // Matches loadCardFile: an upstream card is meant to read as a live
     // texture, not a frozen first frame. Playback failing (autoplay policy,
@@ -73,13 +130,13 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVi
     // play() awaited: the node may have gone away, or a newer sync may have
     // superseded this one, while it resolved.
     if (!stillWanted()) { stopDomMedia(video); return; }
-    setCardMedia(ui, object.id, video, true);
+    setCardMedia(ui, object.id, video, true, object.asset || url);
   } else {
     const image = new Image();
     image.src = url;
     await image.decode().catch(() => {});
     if (!stillWanted()) { image.src = ""; return; }
-    setCardMedia(ui, object.id, image, true);
+    setCardMedia(ui, object.id, image, true, object.asset || url);
   }
   if (ui.disposed) return null;
   ui.render();
@@ -136,11 +193,12 @@ export function restoreAssets(ui) {
       if (object.type === "model" || object.type === "glb") {
         object.load_error = t("Not saved to the ComfyUI input folder: this model will be missing after a reload.");
       }
+      if (object.type === "card") releaseCardMedia(ui, object.id);
       continue;
     }
     const url = annotatedAssetUrl(object.asset);
     if (object.type === "glb" || object.type === "model") ui.modelUrlsById.set(object.id, url);
-    else if (object.type === "card" && !ui.cardMediaById.has(object.id)) ui.loadMediaUrl(object, url, restoreIsCurrent);
+    else if (object.type === "card" && ui.cardMediaAssetById?.get?.(object.id) !== object.asset) ui.loadMediaUrl(object, url, restoreIsCurrent);
   }
 }
 
@@ -167,6 +225,7 @@ export async function loadModelFile(ui, file) {
   if (!["glb", "obj", "fbx", "stl", "ply"].includes(format)) return ui.setStatus(t("Supported scenes: GLB, OBJ, FBX, STL, PLY. Convert ABC first."));
   const tooBig = fileSizeError(file, format === "fbx" ? "fbx" : "model");
   if (tooBig) return ui.setStatus(tooBig);
+  ui.checkpoint?.("Import model");
   const id = `model_${Date.now().toString(36)}`;
   const object = {
     id,
@@ -195,6 +254,7 @@ export async function loadModelFile(ui, file) {
   ui.setStatus(t("Uploading {format}…").replace("{format}", format.toUpperCase()));
   try {
     const data = await uploadManagedFile(comfyApi, { route: "/majoor/omnicam/upload_model", field: "asset", file });
+    if (ui.disposed || !ui.state.objects.includes(object)) return;
     // Without a managed path the object cannot be restored: the blob URL dies
     // with the page, and restoreAssets() only revives objects that have an
     // asset. Treat a pathless response as a failed upload rather than leaving
@@ -207,6 +267,7 @@ export async function loadModelFile(ui, file) {
     if (modelInfo) ui.onModelLoaded(modelInfo);
     else ui.setStatus(t("{format} imported: {name}").replace("{format}", format.toUpperCase()).replace("{name}", data.name || object.name));
   } catch (error) {
+    if (ui.disposed || !ui.state.objects.includes(object)) return;
     console.error("[OmniCam] model upload failed", error);
     object.load_error = t("Not saved to the ComfyUI input folder: this model will be missing after a reload.");
     ui.serialize();
@@ -221,6 +282,8 @@ export async function loadCardFile(ui, file) {
   const tooBig = fileSizeError(file, "card");
   if (tooBig) return ui.setStatus(tooBig);
   const object = ui.selectedObject()?.type === "card" ? ui.selectedObject() : ui.state.objects.find((item) => item.id === "subject");
+  if (!object) return;
+  ui.checkpoint?.("Replace card media");
   ui.cardUrl = ui.objectUrls.replace(object.id, file);
   if (file.type.startsWith("video/")) {
     const video = document.createElement("video");
@@ -230,19 +293,21 @@ export async function loadCardFile(ui, file) {
     video.playsInline = true;
     await video.play().catch(() => {});
     if (ui.disposed) { stopDomMedia(video); return; }
-    setCardMedia(ui, object.id, video, true);
+    setCardMedia(ui, object.id, video, true, ui.cardUrl);
   } else {
     const image = new Image();
     image.src = ui.cardUrl;
     await image.decode().catch(() => {});
     if (ui.disposed) { image.src = ""; return; }
-    setCardMedia(ui, object.id, image, true);
+    setCardMedia(ui, object.id, image, true, ui.cardUrl);
   }
   ui.render();
   ui.setStatus(t("Uploading card…"));
   try {
     const data = await uploadManagedFile(comfyApi, { route: "/majoor/omnicam/upload_asset", field: "asset", file });
+    if (ui.disposed || !ui.state.objects.includes(object)) return;
     object.asset = data.path;
+    ui.cardMediaAssetById?.set?.(object.id, data.path);
     if (object.id === "subject") {
       ui.state.card_asset = data.path;
       if (ui.cardWidget) ui.cardWidget.value = data.path;
@@ -250,6 +315,7 @@ export async function loadCardFile(ui, file) {
     ui.serialize();
     ui.setStatus(t(`Card: ${data.name}`));
   } catch (error) {
+    if (ui.disposed || !ui.state.objects.includes(object)) return;
     console.error(error);
     ui.setStatus(t("Card loaded locally; backend upload failed"));
   }
@@ -285,7 +351,7 @@ export function loadSelectedReference(ui) {
   image.onload = () => {
     // onload fires a turn or more later; the node may be gone by then.
     if (ui.disposed) return;
-    setCardMedia(ui, "subject", image);
+    setCardMedia(ui, "subject", image, false, image.src);
     ui.render();
     ui.setStatus(t("Upstream media refreshed"));
   };
@@ -360,7 +426,7 @@ export async function syncUpstreamInputs(ui) {
           // origin node's own business; this only asks it to play again, it
           // never fails the sync if that request is refused.
           if (media instanceof HTMLVideoElement && media.paused) media.play().catch(() => {});
-          setCardMedia(ui, "subject", media);
+          setCardMedia(ui, "subject", media, false, media.currentSrc || media.src || "");
           adoptUpstreamMediaMetadata(ui, media, { frameCount: media instanceof HTMLVideoElement ? 0 : 1 });
           ui.upstreamImageConnected = true;
           anyUpdated = true;
@@ -445,10 +511,7 @@ export async function syncUpstreamInputs(ui) {
   // Handle Disconnections / Removals
   // 1. Cleanup disconnected Image/Video
   if (!hasImageLink && ui.upstreamImageConnected) {
-    const previousSubject = ui.cardMediaById.get("subject");
-    if (previousSubject && ownedMedia.has(previousSubject)) stopDomMedia(previousSubject);
-    ui.cardMedia = null;
-    ui.cardMediaById.delete("subject");
+    releaseCardMedia(ui, "subject");
     const subject = ui.state.objects.find((o) => o.id === "subject");
     if (subject) subject.asset = "";
     ui.upstreamImageConnected = false;

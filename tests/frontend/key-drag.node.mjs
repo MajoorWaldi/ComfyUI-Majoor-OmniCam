@@ -60,10 +60,14 @@ test("a pointer move under the threshold does not retime the key", () => {
 test("a pointer move at or past the threshold retimes normally", () => {
   const key = { frame: 48 };
   const { ui, calls } = fakeUi({ keys: [key] });
+  const checkpoints = [];
+  ui.checkpoint = (label) => checkpoints.push(label);
   ui.keyDrag = { key, box: BOX, moving: [{ key, startFrame: 48 }], startPointerFrame: 48, startClientX: START_X, startClientY: 200 };
   onKeyDragMove(ui, moveEvent(START_X + 60)); // ~7 frames, a deliberate drag
   assert.ok(calls.retimed.length > 0, "a deliberate drag must still retime");
   assert.notEqual(calls.retimed.at(-1), 48);
+  onKeyDragMove(ui, moveEvent(START_X + 80));
+  assert.deepEqual(checkpoints, ["Move keyframe"], "a continuous retime drag must create one undo entry");
 });
 
 test("once engaged, the drag keeps tracking even if the pointer drifts back near the start", () => {
@@ -83,7 +87,9 @@ test("once engaged, the drag keeps tracking even if the pointer drifts back near
 test("a multi-key drag also respects the dead zone", () => {
   const a = { frame: 40 };
   const b = { frame: 55 };
+  const checkpoints = [];
   const { ui } = fakeUi({ keys: [a, b] });
+  ui.checkpoint = (label) => checkpoints.push(label);
   ui.selectedKeyFrames = new Set([40, 55]);
   ui.keyDrag = {
     key: a, box: BOX, startPointerFrame: 40, startClientX: START_X, startClientY: 200,
@@ -93,6 +99,8 @@ test("a multi-key drag also respects the dead zone", () => {
   assert.deepEqual([a.frame, b.frame], [40, 55], "neither key moves under the threshold");
   onKeyDragMove(ui, moveEvent(START_X + 80));
   assert.notDeepEqual([a.frame, b.frame], [40, 55], "a deliberate drag moves the whole selection");
+  onKeyDragMove(ui, moveEvent(START_X + 100));
+  assert.deepEqual(checkpoints, ["Move keyframe"], "a multi-key retime drag must create one undo entry");
 });
 
 test("a duplicate-drag (Alt+drag) also waits for a deliberate move", () => {

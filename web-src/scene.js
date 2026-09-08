@@ -348,7 +348,7 @@ export function refreshKeyEditor(ui) {
   }
 }
 
-export function retimeSelectedKey(ui, frame, nearest = false) {
+export function retimeSelectedKey(ui, frame, nearest = false, options = {}) {
   const key = selectedKeyframe(ui);
   if (!key) return;
   const keys = timelineKeyframes(ui);
@@ -370,6 +370,7 @@ export function retimeSelectedKey(ui, frame, nearest = false) {
     return ui.setStatus(t(`Frame ${target} already has a keyframe`));
   }
   if (target === key.frame) return;
+  if (options.checkpoint !== false) ui.checkpoint("Move keyframe");
   const wasEditing = ui.editingKeyFrame === key.frame;
   key.frame = target;
   ui.selectedKeyFrame = target;
@@ -384,6 +385,7 @@ export function retimeSelectedKey(ui, frame, nearest = false) {
 export function updateSelectedKey(ui) {
   const key = selectedKeyframe(ui);
   if (!key) return;
+  ui.checkpoint("Edit keyframe");
   ui.editingKeyFrame = key.frame;
   if (timelineObject(ui)) {
     key.interpolation = ui.root.querySelector('[data-role="key-interp"]').value;
@@ -416,6 +418,7 @@ export function updateSelectedKey(ui) {
 export function updateKeyFromView(ui) {
   const key = selectedKeyframe(ui);
   if (!key) return;
+  ui.checkpoint("Store view in keyframe");
   ui.editingKeyFrame = key.frame;
   key.camera = cloneCamera(ui.camera);
   ui.serialize();

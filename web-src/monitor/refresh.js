@@ -24,10 +24,13 @@ export class MonitorRefreshController {
     this.timer = null;
     this.abort = null;
     this.scheduledKey = "";
+    this.disposed = false;
+    this.generation = 0;
   }
 
   /** No-ops when this exact payload is already scheduled or was just sent. */
   schedule(payload) {
+    if (this.disposed) return;
     const key = JSON.stringify(payload);
     if (key === this.scheduledKey) return;
     this.scheduledKey = key;
@@ -36,8 +39,10 @@ export class MonitorRefreshController {
   }
 
   async refresh(payload) {
+    if (this.disposed) return null;
     this.abort?.abort();
     this.abort = new AbortController();
+    const generation = ++this.generation;
     try {
       const response = await this.api.fetchApi(this.endpoint, {
         method: "POST",
@@ -49,15 +54,18 @@ export class MonitorRefreshController {
         throw new Error((await response.text?.()) || `Monitor live preflight failed (${response.status})`);
       }
       const snapshot = await response.json();
+      if (this.disposed || generation !== this.generation) return null;
       this.onSnapshot(snapshot);
       return snapshot;
     } catch (error) {
-      if (error?.name !== "AbortError") this.onError(error);
+      if (!this.disposed && generation === this.generation && error?.name !== "AbortError") this.onError(error);
       return null;
     }
   }
 
   dispose() {
+    this.disposed = true;
+    this.generation += 1;
     clearTimeout(this.timer);
     this.timer = null;
     this.abort?.abort();

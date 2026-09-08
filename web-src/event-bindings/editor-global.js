@@ -41,10 +41,12 @@ export function bindEditorAndGlobal(ui, q, signal) {
   q('[data-role="animation-select"]')?.addEventListener("change", (event) => ui.selectObjectAnimation(Number(event.target.value)), { signal });
   q('[data-role="object-parent"]')?.addEventListener("change", (event) => ui.setObjectParent(event.target.value || null), { signal });
   q('[data-role="duration-seconds"]')?.addEventListener("change", (event) => {
+    if (ui.durationWidget && Number(ui.durationWidget.value) !== Number(event.target.value)) ui.checkpoint("Change duration");
     if (ui.durationWidget) ui.durationWidget.value = Number(event.target.value);
     ui.syncFromWidgets();
   }, { signal });
   q('[data-role="timeline-fps"]')?.addEventListener("change", (event) => {
+    if (ui.fpsWidget && Number(ui.fpsWidget.value) !== Number(event.target.value)) ui.checkpoint("Change FPS");
     if (ui.fpsWidget) ui.fpsWidget.value = Number(event.target.value);
     ui.syncFromWidgets();
   }, { signal });
@@ -278,6 +280,9 @@ export function bindEditorAndGlobal(ui, q, signal) {
     if (ui.keyDrag) ui.onPointerMove(event);
   }, { capture: true, signal });
   window.addEventListener("pointerup", (event) => {
+    if (ui.keyDrag) ui.onPointerUp(event);
+  }, { capture: true, signal });
+  window.addEventListener("pointercancel", (event) => {
     if (ui.keyDrag) ui.onPointerUp(event);
   }, { capture: true, signal });
   const timeline = q('[data-role="dope-tracks"]');

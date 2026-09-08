@@ -222,7 +222,7 @@ test("duplicating a model/card keeps its asset and gets its own live URL entry (
   const duplicateFn = source.slice(source.indexOf("export function duplicateObject"), source.indexOf("export function toggleObject"));
   assert.doesNotMatch(duplicateFn, /delete copy\.asset/, "the asset reference must survive a duplicate");
   assert.match(duplicateFn, /modelUrlsById\.set\(copy\.id/, "a duplicated model must get its own live modelUrlsById entry");
-  assert.match(duplicateFn, /cardMediaById\.set\(copy\.id/, "a duplicated card must get its own live cardMediaById entry");
+  assert.match(duplicateFn, /setCardMedia\(ui, copy\.id/, "a duplicated card must get its own live cardMediaById entry");
 });
 
 test("viewport transforms create undo checkpoints before their first mutation", async () => {

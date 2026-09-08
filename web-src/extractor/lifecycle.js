@@ -104,9 +104,9 @@ export function attachExtractor(node) {
     configured?.apply(this, arguments);
     ui.refreshSource();
     ui.recoverStatus();
+    ui.reconstruction?.recoverStatus?.();
     // A workflow reload restores the recon_* widgets after this panel was
     // built; re-hydrate its DOM controls from them.
     ui.reconstruction?.syncFromWidgets?.();
   };
 }
-

@@ -186,6 +186,10 @@ export function onKeyDragMove(ui, event) {
     if (moved < KEY_DRAG_THRESHOLD) return;
     drag.engaged = true;
   }
+  if (!drag.historyCheckpointed) {
+    ui.checkpoint?.("Move keyframe");
+    drag.historyCheckpointed = true;
+  }
   const rect = drag.box.getBoundingClientRect();
   const lastFrame = Math.max(1, ui.state.duration_frames - 1);
   const zoom = clamp(Number(ui.timelineZoom) || 1.0, 0.1, 50.0);
@@ -224,6 +228,6 @@ export function onKeyDragMove(ui, event) {
   }
   if (frame !== drag.key.frame) {
     ui.editingKeyFrame = drag.key.frame;
-    ui.retimeSelectedKey(frame, true);
+    ui.retimeSelectedKey(frame, true, { checkpoint: false });
   }
 }

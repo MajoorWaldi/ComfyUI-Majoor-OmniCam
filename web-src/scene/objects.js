@@ -28,7 +28,7 @@ function optionEl(value, label) {
   return option;
 }
 import { beginCameraEdit, commitCameraEdit, finishCameraEdit, refreshKeyEditor, selectedKeyframe, updateKeyVisualState } from "../scene.js";
-import { stopDomMedia } from "../dom-media.js";
+import { releaseCardMedia, setCardMedia } from "../dom-media.js";
 import { findEditableKey } from "./edit-target.js";
 import { reconstructionBadge } from "./reconstruction-badges.js";
 
@@ -61,7 +61,8 @@ export function addPrimitive(ui, type) {
 export async function renameObject(ui, id) {
   const object = ui.state.objects.find((item) => item.id === id);
   if (!object) return;
-  const name = (await promptText(ui.app, t("Rename object"), t("Object name"), object.name || object.type))?.trim();
+  const name = (await promptText(ui, t("Rename object"), t("Object name"), object.name || object.type))?.trim();
+  if (ui.disposed || !ui.state.objects.includes(object)) return;
   if (!name || name === object.name) return;
   ui.checkpoint("Rename object");
   object.name = name.slice(0, 80);
@@ -90,7 +91,7 @@ export function duplicateObject(ui, id) {
   if ((copy.type === "model" || copy.type === "glb") && ui.modelUrlsById.has(source.id)) {
     ui.modelUrlsById.set(copy.id, ui.modelUrlsById.get(source.id));
   } else if (copy.type === "card" && ui.cardMediaById.has(source.id)) {
-    ui.cardMediaById.set(copy.id, ui.cardMediaById.get(source.id));
+    setCardMedia(ui, copy.id, ui.cardMediaById.get(source.id), false, copy.asset || ui.cardMediaAssetById?.get?.(source.id) || "");
   }
   ui.state.objects.push(copy);
   ui.selectedEntity = "object";
@@ -118,7 +119,8 @@ export async function deleteObject(ui, id) {
   if (id === "subject") return ui.setStatus(t("The subject card cannot be deleted"));
   const object = ui.state.objects.find((item) => item.id === id);
   if (!object) return;
-  if (!(await confirmAction(ui.app, t("Delete object"), t(`Delete ${object.name || object.type} and its ${(object.keyframes || []).length} keyframe(s)?`)))) return;
+  if (!(await confirmAction(ui, t("Delete object"), t(`Delete ${object.name || object.type} and its ${(object.keyframes || []).length} keyframe(s)?`)))) return;
+  if (ui.disposed || !ui.state.objects.includes(object)) return;
   ui.checkpoint("Delete object");
   for (const child of ui.state.objects) if (child.parent_id === id) child.parent_id = null;
   ui.state.objects = ui.state.objects.filter((item) => item.id !== id);
@@ -151,7 +153,8 @@ export async function deleteSelectedObjects(ui) {
   }
   if (ids.length === 1) return deleteObject(ui, ids[0]);
   const prompt = t("Delete {count} objects and their keyframes?").replace("{count}", String(ids.length));
-  if (!(await confirmAction(ui.app, t("Delete objects"), prompt))) return;
+  if (!(await confirmAction(ui, t("Delete objects"), prompt))) return;
+  if (ui.disposed) return;
   ui.checkpoint("Delete objects");
   const doomed = new Set(ids);
   for (const child of ui.state.objects) if (child.parent_id && doomed.has(child.parent_id)) child.parent_id = null;
@@ -169,6 +172,7 @@ export async function deleteSelectedObjects(ui) {
 }
 
 export function addMediaCard(ui) {
+  ui.checkpoint("Create media card");
   const id = `card_${Date.now().toString(36)}`;
   ui.state.objects.push({
     id,
@@ -369,6 +373,10 @@ export function updateSelectedObject(ui) {
   const pos = object.position || [0, 0, 0];
   const rot = object.rotation || [0, 0, 0];
   const sz = object.size || [1, 1, 1];
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  if (ui.lastObjectNumericEditId !== object.id || !Number.isFinite(ui.lastObjectNumericEditAt) || now - ui.lastObjectNumericEditAt > 300) ui.checkpoint?.("Edit object");
+  ui.lastObjectNumericEditId = object.id;
+  ui.lastObjectNumericEditAt = now;
   object.position = [read("object-x", pos[0]), read("object-y", pos[1]), read("object-z", pos[2])];
   object.rotation = [read("object-rx", rot[0]), read("object-ry", rot[1]), read("object-rz", rot[2])];
   object.size = [Math.max(0.01, read("object-sx", sz[0])), Math.max(0.01, read("object-sy", sz[1])), Math.max(0.01, read("object-sz", sz[2]))];
@@ -513,6 +521,7 @@ export function setObjectParent(ui, parentId) {
 export function selectObjectAnimation(ui, index) {
   const object = selectedObject(ui);
   if (!object) return;
+  ui.checkpoint("Select animation");
   object.animation_index = Math.max(0, index || 0);
   ui.serialize();
   ui.webgl?.selectAnimation(object.id, index);
@@ -523,10 +532,7 @@ export { refreshObjects } from "./outliner.js";
 
 export function removeObjectResources(ui, id) {
   ui.objectUrls.revoke(id);
-  // Stop and unload a video before dropping the map reference, otherwise the
-  // browser keeps decoding a clip nothing can display any more.
-  stopDomMedia(ui.cardMediaById.get(id));
-  ui.cardMediaById.delete(id);
+  releaseCardMedia(ui, id);
   ui.modelUrlsById.delete(id);
   ui.modelInfoById.delete(id);
   ui.webgl?.removeModel(id);

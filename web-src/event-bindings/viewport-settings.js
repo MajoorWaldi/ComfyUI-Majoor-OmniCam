@@ -12,6 +12,13 @@ import { axisViewFor } from "../view-navigation.js";
 import { toggleObjectLock } from "../scene/object-lock.js";
 import { setReconstructionAppearance } from "../scene/reconstruction-badges.js";
 
+function groupedCheckpoint(ui, key, label, interval = 300) {
+  const now = globalThis.performance?.now?.() ?? Date.now();
+  ui._groupedCheckpointAt ||= {};
+  if (!Number.isFinite(ui._groupedCheckpointAt[key]) || now - ui._groupedCheckpointAt[key] > interval) ui.checkpoint(label);
+  ui._groupedCheckpointAt[key] = now;
+}
+
 export function bindViewportSettings(ui, q, signal) {
   const axisGizmo = ui.root.querySelector('[data-role="viewport-axis"]');
   if (axisGizmo) {
@@ -30,6 +37,7 @@ export function bindViewportSettings(ui, q, signal) {
 
   for (const el of ui.root.querySelectorAll('[data-role="mode"]')) {
     el.addEventListener("change", (e) => {
+      if (ui.state.render_mode !== e.target.value) ui.checkpoint("Change render mode");
       ui.state.render_mode = e.target.value;
       if (ui.modeWidget) ui.modeWidget.value = e.target.value;
       for (const o of ui.root.querySelectorAll('[data-role="mode"]')) o.value = e.target.value;
@@ -101,6 +109,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const el of ui.root.querySelectorAll('[data-role="camera-type"]')) {
     el.addEventListener("change", (e) => {
+      if (ui.camera.camera_type !== e.target.value) ui.checkpoint("Change camera type");
       ui.camera.camera_type = e.target.value;
       syncMirroredControl(ui.root, "camera-type", e.target);
       ui.beginCameraEdit();
@@ -124,6 +133,7 @@ export function bindViewportSettings(ui, q, signal) {
   for (const el of ui.root.querySelectorAll('[data-role="interp"]')) {
     el.addEventListener("change", (e) => {
       if (ui.activeKeyframe()) {
+        if (ui.activeKeyframe().interpolation !== e.target.value) ui.checkpoint("Change interpolation");
         ui.activeKeyframe().interpolation = e.target.value;
         ui.scheduleSerialize();
         ui.render();
@@ -132,6 +142,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="point-density"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.point_density !== e.target.value) ui.checkpoint("Change point density");
       ui.state.point_density = e.target.value;
       ui.scheduleSerialize();
       ui.render();
@@ -140,6 +151,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="point-color"]')) {
     box.addEventListener("input", (e) => {
+      if (ui.state.point_color !== e.target.value) groupedCheckpoint(ui, "point_color", "Change point color");
       ui.state.point_color = e.target.value;
       ui.scheduleSerialize();
       ui.render();
@@ -147,6 +159,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="point-spread"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.point_spread !== e.target.value) ui.checkpoint("Change point spread");
       ui.state.point_spread = e.target.value;
       ui.scheduleSerialize();
       ui.render();
@@ -155,6 +168,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="card-fit"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.card_fit !== e.target.value) ui.checkpoint("Change card fit");
       ui.state.card_fit = e.target.value;
       ui.scheduleSerialize();
       ui.render();
@@ -162,6 +176,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="speed-heatmap"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.speed_heatmap !== e.target.checked) ui.checkpoint("Toggle speed heatmap");
       ui.state.speed_heatmap = e.target.checked;
       syncMirroredControl(ui.root, "speed-heatmap", e.target, "checked");
       ui.scheduleSerialize();
@@ -170,6 +185,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="playblast-grid"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.playblast_grid !== e.target.checked) ui.checkpoint("Toggle playblast grid");
       ui.state.playblast_grid = e.target.checked;
       syncMirroredControl(ui.root, "playblast-grid", e.target, "checked");
       ui.scheduleSerialize();
@@ -178,6 +194,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.playblast_resolution !== e.target.value) ui.checkpoint("Change playblast resolution");
       ui.state.playblast_resolution = e.target.value;
       syncMirroredControl(ui.root, "playblast-resolution", e.target);
       ui.scheduleSerialize();
@@ -186,6 +203,7 @@ export function bindViewportSettings(ui, q, signal) {
   for (const button of ui.root.querySelectorAll('[data-act="reset-bg-color"]')) {
     button.addEventListener("click", () => {
       // Back to the default colour, which is what lets the studio sky show again.
+      if (ui.state.viewport_bg_color !== DEFAULT_BG_COLOR) ui.checkpoint("Reset background colour");
       ui.state.viewport_bg_color = DEFAULT_BG_COLOR;
       for (const input of ui.root.querySelectorAll('[data-role="viewport-bg-color"]')) input.value = DEFAULT_BG_COLOR;
       ui.scheduleSerialize();
@@ -211,6 +229,7 @@ export function bindViewportSettings(ui, q, signal) {
   ]) {
     for (const box of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
       box.addEventListener("change", (e) => {
+        if (ui.state[flag] !== e.target.checked) ui.checkpoint("Toggle viewport helper");
         ui.state[flag] = e.target.checked;
         syncMirroredControl(ui.root, role, e.target, "checked");
         ui.scheduleSerialize();
@@ -235,6 +254,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="show-wireframe"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.show_wireframe !== e.target.checked) ui.checkpoint("Toggle wireframe");
       ui.state.show_wireframe = e.target.checked;
       syncMirroredControl(ui.root, "show-wireframe", e.target, "checked");
       ui.scheduleSerialize();
@@ -244,6 +264,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="show-vertices"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.show_vertices !== e.target.checked) ui.checkpoint("Toggle vertices");
       ui.state.show_vertices = e.target.checked;
       syncMirroredControl(ui.root, "show-vertices", e.target, "checked");
       ui.scheduleSerialize();
@@ -253,6 +274,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="burn-in"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.burn_in !== e.target.checked) ui.checkpoint("Toggle burn-in");
       ui.state.burn_in = e.target.checked;
       syncMirroredControl(ui.root, "burn-in", e.target, "checked");
       ui.scheduleSerialize();
@@ -261,6 +283,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="guides"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.guides !== e.target.checked) ui.checkpoint("Toggle guides");
       ui.state.guides = e.target.checked;
       syncMirroredControl(ui.root, "guides", e.target, "checked");
       ui.scheduleSerialize();
@@ -269,6 +292,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="safe-areas"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.safe_areas !== e.target.checked) ui.checkpoint("Toggle safe areas");
       ui.state.safe_areas = e.target.checked;
       syncMirroredControl(ui.root, "safe-areas", e.target, "checked");
       ui.scheduleSerialize();
@@ -278,6 +302,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="resolution-gate"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.resolution_gate !== e.target.checked) ui.checkpoint("Toggle resolution gate");
       ui.state.resolution_gate = e.target.checked;
       syncMirroredControl(ui.root, "resolution-gate", e.target, "checked");
       ui.scheduleSerialize();
@@ -287,6 +312,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="aspect-ratio"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.aspect_ratio !== e.target.value) ui.checkpoint("Change aspect ratio");
       ui.state.aspect_ratio = e.target.value;
       syncMirroredControl(ui.root, "aspect-ratio", e.target);
       ui.scheduleSerialize();
@@ -296,6 +322,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="viewport-bg-color"]')) {
     const handler = (e) => {
+      if (ui.state.viewport_bg_color !== e.target.value) groupedCheckpoint(ui, "viewport_bg_color", "Change background colour");
       ui.state.viewport_bg_color = e.target.value;
       syncMirroredControl(ui.root, "viewport-bg-color", e.target);
       ui.scheduleSerialize();
@@ -334,6 +361,7 @@ export function bindViewportSettings(ui, q, signal) {
     el.addEventListener("change", (e) => {
       const obj = ui.selectedObject();
       if (obj) {
+        if (obj.material_mode !== e.target.value) ui.checkpoint("Change object material");
         obj.material_mode = e.target.value;
         ui.serialize();
         ui.render();
@@ -355,6 +383,7 @@ export function bindViewportSettings(ui, q, signal) {
     el.addEventListener("input", (e) => {
       const obj = ui.selectedObject();
       if (obj) {
+        if (obj.color !== e.target.value) groupedCheckpoint(ui, `object_color:${obj.id}`, "Change object color");
         obj.color = e.target.value;
         ui.scheduleSerialize();
         ui.render();
@@ -363,6 +392,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const el of ui.root.querySelectorAll('[data-role="reference-select"]')) {
     el.addEventListener("change", (e) => {
+      if (ui.state.reference_index !== Number(e.target.value)) ui.checkpoint("Change reference");
       ui.state.reference_index = Number(e.target.value);
       ui.serialize();
       ui.loadSelectedReference();
@@ -392,6 +422,7 @@ export function bindViewportSettings(ui, q, signal) {
   }
   for (const box of ui.root.querySelectorAll('[data-role="show-radar"]')) {
     box.addEventListener("change", (e) => {
+      if (ui.state.show_radar !== e.target.checked) ui.checkpoint("Toggle radar");
       ui.state.show_radar = e.target.checked;
       ui.scheduleSerialize();
       ui.render();

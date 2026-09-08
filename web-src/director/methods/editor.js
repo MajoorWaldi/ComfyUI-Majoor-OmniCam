@@ -48,6 +48,26 @@ export function createEditorMethods(dependencies) {
   },
   restoreHistorySnapshot(snapshot) {
     const value = JSON.parse(snapshot);
+    this.keyDrag?.badge?.remove?.();
+    this.boxSelect?.overlay?.remove?.();
+    this.drag = null;
+    this.gizmoDrag = null;
+    this.targetFreeDrag = null;
+    this.pathDrag = null;
+    this.boxSelection = null;
+    this.keyDrag = null;
+    this.curveDrag = null;
+    this.curvePanDrag = null;
+    this.curveScrub = null;
+    this.curveBoxSelect = null;
+    this.timelineDrag = null;
+    this.timelinePanDrag = null;
+    this.boxSelect = null;
+    this.modalTransform = null;
+    if (this.activePointerId != null) {
+      try { this.interactionElement?.releasePointerCapture?.(this.activePointerId); } catch (_) {}
+      this.activePointerId = null;
+    }
     const previousAssets = assetSignature(this.state);
     const previousIds = new Set(this.state.objects.map((object) => object.id));
     this.state = sanitizeState(value.state);

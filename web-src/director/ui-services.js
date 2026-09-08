@@ -160,7 +160,16 @@ export class ContextMenuController {
 // button look dead. This modal is our own DOM -- not a blocked browser modal
 // API -- so the buttons always do something.
 
-function omnicamModal({ title, message, withInput = false, defaultValue = "" }) {
+const ownedModals = new WeakMap();
+
+export function closeOwnedModals(owner) {
+  const items = ownedModals.get(owner);
+  if (!items) return;
+  for (const close of [...items]) close();
+  ownedModals.delete(owner);
+}
+
+function omnicamModal({ title, message, withInput = false, defaultValue = "", owner = null }) {
   if (typeof document === "undefined" || !document.body) {
     return Promise.resolve(withInput ? null : false);
   }
@@ -233,9 +242,16 @@ function omnicamModal({ title, message, withInput = false, defaultValue = "" }) 
       if (done) return;
       done = true;
       document.removeEventListener("keydown", onKey, true);
+      if (owner && typeof owner === "object") ownedModals.get(owner)?.delete(finishCancel);
       backdrop.remove();
       resolve(value);
     };
+    const finishCancel = () => finish(withInput ? null : false);
+    if (owner && typeof owner === "object") {
+      let items = ownedModals.get(owner);
+      if (!items) ownedModals.set(owner, items = new Set());
+      items.add(finishCancel);
+    }
     const onKey = (event) => {
       if (event.key === "Escape") { event.stopPropagation(); finish(withInput ? null : false); }
       else if (event.key === "Enter") { event.stopPropagation(); finish(withInput ? input.value : true); }
@@ -254,9 +270,10 @@ function omnicamModal({ title, message, withInput = false, defaultValue = "" }) 
 }
 
 export async function promptText(appOrTitle, titleOrMessage, messageOrValue, initialValue) {
-  let app, title, message, defaultValue;
+  let app, owner, title, message, defaultValue;
   if (typeof appOrTitle === "object" && appOrTitle !== null) {
-    app = appOrTitle;
+    owner = appOrTitle;
+    app = appOrTitle.extensionManager ? appOrTitle : appOrTitle.app;
     title = titleOrMessage;
     message = messageOrValue;
     defaultValue = initialValue;
@@ -271,13 +288,14 @@ export async function promptText(appOrTitle, titleOrMessage, messageOrValue, ini
   // ComfyUI's dialog manager could not be reached (wrong app instance behind
   // the bundle, or a build that does not expose it). Fall back to our own DOM
   // modal -- never a blocked browser modal API -- so the control still works.
-  return omnicamModal({ title, message, withInput: true, defaultValue });
+  return omnicamModal({ title, message, withInput: true, defaultValue, owner });
 }
 
 export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
-  let app, title, message;
+  let app, owner, title, message;
   if (typeof appOrTitle === "object" && appOrTitle !== null) {
-    app = appOrTitle;
+    owner = appOrTitle;
+    app = appOrTitle.extensionManager ? appOrTitle : appOrTitle.app;
     title = titleOrMessage;
     message = messageText;
   } else {
@@ -292,5 +310,5 @@ export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
   // modal -- never a blocked browser modal API -- so the button still works
   // instead of silently resolving "no" (this is what made "Clear Cache" look
   // dead).
-  return omnicamModal({ title, message, withInput: false });
+  return omnicamModal({ title, message, withInput: false, owner });
 }

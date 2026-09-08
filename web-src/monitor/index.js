@@ -51,6 +51,8 @@ class MonitorUI {
     // Set before the watcher's first poll can call sourceChanged() -> liveTick().
     this.hasExecutedOnce = false;
     this._liveUnavailableText = "";
+    this.disposed = false;
+    this.connectionRefreshTimer = null;
     this.refreshController = new MonitorRefreshController(api, {
       onSnapshot: (snapshot) => this.liveSnapshotReceived(snapshot),
       onError: (error) => this.liveRefreshFailed(error),
@@ -66,6 +68,7 @@ class MonitorUI {
     const target = this.root.querySelector('[data-role="profile-catalogue"]');
     try {
       const payload = await loadMonitorProfileInfo(api);
+      if (this.disposed) return;
       renderMonitorProfileInfo(this.root, payload);
     } catch (error) {
       if (target) target.textContent = "Monitor profile information unavailable.";
@@ -158,6 +161,7 @@ class MonitorUI {
   }
 
   sourceChanged(source) {
+    if (this.disposed) return;
     this.source = source;
     const status = this.root.querySelector('[data-role="source-status"]');
     status.textContent = source.sceneConnected
@@ -179,6 +183,7 @@ class MonitorUI {
    * never touches a DOM input at all.
    */
   liveTick() {
+    if (this.disposed) return;
     // Not just the preflight: a playblast recorded (or re-recorded) after the
     // Director was already connected changes no link, so the topology
     // watcher alone would never notice it. Reading it on the same cadence as
@@ -205,6 +210,7 @@ class MonitorUI {
   }
 
   liveSnapshotReceived(snapshot) {
+    if (this.disposed) return;
     renderMonitorExecution(this.root, snapshot, { live: true });
   }
 
@@ -234,6 +240,7 @@ class MonitorUI {
   }
 
   refreshPlayblastPreview() {
+    if (this.disposed) return;
     const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
     const empty = this.root.querySelector(".oc-player-empty");
     const origin = this.source?.playblastOrigin;
@@ -269,6 +276,7 @@ class MonitorUI {
     }
     this.player.setSource("");
     drawUpstreamPreview(media, canvas, 640).then((drawn) => {
+      if (this.disposed) return;
       canvas.hidden = !drawn;
       empty.hidden = drawn;
     });
@@ -304,7 +312,10 @@ class MonitorUI {
   }
 
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     clearInterval(this.liveTimer);
+    clearTimeout(this.connectionRefreshTimer);
     closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
     this.refreshController?.dispose();
     this.watcher?.dispose();
@@ -348,8 +359,13 @@ export function attachMonitor(node) {
   const changed = node.onConnectionsChange;
   node.onConnectionsChange = function() {
     changed?.apply(this, arguments);
+    if (ui.disposed) return;
     ui.watcher?.poll();
     ui.refreshPlayblastPreview();
-    setTimeout(() => ui.refreshPlayblastPreview(), 400);
+    clearTimeout(ui.connectionRefreshTimer);
+    ui.connectionRefreshTimer = setTimeout(() => {
+      ui.connectionRefreshTimer = null;
+      ui.refreshPlayblastPreview();
+    }, 400);
   };
 }

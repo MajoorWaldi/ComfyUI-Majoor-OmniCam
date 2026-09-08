@@ -14,7 +14,8 @@ export function selectedTransformObjects(ui) {
 export function beginModalTransform(ui, mode) {
   const objects = selectedTransformObjects(ui);
   if (!objects.length || !["translate", "rotate", "scale"].includes(mode)) return false;
-  ui.checkpoint(`${mode[0].toUpperCase()}${mode.slice(1)} selection`);
+  const label = `${mode[0].toUpperCase()}${mode.slice(1)} selection`;
+  if (!ui.history?.beginTransaction?.(label)) ui.checkpoint(label);
   for (const object of objects) ui.beginObjectEdit(object);
   const snapshots = objects.map((object) => ({ object, transform: cloneTransform(object) }));
   const pivot = snapshots.reduce((sum, item) => add(sum, item.transform.position), [0, 0, 0]).map((value) => value / snapshots.length);
@@ -120,6 +121,7 @@ export function updateModalTransform(ui, event) {
 
 export function confirmModalTransform(ui) {
   if (!ui.modalTransform) return false;
+  ui.history?.commitTransaction?.();
   ui.modalTransform = null; ui.editingKeyFrame = null;
   ui.scheduleSerialize(); ui.refreshKeys(); ui.drawCurveEditor(); ui.render(); ui.setStatus("Transform confirmed");
   return true;
@@ -127,7 +129,22 @@ export function confirmModalTransform(ui) {
 
 export function cancelModalTransform(ui) {
   if (!ui.modalTransform) return false;
-  ui.modalTransform = null; ui.undo(); ui.setStatus("Transform cancelled");
+  const transaction = ui.history?.cancelTransaction?.();
+  const session = ui.modalTransform;
+  if (!transaction) {
+    for (const item of session.snapshots) {
+      item.object.position = [...item.transform.position];
+      item.object.rotation = [...item.transform.rotation];
+      item.object.size = [...item.transform.size];
+    }
+    ui.serialize?.();
+    ui.refreshObjects?.();
+    ui.refreshKeys?.();
+    ui.refreshInspector?.();
+    ui.drawCurveEditor?.();
+    ui.render?.();
+  }
+  ui.modalTransform = null; ui.editingKeyFrame = null; ui.setStatus("Transform cancelled");
   return true;
 }
 

@@ -49,6 +49,7 @@ export async function loadViewportBgFile(ui, file) {
       return;
     }
     const url = annotatedAssetUrl(uploaded.path);
+    ui.checkpoint?.("Set background image");
     ui.state.viewport_bg_image = uploaded.path;
     ui.state.viewport_bg_sequence = [];
     const img = new Image();
@@ -90,6 +91,7 @@ export async function loadViewportBgSequence(ui, files) {
       }
     }
     const assets = uploaded.map((item) => item.path);
+    ui.checkpoint?.("Set background sequence");
     ui.state.viewport_bg_sequence = assets;
     ui.state.viewport_bg_image = "";
     ui.viewportBgImage = null;
@@ -111,6 +113,7 @@ export async function loadViewportBgSequence(ui, files) {
 
 export function clearViewportBgImage(ui) {
   beginBackgroundRequest(ui);
+  ui.checkpoint?.("Clear background");
   ui.state.viewport_bg_image = "";
   ui.state.viewport_bg_sequence = [];
   ui.viewportBgImage = null;

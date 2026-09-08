@@ -14,6 +14,7 @@ import { renderReconstructionView } from "./views.js";
 import { annotatedAssetUrl } from "../../shared/managed-assets.js";
 import { confirmAction } from "../../director/ui-services.js";
 import { t } from "../../i18n.js";
+import { RequestLifetime, isAbortError } from "../../request-lifetime.js";
 
 export class ReconstructionPanelController {
   constructor({
@@ -34,6 +35,8 @@ export class ReconstructionPanelController {
     this.listen = listen;
 
     this.client = new ReconstructionJobClient(api);
+    this.requestLifetime = new RequestLifetime();
+    this.runGeneration = 0;
     this.state = initialReconstructionState();
     const initialSource = this.getSource();
     if (initialSource) {
@@ -50,7 +53,9 @@ export class ReconstructionPanelController {
         preview: (payload) => this.dispatch({ type: "PREVIEW", previewUrl: payload.preview_url }),
         done: async (payload) => {
           try {
-            const res = await this.client.getJobResult(payload.job_id);
+            const generation = this.runGeneration;
+            const res = await this.client.getJobResult(payload.job_id, { signal: this.requestLifetime.signal });
+            if (this.disposed || generation !== this.runGeneration || payload.job_id !== this.state.jobId) return;
             this.dispatch({
               type: "DONE",
               result: res.result || res.motion_scene || res,
@@ -58,6 +63,7 @@ export class ReconstructionPanelController {
               warnings: res.warnings,
             });
           } catch (err) {
+            if (this.disposed || isAbortError(err)) return;
             this.dispatch({ type: "ERROR", error: { message: err.message } });
           }
         },
@@ -100,6 +106,14 @@ export class ReconstructionPanelController {
         discardBtn.disabled = true;
         Promise.resolve(this.discard()).finally(() => this.render());
       });
+    }
+    if (typeof document !== "undefined") {
+      this.listen(document, "visibilitychange", () => {
+        if (document.visibilityState === "visible") this.recoverStatus();
+      });
+    }
+    if (typeof window !== "undefined") {
+      this.listen(window, "online", () => this.recoverStatus());
     }
 
     this.initCapabilities();
@@ -168,6 +182,7 @@ export class ReconstructionPanelController {
         statusElement: status,
         checkpointSelectElement: checkpointSelect,
       });
+      if (this.disposed) return;
       // The provider / checkpoint <select> options only exist once capabilities
       // load; re-apply the saved widget values so the panel shows the saved
       // provider, not the first available one.
@@ -184,6 +199,7 @@ export class ReconstructionPanelController {
   }
 
   dispatch(action) {
+    if (this.disposed) return;
     const previousResult = this.state.result;
     this.state = reduceReconstructionState(this.state, action);
     this.render();
@@ -199,7 +215,8 @@ export class ReconstructionPanelController {
 
   async run() {
     const source = this.state.source || this.getSource();
-    if (!source) return;
+    if (!source || this.disposed) return;
+    const generation = ++this.runGeneration;
     // Last-write wins: flush the panel onto the widgets so this run and a save
     // immediately after it agree.
     syncWidgetsFromPanel(this.node, this.root);
@@ -211,9 +228,15 @@ export class ReconstructionPanelController {
         nodeId: this.node?.id || "",
         source,
         settings,
+        signal: this.requestLifetime.signal,
       });
+      if (this.disposed || generation !== this.runGeneration) {
+        if (resp?.job_id) void this.client.stopJob(resp.job_id).catch(() => {});
+        return;
+      }
       this.applyJobResponse(resp);
     } catch (err) {
+      if (this.disposed || isAbortError(err)) return;
       this.dispatch({ type: "ERROR", error: { message: err.message } });
     }
   }
@@ -229,6 +252,7 @@ export class ReconstructionPanelController {
    * socket event that may not come.
    */
   applyJobResponse(resp) {
+    if (this.disposed) return;
     if (resp.result) {
       this.acceptResultEnvelope(resp.job_id, resp.result);
       return;
@@ -248,6 +272,7 @@ export class ReconstructionPanelController {
   }
 
   acceptResultEnvelope(jobId, result) {
+    if (this.disposed) return;
     this.dispatch({
       type: "DONE",
       jobId: jobId || this.state.jobId,
@@ -259,25 +284,31 @@ export class ReconstructionPanelController {
 
   /** Fetch a finished job's result over HTTP after a missed WebSocket "done". */
   async recoverResult(jobId) {
+    const generation = this.runGeneration;
     try {
-      const resp = await this.client.result(jobId);
+      const resp = await this.client.result(jobId, { signal: this.requestLifetime.signal });
+      if (this.disposed || generation !== this.runGeneration || jobId !== this.state.jobId) return;
       const result = resp?.result || resp;
       if (result && (result.motion_scene || result.summary)) {
         this.acceptResultEnvelope(jobId, result);
       }
     } catch (err) {
+      if (this.disposed || isAbortError(err)) return;
       this.dispatch({ type: "ERROR", error: { message: err.message } });
     }
   }
 
   /** Re-sync state from the server after a WebSocket gap (reconnect, sleep). */
   async recoverStatus() {
-    if (!this.state.jobId) return;
+    if (!this.state.jobId || this.disposed) return;
+    const generation = this.runGeneration;
+    const jobId = this.state.jobId;
     try {
-      const resp = await this.client.status(this.state.jobId);
+      const resp = await this.client.status(jobId, { signal: this.requestLifetime.signal });
+      if (this.disposed || generation !== this.runGeneration || jobId !== this.state.jobId) return;
       if (resp?.state === "DONE") {
         if (resp.result) this.acceptResultEnvelope(resp.job_id, resp.result);
-        else await this.recoverResult(this.state.jobId);
+        else await this.recoverResult(jobId);
       } else if (resp?.state === "FAILED") {
         this.dispatch({ type: "ERROR", error: resp.error || { message: "Reconstruction failed" } });
       } else if (resp?.state) {
@@ -290,6 +321,7 @@ export class ReconstructionPanelController {
 
   async stop() {
     if (!this.state.jobId) return;
+    this.runGeneration += 1;
     this.dispatch({ type: "STATE", jobState: "STOPPING" });
     try {
       await this.client.stopJob(this.state.jobId);
@@ -299,7 +331,7 @@ export class ReconstructionPanelController {
   }
 
   openDirector() {
-    if (this.state.result) {
+    if (!this.disposed && this.state.result) {
       const scene = this.state.result.motion_scene || this.state.result;
       this.onAdopt(scene);
     }
@@ -315,16 +347,17 @@ export class ReconstructionPanelController {
   async discard() {
     if (!this.state.result) return false;
     const proceed = await confirmAction(
-      this.app,
+      this,
       t("Discard reconstruction"),
       t("Removes this reconstruction and its cached files so the next run recomputes it. The camera track and other reconstructions are left untouched."),
     );
-    if (!proceed) return false;
+    if (!proceed || this.disposed) return false;
 
     const fp = String(this.state.fingerprint || "");
     if (fp) {
       try {
         await this.client.deleteCacheEntry(fp);
+        if (this.disposed) return false;
       } catch (err) {
         this.dispatch({ type: "ERROR", error: { message: err.message } });
         return false;
@@ -336,8 +369,11 @@ export class ReconstructionPanelController {
   }
 
   dispose() {
+    if (this.disposed) return;
     this.disposed = true;
+    this.runGeneration += 1;
     stopActiveReconstructionOnDispose(this.client, this.state);
+    this.requestLifetime.dispose();
     this.events.dispose();
     this.unbindControls?.();
     this.unbindControls = null;
