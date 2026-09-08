@@ -4,11 +4,20 @@ import { curveHandleFromHit, pathKeyFromHit } from "./path-editing.js";
 
 export function createCameraPickingMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
+  // Pointer coords arrive in interaction-canvas (logical) pixels, but the WebGL
+  // canvas is drawn supersampled (renderScale). NDC must be taken against the
+  // logical size or every pick lands renderScale-x off centre.
+  function logicalSize(ctx) {
+    const factor = ctx.supersampleFactor?.() || 1;
+    return { w: ctx.canvas.width / factor, h: ctx.canvas.height / factor };
+  }
+
   return {
     /** The camera-path handle under the pointer, with its world position. */
     pickPathKey(pointer) {
       if (!this.path.visible || !this.activeCamera) return null;
-      this.pointer.set((pointer[0] / this.canvas.width) * 2 - 1, -(pointer[1] / this.canvas.height) * 2 + 1);
+      const { w: logicalW, h: logicalH } = logicalSize(this);
+      this.pointer.set((pointer[0] / logicalW) * 2 - 1, -(pointer[1] / logicalH) * 2 + 1);
       this.raycaster.setFromCamera(this.pointer, this.activeCamera);
       for (const hit of this.raycaster.intersectObjects(this.path.children, true)) {
         const key = pathKeyFromHit(hit);
@@ -29,8 +38,8 @@ export function createCameraPickingMethods(dependencies) {
         if (!key) continue;
         projected.copy(child.position).project(this.activeCamera);
         if (projected.z < -1 || projected.z > 1) continue;
-        const screenX = (projected.x * 0.5 + 0.5) * this.canvas.width;
-        const screenY = (1 - (projected.y * 0.5 + 0.5)) * this.canvas.height;
+        const screenX = (projected.x * 0.5 + 0.5) * logicalW;
+        const screenY = (1 - (projected.y * 0.5 + 0.5)) * logicalH;
         const distance = Math.hypot(pointer[0] - screenX, pointer[1] - screenY);
         if (distance <= threshold && (!best || distance < best.distance)) best = { key, position: child.position.toArray(), distance };
       }
@@ -40,7 +49,8 @@ export function createCameraPickingMethods(dependencies) {
     /** The spatial-curve tangent handle knob under the pointer, with its world position. */
     pickCurveHandle(pointer) {
       if (!this.path.visible || !this.activeCamera) return null;
-      this.pointer.set((pointer[0] / this.canvas.width) * 2 - 1, -(pointer[1] / this.canvas.height) * 2 + 1);
+      const { w: logicalW, h: logicalH } = logicalSize(this);
+      this.pointer.set((pointer[0] / logicalW) * 2 - 1, -(pointer[1] / logicalH) * 2 + 1);
       this.raycaster.setFromCamera(this.pointer, this.activeCamera);
       for (const hit of this.raycaster.intersectObjects(this.path.children, true)) {
         const handle = curveHandleFromHit(hit);
@@ -56,8 +66,8 @@ export function createCameraPickingMethods(dependencies) {
         if (!handle) continue;
         projected.copy(child.position).project(this.activeCamera);
         if (projected.z < -1 || projected.z > 1) continue;
-        const screenX = (projected.x * 0.5 + 0.5) * this.canvas.width;
-        const screenY = (1 - (projected.y * 0.5 + 0.5)) * this.canvas.height;
+        const screenX = (projected.x * 0.5 + 0.5) * logicalW;
+        const screenY = (1 - (projected.y * 0.5 + 0.5)) * logicalH;
         const distance = Math.hypot(pointer[0] - screenX, pointer[1] - screenY);
         if (distance <= threshold && (!best || distance < best.distance)) best = { handle, position: child.position.toArray(), distance };
       }
