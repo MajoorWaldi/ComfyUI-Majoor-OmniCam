@@ -56,6 +56,80 @@ test("Draw Camera Path creates one camera across the active playback range", asy
   await expect(button).toHaveAttribute("aria-pressed", "false");
 });
 
+test("a stroke drawn in the front view varies camera height", async ({ page }) => {
+  await mount(page);
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.state.playback_range = [0, 40];
+    ui.setViewMode("front");
+  });
+
+  await page.locator('[data-act="draw-camera-path"]').click();
+  // A fresh draw keeps an axis view the animator already chose.
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.view_mode)).toBe("front");
+
+  const canvas = page.locator(".viewport-wrap > canvas");
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.75);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.4, { steps: 10 });
+  await page.mouse.move(box.x + box.width * 0.78, box.y + box.height * 0.2, { steps: 10 });
+  await page.mouse.up();
+
+  const heights = await page.evaluate(() =>
+    window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => k.camera.position[1]));
+  expect(heights.length).toBeGreaterThanOrEqual(2);
+  expect(Math.max(...heights) - Math.min(...heights)).toBeGreaterThan(1);
+});
+
+test("Continue Camera Path appends a segment to the active camera", async ({ page }) => {
+  await mount(page);
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.state.playback_range = [0, 30];
+  });
+
+  const canvas = page.locator(".viewport-wrap > canvas");
+  const box = await canvas.boundingBox();
+  const stroke = async (a, b, c) => {
+    await page.mouse.move(box.x + box.width * a.x, box.y + box.height * a.y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * b.x, box.y + box.height * b.y, { steps: 8 });
+    await page.mouse.move(box.x + box.width * c.x, box.y + box.height * c.y, { steps: 8 });
+    await page.mouse.up();
+  };
+
+  await page.locator('[data-act="draw-camera-path"]').click();
+  await stroke({ x: 0.25, y: 0.7 }, { x: 0.45, y: 0.5 }, { x: 0.6, y: 0.45 });
+  const before = await page.evaluate(() => {
+    const t = window.omnicamNode.__majoorOmniCam.activeCameraTrack();
+    return { cameras: window.omnicamNode.__majoorOmniCam.state.cameras.length, keys: t.keyframes.length, last: t.keyframes.at(-1).frame };
+  });
+  expect(before.cameras).toBe(2);
+
+  const extend = page.locator('[data-act="draw-camera-path-extend"]');
+  await extend.click();
+  await expect(extend).toHaveAttribute("aria-pressed", "true");
+  await stroke({ x: 0.6, y: 0.45 }, { x: 0.72, y: 0.35 }, { x: 0.85, y: 0.28 });
+
+  const after = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const t = ui.activeCameraTrack();
+    return {
+      cameras: ui.state.cameras.length,
+      keys: t.keyframes.length,
+      last: t.keyframes.at(-1).frame,
+      sorted: t.keyframes.every((k, i, all) => i === 0 || k.frame > all[i - 1].frame),
+      active: Boolean(ui.cameraPathDraw?.active),
+    };
+  });
+  expect(after.cameras).toBe(2); // no new camera
+  expect(after.keys).toBeGreaterThan(before.keys);
+  expect(after.last).toBeGreaterThan(before.last);
+  expect(after.sorted).toBe(true);
+  expect(after.active).toBe(false);
+});
+
 test("Escape and RMB cancel without creating a camera", async ({ page }) => {
   await mount(page);
   const button = page.locator('[data-act="draw-camera-path"]');

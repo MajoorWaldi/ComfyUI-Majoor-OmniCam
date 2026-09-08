@@ -13,8 +13,12 @@ function toolRail() {
       <button class="vp-tool" data-transform-mode="rotate" title="${t("Rotation gizmo (click)")}"><i class="pi pi-replay"></i></button>
       <button class="vp-tool" data-transform-mode="scale" title="${t("Scale gizmo (click)")}"><i class="pi pi-stop"></i></button>
       <button class="vp-tool" data-act="draw-camera-path" aria-pressed="false"
-              title="${t("Draw Camera Path")}" aria-label="${t("Draw Camera Path")}">
+              title="${t("Draw Camera Path (perspective or top / front / side view)")}" aria-label="${t("Draw Camera Path")}">
         <i class="pi pi-pencil"></i>
+      </button>
+      <button class="vp-tool" data-act="draw-camera-path-extend" aria-pressed="false"
+              title="${t("Continue Camera Path — draw a new segment from the active camera's last key")}" aria-label="${t("Continue Camera Path")}">
+        <i class="pi pi-arrow-right"></i>
       </button>
       <button class="vp-tool" data-act="toggle-gizmo-space" data-role="gizmo-space-toggle"
               title="${t("Toggle Transform Space (World / Local)")}">
