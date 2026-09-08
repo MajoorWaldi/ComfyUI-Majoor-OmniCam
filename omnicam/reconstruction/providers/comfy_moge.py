@@ -158,6 +158,25 @@ class ComfyMoGeProvider(ReconstructionProvider):
         except Exception:  # noqa: BLE001
             return {"name": checkpoint_name}
 
+    def _resolve_checkpoint_name(self, settings: Any) -> str | None:
+        """The checkpoint ``reconstruct()`` would actually load for ``settings``."""
+        checkpoints = self._get_checkpoints()
+        if not checkpoints:
+            return None
+        requested = str(getattr(settings, "checkpoint", "auto") or "auto")
+        if requested == "auto":
+            return checkpoints[0]
+        return requested if requested in checkpoints else None
+
+    def active_checkpoint_identity(self, settings: Any) -> dict[str, Any]:
+        """Identity of the checkpoint selected by ``settings.checkpoint`` -- not
+        just ``checkpoints[0]``. Used by the pipeline for the cache key so
+        swapping the *selected* checkpoint invalidates a stale GLB."""
+        name = self._resolve_checkpoint_name(settings)
+        if name is None:
+            return {"name": str(getattr(settings, "checkpoint", "auto"))}
+        return self._checkpoint_identity(name)
+
     def capabilities(self) -> ProviderCapabilities:
         """Report native MoGe capabilities and model availability."""
         mod = self._get_moge_module()

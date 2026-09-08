@@ -19,14 +19,25 @@ const RESPONSES = {
   "/majoor/omnicam/exchange_formats": { export: [], import: [], notes: {} },
   "/majoor/omnicam/reconstruction/capabilities": {
     feature: "scene_reconstruction",
-    version: 1,
+    version: 2,
     providers: [
       {
         provider_id: "fake_provider",
         available: true,
-        modes: ["geometry", "layout"],
+        modes: ["depth_mesh", "blockout", "hybrid"],
         source_kinds: ["single_image"],
         reason: null,
+      },
+    ],
+    segmentation: [
+      { provider_id: "comfy_sam3", available: true, reason: "", checkpoints: ["sam3.1_multiplex_fp16.safetensors"] },
+    ],
+    completion: [
+      {
+        provider_id: "sam3d_objects",
+        available: false,
+        reason:
+          "SAM3D Objects needs Linux + an NVIDIA GPU with >=32 GB VRAM. Blockout and Scan work without it.",
       },
     ],
     recommended_provider: "fake_provider",

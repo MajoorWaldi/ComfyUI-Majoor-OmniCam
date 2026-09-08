@@ -34,6 +34,11 @@ const ZONE_SELECTORS = [
   ["sequence", '[data-role="graph-sequence"]'],
   ["graph", ".oc-graph"],
   ["timeline", ".oc-timeline"],
+  // The outliner / scene panel: without its own zone a Delete pressed with a
+  // scene row focused fell through to whatever zone was last touched (usually
+  // the timeline, which only deletes keyframes) so objects could not be
+  // removed from the tree at all.
+  ["scene", '[data-tab-panel="scene"]'],
 ];
 
 // Elements that natively activate on Space/Enter. Claiming those keys would
@@ -124,8 +129,39 @@ export function dispatchDirectorKey(ui, event) {
     case "sequence": return sequenceKeymap(ui, event);
     case "timeline":
     case "graph": return timelineKeymap(ui, event);
+    case "scene": return sceneKeymap(ui, event);
     default: return false;
   }
+}
+
+// --- scene / outliner: object list keys ----------------------------------------
+
+function sceneKeymap(ui, event) {
+  if (event.key === "Delete" || event.key === "Backspace") {
+    if (!event.repeat) {
+      if (ui.selectedObjectIds?.size > 1) ui.deleteSelectedObjects?.();
+      else if (ui.selectedObjectId) ui.deleteObject(ui.selectedObjectId);
+    }
+    return true;
+  }
+  if (event.key === "F2") {
+    if (!event.repeat && ui.selectedObjectId) ui.renameObject(ui.selectedObjectId);
+    return true;
+  }
+  if (event.key.toLowerCase() === "h" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    if (!event.repeat && ui.selectedObjectId) ui.toggleObject(ui.selectedObjectId);
+    return true;
+  }
+  if (event.key === "Escape") {
+    ui.selectedObjectIds?.clear?.();
+    ui.selectedObjectId = null;
+    ui.selectedEntity = "camera";
+    ui.refreshObjects();
+    ui.refreshInspector();
+    ui.render();
+    return true;
+  }
+  return false;
 }
 
 // --- global: transport + history, fire from any zone -------------------------
@@ -260,7 +296,8 @@ function viewportKeymap(ui, event) {
   }
   if (event.key === "Delete" || event.key === "Backspace") {
     if (!event.repeat) {
-      if (ui.selectedEntity === "object" && ui.selectedObjectId) ui.deleteObject(ui.selectedObjectId);
+      if (ui.selectedEntity === "object" && ui.selectedObjectIds?.size > 1) ui.deleteSelectedObjects();
+      else if (ui.selectedEntity === "object" && ui.selectedObjectId) ui.deleteObject(ui.selectedObjectId);
       else if (ui.selectedEntity === "camera") ui.deleteCamera(ui.state.active_camera_id);
     }
     return true;

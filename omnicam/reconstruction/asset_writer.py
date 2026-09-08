@@ -140,3 +140,72 @@ def write_reconstruction_assets(
 
     annotated_asset = f"majoor_omnicam/reconstruction/{fp}/environment.glb [input]"
     return annotated_asset, glb_path, json_path
+
+
+def _managed_reconstruction_dir(fingerprint: str, input_root: Path | str | None) -> Path:
+    fp = str(fingerprint).strip()
+    if not HEX_FINGERPRINT_PATTERN.match(fp):
+        raise AssetWriterSecurityError(f"Invalid reconstruction fingerprint {fingerprint!r}")
+    if input_root is not None:
+        input_dir = Path(input_root).resolve()
+    else:
+        try:
+            import folder_paths
+
+            input_dir = Path(folder_paths.get_input_directory()).resolve()
+        except Exception as exc:  # pragma: no cover
+            raise AssetWriterSecurityError("ComfyUI folder_paths is unavailable") from exc
+    target_dir = (input_dir / "majoor_omnicam" / "reconstruction" / fp).resolve()
+    if input_dir not in target_dir.parents and target_dir != input_dir:
+        raise AssetWriterSecurityError(f"Target directory {target_dir} escapes input root {input_dir}")
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir
+
+
+def _atomic_write_json(path: Path, data: Any) -> Path:
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, sort_keys=True, default=str), encoding="utf-8")
+    tmp.replace(path)
+    return path
+
+
+def write_blockout_json(
+    *,
+    fingerprint: str,
+    blockout: dict[str, Any],
+    input_root: Path | str | None = None,
+) -> Path:
+    """Persist deterministic light blockout data to ``<fingerprint>/blockout.json``.
+
+    Only bounded scalars/strings -- no dense tensors, point maps or masks.
+    """
+    target_dir = _managed_reconstruction_dir(fingerprint, input_root)
+    payload = {
+        "version": 1,
+        "objects": list(blockout.get("objects", [])),
+        "room": list(blockout.get("room", [])),
+        "source_camera": blockout.get("source_camera"),
+        "provider_summary": dict(blockout.get("provider_summary", {})),
+    }
+    return _atomic_write_json(target_dir / "blockout.json", payload)
+
+
+def write_scan_evidence_json(
+    *,
+    fingerprint: str,
+    cameras: list[dict[str, Any]],
+    max_views: int,
+    input_root: Path | str | None = None,
+    extra: dict[str, Any] | None = None,
+) -> Path:
+    """Persist sampled frame numbers + camera matrices/FOV to ``<fingerprint>/scan_evidence.json``.
+
+    Capped at ``max_views``; never any depth tensors or masks.
+    """
+    target_dir = _managed_reconstruction_dir(fingerprint, input_root)
+    payload = {
+        "version": 1,
+        "cameras": [dict(c) for c in cameras[: max(1, int(max_views))]],
+        **(dict(extra) if extra else {}),
+    }
+    return _atomic_write_json(target_dir / "scan_evidence.json", payload)

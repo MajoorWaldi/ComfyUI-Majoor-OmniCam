@@ -76,9 +76,79 @@ def test_reconstruction_settings_round_trip():
         "discontinuity_threshold": 0.08,
         "scene_scale": 2.5,
         "checkpoint": "moge_v2.safetensors",
+        "source_mode": "multi_view",
+        "segmentation_provider": "fake",
+        "completion_provider": "fake",
+        "sam3_checkpoint": "sam3.1_multiplex_fp16.safetensors",
+        "sam3_threshold": 0.6,
+        "sam3_refine_iterations": 3,
+        "semantic_labels": ["chair", "table"],
+        "min_instance_area_ratio": 0.002,
+        "instance_iou_dedup": 0.7,
+        "max_blockout_objects": 32,
+        "completion_policy": "all_bounded",
+        "max_completion_objects": 6,
+        "completion_object_ids": ["chair_1", "sofa_2"],
+        "blockout_assets": "proxy",
+        "asset_library_path": "",
+        "vggt_checkpoint": "VGGT-1B-Commercial",
+        "vggt_max_views": 16,
+        "vggt_segmentation_views": 4,
+        "save_completion_debug": True,
     }
     settings = ReconstructionSettings.from_dict(data)
     assert settings.to_dict() == data
+
+
+def test_reconstruction_settings_defaults_preserve_legacy_behaviour():
+    settings = ReconstructionSettings()
+    # New fields default to values that reproduce depth-mesh-only behaviour.
+    assert settings.source_mode == "auto"
+    assert settings.segmentation_provider == "comfy_sam3"
+    assert settings.completion_provider == "none"
+    assert settings.completion_policy == "off"
+    assert settings.semantic_labels == ()
+    # Legacy default mode is unchanged; only dispatch reads through the alias.
+    assert settings.mode == "geometry"
+    assert settings.resolved_mode() == "depth_mesh"
+
+
+def test_reconstruction_settings_resolved_mode_aliases_without_rewriting():
+    settings = ReconstructionSettings.from_dict({"mode": "layout"})
+    assert settings.mode == "layout"  # serialized form untouched
+    assert settings.to_dict()["mode"] == "layout"
+    # Both legacy names ran MoGe-only depth-mesh + planes and never needed a
+    # segmentation checkpoint, so they resolve to depth_mesh -- not blockout /
+    # hybrid, which would silently add a SAM3 dependency to an old workflow.
+    assert settings.resolved_mode() == "depth_mesh"
+    assert ReconstructionSettings(mode="geometry").resolved_mode() == "depth_mesh"
+
+    for name in ("depth_mesh", "blockout", "hybrid", "scan"):
+        assert ReconstructionSettings(mode=name).resolved_mode() == name
+
+
+def test_reconstruction_settings_validate_semantic_bounds():
+    with pytest.raises(ValueError, match="sam3_threshold"):
+        ReconstructionSettings(sam3_threshold=1.5)
+    with pytest.raises(ValueError, match="sam3_refine_iterations"):
+        ReconstructionSettings(sam3_refine_iterations=6)
+    with pytest.raises(ValueError, match="min_instance_area_ratio"):
+        ReconstructionSettings(min_instance_area_ratio=0.5)
+    with pytest.raises(ValueError, match="max_blockout_objects"):
+        ReconstructionSettings(max_blockout_objects=0)
+    with pytest.raises(ValueError, match="vggt_max_views"):
+        ReconstructionSettings(vggt_max_views=1)
+    with pytest.raises(ValueError, match="vggt_segmentation_views"):
+        ReconstructionSettings(vggt_max_views=8, vggt_segmentation_views=9)
+    with pytest.raises(ValueError, match="semantic label"):
+        ReconstructionSettings(semantic_labels=("x" * 65,))
+    with pytest.raises(ValueError, match="segmentation_provider"):
+        ReconstructionSettings(segmentation_provider="mystery_net")
+
+
+def test_reconstruction_settings_unknown_completion_policy_rejected():
+    with pytest.raises(ValueError, match="completion_policy"):
+        ReconstructionSettings.from_dict({"completion_policy": "sometimes"})
 
 
 def test_reconstruction_settings_rejects_unknown_provider():

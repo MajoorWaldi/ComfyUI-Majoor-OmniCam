@@ -1,4 +1,5 @@
 import { attachPlayblastMetrics } from "../playblast-contract.js";
+import { waitForMediaEvent } from "../dom-media.js";
 
 const MIME_TYPES = ["video/mp4;codecs=avc1.42E01E", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
 
@@ -53,5 +54,7 @@ export async function uploadPlayblast(api, blob) {
 }
 
 export async function waitForSeekingMedia(mediaItems) {
-  await Promise.all([...mediaItems].filter((media) => media instanceof HTMLVideoElement && media.seeking).map((media) => new Promise((resolve) => { media.addEventListener("seeked", resolve, { once: true }); media.addEventListener("error", resolve, { once: true }); })));
+  await Promise.all([...mediaItems]
+    .filter((media) => media instanceof HTMLVideoElement && media.seeking)
+    .map((media) => waitForMediaEvent(media, ["seeked", "error"], { timeout: 5000 }).catch(() => {})));
 }

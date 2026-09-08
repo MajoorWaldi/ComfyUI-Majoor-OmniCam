@@ -207,6 +207,33 @@ def handle_clear_cache(input_root: Any = None) -> dict[str, Any]:
     always resolves ComfyUI's real input directory.
     """
     from ..cache import clear_reconstruction_cache
+    from ..model_release import release_reconstruction_models
 
     result = clear_reconstruction_cache(input_root=input_root)
+    # "Clear Cache" is also the user's "free the VRAM" button -- drop the
+    # resident MoGe / SAM3 weights alongside the on-disk artefacts.
+    release_reconstruction_models(reason="clear cache")
     return {"cleared": True, "entries_removed": result.entries_removed, "bytes_freed": result.bytes_freed}
+
+
+def handle_delete_cache_entry(fingerprint: str, input_root: Any = None) -> dict[str, Any]:
+    """Delete one cached reconstruction (its ``<fingerprint>/`` folder) so the
+    panel can discard a result the user does not want and recompute it.
+
+    Also frees the resident weights -- discarding a result the user is unhappy
+    with is exactly when they want the GPU back.
+    """
+    from ..cache import delete_reconstruction_cache_entry
+    from ..model_release import release_reconstruction_models
+
+    try:
+        result = delete_reconstruction_cache_entry(str(fingerprint), input_root=input_root)
+    except ValueError as err:
+        raise ReconstructionApiError(400, str(err), code="RECON_REQUEST_INVALID") from err
+    release_reconstruction_models(reason="discard result")
+    return {
+        "cleared": True,
+        "fingerprint": str(fingerprint),
+        "entries_removed": result.entries_removed,
+        "bytes_freed": result.bytes_freed,
+    }

@@ -6,7 +6,7 @@ import contextlib
 import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,12 @@ class CacheEntry:
     asset: str
     summary: dict[str, Any]
     created_at: float
+    #: Exact model identity tokens per stage, e.g.
+    #: ``{"geometry": "...", "segmentation": "...", "completion": "..."}``.
+    #: Surfaced in the manifest so a stale entry produced by a since-swapped
+    #: checkpoint is visible; the fingerprint + provider_version remain the
+    #: primary miss triggers.
+    model_identities: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +42,7 @@ class CacheEntry:
             "asset": self.asset,
             "summary": dict(self.summary),
             "created_at": self.created_at,
+            "model_identities": dict(self.model_identities),
         }
 
     @classmethod
@@ -48,6 +55,7 @@ class CacheEntry:
             asset=str(data.get("asset", "")),
             summary=dict(data.get("summary", {})),
             created_at=float(data.get("created_at", 0.0)),
+            model_identities=dict(data.get("model_identities", {})),
         )
 
 
@@ -80,8 +88,14 @@ def lookup_cache(
     provider: str,
     provider_version: str,
     input_root: Path | str | None = None,
+    require_glb: bool = True,
 ) -> CacheEntry | None:
-    """Lookup cached reconstruction by fingerprint. Returns None on cache miss or invalid assets."""
+    """Lookup cached reconstruction by fingerprint. Returns None on cache miss or invalid assets.
+
+    ``require_glb`` (default) gates on ``environment.glb`` -- the depth-mesh
+    path. The Blockout path has no GLB, so it passes ``require_glb=False`` and
+    the manifest alone (plus a ``blockout.json`` sidecar) backs the hit.
+    """
     fp = str(fingerprint).strip()
     if not HEX_FINGERPRINT_PATTERN.match(fp):
         return None
@@ -95,13 +109,17 @@ def lookup_cache(
     manifest_path = target_dir / "reconstruction.json"
     glb_path = target_dir / "environment.glb"
 
-    if not manifest_path.is_file() or not glb_path.is_file():
+    if not manifest_path.is_file():
         return None
-
-    # Check non-empty glb file
-    with contextlib.suppress(OSError):
-        if glb_path.stat().st_size <= 0:
+    if require_glb:
+        if not glb_path.is_file():
             return None
+        # Check non-empty glb file
+        with contextlib.suppress(OSError):
+            if glb_path.stat().st_size <= 0:
+                return None
+    elif not (target_dir / "blockout.json").is_file():
+        return None
 
     try:
         content = manifest_path.read_text(encoding="utf-8")
@@ -125,7 +143,9 @@ def lookup_cache(
         return None
 
     asset_path = str(raw.get("asset", ""))
-    if not asset_path.startswith("majoor_omnicam/reconstruction/"):
+    if require_glb and not asset_path.startswith("majoor_omnicam/reconstruction/"):
+        return None
+    if not require_glb and asset_path and not asset_path.startswith("majoor_omnicam/reconstruction/"):
         return None
 
     summary = raw.get("summary", {})
@@ -177,4 +197,41 @@ def clear_reconstruction_cache(input_root: Path | str | None = None) -> CacheCle
     shutil.rmtree(target_dir, ignore_errors=True)
     target_dir.mkdir(parents=True, exist_ok=True)
 
+    return CacheClearResult(entries_removed=entries_removed, bytes_freed=bytes_freed)
+
+
+def delete_reconstruction_cache_entry(
+    fingerprint: str, input_root: Path | str | None = None
+) -> CacheClearResult:
+    """Delete a single cached reconstruction -- the ``<fingerprint>/`` folder
+    (manifest, blockout sidecar, GLBs, source copy) -- and nothing else.
+
+    Lets the panel discard one result the user does not want so the next run
+    with the same settings actually recomputes, without wiping every other
+    cached reconstruction. Bounded to the managed subtree; a fingerprint that
+    is not 1-64 hex chars, or that resolves outside it, is refused.
+    """
+    fp = str(fingerprint).strip()
+    if not HEX_FINGERPRINT_PATTERN.match(fp):
+        raise ValueError(f"invalid reconstruction fingerprint {fingerprint!r}")
+
+    input_dir = _resolve_input_dir(input_root)
+    root = (input_dir / "majoor_omnicam" / "reconstruction").resolve()
+    target_dir = (root / fp).resolve()
+    if target_dir != root and root not in target_dir.parents:
+        raise ValueError(f"Refusing to delete {target_dir}: escapes {root}")
+    if not target_dir.is_dir():
+        return CacheClearResult(entries_removed=0, bytes_freed=0)
+
+    entries_removed = 0
+    bytes_freed = 0
+    for path in target_dir.rglob("*"):
+        if path.is_file():
+            with contextlib.suppress(OSError):
+                bytes_freed += path.stat().st_size
+                entries_removed += 1
+
+    import shutil
+
+    shutil.rmtree(target_dir, ignore_errors=True)
     return CacheClearResult(entries_removed=entries_removed, bytes_freed=bytes_freed)

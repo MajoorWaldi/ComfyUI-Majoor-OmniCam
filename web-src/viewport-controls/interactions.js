@@ -633,10 +633,12 @@ export function onPointerMove(ui, e) {
 }
 
 export function cancelViewportInteraction(ui) {
-  if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag && !ui.curveHandleDrag) return false;
-  const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag, ui.curveHandleDrag].some((drag) => drag?.historyCheckpointed);
+  if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag && !ui.keyDrag && !ui.curveDrag && !ui.timelineDrag && !ui.timelinePanDrag && !ui.boxSelect && !ui.curvePanDrag && !ui.curveScrub && !ui.curveBoxSelect) return false;
+  const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag, ui.keyDrag, ui.curveDrag].some((drag) => drag?.historyCheckpointed);
+  ui.keyDrag?.badge?.remove?.();
+  ui.boxSelect?.overlay?.remove?.();
   ui.drag = null; ui.gizmoDrag = null; ui.targetFreeDrag = null;
-  ui.boxSelection = null; ui.pathDrag = null; ui.curveHandleDrag = null;
+  ui.boxSelection = null; ui.pathDrag = null; ui.keyDrag = null; ui.curveDrag = null; ui.timelineDrag = null; ui.timelinePanDrag = null; ui.boxSelect = null; ui.curvePanDrag = null; ui.curveScrub = null; ui.curveBoxSelect = null;
   releaseViewportPointer(ui);
   if (checkpointed) ui.undo();
   ui.finishCameraEdit(); ui.refreshInspector(); ui.render(); ui.setStatus(t("Interaction cancelled"));

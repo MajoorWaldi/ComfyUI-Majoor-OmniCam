@@ -78,6 +78,10 @@ def create_reconstruction_routes_table(
     async def clear_cache_route(request: web.Request) -> web.Response:
         return _respond(api.handle_clear_cache)
 
+    @routes.delete(CACHE_PATH + "/{fingerprint}")
+    async def delete_cache_entry_route(request: web.Request) -> web.Response:
+        return _respond(api.handle_delete_cache_entry, request.match_info["fingerprint"])
+
     @routes.post(PREFIX)
     async def start_job_route(request: web.Request) -> web.Response:
         body = await _body(request)

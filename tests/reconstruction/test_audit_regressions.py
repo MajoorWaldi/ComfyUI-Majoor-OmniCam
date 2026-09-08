@@ -112,13 +112,14 @@ def test_the_job_table_is_bounded():
 
 
 def test_an_unregistered_provider_fails_the_job_instead_of_stranding_it():
-    # "vggt" passes settings validation but has no implementation registered.
+    # "lucida" passes settings validation but has no implementation registered
+    # (unlike "vggt", which now has a capability-gated adapter).
     job = ReconstructionJob(
         job_id="j1",
         node_id="n1",
         client_id="c1",
         source=_source(),
-        settings=ReconstructionSettings(provider="vggt"),
+        settings=ReconstructionSettings(provider="lucida"),
     )
     events: list[str] = []
 

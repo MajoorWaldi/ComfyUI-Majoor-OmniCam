@@ -116,7 +116,7 @@ export function refreshKeys(ui) {
         keysList.sort((a, b) => a.frame - b.frame);
         ui.selectedKeyFrame = cloned.frame;
         ui.selectedKeyFrames = new Set([cloned.frame]);
-        ui.keyDrag = { key: cloned, box, isDuplicate: true, moving: [{ key: cloned, startFrame: cloned.frame }], startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
+        ui.keyDrag = { key: cloned, box, isDuplicate: true, historyCheckpointed: true, moving: [{ key: cloned, startFrame: cloned.frame }], startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
         ui.setFrame(cloned.frame, false, false);
         ui.setStatus(t(`Duplicating key from ${key.frame}...`));
         return;
@@ -133,7 +133,7 @@ export function refreshKeys(ui) {
       if (!ui.selectedKeyFrames?.has(key.frame)) ui.selectedKeyFrames = new Set([key.frame]);
       ui.selectedKeyFrame = key.frame;
       const moving = ui.timelineKeyframes().filter((item) => ui.selectedKeyFrames.has(item.frame));
-      ui.keyDrag = { key, box, moving: moving.map((item) => ({ key: item, startFrame: item.frame })), startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
+      ui.keyDrag = { key, box, historyCheckpointed: false, moving: moving.map((item) => ({ key: item, startFrame: item.frame })), startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
       ui.setFrame(key.frame, false, false);
     });
     element.addEventListener("click", (event) => {

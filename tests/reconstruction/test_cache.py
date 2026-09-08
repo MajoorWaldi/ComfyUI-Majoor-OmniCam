@@ -168,3 +168,40 @@ def test_clear_reconstruction_cache_never_touches_sibling_directories(tmp_path):
 
     assert sibling.is_file()
     assert sibling.read_bytes() == b"do not delete me"
+
+
+def test_delete_reconstruction_cache_entry_removes_only_that_fingerprint(tmp_path):
+    from omnicam.reconstruction.cache import delete_reconstruction_cache_entry
+
+    keep_fp, drop_fp = "0123456789abcdef0123", "fedcba9876543210fedc"
+    for fp in (keep_fp, drop_fp):
+        d = tmp_path / "majoor_omnicam" / "reconstruction" / fp
+        d.mkdir(parents=True)
+        (d / "environment.glb").write_bytes(b"x" * 20)
+        (d / "reconstruction.json").write_text("{}", encoding="utf-8")
+
+    result = delete_reconstruction_cache_entry(drop_fp, input_root=tmp_path)
+
+    assert result.entries_removed == 2
+    assert result.bytes_freed == 20 + len(b"{}")
+    recon_dir = tmp_path / "majoor_omnicam" / "reconstruction"
+    assert not (recon_dir / drop_fp).exists()
+    assert (recon_dir / keep_fp / "environment.glb").is_file()
+
+
+def test_delete_reconstruction_cache_entry_rejects_a_non_hex_fingerprint(tmp_path):
+    import pytest
+
+    from omnicam.reconstruction.cache import delete_reconstruction_cache_entry
+
+    for bad in ("../escape", "abc/def", "zz;rm", ""):
+        with pytest.raises(ValueError, match="fingerprint"):
+            delete_reconstruction_cache_entry(bad, input_root=tmp_path)
+
+
+def test_delete_reconstruction_cache_entry_missing_folder_is_a_noop(tmp_path):
+    from omnicam.reconstruction.cache import delete_reconstruction_cache_entry
+
+    result = delete_reconstruction_cache_entry("0123456789abcdef0123", input_root=tmp_path)
+    assert result.entries_removed == 0
+    assert result.bytes_freed == 0

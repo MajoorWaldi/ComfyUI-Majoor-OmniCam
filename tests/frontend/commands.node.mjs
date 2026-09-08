@@ -4,17 +4,19 @@ import assert from "node:assert/strict";
 import { dispatchDirectorKey, resolveZone, zoneOf } from "../../web-src/commands.js";
 
 // A minimal DOM element that answers closest() by walking a class chain.
-function el(classes = [], role = null) {
+function el(classes = [], role = null, attrs = {}) {
   const set = new Set(classes);
   const node = {
     tagName: "DIV",
     isContentEditable: false,
     classList: { contains: (c) => set.has(c) },
-    getAttribute: (name) => (name === "data-role" ? role : null),
+    getAttribute: (name) => (name === "data-role" ? role : attrs[name] ?? null),
     closest(selector) {
       if (selector.startsWith(".")) return set.has(selector.slice(1)) ? node : null;
-      const m = selector.match(/^\[data-role="([^"]+)"\]$/);
-      if (m) return role === m[1] ? node : null;
+      const roleMatch = selector.match(/^\[data-role="([^"]+)"\]$/);
+      if (roleMatch) return role === roleMatch[1] ? node : null;
+      const attrMatch = selector.match(/^\[([\w-]+)="([^"]+)"\]$/);
+      if (attrMatch) return attrs[attrMatch[1]] === attrMatch[2] ? node : null;
       return null;
     },
   };
@@ -156,6 +158,48 @@ test("Delete removes a shot in the sequence editor and a keyframe in the timelin
     target: el(["oc-timeline"]), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
   }));
   assert.deepEqual(keyCalls, ["del"]);
+});
+
+test("the outliner panel is its own key zone: Delete there removes objects, not keyframes", () => {
+  withMockElement(() => {
+    const sceneRow = el([], null, { "data-tab-panel": "scene" });
+    assert.equal(resolveZone(sceneRow), "scene");
+
+    // Single selection -> per-object delete (unchanged wording / confirm).
+    const single = [];
+    const singleUi = baseUi({
+      selectedEntity: "object", selectedObjectId: "cube_1", selectedObjectIds: new Set(["cube_1"]),
+      deleteObject: (id) => single.push(id),
+      deleteSelectedObjects: () => single.push("MULTI"),
+    });
+    dispatchDirectorKey(singleUi, {
+      key: "Delete", code: "Delete", repeat: false, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
+      target: sceneRow, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+    });
+    assert.deepEqual(single, ["cube_1"]);
+
+    // Multi selection -> the batch path.
+    const multi = [];
+    const multiUi = baseUi({
+      selectedEntity: "object", selectedObjectId: "cube_2", selectedObjectIds: new Set(["cube_1", "cube_2"]),
+      deleteObject: () => multi.push("SINGLE"),
+      deleteSelectedObjects: () => multi.push("MULTI"),
+    });
+    dispatchDirectorKey(multiUi, {
+      key: "Delete", code: "Delete", repeat: false, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
+      target: sceneRow, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+    });
+    assert.deepEqual(multi, ["MULTI"]);
+
+    // F2 renames the active object from the tree.
+    const renamed = [];
+    const renameUi = baseUi({ selectedObjectId: "cube_1", renameObject: (id) => renamed.push(id) });
+    dispatchDirectorKey(renameUi, {
+      key: "F2", code: "F2", repeat: false, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
+      target: sceneRow, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+    });
+    assert.deepEqual(renamed, ["cube_1"]);
+  });
 });
 
 test("S splits the shot under the playhead from the sequence editor", () => {

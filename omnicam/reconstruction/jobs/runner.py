@@ -115,8 +115,23 @@ def run_reconstruction_job(
             if on_event:
                 on_event("error", job)
 
+    def _execute_and_release() -> None:
+        try:
+            _execute()
+        finally:
+            # The interactive job is out-of-band from ComfyUI's executor, so
+            # nothing else evicts the MoGe / SAM3 weights this run pinned.
+            # Release them now -- whatever the outcome -- so the user's next
+            # normal workflow is not starved of VRAM.
+            try:
+                from ..model_release import release_reconstruction_models
+
+                release_reconstruction_models(reason=f"job {job.job_id} {job.state}")
+            except Exception:  # noqa: BLE001  # cleanup must never mask the result
+                logger.debug("VRAM release after job %s failed", job.job_id, exc_info=True)
+
     if gpu_semaphore is not None:
         with gpu_semaphore:
-            _execute()
+            _execute_and_release()
     else:
-        _execute()
+        _execute_and_release()

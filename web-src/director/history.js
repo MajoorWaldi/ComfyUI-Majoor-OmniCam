@@ -1,10 +1,12 @@
 export class EditorHistory {
-  constructor({ capture, restore, limit = 100 }) { this.capture = capture; this.restore = restore; this.limit = limit; this.undoStack = []; this.redoStack = []; this.restoring = false; }
-  checkpoint(label = "Edit") { if (this.restoring) return; const snapshot = this.capture(); const previous = this.undoStack.at(-1); if (previous?.snapshot === snapshot) return; this.undoStack.push({ label, snapshot }); if (this.undoStack.length > this.limit) this.undoStack.shift(); this.redoStack.length = 0; }
-  undo() { if (!this.undoStack.length) return null; const entry = this.undoStack.pop(); this.redoStack.push({ label: entry.label, snapshot: this.capture() }); this.restoring = true; try { this.restore(entry.snapshot); } finally { this.restoring = false; } return entry.label; }
-  redo() { if (!this.redoStack.length) return null; const entry = this.redoStack.pop(); this.undoStack.push({ label: entry.label, snapshot: this.capture() }); this.restoring = true; try { this.restore(entry.snapshot); } finally { this.restoring = false; } return entry.label; }
-  clear() { this.undoStack.length = 0; this.redoStack.length = 0; }
+  constructor({ capture, restore, limit = 100 }) { this.capture = capture; this.restore = restore; this.limit = limit; this.undoStack = []; this.redoStack = []; this.restoring = false; this.transaction = null; }
+  checkpoint(label = "Edit") { if (this.restoring) return; if (this.transaction) return this.commitTransaction(); const snapshot = this.capture(); const previous = this.undoStack.at(-1); if (previous?.snapshot === snapshot) return; this.undoStack.push({ label, snapshot }); if (this.undoStack.length > this.limit) this.undoStack.shift(); this.redoStack.length = 0; }
+  beginTransaction(label = "Edit") { if (this.restoring || this.transaction) return false; this.transaction = { label, snapshot: this.capture(), redoStack: this.redoStack.slice() }; return true; }
+  commitTransaction() { const transaction = this.transaction; if (!transaction) return null; this.transaction = null; if (transaction.snapshot === this.capture()) { this.redoStack = transaction.redoStack; return null; } const previous = this.undoStack.at(-1); if (previous?.snapshot !== transaction.snapshot) this.undoStack.push({ label: transaction.label, snapshot: transaction.snapshot }); if (this.undoStack.length > this.limit) this.undoStack.shift(); this.redoStack.length = 0; return transaction.label; }
+  cancelTransaction() { const transaction = this.transaction; if (!transaction) return null; this.transaction = null; this.redoStack = transaction.redoStack; this.restoring = true; try { this.restore(transaction.snapshot); } finally { this.restoring = false; } return transaction.label; }
+  undo() { if (this.transaction) this.cancelTransaction(); if (!this.undoStack.length) return null; const entry = this.undoStack.pop(); this.redoStack.push({ label: entry.label, snapshot: this.capture() }); this.restoring = true; try { this.restore(entry.snapshot); } finally { this.restoring = false; } return entry.label; }
+  redo() { if (this.transaction) this.cancelTransaction(); if (!this.redoStack.length) return null; const entry = this.redoStack.pop(); this.undoStack.push({ label: entry.label, snapshot: this.capture() }); this.restoring = true; try { this.restore(entry.snapshot); } finally { this.restoring = false; } return entry.label; }
+  clear() { this.undoStack.length = 0; this.redoStack.length = 0; this.transaction = null; }
   get canUndo() { return this.undoStack.length > 0; }
   get canRedo() { return this.redoStack.length > 0; }
 }
-

@@ -35,17 +35,40 @@ export function applyQualityPreset(root, quality) {
   }
 }
 
+// Legacy serialized modes -> current names, matching settings.py _MODE_ALIASES.
+const MODE_ALIASES = { geometry: "depth_mesh", layout: "depth_mesh" };
+const SEMANTIC_MODES = new Set(["blockout", "hybrid", "scan"]);
+// Geometry providers that only work in Scan mode (multi-view).
+const SCAN_ONLY_PROVIDERS = new Set(["vggt", "vggt_omega_research"]);
+
 export function readReconstructionSettings(root) {
   if (!root) return {};
 
   const getVal = (role) => root.querySelector(`[data-role="${role}"]`)?.value;
   const getChecked = (role) => Boolean(root.querySelector(`[data-role="${role}"]`)?.checked);
 
-  return {
-    provider: getVal("reconstruction-provider") || "comfy_moge",
-    mode: getVal("reconstruction-mode") || "geometry",
+  const rawMode = getVal("reconstruction-mode") || "depth_mesh";
+  let mode = MODE_ALIASES[rawMode] || rawMode;
+  const rawProvider = getVal("reconstruction-provider") || "";
+  // A multi-view provider is only valid in Scan mode; coerce rather than send a
+  // combination the backend has to reject (mirrors the scan -> vggt default).
+  if (SCAN_ONLY_PROVIDERS.has(rawProvider)) mode = "scan";
+  const provider = rawProvider || (mode === "scan" ? "vggt" : "comfy_moge");
+
+  const labels = String(getVal("reconstruction-semantic-labels") || "")
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const checkpoint = getVal("reconstruction-checkpoint") || "auto";
+  const settings = {
+    provider,
+    mode,
     quality: getVal("reconstruction-quality") || "balanced",
-    checkpoint: getVal("reconstruction-checkpoint") || "auto",
+    checkpoint,
+    // Scan geometry (VGGT) reads vggt_checkpoint, not the generic `checkpoint`
+    // field; forward the same value so a chosen VGGT weight is actually used.
+    ...(mode === "scan" ? { vggt_checkpoint: checkpoint } : {}),
     recover_fov: getChecked("reconstruction-recover-fov"),
     source_texture: getChecked("reconstruction-source-texture"),
     detect_ground: getChecked("reconstruction-detect-ground"),
@@ -56,6 +79,32 @@ export function readReconstructionSettings(root) {
     discontinuity_threshold: Number(getVal("reconstruction-edge-threshold")) || 0.04,
     scene_scale: Number(getVal("reconstruction-scene-scale")) || 1.0,
   };
+
+  if (SEMANTIC_MODES.has(mode)) {
+    settings.segmentation_provider = getVal("reconstruction-segmentation") || "comfy_sam3";
+    settings.completion_policy = getVal("reconstruction-completion-policy") || "off";
+    // A non-off policy is meaningless without a provider: the backend default
+    // is "none" and the resolver then returns nothing. SAM3D Objects is the
+    // only real completion provider, so select it whenever the policy is on
+    // (it stays capability-gated and errors explicitly if unavailable).
+    settings.completion_provider =
+      settings.completion_policy === "off" ? "none" : "sam3d_objects";
+    settings.max_blockout_objects = Number(getVal("reconstruction-max-objects")) || 24;
+    settings.blockout_assets = getVal("reconstruction-blockout-assets") || "off";
+    if (labels.length) settings.semantic_labels = labels;
+  }
+  return settings;
+}
+
+// Show/hide the semantic controls based on the selected Result mode.
+export function updateReconstructionModeVisibility(root) {
+  if (!root) return;
+  const mode = readReconstructionSettings(root).mode;
+  const semantic = SEMANTIC_MODES.has(mode);
+  for (const role of ["reconstruction-semantic-row", "reconstruction-labels-row"]) {
+    const el = root.querySelector(`[data-role="${role}"]`);
+    if (el) el.hidden = !semantic;
+  }
 }
 
 export function bindReconstructionControls(
@@ -88,9 +137,14 @@ export function bindReconstructionControls(
     "reconstruction-triangle-budget",
     "reconstruction-edge-threshold",
     "reconstruction-scene-scale",
+    "reconstruction-segmentation",
+    "reconstruction-completion-policy",
+    "reconstruction-max-objects",
+    "reconstruction-semantic-labels",
   ];
 
   const handleInput = () => {
+    updateReconstructionModeVisibility(root);
     const current = readReconstructionSettings(root);
     onSettingsChange(current);
   };
@@ -114,6 +168,7 @@ export function bindReconstructionControls(
   // that a redraw of the panel shows what will actually run still need to
   // be established here, not just left as a lucky coincidence.
   applyQualityPreset(root, qualityEl?.value);
+  updateReconstructionModeVisibility(root);
 
   const runBtn = root.querySelector('[data-role="reconstruction-run"]');
   if (runBtn) track(runBtn, "click", onRun);

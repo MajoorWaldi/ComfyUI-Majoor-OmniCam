@@ -43,6 +43,6 @@ docs/*
 .dpvo-install/
 .vscode/launch.json
 
-# Runtime Scene Reconstruction cache: scan_evidence.json / blockout.json written
-# per content hash by omnicam at run time, not source.
+# ComfyUI reconstruction cache / staged asset library, if it ever lands in the
+# repo root instead of ComfyUI/input (test artefact, never source).
 /majoor_omnicam/

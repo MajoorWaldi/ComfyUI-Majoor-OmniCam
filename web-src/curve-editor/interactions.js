@@ -99,6 +99,7 @@ export function onCurvePointerDown(ui, event) {
     startFrame: hit.point.key.frame,
     startValue: hit.point.channel.get(value),
     pointerId: event.pointerId,
+    historyCheckpointed: false,
   };
   canvas.setPointerCapture?.(event.pointerId);
 }
@@ -155,6 +156,10 @@ export function onCurvePointerMove(ui, event) {
   if (!ui.curveDrag || event.pointerId !== ui.curveDrag.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
+  if (!ui.curveDrag.historyCheckpointed) {
+    ui.checkpoint?.(ui.curveDrag.handle ? "Edit curve tangent" : "Edit curve");
+    ui.curveDrag.historyCheckpointed = true;
+  }
 
   // Tangent Handle Dragging
   if (ui.curveDrag.handle) {
@@ -254,10 +259,13 @@ export function onCurvePointerUp(ui, event) {
   ui.curveScrub = null;
   ui.curveBoxSelect = null;
   if (ui.curveDrag) {
+    const cancelled = event.type === "pointercancel" || event.type === "lostpointercapture";
+    const checkpointed = ui.curveDrag.historyCheckpointed;
     const keys = ui.timelineKeyframes();
     keys.sort((a, b) => a.frame - b.frame);
     ui.editingKeyFrame = null;
     ui.curveDrag = null;
+    if (cancelled && checkpointed) ui.undo?.();
     ui.serialize();
     ui.refreshKeys();
     ui.updateKeyVisualState();

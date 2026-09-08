@@ -234,7 +234,7 @@ export function addCamera(ui) {
 export async function renameCamera(ui, id) {
   const camera = ui.state.cameras.find((item) => item.id === id);
   if (!camera) return;
-  const name = (await promptText(t("Rename camera"), t("Camera name"), camera.name))?.trim();
+  const name = (await promptText(ui.app, t("Rename camera"), t("Camera name"), camera.name))?.trim();
   if (!name || name === camera.name) return;
   ui.checkpoint("Rename camera");
   camera.name = name.slice(0, 80);
@@ -286,7 +286,7 @@ export function duplicateCamera(ui, id) {
 export async function deleteCamera(ui, id) {
   if (ui.state.cameras.length <= 1) return ui.setStatus(t("At least one camera is required"));
   const camera = ui.state.cameras.find((item) => item.id === id);
-  if (!camera || !(await confirmAction(t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
+  if (!camera || !(await confirmAction(ui.app, t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
   ui.checkpoint("Delete camera");
   ui.finishCameraEdit();
   const wasActive = id === ui.state.active_camera_id;

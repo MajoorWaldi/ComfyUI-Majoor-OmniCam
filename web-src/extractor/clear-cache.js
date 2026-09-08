@@ -15,7 +15,12 @@ function widget(node, name) {
 }
 
 export async function clearExtractorCache(ui) {
+  // Pass the real ComfyUI app object (ExtractorUI.app, set from
+  // comfy-runtime): confirmAction falls back to window.app otherwise, which
+  // behind the bundle can be the wrong instance -- the dialog never opens and
+  // the button looks dead.
   const proceed = await confirmAction(
+    ui.app,
     t("Clear Cache"),
     t("Deletes every cached reconstruction (GLBs, manifests, source images) from disk, and forgets this node's cached track and reconstruction results. This cannot be undone."),
   );

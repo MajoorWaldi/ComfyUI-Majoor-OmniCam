@@ -192,6 +192,8 @@ def test_compute_smooth_vertex_normals_averages_shared_vertices():
 
 
 def test_build_proxy_mesh_attaches_normals_matching_final_vertices(monkeypatch):
+    # build_proxy_mesh triangulates through comfy.ldm.moge.geometry, which only
+    # exists in a ComfyUI checkout (integration lane / local dev).
     pytest.importorskip("comfy.ldm.moge.geometry")
     from .fakes import FakeReconstructionProvider
 

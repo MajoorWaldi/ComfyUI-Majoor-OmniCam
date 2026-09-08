@@ -46,6 +46,30 @@ test("Extractor transport preserves Director control order and icon actions", ()
   ]);
 });
 
+test("the whole camera-track UI sits in one toggleable container, separate from the reconstruction panel", () => {
+  // Skip the inlined <style> block -- class names live there too.
+  const markup = extractorMarkup();
+  const dom = markup.slice(markup.indexOf("</style>"));
+  const bodyOpen = dom.indexOf('data-role="camera-track-body"');
+  const bodyClose = dom.indexOf("</main>", bodyOpen);
+  assert.ok(bodyOpen > 0 && bodyClose > bodyOpen, "camera-track-body wraps a <main>");
+
+  // Camera-track-only sections are inside it -> hiding the container hides them all.
+  for (const marker of [
+    'data-role="stage"', 'data-act="track"', 'class="oc-card oc-solve-card"',
+    'aria-label="Extractor timeline"', 'data-tab="track3d"', 'data-track-mode="raw"',
+  ]) {
+    const at = dom.indexOf(marker);
+    assert.ok(at > bodyOpen && at < bodyClose, `${marker} must live inside camera-track-body`);
+  }
+  // The reconstruction panel (and its own controls) must be OUTSIDE, so the two
+  // modes never show at once and neither hides the other.
+  for (const marker of ['data-role="reconstruction-panel"', 'data-role="reconstruction-run"', 'data-role="clear-cache"']) {
+    const at = dom.indexOf(marker);
+    assert.ok(at > 0 && (at < bodyOpen || at > bodyClose), `${marker} must be outside camera-track-body`);
+  }
+});
+
 test("previous and next key prefer anomaly frames, fall back to solved keys, and disable without either", () => {
   const root = transportRoot(["previous-key", "next-key"]);
   const seeks = [];

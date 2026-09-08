@@ -2,6 +2,74 @@
 
 import { annotatedAssetUrl } from "../../director/core/camera.js";
 import { sampleCamera, sanitizeState } from "../../director/core.js";
+import { reconstructionAdoptionDefaults } from "../../scene/reconstruction-inspector.js";
+
+// The Result mode the scene was compiled with (blockout / hybrid / scan / …).
+export function reconstructionModeOf(result) {
+  return (
+    result?.reconstruction?.recon_mode ||
+    result?.motion_scene?.metadata?.reconstruction?.mode ||
+    result?.metadata?.reconstruction?.mode ||
+    ""
+  );
+}
+
+// Apply the role-based lock / visibility defaults to one adopted object, in
+// place. blockout_object -> unlocked; room / reference -> locked; the dense
+// reference is hidden in Blockout mode and kept in Hybrid.
+export function applyReconstructionAdoptionDefaults(object, mode) {
+  const role = object?.reconstruction?.role;
+  if (!role) return object;
+  const defaults = reconstructionAdoptionDefaults(object, mode);
+  if (object.locked === undefined || role === "room" || role === "reference") {
+    object.locked = defaults.locked;
+  }
+  if (role === "reference") object.enabled = defaults.visible;
+  return object;
+}
+
+// MotionScene v1 nests a camera's motion under `camera.track.keyframes[].camera`
+// and its label under `camera.label`; the Director editor state is flat --
+// `{id, name, camera, keyframes}` -- and reads scene size from top-level
+// `width/height/fps/duration_frames`. Without this conversion sanitizeState
+// drops the reconstructed framing (camera reads "undefined", view is the
+// default) and the keyframes. Objects/metadata pass straight through.
+export function motionSceneToEditorCameras(scene) {
+  return (scene?.cameras || []).map((cam, index) => {
+    const kfs = (cam?.track?.keyframes || cam?.keyframes || []).map((k) => ({
+      frame: Math.max(0, Math.round(Number(k?.frame || 0))),
+      camera: k?.camera || k,
+      interpolation: k?.interpolation || "hold",
+    }));
+    const camera = kfs[0]?.camera || cam?.camera || null;
+    return {
+      id: String(cam?.id || `camera_${index + 1}`),
+      name: String(cam?.label || cam?.name || "Source Camera"),
+      enabled: cam?.enabled !== false,
+      locked: Boolean(cam?.locked),
+      color: cam?.color,
+      camera,
+      keyframes: kfs.length ? kfs : (camera ? [{ frame: 0, camera, interpolation: "hold" }] : []),
+    };
+  });
+}
+
+export function motionSceneToEditorState(scene) {
+  const canvas = scene?.canvas || {};
+  const timeline = scene?.timeline || {};
+  const fps = Math.max(1, Math.round(Number(timeline.authoring_fps || scene?.fps || 24)));
+  const durationSeconds = Number(timeline.duration_seconds || 0);
+  return {
+    ...scene,
+    width: Number(canvas.width || scene?.width || 1280),
+    height: Number(canvas.height || scene?.height || 720),
+    fps,
+    duration_frames: durationSeconds > 0
+      ? Math.max(1, Math.round(durationSeconds * fps))
+      : Number(scene?.duration_frames || fps * 5),
+    cameras: motionSceneToEditorCameras(scene),
+  };
+}
 
 export function uniqueSceneId(existingIds, baseId) {
   if (!existingIds || !existingIds.has(baseId)) return baseId;
@@ -34,13 +102,17 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
   }
 
   const mode = options.mode || (isDirectorEmpty(directorUi) ? "replace" : "merge");
+  const reconMode = options.reconMode || reconstructionModeOf(result);
 
   if (mode === "replace") {
     directorUi.checkpoint?.("Adopt reconstructed scene (replace)");
-    directorUi.state = sanitizeState(JSON.parse(JSON.stringify(scene)));
+    directorUi.state = sanitizeState(
+      motionSceneToEditorState(JSON.parse(JSON.stringify(scene))),
+    );
     directorUi.camera = sampleCamera(directorUi.state, directorUi.frame || 0);
 
     for (const object of directorUi.state.objects || []) {
+      applyReconstructionAdoptionDefaults(object, reconMode);
       if ((object.type === "glb" || object.type === "model") && object.asset) {
         directorUi.modelUrlsById?.set(object.id, annotatedAssetUrl(object.asset));
       }
@@ -50,11 +122,23 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
     const existingObjIds = new Set((directorUi.state.objects || []).map((o) => o.id));
     const existingCamIds = new Set((directorUi.state.cameras || []).map((c) => c.id));
 
-    for (const incomingObj of scene.objects) {
-      const copy = JSON.parse(JSON.stringify(incomingObj));
+    // Two reconstructions share the same group ids (reconstruction_root, ...).
+    // Suffix every colliding id first, THEN rewrite parent_id against that map,
+    // so a merged child stays parented to its own new group instead of the
+    // previous reconstruction's.
+    const idRemap = new Map();
+    const incoming = scene.objects.map((o) => JSON.parse(JSON.stringify(o)));
+    for (const copy of incoming) {
       const safeId = uniqueSceneId(existingObjIds, copy.id);
       existingObjIds.add(safeId);
+      idRemap.set(copy.id, safeId);
       copy.id = safeId;
+    }
+    for (const copy of incoming) {
+      if (copy.parent_id && idRemap.has(copy.parent_id)) {
+        copy.parent_id = idRemap.get(copy.parent_id);
+      }
+      applyReconstructionAdoptionDefaults(copy, reconMode);
       directorUi.state.objects.push(copy);
 
       if ((copy.type === "glb" || copy.type === "model") && copy.asset) {
@@ -62,13 +146,12 @@ export function adoptReconstructedScene(directorUi, result, options = {}) {
       }
     }
 
-    for (const incomingCam of scene.cameras || []) {
-      const camCopy = JSON.parse(JSON.stringify(incomingCam));
-      const safeCamId = uniqueSceneId(existingCamIds, camCopy.id);
+    for (const editorCam of motionSceneToEditorCameras(scene)) {
+      const safeCamId = uniqueSceneId(existingCamIds, editorCam.id);
       existingCamIds.add(safeCamId);
-      camCopy.id = safeCamId;
-      camCopy.enabled = false; // Disabled secondary camera on merge
-      directorUi.state.cameras.push(camCopy);
+      editorCam.id = safeCamId;
+      editorCam.enabled = false; // Disabled secondary camera on merge
+      directorUi.state.cameras.push(editorCam);
     }
   }
 

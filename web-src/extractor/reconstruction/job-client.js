@@ -55,8 +55,9 @@ export class ReconstructionJobClient {
     return `${path}${sep}clientId=${encodeURIComponent(identity)}`;
   }
 
-  async _request(path, { method = "GET", body } = {}) {
+  async _request(path, { method = "GET", body, signal } = {}) {
     const options = { method };
+    if (signal) options.signal = signal;
     if (body !== undefined) {
       options.headers = { "Content-Type": "application/json" };
       options.body = JSON.stringify(body);
@@ -67,8 +68,8 @@ export class ReconstructionJobClient {
   }
 
   /** Query aggregated provider capabilities. */
-  capabilities() {
-    return this._request("/majoor/omnicam/reconstruction/capabilities");
+  capabilities(options = {}) {
+    return this._request("/majoor/omnicam/reconstruction/capabilities", options);
   }
 
   /** Delete every cached reconstruction (manifests, GLBs, source images) from disk. */
@@ -76,9 +77,17 @@ export class ReconstructionJobClient {
     return this._request("/majoor/omnicam/reconstruction/cache", { method: "DELETE" });
   }
 
-  startJob({ nodeId, source, settings }) {
+  /** Delete just one reconstruction's cache folder, by fingerprint, so a
+   *  re-run with the same settings recomputes it. Other results are untouched. */
+  deleteCacheEntry(fingerprint) {
+    const fp = encodeURIComponent(String(fingerprint || ""));
+    return this._request(`/majoor/omnicam/reconstruction/cache/${fp}`, { method: "DELETE" });
+  }
+
+  startJob({ nodeId, source, settings, signal }) {
     return this._request(BASE, {
       method: "POST",
+      signal,
       body: {
         node_id: String(nodeId),
         client_id: this.identity(),
@@ -88,16 +97,16 @@ export class ReconstructionJobClient {
     });
   }
 
-  getJobStatus(jobId) {
-    return this._request(`${BASE}/${encodeURIComponent(jobId)}`);
+  getJobStatus(jobId, options = {}) {
+    return this._request(`${BASE}/${encodeURIComponent(jobId)}`, options);
   }
 
-  stopJob(jobId) {
-    return this._request(`${BASE}/${encodeURIComponent(jobId)}/stop`, { method: "POST" });
+  stopJob(jobId, options = {}) {
+    return this._request(`${BASE}/${encodeURIComponent(jobId)}/stop`, { method: "POST", ...options });
   }
 
-  getJobResult(jobId) {
-    return this._request(`${BASE}/${encodeURIComponent(jobId)}/result`);
+  getJobResult(jobId, options = {}) {
+    return this._request(`${BASE}/${encodeURIComponent(jobId)}/result`, options);
   }
 
   deleteJob(jobId) {
@@ -109,16 +118,16 @@ export class ReconstructionJobClient {
     return this.startJob(args);
   }
 
-  status(jobId) {
-    return this.getJobStatus(jobId);
+  status(jobId, options = {}) {
+    return this.getJobStatus(jobId, options);
   }
 
-  stop(jobId) {
-    return this.stopJob(jobId);
+  stop(jobId, options = {}) {
+    return this.stopJob(jobId, options);
   }
 
-  result(jobId) {
-    return this.getJobResult(jobId);
+  result(jobId, options = {}) {
+    return this.getJobResult(jobId, options);
   }
 
   remove(jobId) {
