@@ -5,6 +5,7 @@ import {
   appendCameraPathStroke,
   cancelCameraPathDraw,
   commitCameraPathStroke,
+  handleCameraPathPointerDown,
   setCameraPathOrientation,
   startCameraPathDraw,
 } from "../../web-src/director/camera-path-draw.js";
@@ -108,4 +109,48 @@ test("camera path orientation can switch from Follow Path to a selected Look At 
   assert.deepEqual(created.keyframes.map((key) => key.camera.target), authoredTargets,
     "the authored tangent targets survive the temporary look-at constraint");
   assert.equal(calls.checkpoints.length, 3, "draw + two orientation edits are independently undoable");
+});
+
+test("drawn keys keep the captured camera height", () => {
+  const { ui } = fixture();
+  startCameraPathDraw(ui);
+  appendCameraPathStroke(ui, [0, 99, 0]);
+  appendCameraPathStroke(ui, [2, -10, 0]);
+  appendCameraPathStroke(ui, [4, 8, -2]);
+  const id = commitCameraPathStroke(ui);
+  const created = ui.state.cameras.find((item) => item.id === id);
+  assert.ok(created.keyframes.every((key) => key.camera.position[1] === 2));
+});
+
+test("armed pointer-down consumes plain LMB but passes navigation gestures through", () => {
+  const { ui } = fixture();
+  ui.interactionElement = { focus() {}, setPointerCapture() {}, hasPointerCapture: () => false };
+  ui.canvas = { width: 800, height: 600 };
+  ui.closeMenus = () => {};
+  startCameraPathDraw(ui);
+
+  const event = (over) => ({
+    pointerId: 1, clientX: 0, clientY: 0,
+    preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+    button: 0, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false,
+    ...over,
+  });
+
+  assert.equal(handleCameraPathPointerDown(ui, event({ button: 1 })), false, "MMB navigation");
+  assert.equal(handleCameraPathPointerDown(ui, event({ button: 0, altKey: true })), false, "Maya Alt+LMB");
+  assert.equal(handleCameraPathPointerDown(ui, event({ button: 0, ctrlKey: true })), false, "Ctrl fallback");
+  assert.equal(handleCameraPathPointerDown(ui, event({ button: 0 })), true, "plain LMB draws");
+  assert.equal(ui.cameraPathDraw.drawing, true);
+});
+
+test("stroke density does not dictate camera spacing", () => {
+  const { ui } = fixture();
+  startCameraPathDraw(ui);
+  appendCameraPathStroke(ui, [0, 2, 0]);
+  appendCameraPathStroke(ui, [1, 2, 0]);
+  appendCameraPathStroke(ui, [10, 2, 0]);
+  const id = commitCameraPathStroke(ui);
+  const created = ui.state.cameras.find((item) => item.id === id);
+  assert.equal(created.keyframes.length, 3);
+  assert.ok(Math.abs(created.keyframes[1].camera.position[0] - 5) < 0.15);
 });

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Director: added freehand **Draw Camera Path** authoring in Top View with
+  playback-range timing, tangent Follow Path orientation, non-destructive Look At,
+  cancel-safe pointer handling, and editor-only path preview.
 - **Resizable Director panels**: the Outliner object list and the lower-deck
   camera-preview column can be dragged to any size (a horizontal splitter
   between the previews and the timeline, a vertical handle under the object

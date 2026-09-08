@@ -349,19 +349,11 @@ export function createSceneMethods(dependencies) {
       this.state.target_object_id = targetId || null;
       this.state.aim_bone = cam.aim_bone;
     }
-    if (targetId) {
-      const targetObj = this.state.objects.find((o) => o.id === targetId);
-      if (targetObj) {
-        const modelCenter = (targetObj.type === "model" || targetObj.type === "glb") ? this.webgl?.getObjectWorldCenter?.(targetObj.id) : null;
-        const targetPos = modelCenter || (targetObj.keyframes?.length
-          ? sampleObjectTransform(targetObj, this.frame).position
-          : (targetObj.position || [0, 1.5, 0]));
-        this.camera.target = [...targetPos];
-        this.beginCameraEdit();
-        this.commitCameraEdit();
-        this.finishCameraEdit();
-      }
-    }
+    // Tracking is a live constraint. Never bake its resolved target into the
+    // authored key underneath it: clearing the constraint must reveal exactly
+    // the original Follow Path/manual target again.
+    this.camera = sampleCamera(cam, this.frame, this.state.objects);
+    applyAimConstraint(this, cam, this.camera, this.frame);
     this.serialize();
     this.refreshInspector();
     this.render();

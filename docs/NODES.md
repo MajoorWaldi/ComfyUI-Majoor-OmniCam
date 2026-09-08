@@ -122,6 +122,22 @@ Advanced) is progressive disclosure of one layout, not three layouts. The full
 authoring overview is in [USER_GUIDE.md](USER_GUIDE.md); keyboard and viewport
 controls are in [SHORTCUTS.md](SHORTCUTS.md).
 
+### Draw Camera Path
+
+Use **Draw Camera Path** in the viewport tool rail to sketch a camera move from
+Top View. OmniCam keeps the current camera height, distributes the resulting
+keys across the active Playback Range, and creates a new animated camera.
+
+- LMB drag: draw and commit the path.
+- RMB or Escape: cancel without changing the scene.
+- MMB / Maya Alt navigation remains available while the tool is armed.
+- The generated camera follows the path by default.
+- Use the existing **Look At** control to track a scene object. Clearing Look At
+  restores the original tangent-based Follow Path orientation.
+
+The freehand stroke itself is editor-only and is never serialized or recorded
+into a playblast; only committed camera keyframes become Director state.
+
 ### Motion Tracks
 
 > **Experimental.** This authoring surface is labelled `EXPERIMENTAL` in the

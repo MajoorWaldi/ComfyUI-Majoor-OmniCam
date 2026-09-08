@@ -6,6 +6,11 @@
 //
 // `npm run check:locales` fails if a key here no longer exists in the source.
 export const FR = {
+  "Camera path created": "Chemin caméra créé",
+  "Camera path needs at least two distinct points": "Le chemin caméra nécessite au moins deux points distincts",
+  "Draw Camera Path": "Tracer un chemin caméra",
+  "Draw Camera Path cancelled": "Tracé du chemin caméra annulé",
+  "Draw Camera Path: LMB draw · RMB or Esc cancel": "Tracer un chemin caméra : clic gauche pour dessiner · clic droit ou Échap pour annuler",
   "Add static screen anchor": "Ajouter une ancre écran fixe",
   "Balanced camera field": "Champ caméra équilibré",
   "Binding": "Liaison",

@@ -106,6 +106,12 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 | `1` `2` `3` `4` (not numpad) | Component select mode: vertex / edge / face / object |
 | `H` / `Alt`+`H` | Hide the selected object / show all |
 | `Delete` / `Backspace` | Delete the selected object or camera |
+| Draw Camera Path + LMB drag | Draw and commit a new camera trajectory in Top View |
+| Draw Camera Path + RMB | Cancel the uncommitted path |
+| Escape while drawing | Cancel the uncommitted path without using Undo history |
+
+While Draw Camera Path is armed, MMB / Maya `Alt` navigation is never stolen by
+the mode: only plain LMB draws and RMB cancels.
 
 The toolbar's **Transform space** (World / Local) applies to **Move only**.
 Scale and Rotate always use the object's own axes, as Maya's own manipulators

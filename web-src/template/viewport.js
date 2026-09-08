@@ -12,6 +12,10 @@ function toolRail() {
       <button class="vp-tool" data-transform-mode="translate" title="${t("Translation gizmo (click)")}"><i class="pi pi-arrows-alt"></i></button>
       <button class="vp-tool" data-transform-mode="rotate" title="${t("Rotation gizmo (click)")}"><i class="pi pi-replay"></i></button>
       <button class="vp-tool" data-transform-mode="scale" title="${t("Scale gizmo (click)")}"><i class="pi pi-stop"></i></button>
+      <button class="vp-tool" data-act="draw-camera-path" aria-pressed="false"
+              title="${t("Draw Camera Path")}" aria-label="${t("Draw Camera Path")}">
+        <i class="pi pi-pencil"></i>
+      </button>
       <span class="vp-rail-divider"></span>
       <button class="vp-tool" data-select-mode="vertex" data-density-min="advanced" title="${t("Vertex Selection Mode (1)")}"><i class="pi pi-circle"></i></button>
       <button class="vp-tool" data-select-mode="edge" data-density-min="advanced" title="${t("Edge Selection Mode (2)")}"><i class="pi pi-minus"></i></button>

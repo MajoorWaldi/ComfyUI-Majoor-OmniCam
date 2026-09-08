@@ -17,6 +17,7 @@
 
 import { add, cameraBasis, mul } from "./director/core.js";
 import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
+import { cancelCameraPathDraw } from "./director/camera-path-draw.js";
 import { cancelMotionCreation } from "./motion-tracks/creation.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
 import { anyDirectorsLive, directorForTarget } from "./settings.js";
@@ -134,7 +135,9 @@ function globalKeymap(ui, event) {
   const mod = event.ctrlKey || event.metaKey;
 
   if (key === "escape") {
+    if (ui.cameraPathDraw?.drawing && cancelCameraPathDraw(ui)) return true;
     if (cancelViewportInteraction(ui)) return true;
+    if (cancelCameraPathDraw(ui)) return true;
     if (cancelMotionCreation(ui)) return true;
     if (ui.isNavigatingFly) {
       ui.isNavigatingFly = false;
