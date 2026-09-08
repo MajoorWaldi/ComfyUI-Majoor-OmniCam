@@ -63,22 +63,44 @@ ComfyUI; the nodes appear in the node menu under **Majoor › OmniCam**.
 
 ### ComfyUI Manager (recommended)
 
-Open **Manager → Custom Nodes Manager**, search for **Majoor OmniCam**, and click
+Open **Manager -> Custom Nodes Manager**, search for **Majoor OmniCam**, and click
 **Install**. This pulls the published
 [Comfy Registry](https://registry.comfy.org/nodes/majoor-omnicam) release with
 its prebuilt frontend bundle.
 
-### Manual (git clone)
+For normal users, **ComfyUI Manager is strongly recommended**. Use the source
+checkout path only for development or when intentionally following `main`.
+
+### Manual - source checkout (`git clone`)
+
+A raw Git checkout contains the frontend **source**, not the generated Vite
+bundle. Build it once after cloning:
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
+cd ComfyUI-Majoor-OmniCam
+
+npm ci
+npm run build
 ```
 
-The built frontend bundle (`web/`, `web-chunks/`) is committed, so a plain clone
-runs as-is — no `npm install` or build step. There are no required Python
-packages beyond ComfyUI's own. The Extractor's camera-solver backends (DPVO,
-pycolmap, OpenCV/SIFT) are all optional and installed separately — see the
+Then restart ComfyUI.
+
+The generated runtime files are:
+
+```text
+web/omnicam.js
+web-chunks/
+```
+
+They are intentionally not committed to Git. ComfyUI Manager / Registry
+installations already receive these generated files inside the published
+package and therefore do **not** need Node.js or a local frontend build.
+
+There are no mandatory Python packages beyond OmniCam's declared ComfyUI
+frontend compatibility dependency. Extractor solver backends and advanced
+reconstruction providers remain optional; see the
 [User Guide](docs/USER_GUIDE.md#install).
 
 ## The three nodes

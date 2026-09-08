@@ -14,7 +14,7 @@ on:
 # also needs issue permission only if the workflow itself chooses to report a
 # failure; keeping both explicit avoids the caller stripping contents:read.
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       issues: write
     # Never fires from a fork.
     if: ${{ github.repository_owner == 'MajoorWaldi' }}
@@ -70,6 +70,30 @@ jobs:
         run: python scripts/adapter_contract_canary.py .adapter-release/ltx .adapter-release/wan-video-wrapper
       - name: Install Comfy CLI
         run: pip install comfy-cli
+      - name: Verify release contract
+        run: pytest -q tests/test_release_contract.py
+      - name: Pack Registry archive
+        run: |
+          comfy --skip-prompt --no-enable-telemetry node pack
+          test -f node.zip
+      - name: Resolve release version
+        id: release
+        shell: bash
+        run: |
+          VERSION="$(python -c 'from pathlib import Path; lines=Path("pyproject.toml").read_text(encoding="utf-8").splitlines(); print(next(line.split("=", 1)[1].strip().strip("\"") for line in lines if line.startswith("version = ")))')"
+
+          TAG="v${VERSION}"
+          ASSET="majoor-omnicam-${VERSION}.zip"
+
+          cp node.zip "${ASSET}"
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "asset=${ASSET}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-${{ steps.release.outputs.version }}
+          path: ${{ steps.release.outputs.asset }}
       - name: Publish Custom Node
         # Do not use the pinned publish-node composite action here: that action
         # performs its own actions/checkout, whose default git clean removes the
@@ -77,3 +101,19 @@ jobs:
         run: |
           comfy --skip-prompt --no-enable-telemetry env
           comfy --skip-prompt --no-enable-telemetry node publish --token "${{ secrets.REGISTRY_ACCESS_TOKEN }}"
+      - name: Create synchronized GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ASSET: ${{ steps.release.outputs.asset }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; refreshing archive."
+            gh release upload "${TAG}" "${ASSET}" --clobber
+          else
+            gh release create "${TAG}" "${ASSET}" \
+              --target "${GITHUB_SHA}" \
+              --title "Majoor OmniCam ${TAG}" \
+              --generate-notes
+          fi

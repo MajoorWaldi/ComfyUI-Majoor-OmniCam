@@ -7,6 +7,7 @@ from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
 from ..core.motion_scene import MotionScene
 from ..core.validation import ValidationError
+from ..monitor.events import MONITOR_PREFLIGHT_EVENT, monitor_preflight_event_payload
 from ..monitor.result import panel_payload, raise_on_blocked
 from ..profiles.base import CompileRequest
 from ..profiles.capability_gate import capability_check
@@ -18,13 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def _publish(unique_id: Any, payload: dict[str, Any]) -> None:
-    """Push the panel over the socket the way a completed execution would.
-
-    A binding preflight that stops the run also stops ComfyUI from delivering
-    any ``ui``, so the one place that explains *why* it stopped would go blank
-    at exactly the moment it is needed. Sending it here keeps the panel and the
-    error telling the same story.
-    """
+    """Publish a blocked preflight without impersonating ComfyUI lifecycle events."""
     if unique_id is None:
         return
     try:
@@ -33,12 +28,15 @@ def _publish(unique_id: Any, payload: dict[str, Any]) -> None:
         instance = getattr(PromptServer, "instance", None)
         if instance is None:
             return
-        instance.send_sync(
-            "executed",
-            {"node": str(unique_id), "display_node": str(unique_id), "output": payload},
-        )
+
+        message = monitor_preflight_event_payload(unique_id, payload)
+        sid = getattr(instance, "client_id", None)
+        instance.send_sync(MONITOR_PREFLIGHT_EVENT, message, sid)
     except Exception as exc:  # noqa: BLE001 - the panel is diagnostics, never the gate
-        logger.debug("OmniCam Monitor could not publish its preflight panel: %s", exc)
+        logger.debug(
+            "OmniCam Monitor could not publish its blocked preflight panel: %s",
+            exc,
+        )
 
 
 class MajoorOmniCamMonitor(IO.ComfyNode):

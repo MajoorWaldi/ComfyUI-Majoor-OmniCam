@@ -1,0 +1,53 @@
+name: Vite module graph canary
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "web-src/**"
+      - "vite.config.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/vite-module-graph-canary.yml"
+      - "scripts/compare_vite_graphs.mjs"
+
+jobs:
+  capture:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+
+      - name: Capture Vite graph
+        env:
+          OMNICAM_VITE_GRAPH_OUT: vite-graph-${{ runner.os }}.json
+        run: npm run build
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: vite-graph-${{ runner.os }}
+          path: vite-graph-${{ runner.os }}.json
+
+  compare:
+    needs: capture
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: vite-graph-*
+          merge-multiple: true
+
+      - name: Compare module graphs
+        run: node scripts/compare_vite_graphs.mjs vite-graph-Linux.json vite-graph-Windows.json --report-only

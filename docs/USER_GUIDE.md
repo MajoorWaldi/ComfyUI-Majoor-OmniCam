@@ -127,24 +127,29 @@ Use [Shortcuts](SHORTCUTS.md) for the complete viewport and timeline control ref
 
 ## Install
 
-For normal use, install Majoor OmniCam through **ComfyUI Manager → Custom Nodes
-Manager** (search for *Majoor OmniCam*), or with a plain clone into
-`custom_nodes/`:
+For normal use, install Majoor OmniCam through **ComfyUI Manager -> Custom Nodes
+Manager** (search for *Majoor OmniCam*). Manager / Registry installs ship with
+the generated frontend bundle, so they do not require Node.js or a local build.
+
+A raw Git source checkout contains `web-src/`, not the generated runtime bundle.
+Use this path for development or when intentionally following `main`:
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
+cd ComfyUI-Majoor-OmniCam
+
+npm ci
+npm run build
 ```
 
-The Vite frontend output (`web/`, `web-chunks/`) is committed, so both routes
-work with no build step. Restart ComfyUI, then install whichever optional
-Extractor backends you need (below). There are no required Python packages
-beyond ComfyUI's own.
+Restart ComfyUI after installing or rebuilding. The generated runtime files are
+`web/omnicam.js` and `web-chunks/`; they are intentionally not committed to Git.
+There are no required Python packages beyond OmniCam's declared ComfyUI
+frontend compatibility dependency.
 
-Contributors editing `web-src/` do need the toolchain — Node.js 22, then
-`npm ci && npm run build` to regenerate the bundle. Rollup's content hashes are
-not byte-reproducible across operating systems, so a rebuild on another platform
-will churn the `web-chunks/` filenames.
+Contributors editing `web-src/` need Node.js 22 and should rerun
+`npm ci && npm run build` to regenerate the local bundle.
 
 All three Extractor backends are optional. DPVO requires a compatible local
 installation and its checkpoint at:

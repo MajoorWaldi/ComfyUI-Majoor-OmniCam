@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { readdir, unlink, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 const sourceAliases = {
   "omnicam-webgl": "viewport.js",
@@ -50,34 +50,90 @@ function publicEntryStub() {
   };
 }
 
-export default defineConfig(({ mode }) => ({
-  plugins: [publicEntryStub()],
-  build: {
-    emptyOutDir: true,
-    lib: {
-      entry: { omnicam: "web-src/main.js" },
-      formats: ["es"],
-      fileName: (_format, entryName) => `${entryName}.js`,
+function normalizeModuleId(id) {
+  if (!id) return null;
+
+  const clean = String(id).split("?")[0];
+  const root = resolve(".");
+  const rel = clean.startsWith(root) ? relative(root, clean) : clean;
+
+  return rel.replaceAll("\\", "/");
+}
+
+function moduleGraphAudit() {
+  const outputPath = process.env.OMNICAM_VITE_GRAPH_OUT;
+  if (!outputPath) return null;
+
+  return {
+    name: "omnicam-module-graph-audit",
+
+    async generateBundle(_options, bundle) {
+      const modules = [...this.getModuleIds()]
+        .map(normalizeModuleId)
+        .filter(Boolean)
+        .sort();
+
+      const chunks = Object.values(bundle)
+        .filter((item) => item.type === "chunk")
+        .map((chunk) => ({
+          name: chunk.name,
+          facade: normalizeModuleId(chunk.facadeModuleId),
+          modules: Object.keys(chunk.modules)
+            .map(normalizeModuleId)
+            .filter(Boolean)
+            .sort(),
+        }))
+        .sort((a, b) => String(a.facade || a.name).localeCompare(String(b.facade || b.name)));
+
+      const report = {
+        schema_version: 1,
+        platform: process.platform,
+        node: process.version,
+        module_count: modules.length,
+        modules,
+        chunks,
+      };
+
+      await writeFile(resolve(outputPath), `${JSON.stringify(report, null, 2)}\n`, "utf8");
     },
-    rollupOptions: {
-      // ComfyUI's own modules are resolved by the browser at the URL depth the
-      // chunk route mirrors, so the relative specifier is left untouched.
-      external: (id) => id.startsWith("../../scripts/"),
-      output: {
-        // Hashed names: the chunk route serves them as ordinary static files,
-        // so a new build must not reuse a URL the browser already cached.
-        chunkFileNames: "chunk-[hash].js",
-        assetFileNames: "asset-[hash][extname]",
-        manualChunks(id) {
-          if (id.includes("node_modules/three")) return "vendor-three";
-          if (id.includes("node_modules/mediabunny")) return "vendor-mediabunny";
-          return null;
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const graphAudit = moduleGraphAudit();
+
+  return {
+    plugins: [
+      publicEntryStub(),
+      ...(graphAudit ? [graphAudit] : []),
+    ],
+    build: {
+      emptyOutDir: true,
+      lib: {
+        entry: { omnicam: "web-src/main.js" },
+        formats: ["es"],
+        fileName: (_format, entryName) => `${entryName}.js`,
+      },
+      rollupOptions: {
+        // ComfyUI's own modules are resolved by the browser at the URL depth the
+        // chunk route mirrors, so the relative specifier is left untouched.
+        external: (id) => id.startsWith("../../scripts/"),
+        output: {
+          // Hashed names: the chunk route serves them as ordinary static files,
+          // so a new build must not reuse a URL the browser already cached.
+          chunkFileNames: "chunk-[hash].js",
+          assetFileNames: "asset-[hash][extname]",
+          manualChunks(id) {
+            if (id.includes("node_modules/three")) return "vendor-three";
+            if (id.includes("node_modules/mediabunny")) return "vendor-mediabunny";
+            return null;
+          },
         },
       },
+      outDir: "web-chunks",
+      // Development builds ship source maps for debugging; release artifacts stay compact.
+      sourcemap: mode === "development" ? true : false,
+      minify: mode === "development" ? false : "esbuild",
     },
-    outDir: "web-chunks",
-    // Development builds ship source maps for debugging; release artifacts stay compact.
-    sourcemap: mode === "development" ? true : false,
-    minify: mode === "development" ? false : "esbuild",
-  },
-}));
+  };
+});

@@ -16,6 +16,13 @@ def _text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+def _project_version() -> str:
+    for line in _text("pyproject.toml").splitlines():
+        if line.startswith("version = "):
+            return line.split("=", 1)[1].strip().strip('"')
+    raise AssertionError("project version not found")
+
+
 def test_registry_force_includes_generated_frontend() -> None:
     pyproject = _text("pyproject.toml")
     assert "includes" in pyproject
@@ -58,7 +65,7 @@ def test_publish_workflow_does_not_recheckout_after_frontend_build() -> None:
     publish = workflow.index(publish_command)
     assert build < publish
     assert "Comfy-Org/publish-node-action" not in workflow
-    assert "contents: read" in workflow
+    assert "contents: write" in workflow
 
 
 def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
@@ -76,10 +83,50 @@ def test_ci_builds_and_inspects_the_real_comfy_registry_archive() -> None:
 
 
 def test_source_install_docs_include_frontend_build_step() -> None:
-    guide = _text("docs/USER_GUIDE.md")
-    install = guide[guide.index("## Install"):]
-    assert "npm ci" in install
-    assert "npm run build" in install
+    for path in ("README.md", "docs/USER_GUIDE.md"):
+        guide = _text(path)
+        install = guide[guide.index("## Install"):]
+        assert "npm ci" in install, path
+        assert "npm run build" in install, path
+
+
+def test_source_install_docs_do_not_claim_generated_bundle_is_committed() -> None:
+    readme = _text("README.md")
+    forbidden = (
+        "built frontend bundle (`web/`, `web-chunks/`) is committed",
+        "plain clone runs as-is",
+        "no `npm install` or build step",
+    )
+    for text in forbidden:
+        assert text not in readme
+
+
+def test_requirements_explains_source_frontend_build() -> None:
+    requirements = _text("requirements.txt")
+    assert "npm ci" in requirements
+    assert "npm run build" in requirements
+
+
+def test_frontend_and_python_package_versions_match() -> None:
+    import json
+
+    version = _project_version()
+    package = json.loads(_text("package.json"))
+    assert package["version"] == version
+
+
+def test_changelog_has_current_release_version() -> None:
+    version = _project_version()
+    changelog = _text("CHANGELOG.md")
+    assert f"## [{version}]" in changelog
+
+
+def test_ci_frontend_lanes_split_pinned_and_latest_canary() -> None:
+    workflow = _text(".github/workflows/test.yml")
+    assert "comfyui-browser-pinned-frontend" in workflow
+    assert "comfyui-browser-latest-frontend" in workflow
+    old_name = "comfyui-browser-" + "current" + "-frontend"
+    assert old_name not in workflow
 
 
 def test_package_never_imports_itself_by_absolute_name() -> None:

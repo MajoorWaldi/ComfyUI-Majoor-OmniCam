@@ -59,7 +59,7 @@ async function waitAttached(page, handle) {
       return markers.some((name) => node?.[name]?.root?.isConnected);
     },
     { handle, markers: MARKERS },
-    // The Director editor bundle is heavy and the current-frontend CI lane
+    // The Director editor bundle is heavy and the pinned/latest frontend CI lanes
     // fetches an unreleased build from GitHub before the first paint; a cold
     // CPU-only runner can take well past 45s to mount the first Vue root.
     { timeout: 60_000 },
@@ -69,7 +69,7 @@ async function waitAttached(page, handle) {
 for (const [nodeType, marker] of CASES) {
   test(`${nodeType} mounts and disposes with Nodes 2.0 enabled`, async ({ page }) => {
     // Cold boot + unreleased-frontend fetch + first Vue-root mount overruns the
-    // default 60s file budget on the current-frontend lane; take the triple.
+    // default 60s file budget on the pinned/latest frontend lanes; take the triple.
     test.slow();
     const pageErrors = [];
     page.on("pageerror", (error) => {
@@ -90,7 +90,7 @@ for (const [nodeType, marker] of CASES) {
       ({ marker }) =>
         Boolean(window.__omnicamVueTestNode?.[marker]?.root?.isConnected),
       { marker },
-      // Match waitAttached: the current-frontend lane's first mount is slow.
+      // Match waitAttached: the pinned/latest frontend lanes' first mount is slow.
       { timeout: 60_000 },
     );
 
@@ -129,7 +129,7 @@ for (const [nodeType] of CASES) {
   test(`${nodeType} survives resize, right sidebar, serialization reload, duplication and queue (Nodes 2.0)`, async ({ page }) => {
     // Mount + four resizes + sidebar + reload + duplicate + queue is a lot for
     // one CPU-only CI test, and three of those steps now wait up to 60s for a
-    // Vue root on the slow current-frontend lane; budget for the sum.
+    // Vue root on the slow pinned/latest frontend lanes; budget for the sum.
     test.setTimeout(300_000);
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(String(error?.stack || error)));

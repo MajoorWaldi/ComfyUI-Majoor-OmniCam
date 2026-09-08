@@ -3,6 +3,10 @@ import pytest
 pytest.importorskip("comfy_api.latest")
 
 from omnicam.core.motion_scene import MotionScene
+from omnicam.monitor.events import (
+    MONITOR_PREFLIGHT_EVENT,
+    MONITOR_PREFLIGHT_EVENT_VERSION,
+)
 from omnicam.nodes.monitor import MajoorOmniCamMonitor
 
 
@@ -291,10 +295,15 @@ def _captured_panels(monkeypatch):
 
     sent = []
 
+    class Instance:
+        client_id = "test-client"
+
+        @staticmethod
+        def send_sync(event, payload, sid=None):
+            sent.append((event, payload, sid))
+
     class FakeServer:
-        instance = type("Instance", (), {"send_sync": staticmethod(
-            lambda event, payload, *args: sent.append((event, payload))
-        )})()
+        instance = Instance()
 
     module = types.ModuleType("omnicam.comfy_compat.server")
     module.PromptServer = FakeServer
@@ -318,8 +327,12 @@ def test_a_blocked_downstream_publishes_the_panel_before_it_raises(monkeypatch):
     with pytest.raises(ValueError, match="not installed"):
         _execute()
 
-    assert [event for event, _ in sent] == ["executed"]
-    payload = sent[0][1]
+    assert [event for event, _, _ in sent] == [MONITOR_PREFLIGHT_EVENT]
+    event, payload, sid = sent[0]
+    assert event != "executed"
+    assert sid == "test-client"
+    assert payload["schema_version"] == MONITOR_PREFLIGHT_EVENT_VERSION
+    assert payload["kind"] == "blocked_preflight"
     assert payload["node"] == "4"
     states = {check["id"]: check["state"] for check in payload["output"]["preflight"]}
     assert states["downstream_contract"] == "BLOCKED"
@@ -343,8 +356,14 @@ def test_a_profile_that_refuses_to_compile_also_publishes_its_panel(monkeypatch)
     with pytest.raises(ValueError, match="motion layer"):
         _execute(motion_scene=scene)
 
-    assert [event for event, _ in sent] == ["executed"]
-    checks = sent[0][1]["output"]["preflight"]
+    assert [event for event, _, _ in sent] == [MONITOR_PREFLIGHT_EVENT]
+    event, payload, sid = sent[0]
+    assert event != "executed"
+    assert sid == "test-client"
+    assert payload["schema_version"] == MONITOR_PREFLIGHT_EVENT_VERSION
+    assert payload["kind"] == "blocked_preflight"
+    assert payload["node"] == "7"
+    checks = payload["output"]["preflight"]
     assert any(check["state"] == "BLOCKED" for check in checks)
 
 
@@ -361,3 +380,17 @@ def test_a_healthy_run_publishes_nothing_early_and_returns_its_ui(monkeypatch):
 
     assert sent == []
     assert output.ui["preflight"]
+
+
+def test_monitor_backend_never_manually_emits_comfyui_executed(monkeypatch):
+    sent = _captured_panels(monkeypatch)
+    monkeypatch.setattr(
+        "omnicam.nodes.monitor.detect_capabilities",
+        lambda: _detection("missing", detected_nodes=[]),
+    )
+    monkeypatch.setattr(MajoorOmniCamMonitor, "hidden", type("H", (), {"unique_id": "12"})())
+
+    with pytest.raises(ValueError, match="not installed"):
+        _execute()
+
+    assert all(event != "executed" for event, _, _ in sent)

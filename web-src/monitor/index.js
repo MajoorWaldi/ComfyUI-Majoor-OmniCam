@@ -8,6 +8,7 @@ import { describeReferenceSource, directorPlayblastSource, referenceSourceWarnLe
 import { MonitorRefreshController } from "./refresh.js";
 import { MonitorSourceWatcher } from "./source-sync.js";
 import { loadMonitorProfileInfo, renderMonitorProfileInfo } from "./profile-info.js";
+import { bindMonitorPreflightEvents } from "./preflight-events.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { buildMonitorRoot } from "./template.js";
@@ -302,13 +303,22 @@ class MonitorUI {
     this.root.querySelector('[data-role="proxy-frame"]').textContent = `${frame} / ${max}`;
   }
 
-  executed(message) {
-    this.hasExecutedOnce = true;
+  renderResult(message, { executed = false } = {}) {
+    if (executed) this.hasExecutedOnce = true;
     const result = renderMonitorExecution(this.root, message);
     if (result.targetProfile) {
       const selected = monitorWidgetValues(this.node).target_profile;
       if (selected !== result.targetProfile) this.markOutdated();
     }
+  }
+
+  executed(message) {
+    this.renderResult(message, { executed: true });
+  }
+
+  blockedPreflight(message) {
+    this.hasExecutedOnce = true;
+    this.renderResult(message);
   }
 
   dispose() {
@@ -328,6 +338,8 @@ export function attachMonitor(node) {
   if (node.__majoorOmniCamMonitor) return;
   hideWidgets(node);
   const ui = new MonitorUI(node);
+  const disposeBlockedPreflight = bindMonitorPreflightEvents(api, node, ui);
+  ui.disposers.push(disposeBlockedPreflight);
   node.__majoorOmniCamMonitor = ui;
   const preferredHeight = () => Math.max(620, ui.root.scrollHeight || 0);
   node.addDOMWidget("majoor_omnicam_monitor", "omnicam", ui.root, {

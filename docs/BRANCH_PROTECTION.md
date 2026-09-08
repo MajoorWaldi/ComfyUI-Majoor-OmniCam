@@ -7,23 +7,24 @@ check contexts from `.github/workflows/test.yml`:
 python-core (3.10)
 python-core (3.12)
 python-core (3.13)
-python-full
+python-reconstruction
 frontend
 comfyui-integration (minimum)
 comfyui-integration (v0.34.0)
 comfyui-browser
-comfyui-browser-current-frontend
+comfyui-browser-pinned-frontend
 ```
 
-`comfyui-browser-current-frontend` re-runs the `live-ci` and `live-vue-ci`
+`comfyui-browser-pinned-frontend` re-runs the `live-ci` and `live-vue-ci`
 suites against an explicitly pinned newer frontend
-(`Comfy-Org/ComfyUI_frontend@1.54.1`). The pin is never `@latest`, so this lane
+(`Comfy-Org/ComfyUI_frontend@1.54.6`). The pin is never `@latest`, so this lane
 is deterministic and belongs in the required set — it catches a frontend-only
 regression before a user hits it.
 
-`comfyui-integration (master)` is intentionally a non-blocking canary. It gives
-early warning about upstream ComfyUI changes without silently moving OmniCam's
-declared compatibility floor.
+`comfyui-integration (master)` and `comfyui-browser-latest-frontend` are
+intentionally non-blocking canaries. They give early warning about upstream
+ComfyUI or frontend changes without silently moving OmniCam's declared
+compatibility floor.
 
 `adapter-contract-canary`, defined in
 `.github/workflows/adapter-contract-canary.yml`, runs weekly against the current
@@ -41,6 +42,6 @@ with the tokens available to CI or to review tooling (`403 Resource not
 accessible by integration`), so the live required-check set on the protected
 branch cannot be confirmed against this list from outside. Treat any claim that
 these contexts are enforced as unverified until a repository admin checks the
-branch settings directly. In particular, `comfyui-browser-current-frontend` was
+branch settings directly. In particular, `comfyui-browser-pinned-frontend` was
 added to this policy after the initial protection was configured and must be
 added to the remote required-check set by hand.
