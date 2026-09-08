@@ -27,6 +27,21 @@ Director keeps the authored **MotionScene** as the canonical scene state; each
 camera carries its own versioned camera track. The playblast is a motion
 reference, not a final render.
 
+### Draw a Camera Path
+
+1. Set the **Playback Range** to the frames the move should cover.
+2. Click **Draw Camera Path** in the viewport tool rail. Director switches to
+   Top View and keeps the current camera height.
+3. Hold the left mouse button and sketch the trajectory; release to commit.
+4. OmniCam creates a new animated camera, spreads its keys across the playback
+   range, and makes it active. Press `Space` to preview.
+5. The camera follows the path by default. Use the **Look At** control to track
+   a scene object; clearing Look At restores the drawn orientation exactly.
+
+Right-click or `Escape` cancels an uncommitted stroke. Middle-mouse and Maya
+`Alt` navigation stay available while the tool is armed. The freehand stroke is
+editor-only -- it is never saved into the workflow or burned into a playblast.
+
 ## Recover Motion from Video
 
 1. Add **OmniCam Extractor**.
