@@ -7,7 +7,7 @@ import {
   spatialHandleMode,
   spatialHandlePoints,
   writeSpatialHandle,
-} from "../../web-src/director/camera-path-curve.js";
+} from "../../web-src/camera-path-curve.js";
 import { sampleCamera } from "../../web-src/director/core.js";
 
 function key(frame, position, interpolation = "smooth") {

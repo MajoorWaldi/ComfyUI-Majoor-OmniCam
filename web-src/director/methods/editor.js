@@ -1,7 +1,7 @@
 // OmniCam Director methods extracted from the UI facade.
 
 import { applyAimConstraint } from "../../aim-constraint.js";
-import { SPATIAL_HANDLE_MODES, spatialHandleMode } from "../camera-path-curve.js";
+import { SPATIAL_HANDLE_MODES, spatialHandleMode } from "../../camera-path-curve.js";
 
 const HANDLE_MODE_LABELS = { auto: "Auto Smooth", aligned: "Aligned", free: "Free", corner: "Corner" };
 

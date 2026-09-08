@@ -2,7 +2,6 @@
 
 import { add, cameraBasis, clamp, cloneCamera, cloneTransform, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
 import { interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
-import { writeSpatialHandle } from "../director/camera-path-curve.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
@@ -416,7 +415,9 @@ export function onPointerMove(ui, e) {
     if (key) {
       const world = screenToPlane(
         [pointerX, pointerY], viewportCamera(ui), ui.curveHandleDrag.anchor, ui.canvas.width, ui.canvas.height);
-      writeSpatialHandle(key, ui.curveHandleDrag.side, world, {
+      // Routed through the Director facade so this eagerly-loaded interaction
+      // module keeps no static import of the (Director-only) curve maths.
+      ui.dragCurveHandle?.(key, ui.curveHandleDrag.side, world, {
         prevKey: ui.curveHandleDrag.prevKey,
         nextKey: ui.curveHandleDrag.nextKey,
       });

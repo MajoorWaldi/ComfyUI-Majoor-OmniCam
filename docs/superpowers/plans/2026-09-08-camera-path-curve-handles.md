@@ -38,7 +38,7 @@ the timeline F-curve editor's `tangents.mode`.
 
 | Action | File | Purpose |
 |---|---|---|
-| CREATE | `web-src/director/camera-path-curve.js` | pure handle maths + mode coupling |
+| CREATE | `web-src/camera-path-curve.js` | pure handle maths + mode coupling |
 | CREATE | `tests/frontend/camera-path-curve.node.mjs` | unit tests for the module |
 | CREATE | `tests/frontend/curve-handle-picking.node.mjs` | real-THREE `pickCurveHandle` |
 | MODIFY | `web-src/viewport/resources.js` | enlarged/recoloured control dots; draw in/out handles + knobs |

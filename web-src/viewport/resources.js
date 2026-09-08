@@ -3,7 +3,7 @@
 import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
 import { attachMeshOverlays } from "./mesh-overlays.js";
 import { reconstructionMaterialMode } from "../scene/reconstruction-badges.js";
-import { spatialHandlePoints } from "../director/camera-path-curve.js";
+import { spatialHandlePoints } from "../camera-path-curve.js";
 
 // Spatial-curve handle styling. The keyframe control point is deliberately a
 // different colour from its camera's path line and larger than a plain marker;
