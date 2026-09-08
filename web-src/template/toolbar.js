@@ -5,6 +5,19 @@
 
 import { t } from "../i18n.js";
 
+function fileTab() {
+  return `
+    <details class="toolbar-menu" data-menu="file"><summary><i class="pi pi-folder"></i> ${t("Scene")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
+      <div class="menu-title">${t("Scene Library")}</div>
+      <button data-act="scene-new"><i class="pi pi-file"></i> ${t("New Scene")}</button>
+      <button data-act="scene-open"><i class="pi pi-folder-open"></i> ${t("Open Scene…")}</button>
+      <button data-act="scene-save" class="primary"><i class="pi pi-save"></i> ${t("Save Scene")}</button>
+      <div class="menu-divider"></div>
+      <button data-act="scene-reset"><i class="pi pi-undo"></i> ${t("Reset Scene")}</button>
+      <span class="hint">${t("Reset reverts to the last saved or opened scene.")}</span>
+    </div></details>`;
+}
+
 function sceneTab() {
   return `
     <details class="toolbar-menu" data-menu="scene"><summary><i class="pi pi-box"></i> ${t("Viewport")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
@@ -172,6 +185,7 @@ function displayTab() {
 export function toolbarMarkup() {
   return `
     <div class="top">
+      ${fileTab()}
       ${sceneTab()}
       ${camerasTab()}
       ${viewTab()}

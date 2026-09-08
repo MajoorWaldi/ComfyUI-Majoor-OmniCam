@@ -679,6 +679,7 @@ async def import_camera_route(request: web.Request):
 # Extractor routes alongside the managed-asset routes. Each is a separate
 # module so this one stays readable.
 from . import routes_chunks as _routes_chunks  # noqa: E402,F401
+from . import routes_scenes as _routes_scenes  # noqa: E402,F401
 from .extractor.jobs import routes as _routes_extractor_jobs  # noqa: E402,F401
 from .reconstruction.jobs import routes as _routes_reconstruction_jobs  # noqa: E402
 
