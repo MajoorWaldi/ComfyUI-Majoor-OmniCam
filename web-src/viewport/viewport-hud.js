@@ -113,6 +113,14 @@ export function updateViewportControls(ui) {
   const wireBtn = ui.root.querySelector('[data-role="overlay-wireframe-btn"]');
   if (wireBtn) wireBtn.classList.toggle("active", Boolean(ui.state.show_wireframe));
 
+  const cullBtn = ui.root.querySelector('[data-role="overlay-cull-btn"]');
+  if (cullBtn) {
+    cullBtn.classList.toggle("active", Boolean(ui.state.backface_culling));
+    cullBtn.title = ui.state.backface_culling
+      ? t("Backface culling: On (Single-Sided)")
+      : t("Backface culling: Off (Double-Sided Interior)");
+  }
+
   const gizmoBtn = ui.root.querySelector('[data-role="overlay-gizmo-btn"]');
   if (gizmoBtn) gizmoBtn.classList.toggle("active", ui.state.show_gizmo !== false);
 
@@ -217,6 +225,20 @@ export function setupViewportHudHandlers(ui, signal) {
       updateViewportControls(ui);
       ui.requestRender?.();
       ui.setStatus?.(ui.state.show_wireframe ? t("Wireframe overlay: On") : t("Wireframe overlay: Off"));
+    }, { signal });
+  }
+
+  for (const btn of ui.root.querySelectorAll('[data-act="toggle-cull-overlay"]')) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      ui.checkpoint?.("Toggle backface culling");
+      ui.state.backface_culling = !ui.state.backface_culling;
+      for (const el of ui.root.querySelectorAll('[data-role="backface-culling"]')) el.checked = Boolean(ui.state.backface_culling);
+      ui.serialize?.();
+      updateViewportControls(ui);
+      if (ui.webgl) ui.webgl.sceneKey = "";
+      ui.requestRender?.();
+      ui.setStatus?.(ui.state.backface_culling ? t("Backface culling: On (Single-Sided)") : t("Backface culling: Off (Double-Sided)"));
     }, { signal });
   }
 

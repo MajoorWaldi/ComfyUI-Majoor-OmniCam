@@ -137,3 +137,22 @@ test("SENSOR_PRESETS calculate accurate field of view", () => {
   const fovSuper35 = focalLengthToFov(50, SENSOR_PRESETS.super_35.height);
   assert.ok(fovFullFrame > fovSuper35);
 });
+
+test("updateViewportControls updates overlay-cull-btn active state and title", () => {
+  const cullBtn = makeElement("button");
+  const root = {
+    querySelector(selector) {
+      if (selector === '[data-role="overlay-cull-btn"]') return cullBtn;
+      return null;
+    },
+  };
+  const ui = { root, state: { backface_culling: false } };
+  updateViewportControls(ui);
+  assert.equal(cullBtn.classList.contains("active"), false);
+  assert.match(cullBtn.title, /Off/i);
+
+  ui.state.backface_culling = true;
+  updateViewportControls(ui);
+  assert.equal(cullBtn.classList.contains("active"), true);
+  assert.match(cullBtn.title, /On/i);
+});

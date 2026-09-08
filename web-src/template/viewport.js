@@ -116,6 +116,7 @@ export function viewportMarkup() {
         <div class="vp-overlay-group" role="group" aria-label="${t("Quick Overlays")}">
           <button type="button" class="vp-overlay-btn" data-act="toggle-grid-overlay" data-role="overlay-grid-btn" title="${t("Toggle Floor Grid")}"><i class="pi pi-th-large"></i></button>
           <button type="button" class="vp-overlay-btn" data-act="toggle-wireframe-overlay" data-role="overlay-wireframe-btn" title="${t("Toggle Wireframe on Shaded / Mesh Edges")}"><i class="pi pi-box"></i></button>
+          <button type="button" class="vp-overlay-btn" data-act="toggle-cull-overlay" data-role="overlay-cull-btn" title="${t("Toggle Backface Culling (Solid Interior / Single-Sided)")}"><i class="pi pi-clone"></i></button>
           <button type="button" class="vp-overlay-btn" data-act="toggle-gizmo-overlay" data-role="overlay-gizmo-btn" title="${t("Toggle Transform Gizmos")}"><i class="pi pi-arrows-alt"></i></button>
           <button type="button" class="vp-overlay-btn" data-act="toggle-guides-overlay" data-role="overlay-guides-btn" title="${t("Toggle Composition Guides (Rule of Thirds)")}"><i class="pi pi-hashtag"></i></button>
           <button type="button" class="vp-overlay-btn" data-act="toggle-safe-areas-overlay" data-role="overlay-safe-btn" title="${t("Toggle Safe Areas")}"><i class="pi pi-stop"></i></button>

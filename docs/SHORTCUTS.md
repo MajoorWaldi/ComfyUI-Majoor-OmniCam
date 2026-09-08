@@ -242,8 +242,8 @@ altitude dot coloured by height band. The scale adapts to keep the paths, the
 - **Camera Lock (`🔒` / `🔓`)**: Click the lock icon in the Camera HUD to freeze camera transforms and navigation, protecting your shot composition from accidental shifts.
 - **World / Local Space Toggle (`W` / `L`)**: Switch the active transformation coordinate space directly on the vertical tool rail without opening menus.
 - **Snapping Toggle (🧲)**: 1-click grid snapping toggle on the tool rail.
-- **Quick Overlays Cluster**: Direct header toggle buttons for Floor Grid (⊞), Transform Gizmos (✛), Rule of Thirds Guides (#), Safe Areas (⊡), and 2D Radar (◎).
-- **Shading Mode Selector**: Direct switch between Omni Ref, Graybox, Wireframe, Grid, and Beauty.
+- **Quick Overlays Cluster**: Direct header toggle buttons for Floor Grid (⊞), Wireframe on Shaded Geometry, Backface Culling (Solid Interior / Single-Sided), Transform Gizmos (✛), Rule of Thirds Guides (#), Safe Areas (⊡), and 2D Radar (◎).
+- **Shading Mode Selector**: Direct switch between Omni Ref, Graybox, Textured, Wireframe, Wireframe + Texture, Grid, and Beauty.
 - **Fullscreen Floating Transport**: Glassmorphic player pill at the bottom of the viewport during fullscreen mode with step backward/forward, play/pause, timecode, and keyframe insertion (`I`).
 
 ## Inspector & Vector Scrubbing
@@ -254,6 +254,7 @@ altitude dot coloured by height band. The scale adapts to keep the paths, the
   - Creates a single grouped undo checkpoint upon release.
 - **Quick Reset (`⟲`)**: Click the reset button next to Position, Target XYZ, Rotation, or Scale to restore default transforms.
 - **Lens Presets**: Instant focal length buttons: `14mm`, `18mm`, `24mm`, `35mm`, `50mm`, `85mm`, `135mm`.
+- **Near Presets**: Quick camera clipping presets: `0.001` (Interior / Close-up), `0.01` (Standard), `0.1` (Large scene / Exterior).
 - **Sensor / Gate Presets**: Dropdown selection for standard camera formats: Full Frame 35mm, Super 35, Micro 4/3, 16:9 Digital Cinema, Mobile 9:16 Vertical.
 
 ## Outliner hierarchy & filter chips

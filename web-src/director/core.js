@@ -421,7 +421,7 @@ export function defaultState() {
     // conditioning reference.
     reconstruction_appearance: "source_texture",
     point_density: "balanced", point_spread: "all_views", point_color: "#cbd5e1", viewport_bg_color: "#121212", viewport_bg_image: "", viewport_bg_sequence: [],
-    show_grid: true, show_camera_paths: true, show_camera_gizmos: true, show_look_at: true, show_helper_axes: true, show_gizmo: true, show_wireframe: false, show_vertices: false, select_mode: "object",
+    show_grid: true, show_camera_paths: true, show_camera_gizmos: true, show_look_at: true, show_helper_axes: true, show_gizmo: true, show_wireframe: false, show_vertices: false, backface_culling: false, select_mode: "object",
     gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "maya", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
@@ -577,6 +577,7 @@ export function sanitizeState(raw) {
   out.show_gizmo = out.show_gizmo !== false;
   out.show_wireframe = Boolean(out.show_wireframe);
   out.show_vertices = Boolean(out.show_vertices);
+  out.backface_culling = Boolean(out.backface_culling);
   out.point_density = ["none", "0", "sparse", "balanced", "dense", "ultra"].includes(out.point_density) ? out.point_density : "balanced";
   out.point_spread = ["all_views", "ground_focus", "dome"].includes(out.point_spread) ? out.point_spread : "all_views";
   out.point_color = sanitizeColor(out.point_color, "#cbd5e1");

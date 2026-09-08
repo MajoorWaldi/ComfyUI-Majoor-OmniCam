@@ -15,39 +15,44 @@ import { createRenderMethods } from "./viewport/render.js";
 import { hasOutlineMesh, SelectionOutlineRenderer } from "./viewport/selection-outline.js";
 import { DEFAULT_QUALITY, applyQuality, createStudio, setStudioEnabled } from "./viewport/studio.js";
 
-const neutral = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.48, metalness: 0.06 });
-const matte = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.95, metalness: 0 });
-const wire = new THREE.MeshBasicMaterial({ color: 0xaeb5c0, wireframe: true });
+const neutral = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.48, metalness: 0.06, side: THREE.DoubleSide });
+const matte = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.95, metalness: 0, side: THREE.DoubleSide });
+const wire = new THREE.MeshBasicMaterial({ color: 0xaeb5c0, wireframe: true, side: THREE.DoubleSide });
 
-function checkerMaterial() {
+function checkerMaterial(backfaceCulling = false) {
   const data = new Uint8Array([
     38, 42, 48, 255, 190, 195, 202, 255,
     190, 195, 202, 255, 38, 42, 48, 255,
   ]);
   const texture = new THREE.DataTexture(data, 2, 2, THREE.RGBAFormat);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(8, 8); texture.colorSpace = THREE.SRGBColorSpace; texture.needsUpdate = true;
-  return new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85, metalness: 0 });
+  return new THREE.MeshStandardMaterial({ map: texture, roughness: 0.85, metalness: 0, side: backfaceCulling ? THREE.FrontSide : THREE.DoubleSide });
 }
 
-function objectMaterial(object, mode) {
+function objectMaterial(object, mode, backfaceCulling = false) {
   const effectiveMode = mode === "wireframe" ? "wireframe" : (object.material_mode || "textured");
+  const side = backfaceCulling ? THREE.FrontSide : THREE.DoubleSide;
   if (effectiveMode === "wireframe") {
     const mat = wire.clone();
+    mat.side = side;
     if (object.color) mat.color = new THREE.Color(object.color);
     return mat;
   }
-  if (effectiveMode === "checker") return checkerMaterial();
+  if (effectiveMode === "checker") return checkerMaterial(backfaceCulling);
   if (effectiveMode === "matte") {
     const mat = matte.clone();
+    mat.side = side;
     if (object.color) mat.color = new THREE.Color(object.color);
     return mat;
   }
   const mat = neutral.clone();
+  mat.side = side;
   if (object.color) mat.color = new THREE.Color(object.color);
   return mat;
 }
 
-function applyModelMaterial(root, mode, object = null) {
+function applyModelMaterial(root, mode, object = null, backfaceCulling = false) {
+  const side = backfaceCulling ? THREE.FrontSide : THREE.DoubleSide;
   root.traverse((child) => {
     if (!child.isMesh) return;
     if (!child.userData.omnicamOriginalMaterial) child.userData.omnicamOriginalMaterial = child.material;
@@ -58,21 +63,28 @@ function applyModelMaterial(root, mode, object = null) {
     }
     if (mode === "textured" || mode === "wireframe_texture") {
       child.material = child.userData.omnicamOriginalMaterial;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      for (const material of materials) {
+        if (material) material.side = side;
+      }
     } else if (mode === "checker") {
-      child.material = checkerMaterial();
+      child.material = checkerMaterial(backfaceCulling);
       child.userData.omnicamOverrideMaterial = true;
     } else if (mode === "wireframe") {
       const mat = wire.clone();
+      mat.side = side;
       if (object?.color) mat.color = new THREE.Color(object.color);
       child.material = mat;
       child.userData.omnicamOverrideMaterial = true;
     } else if (mode === "matte") {
       const mat = matte.clone();
+      mat.side = side;
       if (object?.color) mat.color = new THREE.Color(object.color);
       child.material = mat;
       child.userData.omnicamOverrideMaterial = true;
     } else {
       const mat = neutral.clone();
+      mat.side = side;
       if (object?.color) mat.color = new THREE.Color(object.color);
       child.material = mat;
       child.userData.omnicamOverrideMaterial = true;

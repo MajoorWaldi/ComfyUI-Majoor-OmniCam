@@ -165,6 +165,7 @@ function displayTab() {
       <div class="menu-section" data-density-min="advanced">
         <label><span>${t("Wireframe / Edges")}</span><input data-role="show-wireframe" type="checkbox"></label>
         <label><span>${t("Mesh Vertices")}</span><input data-role="show-vertices" type="checkbox"></label>
+        <label><span>${t("Backface Culling")}</span><input data-role="backface-culling" type="checkbox"></label>
         <label><span>${t("Burn-in Data")}</span><input data-role="burn-in" type="checkbox"></label>
         <label><span>${t("Speed Map")}</span><input data-role="speed-heatmap" type="checkbox"></label>
       </div>

@@ -30,6 +30,8 @@ export function createSceneMethods(dependencies) {
     for (const el of this.root.querySelectorAll('[data-role="camera-focal"]')) if (document.activeElement !== el) el.value = formatFocalLength(this.camera.fov);
     for (const el of this.root.querySelectorAll('[data-role="viewport-zoom"]')) el.textContent = `${(Number(this.camera.zoom) || 1).toFixed(2)}x`;
     for (const el of this.root.querySelectorAll('[data-role="camera-type"]')) if (document.activeElement !== el) el.value = this.camera.camera_type || "perspective";
+    for (const el of this.root.querySelectorAll('[data-role="camera-near"]')) if (document.activeElement !== el) el.value = String(this.camera.near ?? 0.01);
+    for (const el of this.root.querySelectorAll('[data-role="camera-far"]')) if (document.activeElement !== el) el.value = String(this.camera.far ?? 10000);
     const sec = this.frame / this.state.fps;
     for (const media of this.cardMediaById.values()) media instanceof HTMLVideoElement && Number.isFinite(media.duration) && media.duration > 0 && (media.currentTime = sec % media.duration);
     const minutes = Math.floor(sec / 60), seconds = Math.floor(sec % 60), milliseconds = Math.floor(sec % 1 * 1e3), frames = this.frame % Math.max(1, Math.round(this.state.fps)), totalSeconds = Math.floor(this.frame / this.state.fps);

@@ -98,25 +98,26 @@ export function createResourceMethods(dependencies) {
         const model = this.models.get(object.id);
         const format = object.format || (object.type === "glb" ? "glb" : "");
         if (url && (model?.url !== url || model?.format !== format)) this.loadModel(object.id, url, format);
+        const cull = Boolean(state.backface_culling);
         const effectiveAppearance = reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
-        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object); }
+        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object, cull); }
         else mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2] || 1), wire.clone());
-      } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode));
-      else if (object.type === "cylinder") mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), objectMaterial(object, mode));
+      } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode, Boolean(state.backface_culling)));
+      else if (object.type === "cylinder") mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), objectMaterial(object, mode, Boolean(state.backface_culling)));
       else if (object.type === "torus") {
         const torusGeom = new THREE.TorusGeometry(0.5, 0.2, 16, 32);
         torusGeom.rotateX(Math.PI / 2);
-        mesh = new THREE.Mesh(torusGeom, objectMaterial(object, mode));
+        mesh = new THREE.Mesh(torusGeom, objectMaterial(object, mode, Boolean(state.backface_culling)));
       } else if (object.type === "human") {
-        mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), objectMaterial(object, mode));
-      } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));
+        mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), objectMaterial(object, mode, Boolean(state.backface_culling)));
+      } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode, Boolean(state.backface_culling)));
       else if (object.type === "card") {
         const isCardTextured = !object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode);
-        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), objectMaterial(object, mode)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), objectMaterial(object, mode, Boolean(state.backface_culling))) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
       } else if (object.type === "null") {
         const axes = new THREE.AxesHelper(0.5); axes.position.fromArray(object.position || [0, 0, 0]); axes.userData.omnicamId = object.id; axes.frustumCulled = false; this.objectNodes.set(object.id, axes); this.content.add(axes); continue;
       } else {
-        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode, Boolean(state.backface_culling)));
       }
       mesh.position.fromArray(object.position || [0, 0, 0]);
       mesh.rotation.set(...(object.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad));

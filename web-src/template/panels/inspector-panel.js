@@ -96,6 +96,13 @@ export function inspectorPanel() {
           <select data-role="camera-type"><option value="perspective">${t("Perspective")}</option><option value="orthographic">${t("Orthographic")}</option></select>
         </div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Near Clip")}</span><input data-role="camera-near" type="number" min="0.0001" step="0.001"></div>
+        <div class="oc-field-row oc-chip-row"><span class="oc-field-label">${t("Near Presets")}</span>
+          <div class="oc-chip-group">
+            <button type="button" class="oc-chip-btn" data-act="set-near-preset" data-near="0.001" title="${t("Interior (0.001)")}">0.001</button>
+            <button type="button" class="oc-chip-btn" data-act="set-near-preset" data-near="0.01" title="${t("Standard (0.01)")}">0.01</button>
+            <button type="button" class="oc-chip-btn" data-act="set-near-preset" data-near="0.1" title="${t("Large (0.1)")}">0.1</button>
+          </div>
+        </div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Far Clip")}</span><input data-role="camera-far" type="number" min="0.0002" step="1"></div>
       </details>
     </div>`;

@@ -289,6 +289,36 @@ export function bindViewportSettings(ui, q, signal) {
       ui.render();
     }, { signal });
   }
+  for (const box of ui.root.querySelectorAll('[data-role="backface-culling"]')) {
+    box.addEventListener("change", (e) => {
+      if (Boolean(ui.state.backface_culling) !== e.target.checked) ui.checkpoint("Toggle backface culling");
+      ui.state.backface_culling = e.target.checked;
+      syncMirroredControl(ui.root, "backface-culling", e.target, "checked");
+      ui.scheduleSerialize();
+      if (ui.webgl) ui.webgl.sceneKey = "";
+      ui.render();
+      ui.setStatus(ui.state.backface_culling ? t("Backface culling: On (Single-Sided)") : t("Backface culling: Off (Double-Sided)"));
+    }, { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="set-near-preset"]')) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const val = Number(btn.dataset.near || 0.01);
+      ui.checkpoint("Set camera near clip");
+      ui.camera.near = val;
+      if (ui.camera.far <= ui.camera.near) ui.camera.far = ui.camera.near + 100;
+      const activeCamera = ui.activeCameraTrack?.();
+      if (activeCamera) {
+        activeCamera.camera.near = val;
+        const key = activeCamera.keyframes?.find((k) => k.frame === ui.frame);
+        if (key && key.camera) key.camera.near = val;
+      }
+      for (const input of ui.root.querySelectorAll('[data-role="camera-near"]')) input.value = String(val);
+      ui.scheduleSerialize();
+      ui.render();
+      ui.setStatus(t("Near clip set to {val}m").replace("{val}", String(val)));
+    }, { signal });
+  }
   for (const box of ui.root.querySelectorAll('[data-role="burn-in"]')) {
     box.addEventListener("change", (e) => {
       if (ui.state.burn_in !== e.target.checked) ui.checkpoint("Toggle burn-in");

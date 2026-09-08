@@ -26,6 +26,7 @@ export {
   EquirectangularReflectionMapping,
   Float32BufferAttribute,
   FogExp2,
+  FrontSide,
   GridHelper,
   Group,
   HemisphereLight,

@@ -126,6 +126,7 @@ export function syncFromWidgets(ui, persist = true) {
   for (const el of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) el.value = ui.state.playblast_resolution || "output";
   for (const el of ui.root.querySelectorAll('[data-role="show-wireframe"]')) el.checked = Boolean(ui.state.show_wireframe);
   for (const el of ui.root.querySelectorAll('[data-role="show-vertices"]')) el.checked = Boolean(ui.state.show_vertices);
+  for (const el of ui.root.querySelectorAll('[data-role="backface-culling"]')) el.checked = Boolean(ui.state.backface_culling);
   for (const el of ui.root.querySelectorAll('[data-role="show-grid"]')) el.checked = ui.state.show_grid !== false;
   for (const el of ui.root.querySelectorAll('[data-role="show-camera-paths"]')) el.checked = ui.state.show_camera_paths !== false;
   for (const el of ui.root.querySelectorAll('[data-role="show-camera-gizmos"]')) el.checked = ui.state.show_camera_gizmos !== false;
@@ -161,6 +162,8 @@ export function syncFromWidgets(ui, persist = true) {
     tcv.classList.toggle("active", ui.state.camera_view_visible);
   }
   for (const el of ui.root.querySelectorAll('[data-role="camera-type"]')) el.value = ui.camera.camera_type || "perspective";
+  for (const el of ui.root.querySelectorAll('[data-role="camera-near"]')) el.value = String(ui.camera.near ?? 0.01);
+  for (const el of ui.root.querySelectorAll('[data-role="camera-far"]')) el.value = String(ui.camera.far ?? 10000);
   for (const el of ui.root.querySelectorAll('[data-role="speed"]')) el.value = String(ui.cameraSpeed || 1);
   for (const btn of ui.root.querySelectorAll('[data-act="loop"]')) {
     btn.classList.toggle("active", Boolean(ui.state.loop_playback));

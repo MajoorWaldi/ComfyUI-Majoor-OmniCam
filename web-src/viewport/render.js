@@ -94,6 +94,7 @@ export function createRenderMethods(dependencies) {
       state.point_spread,
       Boolean(state.show_wireframe),
       Boolean(state.show_vertices),
+      Boolean(state.backface_culling),
       state.reconstruction_appearance || "neutral",
       Boolean(cleanCapture),
       state.objects.map((object) => {

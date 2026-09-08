@@ -753,6 +753,16 @@ export const FR = {
   "Textured": "Texturé",
   "Wireframe overlay: On": "Surimpression filaire : Activée",
   "Wireframe overlay: Off": "Surimpression filaire : Désactivée",
+  "Backface culling: On (Single-Sided)": "Culling arrière : Activé (Simple face)",
+  "Backface culling: Off (Double-Sided)": "Culling arrière : Désactivé (Double face)",
+  "Backface culling: Off (Double-Sided Interior)": "Culling arrière : Désactivé (Intérieur plein / Double face)",
+  "Near clip set to {val}m": "Plan de coupe proche réglé à {val}m",
+  "Near Presets": "Préréglages Near",
+  "Interior (0.001)": "Intérieur (0.001)",
+  "Standard (0.01)": "Standard (0.01)",
+  "Large (0.1)": "Grand espace (0.1)",
+  "Backface Culling": "Culling arrière (Backface)",
+  "Toggle Backface Culling (Solid Interior / Single-Sided)": "Basculer le culling arrière (Intérieur plein / Simple face)",
 };
 export default FR;
 

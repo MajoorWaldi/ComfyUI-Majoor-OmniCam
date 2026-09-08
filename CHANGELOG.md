@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Director Viewport: improved **Camera Near Clipping & Backface Culling**:
+  - **Double-Sided Shading by Default (`THREE.DoubleSide`)**: Studio clay (`neutral`), dark matte (`matte`), and UV checkerboard now render two-sided by default. Interior architectural models, rooms, walls, and thin single-sided polygons remain solid and visible from both interior and exterior camera angles.
+  - **Backface Culling Quick Toggle**: added a dedicated Backface Culling toggle button (`overlay-cull-btn` / `toggle-cull-overlay`) in the viewport header overlay cluster and under the Display toolbar menu (`backface-culling`), allowing single-sided culling inspection at will.
+  - **Ultra-Close Near Clipping**: reduced the minimum safe near clipping clamp from `0.005` to `0.0005`, preventing camera lenses from slicing through close-up walls, ceilings, and indoor architectural geometry in tight shot layouts.
+  - **Two-Way Near/Far Clip Synchronization**: synchronized `[data-role="camera-near"]` and `[data-role="camera-far"]` DOM inputs in `setFrame` and `syncFromWidgets`, ensuring real-time display and updates of camera clipping planes.
+  - **Quick Near-Clip Presets**: added one-click preset buttons (`0.001` Interior, `0.01` Standard, `0.1` Large) under the Inspector's Projection & Clipping section.
 - Director Viewport: completely overhauled **3D Viewport Look & Aesthetics**:
   - **Atmospheric Studio Cyclorama**: graded 6-stop sky dome with horizon glow, eliminating pitch-black voids.
   - **Atmospheric Distance Fog**: soft exponential distance fog fading grid and distant geometry smoothly into the horizon.

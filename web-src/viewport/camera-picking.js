@@ -75,7 +75,7 @@ export function createCameraPickingMethods(dependencies) {
     },
   configureCamera(cameraState, aspect) {
     const cam = cameraState || defaultCamera();
-    const safeNear = Math.max(0.005, Number(cam.near) || 0.01);
+    const safeNear = Math.max(0.0005, Number(cam.near) || 0.01);
     const safeFar = Math.max(safeNear + 1, Number(cam.far) || 10000);
     let camera;
     if (cam.camera_type === "orthographic") {
