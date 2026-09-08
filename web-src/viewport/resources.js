@@ -3,6 +3,15 @@
 import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
 import { attachMeshOverlays } from "./mesh-overlays.js";
 import { reconstructionMaterialMode } from "../scene/reconstruction-badges.js";
+import { spatialHandlePoints } from "../camera-path-curve.js";
+
+// Spatial-curve handle styling. The keyframe control point is deliberately a
+// different colour from its camera's path line and larger than a plain marker;
+// the tangent handles get their own accent so in/out reads at a glance.
+const CURVE_POINT_COLOR = 0xffffff;
+const CURVE_POINT_RADIUS = 0.17;
+const CURVE_HANDLE_COLOR = 0x36d6c3;
+const CURVE_HANDLE_RADIUS = 0.06;
 
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -153,9 +162,14 @@ export function createResourceMethods(dependencies) {
       }
 
       for (const key of keys) {
+        const keyIndex = keys.indexOf(key);
+        // The active track's keyframes are editable spatial-curve control
+        // points: draw them larger and in a fixed colour so they never blend
+        // into their own camera's path line.
+        const controlPoint = isActive;
         const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(isActive ? 0.13 : 0.085, 16, 12),
-          new THREE.MeshBasicMaterial({ color: palette.marker, depthTest: false })
+          new THREE.SphereGeometry(controlPoint ? CURVE_POINT_RADIUS : 0.085, 16, 12),
+          new THREE.MeshBasicMaterial({ color: controlPoint ? CURVE_POINT_COLOR : palette.marker, depthTest: false })
         );
         marker.position.fromArray(key.camera.position);
         marker.renderOrder = 910;
@@ -234,6 +248,33 @@ export function createResourceMethods(dependencies) {
           sight.renderOrder = 914;
           sight.userData.omnicamWidget = "lookat";
           this.path.add(sight);
+        }
+
+        // In/out Bézier tangent handles for the selected control point. Drawn
+        // for every mode (auto shows a live preview) so the artist can always
+        // grab one; dragging a knob reshapes the path via key.tangents.
+        if (selectedKeyHere) {
+          const handles = spatialHandlePoints(key, keys[keyIndex - 1] || null, keys[keyIndex + 1] || null);
+          for (const side of ["in", "out"]) {
+            const tip = new THREE.Vector3().fromArray(handles[side]);
+            const stem = new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints([position.clone(), tip.clone()]),
+              new THREE.LineBasicMaterial({ color: CURVE_HANDLE_COLOR, transparent: true, opacity: 0.95, depthTest: false }),
+            );
+            stem.renderOrder = 912;
+            stem.userData.omnicamWidget = "gizmo";
+            this.path.add(stem);
+
+            const knob = new THREE.Mesh(
+              new THREE.SphereGeometry(CURVE_HANDLE_RADIUS, 12, 8),
+              new THREE.MeshBasicMaterial({ color: CURVE_HANDLE_COLOR, depthTest: false }),
+            );
+            knob.position.copy(tip);
+            knob.renderOrder = 913;
+            knob.userData.omnicamCurveHandle = { cameraId: camera.id, frame: key.frame, side };
+            knob.userData.omnicamWidget = "gizmo";
+            this.path.add(knob);
+          }
         }
       }
     });

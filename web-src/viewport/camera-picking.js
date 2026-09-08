@@ -1,6 +1,6 @@
 // WebGL viewport methods extracted from the public facade.
 
-import { pathKeyFromHit } from "./path-editing.js";
+import { curveHandleFromHit, pathKeyFromHit } from "./path-editing.js";
 
 export function createCameraPickingMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
@@ -35,6 +35,33 @@ export function createCameraPickingMethods(dependencies) {
         if (distance <= threshold && (!best || distance < best.distance)) best = { key, position: child.position.toArray(), distance };
       }
       return best ? { ...best.key, position: best.position } : null;
+    },
+
+    /** The spatial-curve tangent handle knob under the pointer, with its world position. */
+    pickCurveHandle(pointer) {
+      if (!this.path.visible || !this.activeCamera) return null;
+      this.pointer.set((pointer[0] / this.canvas.width) * 2 - 1, -(pointer[1] / this.canvas.height) * 2 + 1);
+      this.raycaster.setFromCamera(this.pointer, this.activeCamera);
+      for (const hit of this.raycaster.intersectObjects(this.path.children, true)) {
+        const handle = curveHandleFromHit(hit);
+        if (handle) return { ...handle, position: hit.object.position.toArray() };
+      }
+      // Same fixed-pixel fallback as pickPathKey: the knob is a small fixed
+      // world-space sphere and becomes an unclickable dot at distance.
+      const threshold = 14 * Math.min(2, window.devicePixelRatio || 1);
+      let best = null;
+      const projected = new THREE.Vector3();
+      for (const child of this.path.children) {
+        const handle = child.userData?.omnicamCurveHandle;
+        if (!handle) continue;
+        projected.copy(child.position).project(this.activeCamera);
+        if (projected.z < -1 || projected.z > 1) continue;
+        const screenX = (projected.x * 0.5 + 0.5) * this.canvas.width;
+        const screenY = (1 - (projected.y * 0.5 + 0.5)) * this.canvas.height;
+        const distance = Math.hypot(pointer[0] - screenX, pointer[1] - screenY);
+        if (distance <= threshold && (!best || distance < best.distance)) best = { handle, position: child.position.toArray(), distance };
+      }
+      return best ? { ...best.handle, position: best.position } : null;
     },
   configureCamera(cameraState, aspect) {
     const cam = cameraState || defaultCamera();

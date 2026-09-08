@@ -4,6 +4,8 @@ import { resetCameraAnimation, resetObjectAnimation } from "../../animation-rese
 import { applyAimConstraint, bakeAimConstraint, setAimBone } from "../../aim-constraint.js";
 import { formatFocalLength } from "../../lens.js";
 import { updatePlayhead } from "../../timeline/playhead.js";
+import { t } from "../../i18n.js";
+import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
 
 export function createSceneMethods(dependencies) {
   const { app, api, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, deleteSelectedObjects, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateCameraRotationFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
@@ -145,6 +147,34 @@ export function createSceneMethods(dependencies) {
   },
   setTangentMode(mode) {
     setTangentMode(this, mode);
+  },
+  // Spatial Bézier handle mode (Auto Smooth / Aligned / Free / Corner) for the
+  // selected camera keyframe -- the viewport curve, not the timeline F-curve.
+  setSpatialHandleMode(mode) {
+    if (!SPATIAL_HANDLE_MODES.includes(mode)) return;
+    const track = this.activeCameraTrack();
+    const keys = track?.keyframes || [];
+    const index = keys.findIndex((key) => key.frame === this.selectedKeyFrame);
+    if (index < 0) {
+      this.setStatus(t("Select a camera keyframe first"));
+      return;
+    }
+    this.checkpoint(t("Camera path handle: {mode}").replace("{mode}", mode));
+    applySpatialHandleMode(keys[index], mode, {
+      prevKey: keys[index - 1] || null,
+      nextKey: keys[index + 1] || null,
+    });
+    if (this.webgl) this.webgl.pathKey = "";
+    this.serialize();
+    this.refreshKeys();
+    this.setFrame(this.frame, false, false);
+    this.render();
+    this.setStatus(t("Curve handle updated"));
+  },
+  // Called from the viewport drag loop (viewport-controls/interactions.js) so
+  // that eagerly-loaded module needs no static import of the curve maths.
+  dragCurveHandle(key, side, worldPoint, options) {
+    writeSpatialHandle(key, side, worldPoint, options || {});
   },
   toggleCurveHandles() {
     toggleCurveHandles(this);
@@ -352,19 +382,11 @@ export function createSceneMethods(dependencies) {
       this.state.target_object_id = targetId || null;
       this.state.aim_bone = cam.aim_bone;
     }
-    if (targetId) {
-      const targetObj = this.state.objects.find((o) => o.id === targetId);
-      if (targetObj) {
-        const modelCenter = (targetObj.type === "model" || targetObj.type === "glb") ? this.webgl?.getObjectWorldCenter?.(targetObj.id) : null;
-        const targetPos = modelCenter || (targetObj.keyframes?.length
-          ? sampleObjectTransform(targetObj, this.frame).position
-          : (targetObj.position || [0, 1.5, 0]));
-        this.camera.target = [...targetPos];
-        this.beginCameraEdit();
-        this.commitCameraEdit();
-        this.finishCameraEdit();
-      }
-    }
+    // Tracking is a live constraint. Never bake its resolved target into the
+    // authored key underneath it: clearing the constraint must reveal exactly
+    // the original Follow Path/manual target again.
+    this.camera = sampleCamera(cam, this.frame, this.state.objects);
+    applyAimConstraint(this, cam, this.camera, this.frame);
     this.serialize();
     this.refreshInspector();
     this.render();

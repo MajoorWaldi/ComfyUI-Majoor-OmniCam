@@ -5,6 +5,7 @@ import { bindTransportAndMedia } from "./event-bindings/transport-media.js";
 import { bindDirectorChrome } from "./event-bindings/director-chrome.js";
 import { bindViewportSettings } from "./event-bindings/viewport-settings.js";
 import { bindPanelResize } from "./event-bindings/panel-resize.js";
+import { bindCameraPathDraw } from "./event-bindings/camera-path-draw.js";
 import { bindMotionTrackEvents } from "./motion-tracks/interactions.js";
 import { bindMotionCreation } from "./motion-tracks/creation.js";
 import { bindMotionPreview } from "./motion-tracks/preview.js";
@@ -25,6 +26,7 @@ export function bind(ui) {
   bindTransportAndMedia(ui, q, signal);
   bindViewportSettings(ui, q, signal);
   bindPanelResize(ui, signal);
+  bindCameraPathDraw(ui, signal);
   bindEditorAndGlobal(ui, q, signal);
   bindDirectorChrome(ui, signal);
 }

@@ -134,7 +134,7 @@ export function createRenderMethods(dependencies) {
     const viewMode = state.view_mode || "camera";
     const pathKey = `${viewMode}:${selectedEntity}:${selectedFrame ?? ""}:${state.__omnicamRevision ?? JSON.stringify([
       state.active_camera_id,
-      (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target])]),
+      (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target, k.interpolation, k.tangents])]),
       (state.objects || []).map((o) => [o.id, o.keyframes?.length, o.keyframes?.map((k) => [k.frame, k.transform?.position])]),
     ])}`;
     if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state, selectedEntity, selectedFrame, viewMode); }

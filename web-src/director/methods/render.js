@@ -90,7 +90,10 @@ export function createRenderMethods(dependencies) {
       }
       if (!this.recording && this.state.show_camera_paths) this.drawCameraPath();
     }
-    !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap(), this.drawOverlays(), drawMotionOverlay(this);
+    !this.recording && this.state.speed_heatmap && this.drawSpeedHeatmap();
+    !this.recording && drawCameraPathStrokeOverlay(this);
+    this.drawOverlays();
+    drawMotionOverlay(this);
     // The gizmo is DOM, so it repaints with the view and never reaches the
     // canvas the playblast records.
     if (this.state.show_gizmo) drawAxisGizmo(this);

@@ -122,6 +122,40 @@ Advanced) is progressive disclosure of one layout, not three layouts. The full
 authoring overview is in [USER_GUIDE.md](USER_GUIDE.md); keyboard and viewport
 controls are in [SHORTCUTS.md](SHORTCUTS.md).
 
+### Draw Camera Path
+
+Use **Draw Camera Path** in the viewport tool rail to sketch a camera move from
+Top View. OmniCam keeps the current camera height, distributes the resulting
+keys across the active Playback Range, and creates a new animated camera.
+
+- LMB drag: draw and commit the path.
+- RMB or Escape: cancel without changing the scene.
+- MMB / Maya Alt navigation remains available while the tool is armed.
+- The generated camera follows the path by default.
+- Use the existing **Look At** control to track a scene object. Clearing Look At
+  restores the original tangent-based Follow Path orientation.
+
+The freehand stroke itself is editor-only and is never serialized or recorded
+into a playblast; only committed camera keyframes become Director state.
+
+#### Reshaping the curve after drawing
+
+Every keyframe of the active camera is an editable spatial control point, drawn
+as an enlarged light dot (distinct from its camera's coloured path line). Select
+one and two cyan tangent handles appear:
+
+- Drag a control dot to move the waypoint in 3D (view-facing plane), or use the
+  translate gizmo for axis-locked moves.
+- Drag a cyan handle knob to bend the path through that key. The move updates
+  live and is stored on the keyframe's Bézier tangents — no redraw needed.
+- Right-click a keyframe dot → **Handle Type**:
+  - **Auto Smooth** – tangents follow the neighbouring keys automatically.
+  - **Aligned** – the two handles stay opposite; lengths are independent.
+  - **Free** – the incoming and outgoing handles move independently (broken).
+  - **Corner** – short handles pointed straight at the neighbours: a sharp turn.
+
+Handle edits round-trip through save and undo like any other keyframe change.
+
 ### Motion Tracks
 
 > **Experimental.** This authoring surface is labelled `EXPERIMENTAL` in the
