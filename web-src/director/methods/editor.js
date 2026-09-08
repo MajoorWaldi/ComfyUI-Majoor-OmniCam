@@ -1,6 +1,9 @@
 // OmniCam Director methods extracted from the UI facade.
 
 import { applyAimConstraint } from "../../aim-constraint.js";
+import { SPATIAL_HANDLE_MODES, spatialHandleMode } from "../camera-path-curve.js";
+
+const HANDLE_MODE_LABELS = { auto: "Auto Smooth", aligned: "Aligned", free: "Free", corner: "Corner" };
 
 // Smallest horizontal resolution a camera preview is rendered at.
 const MIN_PREVIEW_WIDTH = 220;
@@ -214,6 +217,9 @@ export function createEditorMethods(dependencies) {
           this.refreshKeys();
           this.refreshInspector();
           this.render();
+          if (hit.type === "camera_keyframe" && hit.keyframe) {
+            return this.openPathKeyContext(event, hit.camera.id, hit.keyframe.frame);
+          }
           return this.openCameraContext(event, hit.camera.id, false);
         }
       }
@@ -300,6 +306,32 @@ export function createEditorMethods(dependencies) {
       { label: "Reset entire animation", icon: "pi-replay", help: "Delete every camera key and return to a static zero pose at frame 0", run: () => this.resetCameraAnimation(id) },
       null,
       { label: "Delete camera", icon: "pi-trash", danger: !0, disabled: this.state.cameras.length <= 1, run: () => this.deleteCamera(id) }
+    ]);
+  },
+  openPathKeyContext(event, id, frame) {
+    const camera = this.state.cameras.find((item) => item.id === id);
+    if (!camera) return;
+    this.selectedEntity = "camera";
+    this.selectedObjectId = null;
+    this.activateCamera(id);
+    const key = (camera.keyframes || []).find((item) => item.frame === frame) || null;
+    if (key) this.selectKeyframe(key);
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    const current = key ? spatialHandleMode(key) : "auto";
+    this.showContextMenu(event, `Path key F${frame}`, [
+      { label: "Set key at playhead", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
+      { label: "Frame subject", icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
+      null,
+      ...SPATIAL_HANDLE_MODES.map((mode) => ({
+        label: `Handle Type: ${HANDLE_MODE_LABELS[mode]}`,
+        icon: current === mode ? "pi-check" : "pi-share-alt",
+        run: () => this.setSpatialHandleMode(mode),
+      })),
+      null,
+      { label: "Delete key", icon: "pi-trash", danger: !0, disabled: (camera.keyframes || []).length <= 1, run: () => this.deleteKeyframe() },
     ]);
   },
   moveShot(id, delta) {

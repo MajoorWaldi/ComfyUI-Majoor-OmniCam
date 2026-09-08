@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Director: added freehand **Draw Camera Path** authoring in Top View with
   playback-range timing, tangent Follow Path orientation, non-destructive Look At,
   cancel-safe pointer handling, and editor-only path preview.
+- Director: the active camera's keyframes are now an **editable spatial curve** in
+  the viewport — enlarged control dots (a fixed colour, distinct from the camera's
+  path line), draggable in 3D, each with in/out **Bézier tangent handles** you can
+  grab to reshape the move without redrawing. A keyframe's right-click menu adds a
+  **Handle Type** submenu — Auto Smooth / Aligned / Free / Corner — stored on the
+  keyframe's tangents and round-tripped through save and undo.
 - **Resizable Director panels**: the Outliner object list and the lower-deck
   camera-preview column can be dragged to any size (a horizontal splitter
   between the previews and the timeline, a vertical handle under the object

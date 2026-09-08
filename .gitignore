@@ -4,6 +4,8 @@ __pycache__/
 .pytest_*/
 .superpowers/sdd/2026-09-01-extractor-ui-parity/task-1-report.md
 .codex-pytest-temp/
+# Scratch dirs from audit / TDD runs (matching *.log files already ignored above).
+.tmp_*/
 .ruff_cache/
 .venv/
 venv/
@@ -40,3 +42,7 @@ docs/*
 # DPVO build tree: sources upstream, toolkit CUDA portable, archives
 .dpvo-install/
 .vscode/launch.json
+
+# Runtime Scene Reconstruction cache: scan_evidence.json / blockout.json written
+# per content hash by omnicam at run time, not source.
+/majoor_omnicam/

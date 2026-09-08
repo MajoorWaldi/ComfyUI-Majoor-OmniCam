@@ -67,3 +67,14 @@ export function pathKeyFromHit(hit) {
   }
   return null;
 }
+
+/**
+ * The spatial-curve tangent handle a hit refers to
+ * (`{ cameraId, frame, side }`), or null when the hit is not a handle knob.
+ */
+export function curveHandleFromHit(hit) {
+  for (let object = hit?.object; object; object = object.parent) {
+    if (object.userData?.omnicamCurveHandle) return object.userData.omnicamCurveHandle;
+  }
+  return null;
+}

@@ -2,6 +2,7 @@
 
 import { add, cameraBasis, clamp, cloneCamera, cloneTransform, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
 import { interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
+import { writeSpatialHandle } from "../director/camera-path-curve.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
@@ -54,6 +55,34 @@ export function onPointerDown(ui, e) {
   // A visible gizmo handle owns an unmodified primary drag, as in standard 3D
   // editors. Navigation still starts normally everywhere outside the handles.
   const canEditGizmo = canPick && !e.altKey && !e.shiftKey;
+  // A spatial-curve tangent handle wins over its own control point and over
+  // orbiting: an unmodified primary drag on a knob reshapes the Bézier.
+  if (canEditGizmo && ui.webgl?.pickCurveHandle) {
+    const knob = ui.webgl.pickCurveHandle([pointerX, pointerY]);
+    if (knob) {
+      const track = (ui.state.cameras || []).find((camera) => camera.id === knob.cameraId);
+      const keyIndex = (track?.keyframes || []).findIndex((item) => item.frame === knob.frame);
+      const key = keyIndex >= 0 ? track.keyframes[keyIndex] : null;
+      if (key) {
+        ui.curveHandleDrag = {
+          cameraId: knob.cameraId,
+          frame: knob.frame,
+          side: knob.side,
+          anchor: [...key.camera.position],
+          prevKey: track.keyframes[keyIndex - 1] || null,
+          nextKey: track.keyframes[keyIndex + 1] || null,
+          startX: pointerX,
+          startY: pointerY,
+          moved: false,
+          historyCheckpointed: false,
+        };
+        if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
+        ui.selectKeyframe?.(key);
+        return;
+      }
+    }
+  }
+
   // A camera-path handle behaves like a gizmo: an unmodified primary drag on it
   // reshapes the move instead of orbiting the view.
   if (canEditGizmo && ui.webgl?.pickPathKey) {
@@ -375,6 +404,28 @@ export function onPointerMove(ui, e) {
     }
     return;
   }
+  if (ui.curveHandleDrag) {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const pointerX = ((e.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const pointerY = ((e.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (!ui.curveHandleDrag.moved && Math.hypot(pointerX - ui.curveHandleDrag.startX, pointerY - ui.curveHandleDrag.startY) < 3) return;
+    ui.curveHandleDrag.moved = true;
+    checkpointDrag(ui, ui.curveHandleDrag, "Edit curve handle");
+    const track = (ui.state.cameras || []).find((camera) => camera.id === ui.curveHandleDrag.cameraId);
+    const key = (track?.keyframes || []).find((item) => item.frame === ui.curveHandleDrag.frame);
+    if (key) {
+      const world = screenToPlane(
+        [pointerX, pointerY], viewportCamera(ui), ui.curveHandleDrag.anchor, ui.canvas.width, ui.canvas.height);
+      writeSpatialHandle(key, ui.curveHandleDrag.side, world, {
+        prevKey: ui.curveHandleDrag.prevKey,
+        nextKey: ui.curveHandleDrag.nextKey,
+      });
+      if (ui.webgl) ui.webgl.pathKey = "";
+      ui.setFrame(ui.frame, false, false);
+      ui.render();
+    }
+    return;
+  }
   if (ui.boxSelection) {
     const rect = ui.interactionElement.getBoundingClientRect();
     ui.boxSelection.current = [
@@ -581,10 +632,10 @@ export function onPointerMove(ui, e) {
 }
 
 export function cancelViewportInteraction(ui) {
-  if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag) return false;
-  const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag].some((drag) => drag?.historyCheckpointed);
+  if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag && !ui.curveHandleDrag) return false;
+  const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag, ui.curveHandleDrag].some((drag) => drag?.historyCheckpointed);
   ui.drag = null; ui.gizmoDrag = null; ui.targetFreeDrag = null;
-  ui.boxSelection = null; ui.pathDrag = null;
+  ui.boxSelection = null; ui.pathDrag = null; ui.curveHandleDrag = null;
   releaseViewportPointer(ui);
   if (checkpointed) ui.undo();
   ui.finishCameraEdit(); ui.refreshInspector(); ui.render(); ui.setStatus(t("Interaction cancelled"));
@@ -604,6 +655,18 @@ export function onPointerUp(ui, event) {
       ui.scheduleSerialize();
       ui.refreshKeys();
       ui.setStatus(t("Path key moved"));
+    }
+    return;
+  }
+  if (ui.curveHandleDrag) {
+    const moved = ui.curveHandleDrag.moved;
+    ui.curveHandleDrag = null;
+    releaseViewportPointer(ui);
+    if (moved) {
+      if (ui.webgl) ui.webgl.pathKey = "";
+      ui.scheduleSerialize();
+      ui.refreshKeys();
+      ui.setStatus(t("Curve handle updated"));
     }
     return;
   }
