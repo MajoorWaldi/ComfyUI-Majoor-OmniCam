@@ -37,11 +37,40 @@ This file documents the repository policy only. Applying or changing branch
 protection on the remote repository is an administrative action and must be
 performed separately with explicit authorization.
 
-**Remote state: unverified.** The GitHub branch-protection API is not readable
-with the tokens available to CI or to review tooling (`403 Resource not
-accessible by integration`), so the live required-check set on the protected
-branch cannot be confirmed against this list from outside. Treat any claim that
-these contexts are enforced as unverified until a repository admin checks the
-branch settings directly. In particular, `comfyui-browser-pinned-frontend` was
-added to this policy after the initial protection was configured and must be
-added to the remote required-check set by hand.
+## Repository ruleset payload
+
+The canonical repository-ruleset payload is tracked at
+`.github/rulesets/main-required-checks.json`. It targets only
+`refs/heads/main`, enables strict required status checks, and intentionally
+excludes these canaries from the required set:
+
+```text
+comfyui-integration (master)
+comfyui-browser-latest-frontend
+adapter-contract-canary
+Vite module graph canary
+```
+
+Apply it with a GitHub token that has repository `Administration` write
+permission:
+
+```powershell
+gh api `
+  --method POST `
+  -H "Accept: application/vnd.github+json" `
+  -H "X-GitHub-Api-Version: 2026-03-10" `
+  /repos/MajoorWaldi/ComfyUI-Majoor-OmniCam/rulesets `
+  --input .github/rulesets/main-required-checks.json
+```
+
+Then verify both endpoints:
+
+```powershell
+gh api /repos/MajoorWaldi/ComfyUI-Majoor-OmniCam/rulesets
+gh api /repos/MajoorWaldi/ComfyUI-Majoor-OmniCam/rules/branches/main
+```
+
+**Remote state checked on 2026-09-08:** repository ruleset `Protect main`
+(`22587947`) is active for `refs/heads/main`. It blocks branch deletion,
+blocks non-fast-forward updates, and requires the strict status-check set
+listed above before `main` can be updated.
