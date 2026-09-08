@@ -129,6 +129,14 @@ def test_ci_frontend_lanes_split_pinned_and_latest_canary() -> None:
     assert old_name not in workflow
 
 
+def test_vite_module_graph_canary_runs_on_frontend_pushes() -> None:
+    workflow = _text(".github/workflows/vite-module-graph-canary.yml")
+    assert "  push:" in workflow
+    assert '      - "web-src/**"' in workflow
+    assert '      - "vite.config.mjs"' in workflow
+    assert '      - "package*.json"' in workflow
+
+
 def test_package_never_imports_itself_by_absolute_name() -> None:
     """ComfyUI loads a custom node under its *directory* name.
 

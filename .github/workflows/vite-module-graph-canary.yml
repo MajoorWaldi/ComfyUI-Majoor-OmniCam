@@ -2,12 +2,18 @@ name: Vite module graph canary
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "web-src/**"
+      - "vite.config.mjs"
+      - "package*.json"
+      - ".github/workflows/vite-module-graph-canary.yml"
+      - "scripts/compare_vite_graphs.mjs"
   pull_request:
     paths:
       - "web-src/**"
       - "vite.config.mjs"
-      - "package.json"
-      - "package-lock.json"
+      - "package*.json"
       - ".github/workflows/vite-module-graph-canary.yml"
       - "scripts/compare_vite_graphs.mjs"
 

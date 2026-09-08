@@ -53,11 +53,17 @@ function publicEntryStub() {
 function normalizeModuleId(id) {
   if (!id) return null;
 
-  const clean = String(id).split("?")[0];
-  const root = resolve(".");
-  const rel = clean.startsWith(root) ? relative(root, clean) : clean;
+  const clean = String(id).split("?")[0].replaceAll("\\", "/");
+  const root = resolve(".").replaceAll("\\", "/");
+  const rel = clean.startsWith(root) ? relative(root, clean).replaceAll("\\", "/") : clean;
 
-  return rel.replaceAll("\\", "/");
+  return rel;
+}
+
+function logicalChunkId(chunk) {
+  const facade = normalizeModuleId(chunk.facadeModuleId);
+  const kind = chunk.isEntry ? "entry" : chunk.isDynamicEntry ? "lazy" : "chunk";
+  return `${kind}:${facade || chunk.name}`;
 }
 
 function moduleGraphAudit() {
@@ -73,17 +79,28 @@ function moduleGraphAudit() {
         .filter(Boolean)
         .sort();
 
-      const chunks = Object.values(bundle)
-        .filter((item) => item.type === "chunk")
+      const outputChunks = Object.values(bundle).filter((item) => item.type === "chunk");
+      const chunkIdByFileName = new Map(outputChunks.map((chunk) => [chunk.fileName, logicalChunkId(chunk)]));
+
+      const chunks = outputChunks
         .map((chunk) => ({
           name: chunk.name,
-          facade: normalizeModuleId(chunk.facadeModuleId),
+          logicalId: logicalChunkId(chunk),
+          facadeModuleId: normalizeModuleId(chunk.facadeModuleId),
+          isEntry: chunk.isEntry,
+          isDynamicEntry: chunk.isDynamicEntry,
+          dynamicImports: chunk.dynamicImports
+            .map((id) => chunkIdByFileName.get(id) || normalizeModuleId(id))
+            .filter(Boolean)
+            .sort(),
           modules: Object.keys(chunk.modules)
             .map(normalizeModuleId)
             .filter(Boolean)
             .sort(),
         }))
-        .sort((a, b) => String(a.facade || a.name).localeCompare(String(b.facade || b.name)));
+        .sort((a, b) => (
+          String(a.facadeModuleId || a.name).localeCompare(String(b.facadeModuleId || b.name))
+        ));
 
       const report = {
         schema_version: 1,

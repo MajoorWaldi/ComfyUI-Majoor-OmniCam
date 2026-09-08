@@ -1,0 +1,57 @@
+{
+  "name": "Protect main",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/heads/main"
+      ],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "do_not_enforce_on_create": true,
+        "required_status_checks": [
+          {
+            "context": "python-core (3.10)"
+          },
+          {
+            "context": "python-core (3.12)"
+          },
+          {
+            "context": "python-core (3.13)"
+          },
+          {
+            "context": "python-reconstruction"
+          },
+          {
+            "context": "frontend"
+          },
+          {
+            "context": "comfyui-integration (minimum)"
+          },
+          {
+            "context": "comfyui-integration (v0.34.0)"
+          },
+          {
+            "context": "comfyui-browser"
+          },
+          {
+            "context": "comfyui-browser-pinned-frontend"
+          }
+        ]
+      }
+    }
+  ]
+}
