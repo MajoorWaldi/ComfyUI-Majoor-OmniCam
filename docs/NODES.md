@@ -124,19 +124,56 @@ controls are in [SHORTCUTS.md](SHORTCUTS.md).
 
 ### Draw Camera Path
 
-Use **Draw Camera Path** in the viewport tool rail to sketch a camera move from
-Top View. OmniCam keeps the current camera height, distributes the resulting
-keys across the active Playback Range, and creates a new animated camera.
+Use **Draw Camera Path** in the viewport tool rail to sketch a camera move. The
+stroke is laid on a plane chosen from the current editor view at pointer-down:
+
+| View | Draw plane | Stroke controls |
+| --- | --- | --- |
+| Top / Bottom | horizontal, at the source height | X and Z (ground track) |
+| Front / Back | Z fixed | X and **height (Y)** |
+| Left / Right | X fixed | height (Y) and Z |
+| Perspective / Iso | the view-facing plane through the source position | free 2D on screen |
+
+A fresh draw from the shot-camera view (or perspective/iso) drops to Top; an
+axis view you already picked is kept. OmniCam distributes the resulting keys
+across the active Playback Range and creates a new animated camera.
 
 - LMB drag: draw and commit the path.
 - RMB or Escape: cancel without changing the scene.
 - MMB / Maya Alt navigation remains available while the tool is armed.
-- The generated camera follows the path by default.
+- The generated camera follows the path by default (3D tangent aim; top/bottom
+  keep the source camera's pitch).
 - Use the existing **Look At** control to track a scene object. Clearing Look At
   restores the original tangent-based Follow Path orientation.
 
 The freehand stroke itself is editor-only and is never serialized or recorded
 into a playblast; only committed camera keyframes become Director state.
+
+#### Continuing a path
+
+**Continue Camera Path** (the arrow button beside the pencil) starts a new
+stroke from the active camera's **last keyframe** and appends the sampled keys
+to that same track — no new camera. The join is continuous, and the timeline's
+`duration_frames` / Playback Range end are pushed out if the new segment needs
+the room.
+
+#### Transforming the whole path
+
+Select a camera's entire path as one transform target — from its right-click
+menu (**Select whole path**), the Outliner row action, or by clicking the path
+**line** (not a key) in an editor view. The transform gizmo then sits at the
+path centroid:
+
+- **Move** – offsets every keyframe position and target by the drag (spatial
+  snapping applies).
+- **Scale** – per-axis or uniform about the centroid: resize a move without
+  redrawing it.
+- **Rotate** – euler about the centroid; targets rotate with the positions so
+  the move stays rigid.
+
+With a path selected, `T` / `R` / `S` pick the gizmo mode and the arrow keys
+(`PageUp` / `PageDown` for height) nudge the whole path by one grid step. A
+drag is one undo step.
 
 #### Reshaping the curve after drawing
 

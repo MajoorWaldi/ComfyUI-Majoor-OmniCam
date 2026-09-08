@@ -191,6 +191,13 @@ export function refreshObjects(ui) {
           ui.refreshObjects();
           ui.renderCameraView();
         }));
+        if ((camera.keyframes || []).length >= 1) {
+          actions.appendChild(createActionBtn("pi-arrows-alt", "Select whole path (move / scale / rotate)",
+            ui.selectedEntity === "camera_path" && isActive, () => {
+              ui.activateCamera(camera.id);
+              ui.selectCameraPath();
+            }));
+        }
         actions.appendChild(createActionBtn("pi-ellipsis-v", "Camera actions", false, (event) => ui.openCameraContext(event, camera.id, false)));
 
         element.append(icon, label, actions);

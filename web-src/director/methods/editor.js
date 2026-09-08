@@ -328,6 +328,10 @@ export function createEditorMethods(dependencies) {
     this.render();
     this.showContextMenu(event, `${camera.name}${preview ? " preview" : ""}`, [
       { label: "Edit this camera", icon: "pi-video", run: () => this.activateCamera(id) },
+      { label: "Select whole path — move / scale / rotate", icon: "pi-arrows-alt", disabled: (camera.keyframes || []).length < 1, run: () => {
+        this.activateCamera(id);
+        if (this.selectCameraPath()) this.setStatus(`${camera.name} · whole path selected — move / scale / rotate`);
+      } },
       { label: "Set as primary / playblast", icon: "pi-star", disabled: id === this.state.playblast_camera_id, run: () => this.setPlayblastCamera(id) },
       { label: "Set key at playhead", icon: "pi-key", shortcut: "I", run: () => {
         this.activateCamera(id), this.insertKeyframe();

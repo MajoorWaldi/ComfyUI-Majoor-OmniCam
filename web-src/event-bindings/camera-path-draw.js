@@ -11,6 +11,13 @@ export function bindCameraPathDraw(ui, signal) {
     }, { signal });
   }
 
+  for (const button of ui.root.querySelectorAll('[data-act="draw-camera-path-extend"]')) {
+    button.addEventListener("click", () => {
+      if (ui.cameraPathDraw?.active) cancelCameraPathDraw(ui);
+      else startCameraPathDraw(ui, { mode: "extend" });
+    }, { signal });
+  }
+
   ui.root.addEventListener("contextmenu", (event) => {
     const suppress = Date.now() <= Number(ui.cameraPathSuppressContextMenuUntil || 0);
     if (!suppress && !ui.cameraPathDraw?.active) return;

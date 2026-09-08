@@ -227,6 +227,24 @@ function viewportKeymap(ui, event) {
   const key = event.key.toLowerCase();
   const code = event.code;
 
+  // A selected camera path is one transform target: T/R/S pick the gizmo mode,
+  // arrows / PageUp-Down nudge every key by a grid step.
+  if (ui.selectedEntity === "camera_path" && !ui.isNavigatingFly) {
+    if (TRANSFORM_KEYS[key]) {
+      if (!event.repeat) {
+        ui.setTransformMode(TRANSFORM_KEYS[key]);
+        ui.setStatus(`Path ${TRANSFORM_KEYS[key]} — drag the gizmo, or arrow keys to nudge`);
+      }
+      return true;
+    }
+    const step = ui.state.spatial_grid_size || 0.5;
+    const nudge = { ArrowLeft: [-step, 0, 0], ArrowRight: [step, 0, 0], ArrowUp: [0, 0, -step], ArrowDown: [0, 0, step], PageUp: [0, step, 0], PageDown: [0, -step, 0] }[event.key];
+    if (nudge) {
+      if (!event.repeat) ui.transformCameraPath({ mode: "translate", delta: nudge });
+      return true;
+    }
+  }
+
   if (event.shiftKey && key === "g" && !ui.isNavigatingFly) { ui.selectHierarchy(); return true; }
   if (TRANSFORM_KEYS[key] && !ui.isNavigatingFly) {
     if (!event.repeat) beginModalTransform(ui, TRANSFORM_KEYS[key]);

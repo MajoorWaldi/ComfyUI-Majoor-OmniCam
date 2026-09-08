@@ -49,6 +49,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Director: added freehand **Draw Camera Path** authoring in Top View with
   playback-range timing, tangent Follow Path orientation, non-destructive Look At,
   cancel-safe pointer handling, and editor-only path preview.
+- Director: **Draw Camera Path now works in every editor view** — the stroke is
+  laid on a plane chosen from the current view (top/bottom → horizontal,
+  front/back → Z-fixed, left/right → X-fixed, perspective/iso → the view-facing
+  plane), so a path can be sketched with real height changes, not only on the
+  ground. Keys pick up a 3D tangent aim; top/bottom keep the source pitch.
+- Director: added **Continue Camera Path** (toolbar arrow beside the pencil) —
+  seeds a new stroke from the active camera's last keyframe and appends the new
+  keys to that track, extending duration / playback range when needed, instead
+  of creating a camera.
+- Director: a camera's **whole path is now a transform target**. Select it from
+  the camera context menu, the Outliner row action, or by clicking the path line
+  in an editor view; the gizmo sits at the path centroid and one drag
+  **moves / scales / rotates every keyframe together** (position and target).
+  With a path selected: `T`/`R`/`S` pick the gizmo mode and arrows / `PageUp`–
+  `PageDown` nudge the whole path by a grid step. Undo reverts the drag in one
+  step.
 - Director: the active camera's keyframes are now an **editable spatial curve** in
   the viewport — enlarged control dots (a fixed colour, distinct from the camera's
   path line), draggable in 3D, each with in/out **Bézier tangent handles** you can

@@ -3,6 +3,7 @@
 import { add, cameraBasis, clamp, cloneCamera, cross, distanceToSegment, length, mul, norm, project, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "./director/core.js";
 import { t } from "./i18n.js";
 import { frameObjects } from "./viewport-controls/framing.js";
+import { pathCentroid } from "./director/camera-path-transform.js";
 
 export function viewportCamera(ui) {
   return ui.recording
@@ -146,6 +147,17 @@ export function activeGizmoEntity(ui) {
       const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
       return { type: "camera", position: camData.position || ui.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
     }
+    // The whole path as one transform target: the gizmo sits at the centroid of
+    // every keyframe and a drag moves / scales / rotates them all together.
+    if (ui.selectedEntity === "camera_path" && (activeCam?.keyframes?.length || 0) >= 1) {
+      return {
+        type: "camera_path",
+        position: pathCentroid(activeCam.keyframes),
+        rotation: [0, 0, 0],
+        size: [1, 1, 1],
+        track: activeCam,
+      };
+    }
   }
   return null;
 }
@@ -181,7 +193,7 @@ export function gizmoGeometry(ui) {
   // to the translate-shaped handles below, which onPointerMove then drove as
   // a rotate (anything not "translate" was treated as rotate) -- the camera
   // silently rotated instead of following the selected mode.
-  if (ui.state.gizmo_mode === "scale" && entity.type !== "object") return null;
+  if (ui.state.gizmo_mode === "scale" && entity.type !== "object" && entity.type !== "camera_path") return null;
   if (ui.state.gizmo_mode !== "rotate" || entity.type === "camera_target")
     return {
       entity,
@@ -278,6 +290,23 @@ export function pickSceneObject(ui, pointer) {
       }
     }
 
+    // The path line itself, once keys / bodies / targets have had their say:
+    // clicking the polyline between keys selects the whole path for transform.
+    if (ui.state.show_camera_paths !== false) {
+      for (const cam of ui.state.cameras) {
+        const keys = cam.keyframes || [];
+        if (keys.length < 2) continue;
+        const screen = keys
+          .map((key) => project(key.camera?.position, camera, ui.canvas.width, ui.canvas.height))
+          .filter((pt) => pt && Number.isFinite(pt[0]) && Number.isFinite(pt[1]));
+        for (let i = 0; i < screen.length - 1; i += 1) {
+          if (distanceToSegment(pointer, screen[i], screen[i + 1]) <= 8 * Math.min(2, window.devicePixelRatio || 1)) {
+            return { type: "camera_path", camera: cam };
+          }
+        }
+      }
+    }
+
     for (const obj of ui.state.objects) {
       if (obj.enabled === false) continue;
       for (const key of (obj.keyframes || [])) {
@@ -333,6 +362,24 @@ function drawArrowHead(ctx, from, to, size = 15) {
 export function drawTransformGizmo(ui) {
   const geometry = gizmoGeometry(ui);
   if (!geometry || !geometry.handles) return;
+  // A faint outline of the whole path so "the path is selected" reads at a
+  // glance, the way a group selection box does for objects.
+  if (geometry.entity?.type === "camera_path") {
+    const camera = viewportCamera(ui);
+    const screen = (geometry.entity.track?.keyframes || [])
+      .map((key) => project(key.camera?.position, camera, ui.canvas.width, ui.canvas.height))
+      .filter((pt) => pt && Number.isFinite(pt[0]) && Number.isFinite(pt[1]));
+    if (screen.length >= 2) {
+      ui.ctx.save();
+      ui.ctx.strokeStyle = "rgba(139, 125, 227, 0.9)";
+      ui.ctx.lineWidth = 2;
+      ui.ctx.setLineDash([6, 4]);
+      ui.ctx.beginPath();
+      screen.forEach((pt, i) => (i ? ui.ctx.lineTo(pt[0], pt[1]) : ui.ctx.moveTo(pt[0], pt[1])));
+      ui.ctx.stroke();
+      ui.ctx.restore();
+    }
+  }
   const colors = ["#f43f5e", "#10b981", "#3b82f6"];
   ui.ctx.save();
   ui.ctx.lineCap = "round";
