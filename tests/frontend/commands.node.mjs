@@ -152,7 +152,7 @@ test("Delete removes a shot in the sequence editor and a keyframe in the timelin
   assert.equal(seqUi.state.sequence.cuts.length, 1, "the shot under the playhead was removed");
 
   const keyCalls = [];
-  const timelineUi = baseUi({ selectedKeyframe: () => ({ frame: 5 }), deleteKeyframe: () => keyCalls.push("del") });
+  const timelineUi = baseUi({ selectedKeyframe: () => ({ frame: 5 }), deleteSelectedKeyframes: () => keyCalls.push("del") });
   withMockElement(() => dispatchDirectorKey(timelineUi, {
     key: "Delete", code: "Delete", repeat: false, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false,
     target: el(["oc-timeline"]), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},

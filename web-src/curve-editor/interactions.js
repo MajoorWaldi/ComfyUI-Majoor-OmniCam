@@ -1,13 +1,13 @@
-﻿// Pointer and view interactions for the F-Curves editor.
+// Pointer and view interactions for the F-Curves editor.
 
-import { clamp, cloneCamera, cloneTransform, sampleCamera } from "../director/core.js";
+import { clamp, cloneCamera, cloneTransform, sampleCamera, sampleObjectTransform } from "../director/core.js";
 import { t } from "../i18n.js";
 import { curveChannels } from "../curve-editor.js";
 
 function getCurveCanvasCoords(canvas, event) {
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.clientWidth / Math.max(1, rect.width);
-  const scaleY = 180 / Math.max(1, rect.height);
+  const scaleY = (canvas.clientHeight || 180) / Math.max(1, rect.height);
   return {
     x: (event.clientX - rect.left) * scaleX,
     y: (event.clientY - rect.top) * scaleY,
@@ -27,6 +27,7 @@ export function onCurvePointerDown(ui, event) {
   // outside ui.root, it fell straight through to ComfyUI's own graph-level
   // undo instead of OmniCam's.
   canvas.focus({ preventScroll: true });
+  ui.curveHover = null;
   const { x, y } = getCurveCanvasCoords(canvas, event);
 
   // Pan with Middle Click or Alt + Left Click or Right Click on empty space
@@ -101,6 +102,16 @@ export function onCurvePointerDown(ui, event) {
     pointerId: event.pointerId,
     historyCheckpointed: false,
   };
+  // Dragging any key of a multi-selection moves the whole selection -- same
+  // channel value delta, same frame delta -- the way the Timeline already does.
+  if (!hit.point.handle && ui.selectedKeyFrames?.size >= 2 && ui.selectedKeyFrames.has(hit.point.key.frame)) {
+    ui.curveDrag.group = ui.timelineKeyframes()
+      .filter((k) => ui.selectedKeyFrames.has(k.frame))
+      .map((k) => {
+        const backing = hit.point.object ? (k.transform || hit.point.object) : (k.camera || k);
+        return { key: k, backing, startFrame: k.frame, startValue: hit.point.channel.get(backing) };
+      });
+  }
   canvas.setPointerCapture?.(event.pointerId);
 }
 
@@ -116,7 +127,8 @@ export function onCurvePointerMove(ui, event) {
     const lastFrame = Math.max(1, ui.state.duration_frames - 1);
     const timeSpan = lastFrame / (Number(ui.curveZoomX) || 1.0);
     const graphWidth = Math.max(1, canvas.clientWidth - 58);
-    const graphHeight = 142;
+    const canvasHeight = canvas.clientHeight || 180;
+    const graphHeight = Math.max(1, canvasHeight - 38);
     ui.curvePanX = ui.curvePanDrag.origPanX - (dx / graphWidth) * timeSpan;
     ui.curvePanY = ui.curvePanDrag.origPanY + (dy / graphHeight) * 10 / (Number(ui.curveZoom) || 1.0);
     ui.drawCurveEditor();
@@ -153,7 +165,42 @@ export function onCurvePointerMove(ui, event) {
     return;
   }
 
-  if (!ui.curveDrag || event.pointerId !== ui.curveDrag.pointerId) return;
+  if (!ui.curveDrag || event.pointerId !== ui.curveDrag.pointerId) {
+    const hit = (ui.curveHitPoints || [])
+      .map((point) => ({ point, distance: Math.hypot(x - point.x, y - point.y) }))
+      .sort((a, b) => a.distance - b.distance)[0];
+
+    const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+    const timeSpan = lastFrame / (Number(ui.curveZoomX) || 1.0);
+    const timeMin = Number(ui.curvePanX) || 0;
+    const graphWidth = Math.max(1, canvas.clientWidth - 58);
+    const hoverFrame = clamp(Math.round(timeMin + ((x - 44) / graphWidth) * timeSpan), 0, lastFrame);
+
+    let nextHover = null;
+    if (hit && hit.distance <= 14) {
+      const p = hit.point;
+      const backing = p.object ? (p.key.transform || p.object) : (p.key.camera || p.key);
+      nextHover = {
+        x,
+        y,
+        frame: p.key.frame,
+        channelName: p.channel.name,
+        value: p.channel.get(backing),
+        isHandle: Boolean(p.handle),
+        handleSide: p.handle,
+      };
+    } else if (y >= 20 && y <= 165 && x >= 44 && x <= canvas.clientWidth - 14) {
+      nextHover = { x, y, frame: hoverFrame };
+    }
+
+    if (Boolean(ui.curveHover) !== Boolean(nextHover) || (nextHover && (ui.curveHover?.frame !== nextHover.frame || ui.curveHover?.channelName !== nextHover.channelName))) {
+      ui.curveHover = nextHover;
+      ui.drawCurveEditor();
+    }
+    return;
+  }
+
+  ui.curveHover = null;
   event.preventDefault();
   event.stopPropagation();
   if (!ui.curveDrag.historyCheckpointed) {
@@ -218,20 +265,44 @@ export function onCurvePointerMove(ui, event) {
   // 2D Keyframe Point Dragging (Value & Time)
   const value = ui.curveDrag.maximum - ((y - ui.curveDrag.top) * (ui.curveDrag.maximum - ui.curveDrag.minimum)) / Math.max(1, ui.curveDrag.graphHeight);
   const keyedValue = ui.curveDrag.object ? ui.curveDrag.key.transform : ui.curveDrag.key.camera;
-  ui.curveDrag.channel.set(keyedValue, value);
 
   // Time Retiming (X axis) if dragging horizontally without shift lock
   const timeSpan = ui.curveDrag.lastFrame / (Number(ui.curveZoomX) || 1.0);
   const timeMin = Number(ui.curvePanX) || 0;
   const newFrame = clamp(Math.round(timeMin + ((x - ui.curveDrag.left) / Math.max(1, ui.curveDrag.graphWidth)) * timeSpan), 0, ui.curveDrag.lastFrame);
+  const retime = !event.shiftKey && Math.abs(x - ui.curveDrag.startX) > 8;
 
-  if (!event.shiftKey && Math.abs(x - ui.curveDrag.startX) > 8 && newFrame !== ui.curveDrag.key.frame) {
-    ui.curveDrag.key.frame = newFrame;
-    ui.selectedKeyFrame = newFrame;
-    ui.frame = newFrame;
-  } else {
-    ui.editingKeyFrame = ui.curveDrag.key.frame;
+  if (ui.curveDrag.group) {
+    const deltaValue = value - ui.curveDrag.startValue;
+    let deltaFrame = retime ? newFrame - ui.curveDrag.startFrame : 0;
+    const others = new Set(ui.timelineKeyframes().filter((k) => !ui.selectedKeyFrames.has(k.frame)).map((k) => k.frame));
+    // Frame move is all-or-nothing (like the Timeline's shiftKeyframes): if any
+    // key would land on an unselected key or collide with another moved key,
+    // the whole retime is blocked and only the value delta applies.
+    if (deltaFrame) {
+      const targets = ui.curveDrag.group.map((entry) => clamp(Math.round(entry.startFrame + deltaFrame), 0, ui.curveDrag.lastFrame));
+      const collides = targets.some((f) => others.has(f)) || new Set(targets).size !== targets.length;
+      if (collides) deltaFrame = 0;
+      else ui.curveDrag.group.forEach((entry, i) => { entry.key.frame = targets[i]; });
+    }
+    for (const entry of ui.curveDrag.group) {
+      ui.curveDrag.channel.set(entry.backing, entry.startValue + deltaValue);
+    }
+    ui.timelineKeyframes().sort((a, b) => a.frame - b.frame);
+    ui.selectedKeyFrames = new Set(ui.curveDrag.group.map((entry) => entry.key.frame));
+    ui.selectedKeyFrame = ui.curveDrag.key.frame;
+    ui.editingKeyFrame = retime ? null : ui.curveDrag.key.frame;
     ui.frame = ui.curveDrag.key.frame;
+  } else {
+    ui.curveDrag.channel.set(keyedValue, value);
+    if (retime && newFrame !== ui.curveDrag.key.frame) {
+      ui.curveDrag.key.frame = newFrame;
+      ui.selectedKeyFrame = newFrame;
+      ui.frame = newFrame;
+    } else {
+      ui.editingKeyFrame = ui.curveDrag.key.frame;
+      ui.frame = ui.curveDrag.key.frame;
+    }
   }
 
   if (ui.curveDrag.object) {
@@ -366,11 +437,131 @@ export function zoomCurve(ui, factor) {
   ui.setStatus(t(`Curve zoom: ${(ui.curveZoom * 100).toFixed(0)}%`));
 }
 
-export function resetCurveZoom(ui) {
-  ui.curveZoom = 1.0;
-  ui.curveZoomX = 1.0;
-  ui.curvePanX = 0;
-  ui.curvePanY = 0;
+export function onCurveDoubleClick(ui, event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const canvas = event.currentTarget;
+  const { x, y } = getCurveCanvasCoords(canvas, event);
+
+  // Top ruler scrub area
+  if (y < 20) return;
+
+  const lastFrame = Math.max(1, ui.state.duration_frames - 1);
+  const timeSpan = lastFrame / (Number(ui.curveZoomX) || 1.0);
+  const timeMin = Number(ui.curvePanX) || 0;
+  const graphWidth = Math.max(1, canvas.clientWidth - 58);
+  const targetFrame = clamp(Math.round(timeMin + ((x - 44) / graphWidth) * timeSpan), 0, lastFrame);
+
+  ui.checkpoint?.("Insert keyframe");
+  ui.setFrame(targetFrame);
+  ui.insertKeyframe();
+  ui.selectedKeyFrame = targetFrame;
+  ui.selectedKeyFrames = new Set([targetFrame]);
+  ui.updateKeyVisualState();
+  ui.refreshKeys();
   ui.drawCurveEditor();
-  ui.setStatus(t("Curve view fitted"));
+  ui.setStatus(t("Keyframe inserted @ F{frame}").replace("{frame}", targetFrame));
+}
+
+export function fitCurveView(ui, { selectedOnly = false } = {}) {
+  const lastFrame = Math.max(1, (ui.state?.duration_frames ?? 120) - 1);
+  const keys = ui.timelineKeyframes() || [];
+  const object = ui.timelineObject();
+  const channels = curveChannels(ui);
+
+  const selectedFrames = ui.selectedKeyFrames?.size
+    ? [...ui.selectedKeyFrames]
+    : (ui.selectedKeyFrame != null ? [ui.selectedKeyFrame] : []);
+  const hasSelection = selectedFrames.length > 0;
+  const targetKeys = (selectedOnly || (hasSelection && selectedFrames.length < keys.length))
+    ? keys.filter((k) => selectedFrames.includes(k.frame))
+    : keys;
+
+  if (!targetKeys.length) {
+    ui.curveZoom = 1.0;
+    ui.curveZoomX = 1.0;
+    ui.curvePanX = 0;
+    ui.curvePanY = 0;
+    ui.drawCurveEditor();
+    ui.setStatus(t("Curve view fitted"));
+    return;
+  }
+
+  // Frame range
+  const frames = targetKeys.map((k) => k.frame);
+  const minFrame = Math.min(...frames);
+  const maxFrame = Math.max(...frames);
+  const frameSpan = Math.max(1, maxFrame - minFrame);
+
+  if (targetKeys.length < keys.length && frameSpan < lastFrame) {
+    const pad = Math.max(2, Math.round(frameSpan * 0.15));
+    const targetMin = Math.max(0, minFrame - pad);
+    const targetMax = Math.min(lastFrame, maxFrame + pad);
+    const targetSpan = Math.max(1, targetMax - targetMin);
+    ui.curveZoomX = clamp(lastFrame / targetSpan, 0.2, 30.0);
+    ui.curvePanX = targetMin;
+  } else {
+    ui.curveZoomX = 1.0;
+    ui.curvePanX = 0;
+  }
+
+  // Values range across active channels
+  const values = [];
+  for (const key of targetKeys) {
+    const backing = object ? (key.transform || object) : (key.camera || key);
+    for (const ch of channels) {
+      const val = ch.get(backing);
+      if (Number.isFinite(val)) values.push(val);
+    }
+  }
+
+  if (values.length > 0) {
+    const vMin = Math.min(...values);
+    const vMax = Math.max(...values);
+    const vSpan = Math.max(1e-4, vMax - vMin);
+    const vMid = (vMin + vMax) / 2;
+
+    const sampleVal = (f) => (object ? sampleObjectTransform(object, f) : sampleCamera(ui.state, f));
+    const allValues = [];
+    const step = Math.max(1, Math.floor(lastFrame / 40));
+    for (let f = 0; f <= lastFrame; f += step) {
+      const s = sampleVal(f);
+      for (const ch of channels) {
+        const val = ch.get(s);
+        if (Number.isFinite(val)) allValues.push(val);
+      }
+    }
+    let allMin = Math.min(...allValues);
+    let allMax = Math.max(...allValues);
+    if (!Number.isFinite(allMin) || !Number.isFinite(allMax)) { allMin = -1; allMax = 1; }
+    if (Math.abs(allMax - allMin) < 1e-6) { allMin -= 1; allMax += 1; }
+    const padding = (allMax - allMin) * 0.1;
+    allMin -= padding;
+    allMax += padding;
+
+    const baseSpan = allMax - allMin;
+    const baseMid = (allMin + allMax) / 2;
+
+    if (targetKeys.length < keys.length && vSpan < baseSpan * 0.75) {
+      const paddedVSpan = vSpan * 1.35;
+      ui.curveZoom = clamp(baseSpan / paddedVSpan, 0.2, 30.0);
+      ui.curvePanY = vMid - baseMid;
+    } else {
+      ui.curveZoom = 1.0;
+      ui.curvePanY = 0;
+    }
+  } else {
+    ui.curveZoom = 1.0;
+    ui.curvePanY = 0;
+  }
+
+  ui.drawCurveEditor();
+  const label = targetKeys.length < keys.length
+    ? t("Fitted to {n} selected keys").replace("{n}", targetKeys.length)
+    : t("Curve view fitted");
+  ui.setStatus(label);
+}
+
+export function resetCurveZoom(ui) {
+  fitCurveView(ui);
 }

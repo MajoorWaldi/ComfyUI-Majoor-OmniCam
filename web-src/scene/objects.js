@@ -36,13 +36,31 @@ export function addPrimitive(ui, type) {
   ui.checkpoint("Create object");
   const id = `${type}_${Date.now().toString(36)}`;
   const ground = type === "ground";
+  const isHuman = type === "human";
+  const isCard = type === "card";
+  const isCylinder = type === "cylinder";
+  const isTorus = type === "torus";
+
+  let name;
+  if (isHuman) name = t("Human Proxy");
+  else if (isCard) name = t("Card");
+  else if (isCylinder) name = t("Cylinder");
+  else if (isTorus) name = t("Torus");
+  else name = type[0].toUpperCase() + type.slice(1);
+
+  let size;
+  if (ground) size = [12, 0.1, 12];
+  else if (isHuman) size = [0.7, 1.8, 0.4];
+  else if (isCard) size = [2, 3];
+  else size = [1.5, 1.5, 1.5];
+
   const object = {
     id,
     type,
-    name: type === "human" ? t("Human Proxy") : type[0].toUpperCase() + type.slice(1),
+    name,
     position: [0, 0, 0],
     rotation: [0, 0, 0],
-    size: ground ? [12, 0.1, 12] : type === "human" ? [0.7, 1.8, 0.4] : [1.5, 1.5, 1.5],
+    size,
     material_mode: ground ? "checker" : "textured",
     keyframes: [],
     enabled: true,

@@ -38,13 +38,31 @@ export function ease(t, mode = "ease") {
   if (mode === "ease_in") return t * t;
   if (mode === "ease_out") return 1 - (1 - t) * (1 - t);
   if (mode === "smooth") return t * t * t * (t * (t * 6 - 15) + 10);
+  if (mode === "sine" || mode === "ease_sine") return 0.5 * (1 - Math.cos(Math.PI * t));
+  if (mode === "cubic" || mode === "ease_cubic") return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  if (mode === "quintic" || mode === "ease_quintic") return t < 0.5 ? 16 * Math.pow(t, 5) : 1 - Math.pow(-2 * t + 2, 5) / 2;
+  if (mode === "expo" || mode === "ease_expo") return t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2;
+  if (mode === "back" || mode === "ease_back") {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    const c1 = 1.70158, c2 = c1 * 1.525;
+    return t < 0.5
+      ? (Math.pow(2 * t, 2) * ((c2 + 1) * 2 * t - c2)) / 2
+      : (Math.pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2;
+  }
   if (mode === "bezier") return 0.15 * (1 - t) * (1 - t) * t + 2.85 * (1 - t) * t * t + t * t * t;
   return t * t * (3 - 2 * t);
 }
 
+export const INTERPOLATION_MODES = [
+  "ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold",
+  "sine", "cubic", "quintic", "expo", "back",
+  "ease_sine", "ease_cubic", "ease_quintic", "ease_expo", "ease_back"
+];
+
 // Tangent handle modes for editable Bézier keys (schema v2, t_* fields are
 // normalized: x in segment time [0,1], y in value units around the key value).
-export const TANGENT_MODES = ["auto", "vector", "free", "aligned", "flat"];
+export const TANGENT_MODES = ["auto", "clamped", "vector", "free", "aligned", "flat"];
 
 export function defaultHandles() {
   return { out_x: 1 / 3, out_y: 0, in_x: -1 / 3, in_y: 0, mode: "auto" };
@@ -69,18 +87,33 @@ export function resolveChannelHandles(key, channelId, previousKey, nextKey, chan
   const prevSpan = Math.max(1e-6, key.frame - (previousKey?.frame ?? key.frame - 1));
   const nextSpan = Math.max(1e-6, (nextKey?.frame ?? key.frame + 1) - key.frame);
 
-  const getAuto = () => {
+  const getAuto = (clamped = false) => {
     const dPrev = (curVal - prevVal) / prevSpan;
     const dNext = (nextVal - curVal) / nextSpan;
-    let slope = (dPrev + dNext) * 0.5;
-    if (!previousKey) slope = dNext;
-    else if (!nextKey) slope = dPrev;
-    if (dPrev * dNext <= 0 && previousKey && nextKey) slope = 0;
+    let slope = 0;
+    if (!previousKey && !nextKey) {
+      slope = 0;
+    } else if (!previousKey) {
+      slope = dNext;
+    } else if (!nextKey) {
+      slope = dPrev;
+    } else if (dPrev * dNext <= 0) {
+      slope = 0;
+    } else {
+      const wPrev = nextSpan / (prevSpan + nextSpan);
+      const wNext = prevSpan / (prevSpan + nextSpan);
+      slope = dPrev * wPrev + dNext * wNext;
+
+      if (clamped) {
+        const limit = 3 * Math.min(Math.abs(dPrev), Math.abs(dNext));
+        slope = clamp(slope, -limit, limit);
+      }
+    }
     return {
       out_x: 1 / 3,
-      out_y: slope * nextSpan * (1 / 3),
+      out_y: slope ? slope * nextSpan * (1 / 3) : 0,
       in_x: -1 / 3,
-      in_y: -slope * prevSpan * (1 / 3),
+      in_y: slope ? -slope * prevSpan * (1 / 3) : 0,
     };
   };
 
@@ -100,11 +133,15 @@ export function resolveChannelHandles(key, channelId, previousKey, nextKey, chan
     return { out_x: 1 / 3, out_y: 0, in_x: -1 / 3, in_y: 0, mode };
   }
 
-  if (mode === "auto") {
-    return { ...getAuto(), mode };
+  if (mode === "clamped") {
+    return { ...getAuto(true), mode };
   }
 
-  const autoFallback = getAuto();
+  if (mode === "auto") {
+    return { ...getAuto(false), mode };
+  }
+
+  const autoFallback = getAuto(false);
   const out_x = clamp(Number(stored.out_x ?? autoFallback.out_x), 0.01, 0.99);
   const out_y = Number(stored.out_y ?? autoFallback.out_y);
   let in_x = clamp(Number(stored.in_x ?? autoFallback.in_x), -0.99, -0.01);
@@ -176,6 +213,7 @@ export function sampleChannel(keys, frame, channelId, channelGetter, isAngle = f
     const p3 = y1;
     const p1x = clamp(Number(handlesLeft.out_x ?? 1 / 3), 0, 1);
     const p2x = clamp(1 + Number(handlesRight.in_x ?? -1 / 3), 0, 1);
+
     let low = 0, high = 1;
     for (let iteration = 0; iteration < 32; iteration++) {
       const s = (low + high) * 0.5, inv = 1 - s;
@@ -388,6 +426,7 @@ export function defaultState() {
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
     outliner_height: PANEL_LAYOUT.outlinerHeight.default, preview_width: PANEL_LAYOUT.previewWidth.default,
+    side_width: PANEL_LAYOUT.sideWidth.default, graph_height: PANEL_LAYOUT.graphHeight.default,
     health_profile: "generic",
     motion_layers: [], selected_motion_layer_id: null, motion_tool: "select",
     sequence: defaultSequence(),
@@ -437,6 +476,8 @@ export const PANEL_LAYOUT = {
   // bound against a corrupt workflow, not a layout limit the user will hit.
   outlinerHeight: { default: 220, min: 90, max: 1600 },
   previewWidth: { default: 236, min: 150, max: 760 },
+  sideWidth: { default: 280, min: 200, max: 640 },
+  graphHeight: { default: 220, min: 140, max: 720 },
 };
 
 /** Coerce to a finite number inside [min, max], falling back when unusable.
@@ -468,7 +509,7 @@ export function sanitizeState(raw) {
     .map((key) => ({
     frame: Math.max(0, Math.round(Number(key.frame || 0))),
     camera: cloneCamera(key.camera || key || fallbackCamera),
-    interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(key.interpolation) ? key.interpolation : "ease",
+    interpolation: INTERPOLATION_MODES.includes(key.interpolation) ? key.interpolation : "ease",
     ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     ...(Array.isArray(key.references) ? { references: key.references.map((r) => ({ ...r })) } : {}),
   }));
@@ -518,11 +559,11 @@ export function sanitizeState(raw) {
     position: Array.isArray(object.position) ? object.position.map(Number) : [0, 0, 0],
     rotation: Array.isArray(object.rotation) ? object.rotation.map(Number) : [0, 0, 0],
     size: Array.isArray(object.size) ? (object.size.length === 2 ? [...object.size.map(Number), 0.01] : object.size.map(Number)) : [1, 1, 1],
-    material_mode: ["textured", "checker", "neutral", "wireframe"].includes(object.material_mode) ? object.material_mode : "textured",
+    material_mode: ["textured", "checker", "neutral", "wireframe", "wireframe_texture", "wireframe_neutral", "matte"].includes(object.material_mode) ? object.material_mode : "textured",
     keyframes: (Array.isArray(object.keyframes) ? object.keyframes : []).map((key) => ({
       frame: Math.max(0, Math.round(Number(key.frame || 0))),
       transform: cloneTransform(key.transform || object),
-      interpolation: ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"].includes(key.interpolation) ? key.interpolation : "ease",
+      interpolation: INTERPOLATION_MODES.includes(key.interpolation) ? key.interpolation : "ease",
       ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     })).sort((a, b) => a.frame - b.frame)
   }));
@@ -549,6 +590,8 @@ export function sanitizeState(raw) {
   out.preview_layout = ["auto", "1", "2", "4"].includes(String(out.preview_layout)) ? String(out.preview_layout) : "auto";
   out.outliner_height = Math.round(boundedNumber(out.outliner_height, PANEL_LAYOUT.outlinerHeight.default, PANEL_LAYOUT.outlinerHeight.min, PANEL_LAYOUT.outlinerHeight.max));
   out.preview_width = Math.round(boundedNumber(out.preview_width, PANEL_LAYOUT.previewWidth.default, PANEL_LAYOUT.previewWidth.min, PANEL_LAYOUT.previewWidth.max));
+  out.side_width = Math.round(boundedNumber(out.side_width, PANEL_LAYOUT.sideWidth.default, PANEL_LAYOUT.sideWidth.min, PANEL_LAYOUT.sideWidth.max));
+  out.graph_height = Math.round(boundedNumber(out.graph_height, PANEL_LAYOUT.graphHeight.default, PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max));
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
   out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;

@@ -9,7 +9,10 @@ export function healthPanel() {
     <div class="inspector-tab-content oc-side-body" data-tab-panel="health" data-density-min="animation" hidden>
       <div class="oc-card oc-health">
         <div class="oc-card-title"><i class="pi pi-heart"></i> ${t("Camera Health")}
-          <span class="oc-health-badge" data-role="health-badge">${t("Checking")}</span>
+          <div class="oc-health-header-badges" style="display:flex;align-items:center;gap:5px;margin-left:auto">
+            <span class="oc-health-score-badge" data-role="health-score-badge">100% (A)</span>
+            <span class="oc-health-badge" data-role="health-badge">${t("Checking")}</span>
+          </div>
         </div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Target model")}</span>
           <select data-role="health-profile" title="${t("Grade the shot against this model's recommended limits")}"></select>

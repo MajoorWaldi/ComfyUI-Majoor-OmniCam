@@ -113,24 +113,96 @@ export function drawSphere(ui, obj) {
 export function drawHuman(ui, obj) {
   const [x, y, z] = obj.position || [0, 0, 0];
   const h = obj.size?.[1] || 1.8;
+  const w = (obj.size?.[0] || 0.7) * 0.5;
   const head = [x, y + h * 0.88, z];
-  const neck = [x, y + h * 0.72, z];
-  const hip = [x, y + h * 0.42, z];
-  const footL = [x - h * 0.13, y, z];
-  const footR = [x + h * 0.13, y, z];
-  const handL = [x - h * 0.28, y + h * 0.48, z];
-  const handR = [x + h * 0.28, y + h * 0.48, z];
+  const neck = [x, y + h * 0.76, z];
+  const shoulderL = [x - w * 0.55, y + h * 0.73, z];
+  const shoulderR = [x + w * 0.55, y + h * 0.73, z];
+  const elbowL = [x - w * 0.72, y + h * 0.52, z];
+  const elbowR = [x + w * 0.72, y + h * 0.52, z];
+  const handL = [x - w * 0.82, y + h * 0.34, z];
+  const handR = [x + w * 0.82, y + h * 0.34, z];
+  const hip = [x, y + h * 0.44, z];
+  const hipL = [x - w * 0.28, y + h * 0.44, z];
+  const hipR = [x + w * 0.28, y + h * 0.44, z];
+  const kneeL = [x - w * 0.28, y + h * 0.22, z];
+  const kneeR = [x + w * 0.28, y + h * 0.22, z];
+  const footL = [x - w * 0.28, y, z + 0.05];
+  const footR = [x + w * 0.28, y, z + 0.05];
+
+  // Head & spine
+  drawLine3D(ui, head, neck, "#aaa", 2);
   drawLine3D(ui, neck, hip, "#aaa", 2);
-  drawLine3D(ui, neck, handL, "#aaa", 2);
-  drawLine3D(ui, neck, handR, "#aaa", 2);
-  drawLine3D(ui, hip, footL, "#aaa", 2);
-  drawLine3D(ui, hip, footR, "#aaa", 2);
+  // Shoulders & arms
+  drawLine3D(ui, shoulderL, shoulderR, "#aaa", 2);
+  drawLine3D(ui, shoulderL, elbowL, "#aaa", 2);
+  drawLine3D(ui, elbowL, handL, "#aaa", 2);
+  drawLine3D(ui, shoulderR, elbowR, "#aaa", 2);
+  drawLine3D(ui, elbowR, handR, "#aaa", 2);
+  // Pelvis & legs
+  drawLine3D(ui, hipL, hipR, "#aaa", 2);
+  drawLine3D(ui, hipL, kneeL, "#aaa", 2);
+  drawLine3D(ui, kneeL, footL, "#aaa", 2);
+  drawLine3D(ui, hipR, kneeR, "#aaa", 2);
+  drawLine3D(ui, kneeR, footR, "#aaa", 2);
+
   const p = project(head, ui.viewportCamera(), ui.canvas.width, ui.canvas.height);
   if (p) {
     ui.ctx.strokeStyle = "#aaa";
     ui.ctx.beginPath();
     ui.ctx.arc(p[0], p[1], clamp(28 / p[2], 3, 12), 0, Math.PI * 2);
     ui.ctx.stroke();
+  }
+}
+
+export function drawCylinder(ui, obj) {
+  const [x, y, z] = obj.position || [0, 0, 0];
+  const [sx, sy, sz] = obj.size || [1.5, 1.5, 1.5];
+  const rx = sx * 0.5;
+  const rz = (sz || sx) * 0.5;
+  const hy = sy * 0.5;
+  const segments = 12;
+  const topPts = [];
+  const botPts = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const px = Math.cos(angle) * rx;
+    const pz = Math.sin(angle) * rz;
+    topPts.push([x + px, y + hy, z + pz]);
+    botPts.push([x + px, y - hy, z + pz]);
+  }
+  for (let i = 0; i < segments; i++) {
+    const next = (i + 1) % segments;
+    drawLine3D(ui, topPts[i], topPts[next], "#aaa", 1.5);
+    drawLine3D(ui, botPts[i], botPts[next], "#aaa", 1.5);
+  }
+  for (let i = 0; i < segments; i += 3) {
+    drawLine3D(ui, topPts[i], botPts[i], "#aaa", 1.5);
+  }
+}
+
+export function drawTorus(ui, obj) {
+  const [x, y, z] = obj.position || [0, 0, 0];
+  const [sx, sy, sz] = obj.size || [1.5, 1.5, 1.5];
+  const rMajor = sx * 0.5;
+  const rMinor = sx * 0.18;
+  const segments = 16;
+  const outerPts = [];
+  const innerPts = [];
+  for (let i = 0; i < segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    outerPts.push([x + cosA * (rMajor + rMinor), y, z + sinA * (rMajor + rMinor)]);
+    innerPts.push([x + cosA * (rMajor - rMinor), y, z + sinA * (rMajor - rMinor)]);
+  }
+  for (let i = 0; i < segments; i++) {
+    const next = (i + 1) % segments;
+    drawLine3D(ui, outerPts[i], outerPts[next], "#aaa", 1.5);
+    drawLine3D(ui, innerPts[i], innerPts[next], "#aaa", 1.5);
+    if (i % 4 === 0) {
+      drawLine3D(ui, outerPts[i], innerPts[i], "#888", 1);
+    }
   }
 }
 

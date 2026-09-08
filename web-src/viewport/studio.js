@@ -36,16 +36,27 @@ export function qualityPreset(name) {
 /**
  * A vertical gradient used both as the visible sky and as cheap ambient light.
  * Drawn to a canvas so it costs one small texture instead of a shader.
+ * Produces an elegant dark cyclorama studio backdrop with subtle horizon glow.
  */
-export function skyTexture(THREE, top = "#2a2d38", middle = "#16171d", bottom = "#0b0c10") {
+export function skyTexture(
+  THREE,
+  top = "#1b1f2b",
+  upper = "#151822",
+  horizon = "#1e2330",
+  ground = "#161922",
+  bottom = "#111319"
+) {
   const canvas = document.createElement("canvas");
   canvas.width = 8;
   canvas.height = 256;
   const context = canvas.getContext("2d");
   const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-  gradient.addColorStop(0, top);
-  gradient.addColorStop(0.55, middle);
-  gradient.addColorStop(1, bottom);
+  gradient.addColorStop(0, top);          // Zenith (+Y)
+  gradient.addColorStop(0.35, upper);     // Upper atmosphere
+  gradient.addColorStop(0.48, horizon);   // Horizon glow
+  gradient.addColorStop(0.52, horizon);   // Horizon line
+  gradient.addColorStop(0.72, ground);    // Ground cyclorama falloff
+  gradient.addColorStop(1, bottom);       // Nadir (-Y)
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvas.width, canvas.height);
   const texture = new THREE.CanvasTexture(canvas);
@@ -56,17 +67,17 @@ export function skyTexture(THREE, top = "#2a2d38", middle = "#16171d", bottom = 
 }
 
 /**
- * A large floor that fades out radially, so the ground reads as a studio sweep
- * instead of a plane with a visible edge. This is what catches the shadow.
+ * A large floor that fades out radially with smooth falloff, so the ground
+ * reads as an expansive studio sweep instead of a plane with a visible edge.
  */
 export function floorTexture(THREE) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256;
   const context = canvas.getContext("2d");
-  const gradient = context.createRadialGradient(128, 128, 10, 128, 128, 128);
-  gradient.addColorStop(0, "rgba(255,255,255,0.85)");
-  gradient.addColorStop(0.28, "rgba(255,255,255,0.42)");
-  gradient.addColorStop(0.55, "rgba(255,255,255,0.08)");
+  const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gradient.addColorStop(0, "rgba(255,255,255,0.22)");
+  gradient.addColorStop(0.30, "rgba(255,255,255,0.13)");
+  gradient.addColorStop(0.65, "rgba(255,255,255,0.035)");
   gradient.addColorStop(1, "rgba(255,255,255,0)");
   context.fillStyle = gradient;
   context.fillRect(0, 0, 256, 256);
@@ -85,41 +96,41 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
   const group = new THREE.Group();
   group.name = "omnicam-studio";
 
-  // Key light: the one that actually models the subject and casts the shadow.
-  const key = new THREE.DirectionalLight(0xfff4e6, 1.9);
-  key.position.set(4.5, 7.5, 3.5);
-  // Always a shadow caster. Toggling castShadow (or shadowMap.enabled) after the
-  // first frame changes the shader defines, and three.js will not recompile the
-  // already-built materials -- the shadow then silently never appears.
+  // Key light: warm studio light modeling the subject with soft contact shadows.
+  const key = new THREE.DirectionalLight(0xfff6ec, 2.2);
+  key.position.set(5.0, 8.5, 4.0);
   key.castShadow = true;
   key.shadow.mapSize.set(preset.shadowSize, preset.shadowSize);
-  key.shadow.bias = -0.0009;
+  key.shadow.bias = -0.0008;
   key.shadow.normalBias = 0.02;
+  key.shadow.radius = 2.4;
   const shadowCamera = key.shadow.camera;
   shadowCamera.near = 0.5;
-  shadowCamera.far = 60;
-  shadowCamera.left = shadowCamera.bottom = -12;
-  shadowCamera.right = shadowCamera.top = 12;
+  shadowCamera.far = 70;
+  shadowCamera.left = shadowCamera.bottom = -14;
+  shadowCamera.right = shadowCamera.top = 14;
   group.add(key, key.target);
 
-  // Fill: lifts the shadow side without flattening the form.
-  const fill = new THREE.DirectionalLight(0xc8d4ff, 0.5);
-  fill.position.set(-6, 3.5, 4);
+  // Fill: cool ambient fill lifting the shadow side with cinematic contrast.
+  const fill = new THREE.DirectionalLight(0xa0b8f8, 0.75);
+  fill.position.set(-6, 4, 3);
   group.add(fill);
 
-  // Rim: separates the silhouette from the background, the trick that makes
-  // Meshy/Tripo previews read instantly.
-  const rim = new THREE.DirectionalLight(0xdce6ff, 1.1);
-  rim.position.set(-3, 5, -7);
+  // Rim: separates silhouettes cleanly from the dark backdrop.
+  const rim = new THREE.DirectionalLight(0xdce8ff, 1.35);
+  rim.position.set(-3, 6, -8);
   group.add(rim);
 
-  // Studio floor: fades out radially and catches the key light's shadow.
-  // Sits a hair below y=0 so it never z-fights the grid helper drawn there.
+  // Subtle ambient bounce to lift deep cavities
+  const bounce = new THREE.HemisphereLight(0x283040, 0x12141a, 0.55);
+  group.add(bounce);
+
+  // Studio floor: wide expansive sweep that fades out radially into the horizon.
   const floorMap = floorTexture(THREE);
   const catcher = new THREE.Mesh(
-    new THREE.PlaneGeometry(56, 56),
+    new THREE.PlaneGeometry(180, 180),
     new THREE.MeshStandardMaterial({
-      color: 0x3a4049, roughness: 0.96, metalness: 0,
+      color: 0x161822, roughness: 0.98, metalness: 0,
       alphaMap: floorMap, transparent: true, depthWrite: false,
     }),
   );
@@ -128,12 +139,10 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
   catcher.name = "omnicam-studio-floor";
   group.add(catcher);
 
-  // The decorative floor above is mostly transparent, so a shadow falling on it
-  // is invisible. ShadowMaterial draws nothing *but* the shadow, which reads
-  // against both the floor and the sky -- this is the contact shadow.
+  // Contact shadow catcher: receives the key light's soft contact shadow.
   const shadowCatcher = new THREE.Mesh(
-    new THREE.PlaneGeometry(56, 56),
-    new THREE.ShadowMaterial({ opacity: 0.42, transparent: true, depthWrite: false }),
+    new THREE.PlaneGeometry(180, 180),
+    new THREE.ShadowMaterial({ opacity: 0.38, transparent: true, depthWrite: false }),
   );
   shadowCatcher.rotation.x = -Math.PI / 2;
   shadowCatcher.position.y = -0.001;
@@ -141,10 +150,10 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
   shadowCatcher.name = "omnicam-shadow-catcher";
   group.add(shadowCatcher);
 
-  // The visible backdrop stays the graded sky. The *lighting* environment is a
-  // real room IBL instead of that flat 3-stop gradient: it gives the standard
-  // materials directional fill and soft occlusion in the creases, which is the
-  // difference between "plastic" and "photographed" on an untextured proxy.
+  // Atmospheric distance fog to blend grid and distant geometry smoothly into the horizon
+  const fog = new THREE.FogExp2(0x13151c, 0.008);
+
+  // Lighting environment: Room IBL for directional specular and cavity occlusion.
   const sky = skyTexture(THREE);
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
@@ -157,7 +166,7 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
   });
 
   return {
-    group, key, fill, rim, catcher, shadowCatcher, floorMap, sky, environment, pmrem,
+    group, key, fill, rim, bounce, catcher, shadowCatcher, floorMap, sky, environment, pmrem, fog,
     quality,
     dispose() {
       catcher.geometry.dispose();
@@ -168,7 +177,7 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
       sky.dispose();
       environment.dispose();
       pmrem.dispose();
-      for (const light of [key, fill, rim]) light.dispose?.();
+      for (const light of [key, fill, rim, bounce]) light.dispose?.();
     },
   };
 }
@@ -177,7 +186,6 @@ export function createStudio(THREE, renderer, quality = DEFAULT_QUALITY) {
 export function applyQuality(studio, renderer, quality) {
   const preset = qualityPreset(quality);
   studio.quality = quality;
-  // Only the resolution moves: see the note in createStudio about recompiles.
   studio.key.shadow.mapSize.set(preset.shadowSize, preset.shadowSize);
   studio.key.shadow.map?.dispose();
   studio.key.shadow.map = null;
@@ -193,11 +201,9 @@ export function setStudioEnabled(THREE, scene, renderer, studio, enabled) {
   studio.group.visible = enabled;
   scene.environment = enabled ? studio.environment : null;
   scene.background = enabled ? studio.sky : new THREE.Color(0x121212);
+  scene.fog = enabled ? studio.fog : null;
   renderer.toneMapping = enabled ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
   renderer.toneMappingExposure = enabled ? qualityPreset(studio.quality).toneExposure : 1;
-  // Hiding the group takes the key light out of the scene, which is what removes
-  // the shadow for a neutral capture. Materials compiled for the lit rig have to
-  // be refreshed for the new light set.
   scene.traverse((object) => {
     if (object.material) object.material.needsUpdate = true;
   });

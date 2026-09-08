@@ -107,7 +107,21 @@ Use the [Node Guide](NODES.md) for exact sockets and profile requirements, and
 
 Director offers Basic, Animation, and Advanced interface modes. They reveal progressively more of the same shot editor; camera data and workflow serialization remain unchanged.
 
-The **Outliner** list and the **camera-preview column** are drag-resizable: pull the handle under the object list to give a long scene the height it needs, and the splitter between the previews and the timeline to enlarge the camera views for framing. Both handles take the keyboard (arrow keys, `Shift`+arrow for a bigger step, `Home` or double-click to reset), and the sizes are saved with the workflow.
+### Staging Primitives & Graph Editor
+
+- **3D Scene Primitives**: Quickly populate your scene with one click using the Outliner quick-bar: **Card** (media billboard), **Cube**, **Sphere**, **Cylinder**, **Torus**, **Human** (authentic procedural low-poly mannequin grounded at $y = 0$), and **Null** pivots.
+- **Viewport HUD & Controls**: Live camera OSD (Focal mm, FOV, target distance, Camera Lock `🔒`, roll reset `⮑`), 1-click World/Local coordinate toggle (`W`/`L`) & Snapping (🧲) on the tool rail, quick-toggle overlay cluster, and fullscreen floating transport.
+- **Graph Editor**: Fine-tune camera motion and object animation using 12 easing curves (`Ease`, `Smooth`, `Bezier`, `Linear`, `Hold`, `Sine`, `Cubic`, `Quintic`, `Expo`, `Back`, etc.) and 6 Bézier tangent modes (`Auto`, `Clamped`, `Vector`, `Free`, `Aligned`, `Flat`) with dynamic vertical coordinate scaling.
+
+### Resizable Panels & Ergonomics
+
+The interface layout adapts to your workflow with drag-resizable splitters:
+- **Outliner Height**: Pull the handle under the scene tree to view complex hierarchies without inner scrollbars.
+- **Side Panel Width**: Drag the vertical splitter between viewport and inspector to widen property editors.
+- **Camera-Preview Column**: Adjust the splitter between camera previews and timeline transport.
+- **Graph Editor Height**: Drag the divider above the curve editor to expand the graph editing area.
+
+All splitters are accessible via keyboard (arrow keys, `Shift`+arrow for large steps, `Home` or double-click to reset) and persist within the saved workflow.
 
 Use [Shortcuts](SHORTCUTS.md) for the complete viewport and timeline control reference.
 

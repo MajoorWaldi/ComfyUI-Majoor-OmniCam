@@ -106,7 +106,7 @@ def sample_object_world_transform(objects: list[dict[str, Any]], obj: dict[str, 
     return _sample_object_world_transform(by_id, obj, frame)
 
 
-TANGENT_MODES = frozenset({"auto", "vector", "free", "aligned", "flat"})
+TANGENT_MODES = frozenset({"auto", "clamped", "vector", "free", "aligned", "flat"})
 
 
 def _default_handles() -> dict[str, Any]:
@@ -148,16 +148,24 @@ def _resolve_channel_handles(
     prev_val = float(channel_getter(previous_key)) if previous_key is not None and channel_getter else cur_val
     next_val = float(channel_getter(next_key)) if next_key is not None and channel_getter else cur_val
 
-    def _get_auto() -> dict[str, Any]:
+    def _get_auto(clamped: bool = False) -> dict[str, Any]:
         d_prev = (cur_val - prev_val) / prev_span
         d_next = (next_val - cur_val) / next_span
-        slope = (d_prev + d_next) * 0.5
-        if previous_key is None:
+        if previous_key is None and next_key is None:
+            slope = 0.0
+        elif previous_key is None:
             slope = d_next
         elif next_key is None:
             slope = d_prev
-        if d_prev * d_next <= 0 and previous_key is not None and next_key is not None:
+        elif d_prev * d_next <= 0:
             slope = 0.0
+        else:
+            w_prev = next_span / (prev_span + next_span)
+            w_next = prev_span / (prev_span + next_span)
+            slope = d_prev * w_prev + d_next * w_next
+            if clamped:
+                limit = 3.0 * min(abs(d_prev), abs(d_next))
+                slope = _clamp(slope, -limit, limit)
         return {
             "out_x": 1.0 / 3.0,
             "out_y": slope * next_span * (1.0 / 3.0),
@@ -179,11 +187,13 @@ def _resolve_channel_handles(
     if mode == "flat":
         return {"out_x": 1.0 / 3.0, "out_y": 0.0, "in_x": -1.0 / 3.0, "in_y": 0.0, "mode": mode}
 
-    if mode == "auto":
-        auto_h = _get_auto()
-        return {**auto_h, "mode": mode}
+    if mode == "clamped":
+        return {**_get_auto(True), "mode": mode}
 
-    auto_fallback = _get_auto()
+    if mode == "auto":
+        return {**_get_auto(False), "mode": mode}
+
+    auto_fallback = _get_auto(False)
     out_x = _clamp(float(stored.get("out_x", auto_fallback["out_x"])), 0.01, 0.99)
     out_y = float(stored.get("out_y", auto_fallback["out_y"]))
     in_x = _clamp(float(stored.get("in_x", auto_fallback["in_x"])), -0.99, -0.01)
@@ -328,6 +338,24 @@ def _ease(t: float, mode: str) -> float:
         return 1.0 - (1.0 - t) * (1.0 - t)
     if mode == "smooth":
         return t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+    if mode in {"sine", "ease_sine"}:
+        return 0.5 * (1.0 - math.cos(math.pi * t))
+    if mode in {"cubic", "ease_cubic"}:
+        return 4.0 * t * t * t if t < 0.5 else 1.0 - math.pow(-2.0 * t + 2.0, 3) / 2.0
+    if mode in {"quintic", "ease_quintic"}:
+        return 16.0 * math.pow(t, 5) if t < 0.5 else 1.0 - math.pow(-2.0 * t + 2.0, 5) / 2.0
+    if mode in {"expo", "ease_expo"}:
+        if t == 0.0:
+            return 0.0
+        if t == 1.0:
+            return 1.0
+        return math.pow(2.0, 20.0 * t - 10.0) / 2.0 if t < 0.5 else (2.0 - math.pow(2.0, -20.0 * t + 10.0)) / 2.0
+    if mode in {"back", "ease_back"}:
+        c1 = 1.70158
+        c2 = c1 * 1.525
+        if t < 0.5:
+            return (math.pow(2.0 * t, 2) * ((c2 + 1.0) * 2.0 * t - c2)) / 2.0
+        return (math.pow(2.0 * t - 2.0, 2) * ((c2 + 1.0) * (t * 2.0 - 2.0) + c2) + 2.0) / 2.0
     if mode == "bezier":
         return 0.15 * (1.0 - t) * (1.0 - t) * t + 2.85 * (1.0 - t) * t * t + t * t * t
     if mode in {"ease", "ease_in_out", "smoothstep"}:

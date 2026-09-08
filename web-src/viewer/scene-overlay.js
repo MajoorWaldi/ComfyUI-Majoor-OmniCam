@@ -15,8 +15,11 @@ import {
   Mesh,
   MeshBasicMaterial,
   SphereGeometry,
+  TorusGeometry,
   Vector3,
 } from "../three-runtime.js";
+import { createLowPolyHumanGeometry } from "../viewport/human-geometry.js";
+import * as THREE from "../three-runtime.js";
 import { disposeObject } from "./track-grid.js";
 import { frustumLines } from "./track-frustums.js";
 
@@ -34,7 +37,18 @@ const DEFAULT_COLOR = 0x8b7bd8;
 function primitiveGeometry(type, size) {
   const [w, h, d] = size.map((v) => Math.max(0.01, Math.abs(Number(v) || 0.01)));
   if (type === "sphere") return new SphereGeometry(Math.max(w, h, d) / 2, 16, 12);
-  if (type === "human") return new CylinderGeometry(Math.max(w, d) / 2, Math.max(w, d) / 2, h, 12);
+  if (type === "cylinder") return new CylinderGeometry(Math.max(w, d) / 2, Math.max(w, d) / 2, h, 16);
+  if (type === "torus") {
+    const r = Math.max(w, d) / 2;
+    const geom = new TorusGeometry(r, r * 0.35, 12, 24);
+    geom.rotateX(Math.PI / 2);
+    return geom;
+  }
+  if (type === "human") {
+    const geom = createLowPolyHumanGeometry(THREE);
+    geom.scale(w, h, d);
+    return geom;
+  }
   // cube / ground / null / anything else -> a box of its bounding size.
   return new BoxGeometry(w, h, d);
 }

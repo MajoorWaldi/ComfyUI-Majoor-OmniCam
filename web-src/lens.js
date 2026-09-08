@@ -43,4 +43,13 @@ export function formatFov(fovDegrees) {
 }
 
 /** Focal lengths offered as one-click presets, in millimetres. */
-export const LENS_PRESETS = [14, 24, 35, 50, 85, 135];
+export const LENS_PRESETS = [14, 18, 24, 35, 50, 85, 135];
+
+/** Standard sensor gate formats and physical dimensions (in mm). */
+export const SENSOR_PRESETS = {
+  full_frame: { name: "Full Frame 35mm", width: 36.0, height: 24.0 },
+  super_35: { name: "Super 35", width: 24.89, height: 18.66 },
+  m43: { name: "Micro 4/3", width: 17.3, height: 13.0 },
+  cinema_16_9: { name: "16:9 Digital Cinema", width: 23.76, height: 13.37 },
+  mobile_9_16: { name: "Mobile 9:16 Vertical", width: 13.37, height: 23.76 },
+};

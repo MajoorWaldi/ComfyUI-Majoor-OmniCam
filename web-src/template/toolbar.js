@@ -29,9 +29,11 @@ function sceneTab() {
       <button data-act="load-audio"><i class="pi pi-volume-up"></i> ${t("Load Audio Track")}</button>
       <span class="hint">${t("GLB, OBJ, FBX, STL, PLY. Audio WAV/MP3/OGG.")}</span>
       <div class="menu-divider"></div><div class="menu-title">${t("Objects & Primitives")}</div>
-      <button data-object-type="ground"><i class="pi pi-minus"></i> ${t("Ground Plane")}</button>
+      <button data-object-type="card"><i class="pi pi-image"></i> ${t("Card")}</button>
       <button data-object-type="cube"><i class="pi pi-stop"></i> ${t("Cube")}</button>
       <button data-object-type="sphere"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
+      <button data-object-type="cylinder"><i class="pi pi-database"></i> ${t("Cylinder")}</button>
+      <button data-object-type="torus"><i class="pi pi-circle"></i> ${t("Torus")}</button>
       <button data-object-type="human"><i class="pi pi-user"></i> ${t("Human Proxy")}</button>
       <button data-object-type="null"><i class="pi pi-plus"></i> ${t("Null Locator")}</button>
       <div class="menu-section" data-density-min="animation">

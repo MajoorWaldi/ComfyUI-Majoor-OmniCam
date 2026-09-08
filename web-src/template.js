@@ -4,6 +4,7 @@ import { sidePanelMarkup } from "./template/side-panel.js";
 import { timelinePanelMarkup } from "./template/timeline-panel.js";
 import { toolbarMarkup } from "./template/toolbar.js";
 import { viewportMarkup } from "./template/viewport.js";
+import { t } from "./i18n.js";
 
 export { DIRECTOR_STYLES } from "./template/styles.js";
 
@@ -16,6 +17,8 @@ export function buildRoot() {
     ${toolbarMarkup()}
     <div class="oc-body">
       <div class="oc-stage">${viewportMarkup()}</div>
+      <div class="oc-resize-h oc-side-resize" data-role="side-resize" role="separator" aria-orientation="vertical" tabindex="0"
+           title="${t("Drag to resize the side panel — double-click to reset")}" aria-label="${t("Resize side panel")}"></div>
       ${sidePanelMarkup()}
     </div>
     ${timelinePanelMarkup()}

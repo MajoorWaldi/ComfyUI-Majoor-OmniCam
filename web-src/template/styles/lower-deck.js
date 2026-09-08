@@ -100,7 +100,7 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-dope-rows{display:flex;flex-direction:column;gap:var(--oc-dope-gap,4px);min-width:0}
       .majoor-omnicam .oc-dope-row{position:relative;height:var(--oc-dope-row-h,26px);border-radius:6px;background:var(--oc-panel-2);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-dormant-keys{color:var(--oc-warn,#f2a93b);cursor:help}
-      .majoor-omnicam .oc-gsequence{display:flex;flex-direction:column;gap:8px;min-height:190px;padding:9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
+      .majoor-omnicam .oc-gsequence{display:flex;flex-direction:column;gap:8px;height:var(--oc-graph-h,220px);min-height:140px;padding:9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft);overflow-y:auto;overscroll-behavior:contain}
       .majoor-omnicam .oc-sequence-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
       .majoor-omnicam .oc-sequence-summary{margin-left:auto;font-size:10px;opacity:.6;flex-basis:100%;text-align:right}
       .majoor-omnicam .oc-sequence-tracks{position:relative;display:flex;flex-direction:column;gap:4px}
@@ -162,10 +162,11 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-graph-legend .curve-mode.active{background:var(--oc-panel-2) !important;border-color:var(--oc-accent) !important;color:var(--oc-text) !important;box-shadow:none !important}
       .majoor-omnicam .oc-graph-legend .ch-dot{width:10px;height:10px;border-radius:2px;flex:none}
       .majoor-omnicam .oc-graph-stage{min-width:0}
-      .majoor-omnicam .oc-graph .curve-canvas{width:100%;min-height:190px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
+      .majoor-omnicam .oc-graph .curve-canvas{width:100%;height:var(--oc-graph-h,220px);min-height:140px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
+      .majoor-omnicam .oc-graph-resize{margin:2px 10px 8px;cursor:ns-resize}
 
       /* Dope Sheet tab of the graph panel: one lane per graphed component. */
-      .majoor-omnicam .oc-gdope{display:flex;flex-direction:column;gap:4px;min-height:190px;padding:9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
+      .majoor-omnicam .oc-gdope{display:flex;flex-direction:column;gap:4px;height:var(--oc-graph-h,220px);min-height:140px;padding:9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft);overflow-y:auto;overscroll-behavior:contain}
       .majoor-omnicam .oc-gdope-row{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:8px}
       .majoor-omnicam .oc-gdope-label{color:var(--channel-color,var(--oc-text-dim));font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .majoor-omnicam .oc-gdope-track{position:relative;height:26px;border-radius:6px;background:var(--oc-panel-2);border:1px solid var(--oc-line-soft)}
@@ -174,9 +175,11 @@ export const LOWER_DECK_STYLES = `
 
       @container (max-width:820px){
         .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr)}
+        .majoor-omnicam .oc-side-resize{display:none}
+        .majoor-omnicam .oc-side{width:100%}
         .majoor-omnicam .oc-lower{grid-template-columns:minmax(0,1fr)}
         .majoor-omnicam .oc-lower>.oc-resize-h{display:none}
-        .majoor-omnicam .oc-side-body{max-height:340px}
+        .majoor-omnicam .oc-side-body{max-height:380px}
         .majoor-omnicam .vp-hint{display:none}
       }
       @container (max-width:560px){

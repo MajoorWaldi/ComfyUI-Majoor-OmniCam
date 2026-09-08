@@ -12,11 +12,19 @@ export function outlinerPanel() {
         <input class="oc-search" data-role="outliner-search" type="search" placeholder="${t("Search")}" aria-label="${t("Filter the outliner")}">
       </div>
       <div class="outliner-quick-bar">
-        <button data-object-type="ground" title="${t("Add Ground (+)")}"><i class="pi pi-minus"></i> ${t("Ground")}</button>
+        <button data-object-type="card" title="${t("Add Card (+)")}"><i class="pi pi-image"></i> ${t("Card")}</button>
         <button data-object-type="cube" title="${t("Add Cube (+)")}"><i class="pi pi-stop"></i> ${t("Cube")}</button>
         <button data-object-type="sphere" title="${t("Add Sphere (+)")}"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
+        <button data-object-type="cylinder" title="${t("Add Cylinder (+)")}"><i class="pi pi-database"></i> ${t("Cylinder")}</button>
+        <button data-object-type="torus" title="${t("Add Torus (+)")}"><i class="pi pi-circle"></i> ${t("Torus")}</button>
         <button data-object-type="human" title="${t("Add Human (+)")}"><i class="pi pi-user"></i> ${t("Human")}</button>
         <button data-object-type="null" title="${t("Add Null (+)")}"><i class="pi pi-plus"></i> ${t("Null")}</button>
+      </div>
+      <div class="outliner-filter-chips" data-role="outliner-filter-chips">
+        <button type="button" class="oc-chip active" data-filter="all">${t("All")}</button>
+        <button type="button" class="oc-chip" data-filter="cameras">${t("Cameras")}</button>
+        <button type="button" class="oc-chip" data-filter="objects">${t("Objects")}</button>
+        <button type="button" class="oc-chip" data-filter="hidden">${t("Hidden")}</button>
       </div>
       <div class="scene-tree" data-role="objects"></div>
       <div class="oc-resize-v" data-role="outliner-resize" role="separator" aria-orientation="horizontal" tabindex="0"
@@ -32,8 +40,13 @@ export function outlinerPanel() {
         <div class="oc-field-row">
           <span class="oc-field-label">${t("Material")}</span>
           <select data-role="object-material" title="${t("Viewport material")}">
-            <option value="textured">${t("Textures")}</option><option value="checker">${t("Checker")}</option>
-            <option value="neutral">${t("Neutral")}</option><option value="wireframe">${t("Wireframe")}</option>
+            <option value="textured">${t("Textures")}</option>
+            <option value="wireframe_texture">${t("Wireframe + Texture")}</option>
+            <option value="checker">${t("Checker")}</option>
+            <option value="neutral">${t("Neutral")}</option>
+            <option value="wireframe_neutral">${t("Wireframe + Clay")}</option>
+            <option value="wireframe">${t("Wireframe")}</option>
+            <option value="matte">${t("Matte Dark")}</option>
           </select>
           <input data-role="object-color" type="color" value="#8c929b" title="${t("Object Color")}">
         </div>
@@ -42,19 +55,22 @@ export function outlinerPanel() {
           <select data-role="object-parent" title="${t("Parent object")}"><option value="">${t("No parent")}</option></select>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Position")}</span>
-          <label class="oc-axis x"><input data-role="object-x" type="number" step="0.1" aria-label="X"></label>
-          <label class="oc-axis y"><input data-role="object-y" type="number" step="0.1" aria-label="Y"></label>
-          <label class="oc-axis z"><input data-role="object-z" type="number" step="0.1" aria-label="Z"></label>
+          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="object-x" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="object-y" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="object-z" type="number" step="0.1" aria-label="Z"></label>
+          <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="position" title="${t("Reset Position")}">⟲</button>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Rotation")}</span>
-          <label class="oc-axis x"><input data-role="object-rx" type="number" step="1" aria-label="X"></label>
-          <label class="oc-axis y"><input data-role="object-ry" type="number" step="1" aria-label="Y"></label>
-          <label class="oc-axis z"><input data-role="object-rz" type="number" step="1" aria-label="Z"></label>
+          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="object-rx" type="number" step="1" aria-label="X"></label>
+          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="object-ry" type="number" step="1" aria-label="Y"></label>
+          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="object-rz" type="number" step="1" aria-label="Z"></label>
+          <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="rotation" title="${t("Reset Rotation")}">⟲</button>
         </div>
         <div class="oc-vec-row"><span class="oc-field-label">${t("Scale")}</span>
-          <label class="oc-axis x"><input data-role="object-sx" type="number" min="0.01" step="0.1" aria-label="X"></label>
-          <label class="oc-axis y"><input data-role="object-sy" type="number" min="0.01" step="0.1" aria-label="Y"></label>
-          <label class="oc-axis z"><input data-role="object-sz" type="number" min="0.01" step="0.1" aria-label="Z"></label>
+          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="object-sx" type="number" min="0.01" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="object-sy" type="number" min="0.01" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="object-sz" type="number" min="0.01" step="0.1" aria-label="Z"></label>
+          <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="scale" title="${t("Reset Scale")}">⟲</button>
         </div>
         <div class="animation-row" data-role="animation-row" hidden><i class="pi pi-play-circle"></i><select data-role="animation-select" title="${t("Animation clip")}"></select></div>
       </div>

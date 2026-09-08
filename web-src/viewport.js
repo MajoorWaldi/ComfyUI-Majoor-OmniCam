@@ -15,7 +15,8 @@ import { createRenderMethods } from "./viewport/render.js";
 import { hasOutlineMesh, SelectionOutlineRenderer } from "./viewport/selection-outline.js";
 import { DEFAULT_QUALITY, applyQuality, createStudio, setStudioEnabled } from "./viewport/studio.js";
 
-const neutral = new THREE.MeshStandardMaterial({ color: 0x8c929b, roughness: 0.9, metalness: 0 });
+const neutral = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.48, metalness: 0.06 });
+const matte = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.95, metalness: 0 });
 const wire = new THREE.MeshBasicMaterial({ color: 0xaeb5c0, wireframe: true });
 
 function checkerMaterial() {
@@ -29,18 +30,24 @@ function checkerMaterial() {
 }
 
 function objectMaterial(object, mode) {
-  if (mode === "wireframe" || object.material_mode === "wireframe") {
+  const effectiveMode = mode === "wireframe" ? "wireframe" : (object.material_mode || "textured");
+  if (effectiveMode === "wireframe") {
     const mat = wire.clone();
     if (object.color) mat.color = new THREE.Color(object.color);
     return mat;
   }
-  if (object.material_mode === "checker") return checkerMaterial();
+  if (effectiveMode === "checker") return checkerMaterial();
+  if (effectiveMode === "matte") {
+    const mat = matte.clone();
+    if (object.color) mat.color = new THREE.Color(object.color);
+    return mat;
+  }
   const mat = neutral.clone();
   if (object.color) mat.color = new THREE.Color(object.color);
   return mat;
 }
 
-function applyModelMaterial(root, mode) {
+function applyModelMaterial(root, mode, object = null) {
   root.traverse((child) => {
     if (!child.isMesh) return;
     if (!child.userData.omnicamOriginalMaterial) child.userData.omnicamOriginalMaterial = child.material;
@@ -49,8 +56,27 @@ function applyModelMaterial(root, mode) {
       for (const material of materials) { material?.map?.dispose?.(); material?.dispose?.(); }
       child.userData.omnicamOverrideMaterial = false;
     }
-    if (mode === "textured") child.material = child.userData.omnicamOriginalMaterial;
-    else { child.material = mode === "checker" ? checkerMaterial() : mode === "wireframe" ? wire.clone() : neutral.clone(); child.userData.omnicamOverrideMaterial = true; }
+    if (mode === "textured" || mode === "wireframe_texture") {
+      child.material = child.userData.omnicamOriginalMaterial;
+    } else if (mode === "checker") {
+      child.material = checkerMaterial();
+      child.userData.omnicamOverrideMaterial = true;
+    } else if (mode === "wireframe") {
+      const mat = wire.clone();
+      if (object?.color) mat.color = new THREE.Color(object.color);
+      child.material = mat;
+      child.userData.omnicamOverrideMaterial = true;
+    } else if (mode === "matte") {
+      const mat = matte.clone();
+      if (object?.color) mat.color = new THREE.Color(object.color);
+      child.material = mat;
+      child.userData.omnicamOverrideMaterial = true;
+    } else {
+      const mat = neutral.clone();
+      if (object?.color) mat.color = new THREE.Color(object.color);
+      child.material = mat;
+      child.userData.omnicamOverrideMaterial = true;
+    }
   });
 }
 

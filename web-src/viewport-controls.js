@@ -314,7 +314,7 @@ function drawArrowHead(ctx, from, to, size = 15) {
   const uy = dy / len;
   const px = -uy;
   const py = ux;
-  const halfWidth = size * 0.4;
+  const halfWidth = size * 0.42;
   const backX = to[0] - ux * size;
   const backY = to[1] - uy * size;
   ctx.beginPath();
@@ -323,19 +323,24 @@ function drawArrowHead(ctx, from, to, size = 15) {
   ctx.lineTo(backX - px * halfWidth, backY - py * halfWidth);
   ctx.closePath();
   ctx.fill();
+  ctx.save();
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function drawTransformGizmo(ui) {
   const geometry = gizmoGeometry(ui);
   if (!geometry || !geometry.handles) return;
-  const colors = ["#ef5b5b", "#58cc6b", "#5f82ef"];
+  const colors = ["#f43f5e", "#10b981", "#3b82f6"];
   ui.ctx.save();
-  ui.ctx.lineWidth = 4;
   ui.ctx.lineCap = "round";
+  ui.ctx.lineJoin = "round";
   for (const handle of geometry.handles) {
     if (!handle?.points?.length) continue;
     const highlighted = ui.hoveredGizmoHandle === handle.index || ui.gizmoDrag?.axisIndex === handle.index;
-    ui.ctx.lineWidth = highlighted ? 7 : 4;
+    ui.ctx.lineWidth = highlighted ? 6.5 : 3.8;
     ui.ctx.strokeStyle = highlighted ? "#ffffff" : (colors[handle.index] || "#ffffff");
     ui.ctx.fillStyle = colors[handle.index] || "#ffffff";
     ui.ctx.beginPath();
@@ -351,6 +356,11 @@ export function drawTransformGizmo(ui) {
       const end = validPoints[validPoints.length - 1];
       if (ui.state.gizmo_mode === "scale" && geometry.entity?.type === "object") {
         ui.ctx.fillRect(end[0] - 6, end[1] - 6, 12, 12);
+        ui.ctx.save();
+        ui.ctx.strokeStyle = "rgba(15, 23, 42, 0.65)";
+        ui.ctx.lineWidth = 1;
+        ui.ctx.strokeRect(end[0] - 6, end[1] - 6, 12, 12);
+        ui.ctx.restore();
       } else {
         // A cone reads as "translate" the way Maya's move tool does; a bare
         // dot does not distinguish translate from anything else.
@@ -362,21 +372,23 @@ export function drawTransformGizmo(ui) {
     && (ui.state.gizmo_mode === "translate" || ui.state.gizmo_mode === "scale");
   if (hasCenterHandle) {
     const centerHighlighted = ui.hoveredGizmoHandle === "free" || ui.gizmoDrag?.free;
-    ui.ctx.fillStyle = centerHighlighted ? "#fbbf24" : "#f4f7fb";
-    ui.ctx.strokeStyle = "#15171c";
-    ui.ctx.lineWidth = 2;
+    ui.ctx.save();
+    ui.ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+    ui.ctx.shadowBlur = 5;
+    ui.ctx.fillStyle = centerHighlighted ? "#fbbf24" : "#f8fafc";
+    ui.ctx.strokeStyle = "#0f172a";
+    ui.ctx.lineWidth = 2.2;
     ui.ctx.beginPath();
     if (ui.state.gizmo_mode === "scale") {
-      // A small cube face, like Maya's uniform-scale manipulator, instead of
-      // the round free-move handle -- so the two centre handles read as
-      // "move" and "scale" even before you hover them.
+      // A small cube face, like Maya's uniform-scale manipulator
       const half = centerHighlighted ? 8 : 6;
       ui.ctx.rect(geometry.center[0] - half, geometry.center[1] - half, half * 2, half * 2);
     } else {
-      ui.ctx.arc(geometry.center[0], geometry.center[1], centerHighlighted ? 10 : 7, 0, Math.PI * 2);
+      ui.ctx.arc(geometry.center[0], geometry.center[1], centerHighlighted ? 9.5 : 7, 0, Math.PI * 2);
     }
     ui.ctx.fill();
     ui.ctx.stroke();
+    ui.ctx.restore();
   }
   ui.ctx.restore();
 }

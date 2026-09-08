@@ -50,6 +50,25 @@ export function refreshGraphTab(ui) {
 }
 
 export function bindGraphTabs(ui, signal) {
+  const tabsContainer = ui.root.querySelector('[data-role="graph-tabs"]');
+  if (tabsContainer) {
+    tabsContainer.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        event.stopPropagation();
+        const tabs = [...tabsContainer.querySelectorAll("[data-graph-tab]")];
+        const currentIdx = tabs.findIndex((b) => b.classList.contains("active"));
+        if (currentIdx >= 0 && tabs.length > 1) {
+          const nextIdx = event.key === "ArrowRight"
+            ? (currentIdx + 1) % tabs.length
+            : (currentIdx - 1 + tabs.length) % tabs.length;
+          tabs[nextIdx].focus();
+          setGraphTab(ui, tabs[nextIdx].dataset.graphTab);
+        }
+      }
+    }, { signal });
+  }
+
   for (const button of ui.root.querySelectorAll("[data-graph-tab]")) {
     button.addEventListener("click", (event) => {
       // The tabs live inside <summary>; a plain click would toggle the panel.
