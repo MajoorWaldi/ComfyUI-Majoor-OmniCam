@@ -77,8 +77,8 @@ OMNICAM_LIVE_URL=http://127.0.0.1:8188 OMNICAM_LIVE_MATCH=live-docs-screens.spec
 *then copy `test-results/live-*.png` into `docs/assets/`. `npx playwright test tests/frontend/docs-screens.spec.js` regenerates the Director outliner/inspector close-ups from an isolated module mount instead, with no server required.*
 
 **Inputs.** `width`, `height`, `fps`, `duration_seconds`, `render_mode`
-(`omni_ref`, `graybox`, `grid`, `point_field`, `wireframe`, `card_grid`,
-`beauty`), optional `image` / `video` (either media type) and `audio`, an
+(`omni_ref`, `graybox`, `textured`, `grid`, `point_field`, `wireframe`,
+`wireframe_texture`, `card_grid`, `beauty`), optional `image` / `video` (either media type) and `audio`, an
 optional `scene_3d`, and an optional upstream `solved_scene` (an OmniCam
 Extractor connects here). `state_json`, `recording_path` and `card_asset` are
 advanced fields the interface manages.
@@ -155,6 +155,46 @@ one and two cyan tangent handles appear:
   - **Corner** – short handles pointed straight at the neighbours: a sharp turn.
 
 Handle edits round-trip through save and undo like any other keyframe change.
+
+### 3D Scene Primitives
+
+The Director provides instant staging primitives via the Outliner quick-bar, toolbar, and viewport context menus:
+
+- **Card (`card`)**: Flat billboard polygon oriented upright to host reference images, cards, or video textures.
+- **Cube (`cube`)**: 1m³ reference bounding box for volumetric blocking.
+- **Sphere (`sphere`)**: 1m diameter sphere for curved volume framing.
+- **Cylinder (`cylinder`)**: 1m diameter, 2m high cylinder for vertical pillars and rotational staging.
+- **Torus (`torus`)**: Toroidal ring primitive (1m radius, 0.25m tube) for circular trajectories and orientation markers.
+- **Human (`human`)**: Authentic procedural **low-poly 3D human mannequin** (faceted head, neck, torso, pelvis, relaxed A-pose arms, and legs), grounded at $y = 0$ on the floor plane to provide accurate human scale cues.
+- **Null (`null`)**: Empty 3D transform pivot for grouping, camera target rigging, or hierarchy anchors.
+- *(Legacy `ground` objects remain fully supported and backward-compatible with older saved workflows).*
+
+All primitives support full transform controls (Translate, Rotate, Scale), parenting hierarchies, visibility toggling, locking, wireframe overlay, and neutral/textured playblast rendering.
+
+### Graph Editor and Keyframe Curves
+
+The lower deck houses an animation curve editor and dope sheet for fine-grained trajectory control:
+
+- **12 Interpolation Modes**: `Ease`, `Smooth`, `Bezier`, `Linear`, `Ease In`, `Ease Out`, `Hold`, `Sine`, `Cubic`, `Quintic`, `Expo`, and `Back`.
+- **6 Bézier Tangent Modes**: `Auto`, `Clamped`, `Vector`, `Free`, `Aligned`, and `Flat`.
+- **Dynamic Coordinate Scaling**: The canvas dynamically measures its container height (`clientHeight`), preserving exact curve aspect ratios and preventing vertical stretching across any panel dimension.
+- **Visual Tangent Handles**: Direct manipulation of curve velocity and acceleration with draggable tangent handles in both graph editor and 3D spatial viewport curves.
+
+### Layout Splitters and Panel Ergonomics
+
+- **Side Panel Width (`side-resize`)**: Drag the vertical divider between viewport and inspector (200px–640px).
+- **Graph Editor Height (`graph-resize`)**: Drag the horizontal divider between timeline and graph editor (140px–720px).
+- **Outliner Height (`outliner-resize`)** & **Preview Width (`preview-resize`)**: Fully adjustable panels with keyboard support (`role="separator"`, arrow keys, `Home` / double-click reset) and workflow state persistence.
+- **Quick-Reset (`⟲`) & Scrubbing**: Drag axis labels to scrub coordinates; click `⟲` to reset any transform channel back to default.
+
+### Viewport HUD & Tool Rail Controls
+
+- **Camera HUD & OSD**: Live lens focal length (`35mm`), FOV (`54.4°`), distance to subject, and a **Camera Lock toggle (`🔒`)** that prevents accidental navigation moves when framing in Camera View.
+- **Coordinate Space & Snapping**: Direct 1-click **World / Local (`W`/`L`)** toggle and **Snapping (🧲)** toggle on the vertical tool rail.
+- **Quick Overlays Cluster & Shading Select**: Instant toggles for Grid, Gizmos, Guides, Safe Areas, Radar, and Shading Mode (`Omni Ref`, `Graybox`, `Wireframe`, `Grid`, `Beauty`) in the viewport header corner.
+- **Fullscreen Floating Transport**: Minimalist playback, timecode, and keyframe controls during fullscreen presentation mode.
+- **Outliner Isolate**: Alt-click an object's eye icon to isolate it in the viewport.
+- **Sensor / Gate Presets**: Film & digital camera sensor presets in the Inspector (Full Frame 35mm, Super 35, Micro 4/3, 16:9 Digital Cinema, Mobile 9:16).
 
 ### Motion Tracks
 

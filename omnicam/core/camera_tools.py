@@ -169,9 +169,14 @@ def smooth_camera_path(track: OmniCamTrack, radius: int = 2) -> OmniCamTrack:
         lo = max(0, frame - radius)
         hi = min(track.duration_frames, frame + radius + 1)
         window = samples[lo:hi]
+        w_len = len(window)
         smoothed = CameraState.from_dict(asdict(camera))
-        smoothed.position = [sum(item.position[axis] for item in window) / len(window) for axis in range(3)]
-        smoothed.target = [sum(item.target[axis] for item in window) / len(window) for axis in range(3)]
+        smoothed.position = [sum(item.position[axis] for item in window) / w_len for axis in range(3)]
+        smoothed.target = [sum(item.target[axis] for item in window) / w_len for axis in range(3)]
+        smoothed.fov = sum(item.fov for item in window) / w_len
+        smoothed.zoom = sum(item.zoom for item in window) / w_len
+        ref_roll = camera.roll
+        smoothed.roll = ref_roll + sum(((item.roll - ref_roll + 180.0) % 360.0 - 180.0) for item in window) / w_len
         keys.append(CameraKeyframe(frame, smoothed, "linear"))
     return _copy_track(track, keys)
 
@@ -334,8 +339,13 @@ def smooth_camera_path_range(track: OmniCamTrack, start: int, end: int, radius: 
         if start <= frame <= end:
             lo, hi = max(start, frame - radius), min(end + 1, frame + radius + 1)
             window = samples[lo:hi]
-            smoothed.position = [sum(item.position[axis] for item in window) / len(window) for axis in range(3)]
-            smoothed.target = [sum(item.target[axis] for item in window) / len(window) for axis in range(3)]
+            w_len = len(window)
+            smoothed.position = [sum(item.position[axis] for item in window) / w_len for axis in range(3)]
+            smoothed.target = [sum(item.target[axis] for item in window) / w_len for axis in range(3)]
+            smoothed.fov = sum(item.fov for item in window) / w_len
+            smoothed.zoom = sum(item.zoom for item in window) / w_len
+            ref_roll = camera.roll
+            smoothed.roll = ref_roll + sum(((item.roll - ref_roll + 180.0) % 360.0 - 180.0) for item in window) / w_len
         keys.append(CameraKeyframe(frame, smoothed, "linear"))
     return _copy_track(track, keys)
 

@@ -269,6 +269,127 @@ function omnicamModal({ title, message, withInput = false, defaultValue = "", ow
   });
 }
 
+/**
+ * A single-choice picker over a list of rows. Resolves the chosen row id, or
+ * null on Cancel / Esc / backdrop. Rows may carry an optional per-row delete
+ * button; `onDelete(id)` is fired and the row removed optimistically.
+ *
+ * Built from our own DOM (same reasoning as omnicamModal): ComfyUI exposes no
+ * list-picker dialog, and a blocked browser prompt would just return null.
+ */
+export function omnicamListModal({ title, items = [], onDelete = null, owner = null }) {
+  if (typeof document === "undefined" || !document.body) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const backdrop = document.createElement("div");
+    backdrop.className = "majoor-omnicam oc-modal-backdrop";
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    Object.assign(backdrop.style, {
+      position: "fixed", inset: "0", zIndex: "100000",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: "rgba(0,0,0,0.55)",
+    });
+
+    const panel = document.createElement("div");
+    panel.className = "oc-modal";
+    Object.assign(panel.style, {
+      maxWidth: "min(460px, 92vw)", width: "460px", padding: "18px 20px", borderRadius: "10px",
+      background: "var(--oc-panel, #1e1f26)", color: "var(--oc-text, #e8e8ec)",
+      border: "1px solid var(--oc-line, #34363f)",
+      boxShadow: "0 12px 48px rgba(0,0,0,0.5)", font: "13px/1.5 system-ui, sans-serif",
+    });
+
+    const heading = document.createElement("h3");
+    heading.textContent = title || "";
+    Object.assign(heading.style, { margin: "0 0 12px", fontSize: "14px" });
+
+    const list = document.createElement("div");
+    Object.assign(list.style, {
+      display: "flex", flexDirection: "column", gap: "4px",
+      maxHeight: "min(52vh, 420px)", overflowY: "auto", marginBottom: "14px",
+    });
+
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      document.removeEventListener("keydown", onKey, true);
+      if (owner && typeof owner === "object") ownedModals.get(owner)?.delete(finishCancel);
+      backdrop.remove();
+      resolve(value);
+    };
+    const finishCancel = () => finish(null);
+
+    const makeRow = (item) => {
+      const row = document.createElement("div");
+      Object.assign(row.style, { display: "flex", alignItems: "stretch", gap: "4px" });
+      const pick = document.createElement("button");
+      pick.type = "button";
+      Object.assign(pick.style, {
+        flex: "1", textAlign: "left", padding: "7px 10px", borderRadius: "6px", cursor: "pointer",
+        border: "1px solid var(--oc-line, #34363f)", background: "var(--oc-sunken, #16171c)", color: "inherit",
+      });
+      const name = document.createElement("div");
+      name.textContent = item.label || item.id;
+      const sub = document.createElement("div");
+      sub.textContent = item.sublabel || "";
+      Object.assign(sub.style, { opacity: "0.6", fontSize: "11px" });
+      pick.append(name, sub);
+      pick.addEventListener("click", () => finish(item.id));
+      row.appendChild(pick);
+      if (onDelete) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.title = "Delete";
+        del.textContent = "✕";
+        Object.assign(del.style, {
+          width: "34px", borderRadius: "6px", cursor: "pointer",
+          border: "1px solid var(--oc-line, #34363f)", background: "transparent", color: "inherit",
+        });
+        del.addEventListener("click", (event) => {
+          event.stopPropagation();
+          row.remove();
+          if (!list.children.length) finish(null);
+          try { onDelete(item.id); } catch { /* optimistic: row already gone */ }
+        });
+        row.appendChild(del);
+      }
+      return row;
+    };
+    for (const item of items) list.appendChild(makeRow(item));
+
+    const row = document.createElement("div");
+    Object.assign(row.style, { display: "flex", justifyContent: "flex-end" });
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.textContent = "Cancel";
+    Object.assign(cancelBtn.style, {
+      padding: "6px 14px", borderRadius: "6px", cursor: "pointer",
+      border: "1px solid var(--oc-line, #34363f)", background: "transparent", color: "inherit",
+    });
+    cancelBtn.addEventListener("click", () => finish(null));
+    row.appendChild(cancelBtn);
+
+    panel.append(heading, list, row);
+    backdrop.appendChild(panel);
+
+    if (owner && typeof owner === "object") {
+      let entries = ownedModals.get(owner);
+      if (!entries) ownedModals.set(owner, entries = new Set());
+      entries.add(finishCancel);
+    }
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.stopPropagation(); finish(null); }
+    };
+    backdrop.addEventListener("mousedown", (event) => {
+      if (event.target === backdrop) finish(null);
+    });
+    document.addEventListener("keydown", onKey, true);
+    document.body.appendChild(backdrop);
+    list.querySelector("button")?.focus({ preventScroll: true });
+  });
+}
+
 export async function promptText(appOrTitle, titleOrMessage, messageOrValue, initialValue) {
   let app, owner, title, message, defaultValue;
   if (typeof appOrTitle === "object" && appOrTitle !== null) {

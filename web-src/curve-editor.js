@@ -82,8 +82,8 @@ export function drawCurveEditor(ui) {
   const canvas = ui.root.querySelector('[data-role="curve-canvas"]');
   if (!canvas) return;
   const width = canvas.clientWidth;
-  const height = 180;
-  if (!width) return;
+  const height = canvas.clientHeight || 180;
+  if (!width || !height) return;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
     canvas.width = Math.round(width * dpr);
@@ -342,6 +342,72 @@ export function drawCurveEditor(ui) {
     ctx.lineTo(playheadX, top + 6);
     ctx.closePath();
     ctx.fill();
+  }
+
+  // HUD Readout (Frame & Value badge)
+  if (ui.curveDrag || ui.curveHover) {
+    let badgeText = "";
+    let badgeSub = "";
+
+    if (ui.curveDrag) {
+      if (ui.curveDrag.handle) {
+        const hSide = ui.curveDrag.handle === "in" ? "In" : "Out";
+        badgeText = `F${ui.curveDrag.key.frame} · ${ui.curveDrag.channel.name} (${hSide})`;
+        badgeSub = "Tangent edit";
+      } else if (ui.curveDrag.group && ui.curveDrag.group.length > 1) {
+        const deltaF = (ui.curveDrag.key.frame - ui.curveDrag.startFrame);
+        const currentVal = ui.curveDrag.channel.get(ui.curveDrag.object ? ui.curveDrag.key.transform : ui.curveDrag.key.camera);
+        const deltaV = currentVal - ui.curveDrag.startValue;
+        const signF = deltaF >= 0 ? `+${deltaF}` : `${deltaF}`;
+        const signV = deltaV >= 0 ? `+${deltaV.toFixed(2)}` : `${deltaV.toFixed(2)}`;
+        badgeText = `${ui.curveDrag.group.length} keys · ΔF: ${signF} · ΔVal: ${signV}`;
+        badgeSub = `${ui.curveDrag.channel.name}: ${currentVal.toFixed(2)}`;
+      } else {
+        const deltaF = (ui.curveDrag.key.frame - ui.curveDrag.startFrame);
+        const currentVal = ui.curveDrag.channel.get(ui.curveDrag.object ? ui.curveDrag.key.transform : ui.curveDrag.key.camera);
+        const deltaV = currentVal - ui.curveDrag.startValue;
+        const signF = deltaF >= 0 ? `+${deltaF}` : `${deltaF}`;
+        const signV = deltaV >= 0 ? `+${deltaV.toFixed(2)}` : `${deltaV.toFixed(2)}`;
+        badgeText = `F${ui.curveDrag.key.frame} (${signF}) · ${ui.curveDrag.channel.name}: ${currentVal.toFixed(2)} (${signV})`;
+      }
+    } else if (ui.curveHover) {
+      if (ui.curveHover.channelName) {
+        const valStr = Number.isFinite(ui.curveHover.value) ? ui.curveHover.value.toFixed(2) : "";
+        badgeText = `F${ui.curveHover.frame} · ${ui.curveHover.channelName}: ${valStr}`;
+        if (ui.curveHover.isHandle) badgeSub = `Handle ${ui.curveHover.handleSide}`;
+      } else {
+        badgeText = `Frame ${ui.curveHover.frame}`;
+      }
+    }
+
+    if (badgeText) {
+      ctx.save();
+      ctx.font = "11px system-ui, -apple-system, sans-serif";
+      const metrics = ctx.measureText(badgeText);
+      const subMetrics = badgeSub ? ctx.measureText(badgeSub) : { width: 0 };
+      const badgeW = Math.max(metrics.width, subMetrics.width) + 16;
+      const badgeH = badgeSub ? 32 : 20;
+      const badgeX = width - right - badgeW - 6;
+      const badgeY = top + 6;
+
+      ctx.fillStyle = "rgba(18, 18, 24, 0.88)";
+      ctx.strokeStyle = "#38384a";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 4);
+      else ctx.rect(badgeX, badgeY, badgeW, badgeH);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillText(badgeText, badgeX + 8, badgeY + (badgeSub ? 13 : 14));
+      if (badgeSub) {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "9.5px system-ui, -apple-system, sans-serif";
+        ctx.fillText(badgeSub, badgeX + 8, badgeY + 26);
+      }
+      ctx.restore();
+    }
   }
 
   // Update tangent mode button states

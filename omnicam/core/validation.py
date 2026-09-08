@@ -22,16 +22,20 @@ from typing import Any
 from .migrations import CURRENT_VERSIONS, TRACK_SCHEMA
 from .sequence import SEQUENCE_TARGET
 
-INTERPOLATION_MODES = frozenset({"ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"})
+INTERPOLATION_MODES = frozenset({
+    "ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold",
+    "sine", "cubic", "quintic", "expo", "back",
+    "ease_sine", "ease_cubic", "ease_quintic", "ease_expo", "ease_back",
+})
 # "beauty" is the only mode that records the lit studio viewport instead of a
 # flat proxy. It is opt-in because a conditioning model can copy appearance
 # from a pretty reference, which is exactly what the proxy exists to avoid.
-RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "grid", "point_field", "wireframe", "beauty"})
+RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "textured", "grid", "point_field", "wireframe", "wireframe_texture", "beauty"})
 CAMERA_TYPES = frozenset({"perspective", "orthographic"})
-OBJECT_TYPES = frozenset({"card", "cube", "sphere", "human", "null", "ground", "model", "glb"})
-MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe"})
+OBJECT_TYPES = frozenset({"card", "cube", "sphere", "cylinder", "torus", "human", "null", "ground", "model", "glb"})
+MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe", "wireframe_texture", "wireframe_neutral", "matte"})
 PROJECTION_MODES = CAMERA_TYPES
-TANGENT_MODES = frozenset({"auto", "vector", "free", "aligned", "flat"})
+TANGENT_MODES = frozenset({"auto", "clamped", "vector", "free", "aligned", "flat"})
 
 FOV_RANGE = (5.0, 150.0)
 ROLL_RANGE = (-180.0, 180.0)

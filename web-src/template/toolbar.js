@@ -5,6 +5,19 @@
 
 import { t } from "../i18n.js";
 
+function fileTab() {
+  return `
+    <details class="toolbar-menu" data-menu="file"><summary><i class="pi pi-folder"></i> ${t("Scene")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
+      <div class="menu-title">${t("Scene Library")}</div>
+      <button data-act="scene-new"><i class="pi pi-file"></i> ${t("New Scene")}</button>
+      <button data-act="scene-open"><i class="pi pi-folder-open"></i> ${t("Open Scene…")}</button>
+      <button data-act="scene-save" class="primary"><i class="pi pi-save"></i> ${t("Save Scene")}</button>
+      <div class="menu-divider"></div>
+      <button data-act="scene-reset"><i class="pi pi-undo"></i> ${t("Reset Scene")}</button>
+      <span class="hint">${t("Reset reverts to the last saved or opened scene.")}</span>
+    </div></details>`;
+}
+
 function sceneTab() {
   return `
     <details class="toolbar-menu" data-menu="scene"><summary><i class="pi pi-box"></i> ${t("Viewport")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
@@ -16,9 +29,11 @@ function sceneTab() {
       <button data-act="load-audio"><i class="pi pi-volume-up"></i> ${t("Load Audio Track")}</button>
       <span class="hint">${t("GLB, OBJ, FBX, STL, PLY. Audio WAV/MP3/OGG.")}</span>
       <div class="menu-divider"></div><div class="menu-title">${t("Objects & Primitives")}</div>
-      <button data-object-type="ground"><i class="pi pi-minus"></i> ${t("Ground Plane")}</button>
+      <button data-object-type="card"><i class="pi pi-image"></i> ${t("Card")}</button>
       <button data-object-type="cube"><i class="pi pi-stop"></i> ${t("Cube")}</button>
       <button data-object-type="sphere"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
+      <button data-object-type="cylinder"><i class="pi pi-database"></i> ${t("Cylinder")}</button>
+      <button data-object-type="torus"><i class="pi pi-circle"></i> ${t("Torus")}</button>
       <button data-object-type="human"><i class="pi pi-user"></i> ${t("Human Proxy")}</button>
       <button data-object-type="null"><i class="pi pi-plus"></i> ${t("Null Locator")}</button>
       <div class="menu-section" data-density-min="animation">
@@ -172,6 +187,7 @@ function displayTab() {
 export function toolbarMarkup() {
   return `
     <div class="top">
+      ${fileTab()}
       ${sceneTab()}
       ${camerasTab()}
       ${viewTab()}

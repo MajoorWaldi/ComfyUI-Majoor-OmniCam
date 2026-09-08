@@ -159,6 +159,22 @@ def test_editor_state_compiles_camera_look_at_constraint():
     assert OmniCamTrack.from_dict(track).to_dict()["constraints"] == track["constraints"]
 
 
+def test_cylinder_and_torus_object_types_are_valid():
+    state = {
+        "duration_frames": 10,
+        "objects": [
+            {"id": "cyl_1", "type": "cylinder", "position": [0, 1, 0]},
+            {"id": "tor_1", "type": "torus", "position": [1, 0, 0]},
+            {"id": "card_1", "type": "card", "position": [0, 0, 0]},
+        ],
+        "cameras": [{"id": "c", "keyframes": []}],
+        "active_camera_id": "c",
+    }
+    track = editor_state_to_track(state)
+    assert len(track["objects"]) == 3
+    assert {o["type"] for o in track["objects"]} == {"cylinder", "torus", "card"}
+
+
 def test_editor_state_marks_missing_and_disabled_look_at_targets():
     base = {"cameras": [{"id": "cam", "camera": {}, "keyframes": [], "target_object_id": "actor"}], "active_camera_id": "cam"}
     missing = editor_state_to_track(base)

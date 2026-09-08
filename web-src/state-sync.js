@@ -238,4 +238,8 @@ export function restoreFromWidgets(ui) {
   ui.refreshObjects();
   ui.render();
   ui.history?.clear();
+  // A workflow load (or a scene adopted through scene-library.js) makes this the
+  // new "last saved" baseline the Reset Scene command reverts to.
+  ui.sceneBaseline = ui.stateWidget?.value ?? ui.sceneBaseline;
+  ui.sceneName = ui.state.metadata?.scene_name || "";
 }

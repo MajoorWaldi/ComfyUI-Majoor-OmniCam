@@ -91,6 +91,23 @@ export function bindViewportSettings(ui, q, signal) {
       ui.refitNode?.();
     }, { signal });
   }
+  const sideTabList = ui.root.querySelector(".inspector-tabs, .oc-side-tabs");
+  if (sideTabList) {
+    sideTabList.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const tabs = [...sideTabList.querySelectorAll(".inspector-tab")].filter((b) => b.offsetParent !== null);
+        const currentIdx = tabs.findIndex((b) => b.classList.contains("active"));
+        if (currentIdx >= 0 && tabs.length > 1) {
+          const nextIdx = e.key === "ArrowRight"
+            ? (currentIdx + 1) % tabs.length
+            : (currentIdx - 1 + tabs.length) % tabs.length;
+          tabs[nextIdx].click();
+          tabs[nextIdx].focus();
+        }
+      }
+    }, { signal });
+  }
   for (const el of ui.root.querySelectorAll('[data-role="active-camera-select"]')) {
     el.addEventListener("change", (e) => ui.activateCamera(e.target.value), { signal });
   }

@@ -98,3 +98,25 @@ def test_focal_length_conversion_and_trajectory_analysis():
 
     prompt_wan = build_cinematic_motion_prompt(orbit_track, style="wan")
     assert "Dynamic camera movement:" in prompt_wan
+
+
+def test_smooth_camera_path_smooths_multichannel():
+    # Track with spikes in fov, zoom, and roll near 180/-180 degrees
+    track = OmniCamTrack.from_dict({
+        "fps": 24, "duration_frames": 5, "keyframes": [
+            {"frame": 0, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": 170.0}, "interpolation": "linear"},
+            {"frame": 1, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": 175.0}, "interpolation": "linear"},
+            {"frame": 2, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 60.0, "zoom": 2.0, "roll": -175.0}, "interpolation": "linear"},
+            {"frame": 3, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": -170.0}, "interpolation": "linear"},
+            {"frame": 4, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30.0, "zoom": 1.0, "roll": -165.0}, "interpolation": "linear"},
+        ]
+    })
+    smoothed = smooth_camera_path(track, radius=1)
+    s2 = smoothed.sample(2)
+    # Spikes in fov and zoom should be averaged down
+    assert s2.fov < 60.0
+    assert s2.zoom < 2.0
+    # Roll wrapped across 180° boundary: 175° to -175° is a 10° step, not 350°!
+    # Averaged roll at frame 2 should stay close to ±180°, not flip toward 0°!
+    assert abs(s2.roll) > 160.0
+

@@ -6,6 +6,7 @@ import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
 import { playblastCameraTrack } from "./omnicam-state-sync.js";
 import { findEditableKey } from "./scene/edit-target.js";
+import { updateCameraHud, updateFloatingTransport, updateViewportControls } from "./viewport/viewport-hud.js";
 
 export function playblastCameraAtFrame(ui, sampleCameraFn) {
   return sampleCameraFn(playblastCameraTrack(ui), ui.frame);
@@ -282,6 +283,9 @@ export function updateEditState(ui) {
         : `VIEW: ${ui.state.view_mode.toUpperCase()}`;
     }
   }
+  updateCameraHud(ui);
+  updateFloatingTransport(ui);
+  updateViewportControls(ui);
 }
 
 export function updateKeyVisualState(ui) {
@@ -293,6 +297,28 @@ export function updateKeyVisualState(ui) {
     element.classList.toggle("at-playhead", frame === ui.frame);
   }
   ui.updateEditState();
+}
+export function setKeyTangentMode(ui, mode) {
+  const key = selectedKeyframe(ui);
+  if (!key) return;
+  ui.checkpoint("Change key tangent mode");
+  key.tangents = key.tangents && typeof key.tangents === "object" ? key.tangents : {};
+  key.tangents.mode = mode;
+  key.tangent_mode = mode;
+  // sampleChannel only honours tangent handles when an endpoint key is bezier,
+  // so a non-auto tangent mode is inert until the key is promoted -- mirror the
+  // multi-key batch path (director/key-ops.js setKeyframeTangentMode).
+  if (mode !== "auto" && key.interpolation !== "bezier") key.interpolation = "bezier";
+  const tangentSelect = ui.root.querySelector('[data-role="key-tangent-mode"]');
+  if (tangentSelect) tangentSelect.value = mode;
+  for (const btn of ui.root.querySelectorAll("[data-tangent]")) {
+    btn.classList.toggle("active", btn.dataset.tangent === mode);
+  }
+  ui.serialize();
+  ui.refreshKeys();
+  ui.refreshKeyEditor();
+  ui.drawCurveEditor();
+  ui.setStatus(t("Key @ {frame} tangent mode set to {mode}").replace("{frame}", String(key.frame)).replace("{mode}", mode));
 }
 
 export function refreshKeyEditor(ui) {
@@ -306,10 +332,10 @@ export function refreshKeyEditor(ui) {
       ? t(`${object?.name || "Camera"} Key @ ${key.frame}`)
       : t(`No ${object ? "object" : "camera"} key selected`);
   }
-  const roles = ["key-frame", "key-interp", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"];
+  const roles = ["key-frame", "key-interp", "key-tangent-mode", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"];
   for (const role of roles) {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
-    if (el) el.disabled = !key || Boolean(object && !["key-frame", "key-interp"].includes(role));
+    if (el) el.disabled = !key || Boolean(object && !["key-frame", "key-interp", "key-tangent-mode"].includes(role));
   }
   const updateKeyBtn = ui.root.querySelector('[data-act="update-key"]');
   if (updateKeyBtn) updateKeyBtn.disabled = !key || Boolean(object);
@@ -317,7 +343,33 @@ export function refreshKeyEditor(ui) {
   if (viewKeyBtn) viewKeyBtn.disabled = !key || Boolean(object);
   for (const btn of ui.root.querySelectorAll("[data-interp]")) {
     btn.classList.toggle("active", Boolean(key && btn.dataset.interp === key.interpolation));
+    btn.disabled = !key;
   }
+
+  const currentTangentMode = key?.tangents?.mode || key?.tangent_mode || "auto";
+  const tangentSelect = ui.root.querySelector('[data-role="key-tangent-mode"]');
+  if (tangentSelect && document.activeElement !== tangentSelect) {
+    tangentSelect.value = currentTangentMode;
+  }
+  for (const btn of ui.root.querySelectorAll("[data-tangent]")) {
+    btn.classList.toggle("active", Boolean(key && btn.dataset.tangent === currentTangentMode));
+    btn.disabled = !key;
+  }
+
+  // Update timecode readout
+  const timecodeEl = ui.root.querySelector('[data-role="key-timecode"]');
+  if (timecodeEl) {
+    const fps = Math.max(1, ui.state?.fps || 24);
+    const f = key ? key.frame : ui.frame;
+    const totalSecs = Math.floor(f / fps);
+    const framesRemainder = f % Math.round(fps);
+    const hours = String(Math.floor(totalSecs / 3600)).padStart(2, "0");
+    const mins = String(Math.floor((totalSecs % 3600) / 60)).padStart(2, "0");
+    const secs = String(totalSecs % 60).padStart(2, "0");
+    const framesStr = String(framesRemainder).padStart(2, "0");
+    timecodeEl.textContent = `${hours}:${mins}:${secs}:${framesStr} (${f}f)`;
+  }
+
   if (!key) return;
   if (object) {
     const frameInput = ui.root.querySelector('[data-role="key-frame"]');
@@ -329,6 +381,7 @@ export function refreshKeyEditor(ui) {
   const values = {
     "key-frame": key.frame,
     "key-interp": key.interpolation,
+    "key-tangent-mode": currentTangentMode,
     "key-px": key.camera.position[0],
     "key-py": key.camera.position[1],
     "key-pz": key.camera.position[2],

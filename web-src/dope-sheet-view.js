@@ -39,6 +39,27 @@ function appendDiamonds(ui, track, row, keys, percentFor) {
     diamond.title = t("{channel} changes at frame {frame}")
       .replace("{channel}", t(row.label))
       .replace("{frame}", String(frame));
+    // Drag a diamond to retime -- the whole selection moves together, reusing
+    // the master track's keyDrag machinery (window-level pointermove/up in
+    // event-bindings/editor-global.js drive it via ui.keyDrag).
+    diamond.addEventListener("pointerdown", (event) => {
+      if (event.shiftKey || event.altKey || event.button !== 0) return;
+      const key = keys.find((item) => item.frame === frame);
+      if (!key) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!ui.selectedKeyFrames?.has(frame)) ui.selectedKeyFrames = new Set([frame]);
+      ui.selectedKeyFrame = frame;
+      const box = ui.root.querySelector('[data-role="keys"]');
+      if (!box) return;
+      const moving = ui.timelineKeyframes().filter((item) => ui.selectedKeyFrames.has(item.frame));
+      ui.keyDrag = {
+        key, box, historyCheckpointed: false,
+        moving: moving.map((item) => ({ key: item, startFrame: item.frame })),
+        startPointerFrame: frame, startClientX: event.clientX, startClientY: event.clientY,
+      };
+      ui.setFrame(frame, false, false);
+    });
     diamond.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();

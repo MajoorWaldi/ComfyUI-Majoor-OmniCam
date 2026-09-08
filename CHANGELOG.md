@@ -7,7 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+- Director Viewport: completely overhauled **3D Viewport Look & Aesthetics**:
+  - **Atmospheric Studio Cyclorama**: graded 6-stop sky dome with horizon glow, eliminating pitch-black voids.
+  - **Atmospheric Distance Fog**: soft exponential distance fog fading grid and distant geometry smoothly into the horizon.
+  - **Expansive Floor Sweep & Contact Shadows**: widened floor plane (180x180) with smooth radial falloff and natural contact shadows.
+  - **Velvety Studio Clay Material**: upgraded neutral proxy shader (`roughness: 0.48`, `metalness: 0.06`) catching soft environmental specular highlights on mannequins, cylinders, toruses, and custom 3D models.
+  - **Three-Point Studio Rig**: calibrated Key (3400K, soft PCF shadows), Fill, Rim kick, and cavity bounce lighting.
+  - **Dual-Tier 3D Grid & Ground Axes**: major 5-unit grid, fine 1-unit grid, plus Ruby Red X and Cobalt Blue Z ground coordinate lines.
+  - **Luminous Camera Trajectory & Frustum**: glowing spline with flight direction chevrons, keyframe waypoint halos, active amber beacons, and volumetric translucent film gate quads.
+  - **Polished Transform Gizmos**: vibrant modern DCC colors (`#f43f5e`, `#10b981`, `#3b82f6`), shaded arrowheads, and circular frosted glass navigation widget.
+- Director Viewport: added **Camera HUD & OSD** displaying live lens focal length, FOV, target distance,
+  **Camera Lock toggle (`🔒`)** preventing accidental navigation, and quick horizon roll reset (`⮑`).
+- Director Viewport: added **Coordinate Space toggle (`W` / `L`)** and **Snapping quick toggle (🧲)**
+  directly to the vertical tool rail.
+- Director Viewport: added **Quick Overlays cluster** (Floor Grid, Wireframe on Mesh, Gizmos, Thirds Guides, Safe Areas, 2D Radar)
+  and **Shading Mode selector** (Omni Ref, Graybox, Textured, Wireframe, Wireframe + Texture, Grid, Beauty) in the viewport header corner.
+- Director Materials & Shading: overhauled **Materials & Display Modes**:
+  - **Expanded Object Material Modes**: `textured` (Textures/Media), `wireframe_texture` (Wireframe on Textured/Media), `checker` (UV Checkerboard), `neutral` (Velvety Studio Clay), `wireframe_neutral` (Wireframe on Clay), `wireframe` (Pure Wireframe lines), and `matte` (Matte Dark), with live per-object color tinting.
+  - **Wireframe Overlay Quick Toggle**: added a dedicated wireframe overlay button (`data-role="overlay-wireframe-btn"`) in the viewport header to toggle edge visualization over any shaded surface instantly.
+  - **Depth-Tested & Animated Mesh Overlays**: wireframe overlay lines render with proper depth testing (`depthTest: true`) over shaded geometry and remain dynamically bound to rigged character/model skeletons during animation playback.
+- Director Viewport: added **Fullscreen Floating Mini-Transport** with transport controls, SMPTE timecode, and frame counter.
+- Director Outliner: added **Alt+Click Isolate mode** on the visibility eye icon to quickly isolate or restore scene objects.
+- Director Inspector: added standard **Sensor / Gate Presets** (`Full Frame 35mm`, `Super 35`, `Micro 4/3`, `16:9 Digital Cinema`, `Mobile 9:16 Vertical`).
+- Director: added **Card (`card`)**, **Cylinder (`cylinder`)**, and **Torus (`torus`)**
+  primitive creation buttons to the Outliner quick-bar, toolbar, and viewport context menus.
+  "Ground" in the quick-bar is replaced by "Card", while preserving full backward compatibility
+  for scenes containing legacy `ground` objects.
+- Director: replaced the human proxy box with an authentic **low-poly human figure (mannequin)**
+  procedural 3D mesh (faceted head, neck, chest, pelvis, arms in relaxed A-pose, and legs
+  grounded at y = 0 on the floor plane), optimized into a single draw call BufferGeometry.
+- Director: expanded keyframe interpolation with **12 easing modes** (`ease`, `smooth`, `bezier`,
+  `linear`, `ease_in`, `ease_out`, `hold`, `sine`, `cubic`, `quintic`, `expo`, `back`) and
+  **6 tangent modes** (`auto`, `clamped`, `vector`, `free`, `aligned`, `flat`) with handle editing.
+- Director: added **Graph Editor vertical drag-resize** (`graph-resize` / `graph_height`) and
+  **Side Panel horizontal drag-resize** (`side-resize` / `side_width`), both persisting in
+  workflow state and keyboard-accessible.
+- Director: added **Vector Axis Quick-Reset (`⟲`)** buttons next to Position, Rotation, Scale,
+  and Camera coordinates in the Outliner and Inspector.
+- Director: added `18mm` lens preset, sticky headers for outliner and health panels, and
+  smooth arrow-key navigation across scene tree items and inspector tabs.
 - Director: added freehand **Draw Camera Path** authoring in Top View with
   playback-range timing, tangent Follow Path orientation, non-destructive Look At,
   cancel-safe pointer handling, and editor-only path preview.
@@ -29,6 +67,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inner scrollbar.
 
 ### Changed
+- Graph Editor curve and dope-sheet canvas now dynamically reads `clientHeight` instead
+  of a hardcoded 220px baseline, completely eliminating vertical stretching or distortion
+  when resizing the graph panel.
+- Outliner quick-bar and creation menus replaced "Ground" with "Card" to prioritize
+  media billboard workflows, while maintaining strict backward compatibility for existing
+  scenes with legacy `ground` primitives.
+- Outliner search input, quick primitive buttons, and category filter chips are styled with
+  sticky positioning to remain accessible during vertical list scrolling.
+- Scene validation schema (`OBJECT_TYPES`) in `omnicam/core/validation.py` expanded to
+  formally validate `cylinder` and `torus` primitives alongside `card`, `cube`, `sphere`,
+  `human`, and `null`.
 - Camera-preview strip re-laid-out as a flex column (was a CSS grid whose
   aspect-ratio tiles could overlap and mis-frame in Chromium/Edge when the
   column was widened); the strip is no longer height-capped, so a wider column
@@ -51,6 +100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mounted Director and states plainly that a reload is needed for the rest.
 
 ### Fixed
+- Fixed Graph Editor canvas vertical stretching and curve point misalignments caused
+  by a static 220px coordinate scale when `graph_height` was resized.
 - Media lifecycle: a replaced `<video>` is stopped and unloaded, `ui.disposed`
   / request-generation guards run after every `await`, and node removal tears
   down its decoder — no more decoding continuing behind a dropped reference.

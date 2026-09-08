@@ -11,7 +11,7 @@
     "duration_frames": {"type": "integer", "minimum": 1, "maximum": 14400},
     "width": {"type": "integer", "minimum": 64, "maximum": 4096},
     "height": {"type": "integer", "minimum": 64, "maximum": 4096},
-    "render_mode": {"enum": ["beauty", "card_grid", "graybox", "grid", "omni_ref", "point_field", "wireframe"]},
+    "render_mode": {"enum": ["beauty", "card_grid", "graybox", "grid", "omni_ref", "point_field", "textured", "wireframe", "wireframe_texture"]},
     "keyframes": {
       "type": "array",
       "minItems": 1,
@@ -61,7 +61,7 @@
       "properties": {
         "frame": {"type": "integer", "minimum": 0, "maximum": 14399},
         "camera": {"$ref": "#/$defs/camera"},
-        "interpolation": {"enum": ["bezier", "ease", "ease_in", "ease_out", "hold", "linear", "smooth"]}
+        "interpolation": {"enum": ["back", "bezier", "cubic", "ease", "ease_back", "ease_cubic", "ease_expo", "ease_in", "ease_out", "ease_quintic", "ease_sine", "expo", "hold", "linear", "quintic", "sine", "smooth"]}
       },
       "additionalProperties": true
     },

@@ -161,6 +161,8 @@ export function refreshKeys(ui) {
       summaryEl.title = t(`Currently animating camera: ${activeCamera.name}`);
     }
     summaryEl.append(subject, document.createTextNode(` · ${keys.length} key${keys.length === 1 ? "" : "s"}`));
+    const selectedCount = ui.selectedKeyFrames?.size || 0;
+    if (selectedCount > 1) summaryEl.append(document.createTextNode(` · ${selectedCount} selected`));
     // Keys past the end are kept but not drawn, so say so: otherwise shortening
     // the timeline looks like it deleted them, which is what it used to do.
     const dormant = keys.filter((key) => key.frame > ui.state.duration_frames - 1).length;
@@ -172,6 +174,8 @@ export function refreshKeys(ui) {
       summaryEl.append(badge);
     }
   }
+  const keyCountEl = ui.root.querySelector('[data-role="key-count"]');
+  if (keyCountEl) keyCountEl.textContent = String(keys.length);
   const camSummaryEl = ui.root.querySelector('[data-role="camera-summary"]');
   if (camSummaryEl) camSummaryEl.textContent = `${activeCamera.name} · Key F${ui.selectedKeyFrame ?? ui.frame}`;
   const cameraList = ui.root.querySelector('[data-role="camera-menu-list"]');

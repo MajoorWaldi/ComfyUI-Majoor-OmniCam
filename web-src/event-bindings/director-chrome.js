@@ -3,16 +3,31 @@
 // outliner filter, the dope-sheet channel toggles, and the two view toggles.
 
 import { t } from "../i18n.js";
-import { focalLengthToFov, formatFocalLength } from "../lens.js";
+import { promptText } from "../director/ui-services.js";
+import { focalLengthToFov, formatFocalLength, SENSOR_PRESETS } from "../lens.js";
 import { captureBaseline, smoothKeyframes } from "../path-smoothing.js";
 import { renderDopeRows } from "../dope-sheet-view.js";
-import { loadMotionProfiles, recenterSubject, renderHealthPanel, slowToLimits, smoothFlaggedZones } from "../motion-health/panel.js";
+import { loadMotionProfiles, recenterSubject, renderHealthPanel, slowToLimits, smoothFlaggedZones, smoothKeysInZone } from "../motion-health/panel.js";
 import { commitPendingExtractorImport, dismissPendingExtractorImport } from "../extractor/director-link.js";
+import { setupAxisResetButtons, setupAxisScrubbing } from "../scene/axis-scrub.js";
+import { setupViewportHudHandlers } from "../viewport/viewport-hud.js";
 
 function bindLensCard(ui, signal) {
   const focal = ui.root.querySelector('[data-role="camera-focal"]');
   const fov = ui.root.querySelector('[data-role="camera-fov"]');
+  const sensorSelect = ui.root.querySelector('[data-role="camera-sensor-preset"]');
   if (!focal || !fov) return;
+
+  if (sensorSelect) {
+    sensorSelect.addEventListener("change", () => {
+      const preset = SENSOR_PRESETS[sensorSelect.value];
+      if (preset && focal) {
+        const nextFov = focalLengthToFov(focal.value, preset.height);
+        fov.value = String(Math.round(nextFov * 100) / 100);
+        fov.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }, { signal });
+  }
 
   // The two fields are two readouts of one value. Each pushes to the camera and
   // lets the regular refresh cycle write the other one back.
@@ -64,6 +79,61 @@ function bindPathSmoothing(ui, signal) {
       : t("Path smoothing cleared"));
   }, { signal });
   show();
+}
+
+function bindKeySimplify(ui, signal) {
+  const slider = ui.root.querySelector('[data-role="key-simplify"]');
+  const readout = ui.root.querySelector('[data-role="key-simplify-value"]');
+  const scopeSelect = ui.root.querySelector('[data-role="key-op-scope"]');
+
+  const activeScope = () => (ui.selectedEntity === "object" && ui.selectedObjectId ? "object" : "camera");
+  const trackId = () => (activeScope() === "object" ? ui.selectedObjectId : ui.state.active_camera_id);
+  const currentKeys = () => (activeScope() === "object"
+    ? (ui.state.objects.find((o) => o.id === ui.selectedObjectId)?.keyframes || [])
+    : ui.activeCameraTrack().keyframes || []);
+
+  if (slider) {
+    const show = () => {
+      if (readout) readout.textContent = Number(slider.value) > 0 ? `${slider.value}%` : t("Off");
+    };
+    // Simplify replays from an untouched baseline, so dragging back to 0%
+    // restores exactly the keys the animator had -- same contract as the Path
+    // Smoothing slider above.
+    const baselineFor = () => {
+      const signature = `${activeScope()}:${trackId()}`;
+      if (ui.keySimplifyBaseline?.signature !== signature) {
+        ui.keySimplifyBaseline = { signature, keys: JSON.parse(JSON.stringify(currentKeys())) };
+      }
+      return ui.keySimplifyBaseline.keys;
+    };
+
+    slider.addEventListener("input", show, { signal });
+    slider.addEventListener("change", () => {
+      const scope = activeScope();
+      ui.simplifyActiveKeys({
+        mode: "simplify",
+        tolerance: Number(slider.value) / 100,
+        scope,
+        fromKeys: baselineFor().map((key) => JSON.parse(JSON.stringify(key))),
+      });
+      if (Number(slider.value) === 0) ui.keySimplifyBaseline = null;
+    }, { signal });
+    show();
+  }
+
+  ui.root.querySelector('[data-act="keys-reduce"]')?.addEventListener("click", async () => {
+    const answer = await promptText(ui, t("Reduce keys"), t("Target number of keys"), "8");
+    const target = Math.round(Number(answer));
+    if (Number.isFinite(target) && target >= 2) {
+      ui.simplifyActiveKeys({ mode: "reduce", target, scope: scopeSelect?.value || "camera" });
+      ui.keySimplifyBaseline = null;
+    }
+  }, { signal });
+
+  ui.root.querySelector('[data-act="keys-clean"]')?.addEventListener("click", () => {
+    ui.simplifyActiveKeys({ mode: "clean", scope: scopeSelect?.value || "camera" });
+    ui.keySimplifyBaseline = null;
+  }, { signal });
 }
 
 function bindOutlinerSearch(ui, signal) {
@@ -171,6 +241,13 @@ function bindHealthPanel(ui, signal) {
   }, { signal });
 
   ui.root.querySelector('[data-role="health-body"]')?.addEventListener("click", (event) => {
+    const smoothBtn = event.target.closest('[data-act="health-smooth-zone"]');
+    if (smoothBtn) {
+      const start = Number(smoothBtn.dataset.zoneStart);
+      const end = Number(smoothBtn.dataset.zoneEnd);
+      smoothKeysInZone(ui, start, end);
+      return;
+    }
     const zone = event.target.closest("[data-zone-start]");
     if (zone) {
       ui.setFrame(Number(zone.dataset.zoneStart), false, false);
@@ -188,13 +265,61 @@ function bindHealthPanel(ui, signal) {
   }
 }
 
+function bindOutlinerFilterChips(ui, signal) {
+  const container = ui.root.querySelector('[data-role="outliner-filter-chips"]');
+  if (!container) return;
+  container.addEventListener("click", (e) => {
+    const chip = e.target.closest(".oc-chip");
+    if (!chip) return;
+    ui.outlinerCategoryFilter = chip.dataset.filter || "all";
+    ui.refreshObjects();
+  }, { signal });
+}
+
+function bindShotPanelStepNav(ui, signal) {
+  const editor = ui.root.querySelector('[data-role="key-editor"]');
+  if (!editor) return;
+
+  editor.addEventListener("click", (event) => {
+    const tangentBtn = event.target.closest("[data-tangent]");
+    if (tangentBtn) {
+      ui.setKeyTangentMode(tangentBtn.dataset.tangent);
+      return;
+    }
+    const actBtn = event.target.closest("[data-act]");
+    if (!actBtn) return;
+    if (actBtn.dataset.act === "shot-prev-frame") {
+      ui.setFrame(Math.max(0, ui.frame - 1));
+    } else if (actBtn.dataset.act === "shot-next-frame") {
+      ui.setFrame(Math.min(ui.state.duration_frames - 1, ui.frame + 1));
+    } else if (actBtn.dataset.act === "shot-prev-key") {
+      ui.goToAdjacentKey?.(-1);
+    } else if (actBtn.dataset.act === "shot-next-key") {
+      ui.goToAdjacentKey?.(1);
+    }
+  }, { signal });
+
+  const tangentSelect = editor.querySelector('[data-role="key-tangent-mode"]');
+  if (tangentSelect) {
+    tangentSelect.addEventListener("change", () => {
+      ui.setKeyTangentMode(tangentSelect.value);
+    }, { signal });
+  }
+}
+
 export function bindDirectorChrome(ui, signal) {
   bindCameraExchange(ui, signal);
   bindLensCard(ui, signal);
   bindPathSmoothing(ui, signal);
+  bindKeySimplify(ui, signal);
   bindOutlinerSearch(ui, signal);
+  bindOutlinerFilterChips(ui, signal);
+  bindShotPanelStepNav(ui, signal);
+  setupAxisScrubbing(ui, signal);
+  setupAxisResetButtons(ui, signal);
   bindDopeChannels(ui, signal);
   bindViewToggles(ui, signal);
+  setupViewportHudHandlers(ui, signal);
   bindExtractorImportBanner(ui, signal);
   bindHealthPanel(ui, signal);
 }

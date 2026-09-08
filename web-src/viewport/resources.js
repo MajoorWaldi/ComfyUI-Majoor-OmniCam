@@ -2,6 +2,7 @@
 
 import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
 import { attachMeshOverlays } from "./mesh-overlays.js";
+import { createLowPolyHumanGeometry } from "./human-geometry.js";
 import { reconstructionMaterialMode } from "../scene/reconstruction-badges.js";
 import { spatialHandlePoints } from "../camera-path-curve.js";
 
@@ -44,10 +45,34 @@ export function createResourceMethods(dependencies) {
     this.objectNodes.clear();
     this.selectionKey = "";
     const mode = state.render_mode;
-    const grid = new THREE.GridHelper(120, 120, 0x777777, 0x3b3b3b);
-    grid.userData.omnicamCaptureGuide = true;
-    grid.frustumCulled = false;
-    this.content.add(grid);
+    // Dual-tier 3D grid: major 5-unit grid + fine 1-unit subdivisions + ground axes
+    const gridGroup = new THREE.Group();
+    gridGroup.userData.omnicamCaptureGuide = true;
+
+    const majorGrid = new THREE.GridHelper(120, 24, 0x3e4758, 0x323947);
+    majorGrid.userData.omnicamCaptureGuide = true;
+    majorGrid.frustumCulled = false;
+    majorGrid.position.y = 0.0005;
+    gridGroup.add(majorGrid);
+
+    const minorGrid = new THREE.GridHelper(120, 120, 0x222631, 0x1d212b);
+    minorGrid.userData.omnicamCaptureGuide = true;
+    minorGrid.frustumCulled = false;
+    gridGroup.add(minorGrid);
+
+    const axisMatX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2, transparent: true, opacity: 0.85 });
+    const axisGeoX = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-60, 0.001, 0), new THREE.Vector3(60, 0.001, 0)]);
+    const axisLineX = new THREE.Line(axisGeoX, axisMatX);
+    axisLineX.userData.omnicamCaptureGuide = true;
+    gridGroup.add(axisLineX);
+
+    const axisMatZ = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2, transparent: true, opacity: 0.85 });
+    const axisGeoZ = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.001, -60), new THREE.Vector3(0, 0.001, 60)]);
+    const axisLineZ = new THREE.Line(axisGeoZ, axisMatZ);
+    axisLineZ.userData.omnicamCaptureGuide = true;
+    gridGroup.add(axisLineZ);
+
+    this.content.add(gridGroup);
     if (["omni_ref", "point_field"].includes(mode)) {
       const { points, colors } = generatePointField(state.point_density || "balanced", state.point_spread || "all_views", state.point_color || null);
       if (points.length > 0) {
@@ -74,12 +99,20 @@ export function createResourceMethods(dependencies) {
         const format = object.format || (object.type === "glb" ? "glb" : "");
         if (url && (model?.url !== url || model?.format !== format)) this.loadModel(object.id, url, format);
         const effectiveAppearance = reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
-        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance); }
+        if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object); }
         else mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2] || 1), wire.clone());
       } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode));
-      else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));
+      else if (object.type === "cylinder") mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), objectMaterial(object, mode));
+      else if (object.type === "torus") {
+        const torusGeom = new THREE.TorusGeometry(0.5, 0.2, 16, 32);
+        torusGeom.rotateX(Math.PI / 2);
+        mesh = new THREE.Mesh(torusGeom, objectMaterial(object, mode));
+      } else if (object.type === "human") {
+        mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), objectMaterial(object, mode));
+      } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode));
       else if (object.type === "card") {
-        mesh = object.material_mode && object.material_mode !== "textured" ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), objectMaterial(object, mode)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        const isCardTextured = !object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode);
+        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), objectMaterial(object, mode)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
       } else if (object.type === "null") {
         const axes = new THREE.AxesHelper(0.5); axes.position.fromArray(object.position || [0, 0, 0]); axes.userData.omnicamId = object.id; axes.frustumCulled = false; this.objectNodes.set(object.id, axes); this.content.add(axes); continue;
       } else {
@@ -95,7 +128,13 @@ export function createResourceMethods(dependencies) {
         c.userData.omnicamId = object.id;
       });
 
-      attachMeshOverlays(THREE, mesh, { wireframe: state.show_wireframe, vertices: state.show_vertices });
+      const isWireframeActive = Boolean(
+        state.show_wireframe ||
+        state.render_mode === "wireframe_texture" ||
+        object.material_mode === "wireframe_texture" ||
+        object.material_mode === "wireframe_neutral"
+      );
+      attachMeshOverlays(THREE, mesh, { wireframe: isWireframeActive, vertices: state.show_vertices });
 
       this.objectNodes.set(object.id, mesh);
       this.content.add(mesh);
@@ -158,6 +197,24 @@ export function createResourceMethods(dependencies) {
           glow.renderOrder = 899;
           glow.userData.omnicamWidget = "path";
           this.path.add(glow);
+
+          // Directional flow: subtle chevron cones along the spline indicating camera flight direction
+          if (points.length >= 8) {
+            const step = Math.max(6, Math.floor(samples / 8));
+            for (let i = Math.floor(step / 2); i < samples - 1; i += step) {
+              const p = points[i];
+              const tangent = points[i + 1].clone().sub(p).normalize();
+              const arrow = new THREE.ConeGeometry(radius * 1.5, radius * 3.0, 8);
+              arrow.rotateX(Math.PI / 2);
+              const rot = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), tangent);
+              const arrowMesh = new THREE.Mesh(arrow, new THREE.MeshBasicMaterial({ color: palette.marker, transparent: true, opacity: 0.85, depthTest: false }));
+              arrowMesh.quaternion.copy(rot);
+              arrowMesh.position.copy(p);
+              arrowMesh.renderOrder = 901;
+              arrowMesh.userData.omnicamWidget = "path";
+              this.path.add(arrowMesh);
+            }
+          }
         }
       }
 
@@ -178,9 +235,33 @@ export function createResourceMethods(dependencies) {
         marker.userData.omnicamWidget = "path";
         this.path.add(marker);
 
+        // Sleek outer waypoint halo ring
+        const outerRing = new THREE.Mesh(
+          new THREE.RingGeometry((controlPoint ? CURVE_POINT_RADIUS : 0.085) * 1.3, (controlPoint ? CURVE_POINT_RADIUS : 0.085) * 1.7, 24),
+          new THREE.MeshBasicMaterial({ color: controlPoint ? 0xffffff : palette.marker, side: THREE.DoubleSide, transparent: true, opacity: 0.65, depthTest: false })
+        );
+        outerRing.position.fromArray(key.camera.position);
+        outerRing.renderOrder = 909;
+        outerRing.userData.omnicamBillboard = true;
+        outerRing.userData.omnicamWidget = "path";
+        this.path.add(outerRing);
+
         const position = new THREE.Vector3().fromArray(key.camera.position);
         const target = new THREE.Vector3().fromArray(key.camera.target || [0, 0, 0]);
         const selectedKeyHere = isActive && selectedFrame != null && key.frame === selectedFrame;
+
+        // Radiant beacon halo on the selected keyframe control point
+        if (selectedKeyHere) {
+          const beacon = new THREE.Mesh(
+            new THREE.RingGeometry(CURVE_POINT_RADIUS * 2.1, CURVE_POINT_RADIUS * 2.6, 24),
+            new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false })
+          );
+          beacon.position.fromArray(key.camera.position);
+          beacon.renderOrder = 911;
+          beacon.userData.omnicamBillboard = true;
+          beacon.userData.omnicamWidget = "path";
+          this.path.add(beacon);
+        }
 
         // Every other keyframe is just its path point above: the frustum and
         // camera body only draw for the one keyframe actually selected. The
@@ -213,6 +294,25 @@ export function createResourceMethods(dependencies) {
           }));
           frustumLines.userData.omnicamWidget = "gizmo";
           this.path.add(frustumLines);
+
+          // Translucent near-plane film gate quad
+          const gateGeo = new THREE.BufferGeometry();
+          gateGeo.setIndex([0, 1, 2, 0, 2, 3]);
+          gateGeo.setAttribute("position", new THREE.Float32BufferAttribute([
+            corners[0].x, corners[0].y, corners[0].z,
+            corners[1].x, corners[1].y, corners[1].z,
+            corners[2].x, corners[2].y, corners[2].z,
+            corners[3].x, corners[3].y, corners[3].z,
+          ], 3));
+          const gateMesh = new THREE.Mesh(gateGeo, new THREE.MeshBasicMaterial({
+            color: palette.marker,
+            transparent: true,
+            opacity: 0.12,
+            depthTest: false,
+            side: THREE.DoubleSide,
+          }));
+          gateMesh.userData.omnicamWidget = "gizmo";
+          this.path.add(gateMesh);
 
           // A shaded body with a lens cone reads as a camera at a glance, where
           // the frustum lines alone read as an abstract shape.

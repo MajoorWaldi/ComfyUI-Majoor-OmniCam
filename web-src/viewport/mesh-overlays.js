@@ -39,15 +39,17 @@ function tagOverlay(overlay) {
  * overlays must be siblings of the mesh (a SkinnedMesh child would inherit the
  * mesh transform twice), plain ones stay children as before.
  */
-export function wireframeOverlay(THREE, mesh) {
+export function wireframeOverlay(THREE, mesh, { color = null, opacity = null } = {}) {
+  const lineColor = color != null ? color : HELPER_COLOR;
+  const lineOpacity = opacity != null ? opacity : 0.65;
   if (isSkinned(mesh)) {
     // The geometry is cloned because rebuild() disposes helpers outright, and a
     // shared clone would take the model's buffers down with it.
     const overlay = new THREE.SkinnedMesh(mesh.geometry.clone(), new THREE.MeshBasicMaterial({
-      color: HELPER_COLOR,
+      color: lineColor,
       wireframe: true,
       transparent: true,
-      opacity: 0.45,
+      opacity: lineOpacity,
       depthWrite: false,
     }));
     overlay.bindMode = mesh.bindMode;
@@ -57,7 +59,7 @@ export function wireframeOverlay(THREE, mesh) {
   }
   const overlay = new THREE.LineSegments(
     new THREE.WireframeGeometry(mesh.geometry),
-    new THREE.LineBasicMaterial({ color: HELPER_COLOR, opacity: 0.45, transparent: true }),
+    new THREE.LineBasicMaterial({ color: lineColor, opacity: lineOpacity, transparent: true, depthTest: true }),
   );
   return { overlay: tagOverlay(overlay), parent: mesh };
 }
@@ -121,7 +123,7 @@ export function worldOverlay(THREE, mesh, material) {
  * mesh in its own right, so building them during the traversal would have
  * traverse() walk into overlays and build overlays for those in turn.
  */
-export function attachMeshOverlays(THREE, root, { wireframe = false, vertices = false } = {}) {
+export function attachMeshOverlays(THREE, root, { wireframe = false, vertices = false, wireframeColor = null, wireframeOpacity = null } = {}) {
   if (!wireframe && !vertices) return;
   const meshes = [];
   root.traverse((child) => {
@@ -129,7 +131,7 @@ export function attachMeshOverlays(THREE, root, { wireframe = false, vertices = 
   });
   for (const mesh of meshes) {
     if (wireframe) {
-      const { overlay, parent } = wireframeOverlay(THREE, mesh);
+      const { overlay, parent } = wireframeOverlay(THREE, mesh, { color: wireframeColor, opacity: wireframeOpacity });
       parent.add(overlay);
     }
     if (vertices) {

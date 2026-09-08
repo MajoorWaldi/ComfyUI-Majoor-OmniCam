@@ -80,15 +80,67 @@ function formatNumber(value) {
   return Number(value).toFixed(Math.abs(value) >= 100 ? 0 : 1);
 }
 
+export function calculateQualityScore(report) {
+  if (!report || !report.limits) return { score: 100, letter: "A" };
+  const evaluated = [
+    { val: report.max_speed, limit: report.limits.max_speed },
+    { val: report.max_angular_speed, limit: report.limits.max_angular_speed },
+    { val: report.max_acceleration, limit: report.limits.max_acceleration },
+    { val: report.max_jerk, limit: report.limits.max_jerk },
+    { val: report.max_fov_change, limit: report.limits.max_fov_change },
+  ].filter((m) => m.limit && m.limit > 0);
+
+  if (!evaluated.length) return { score: 100, letter: "A" };
+
+  let totalScore = 0;
+  for (const { val, limit } of evaluated) {
+    const ratio = (val || 0) / limit;
+    let itemScore = 100;
+    if (ratio <= 0.75) {
+      itemScore = 100;
+    } else if (ratio <= 1.0) {
+      itemScore = 100 - ((ratio - 0.75) / 0.25) * 20;
+    } else if (ratio <= 1.5) {
+      itemScore = 80 - ((ratio - 1.0) / 0.5) * 40;
+    } else {
+      itemScore = Math.max(0, 40 - (ratio - 1.5) * 40);
+    }
+    totalScore += itemScore;
+  }
+
+  let avg = Math.round(totalScore / evaluated.length);
+  if (report.framing_loss_frames) {
+    const penalty = Math.min(50, Math.round((report.framing_loss_frames / Math.max(1, report.duration_frames || 100)) * 100));
+    avg = Math.max(0, avg - penalty);
+  }
+
+  let letter = "A";
+  if (avg < 50) letter = "D";
+  else if (avg < 75) letter = "C";
+  else if (avg < 90) letter = "B";
+
+  return { score: avg, letter };
+}
+
 function metricRow(metric, value, recommended, grade) {
   const limitText = recommended === undefined || recommended === null
     ? t("no limit")
     : `${formatNumber(value)} / ${formatNumber(recommended)}`;
+  const hasLimit = recommended !== undefined && recommended !== null && recommended > 0;
+  const pct = hasLimit ? Math.min(100, Math.round((value / recommended) * 100)) : 0;
+  const barColor = grade === "over" ? "#ef4444" : grade === "warn" ? "#f59e0b" : "#22c55e";
+
   return `
     <div class="oc-health-metric" data-grade="${grade}">
-      <span class="oc-health-dot"></span>
-      <span class="oc-health-metric-name">${metricLabel(metric)}</span>
-      <span class="oc-health-metric-value">${limitText}</span>
+      <div class="oc-health-metric-row">
+        <span class="oc-health-dot"></span>
+        <span class="oc-health-metric-name">${metricLabel(metric)}</span>
+        <span class="oc-health-metric-value">${limitText}</span>
+      </div>
+      ${hasLimit ? `
+      <div class="oc-health-bar-track">
+        <div class="oc-health-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+      </div>` : ""}
     </div>`;
 }
 
@@ -107,22 +159,31 @@ function zoneList(report) {
       ? t("Frame {frame}").replace("{frame}", String(zone.start))
       : t("Frames {start}-{end}").replace("{start}", String(zone.start)).replace("{end}", String(zone.end));
     return `
-      <button type="button" class="oc-health-zone" data-grade="${zone.grade}" data-zone-start="${zone.start}"
-              title="${t("Jump the playhead to this zone")}">
-        <span class="oc-health-dot"></span><span class="oc-health-zone-range">${label}</span>
-        <span class="oc-health-zone-reason">${reasons}</span>
-      </button>`;
+      <div class="oc-health-zone-row" style="display:flex;align-items:center;gap:4px">
+        <button type="button" class="oc-health-zone" data-grade="${zone.grade}" data-zone-start="${zone.start}"
+                title="${t("Jump the playhead to this zone")}">
+          <span class="oc-health-dot"></span><span class="oc-health-zone-range">${label}</span>
+          <span class="oc-health-zone-reason">${reasons}</span>
+        </button>
+        <button type="button" class="icon-button oc-zone-smooth-btn" data-act="health-smooth-zone"
+                data-zone-start="${zone.start}" data-zone-end="${zone.end}"
+                title="${t("Smooth keys in this zone only")}" style="flex:0 0 24px;height:24px;padding:0">
+          <i class="pi pi-chart-line" style="font-size:10px"></i>
+        </button>
+      </div>`;
   }).join("");
 }
 
 export function renderHealthPanel(ui) {
   const body = ui.root.querySelector('[data-role="health-body"]');
   const badge = ui.root.querySelector('[data-role="health-badge"]');
+  const scoreBadge = ui.root.querySelector('[data-role="health-score-badge"]');
   if (!body || !badge) return;
 
   if (!ui.motionProfiles) {
     badge.className = "oc-health-badge";
     badge.textContent = t("Unavailable");
+    if (scoreBadge) scoreBadge.textContent = "--";
     body.innerHTML = `<div class="oc-health-empty">${t("Could not load the recommended limits from the OmniCam server. The panel will not guess a threshold.")}</div>`;
     return;
   }
@@ -134,6 +195,12 @@ export function renderHealthPanel(ui) {
 
   badge.className = `oc-health-badge ${report.grade}`;
   badge.textContent = gradeLabel(report.grade);
+
+  if (scoreBadge) {
+    const { score, letter } = calculateQualityScore(report);
+    scoreBadge.textContent = `${score}% (${letter})`;
+    scoreBadge.className = `oc-health-score-badge grade-${letter.toLowerCase()}`;
+  }
 
   const metrics = [
     metricRow("speed", report.max_speed, report.limits.max_speed,
@@ -148,9 +215,12 @@ export function renderHealthPanel(ui) {
   ].join("");
 
   const framing = report.framing_loss_frames
-    ? `<div class="oc-health-metric" data-grade="over"><span class="oc-health-dot"></span>
-         <span class="oc-health-metric-name">${metricLabel("framing_loss")}</span>
-         <span class="oc-health-metric-value">${t("{count} frames").replace("{count}", String(report.framing_loss_frames))}</span>
+    ? `<div class="oc-health-metric" data-grade="over">
+         <div class="oc-health-metric-row">
+           <span class="oc-health-dot"></span>
+           <span class="oc-health-metric-name">${metricLabel("framing_loss")}</span>
+           <span class="oc-health-metric-value">${t("{count} frames").replace("{count}", String(report.framing_loss_frames))}</span>
+         </div>
        </div>`
     : "";
 
@@ -261,3 +331,12 @@ export function recenterSubject(ui) {
   applyKeys(ui, recentred, "Recenter subject",
     t("Recentred {count} zone(s) on the subject.").replace("{count}", String(ranges.length)));
 }
+
+export function smoothKeysInZone(ui, start, end) {
+  const report = healthReport(ui);
+  if (!report) return;
+  const smoothed = smoothKeysInRanges(ui.state.keyframes, [{ start, end }], 0.6);
+  applyKeys(ui, smoothed, "Smooth zone",
+    t("Smoothed zone ({start}-{end}).").replace("{start}", String(start)).replace("{end}", String(end)));
+}
+

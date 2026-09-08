@@ -349,6 +349,10 @@ export function onPointerDown(ui, e) {
   const isFly = Boolean(ui.isNavigatingFly);
   const mode = navigationGesture(ui, e, viewCamera);
   if (!isFly && !mode) return;
+  if (!editorView && ui.state.camera_lock) {
+    ui.setStatus?.(t("Camera View is locked (click 🔒 to unlock)"));
+    return;
+  }
   // Fly mode owns the drag for looking around, so it outranks pan/dolly --
   // onPointerMove tests dolly first and would otherwise win the gesture.
   const isPan = !isFly && mode === "pan";
@@ -758,6 +762,10 @@ export function onWheel(ui, e) {
   }
   checkpointWheelGesture(ui);
   const editorView = ui.state.view_mode !== "camera";
+  if (!editorView && ui.state.camera_lock) {
+    ui.setStatus?.(t("Camera View is locked (click 🔒 to unlock)"));
+    return;
+  }
   const camera = viewportCamera(ui);
   if (!editorView) ui.beginCameraEdit();
   const delta = clamp(pixels * 1e-3, -0.4, 0.4);

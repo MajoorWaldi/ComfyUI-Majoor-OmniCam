@@ -128,6 +128,25 @@ export function createSceneMethods(dependencies) {
       }));
       frustumLines.userData.omnicamWidget = "gizmo";
       this.liveCameras.add(frustumLines);
+
+      // Translucent near-plane film gate quad
+      const gateGeo = new THREE.BufferGeometry();
+      gateGeo.setIndex([0, 1, 2, 0, 2, 3]);
+      gateGeo.setAttribute("position", new THREE.Float32BufferAttribute([
+        corners[0].x, corners[0].y, corners[0].z,
+        corners[1].x, corners[1].y, corners[1].z,
+        corners[2].x, corners[2].y, corners[2].z,
+        corners[3].x, corners[3].y, corners[3].z,
+      ], 3));
+      const gateMesh = new THREE.Mesh(gateGeo, new THREE.MeshBasicMaterial({
+        color: isSelected ? palette.marker : palette.frustum,
+        transparent: true,
+        opacity: 0.12,
+        depthTest: false,
+        side: THREE.DoubleSide,
+      }));
+      gateMesh.userData.omnicamWidget = "gizmo";
+      this.liveCameras.add(gateMesh);
       } // end !lookAtOnly
 
       // Target sightline & target picking

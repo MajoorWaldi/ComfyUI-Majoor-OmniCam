@@ -76,6 +76,8 @@ export function bindEditorAndGlobal(ui, q, signal) {
     curve.addEventListener("pointermove", (event) => ui.onCurvePointerMove(event), { signal });
     curve.addEventListener("pointerup", (event) => ui.onCurvePointerUp(event), { signal });
     curve.addEventListener("pointercancel", (event) => ui.onCurvePointerUp(event), { signal });
+    curve.addEventListener("pointerleave", () => { ui.curveHover = null; ui.drawCurveEditor(); }, { signal });
+    curve.addEventListener("dblclick", (event) => ui.onCurveDoubleClick?.(event), { signal });
     curve.addEventListener("wheel", (event) => onCurveWheel(ui, event), { passive: false, signal });
   }
   q('[data-act="curve-zoom-in"]')?.addEventListener("click", () => ui.zoomCurve(1.25), { signal });

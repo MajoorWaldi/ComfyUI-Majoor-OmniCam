@@ -9,28 +9,38 @@ import assert from "node:assert/strict";
 import { PANEL_LAYOUT, defaultState, sanitizeState } from "../../web-src/director/core.js";
 import { applyPanelLayout, bindPanelResize } from "../../web-src/event-bindings/panel-resize.js";
 
-test("defaultState seeds both panel sizes at their documented defaults", () => {
+test("defaultState seeds panel sizes at their documented defaults", () => {
   const state = defaultState();
   assert.equal(state.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
   assert.equal(state.preview_width, PANEL_LAYOUT.previewWidth.default);
+  assert.equal(state.side_width, PANEL_LAYOUT.sideWidth.default);
+  assert.equal(state.graph_height, PANEL_LAYOUT.graphHeight.default);
 });
 
 test("sanitizeState clamps out-of-range or unusable panel sizes", () => {
-  const low = sanitizeState({ outliner_height: 5, preview_width: 5 });
+  const low = sanitizeState({ outliner_height: 5, preview_width: 5, side_width: 10, graph_height: 10 });
   assert.equal(low.outliner_height, PANEL_LAYOUT.outlinerHeight.min);
   assert.equal(low.preview_width, PANEL_LAYOUT.previewWidth.min);
+  assert.equal(low.side_width, PANEL_LAYOUT.sideWidth.min);
+  assert.equal(low.graph_height, PANEL_LAYOUT.graphHeight.min);
 
-  const high = sanitizeState({ outliner_height: 99999, preview_width: 99999 });
+  const high = sanitizeState({ outliner_height: 99999, preview_width: 99999, side_width: 99999, graph_height: 99999 });
   assert.equal(high.outliner_height, PANEL_LAYOUT.outlinerHeight.max);
   assert.equal(high.preview_width, PANEL_LAYOUT.previewWidth.max);
+  assert.equal(high.side_width, PANEL_LAYOUT.sideWidth.max);
+  assert.equal(high.graph_height, PANEL_LAYOUT.graphHeight.max);
 
-  const nan = sanitizeState({ outliner_height: "nope", preview_width: null });
+  const nan = sanitizeState({ outliner_height: "nope", preview_width: null, side_width: undefined, graph_height: "bad" });
   assert.equal(nan.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
   assert.equal(nan.preview_width, PANEL_LAYOUT.previewWidth.default);
+  assert.equal(nan.side_width, PANEL_LAYOUT.sideWidth.default);
+  assert.equal(nan.graph_height, PANEL_LAYOUT.graphHeight.default);
 
-  const kept = sanitizeState({ outliner_height: 300, preview_width: 400 });
+  const kept = sanitizeState({ outliner_height: 300, preview_width: 400, side_width: 350, graph_height: 250 });
   assert.equal(kept.outliner_height, 300);
   assert.equal(kept.preview_width, 400);
+  assert.equal(kept.side_width, 350);
+  assert.equal(kept.graph_height, 250);
 });
 
 function makeHandle() {
@@ -47,26 +57,36 @@ function fixture(stateOverrides = {}) {
   const vars = {};
   const outliner = makeHandle();
   const preview = makeHandle();
+  const side = makeHandle();
+  const graph = makeHandle();
   const previewRefits = [];
   const serializes = [];
   const ui = {
     state: { ...defaultState(), ...stateOverrides },
     root: {
       style: { setProperty: (name, value) => { vars[name] = value; } },
-      querySelector: (sel) => (sel.includes("outliner-resize") ? outliner : sel.includes("preview-resize") ? preview : null),
+      querySelector: (sel) => (
+        sel.includes("outliner-resize") ? outliner
+        : sel.includes("preview-resize") ? preview
+        : sel.includes("side-resize") ? side
+        : sel.includes("graph-resize") ? graph
+        : null
+      ),
     },
     refreshCameraPreviews: () => previewRefits.push(true),
     requestRender: () => {},
     scheduleSerialize: () => serializes.push(true),
   };
   bindPanelResize(ui, undefined);
-  return { ui, vars, outliner, preview, previewRefits, serializes };
+  return { ui, vars, outliner, preview, side, graph, previewRefits, serializes };
 }
 
 test("applyPanelLayout writes the current sizes as CSS custom properties", () => {
-  const { vars } = fixture({ outliner_height: 260, preview_width: 320 });
+  const { vars } = fixture({ outliner_height: 260, preview_width: 320, side_width: 310, graph_height: 240 });
   assert.equal(vars["--oc-outliner-h"], "260px");
   assert.equal(vars["--oc-preview-w"], "320px");
+  assert.equal(vars["--oc-side-w"], "310px");
+  assert.equal(vars["--oc-graph-h"], "240px");
 });
 
 test("dragging the outliner handle grows the list height and persists it", () => {
@@ -110,4 +130,22 @@ test("arrow keys nudge the size and Shift takes a bigger step", () => {
   assert.equal(ui.state.outliner_height, 168);
   outliner.dispatch("keydown", { key: "Home", preventDefault() {} });
   assert.equal(ui.state.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
+});
+
+test("dragging the side splitter inversely resizes side_width", () => {
+  const { ui, vars, side } = fixture({ side_width: 280 });
+  side.dispatch("pointerdown", { button: 0, pointerId: 3, clientX: 700, clientY: 0, preventDefault() {} });
+  side.dispatch("pointermove", { pointerId: 3, clientX: 640, clientY: 0 });
+  assert.equal(vars["--oc-side-w"], "340px");
+  side.dispatch("pointerup", { pointerId: 3, clientX: 640, clientY: 0 });
+  assert.equal(ui.state.side_width, 340);
+});
+
+test("dragging the graph handle down resizes graph_height", () => {
+  const { ui, vars, graph } = fixture({ graph_height: 220 });
+  graph.dispatch("pointerdown", { button: 0, pointerId: 4, clientX: 0, clientY: 300, preventDefault() {} });
+  graph.dispatch("pointermove", { pointerId: 4, clientX: 0, clientY: 380 });
+  assert.equal(vars["--oc-graph-h"], "300px");
+  graph.dispatch("pointerup", { pointerId: 4, clientX: 0, clientY: 380 });
+  assert.equal(ui.state.graph_height, 300);
 });

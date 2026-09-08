@@ -23,6 +23,7 @@ const RUNTIME_ONLY = new Set([
   "context-menu",  // appended by buildRoot() as a real element
   "sequence-lane",  // built by renderSequenceLane() only while the edit is on
   "sequence-track", // wrapper for the shot + audio lanes, same lifetime
+  "health-smooth-zone", // stamped on dynamically rendered problem zone rows
 ]);
 
 // data-act hooks wired with querySelector (not querySelectorAll): a second copy

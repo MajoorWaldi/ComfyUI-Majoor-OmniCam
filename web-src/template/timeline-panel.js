@@ -124,10 +124,16 @@ function graphEditor() {
               <button class="curve-mode" data-curve-mode="ease">${t("Ease In/Out")}</button>
               <button class="curve-mode" data-curve-mode="ease_in">${t("Ease In")}</button>
               <button class="curve-mode" data-curve-mode="ease_out">${t("Ease Out")}</button>
+              <button class="curve-mode" data-curve-mode="sine">${t("Sine")}</button>
+              <button class="curve-mode" data-curve-mode="cubic">${t("Cubic")}</button>
+              <button class="curve-mode" data-curve-mode="quintic">${t("Quintic")}</button>
+              <button class="curve-mode" data-curve-mode="expo">${t("Expo")}</button>
+              <button class="curve-mode" data-curve-mode="back">${t("Back")}</button>
               <button class="curve-mode" data-curve-mode="hold">${t("Hold / Step")}</button>
             </div>
             <div class="menu-divider"></div><div class="menu-title">${t("Tangents")}</div>
             <div class="menu-grid">
+              <button class="curve-mode" data-tangent-mode="clamped">${t("Clamped")}</button>
               <button class="curve-mode" data-tangent-mode="vector">${t("Vector")}</button>
               <button class="curve-mode" data-tangent-mode="free">${t("Free")}</button>
               <button class="curve-mode" data-tangent-mode="aligned">${t("Aligned")}</button>
@@ -144,6 +150,8 @@ function graphEditor() {
           <div class="oc-gsequence" data-role="graph-sequence" tabindex="0" hidden></div>
         </div>
       </div>
+      <div class="oc-resize-v oc-graph-resize" data-role="graph-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+           title="${t("Drag to resize graph editor — double-click to reset")}" aria-label="${t("Resize graph editor")}"></div>
     </details>`;
 }
 

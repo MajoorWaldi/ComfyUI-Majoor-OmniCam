@@ -17,7 +17,6 @@
 
 import { add, cameraBasis, mul } from "./director/core.js";
 import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
-import { cancelCameraPathDraw } from "./director/camera-path-draw.js";
 import { cancelMotionCreation } from "./motion-tracks/creation.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
 import { anyDirectorsLive, directorForTarget } from "./settings.js";
@@ -124,11 +123,12 @@ export function dispatchDirectorKey(ui, event) {
   const code = event.code;
   if (((event.ctrlKey || event.metaKey) && !code.startsWith("Numpad")) || event.altKey) return false;
 
-  switch (zoneOf(target, ui)) {
+  const zone = zoneOf(target, ui);
+  switch (zone) {
     case "viewport": return viewportKeymap(ui, event);
     case "sequence": return sequenceKeymap(ui, event);
     case "timeline":
-    case "graph": return timelineKeymap(ui, event);
+    case "graph": return timelineKeymap(ui, event, zone);
     case "scene": return sceneKeymap(ui, event);
     default: return false;
   }
@@ -171,9 +171,9 @@ function globalKeymap(ui, event) {
   const mod = event.ctrlKey || event.metaKey;
 
   if (key === "escape") {
-    if (ui.cameraPathDraw?.drawing && cancelCameraPathDraw(ui)) return true;
+    if (ui.cameraPathDraw?.drawing && ui.cancelCameraPathDraw?.()) return true;
     if (cancelViewportInteraction(ui)) return true;
-    if (cancelCameraPathDraw(ui)) return true;
+    if (ui.cancelCameraPathDraw?.()) return true;
     if (cancelMotionCreation(ui)) return true;
     if (ui.isNavigatingFly) {
       ui.isNavigatingFly = false;
@@ -320,16 +320,23 @@ function viewportKeymap(ui, event) {
 
 // --- timeline family: temporal keys (dope sheet, transport, graph editor) ----
 
-function timelineKeymap(ui, event) {
+function timelineKeymap(ui, event, zone) {
   const key = event.key.toLowerCase();
   const code = event.code;
 
+  if (key === "f") {
+    if (!event.repeat) {
+      if (zone === "graph") ui.resetCurveZoom();
+      else ui.resetTimelineZoom?.();
+    }
+    return true;
+  }
   if (key === "i" || key === "k") {
     if (!event.repeat) ui.insertKeyframe();
     return true;
   }
   if (event.key === "Delete" || event.key === "Backspace") {
-    if (!event.repeat && ui.selectedKeyframe()) ui.deleteKeyframe();
+    if (!event.repeat) ui.deleteSelectedKeyframes();
     return true;
   }
   if (event.key === "ArrowUp" || (event.shiftKey && event.key === "ArrowRight") || (key === "." && code !== "NumpadDecimal")) {
@@ -340,8 +347,16 @@ function timelineKeymap(ui, event) {
     ui.goToAdjacentKey(-1);
     return true;
   }
-  if (event.key === "ArrowLeft") { ui.setFrame(ui.frame - 1); return true; }
-  if (event.key === "ArrowRight") { ui.setFrame(ui.frame + 1); return true; }
+  // Plain Left/Right nudge the selected keys by a frame; with nothing selected
+  // they scrub the playhead as before. Shift+arrow (key nav, above) is unaffected.
+  if (event.key === "ArrowLeft") {
+    if (!ui.nudgeSelectedKeyframes(-1)) ui.setFrame(ui.frame - 1);
+    return true;
+  }
+  if (event.key === "ArrowRight") {
+    if (!ui.nudgeSelectedKeyframes(1)) ui.setFrame(ui.frame + 1);
+    return true;
+  }
   if (event.key === "Home") { ui.selectKeyframe(ui.timelineKeyframes()[0]); return true; }
   if (event.key === "End") {
     const keys = ui.timelineKeyframes();

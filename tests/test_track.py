@@ -249,3 +249,62 @@ def test_hold_is_an_accepted_interpolation_end_to_end():
     assert "hold" in INTERPOLATION_MODES
     payload = validate_track_payload({"keyframes": [{"frame": 0, "camera": {}, "interpolation": "hold"}]})
     assert payload["keyframes"][0]["interpolation"] == "hold"
+
+
+def test_clamped_tangent_mode_prevents_overshoot():
+    from omnicam.core.track import _resolve_channel_handles
+    from omnicam.core.validation import TANGENT_MODES, validate_track_payload
+
+    assert "clamped" in TANGENT_MODES
+
+    # 1. At a peak/valley where d_prev * d_next <= 0, slope must be zero
+    k_prev = {"frame": 0, "val": 0.0}
+    k_cur = {"frame": 10, "val": 10.0, "tangents": {"channels": {"val": {"mode": "clamped"}}}}
+    k_next = {"frame": 20, "val": 5.0}
+    handles = _resolve_channel_handles(k_cur, "val", k_prev, k_next, lambda k: k["val"])
+    assert handles["out_y"] == 0.0
+    assert handles["in_y"] == 0.0
+
+    # 2. In steep-to-shallow transition, slope is bounded by 3 * min(|d_prev|, |d_next|)
+    k_prev = {"frame": 0, "val": 0.0}  # slope = 10 / 10 = 1.0
+    k_cur = {"frame": 10, "val": 10.0, "tangents": {"channels": {"val": {"mode": "clamped"}}}}
+    k_next = {"frame": 20, "val": 10.1}  # slope = 0.1 / 10 = 0.01
+    handles = _resolve_channel_handles(k_cur, "val", k_prev, k_next, lambda k: k["val"])
+    # out_y = slope * next_span * (1/3)
+    # slope must be <= 3 * 0.01 = 0.03
+    slope = handles["out_y"] / (10.0 * (1.0 / 3.0))
+    assert slope <= 0.03 + 1e-6
+
+    # 3. Validation accepts clamped mode
+    validated = validate_track_payload({
+        "keyframes": [
+            {"frame": 0, "camera": {}, "tangents": {"channels": {"pos_x": {"mode": "clamped"}}}},
+        ]
+    })
+    assert validated["keyframes"][0]["tangents"]["channels"]["pos_x"]["mode"] == "clamped"
+
+
+def test_new_interpolation_modes():
+    from omnicam.core.validation import INTERPOLATION_MODES, validate_track_payload
+
+    new_modes = ["sine", "cubic", "quintic", "expo", "back"]
+    for mode in new_modes:
+        assert mode in INTERPOLATION_MODES
+        track = OmniCamTrack.from_dict({
+            "duration_frames": 11,
+            "keyframes": [
+                {"frame": 0, "camera": {"position": [0, 0, 0], "target": [0, 0, 0], "fov": 30}, "interpolation": mode},
+                {"frame": 10, "camera": {"position": [10, 20, 30], "target": [0, 0, 0], "fov": 60}, "interpolation": "linear"},
+            ]
+        })
+        # Check start and end
+        assert track.sample(0).position == [0.0, 0.0, 0.0]
+        assert track.sample(10).position == [10.0, 20.0, 30.0]
+        # Check midpoint moves in expected direction
+        mid = track.sample(5)
+        assert 0.0 < mid.position[0] < 10.0
+
+        # Validate through schema
+        payload = validate_track_payload({"keyframes": [{"frame": 0, "camera": {}, "interpolation": mode}]})
+        assert payload["keyframes"][0]["interpolation"] == mode
+

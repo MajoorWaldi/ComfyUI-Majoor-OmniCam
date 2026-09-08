@@ -228,9 +228,87 @@ the workflow (`outliner_height`, `preview_width`).
 viewport: every camera path (active one highlighted), the active camera's
 position and view cone, the target, scene objects, trajectory keys and an
 altitude dot coloured by height band. The scale adapts to keep the paths, the
-camera and the target in frame. The radar is never drawn during a playblast.
+## Viewport HUD & tool rail controls
 
-## Manual viewport QA
+- **Camera HUD & OSD**: Floating glassmorphic readout in Camera View showing lens focal length (`35mm`), field of view (`54.4°`), distance to subject (`Target: 4.2m`), and horizon roll reset button (`⮑ 0°`).
+- **Camera Lock (`🔒` / `🔓`)**: Click the lock icon in the Camera HUD to freeze camera transforms and navigation, protecting your shot composition from accidental shifts.
+- **World / Local Space Toggle (`W` / `L`)**: Switch the active transformation coordinate space directly on the vertical tool rail without opening menus.
+- **Snapping Toggle (🧲)**: 1-click grid snapping toggle on the tool rail.
+- **Quick Overlays Cluster**: Direct header toggle buttons for Floor Grid (⊞), Transform Gizmos (✛), Rule of Thirds Guides (#), Safe Areas (⊡), and 2D Radar (◎).
+- **Shading Mode Selector**: Direct switch between Omni Ref, Graybox, Wireframe, Grid, and Beauty.
+- **Fullscreen Floating Transport**: Glassmorphic player pill at the bottom of the viewport during fullscreen mode with step backward/forward, play/pause, timecode, and keyframe insertion (`I`).
+
+## Inspector & Vector Scrubbing
+
+- **Mouse Scrubbing**: Click and drag horizontally on any **X**, **Y**, or **Z** axis label in the Inspector or Outliner to smoothly increment or decrement values.
+  - Hold `Shift` while dragging for fine precision (0.1x).
+  - Hold `Ctrl` / `Cmd` for coarse adjustments (10x).
+  - Creates a single grouped undo checkpoint upon release.
+- **Quick Reset (`⟲`)**: Click the reset button next to Position, Target XYZ, Rotation, or Scale to restore default transforms.
+- **Lens Presets**: Instant focal length buttons: `14mm`, `18mm`, `24mm`, `35mm`, `50mm`, `85mm`, `135mm`.
+- **Sensor / Gate Presets**: Dropdown selection for standard camera formats: Full Frame 35mm, Super 35, Micro 4/3, 16:9 Digital Cinema, Mobile 9:16 Vertical.
+
+## Outliner hierarchy & filter chips
+
+- **Filter Chips**: Filter scene rows by category: `All`, `Cameras`, `Objects`, `Hidden`.
+- **Collapsible Section Headers**: Toggle visibility of `Cameras (n)` and `Objects (n)` groups.
+- **Parent/Child Tree Indentation**: Hierarchical nesting visualizes object `parent_id` relationships with subtle tree guide lines.
+- **Entity Type Colors**: Color-coded type badges (Camera blue, Model purple, Card cyan, Primitive amber, Human emerald, Null slate).
+- **Hover Quick Actions**: Direct buttons on rows for visibility toggle, lock/unlock, duplication, deletion, and context menus.
+- **Alt+Click to Isolate**: Alt-click the visibility eye icon on any object to isolate it in the viewport, hiding all others. Alt-click again to restore previous scene visibility.
+
+## Scene primitives & quick-bar
+
+The Outliner quick-bar, toolbar, and viewport right-click menu provide instant one-click 3D staging primitives:
+
+- **Card**: Media billboard plane oriented upright, ready for reference images or video textures.
+- **Cube**: 1m³ reference bounding box.
+- **Sphere**: 1m diameter spherical reference.
+- **Cylinder**: 1m diameter, 2m high cylindrical column for architectural blocking and vertical pivots.
+- **Torus**: Toroidal ring primitive (1m radius, 0.25m tube) for circular staging cues and orientation markers.
+- **Human**: Authentic procedural **low-poly 3D human mannequin** (proportional head, neck, chest, pelvis, relaxed A-pose arms, and legs), grounded at $y = 0$ on the floor plane for accurate shot scale cues.
+- **Null**: Empty 3D transform pivot for hierarchical parenting and camera target rigging.
+
+## Shot panel & step navigation
+
+- **Step Navigation**:
+  - `◀` / `▶`: Jump to adjacent keyframe.
+  - `-1f` / `+1f`: Nudge playhead by 1 frame.
+  - Dual readout displaying both standard SMPTE timecode (`HH:MM:SS:FF`) and frame index.
+- **12 Interpolation Modes**: `Ease`, `Smooth`, `Bezier`, `Linear`, `Ease In`, `Ease Out`, `Hold`, `Sine`, `Cubic`, `Quintic`, `Expo`, `Back`.
+- **6 Bezier Tangent Modes**: `Auto`, `Clamped`, `Vector`, `Free`, `Aligned`, `Flat`.
+
+## Camera Health & quality score
+
+- **Trajectory Quality Score**: Header pill displays an overall score from 0-100% with letter grades (A: Optimal, B: Good, C: Caution, D: Critical).
+- **Progress Gauge Bars**: Color-coded fill bars (green < 75%, amber 75-100%, red > 100%) against target model limits.
+- **Per-Zone Direct Actions**: Jump to problem frame range or click the inline smooth button to blend flagged keys directly.
+
+## Panel drag-resize & layout controls
+
+- **Side Panel Width Resize (`side-resize`)**:
+  - Drag the vertical bar between the 3D viewport and the right inspector panel to widen/narrow the side panel (min 200px, max 640px, default 280px).
+  - Double-click resets to default.
+  - Keyboard: `ArrowLeft` / `ArrowRight` (with `Shift` for larger steps), `Home` resets.
+- **Graph Editor Height Resize (`graph-resize`)**:
+  - Drag the horizontal bar at the bottom of the animation curve editor / dope sheet / sequence stage to expand or shrink the graph height (min 140px, max 720px, default 220px).
+  - Double-click resets to default.
+  - Keyboard: `ArrowUp` / `ArrowDown` (with `Shift` for larger steps), `Home` resets.
+- **Outliner Height Resize (`outliner-resize`)**:
+  - Drag the horizontal bar below the scene tree to resize the visible list.
+- **Camera Previews Width Resize (`preview-resize`)**:
+  - Drag the vertical splitter between camera previews and the timeline transport.
+- **Tab & Panel Navigation**:
+  - `ArrowLeft` / `ArrowRight` inside the tab strip (`.oc-side-tabs`) cycles between Outliner, Motion, Inspector, Shot, and Health tabs.
+  - `ArrowLeft` / `ArrowRight` inside graph tabs cycles between Curves, Dope Sheet, and Sequence.
+  - `ArrowUp` / `ArrowDown` inside the scene tree navigates through cameras and objects, scrolling items smoothly into view.
+- **Smooth Scrolling & Sticky Headers**:
+  - Outliner search, primitive buttons, and category chips stick to the top while scrolling large scenes.
+  - Shot panel transport/timecode bar sticks to the top while scrolling keyframe properties.
+  - Health panel quality score banner remains anchored at top while reviewing problem zones.
+  - Shift + Mouse Wheel or trackpad 2-finger horizontal swipe smoothly pans the timeline.
+
+## Verification checklist
 
 1. Create three centred objects, lock one, and multi-select.
 2. Run `T X 2 Enter`, `R Z 45 Enter`, `S 1.5 Enter`, then Undo / Redo.

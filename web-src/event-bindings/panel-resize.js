@@ -10,7 +10,7 @@
 
 import { PANEL_LAYOUT, clamp } from "../director/core.js";
 
-/** Push ui.state.outliner_height / preview_width onto ui.root as CSS vars. */
+/** Push ui.state.outliner_height / preview_width / side_width / graph_height onto ui.root as CSS vars. */
 export function applyPanelLayout(ui) {
   if (!ui?.root?.style?.setProperty) return;
   const height = clamp(
@@ -21,13 +21,25 @@ export function applyPanelLayout(ui) {
     Number(ui.state.preview_width) || PANEL_LAYOUT.previewWidth.default,
     PANEL_LAYOUT.previewWidth.min, PANEL_LAYOUT.previewWidth.max,
   );
+  const sideWidth = clamp(
+    Number(ui.state.side_width) || PANEL_LAYOUT.sideWidth.default,
+    PANEL_LAYOUT.sideWidth.min, PANEL_LAYOUT.sideWidth.max,
+  );
+  const graphHeight = clamp(
+    Number(ui.state.graph_height) || PANEL_LAYOUT.graphHeight.default,
+    PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max,
+  );
   ui.root.style.setProperty("--oc-outliner-h", `${Math.round(height)}px`);
   ui.root.style.setProperty("--oc-preview-w", `${Math.round(width)}px`);
+  ui.root.style.setProperty("--oc-side-w", `${Math.round(sideWidth)}px`);
+  ui.root.style.setProperty("--oc-graph-h", `${Math.round(graphHeight)}px`);
 }
 
 const HANDLES = {
-  "outliner-resize": { axis: "y", stateKey: "outliner_height", bounds: PANEL_LAYOUT.outlinerHeight, cssVar: "--oc-outliner-h" },
-  "preview-resize": { axis: "x", stateKey: "preview_width", bounds: PANEL_LAYOUT.previewWidth, cssVar: "--oc-preview-w" },
+  "outliner-resize": { axis: "y", direction: 1, stateKey: "outliner_height", bounds: PANEL_LAYOUT.outlinerHeight, cssVar: "--oc-outliner-h" },
+  "preview-resize": { axis: "x", direction: 1, stateKey: "preview_width", bounds: PANEL_LAYOUT.previewWidth, cssVar: "--oc-preview-w" },
+  "side-resize": { axis: "x", direction: -1, stateKey: "side_width", bounds: PANEL_LAYOUT.sideWidth, cssVar: "--oc-side-w" },
+  "graph-resize": { axis: "y", direction: 1, stateKey: "graph_height", bounds: PANEL_LAYOUT.graphHeight, cssVar: "--oc-graph-h" },
 };
 
 export function bindPanelResize(ui, signal) {
@@ -37,6 +49,7 @@ export function bindPanelResize(ui, signal) {
     const handle = ui.root.querySelector(`[data-role="${role}"]`);
     if (!handle) continue;
 
+    const dir = config.direction ?? 1;
     const raf = typeof globalThis.requestAnimationFrame === "function"
       ? globalThis.requestAnimationFrame.bind(globalThis)
       : (fn) => fn();
@@ -54,7 +67,9 @@ export function bindPanelResize(ui, signal) {
       ui.state[config.stateKey] = next;
       setLive(next);
       // A wider/narrower preview column re-fits the WebGL preview tiles.
-      if (config.axis === "x") { ui.refreshCameraPreviews?.(); ui.requestRender?.("layout"); }
+      if (config.stateKey === "preview_width") { ui.refreshCameraPreviews?.(); ui.requestRender?.("layout"); }
+      else if (config.stateKey === "side_width") { ui.scheduleResizeAndRender?.(); }
+      else if (config.stateKey === "graph_height") { ui.refreshGraph?.(); ui.drawCurveEditor?.(); }
       // Grow the node so the taller panel is not clipped behind a scrollbar.
       ui.refitNode?.();
       ui.scheduleSerialize?.();
@@ -71,13 +86,13 @@ export function bindPanelResize(ui, signal) {
 
     handle.addEventListener("pointermove", (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
-      setLive(drag.start + (pointerValue(event) - drag.origin));
+      setLive(drag.start + (pointerValue(event) - drag.origin) * dir);
     }, { signal });
 
     const end = (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
       handle.releasePointerCapture?.(event.pointerId);
-      commit(drag.start + (pointerValue(event) - drag.origin));
+      commit(drag.start + (pointerValue(event) - drag.origin) * dir);
       drag = null;
     };
     handle.addEventListener("pointerup", end, { signal });
@@ -89,7 +104,7 @@ export function bindPanelResize(ui, signal) {
     }, { signal });
 
     handle.addEventListener("keydown", (event) => {
-      const step = event.shiftKey ? 48 : 16;
+      const step = (event.shiftKey ? 48 : 16) * dir;
       const current = Number(ui.state[config.stateKey]) || config.bounds.default;
       if (event.key === "ArrowDown" || event.key === "ArrowRight") { event.preventDefault(); commit(current + step); }
       else if (event.key === "ArrowUp" || event.key === "ArrowLeft") { event.preventDefault(); commit(current - step); }

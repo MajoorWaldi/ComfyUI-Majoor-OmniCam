@@ -98,7 +98,14 @@ navigation gestures, display-scale-aware pan and normalized wheel zoom. Press
 
 A small shot-layout tool in a live 3D viewport. Animate cameras and scene
 references, draw motion layers over the frame, cut between cameras, and record a
-neutral proxy playblast. This is where a MotionScene is authored.
+neutral proxy playblast. This is where a MotionScene is authored:
+
+- **3D Scene Primitives**: Instant creation of **Card** (media billboard), **Cube**, **Sphere**, **Cylinder**, **Torus**, **Null**, and an authentic **procedural low-poly Human mannequin** (faceted torso, limbs in relaxed A-pose, grounded at $y=0$ for realistic human scale cues).
+- **Viewport HUD & Tool Rail Ergonomics**: On-screen Camera HUD (Lens mm, FOV, target distance, Camera Lock `🔒`, roll leveler `⮑`), 1-click World/Local coordinate space toggle (`W`/`L`) & Snapping (🧲) on the tool rail, quick-toggle overlay cluster, and fullscreen floating transport.
+- **Graph Editor & Animation Curves**: 12 easing interpolation modes (`ease`, `smooth`, `bezier`, `linear`, `ease_in`, `ease_out`, `hold`, `sine`, `cubic`, `quintic`, `expo`, `back`) and 6 Bézier tangent modes (`auto`, `clamped`, `vector`, `free`, `aligned`, `flat`) with dynamic aspect-ratio canvas scaling.
+- **Dynamic Layout Splitters**: Drag-resizable Outliner list, Camera Previews column, Right Inspector / Side Panel, and Graph Editor — all persistent in saved workflows and fully keyboard-operable (`role="separator"`).
+- **Interactive Camera Authoring**: Freehand **Draw Camera Path** in Top View with automatic keyframe timing, Follow Path orientation, Look At targets, and editable 3D spatial Bézier control handles.
+- **Inspector & Quick Controls**: Axis scrubbing, vector reset buttons (`⟲`), lens presets (`14mm`–`135mm`, including `18mm`), and Camera Health analysis.
 
 ### OmniCam Extractor
 
