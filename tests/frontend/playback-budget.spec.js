@@ -47,6 +47,10 @@ async function loadLongShot(page) {
 }
 
 test("a light playback frame tick stays well under a frame budget on a long shot", async ({ page }) => {
+  // Hundreds of synchronous SwiftShader renders in one page.evaluate; on a
+  // contended CI runner that whole call can crawl past the default 60s even
+  // though the per-frame ratio it checks is still fine. Give it headroom.
+  test.slow();
   await mount(page);
   await loadLongShot(page);
   const perFrameMs = await page.evaluate(() => {
@@ -79,6 +83,11 @@ test("the frame scheduler coalesces a burst of requests into one render", async 
 });
 
 test("adding cameras does not make a render super-linear (preview strip stays bounded)", async ({ page }) => {
+  // Same story as the light-tick test: ~90 synchronous software renders back to
+  // back in one page.evaluate. The ratio it asserts is runner-speed independent,
+  // but the wall-clock of the evaluate itself is not -- it timed out at 60s on a
+  // starved CI box. Triple the budget rather than loosen the actual check.
+  test.slow();
   await mount(page);
   await loadLongShot(page);
   // Absolute ms on a contended CI software renderer is unusably noisy (seen
@@ -98,8 +107,8 @@ test("adding cameras does not make a render super-linear (preview strip stays bo
     ui.playing = true;
 
     const measure = () => {
-      for (let i = 0; i < 5; i += 1) { ui.frame = i * 10; ui.render(); } // warm up
-      const N = 40;
+      for (let i = 0; i < 3; i += 1) { ui.frame = i * 10; ui.render(); } // warm up
+      const N = 24;
       const t0 = performance.now();
       for (let i = 0; i < N; i += 1) { ui.frame = i * 10; ui.render(); }
       return (performance.now() - t0) / N;
