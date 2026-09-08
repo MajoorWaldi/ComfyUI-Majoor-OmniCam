@@ -2,6 +2,7 @@
 
 import { add, cameraBasis, clamp, cloneCamera, cloneTransform, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
 import { interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
+import { applyPathGizmoDrag, beginPathGizmoDrag, selectCameraPath } from "./path-gizmo.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
@@ -142,6 +143,9 @@ export function onPointerDown(ui, e) {
       };
       return;
     }
+    if (picked.entity.type === "camera_path"
+      && beginPathGizmoDrag(ui, { baseDrag, viewCamera, entityPosition: picked.entity.position })) return;
+
     if (picked.entity.type === "object") {
       const selected = picked.entity.object;
       ui.checkpoint("Transform object");
@@ -278,6 +282,11 @@ export function onPointerDown(ui, e) {
       // Without this, continuing to drag right after this click armed an
       // orbit anyway (see the fallback nav section below), so clicking an
       // object and dragging even slightly spun the camera unexpectedly.
+      return;
+    }
+
+    if (hit.type === "camera_path") {
+      selectCameraPath(ui, hit.camera);
       return;
     }
 
@@ -502,6 +511,8 @@ export function onPointerMove(ui, e) {
       return;
     }
 
+    if (ui.gizmoDrag.type === "camera_path") return void applyPathGizmoDrag(ui, { pointer, deltaPixels, precision, snapping });
+
     if (ui.state.gizmo_mode === "translate") {
       if (ui.gizmoDrag.free) {
         const dx = (pointer[0] - ui.gizmoDrag.pointer[0]) * precision;
@@ -704,12 +715,14 @@ export function onPointerUp(ui, event) {
   const finishedKeyDrag = ui.keyDrag;
   const finishedCameraDrag = Boolean((ui.drag && !ui.drag.editorView) || ui.targetFreeDrag);
   const finishedObjectEdit = Boolean(ui.gizmoDrag);
+  const finishedPathTransform = ui.gizmoDrag?.type === "camera_path";
+  if (finishedPathTransform) { ui.serialize?.(); ui.refreshKeys?.(); ui.setStatus(t("Camera path transformed")); }
 
   // Deselect when user clicked in an empty area without dragging
   if (!ui.pointerHit && !ui.gizmoDrag && !ui.targetFreeDrag && ui.drag && !ui.drag.navigationOnly && event) {
     const moved = Math.hypot(event.clientX - ui.drag.x, event.clientY - ui.drag.y);
     if (moved < 5 && (event.button === 0 || event.button === undefined)) {
-      if (ui.selectedEntity === "object" || ui.selectedObjectId !== null || ui.selectedEntity === "camera_target") {
+      if (ui.selectedEntity === "object" || ui.selectedObjectId !== null || ui.selectedEntity === "camera_target" || ui.selectedEntity === "camera_path") {
         ui.selectedEntity = "camera";
         ui.selectedObjectId = null;
         ui.selectedObjectIds = new Set();

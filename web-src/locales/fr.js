@@ -692,6 +692,8 @@ export const FR = {
   "Camera path needs at least two distinct points": "La trajectoire caméra nécessite au moins deux points distincts",
   "Camera path created": "Trajectoire caméra créée",
   "Camera path extended": "Trajectoire caméra prolongée",
+  "Camera path transformed": "Trajectoire caméra transformée",
+  "{name} · whole path selected — move / scale / rotate": "{name} · trajectoire entière sélectionnée — déplacer / redimensionner / pivoter",
   "Draw Camera Path: the active camera has no path to continue": "Tracer trajectoire caméra : la caméra active n'a aucune trajectoire à prolonger",
   "Continue Camera Path: LMB draw from the last key · RMB or Esc cancel": "Prolonger trajectoire caméra : clic gche pour tracer depuis la dernière clé · clic droit ou Échap pour annuler",
   "Draw Camera Path (perspective or top / front / side view)": "Tracer la trajectoire caméra (vue perspective, dessus, face ou côté)",

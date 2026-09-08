@@ -6,6 +6,7 @@ import { formatFocalLength } from "../../lens.js";
 import { updatePlayhead } from "../../timeline/playhead.js";
 import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
+import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
 
 export function createSceneMethods(dependencies) {
   const { app, api, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, deleteSelectedObjects, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setKeyTangentMode, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateCameraRotationFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
@@ -178,6 +179,34 @@ export function createSceneMethods(dependencies) {
   // that eagerly-loaded module needs no static import of the curve maths.
   dragCurveHandle(key, side, worldPoint, options) {
     writeSpatialHandle(key, side, worldPoint, options || {});
+  },
+  // Select the active camera's whole path as one transform target. The gizmo
+  // only draws in an editor view, so a shot-camera view drops to perspective.
+  selectCameraPath() {
+    if (!(this.activeCameraTrack()?.keyframes?.length >= 1)) return false;
+    this.finishCameraEdit();
+    this.selectedEntity = "camera_path";
+    this.selectedObjectId = null;
+    this.selectedObjectIds = new Set();
+    this.editingKeyFrame = null;
+    if (this.state.view_mode === "camera") this.setViewMode("perspective");
+    this.refreshObjects(), this.refreshKeys(), this.refreshInspector(), this.render();
+    return true;
+  },
+  // One affine transform applied to every keyframe of the active path at once
+  // (options: { mode, delta | factors | rotationDeg }; origin defaults to the
+  // path centroid). Backs the path gizmo's numeric / keyboard entry.
+  transformCameraPath(options) {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked || !(track.keyframes?.length >= 1)) return false;
+    this.checkpoint("Transform camera path");
+    const merged = transformPathKeys(track.keyframes, { origin: pathCentroid(track.keyframes), ...options });
+    track.keyframes = merged;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = merged;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize(), this.refreshKeys(), this.refreshInspector(), this.render(), this.renderCameraView?.();
+    return true;
   },
   toggleCurveHandles() {
     toggleCurveHandles(this);
