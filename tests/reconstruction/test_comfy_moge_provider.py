@@ -346,6 +346,7 @@ def test_reconstruct_runs_native_calls_under_an_executing_context(tmp_path, monk
     non-None *during* both native calls, exactly where MoGeInference's internal
     ProgressBar would otherwise read it).
     """
+    pytest.importorskip("comfy_execution")
     from comfy_execution.utils import get_executing_context
 
     img_file = tmp_path / "photo.png"

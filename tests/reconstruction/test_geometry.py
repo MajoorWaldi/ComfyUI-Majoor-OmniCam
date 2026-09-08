@@ -192,6 +192,7 @@ def test_compute_smooth_vertex_normals_averages_shared_vertices():
 
 
 def test_build_proxy_mesh_attaches_normals_matching_final_vertices(monkeypatch):
+    pytest.importorskip("comfy.ldm.moge.geometry")
     from .fakes import FakeReconstructionProvider
 
     provider = FakeReconstructionProvider(grid_size=16)
