@@ -19,14 +19,14 @@ test("capture the outliner layout", async ({ page }) => {
 
 test("capture the inspector layout", async ({ page }) => {
   await mount(page);
-  await page.locator('[data-tab="camera"]').click();
+  // camera inspector shows by default (selection-driven)
   await page.waitForTimeout(200);
   await page.locator(HOST).first().screenshot({ path: "test-results/director-inspector.png" });
 });
 
 test("capture the shot layout", async ({ page }) => {
   await mount(page);
-  await page.locator('[data-tab="display"]').click();
+  await page.locator('[data-inspector-mode="shot"]').click();
   await page.waitForTimeout(200);
   await page.locator(HOST).first().screenshot({ path: "test-results/director-shot.png" });
 });

@@ -301,7 +301,6 @@ export const FR_BASE = {
   "Orbit 360°": "Orbite 360°",
   "Orbit: MMB · Pan: Shift+MMB · Dolly: Scroll · Fly: WASD / QE": "Orbite : clic milieu · Panoramique : Maj+clic milieu · Travelling : molette · Vol : WASD / QE",
   "Orthographic": "Orthographique",
-  "Outliner": "Outliner",
   "Output": "Sortie",
   "Output & diagnostics": "Sortie et diagnostics",
   "Over the shoulder frame": "Cadre par-dessus l'épaule",

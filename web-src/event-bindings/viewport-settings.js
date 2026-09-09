@@ -67,28 +67,13 @@ export function bindViewportSettings(ui, q, signal) {
   for (const btn of ui.root.querySelectorAll('[data-act="toggle-camera-view"]')) {
     btn.addEventListener("click", () => ui.toggleCameraView(), { signal });
   }
-  for (const tab of ui.root.querySelectorAll(".inspector-tab, [data-tab]")) {
-    tab.addEventListener("click", () => {
-      const tabName = tab.dataset.tab;
-      for (const t of ui.root.querySelectorAll(".inspector-tab, [data-tab]")) t.classList.toggle("active", t === tab);
-      for (const panel of ui.root.querySelectorAll(".inspector-tab-content, [data-tab-panel]")) {
-        panel.hidden = panel.dataset.tabPanel !== tabName;
-      }
-      // The viewport motion toolbar is contextual: only the Motion workspace
-      // shows it. Leaving the tab also drops any in-progress motion tool.
-      const motionActive = tabName === "motion";
-      ui.root.classList.toggle("oc-motion-mode", motionActive);
-      if (!motionActive && (ui.state.motion_tool || "select") !== "select") {
-        ui.state.motion_tool = "select";
-        ui.motionTrackDraft = null;
-      }
-      // Re-render on the switch so the 2D motion path preview can measure its
-      // box once the Motion panel is actually visible, and so the contextual
-      // viewport toolbar repaints. Re-fit the node too: the Outliner tab can be
-      // much taller than the others, so its height must not linger when another
-      // tab takes over (and vice versa).
-      ui.render?.();
-      ui.refitNode?.();
+  // The Inspector is selection-driven now (inspector/context.js). These three
+  // buttons are the only manual switch: the secondary Motion / Shot / Health
+  // modes. A toggle back to the same mode returns to the selected entity.
+  for (const button of ui.root.querySelectorAll("[data-inspector-mode]")) {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.inspectorMode;
+      ui.setInspectorMode(ui.inspectorMode === mode ? "entity" : mode);
     }, { signal });
   }
   const sideTabList = ui.root.querySelector(".inspector-tabs, .oc-side-tabs");

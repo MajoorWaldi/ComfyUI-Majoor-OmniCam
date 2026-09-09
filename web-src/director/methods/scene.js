@@ -8,6 +8,7 @@ import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
 import { buildDirectorDomCache } from "../dom-cache.js";
+import { syncInspectorSelection, setInspectorMode } from "../../inspector/context.js";
 import { deselectAll, duplicateSelectedObjects, invertSelection, lockSelectedObjects, selectAllObjects, toggleSelectedObjects } from "../../scene/batch-actions.js";
 
 export function createSceneMethods(dependencies) {
@@ -337,11 +338,12 @@ export function createSceneMethods(dependencies) {
     this.state.ui_density = density;
     this.root.dataset.density = density;
     this.root.querySelector('[data-role="ui-density"]').value = density;
-    // A tab that just became density-hidden must not stay "active" behind an
-    // invisible pane -- fall back to the Outliner, which every tier keeps.
-    const activeTab = this.root.querySelector(".inspector-tab.active");
-    if (activeTab && getComputedStyle(activeTab).display === "none") {
-      this.root.querySelector('[data-tab="scene"]')?.click();
+    // A secondary mode whose button just became density-hidden (Health under
+    // "basic") must not leave the Inspector stranded on an invisible pane --
+    // drop back to the selected entity.
+    const activeMode = this.root.querySelector("[data-inspector-mode].active");
+    if (activeMode && getComputedStyle(activeMode).display === "none") {
+      this.setInspectorMode("entity");
     }
     this.serialize();
     requestAnimationFrame(() => {
@@ -363,6 +365,10 @@ export function createSceneMethods(dependencies) {
   refreshInspector() {
     this.perf && (this.perf.inspectorRefreshCount = (this.perf.inspectorRefreshCount || 0) + 1);
     refreshInspector(this);
+    syncInspectorSelection(this);
+  },
+  setInspectorMode(mode) {
+    setInspectorMode(this, mode);
   },
   updateSelectedObject() {
     updateSelectedObject(this);
