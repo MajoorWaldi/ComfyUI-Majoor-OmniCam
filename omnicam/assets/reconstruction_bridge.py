@@ -76,7 +76,12 @@ def _factual_tags(definition: AssetDefinition, semantic_class: str) -> tuple[str
     if slug in _PERSON_CLASSES or definition.is_character:
         tags.append("person")
     seen: set[str] = set()
-    return tuple(t for t in tags if not (t in seen or seen.add(t)))
+    out: list[str] = []
+    for tag in tags:
+        if tag not in seen:
+            seen.add(tag)
+            out.append(tag)
+    return tuple(out)
 
 
 def _scale_for(
@@ -104,9 +109,13 @@ def placement_from_definition(
     """Adapt one :class:`AssetDefinition` into an ``AssetPlacement``."""
     from ..reconstruction.asset_library.types import AssetPlacement
 
-    box = tuple(max(1e-3, abs(float(v))) for v in size)  # type: ignore[assignment]
+    box: tuple[float, float, float] = (
+        max(1e-3, abs(float(size[0]))),
+        max(1e-3, abs(float(size[1]))),
+        max(1e-3, abs(float(size[2]))),
+    )
     fit = definition.fit if definition.fit in {"stretch", "uniform", "upright"} else "upright"
-    scale = _scale_for(fit, box, definition.base_size)  # type: ignore[arg-type]
+    scale = _scale_for(fit, box, definition.base_size)
 
     rigged_character = definition.is_character and definition.has_rig
     asset_kind = "character" if rigged_character else ("prop" if definition.is_character else definition.kind)
