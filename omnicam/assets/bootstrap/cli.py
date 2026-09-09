@@ -64,6 +64,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", action="append", default=[], metavar="SOURCE_ID", help="restrict to these source ids (repeatable)")
     parser.add_argument("--dry-run", action="store_true", help="resolve / inventory / select only; write nothing")
     parser.add_argument("--verify", action="store_true", help="verify the installed lock offline; no network")
+    parser.add_argument("--prune", action="store_true",
+                        help="drop user-catalog rows whose model file is missing + their orphan thumbnails; no network")
     parser.add_argument("--update", action="store_true", help="allow replacing installed files whose source changed")
     parser.add_argument("--keep-cache", action="store_true", help="keep downloaded ZIPs after a successful install")
     parser.add_argument("--json", action="store_true", dest="as_json", help="emit the machine report on stdout")
@@ -75,6 +77,8 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     _force_utf8()
     args = build_parser().parse_args(argv)
     try:
+        if args.prune:
+            return _run_prune(args)
         if args.verify:
             return _run_verify(args)
         if not args.download and args.from_dir is None:
@@ -86,6 +90,46 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     except BootstrapError as exc:
         _log(f"error: {exc}")
         return exc.exit_code
+
+
+# -- prune --------------------------------------------------------------
+
+def _run_prune(args) -> int:
+    from .. import manifest
+    from ..manifest import read_user_catalog
+    from ..storage import resolve_library_root
+
+    removed = manifest.prune_missing_assets(args.dest)
+    thumbs_removed = _prune_orphan_thumbnails(resolve_library_root(args.dest), read_user_catalog(args.dest))
+
+    for asset_id in removed:
+        _log(f"  - dropped {asset_id}")
+    payload = {"pruned_assets": removed, "pruned_thumbnails": thumbs_removed}
+    if args.as_json:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(
+            f"Pruned {len(removed)} missing asset row(s) and "
+            f"{len(thumbs_removed)} orphan thumbnail(s)."
+        )
+    return EXIT_OK
+
+
+def _prune_orphan_thumbnails(library_root: Path, surviving_rows) -> list[str]:
+    thumbs_dir = library_root / "thumbnails"
+    if not thumbs_dir.is_dir():
+        return []
+    referenced = {
+        Path(str(row.get("thumbnail"))).name
+        for row in surviving_rows
+        if row.get("thumbnail")
+    }
+    removed: list[str] = []
+    for path in sorted(thumbs_dir.iterdir()):
+        if path.is_file() and path.name not in referenced:
+            path.unlink()
+            removed.append(path.name)
+    return removed
 
 
 # -- verify ---------------------------------------------------------------

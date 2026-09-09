@@ -71,6 +71,35 @@ def test_no_source_flag_exits_config_error(tmp_path):
     assert cli.run(["--dest", str(tmp_path)]) == 2
 
 
+def test_prune_drops_missing_rows_and_orphan_thumbnails(tmp_path, capsys):
+    from omnicam.assets import manifest
+    from omnicam.assets.catalog import load_catalog
+    from omnicam.assets.storage import ensure_library_tree
+
+    dest = tmp_path / "cui"
+    root = ensure_library_tree(dest)
+    (root / "props" / "real.glb").write_bytes(build_static_glb())
+    manifest.register_asset(dest, {
+        "id": "omnicam.prop.real_01", "name": "Real", "kind": "prop",
+        "file": "props/real.glb", "thumbnail": "thumbnails/omnicam_prop_real_01.webp",
+    })
+    manifest.register_asset(dest, {
+        "id": "omnicam.legacy.ghost", "name": "Ghost", "kind": "prop",
+        "file": "interior/ghost.glb", "thumbnail": "thumbnails/omnicam_legacy_ghost.webp",
+    })
+    (root / "thumbnails" / "omnicam_prop_real_01.webp").write_bytes(b"RIFF....WEBP")
+    (root / "thumbnails" / "omnicam_legacy_ghost.webp").write_bytes(b"RIFF....WEBP")
+
+    code = cli.run(["--prune", "--dest", str(dest)])
+    assert code == 0, capsys.readouterr()
+
+    ids = {r.id for r in load_catalog(dest).all() if r.source == "user"}
+    assert "omnicam.prop.real_01" in ids
+    assert "omnicam.legacy.ghost" not in ids
+    assert (root / "thumbnails" / "omnicam_prop_real_01.webp").is_file()
+    assert not (root / "thumbnails" / "omnicam_legacy_ghost.webp").exists()
+
+
 def test_full_install_from_dir(tmp_path, capsys):
     fixture = _make_fixture_dir(tmp_path / "kits")
     code = cli.run(["--preset", "starter", "--from-dir", str(fixture), "--dest", str(tmp_path / "cui")])

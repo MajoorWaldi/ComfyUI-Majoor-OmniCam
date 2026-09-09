@@ -22,7 +22,7 @@ from .catalog import (
     load_catalog,
 )
 from .errors import AssetCatalogInvalidError, AssetError, AssetNotFoundError
-from .storage import ensure_library_tree, user_catalog_path
+from .storage import asset_file_path, ensure_library_tree, user_catalog_path
 from .types import AssetDefinition
 from .validation import validate_asset_definition
 
@@ -123,3 +123,30 @@ def delete_asset(input_root: Path | str | None, asset_id: str) -> None:
             code="ASSET_CATALOG_INVALID",
         )
     _write_rows(input_root, kept)
+
+
+def prune_missing_assets(input_root: Path | str | None) -> list[str]:
+    """Drop every user-catalog row whose managed ``file`` is not on disk.
+
+    Returns the ids removed. Rows for a built-in kind that legitimately has no
+    file (``helper``) are kept. Nothing is written when every row resolves.
+    """
+    rows = read_user_catalog(input_root)
+    removed: list[str] = []
+    kept: list[dict[str, Any]] = []
+    for row in rows:
+        relative = str(row.get("file") or "")
+        if str(row.get("kind")) == "helper" and not relative:
+            kept.append(row)
+            continue
+        try:
+            present = bool(relative) and asset_file_path(relative, input_root).is_file()
+        except AssetError:
+            present = False
+        if present:
+            kept.append(row)
+        else:
+            removed.append(str(row.get("id")))
+    if removed:
+        _write_rows(input_root, kept)
+    return removed
