@@ -147,9 +147,12 @@ test("viewport tool rail gives transform space and snapping readable fixed-size 
 
   assert.match(markup, /data-role="gizmo-space-badge">W<\/span>/);
   assert.match(markup, /data-role="spatial-snap-toggle"[^>]*aria-pressed="false"/);
-  // Snap is a plain magnet icon button now -- no oversized ON/OFF text label.
-  assert.match(markup, /pi pi-magnet/);
+  // Snap is a plain icon button now -- no oversized ON/OFF text label, and
+  // the same 26x26 slot as every other rail tool (no vp-tool-space override).
+  assert.match(markup, /pi pi-thumbtack/);
   assert.doesNotMatch(markup, /vp-snap-label/);
+  assert.doesNotMatch(markup, /vp-tool-space/);
+  assert.doesNotMatch(DIRECTOR_STYLES, /\.vp-tool-space\{/);
   assert.match(DIRECTOR_STYLES, /\.vp-space-badge\{[^}]*min-width:18px[^}]*font-size:12px/s);
 });
 
