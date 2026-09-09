@@ -32,9 +32,11 @@ KNOWN_PRESETS = frozenset(
     }
 )
 
-#: The starter preset is a fixed, ordered seven (plan section 3). The registry
-#: file order is authoritative; this list is the contract the CLI and tests
-#: assert against.
+#: The starter preset is a fixed, ordered set (plan section 3, extended). The
+#: seven core kits give props / vehicles / environments; the three Animated
+#: Characters packs supply the only Kenney rigs that satisfy
+#: ``OMNICAM_HUMANOID_V1`` (they are FBX -- Blocky / Mini Characters carry only
+#: a 7-bone stylised rig and are kept for animated proxy props).
 STARTER_SOURCE_IDS: tuple[str, ...] = (
     "kenney.blocky_characters",
     "kenney.mini_characters",
@@ -43,6 +45,9 @@ STARTER_SOURCE_IDS: tuple[str, ...] = (
     "kenney.nature_kit",
     "kenney.city_roads",
     "kenney.building_kit",
+    "kenney.animated_survivors",
+    "kenney.animated_protagonists",
+    "kenney.animated_retro",
 )
 
 

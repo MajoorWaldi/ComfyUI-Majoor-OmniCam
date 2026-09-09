@@ -23,7 +23,8 @@ from pathlib import Path
 
 from ..types import default_category_for_kind
 from .archive import ArchiveMember
-from .glb_inspect import GlbInfo, RigEvidence, build_rig_evidence
+from .glb_inspect import RigEvidence, build_rig_evidence
+from .model_inspect import ModelInfo, model_format
 from .types import EXIT_CURATION, BootstrapError
 
 _SELECTION_PATH = Path(__file__).resolve().parent.parent / "starter_selection.json"
@@ -39,7 +40,7 @@ def normalize_stem(text: str) -> str:
 @dataclass(frozen=True, slots=True)
 class InspectedMember:
     member: ArchiveMember
-    glb: GlbInfo
+    glb: ModelInfo  # GlbInfo or FbxInfo -- duck-typed, same fields
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,8 +62,10 @@ class SelectedAsset:
     base_size: tuple[float, float, float]
     fit: str
     tags: tuple[str, ...]
-    glb: GlbInfo
+    glb: ModelInfo
     rig: RigEvidence | None = None
+    model_format: str = "glb"
+    emit_animations: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,6 +156,7 @@ def _pick_exact(entry, inventories, selected, warnings, missing_required, taken)
             tags=tuple(str(t) for t in entry.get("tags") or []),
             glb=chosen.glb,
             rig=None,
+            model_format=model_format(chosen.member.name),
         )
     )
 
@@ -188,11 +192,13 @@ def _pick_dynamic(entry, inventories, selected, warnings, taken) -> None:
     kind = str(entry["kind"])
     category = str(entry.get("category") or default_category_for_kind(kind))
     base_tags = tuple(str(t) for t in entry.get("tags") or [])
+    emit_anims = bool(entry.get("emit_animations", kind == "character"))
     for index, (_, chosen, evidence) in enumerate(ranked[:quota], start=1):
         claimed.add(chosen.member.name)
         suffix = f"{index:02d}"
+        fmt = model_format(chosen.member.name)
         tags = base_tags
-        if kind == "character" and chosen.glb.animation_names:
+        if emit_anims and chosen.glb.animation_names and "animated" not in tags:
             tags = (*base_tags, "animated")
         selected.append(
             SelectedAsset(
@@ -202,23 +208,30 @@ def _pick_dynamic(entry, inventories, selected, warnings, taken) -> None:
                 name=f"{entry.get('name_prefix', '')}{suffix}".strip(),
                 kind=kind,
                 category=category,
-                output=f"{entry['output_prefix']}{suffix}.glb",
+                output=f"{entry['output_prefix']}{suffix}.{fmt}",
                 base_size=_size(entry.get("base_size")),
                 fit=str(entry.get("fit", "upright")),
                 tags=tags,
                 glb=chosen.glb,
                 rig=evidence,
+                model_format=fmt,
+                emit_animations=emit_anims,
             )
         )
 
 
 def _rank_characters(members, entry):
     max_triangles = int(entry.get("max_triangles", 75_000))
+    keywords = [normalize_stem(k) for k in entry.get("match_contains") or []]
+    excludes = [normalize_stem(k) for k in entry.get("exclude_contains") or []]
     out = []
     for im in members:
-        if not im.glb.has_skin:
+        path = normalize_stem(im.member.name)
+        if any(bad and bad in path for bad in excludes):
             continue
-        if im.glb.triangle_count > max_triangles:
+        if keywords and not any(kw and kw in path for kw in keywords):
+            continue
+        if not im.glb.has_skin or im.glb.triangle_count > max_triangles:
             continue
         evidence = build_rig_evidence(im.glb)
         if not evidence.complete:

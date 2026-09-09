@@ -8,7 +8,10 @@
       "page_url": "https://kenney.nl/assets/blocky-characters",
       "license": "CC0-1.0",
       "kind_hint": "character",
-      "presets": ["starter", "characters"]
+      "presets": [
+        "starter",
+        "characters"
+      ]
     },
     {
       "id": "kenney.mini_characters",
@@ -17,7 +20,10 @@
       "page_url": "https://kenney.nl/assets/mini-characters",
       "license": "CC0-1.0",
       "kind_hint": "character",
-      "presets": ["starter", "characters"]
+      "presets": [
+        "starter",
+        "characters"
+      ]
     },
     {
       "id": "kenney.furniture_kit",
@@ -26,7 +32,10 @@
       "page_url": "https://kenney.nl/assets/furniture-kit",
       "license": "CC0-1.0",
       "kind_hint": "prop",
-      "presets": ["starter", "props"]
+      "presets": [
+        "starter",
+        "props"
+      ]
     },
     {
       "id": "kenney.car_kit",
@@ -35,7 +44,10 @@
       "page_url": "https://kenney.nl/assets/car-kit",
       "license": "CC0-1.0",
       "kind_hint": "vehicle",
-      "presets": ["starter", "vehicles"]
+      "presets": [
+        "starter",
+        "vehicles"
+      ]
     },
     {
       "id": "kenney.nature_kit",
@@ -44,7 +56,10 @@
       "page_url": "https://kenney.nl/assets/nature-kit",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["starter", "environment"]
+      "presets": [
+        "starter",
+        "environment"
+      ]
     },
     {
       "id": "kenney.city_roads",
@@ -53,7 +68,10 @@
       "page_url": "https://kenney.nl/assets/city-kit-roads",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["starter", "environment"]
+      "presets": [
+        "starter",
+        "environment"
+      ]
     },
     {
       "id": "kenney.building_kit",
@@ -62,7 +80,10 @@
       "page_url": "https://kenney.nl/assets/building-kit",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["starter", "environment"]
+      "presets": [
+        "starter",
+        "environment"
+      ]
     },
     {
       "id": "kenney.animated_survivors",
@@ -71,7 +92,11 @@
       "page_url": "https://kenney.nl/assets/animated-characters-survivors",
       "license": "CC0-1.0",
       "kind_hint": "character",
-      "presets": ["characters-extra"]
+      "presets": [
+        "starter",
+        "characters",
+        "characters-extra"
+      ]
     },
     {
       "id": "kenney.animated_protagonists",
@@ -80,7 +105,11 @@
       "page_url": "https://kenney.nl/assets/animated-characters-protagonists",
       "license": "CC0-1.0",
       "kind_hint": "character",
-      "presets": ["characters-extra"]
+      "presets": [
+        "starter",
+        "characters",
+        "characters-extra"
+      ]
     },
     {
       "id": "kenney.animated_retro",
@@ -89,7 +118,11 @@
       "page_url": "https://kenney.nl/assets/animated-characters-retro",
       "license": "CC0-1.0",
       "kind_hint": "character",
-      "presets": ["characters-extra"]
+      "presets": [
+        "starter",
+        "characters",
+        "characters-extra"
+      ]
     },
     {
       "id": "kenney.city_suburban",
@@ -98,7 +131,9 @@
       "page_url": "https://kenney.nl/assets/city-kit-suburban",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["environments-extra"]
+      "presets": [
+        "environments-extra"
+      ]
     },
     {
       "id": "kenney.city_commercial",
@@ -107,7 +142,9 @@
       "page_url": "https://kenney.nl/assets/city-kit-commercial",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["environments-extra"]
+      "presets": [
+        "environments-extra"
+      ]
     },
     {
       "id": "kenney.city_industrial",
@@ -116,7 +153,9 @@
       "page_url": "https://kenney.nl/assets/city-kit-industrial",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["environments-extra"]
+      "presets": [
+        "environments-extra"
+      ]
     },
     {
       "id": "kenney.factory_kit",
@@ -125,7 +164,9 @@
       "page_url": "https://kenney.nl/assets/factory-kit",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["environments-extra"]
+      "presets": [
+        "environments-extra"
+      ]
     },
     {
       "id": "kenney.modular_space_kit",
@@ -134,7 +175,9 @@
       "page_url": "https://kenney.nl/assets/modular-space-kit",
       "license": "CC0-1.0",
       "kind_hint": "environment",
-      "presets": ["environments-extra"]
+      "presets": [
+        "environments-extra"
+      ]
     }
   ]
 }

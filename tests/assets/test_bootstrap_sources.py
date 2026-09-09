@@ -14,7 +14,7 @@ from omnicam.assets.bootstrap.source_registry import (
 from omnicam.assets.bootstrap.types import BootstrapError
 
 
-def test_starter_preset_has_exact_seven_sources():
+def test_starter_preset_is_the_seven_kits_plus_three_fbx_character_packs():
     sources = select_sources("starter")
     assert [source.id for source in sources] == [
         "kenney.blocky_characters",
@@ -24,6 +24,9 @@ def test_starter_preset_has_exact_seven_sources():
         "kenney.nature_kit",
         "kenney.city_roads",
         "kenney.building_kit",
+        "kenney.animated_survivors",
+        "kenney.animated_protagonists",
+        "kenney.animated_retro",
     ]
 
 

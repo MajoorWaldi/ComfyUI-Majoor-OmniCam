@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from urllib.request import urlopen
 
-from .archive import list_glb_members
+from .archive import list_model_members
 from .curation import (
     InspectedMember,
     SourceInventory,
@@ -24,10 +24,10 @@ from .curation import (
     select_starter_assets,
 )
 from .download import download_archive
-from .glb_inspect import inspect_glb_member
 from .installer import InstalledAsset, install_selected_asset
 from .kenney import resolve_kenney_archive
 from .lockfile import LockSource, verify_lockfile, write_lockfile
+from .model_inspect import inspect_member
 from .report import build_report, render_report_text, write_report, write_sources_md
 from .source_registry import SourceDefinition, select_sources
 from .types import (
@@ -185,9 +185,9 @@ def _inventory(archives, *, verbose: bool) -> dict[str, SourceInventory]:
     out: dict[str, SourceInventory] = {}
     for source_id, (archive_path, lock_source) in archives.items():
         inspected: list[InspectedMember] = []
-        for member in list_glb_members(archive_path):
+        for member in list_model_members(archive_path):
             try:
-                inspected.append(InspectedMember(member, inspect_glb_member(member)))
+                inspected.append(InspectedMember(member, inspect_member(member)))
             except BootstrapError as exc:
                 if verbose:
                     _log(f"    skip {member.name}: {exc}")

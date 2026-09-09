@@ -9,6 +9,7 @@ from omnicam.assets.bootstrap import cli
 from omnicam.assets.bootstrap.curation import load_selection_document
 from omnicam.assets.catalog import load_catalog
 
+from .fbx_fixture import build_humanoid_fbx
 from .glb_fixture import build_humanoid_glb, build_static_glb
 
 # source id -> Kenney zip basename (must contain normalize_stem(source.name))
@@ -20,6 +21,14 @@ _ZIP_NAME = {
     "kenney.nature_kit": "kenney_nature-kit",
     "kenney.city_roads": "kenney_city-kit-roads",
     "kenney.building_kit": "kenney_building-kit",
+    "kenney.animated_survivors": "kenney_animated-characters-survivors",
+    "kenney.animated_protagonists": "kenney_animated-characters-protagonists",
+    "kenney.animated_retro": "kenney_animated-characters-retro",
+}
+_FBX_CHARACTER_SOURCES = {
+    "kenney.animated_survivors",
+    "kenney.animated_protagonists",
+    "kenney.animated_retro",
 }
 
 
@@ -36,7 +45,8 @@ def _make_fixture_dir(root):
         "kenney.city_roads": ["light-square", "road-straight", "road-curve", "street-crossing"],
         "kenney.nature_kit": ["plant_bush_detailed"],
     }
-    characters = {"kenney.blocky_characters": 3, "kenney.mini_characters": 2}
+    # blocky/mini install as animated proxy props from character-* glbs
+    proxy_chars = {"kenney.blocky_characters": 3, "kenney.mini_characters": 2}
 
     for source_id, zip_stem in _ZIP_NAME.items():
         members: dict[str, bytes] = {}
@@ -44,10 +54,13 @@ def _make_fixture_dir(root):
             members[f"Models/GLB format/{stem}.glb"] = build_static_glb(triangle_count=100 + i)
         for i, stem in enumerate(extras.get(source_id, [])):
             members[f"Models/GLB format/{stem}.glb"] = build_static_glb(triangle_count=200 + i)
-        for i in range(characters.get(source_id, 0)):
-            members[f"Models/GLB format/char_{i}.glb"] = build_humanoid_glb(
-                triangle_count=1000 + i * 10, animation_names=("Walk", "Idle")
+        for i in range(proxy_chars.get(source_id, 0)):
+            members[f"Models/GLB format/character-{chr(97 + i)}.glb"] = build_humanoid_glb(
+                triangle_count=1000 + i * 10, animation_names=("static", "walk", "idle"),
             )
+        if source_id in _FBX_CHARACTER_SOURCES:
+            members["Model/characterMedium.fbx"] = build_humanoid_fbx(triangle_count=1085)
+            members["Animations/idle.fbx"] = build_humanoid_fbx(triangle_count=0)
         with zipfile.ZipFile(root / f"{zip_stem}.zip", "w") as zf:
             for name, data in members.items():
                 zf.writestr(name, data)
@@ -121,9 +134,28 @@ def test_json_report_on_stdout_logs_on_stderr(tmp_path, capsys):
     assert "source(s)" in captured.err
 
 
-def test_preset_starter_selects_seven_sources(tmp_path, capsys):
+def test_preset_starter_selects_ten_sources(tmp_path, capsys):
     fixture = _make_fixture_dir(tmp_path / "kits")
     cli.run(["--from-dir", str(fixture), "--dest", str(tmp_path / "cui"), "--json"])
     payload = json.loads(capsys.readouterr().out)
-    assert payload["sources"]["total"] == 7
-    assert payload["sources"]["resolved"] == 7
+    assert payload["sources"]["total"] == 10
+    assert payload["sources"]["resolved"] == 10
+
+
+def test_fbx_characters_install_rig_verified(tmp_path, capsys):
+    fixture = _make_fixture_dir(tmp_path / "kits")
+    code = cli.run(["--from-dir", str(fixture), "--dest", str(tmp_path / "cui"), "--json"])
+    assert code == 0, capsys.readouterr()
+    catalog = load_catalog(tmp_path / "cui")
+    fbx_chars = [
+        r for r in catalog.all()
+        if r.kind == "character" and r.source == "user" and r.format == "fbx" and r.has_rig
+    ]
+    assert len(fbx_chars) >= 1
+    row = fbx_chars[0]
+    assert row.rig.bone_map["toe_l"] == "LeftToes"
+    assert row.rig.bone_map["chest"] == "Chest"
+    assert (tmp_path / "cui" / "omnicam" / "library" / row.file).is_file()
+    # blocky/mini figures land as animated proxy props, never as characters
+    proxies = [r for r in catalog.all() if "character-proxy" in r.tags]
+    assert proxies and all(p.kind == "prop" and not p.has_rig for p in proxies)

@@ -21,7 +21,7 @@ from ..rig import OMNICAM_HUMANOID_V1, rig_status
 from ..storage import ensure_library_tree, resolve_library_root, resolve_within
 from .archive import copy_member
 from .curation import SelectedAsset
-from .glb_inspect import inspect_glb_member
+from .model_inspect import inspect_member
 from .types import EXIT_INSTALL, BootstrapError
 
 #: Clip-name tokens that carry a safe, well-known semantic tag (plan section 14).
@@ -77,7 +77,7 @@ def _catalog_row(selected: SelectedAsset, source_page_url: str) -> dict[str, Any
         "kind": selected.kind,
         "category": selected.category,
         "file": selected.output,
-        "format": "glb",
+        "format": selected.model_format,
         "base_size": list(selected.base_size),
         "fit": selected.fit,
         "tags": tags,
@@ -90,6 +90,7 @@ def _catalog_row(selected: SelectedAsset, source_page_url: str) -> dict[str, Any
             "root_bone": mapping.get("root", ""),
             "bone_map": mapping,
         }
+    if (selected.emit_animations or selected.kind == "character") and selected.glb.animation_names:
         row["animations"] = animation_rows(selected.glb.animation_names)
     return row
 
@@ -105,9 +106,9 @@ def install_selected_asset(
     root = resolve_library_root(input_root)
     destination = resolve_within(root, selected.output)
 
-    # 1. re-validate the real GLB before it enters the library.
-    info = inspect_glb_member(selected.member)
-    if info.version != 2:
+    # 1. re-validate the real model before it enters the library.
+    info = inspect_member(selected.member)
+    if selected.model_format == "glb" and info.version != 2:
         raise _fail(f"{selected.asset_id}: member is not GLB v2")
 
     row = _catalog_row(selected, source_page_url)
