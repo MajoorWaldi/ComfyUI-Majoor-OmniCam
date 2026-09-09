@@ -117,6 +117,15 @@ class AssetPlacement:
     size: tuple[float, float, float]
     pose: str = ""
     confidence: float = 0.0
+    #: Factual tags only -- ``reconstruction`` plus the semantic class, never an
+    #: editorial role like ``hero`` (unified-assets design spec section 33).
+    tags: tuple[str, ...] = ()
+    #: Unified-catalog id when the placement was resolved through the catalog,
+    #: else "" (legacy blockout-library resolve).
+    asset_id: str = ""
+    #: ``"character"`` only when the resolved catalog asset has a valid rig; a
+    #: static posed human stays ``"prop"``.
+    asset_kind: str = "prop"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -129,4 +138,7 @@ class AssetPlacement:
             "size": [float(v) for v in self.size],
             "pose": self.pose,
             "confidence": float(self.confidence),
+            "tags": list(self.tags),
+            "asset_id": self.asset_id,
+            "asset_kind": self.asset_kind,
         }
