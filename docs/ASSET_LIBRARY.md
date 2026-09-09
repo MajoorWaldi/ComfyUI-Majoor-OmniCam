@@ -123,6 +123,9 @@ python scripts/bootstrap_asset_library.py --preset starter --download
 # re-check an installed library later, offline
 python scripts/bootstrap_asset_library.py --verify
 
+# drop user-catalog rows whose model file is missing + their orphan thumbnails
+python scripts/bootstrap_asset_library.py --prune
+
 # optional themed character packs
 python scripts/bootstrap_asset_library.py --preset characters-extra --download
 ```
