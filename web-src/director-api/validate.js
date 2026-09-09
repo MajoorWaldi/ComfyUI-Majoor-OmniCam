@@ -92,6 +92,23 @@ function validateOperationShape(operation, index) {
       }
       break;
 
+    case DIRECTOR_OPS.OBJECT_SET_TAGS:
+      assertString(operation.objectId, "objectId", index);
+      if (!Array.isArray(operation.tags) || operation.tags.some((tag) => typeof tag !== "string")) {
+        throw new DirectorApiError("BAD_VALUE", "object.set_tags needs a string array", index);
+      }
+      if (operation.tags.length > 64) {
+        throw new DirectorApiError("BAD_VALUE", "object.set_tags: too many tags", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.OBJECT_SET_ANNOTATION:
+      assertString(operation.objectId, "objectId", index);
+      if (operation.annotation !== null && (typeof operation.annotation !== "object" || Array.isArray(operation.annotation))) {
+        throw new DirectorApiError("BAD_VALUE", "object.set_annotation needs an object or null", index);
+      }
+      break;
+
     case DIRECTOR_OPS.KEYFRAME_UPSERT:
       if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
       assertFrame(operation.frame, "frame", index);

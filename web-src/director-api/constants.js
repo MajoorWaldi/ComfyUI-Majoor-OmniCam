@@ -16,6 +16,8 @@ export const DIRECTOR_OPS = Object.freeze({
   OBJECT_TRANSFORM: "object.transform",
   OBJECT_SET_ENABLED: "object.set_enabled",
   OBJECT_SET_LOCKED: "object.set_locked",
+  OBJECT_SET_TAGS: "object.set_tags",
+  OBJECT_SET_ANNOTATION: "object.set_annotation",
   KEYFRAME_UPSERT: "keyframe.upsert",
   KEYFRAME_REMOVE: "keyframe.remove",
   KEYFRAME_SET_INTERPOLATION: "keyframe.set_interpolation",

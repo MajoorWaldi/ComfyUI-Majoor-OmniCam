@@ -1,5 +1,6 @@
 import { SEQUENCE_TARGET, defaultSequence, sanitizeSequence } from "./sequence.js";
 import { sanitizeMotionState } from "../motion-tracks/state.js";
+import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
 
 export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 
@@ -568,6 +569,11 @@ export function sanitizeState(raw) {
     ...(object?.cast_shadow !== undefined ? { cast_shadow: Boolean(object.cast_shadow) } : {}),
     ...(object?.cone_angle !== undefined ? { cone_angle: clamp(Number(object.cone_angle) || 45, 1, 90) } : {}),
     ...(object?.penumbra !== undefined ? { penumbra: clamp(Number(object.penumbra) || 0.25, 0, 1) } : {}),
+    // Machine-semantic tags and the visible viewport label are additive fields
+    // (design spec sections 12-14); drop them entirely when empty so an
+    // untouched object serialises byte-identical to before.
+    ...(object?.tags !== undefined ? { tags: sanitizeTags(object.tags) } : {}),
+    ...(sanitizeAnnotation(object?.annotation) ? { annotation: sanitizeAnnotation(object.annotation) } : {}),
     keyframes: (Array.isArray(object.keyframes) ? object.keyframes : []).map((key) => ({
       frame: Math.max(0, Math.round(Number(key.frame || 0))),
       transform: cloneTransform(key.transform || object),

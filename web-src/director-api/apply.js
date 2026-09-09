@@ -5,6 +5,7 @@
 
 import { UI_DIRTY } from "../director/ui-dirty.js";
 import { INTERPOLATION_MODES } from "../director/core.js";
+import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 
@@ -90,6 +91,26 @@ const HANDLERS = {
   [DIRECTOR_OPS.OBJECT_SET_LOCKED](state, op) {
     findObject(state, op.objectId).locked = op.value;
     return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.OBJECT_SET_TAGS](state, op) {
+    const object = findObject(state, op.objectId);
+    const tags = sanitizeTags(op.tags);
+    const warning = tags.length !== op.tags.length ? "some tags were dropped or normalised" : undefined;
+    if (tags.length) object.tags = tags;
+    else delete object.tags;
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport, warning };
+  },
+
+  [DIRECTOR_OPS.OBJECT_SET_ANNOTATION](state, op) {
+    const object = findObject(state, op.objectId);
+    const annotation = op.annotation === null ? null : sanitizeAnnotation(op.annotation);
+    if (op.annotation && !annotation) {
+      throw new DirectorApiError("BAD_ANNOTATION", "annotation failed validation (text, hex colour, anchor)");
+    }
+    if (annotation) object.annotation = annotation;
+    else delete object.annotation;
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.outliner | UI_DIRTY.inspector };
   },
 
   [DIRECTOR_OPS.KEYFRAME_UPSERT](state, op) {
