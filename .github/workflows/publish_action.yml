@@ -76,7 +76,12 @@ jobs:
       - name: Install Comfy CLI
         run: pip install comfy-cli==1.20.0
       - name: Verify release contract
-        run: pytest -q tests/test_release_contract.py
+        # tests/conftest.py imports numpy and omnicam, so the release lane
+        # needs the same dev environment as the unit suite -- the publish job
+        # otherwise has no pytest on PATH at all.
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -q tests/test_release_contract.py
       - name: Pack Registry archive
         run: |
           comfy --skip-prompt --no-enable-telemetry node pack
@@ -147,6 +152,7 @@ jobs:
         run: |
           test -f web/omnicam.js
           test -d web-chunks
+          pip install -r requirements-dev.txt
           pytest -q tests/test_release_contract.py
       - name: Publish Custom Node
         # Do not use the pinned publish-node composite action here: that action
