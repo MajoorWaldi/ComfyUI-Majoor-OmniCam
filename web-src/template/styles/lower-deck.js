@@ -140,13 +140,18 @@ export const LOWER_DECK_STYLES = `
 
       /* ---- graph editor ---------------------------------------------- */
       .majoor-omnicam .oc-graph{margin:0 8px 8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);overflow:hidden}
-      .majoor-omnicam .oc-graph>summary{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--oc-line)}
+      .majoor-omnicam .oc-graph>.oc-graph-head{display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid var(--oc-line)}
+      /* Collapsed by the transport's graph toggle: keep the mode row, drop the rest. */
+      .majoor-omnicam .oc-graph.oc-graph-collapsed>.oc-graph-head{border-bottom:0}
+      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-toolbar,
+      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-body,
+      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-resize{display:none}
       .majoor-omnicam .oc-graph-tabs{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-graph-tab{padding:4px 12px;border:0;border-radius:5px;background:transparent;color:var(--oc-text-dim);font-size:11.5px;cursor:pointer}
       .majoor-omnicam .oc-graph-tab strong{font-weight:600}
       .majoor-omnicam .oc-graph-tab:hover{color:var(--oc-text)}
       .majoor-omnicam .oc-graph-tab.active{background:var(--oc-panel-2);color:var(--oc-text);box-shadow:inset 0 0 0 1px var(--oc-line)}
-      .majoor-omnicam .oc-graph>summary .hint{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--oc-text-faint)}
+      .majoor-omnicam .oc-graph>.oc-graph-head .hint{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--oc-text-faint)}
       /* overflow-x:auto here used to clip the overflow popover, leaving its
          interpolation and tangent buttons unreachable. It wraps instead. */
       .majoor-omnicam .oc-graph-toolbar{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--oc-line-soft);flex-wrap:wrap}

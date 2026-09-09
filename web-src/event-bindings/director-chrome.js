@@ -177,9 +177,11 @@ function bindViewToggles(ui, signal) {
   ui.root.querySelector('[data-act="toggle-graph"]')?.addEventListener("click", (event) => {
     const graph = ui.root.querySelector(".curve-editor");
     if (!graph) return;
-    graph.open = !graph.open;
-    event.currentTarget.classList.toggle("active", graph.open);
-    if (graph.open) ui.drawCurveEditor();
+    // The lower-deck editor is a plain section now, not a <details>: collapse
+    // it to just its mode row instead of toggling a disclosure.
+    const collapsed = graph.classList.toggle("oc-graph-collapsed");
+    event.currentTarget.classList.toggle("active", !collapsed);
+    if (!collapsed) ui.drawCurveEditor();
   }, { signal });
 
   // Responsive drawers: below the three-column breakpoint the Scene panel and

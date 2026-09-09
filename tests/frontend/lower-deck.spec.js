@@ -134,8 +134,8 @@ test("the graph tabs swap the stage and disable the controls that do not apply",
   // One lane per graphed component: Position X/Y/Z + Focal Length + Roll.
   expect(await page.locator(".oc-gdope-row").count()).toBe(5);
   await expect(page.locator('[data-act="curve-fit"]')).toBeDisabled();
-  // The <details> must not have collapsed: the tabs live inside its <summary>.
-  await expect(page.locator(".oc-graph")).toHaveAttribute("open", "");
+  // The editor is a plain section now; switching modes must not collapse it.
+  await expect(page.locator(".oc-graph")).not.toHaveClass(/oc-graph-collapsed/);
 
   await page.locator('[data-graph-tab="curves"]').click();
   await expect(canvas).toBeVisible();

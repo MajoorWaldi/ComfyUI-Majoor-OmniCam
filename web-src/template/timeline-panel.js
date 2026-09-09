@@ -90,15 +90,15 @@ function dopeSheet() {
 
 function graphEditor() {
   return `
-    <details class="curve-editor oc-graph" data-density-min="animation" open>
-      <summary>
+    <section class="curve-editor oc-graph" data-density-min="animation">
+      <div class="oc-graph-head">
         <span class="oc-graph-tabs" data-role="graph-tabs">
-          <button class="oc-graph-tab active" data-graph-tab="curves" aria-pressed="true" title="${t("Edit animation curves")}"><strong>${t("Graph Editor")}</strong></button>
-          <button class="oc-graph-tab" data-graph-tab="dope" aria-pressed="false" title="${t("Per-channel keyframe sheet")}">${t("Dope Sheet")}</button>
+          <button class="oc-graph-tab" data-graph-tab="dope" aria-pressed="false" title="${t("Per-channel keyframe sheet")}">${t("Timeline")}</button>
+          <button class="oc-graph-tab active" data-graph-tab="curves" aria-pressed="true" title="${t("Edit animation curves")}"><strong>${t("Graph")}</strong></button>
           <button class="oc-graph-tab" data-graph-tab="sequence" aria-pressed="false" title="${t("Cut the timeline into shots, one camera per range")}">${t("Sequence")}</button>
         </span>
         <span class="hint">${t("MMB/Alt-drag: Pan · Scroll: Zoom · Box Select: Drag · Drag Point: Retime/Value · Right-click: Menu")}</span>
-      </summary>
+      </div>
       <div class="curve-toolbar oc-graph-toolbar">
         <select data-role="curve-group" title="${t("Choose the animated channels displayed in the graph")}">
           <option value="camera">${t("Camera (Position, Focal, Roll)")}</option>
@@ -153,7 +153,7 @@ function graphEditor() {
       </div>
       <div class="oc-resize-v oc-graph-resize" data-role="graph-resize" role="separator" aria-orientation="horizontal" tabindex="0"
            title="${t("Drag to resize graph editor — double-click to reset")}" aria-label="${t("Resize graph editor")}"></div>
-    </details>`;
+    </section>`;
 }
 
 export function timelinePanelMarkup() {
