@@ -1,3 +1,10 @@
+> [!WARNING]
+> **Work in progress — expect breaking changes.**
+> Majoor OmniCam is under active construction. Nodes, inputs, outputs and the
+> saved motion format may change from one release to the next, and existing
+> workflows can break after an update. Pin a version if you need stability, and
+> check the [CHANGELOG](CHANGELOG.md) before upgrading.
+
 <p align="center">
   <img src="web/assets/omnicam-icon.png" width="112" alt="Majoor OmniCam">
 </p>
