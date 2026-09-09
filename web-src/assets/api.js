@@ -15,19 +15,18 @@ function defaultFetchApi(path, options) {
 }
 
 async function readJson(response) {
-  const text = await response.text();
   let body = null;
   try {
-    body = text ? JSON.parse(text) : null;
+    body = await response.json();
   } catch {
     body = null;
   }
-  if (!response.ok) {
-    const code = body?.error?.code || `HTTP_${response.status}`;
-    const message = body?.error?.message || text || response.statusText;
+  if (response.ok === false) {
+    const code = body?.error?.code || `HTTP_${response.status || 0}`;
+    const message = body?.error?.message || response.statusText || code;
     const error = new Error(message);
     error.code = code;
-    error.status = response.status;
+    error.status = response.status || 0;
     throw error;
   }
   return body ?? {};

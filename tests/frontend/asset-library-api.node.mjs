@@ -12,7 +12,7 @@ function recorder(response) {
       ok: body.ok !== false,
       status: body.status || (body.ok === false ? 400 : 200),
       statusText: "",
-      text: async () => JSON.stringify(body.json ?? {}),
+      json: async () => body.json ?? {},
     };
   };
   return { calls, api: createAssetLibraryApi({ fetchApi }) };

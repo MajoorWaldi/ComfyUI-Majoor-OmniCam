@@ -17,6 +17,26 @@ const RESPONSES = {
     }],
   },
   "/majoor/omnicam/exchange_formats": { export: [], import: [], notes: {} },
+  "/majoor/omnicam/library": {
+    format: "majoor.omnicam.library.v2",
+    items: [
+      {
+        version: 2, id: "omnicam.character.human_neutral_01", name: "Human Neutral 01",
+        kind: "character", category: "characters", file: "characters/human_neutral_01.glb",
+        format: "glb", base_size: [0.62, 1.78, 0.4], fit: "upright",
+        tags: ["human", "adult", "neutral"], thumbnail: "", animations: [{ id: "idle", name: "Idle", clip: "Idle", tags: [] }],
+        license: { spdx: "CC0-1.0" }, source: "default",
+        rig: { profile: "omnicam_humanoid_v1", root_bone: "Hips", forward_axis: "-Z", up_axis: "+Y", bone_map: { pelvis: "Hips", head: "Head" } },
+      },
+      {
+        version: 2, id: "omnicam.prop.crate_01", name: "Crate 01", kind: "prop",
+        category: "props", file: "props/crate_01.glb", format: "glb",
+        base_size: [0.6, 0.6, 0.6], fit: "stretch", tags: ["crate", "box"], thumbnail: "",
+        animations: [], license: { spdx: "CC0-1.0" }, source: "default",
+      },
+    ],
+    total: 2, offset: 2, limit: 60, kinds: { character: 1, prop: 1 },
+  },
   "/majoor/omnicam/reconstruction/capabilities": {
     feature: "scene_reconstruction",
     version: 2,
