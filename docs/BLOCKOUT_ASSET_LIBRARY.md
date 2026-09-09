@@ -9,6 +9,14 @@ This is **not** a reconstruction model. It is a folder of CC0 kit models plus a
 `library.json` manifest that maps a semantic class to one of them. Nothing is
 downloaded at pipeline time — you populate the folder once.
 
+> **Shared downloader.** `scripts/fetch_blockout_library.py` keeps its legacy
+> flags (`--list`, `--from-dir`, `--dest`, `--only`, `--download`, `--dry-run`)
+> and its `library.json` / `SOURCES.md` output, but its Kenney page resolution,
+> bounded download and ZIP-safety now come from
+> `omnicam.assets.bootstrap` — there is one Kenney downloader in the project.
+> For the Director's unified catalog use
+> `scripts/bootstrap_asset_library.py` instead (see [ASSET_LIBRARY.md](ASSET_LIBRARY.md)).
+
 > **Now one source of the unified catalog.** The Director's
 > [unified asset library](ASSET_LIBRARY.md) mounts this blockout library
 > **read-only** as its `legacy` source (`user > legacy > default`). The

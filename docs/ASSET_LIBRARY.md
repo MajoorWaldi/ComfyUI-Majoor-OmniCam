@@ -108,6 +108,54 @@ query  asset.get                    one object's asset / label / character linka
 `asset.instantiate` never performs an HTTP lookup inside a transaction — the
 caller resolves the row first and passes it in.
 
+## Starter library bootstrap
+
+A fresh install ships **no** heavy models. The starter library is an explicit,
+opt-in download — never a background fetch at ComfyUI or Director start-up.
+
+```bash
+# inspect what would happen (resolves + inventories, writes nothing)
+python scripts/bootstrap_asset_library.py --preset starter --download --dry-run
+
+# install the starter library (~30–45 curated GLBs)
+python scripts/bootstrap_asset_library.py --preset starter --download
+
+# re-check an installed library later, offline
+python scripts/bootstrap_asset_library.py --verify
+
+# optional themed character packs
+python scripts/bootstrap_asset_library.py --preset characters-extra --download
+```
+
+Presets: `starter` (default seven packs), `characters`, `characters-extra`,
+`props`, `vehicles`, `environment`, `environments-extra`. `--from-dir DIR` uses
+ZIPs you already downloaded instead of the network; `--source ID` narrows a
+preset; `--dest` points at a specific ComfyUI input root; `--update` permits
+replacing a previously installed file after its upstream pack changed;
+`--json` emits the machine report.
+
+What it does and does not do:
+
+- **Source:** Kenney only, and only packs whose page still declares
+  *Creative Commons CC0* at download time; the resolved ZIP must stay on
+  `https://kenney.nl/media/pages/assets/…`. It fails closed otherwise.
+- **No vendoring:** downloaded packs, installed GLBs and the generated
+  `SOURCES.md` / `.bootstrap/library.lock.json` / `.bootstrap/last-report.json`
+  live under `<input>/omnicam/library/`, never in Git.
+- **Cache:** the downloaded ZIPs sit in `.bootstrap/cache/` during a run and are
+  deleted on success unless you pass `--keep-cache`.
+- **Characters:** selected only from *inspected* GLB skin + joint data that maps
+  every required `OMNICAM_HUMANOID_V1` joint; sex/gender is never inferred.
+  Animation clips are taken from the real GLB, never invented.
+- **Thumbnails:** not rendered here — the Asset Browser's existing lazy
+  `ThumbnailRenderer` generates them on first view.
+- **Excluded:** Quaternius and Mixamo (redistribution terms), Poly Haven
+  (deferred to a future bridge). Use normal local import for packs you hold a
+  licence to yourself.
+
+`fetch_blockout_library.py` is the legacy blockout entry point and now shares
+this same Kenney download / archive core.
+
 ## Reconstruction
 
 `semantic class -> unified catalog resolver -> AssetDefinition -> placement

@@ -120,6 +120,18 @@ query  character.get_pose             preset_id, root_offset, joints, has_motion
 A detected `person` becomes `asset_kind = "character"` **only** when the resolved
 catalog asset has a complete rig. A static posed human stays a `prop`.
 
+## Starter bootstrap characters
+
+`scripts/bootstrap_asset_library.py` (see [ASSET_LIBRARY.md](ASSET_LIBRARY.md))
+marks a downloaded model `character` only from **inspected** GLB data: it must
+have a skin, named joints, and `auto_map_bones()` must resolve every required
+`OMNICAM_HUMANOID_V1` joint with a plausible hierarchy and ≤ 75 k triangles.
+The illustrative rig maps in `catalog.default.json` are never trusted for a
+downloaded file. Generated tags are factual only (`human`, `character`,
+`proxy`, `kenney`, `animated`) — sex and gender are never inferred from
+geometry. Animation clip ids come from the real GLB clip names; unknown names
+get no guessed semantic tags.
+
 ## Deferred
 
 full IK · foot locking · animation retargeting · blending / NLA · mocap · facial
