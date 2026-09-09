@@ -208,7 +208,7 @@ def test_h3_native_autogrow_reference_video_socket_is_verified():
 
     class RefVideos:
         id = "ref_videos"
-        template = [Socket("ref_video")]
+        template = (Socket("ref_video"),)
 
     class Schema:
         inputs = (Socket("clip"), Socket("prompt"), RefVideos())
