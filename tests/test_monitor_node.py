@@ -176,6 +176,46 @@ def test_zero_duration_and_fps_inherit_the_connected_shot(all_targets_installed)
     assert outs(inherited)[8] != outs(old_defaults)[8]
 
 
+def test_h3_native_monitor_decodes_all_frames_from_real_videofromfile(tmp_path, all_targets_installed):
+    av = pytest.importorskip("av")
+    np = pytest.importorskip("numpy")
+    torch = pytest.importorskip("torch")
+    from comfy_api.latest import InputImpl
+
+    path = tmp_path / "h3_96f.mp4"
+    width, height, frames = 64, 36, 96
+    with av.open(str(path), mode="w") as container:
+        stream = container.add_stream("mpeg4", rate=24)
+        stream.width, stream.height, stream.pix_fmt = width, height, "yuv420p"
+        for index in range(frames):
+            image = np.zeros((height, width, 3), dtype=np.uint8)
+            image[:, index % width] = 255
+            container.mux(stream.encode(av.VideoFrame.from_ndarray(image, format="rgb24")))
+        container.mux(stream.encode(None))
+
+    scene = _scene().to_dict()
+    scene["timeline"] = {"duration_seconds": 4.0, "authoring_fps": 24.0}
+    track = scene["cameras"][0]["track"]
+    track["duration_frames"] = frames
+
+    output = MajoorOmniCamMonitor.execute(
+        motion_scene=scene,
+        playblast_video=InputImpl.VideoFromFile(str(path)),
+        base_prompt="A real MP4 reference.",
+        target_profile="h3_native",
+        target_width=832,
+        target_height=480,
+        duration_seconds=0.0,
+        target_fps=0.0,
+    )
+    values = output.outputs if hasattr(output, "outputs") else tuple(output)
+    reference_frames = values[2]
+
+    assert isinstance(reference_frames, torch.Tensor)
+    assert reference_frames.shape == (96, height, width, 3)
+    assert values[8] == 107
+
+
 def test_unknown_target_profile_is_rejected_instead_of_silently_switched():
     with pytest.raises(KeyError, match="missing_profile"):
         MajoorOmniCamMonitor.execute(

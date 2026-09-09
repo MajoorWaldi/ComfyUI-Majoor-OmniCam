@@ -424,8 +424,8 @@ export function defaultState() {
     // conditioning reference.
     reconstruction_appearance: "source_texture",
     point_density: "balanced", point_spread: "all_views", point_color: "#cbd5e1", viewport_bg_color: "#121212", viewport_bg_image: "", viewport_bg_sequence: [],
-    show_grid: true, show_camera_paths: true, show_camera_gizmos: true, show_look_at: true, show_helper_axes: true, show_gizmo: true, show_wireframe: false, show_vertices: false, backface_culling: false, select_mode: "object",
-    gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "maya", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "camera", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "advanced",
+    show_grid: true, show_radar: true, show_camera_paths: true, show_camera_gizmos: true, show_look_at: true, show_helper_axes: true, show_gizmo: true, show_wireframe: false, show_vertices: false, backface_culling: false, select_mode: "object",
+    gizmo_mode: "translate", gizmo_space: "world", navigation_profile: "simple", spatial_snap_mode: "none", spatial_grid_size: 0.5, auto_key: false, view_mode: "perspective", camera_view_visible: true, editor_views: defaultEditorViews(), ui_density: "animation",
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
     outliner_height: PANEL_LAYOUT.outlinerHeight.default, preview_width: PANEL_LAYOUT.previewWidth.default,
@@ -574,7 +574,7 @@ export function sanitizeState(raw) {
       ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     })).sort((a, b) => a.frame - b.frame)
   }));
-  out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = ["blender", "simple"].includes(out.navigation_profile) ? out.navigation_profile : "maya"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
+  out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = ["maya", "blender", "simple"].includes(out.navigation_profile) ? out.navigation_profile : "simple"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "animation";
   out.select_mode = ["object", "vertex", "edge", "face"].includes(out.select_mode) ? out.select_mode : "object";
   out.show_grid = out.show_grid !== false;
   out.show_camera_paths = out.show_camera_paths !== false;
@@ -602,7 +602,7 @@ export function sanitizeState(raw) {
   out.graph_height = Math.round(boundedNumber(out.graph_height, PANEL_LAYOUT.graphHeight.default, PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max));
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
-  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.playblast_quality = ["low", "balanced", "high"].includes(out.playblast_quality) ? out.playblast_quality : "balanced"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
+  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.playblast_quality = ["low", "balanced", "high"].includes(out.playblast_quality) ? out.playblast_quality : "balanced"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "perspective"; out.camera_view_visible = out.camera_view_visible !== false;
   // The MotionScene omnicam/reconstruction produces never sets this field (it
   // isn't part of the canonical schema), so every freshly-adopted reconstruction
   // falls through to this default -- source_texture, so it doesn't render as an

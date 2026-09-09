@@ -206,7 +206,7 @@ export function directorDefaults() {
     backgroundColor: colorSetting(SETTING_BG_COLOR, "#121212"),
 
     showGrid: booleanSetting(SETTING_SHOW_GRID, true),
-    showRadar: booleanSetting(SETTING_SHOW_RADAR, false),
+    showRadar: booleanSetting(SETTING_SHOW_RADAR, true),
     showCameraPaths: booleanSetting(SETTING_SHOW_CAMERA_PATHS, true),
     showCameraGizmos: booleanSetting(SETTING_SHOW_CAMERA_GIZMOS, true),
     showLookAt: booleanSetting(SETTING_SHOW_LOOK_AT, true),
@@ -227,14 +227,14 @@ export function directorDefaults() {
     spatialSnapMode: choiceSetting(SETTING_SNAP_MODE, "none", ["none", "grid", "vertex"]),
     spatialGridSize: numericSetting(SETTING_SNAP_GRID_SIZE, 0.5, 0.01, 100),
 
-    navigationProfile: choiceSetting(SETTING_NAVIGATION_PROFILE, "maya", ["maya", "blender"]),
+    navigationProfile: choiceSetting(SETTING_NAVIGATION_PROFILE, "simple", ["maya", "blender", "simple"]),
     flySpeed: numericSetting(SETTING_FLY_SPEED, 1, 0.05, 5),
     invertOrbitY: booleanSetting(SETTING_INVERT_ORBIT_Y, false),
     zoomSensitivity: numericSetting(SETTING_ZOOM_SENSITIVITY, 1, 0.2, 3),
     orbitSensitivity: numericSetting(SETTING_ORBIT_SENSITIVITY, 1, 0.2, 3),
     panSensitivity: numericSetting(SETTING_PAN_SENSITIVITY, 1, 0.2, 3),
     dollySensitivity: numericSetting(SETTING_DOLLY_SENSITIVITY, 1, 0.2, 3),
-    viewMode: choiceSetting(SETTING_VIEW_MODE, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
+    viewMode: choiceSetting(SETTING_VIEW_MODE, "perspective", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
 
     snapEnabled: booleanSetting(SETTING_SNAP_ENABLED, true),
     snapFrames: numericSetting(SETTING_SNAP_FRAMES, 1, 1, 24, true),
@@ -243,7 +243,7 @@ export function directorDefaults() {
     timecodeMode: choiceSetting(SETTING_TIMECODE_MODE, "time", ["time", "timecode"]),
     loopPlayback: booleanSetting(SETTING_LOOP_PLAYBACK, false),
 
-    uiDensity: choiceSetting(SETTING_UI_DENSITY, "advanced", ["basic", "animation", "advanced"]),
+    uiDensity: choiceSetting(SETTING_UI_DENSITY, "animation", ["basic", "animation", "advanced"]),
     previewLayout: choiceSetting(SETTING_PREVIEW_LAYOUT, "auto", ["auto", "1", "2", "4"]),
     cameraViewVisible: booleanSetting(SETTING_CAMERA_VIEW_VISIBLE, true),
 

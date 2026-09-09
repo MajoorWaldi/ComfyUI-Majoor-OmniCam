@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Examples: `07_minimax_h3_native_global_example.json` is now the full
+  Omnicam → MiniMax H3 reference production graph (external-reference Monitor,
+  Set/Get virtual wiring, upscale + interpolation chain). The example-workflow
+  test suite now exempts graphs that use Set/Get virtual wiring from the
+  `links[]`-topology checks and reads the Monitor profile / timeline widgets by
+  value rather than by fixed index.
+
+### Fixed
+
+- Settings: every OmniCam preference now shows up in **Settings > OmniCam**. The
+  catalogue declared a shared 3-segment `category` path (`OmniCam / Director /
+  <group>`), and ComfyUI's settings dialog collapses entries that share a full
+  path onto one tree node — so only the last-registered preference of each group
+  survived and 47 of 58 (including **Default playblast resolution** and **Default
+  playblast quality**) were invisible. Category paths are now `OmniCam / <group>
+  / <name>`, one leaf per preference.
+- Playblast: deterministic WebCodecs recording no longer fails with
+  `options.quality must be a number, or one of 'very-low', 'low', 'medium', …`.
+  The `balanced` quality preset was passed straight to mediabunny's `Quality()`,
+  which rejects it; `low` / `balanced` / `high` now map to `QUALITY_LOW` /
+  `QUALITY_MEDIUM` / `QUALITY_HIGH`.
+
+## [0.3.0] - 2026-09-09
+
 - Director Viewport: improved **Camera Near Clipping & Backface Culling**:
   - **Double-Sided Shading by Default (`THREE.DoubleSide`)**: Studio clay (`neutral`), dark matte (`matte`), and UV checkerboard now render two-sided by default. Interior architectural models, rooms, walls, and thin single-sided polygons remain solid and visible from both interior and exterior camera angles.
   - **Backface Culling Quick Toggle**: added a dedicated Backface Culling toggle button (`overlay-cull-btn` / `toggle-cull-overlay`) in the viewport header overlay cluster and under the Display toolbar menu (`backface-culling`), allowing single-sided culling inspection at will.
@@ -87,6 +113,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Outliner list gets an explicit, drag-controlled height and the node grows to
   fit, so a long scene is read at full height instead of through a cramped
   inner scrollbar.
+- Example workflows refreshed for OmniCam `0.3.0`, with explicit Director
+  starter state matching the new Perspective / Simple / Animation defaults and
+  the reconstruction workflow listed in `examples/README.md`.
+- Added `07_minimax_h3_native_global_example.json` as a shipped MiniMax H3 native
+  workflow example, linked directly from the README files.
 
 ### Changed
 - Graph Editor curve and dope-sheet canvas now dynamically reads `clientHeight` instead
@@ -122,6 +153,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mounted Director and states plainly that a reload is needed for the rest.
 
 ### Fixed
+- Director viewport defaults now open consistently in Perspective view with
+  Simple navigation, Animation density and the radar mini-map enabled; the
+  quick-view buttons are synchronized during initial widget sync so `Camera`
+  no longer remains visually active after a new node is created.
+- Batch Hide / Show now writes the canonical scene-object `enabled` field
+  instead of a non-rendered `visible` mirror, so hiding multiple selected
+  objects actually removes them from the viewport and serialized scene.
+- The radar mini-map selection highlight now reads the canonical transient UI
+  selection (`ui.selectedObjectId` / `ui.selectedObjectIds`) instead of a stale
+  `state` mirror.
+- Monitor UI mounting now recognizes ComfyUI nodes whose class name is exposed
+  through `constructor.comfyClass`, preventing the Monitor from falling back to
+  its raw backend widgets on affected frontend builds.
+- H3 Native reference-frame coverage now has regression tests for real
+  `VideoFromFile`-style video batches and the MiniMax H3 reference socket
+  contract.
 - Fixed Graph Editor canvas vertical stretching and curve point misalignments caused
   by a static 220px coordinate scale when `graph_height` was resized.
 - Media lifecycle: a replaced `<video>` is stopped and unloaded, `ui.disposed`

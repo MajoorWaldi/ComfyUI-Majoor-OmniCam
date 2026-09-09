@@ -144,6 +144,7 @@ def test_expected_inputs_match_the_installed_node_sockets():
 
     assert ADAPTER_INFO["ltx25_motion_track"]["expected_inputs"] == ["tracks"]
     assert ADAPTER_INFO["h3_api"]["expected_inputs"] == ["reference_video"]
+    assert ADAPTER_INFO["h3_native"]["expected_inputs"] == ["ref_videos"]
     for adapter, info in ADAPTER_INFO.items():
         # external_reference_video names no node at all -- that omission is the
         # point of it, not an oversight in every other entry.
@@ -192,6 +193,35 @@ def test_nested_template_sockets_are_discovered():
     assert _socket_names([Socket("positive"), Autogrow()]) == {
         "positive", "reference_group", "reference_video", "reference_image",
     }
+
+
+def test_h3_native_autogrow_reference_video_socket_is_verified():
+    """The real H3 native input is an IMAGE autogrow group.
+
+    Current ComfyUI exposes the stable schema input as ``ref_videos`` and the
+    dynamic graph pins underneath it as ``ref_video_1`` etc.; Monitor's IMAGE
+    batch must be checked against that parent contract.
+    """
+    class Socket:
+        def __init__(self, name):
+            self.id = name
+
+    class RefVideos:
+        id = "ref_videos"
+        template = [Socket("ref_video")]
+
+    class Schema:
+        inputs = (Socket("clip"), Socket("prompt"), RefVideos())
+
+    class MiniMaxH3ReferenceToVideo:
+        @classmethod
+        def define_schema(cls):
+            return Schema()
+
+    report = detect_capabilities({"MiniMaxH3ReferenceToVideo": MiniMaxH3ReferenceToVideo})
+    entry = next(item for item in report["capabilities"] if item["adapter"] == "h3_native")
+
+    assert entry["state"] == "verified"
 
 
 def test_socket_discovery_survives_hostile_shapes():

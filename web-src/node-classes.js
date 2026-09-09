@@ -6,5 +6,5 @@ export const MONITOR_NODE_CLASS = "MajoorOmniCamMonitor";
 
 /** Read a node's class the several ways ComfyUI exposes it. */
 export function nodeClassOf(node) {
-  return String(node?.comfyClass || node?.type || node?.constructor?.type || "");
+  return String(node?.comfyClass || node?.type || node?.constructor?.comfyClass || node?.constructor?.type || "");
 }

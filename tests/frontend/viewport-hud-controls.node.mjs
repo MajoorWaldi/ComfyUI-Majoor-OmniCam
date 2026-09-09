@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { updateCameraHud, updateFloatingTransport, updateViewportControls } from "../../web-src/viewport/viewport-hud.js";
 import { SENSOR_PRESETS, focalLengthToFov } from "../../web-src/lens.js";
+import { viewportMarkup } from "../../web-src/template/viewport.js";
+import { DIRECTOR_STYLES } from "../../web-src/template/styles.js";
 
 function makeElement(tag = "div") {
   const classes = new Set();
@@ -13,6 +15,9 @@ function makeElement(tag = "div") {
     className: "",
     title: "",
     value: "",
+    attributes: new Map(),
+    setAttribute(name, value) { this.attributes.set(name, String(value)); },
+    getAttribute(name) { return this.attributes.get(name) ?? null; },
     classList: {
       add: (c) => classes.add(c),
       remove: (c) => classes.delete(c),
@@ -99,8 +104,10 @@ test("updateCameraHud reflects camera optics and lock state", () => {
 test("updateViewportControls updates W/L space badge and snap button", () => {
   const spaceBadge = makeElement("span");
   const snapBtn = makeElement("button");
+  const snapLabel = makeElement("span");
   const gridBtn = makeElement("button");
   const shadingSelect = makeElement("select");
+  snapBtn._map = { '[data-role="spatial-snap-label"]': snapLabel };
 
   const root = {
     querySelector(selector) {
@@ -126,8 +133,27 @@ test("updateViewportControls updates W/L space badge and snap button", () => {
 
   assert.equal(spaceBadge.textContent, "L");
   assert.equal(snapBtn.classList.contains("active"), true);
+  assert.equal(snapBtn.getAttribute("aria-pressed"), "true");
+  assert.equal(snapLabel.textContent, "GRID");
   assert.equal(gridBtn.classList.contains("active"), true);
   assert.equal(shadingSelect.value, "beauty");
+
+  ui.state.spatial_snap_mode = "none";
+  updateViewportControls(ui);
+  assert.equal(snapBtn.classList.contains("active"), false);
+  assert.equal(snapBtn.getAttribute("aria-pressed"), "false");
+  assert.equal(snapLabel.textContent, "OFF");
+});
+
+test("viewport tool rail gives transform space and snapping readable fixed-size controls", () => {
+  const markup = viewportMarkup();
+
+  assert.match(markup, /data-role="gizmo-space-badge">W<\/span>/);
+  assert.match(markup, /data-role="spatial-snap-toggle"[^>]*aria-pressed="false"/);
+  assert.match(markup, /pi pi-magnet/);
+  assert.match(markup, /data-role="spatial-snap-label">OFF<\/span>/);
+  assert.match(DIRECTOR_STYLES, /\.vp-space-badge\{[^}]*min-width:18px[^}]*font-size:12px/s);
+  assert.match(DIRECTOR_STYLES, /\.vp-snap-label\{[^}]*font-size:9px/s);
 });
 
 test("SENSOR_PRESETS calculate accurate field of view", () => {

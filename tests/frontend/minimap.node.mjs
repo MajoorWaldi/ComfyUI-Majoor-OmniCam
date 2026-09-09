@@ -186,3 +186,42 @@ test("drawTopDownRadar executes cleanly without throwing", () => {
   drawTopDownRadar(ui, mockContext, 800, 600);
   assert.ok(drawn.length > 20, "radar chrome and entities were drawn");
 });
+
+test("drawTopDownRadar highlights selection from transient ui selection state", () => {
+  const ui = createMockUi({
+    camPos: [6, 1.5, 6],
+    camTgt: [6, 0, 5],
+    state: {
+      cameras: [
+        {
+          id: "cam_1",
+          keyframes: [
+            { frame: 0, camera: { position: [6, 1.5, 6], target: [6, 0, 5] } },
+          ],
+        },
+      ],
+      objects: [
+        { id: "obj_1", name: "Subject Card", type: "card", position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      ],
+    },
+  });
+  ui.selectedObjectId = "obj_1";
+  ui.selectedObjectIds = new Set(["obj_1"]);
+  const fills = [];
+  const mockContext = new Proxy({}, {
+    set(target, prop, value) {
+      if (prop === "fillStyle") fills.push(value);
+      target[prop] = value;
+      return true;
+    },
+    get: (_, prop) => (...args) => {
+      if (prop === "measureText") return { width: 40 };
+      if (prop === "createRadialGradient") return { addColorStop: () => {} };
+      return null;
+    },
+  });
+
+  drawTopDownRadar(ui, mockContext, 800, 600);
+
+  assert.ok(fills.includes("#a855f7"), "selected object uses the selection colour");
+});

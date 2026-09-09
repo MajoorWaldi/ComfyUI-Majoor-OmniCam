@@ -4,7 +4,12 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
 import { STLLoader } from "three/addons/loaders/STLLoader.js";
-import { BufferTarget, CanvasSource, Output, Quality, WebMOutputFormat, canEncodeVideo } from "mediabunny";
+import { BufferTarget, CanvasSource, Output, QUALITY_HIGH, QUALITY_LOW, QUALITY_MEDIUM, WebMOutputFormat, canEncodeVideo } from "mediabunny";
+
+// OmniCam's playblast scale (low/balanced/high) mapped onto mediabunny's Quality
+// presets. mediabunny's Quality() constructor only accepts a number or one of
+// very-low/low/medium/high/very-high, so "balanced" reached it as an error.
+const PLAYBLAST_QUALITY = { low: QUALITY_LOW, balanced: QUALITY_MEDIUM, high: QUALITY_HIGH };
 
 import { generatePointField, sampleCamera, sampleObjectTransform } from "./director/core.js";
 import { attachPlayblastMetrics } from "./playblast-contract.js";
@@ -344,7 +349,7 @@ export async function encodeDeterministicPlayblast(canvas, frameCount, fps, rend
   const codec = await supportsDeterministicEncoding(canvas.width, canvas.height);
   if (!codec) throw new Error("No supported WebCodecs WebM encoder");
   const output = new Output({ format: new WebMOutputFormat(), target: new BufferTarget() });
-  const source = new CanvasSource(canvas, { codec, quality: new Quality(["low", "balanced", "high"].includes(quality) ? quality : "balanced"), keyFrameInterval: 1 });
+  const source = new CanvasSource(canvas, { codec, quality: PLAYBLAST_QUALITY[quality] || PLAYBLAST_QUALITY.balanced, keyFrameInterval: 1 });
   output.addVideoTrack(source, { frameRate: fps });
   await withTimeout(output.start(), 10_000, "Starting deterministic encoder");
   try {

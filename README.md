@@ -111,7 +111,8 @@ reconstruction providers remain optional; see the
 
 ### OmniCam Director
 
-The viewport supports Maya/Blender navigation profiles, selection-preserving
+The viewport opens in Perspective view with the Simple navigation profile and
+mini-map enabled by default. It also supports Maya/Blender navigation profiles, selection-preserving
 navigation gestures, display-scale-aware pan and normalized wheel zoom. Press
 `F` to fit the entire selection in perspective or orthographic views, and
 `Escape` to cancel a drag. See [controls and shortcuts](docs/SHORTCUTS.md).
@@ -123,7 +124,7 @@ references, draw motion layers over the frame, cut between cameras, and record a
 neutral proxy playblast. This is where a MotionScene is authored:
 
 - **3D Scene Primitives**: Instant creation of **Card** (media billboard), **Cube**, **Sphere**, **Cylinder**, **Torus**, **Null**, and an authentic **procedural low-poly Human mannequin** (faceted torso, limbs in relaxed A-pose, grounded at $y=0$ for realistic human scale cues).
-- **Viewport HUD & Tool Rail Ergonomics**: On-screen Camera HUD (Lens mm, FOV, target distance, Camera Lock `🔒`, roll leveler `⮑`), 1-click World/Local coordinate space toggle (`W`/`L`) & Snapping (🧲) on the tool rail, quick-toggle overlay cluster, and fullscreen floating transport.
+- **Viewport HUD & Tool Rail Ergonomics**: On-screen Camera HUD (Lens mm, FOV, target distance, Camera Lock `🔒`, roll leveler `⮑`), readable 1-click World/Local coordinate space toggle (`W`/`L`) and Snapping (`OFF`/`GRID`) on the tool rail, quick-toggle overlay cluster, and fullscreen floating transport.
 - **Graph Editor & Animation Curves**: 12 easing interpolation modes (`ease`, `smooth`, `bezier`, `linear`, `ease_in`, `ease_out`, `hold`, `sine`, `cubic`, `quintic`, `expo`, `back`) and 6 Bézier tangent modes (`auto`, `clamped`, `vector`, `free`, `aligned`, `flat`) with dynamic aspect-ratio canvas scaling.
 - **Dynamic Layout Splitters**: Drag-resizable Outliner list, Camera Previews column, Right Inspector / Side Panel, and Graph Editor — all persistent in saved workflows and fully keyboard-operable (`role="separator"`).
 - **Interactive Camera Authoring**: Freehand **Draw Camera Path** in Top View with automatic keyframe timing, Follow Path orientation, Look At targets, and editable 3D spatial Bézier control handles.
@@ -193,6 +194,7 @@ To start from footage instead, put **OmniCam Extractor** in front and wire its
 Complete runnable graphs are in [`examples/workflows/`](examples/workflows):
 each is the official Comfy-Org template for that model with its motion source
 replaced by OmniCam, so every model, LoRA and sampler setting is upstream's.
+Direct MiniMax starter: [`07_minimax_h3_native_global_example.json`](examples/workflows/07_minimax_h3_native_global_example.json).
 
 ## What OmniCam will refuse to do
 

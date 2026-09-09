@@ -118,9 +118,11 @@ the connected ComfyUI `VIDEO` through `get_dimensions`, `get_frame_rate`,
 without decoding their image tensors.
 
 **Interface density.** The `View → Interface` selector (Basic / Animation /
-Advanced) is progressive disclosure of one layout, not three layouts. The full
-authoring overview is in [USER_GUIDE.md](USER_GUIDE.md); keyboard and viewport
-controls are in [SHORTCUTS.md](SHORTCUTS.md).
+Advanced) is progressive disclosure of one layout, not three layouts. New
+Director panels open in the Animation density, Perspective view, Simple
+navigation profile, with the radar mini-map enabled. The full authoring overview
+is in [USER_GUIDE.md](USER_GUIDE.md); keyboard and viewport controls are in
+[SHORTCUTS.md](SHORTCUTS.md).
 
 ### Draw Camera Path
 
@@ -227,7 +229,7 @@ The lower deck houses an animation curve editor and dope sheet for fine-grained 
 ### Viewport HUD & Tool Rail Controls
 
 - **Camera HUD & OSD**: Live lens focal length (`35mm`), FOV (`54.4°`), distance to subject, and a **Camera Lock toggle (`🔒`)** that prevents accidental navigation moves when framing in Camera View.
-- **Coordinate Space & Snapping**: Direct 1-click **World / Local (`W`/`L`)** toggle and **Snapping (🧲)** toggle on the vertical tool rail.
+- **Coordinate Space & Snapping**: Direct 1-click **World / Local (`W`/`L`)** toggle and **Snapping (`OFF`/`GRID`)** toggle on the vertical tool rail.
 - **Quick Overlays Cluster & Shading Select**: Instant toggles for Grid, Gizmos, Guides, Safe Areas, Radar, and Shading Mode (`Omni Ref`, `Graybox`, `Wireframe`, `Grid`, `Beauty`) in the viewport header corner.
 - **Fullscreen Floating Transport**: Minimalist playback, timecode, and keyframe controls during fullscreen presentation mode.
 - **Outliner Isolate**: Alt-click an object's eye icon to isolate it in the viewport.
