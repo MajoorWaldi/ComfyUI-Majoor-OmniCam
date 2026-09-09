@@ -11,10 +11,29 @@ import { renderMotionTimeline } from "../../motion-tracks/timeline.js";
 import { releaseAllCardMedia } from "../../dom-media.js";
 import { closeOwnedModals } from "../ui-services.js";
 import { drawCameraPathStrokeOverlay } from "../camera-path-draw.js";
+import { UI_DIRTY, mergeDirty, hasDirty } from "../ui-dirty.js";
 export function createRenderMethods(dependencies) {
   const { app, api, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bind, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawCylinder, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, drawTorus, curveChannels, drawCurveEditor, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform } = dependencies;
   return {
+  // Immediate, full repaint -- the compatibility path every discrete one-shot
+  // action still uses. High-frequency sources go through requestUiUpdate()
+  // instead so a burst of events between animation frames only touches the
+  // domains that actually changed.
   render() {
+    this.renderViewportOnly();
+    this.renderMotionUiOnly();
+    this.renderCameraView();
+  },
+  // The three Motion-workspace paints, split out so a viewport-only
+  // invalidation (an orbit, a wheel) does not re-run them.
+  renderMotionUiOnly() {
+    renderMotionPanel(this);
+    renderMotionPreview(this);
+    renderMotionTimeline(this);
+  },
+  // The main viewport canvas: WebGL (or the 2D fallback), the overlays and the
+  // DOM axis gizmo. No motion panels, no camera preview strip.
+  renderViewportOnly() {
     const c = this.ctx, w = this.canvas.width, h = this.canvas.height;
     c.fillStyle = this.state.viewport_bg_color || "#121212";
     c.fillRect(0, 0, w, h);
@@ -100,10 +119,7 @@ export function createRenderMethods(dependencies) {
     // The gizmo is DOM, so it repaints with the view and never reaches the
     // canvas the playblast records.
     if (this.state.show_gizmo) drawAxisGizmo(this);
-    renderMotionPanel(this);
-    renderMotionPreview(this);
-    renderMotionTimeline(this);
-    this.renderCameraView();
+    this.perf && (this.perf.viewportRenderCount = (this.perf.viewportRenderCount || 0) + 1);
   },
   // The single "something changed, repaint soon" entry point. Every
   // high-frequency source (playback tick, viewport drags, wheel/keyboard
@@ -111,20 +127,38 @@ export function createRenderMethods(dependencies) {
   // no matter how many events landed between paints. Discrete one-shot
   // actions can still call render() directly for an immediate repaint.
   requestRender(reason = "unknown") {
+    // Back-compat alias: a bare "repaint soon" is the viewport, its preview
+    // strip and the motion panels -- exactly what render() ran from here.
+    return this.requestUiUpdate(UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.motion, reason);
+  },
+  // Targeted invalidation on top of the existing one-RAF coalescing. Each
+  // caller marks only the domains it changed; the animation-frame callback
+  // repaints just those, once, however many calls landed between frames.
+  requestUiUpdate(mask = UI_DIRTY.viewport, reason = "unknown") {
     (this.renderReasons ||= new Set()).add(reason);
+    this.uiDirtyMask = mergeDirty(this.uiDirtyMask, mask);
     this.renderInvalidations = (this.renderInvalidations || 0) + 1;
     if (this.renderScheduled) return;
     this.renderScheduled = true;
     this.renderFrame = requestAnimationFrame(() => {
       this.renderScheduled = false;
       if (this.disposed) return;
+      const dirty = this.uiDirtyMask || UI_DIRTY.viewport;
+      this.uiDirtyMask = 0;
       this.lastRenderReasons = [...(this.renderReasons || [])];
       this.renderReasons?.clear();
       this.rendersCoalesced = (this.rendersCoalesced || 0) + 1;
-      this.render();
+      if (this.perf) this.perf.renderCount = (this.perf.renderCount || 0) + 1;
+      if (hasDirty(dirty, UI_DIRTY.outliner)) this.refreshObjects();
+      if (hasDirty(dirty, UI_DIRTY.timeline)) this.refreshKeys();
+      if (hasDirty(dirty, UI_DIRTY.inspector)) this.refreshInspector();
+      if (hasDirty(dirty, UI_DIRTY.viewport)) this.renderViewportOnly();
+      if (hasDirty(dirty, UI_DIRTY.previews)) this.renderCameraView();
+      if (hasDirty(dirty, UI_DIRTY.motion)) this.renderMotionUiOnly();
     });
   },
   renderCameraView() {
+    this.perf && (this.perf.previewRenderCount = (this.perf.previewRenderCount || 0) + 1);
     if (this.state.camera_view_visible) {
       // The strip can be present in state but visually collapsed / off-screen
       // (data-role="camera-view-row" is toggled hidden by syncFromWidgets).
@@ -178,7 +212,7 @@ export function createRenderMethods(dependencies) {
     maximizeCameraPreview(this, id);
   },
   setStatus(text) {
-    this.root.querySelector('[data-role="status"]').textContent = text;
+    (this.dom?.status || this.root.querySelector('[data-role="status"]')).textContent = text;
   },
   async makePlayblast() {
     return makePlayblast(this);
