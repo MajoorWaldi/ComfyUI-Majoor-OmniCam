@@ -9,6 +9,7 @@ import { ObjectUrlRegistry } from "./omnicam-media.js";
 import { buildRoot } from "./omnicam-template.js";
 import { dispatchDirectorKey } from "./omnicam-commands.js";
 import { watchGraphConnections } from "./graph-connection-watch.js";
+import { attachDirectorApi } from "./director-api/index.js";
 import {
   activeCameraTrack,
   bindWidgetCallbacks,
@@ -248,6 +249,8 @@ export function attachDirector(node) {
   recordDirectorTrace("director:constructor:start", node);
   const ui = new OmniCamDirectorUI(node);
   recordDirectorTrace("director:constructor:complete", node);
+  // Versioned, bounded transaction/query surface over canonical Director state.
+  attachDirectorApi(ui);
   node.__majoorOmniCam = ui;
   recordDirectorTrace("director:marker:assigned", node);
   ui.hideInternalWidgets();
