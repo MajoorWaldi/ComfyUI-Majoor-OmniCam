@@ -1,7 +1,5 @@
 """Provider-neutral solve-health normalisation and its additive track metadata."""
 
-import pytest
-
 from omnicam.core.validation import validate_track_payload
 from omnicam.extractor.solve_health import normalize_solve_health
 from omnicam.extractor.track_builder import build_omnicam_track
