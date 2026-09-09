@@ -18,6 +18,8 @@ export const DIRECTOR_OPS = Object.freeze({
   OBJECT_SET_LOCKED: "object.set_locked",
   OBJECT_SET_TAGS: "object.set_tags",
   OBJECT_SET_ANNOTATION: "object.set_annotation",
+  CHARACTER_SET_POSE: "character.set_pose",
+  CHARACTER_SET_JOINT_ROTATION: "character.set_joint_rotation",
   KEYFRAME_UPSERT: "keyframe.upsert",
   KEYFRAME_REMOVE: "keyframe.remove",
   KEYFRAME_SET_INTERPOLATION: "keyframe.set_interpolation",
@@ -34,6 +36,7 @@ export const DIRECTOR_QUERIES = Object.freeze({
   SELECTION_GET: "selection.get",
   HEALTH_GET: "health.get",
   CHARACTER_GET_RIG: "character.get_rig",
+  CHARACTER_GET_POSE: "character.get_pose",
 });
 
 export const DIRECTOR_QUERY_VALUES = Object.freeze(Object.values(DIRECTOR_QUERIES));

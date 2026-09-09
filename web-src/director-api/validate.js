@@ -109,6 +109,25 @@ function validateOperationShape(operation, index) {
       }
       break;
 
+    case DIRECTOR_OPS.CHARACTER_SET_POSE:
+      assertString(operation.objectId, "objectId", index);
+      if (operation.pose !== null && (typeof operation.pose !== "object" || Array.isArray(operation.pose))) {
+        throw new DirectorApiError("BAD_VALUE", "character.set_pose needs a pose object or null", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.CHARACTER_SET_JOINT_ROTATION:
+      assertString(operation.objectId, "objectId", index);
+      assertString(operation.joint, "joint", index);
+      if (
+        !Array.isArray(operation.rotation) ||
+        operation.rotation.length !== 4 ||
+        !operation.rotation.every(isFiniteNumber)
+      ) {
+        throw new DirectorApiError("BAD_QUATERNION", "rotation must be [x,y,z,w] of finite numbers", index);
+      }
+      break;
+
     case DIRECTOR_OPS.KEYFRAME_UPSERT:
       if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
       assertFrame(operation.frame, "frame", index);

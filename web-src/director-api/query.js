@@ -90,6 +90,23 @@ export function executeDirectorQuery(ui, request) {
       };
     }
 
+    case DIRECTOR_QUERIES.CHARACTER_GET_POSE: {
+      const object = (state.objects || []).find((item) => item.id === request.objectId);
+      if (!object) throw new DirectorApiError("UNKNOWN_OBJECT", `Unknown object: ${request.objectId}`);
+      const pose = object.character?.pose || {};
+      return {
+        version: 1,
+        type: request.type,
+        pose: clone({
+          objectId: object.id,
+          preset_id: pose.preset_id || "neutral",
+          root_offset: Array.isArray(pose.root_offset) ? pose.root_offset : [0, 0, 0],
+          joints: pose.joints || {},
+          has_motion: Boolean(object.character?.motion),
+        }),
+      };
+    }
+
     default:
       throw new DirectorApiError("UNKNOWN_QUERY", `Unsupported query: ${request?.type}`);
   }

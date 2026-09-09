@@ -6,6 +6,7 @@
 import { UI_DIRTY } from "../director/ui-dirty.js";
 import { INTERPOLATION_MODES } from "../director/core.js";
 import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
+import { normalizeQuaternion, sanitizePose, withJointRotation } from "../assets/character/pose-state.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 
@@ -19,6 +20,14 @@ function findCamera(state, cameraId) {
 function findObject(state, objectId) {
   const object = (state.objects || []).find((item) => item.id === objectId);
   if (!object) throw new DirectorApiError("UNKNOWN_OBJECT", `${objectId} does not exist`);
+  return object;
+}
+
+function requireCharacter(state, objectId) {
+  const object = findObject(state, objectId);
+  if (object.asset_kind !== "character") {
+    throw new DirectorApiError("NOT_A_CHARACTER", `${objectId} is not a character`);
+  }
   return object;
 }
 
@@ -111,6 +120,33 @@ const HANDLERS = {
     if (annotation) object.annotation = annotation;
     else delete object.annotation;
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.outliner | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_SET_POSE](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    if (object.character?.motion) {
+      throw new DirectorApiError("POSE_MOTION_EXCLUSIVE", "clear the motion clip before editing the pose");
+    }
+    object.character = {
+      ...(object.character || {}),
+      pose: op.pose === null ? sanitizePose(null) : sanitizePose(op.pose),
+    };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_SET_JOINT_ROTATION](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    if (object.character?.motion) {
+      throw new DirectorApiError("POSE_MOTION_EXCLUSIVE", "clear the motion clip before editing the pose");
+    }
+    if (!normalizeQuaternion(op.rotation)) {
+      throw new DirectorApiError("BAD_QUATERNION", "rotation is not a usable unit quaternion");
+    }
+    object.character = {
+      ...(object.character || {}),
+      pose: withJointRotation(object.character?.pose, op.joint, op.rotation),
+    };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector };
   },
 
   [DIRECTOR_OPS.KEYFRAME_UPSERT](state, op) {
