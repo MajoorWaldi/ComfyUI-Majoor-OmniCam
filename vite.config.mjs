@@ -49,7 +49,9 @@ function publicEntryStub() {
 }
 
 export function resolvePublicEntrySourceId(id) {
-  const normalizedId = normalizePath(String(id || ""));
+  // vite's normalizePath only rewrites "\" on Windows; do it unconditionally so
+  // Windows-style ids resolve identically on Linux CI.
+  const normalizedId = normalizePath(String(id || "").replaceAll("\\", "/"));
   const match = normalizedId.match(/(?:^|\/)omnicam-[^/]+\.js$/);
   const key = match?.[0].split("/").at(-1).replace(/\.js$/, "");
   return key && sourceAliases[key] ? normalizePath(resolve("web-src", sourceAliases[key])) : null;
@@ -58,7 +60,7 @@ export function resolvePublicEntrySourceId(id) {
 export function normalizeModuleId(id) {
   if (!id) return null;
 
-  const clean = normalizePath(String(id).split("?")[0]);
+  const clean = normalizePath(String(id).replaceAll("\\", "/").split("?")[0]);
   if (clean.endsWith("/scripts/app.js")) return "comfyui:scripts/app.js";
   if (clean.endsWith("/scripts/api.js")) return "comfyui:scripts/api.js";
 
