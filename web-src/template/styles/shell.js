@@ -32,14 +32,31 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-playblast-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
 
       /* ---- body grid ------------------------------------------------ */
-      .majoor-omnicam .oc-body{display:grid;grid-template-columns:minmax(0,1fr) 9px var(--oc-side-w,280px);gap:8px;padding:8px;background:var(--oc-bg);align-items:stretch}
-      .majoor-omnicam .oc-stage{min-width:0}
+      .majoor-omnicam .oc-body{display:grid;grid-template-columns:var(--oc-left-w,264px) 7px minmax(0,1fr) 9px var(--oc-side-w,280px);gap:8px;padding:8px;background:var(--oc-bg);align-items:start}
+      .majoor-omnicam .oc-stage{min-width:0;align-self:stretch}
+      .majoor-omnicam .oc-side{align-self:stretch}
+      .majoor-omnicam .oc-left{min-width:0;align-self:start;display:flex;flex-direction:column;gap:7px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);padding:8px}
+      .majoor-omnicam .oc-panel-head{display:flex;align-items:center;gap:6px}
+      .majoor-omnicam .oc-panel-head>strong{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--oc-text-dim)}
+      .majoor-omnicam .oc-panel-spacer{flex:1 1 auto}
+      .majoor-omnicam .oc-left .scene-tree{height:var(--oc-outliner-h,220px);min-height:80px}
       .majoor-omnicam .oc-body .viewport-wrap{border-radius:var(--oc-radius);overflow:hidden;box-shadow:none;border:1px solid var(--oc-line)}
-      .majoor-omnicam.oc-fullscreen .oc-body{grid-template-columns:minmax(0,1fr)}
-      .majoor-omnicam.oc-fullscreen .oc-side,.majoor-omnicam.oc-fullscreen .oc-side-resize,.majoor-omnicam.oc-fullscreen .oc-lower,.majoor-omnicam.oc-fullscreen .oc-graph{display:none}
+      /* Fullscreen keeps the full DCC shell: Scene | Viewport | Inspector + deck. */
+      .majoor-omnicam.oc-fullscreen .oc-lower,.majoor-omnicam.oc-fullscreen .oc-graph{display:block}
 
       /* ---- viewport chrome ------------------------------------------ */
-      .majoor-omnicam .vp-pills{position:absolute;top:9px;left:9px;z-index:6;display:flex;gap:5px}
+      /* Reserve the right-hand strip for .vp-corner so the pills never slide
+         under the overlay toggles when the stage narrows (the left Scene panel
+         takes width from the viewport). */
+      /* The Scene panel takes width from the viewport, so on a narrow stage the
+         quick-view pills and the top-right overlay toggles can overlap. The
+         pills keep the higher z-index (they gate primary navigation) and never
+         wrap onto the tool rail below (top:52px); the redundant view <select>
+         yields width first and the row scrolls if it is truly cramped. */
+      .majoor-omnicam .vp-pills{position:absolute;top:9px;left:9px;z-index:8;display:flex;flex-wrap:wrap;gap:5px;max-width:calc(100% - 18px)}
+      .majoor-omnicam .vp-quick-views{display:flex;flex:0 1 auto;flex-wrap:nowrap;gap:4px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+      .majoor-omnicam .vp-quick-views::-webkit-scrollbar{display:none}
+      .majoor-omnicam .vp-pills .vp-pill-select{flex:0 1 auto;min-width:88px}
       .majoor-omnicam .vp-pill{padding:4px 11px;border-radius:999px;background:rgba(26,26,33,.86);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px;backdrop-filter:blur(7px)}
       .majoor-omnicam .vp-pill-select{appearance:none;padding-right:20px;cursor:pointer}
       .majoor-omnicam .vp-pills .vp-pill:first-child{background:var(--oc-accent-soft);border-color:var(--oc-accent);color:#fff}

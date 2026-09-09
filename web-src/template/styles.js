@@ -8,6 +8,7 @@ import { SHELL_STYLES } from "./styles/shell.js";
 import { LOWER_DECK_STYLES } from "./styles/lower-deck.js";
 import { SHARED_STYLES } from "./styles/shared.js";
 import { DENSITY_STYLES } from "./styles/density.js";
+import { RESPONSIVE_STYLES } from "./styles/responsive.js";
 
 const COMPONENT_STYLES = `
       .majoor-omnicam{font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--fg-color,#ddd);background:#161618;border:1px solid #383842;border-radius:10px;overflow:visible;user-select:none;container-type:inline-size}
@@ -319,4 +320,4 @@ const COMPONENT_STYLES = `
       @container (max-width:460px){.majoor-omnicam .viewport-wrap{min-height:360px;aspect-ratio:auto}.majoor-omnicam .camera-preview-strip[data-layout="2"],.majoor-omnicam .camera-preview-strip[data-layout="4"]{grid-auto-flow:row;grid-template-columns:1fr;grid-auto-columns:100%}.majoor-omnicam .menu-panel{width:min(240px,calc(100cqw - 24px))}}
 `;
 
-export const DIRECTOR_STYLES = SHARED_STYLES + COMPONENT_STYLES + SHELL_STYLES + LOWER_DECK_STYLES + DENSITY_STYLES;
+export const DIRECTOR_STYLES = SHARED_STYLES + COMPONENT_STYLES + SHELL_STYLES + LOWER_DECK_STYLES + DENSITY_STYLES + RESPONSIVE_STYLES;

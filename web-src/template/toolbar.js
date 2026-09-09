@@ -188,6 +188,7 @@ function displayTab() {
 export function toolbarMarkup() {
   return `
     <div class="top">
+      <button class="icon-button oc-drawer-toggle" data-act="toggle-scene-panel" title="${t("Scene")}" aria-pressed="false"><i class="pi pi-list"></i></button>
       ${fileTab()}
       ${sceneTab()}
       ${camerasTab()}
@@ -201,6 +202,7 @@ export function toolbarMarkup() {
       <span class="oc-toolbar-spacer"></span>
       <button class="oc-playblast" data-act="record" title="${t("Record proxy playblast")}"><span class="oc-playblast-dot"></span>${t("Playblast")}</button>
       <button class="icon-button oc-strip-toggle" data-act="toggle-camera-view" title="${t("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
+      <button class="icon-button oc-drawer-toggle" data-act="toggle-inspector-panel" title="${t("Inspector")}" aria-pressed="false"><i class="pi pi-sliders-h"></i></button>
       <select class="oc-render-mode" data-role="mode" title="${t("Proxy mode")}">
         <option value="omni_ref">${t("Omni Ref")}</option>
         <option value="card_grid">${t("Card + Grid")}</option>

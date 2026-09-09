@@ -181,6 +181,18 @@ function bindViewToggles(ui, signal) {
     event.currentTarget.classList.toggle("active", graph.open);
     if (graph.open) ui.drawCurveEditor();
   }, { signal });
+
+  // Responsive drawers: below the three-column breakpoint the Scene panel and
+  // the Inspector collapse to slide-in overlays, reached through these toggles.
+  for (const [act, cls] of [
+    ["toggle-scene-panel", "oc-scene-open"],
+    ["toggle-inspector-panel", "oc-inspector-open"],
+  ]) {
+    ui.root.querySelector(`[data-act="${act}"]`)?.addEventListener("click", (event) => {
+      const open = ui.root.classList.toggle(cls);
+      event.currentTarget.setAttribute("aria-pressed", String(open));
+    }, { signal });
+  }
 }
 
 // camera-exchange.js imports three.js for its quaternion/vector maths, so it

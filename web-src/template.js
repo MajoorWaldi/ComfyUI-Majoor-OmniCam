@@ -1,5 +1,6 @@
 import { DIRECTOR_STYLES } from "./template/styles.js";
 import { footerMarkup, headerMarkup } from "./template/header.js";
+import { leftPanelMarkup } from "./template/left-panel.js";
 import { sidePanelMarkup } from "./template/side-panel.js";
 import { timelinePanelMarkup } from "./template/timeline-panel.js";
 import { toolbarMarkup } from "./template/toolbar.js";
@@ -16,6 +17,9 @@ export function buildRoot() {
     ${headerMarkup()}
     ${toolbarMarkup()}
     <div class="oc-body">
+      ${leftPanelMarkup()}
+      <div class="oc-resize-h oc-left-resize" data-role="left-resize" role="separator" aria-orientation="vertical" tabindex="0"
+           title="${t("Drag to resize the scene panel — double-click to reset")}" aria-label="${t("Resize scene panel")}"></div>
       <div class="oc-stage">${viewportMarkup()}</div>
       <div class="oc-resize-h oc-side-resize" data-role="side-resize" role="separator" aria-orientation="vertical" tabindex="0"
            title="${t("Drag to resize the side panel — double-click to reset")}" aria-label="${t("Resize side panel")}"></div>

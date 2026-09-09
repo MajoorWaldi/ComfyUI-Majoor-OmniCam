@@ -211,6 +211,8 @@ export const FR_EDITOR = {
   "Resize the camera view": "Redimensionner la vue caméra",
   "Drag to resize the side panel — double-click to reset": "Glisser pour redimensionner le panneau latéral — double-clic pour réinitialiser",
   "Resize side panel": "Redimensionner le panneau latéral",
+  "Drag to resize the scene panel — double-click to reset": "Glisser pour redimensionner le panneau de scène — double-clic pour réinitialiser",
+  "Resize scene panel": "Redimensionner le panneau de scène",
   "Drag to resize graph editor — double-click to reset": "Glisser pour redimensionner l'éditeur de courbes — double-clic pour réinitialiser",
   "Resize graph editor": "Redimensionner l'éditeur de courbes",
   "Scene": "Scène",
