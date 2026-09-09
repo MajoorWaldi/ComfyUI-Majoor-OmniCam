@@ -1,53 +1,57 @@
 #!/usr/bin/env python3
-"""Populate the OmniCam blockout asset library.
+"""Populate the OmniCam blockout asset library (legacy entry point).
 
 The blockout pipeline can swap each fitted box for a real GLB prop
 (``recon_blockout_assets = proxy | replace``). Those GLBs are CC0 kit models
 from Quaternius (quaternius.com) and Kenney (kenney.nl); they are *not* vendored
-in this repo. This script builds the library folder from kit archives you
-provide, so nothing is downloaded implicitly at pipeline time.
+in this repo. This script builds the library folder from kit archives.
+
+Network + archive handling is shared with the unified asset bootstrap
+(:mod:`omnicam.assets.bootstrap`) -- there is only one Kenney downloader in the
+project. Only the *legacy* blockout destination / ``library.json`` /
+``SOURCES.md`` semantics live here, until the Reconstruction migration to the
+unified catalog is complete.
 
 Usage
 -----
-1. Download the CC0 kits listed by ``--list`` (one ZIP each) into a folder.
+1. Download the CC0 kits listed by ``--list`` (one ZIP each) into a folder, or
+   pass ``--download`` to fetch the Kenney ones automatically.
 2. Run::
 
        python scripts/fetch_blockout_library.py --from-dir /path/to/kits
 
-   It extracts the members named in ``library.default.json``, writes them under
-   ``<ComfyUI>/input/majoor_omnicam/blockout_library/`` and generates
-   ``library.json`` + ``SOURCES.md``.
-
 Options
 -------
---from-dir DIR   Folder holding the kit ZIPs (matched by name, case-insensitive
-                 substring). Repeatable.
+--from-dir DIR   Folder holding the kit ZIPs (repeatable).
 --dest DIR       Library root. Default: <ComfyUI>/input/majoor_omnicam/blockout_library
-                 (falls back to ./blockout_library when run outside ComfyUI).
 --only CLASS     Restrict to these semantic classes (repeatable).
+--download [DIR] Fetch the CC0 Kenney kit ZIPs (into DIR or a temp folder) first.
 --list           Print the kits + homepages and exit.
 --dry-run        Report what would be copied, write nothing.
 
-Missing members are reported, never fatal: a partial library still works, the
-pipeline just skips classes it cannot resolve.
+Missing members are reported, never fatal.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import tempfile
-import zipfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from omnicam.assets.bootstrap.archive import copy_member, list_glb_members
+from omnicam.assets.bootstrap.download import download_archive
+from omnicam.assets.bootstrap.kenney import resolve_kenney_archive
+from omnicam.assets.bootstrap.types import BootstrapError
 
 _HERE = Path(__file__).resolve().parent
 _DEFAULT_MANIFEST = _HERE.parent / "omnicam" / "reconstruction" / "asset_library" / "library.default.json"
 
-# Kit name -> asset page. All CC0. Download each as its "GLB" flavour ZIP.
-# Kenney pages carry a direct .zip link ("Continue without donating"), so
-# --download can also fetch them without a browser.
+# Kit name -> official asset page. All CC0. Kenney pages are resolved through the
+# shared bootstrap resolver; the two Quaternius kits must be downloaded by hand.
 _KITS = {
     "Kenney Furniture Kit": "https://kenney.nl/assets/furniture-kit",
     "Kenney Car Kit": "https://kenney.nl/assets/car-kit",
@@ -55,6 +59,7 @@ _KITS = {
     "Kenney Nature Kit": "https://kenney.nl/assets/nature-kit",
     "Kenney Blocky Characters": "https://kenney.nl/assets/blocky-characters",
 }
+_KENNEY_KITS = {name: url for name, url in _KITS.items() if "kenney.nl" in url}
 
 
 def _comfy_input_dir() -> Path | None:
@@ -93,60 +98,41 @@ def _wanted_glbs(manifest: dict, only: set[str] | None) -> dict[str, str]:
     return out
 
 
-def _index_zip_members(zip_dirs: list[Path]) -> list[tuple[zipfile.ZipFile, str]]:
-    members: list[tuple[zipfile.ZipFile, str]] = []
+def _index_members(zip_dirs: list[Path]) -> list:
+    """Every safe ``.glb`` member across every archive in ``zip_dirs``."""
+    members: list = []
     for folder in zip_dirs:
         for archive in sorted(folder.glob("*.zip")):
             try:
-                zf = zipfile.ZipFile(archive)
-            except zipfile.BadZipFile:
-                print(f"  ! not a zip: {archive.name}", file=sys.stderr)
-                continue
-            for name in zf.namelist():
-                # .glb only: a .gltf is JSON with sidecar .bin / textures that a
-                # plain file copy would leave behind, producing a broken asset.
-                if name.lower().endswith(".glb"):
-                    members.append((zf, name))
+                members.extend(list_glb_members(archive))
+            except BootstrapError as exc:
+                print(f"  ! skipping {archive.name}: {exc}", file=sys.stderr)
     return members
 
 
 def _download_kenney_kits(into: Path) -> list[Path]:
-    """Scrape each Kenney asset page for its 'Continue without donating' .zip
-    link and fetch it. Kenney assets are CC0; the link is a plain static file."""
-    import re
-    import urllib.request
-
+    """Resolve + fetch each Kenney kit ZIP through the shared bootstrap core."""
     into.mkdir(parents=True, exist_ok=True)
     got: list[Path] = []
-    for name, page in _KITS.items():
+    for name, page in _KENNEY_KITS.items():
         try:
-            html = urllib.request.urlopen(page, timeout=30).read().decode("utf-8", "replace")  # noqa: S310 - https kenney.nl only
-        except OSError as exc:
-            print(f"  ! {name}: could not open {page} ({exc})", file=sys.stderr)
-            continue
-        m = re.search(r"https://kenney\.nl/media/pages/assets/[^\"'\s]+\.zip", html)
-        if not m:
-            print(f"  ! {name}: no .zip link on the page — download it manually", file=sys.stderr)
-            continue
-        url = m.group(0)
-        target = into / (Path(url).name)
-        print(f"  downloading {name} -> {target.name}")
-        try:
-            urllib.request.urlretrieve(url, target)  # noqa: S310 - url is https://kenney.nl/... (regex-pinned)
-            got.append(target)
-        except OSError as exc:
-            print(f"  ! {name}: download failed ({exc})", file=sys.stderr)
+            url = resolve_kenney_archive(page)
+            target = into / Path(url).name
+            print(f"  downloading {name} -> {target.name}")
+            got.append(download_archive(url, target).path)
+        except (BootstrapError, OSError) as exc:
+            print(f"  ! {name}: {exc}", file=sys.stderr)
     return got
 
 
-def _best_member(target_rel: str, members: list[tuple[zipfile.ZipFile, str]]):
+def _best_member(target_rel: str, members: list):
     stem = Path(target_rel).stem.lower()
-    exact = [m for m in members if Path(m[1]).stem.lower() == stem]
+    exact = [m for m in members if m.stem.lower() == stem]
     if exact:
-        return exact[0]
-    loose = [m for m in members if stem in Path(m[1]).stem.lower()]
+        return sorted(exact, key=lambda m: len(m.name))[0]
+    loose = [m for m in members if stem in m.stem.lower()]
     if loose:
-        return sorted(loose, key=lambda m: len(m[1]))[0]
+        return sorted(loose, key=lambda m: len(m.name))[0]
     return None
 
 
@@ -158,11 +144,7 @@ def main() -> int:
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
-        "--download",
-        nargs="?",
-        const="",
-        default=None,
-        metavar="DIR",
+        "--download", nargs="?", const="", default=None, metavar="DIR",
         help="fetch the CC0 Kenney kit ZIPs into DIR (default: a temp folder) before building",
     )
     args = parser.parse_args()
@@ -192,10 +174,10 @@ def main() -> int:
     if not zip_dirs:
         zip_dirs = [Path.cwd()]
     print(f"Scanning for kit archives in: {', '.join(str(d) for d in zip_dirs)}")
-    members = _index_zip_members(zip_dirs)
+    members = _index_members(zip_dirs)
     if not members:
         print(
-            "No kit .zip archives with .glb/.gltf members found. Download the kits "
+            "No kit .zip archives with .glb members found. Download the kits "
             "(see --list) and pass their folder with --from-dir.",
             file=sys.stderr,
         )
@@ -203,29 +185,26 @@ def main() -> int:
 
     placed: dict[str, str] = {}
     missing: list[str] = []
-    with tempfile.TemporaryDirectory() as tmp:
-        tmp_path = Path(tmp)
-        for rel, cls in sorted(wanted.items()):
-            hit = _best_member(rel, members)
-            if hit is None:
-                missing.append(f"{rel}  ({cls})")
-                continue
-            zf, name = hit
-            target = dest / rel
-            if args.dry_run:
-                print(f"  would place {rel:<28} <- {Path(name).name}")
-            else:
-                extracted = zf.extract(name, tmp_path)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(extracted, target)
-                print(f"  placed {rel:<28} <- {Path(name).name}")
-            placed[rel] = cls
+    for rel, cls in sorted(wanted.items()):
+        hit = _best_member(rel, members)
+        if hit is None:
+            missing.append(f"{rel}  ({cls})")
+            continue
+        target = dest / rel
+        if args.dry_run:
+            print(f"  would place {rel:<28} <- {Path(hit.name).name}")
+        else:
+            copy_member(hit, target)
+            print(f"  placed {rel:<28} <- {Path(hit.name).name}")
+        placed[rel] = cls
+
+    if download_tmp is not None:
+        download_tmp.cleanup()
 
     if args.dry_run:
         print(f"\nDry run: {len(placed)} member(s) would be placed, {len(missing)} missing.")
         return 0
 
-    # Write library.json filtered to entries whose GLB(s) all landed.
     kept: dict = {}
     for cls, entry in manifest["assets"].items():
         rels = list(entry.get("poses", {}).values()) if entry.get("category") == "human" else [entry["glb"]]
