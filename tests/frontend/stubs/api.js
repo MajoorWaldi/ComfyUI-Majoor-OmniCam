@@ -27,6 +27,12 @@ const HUMAN_NEUTRAL_ROW = {
 const RESPONSES = {
   "/majoor/omnicam/capabilities": { capabilities: [], diagnostic: { issues: [] } },
   "/majoor/omnicam/library/omnicam.character.human_neutral_01": { asset: HUMAN_NEUTRAL_ROW },
+  "/majoor/omnicam/library/poses": {
+    poses: [
+      { id: "neutral", name: "Standing Neutral", profile: "omnicam_humanoid_v1", root_offset: [0, 0, 0], joints: {}, builtin: true },
+      { id: "t_pose", name: "T Pose", profile: "omnicam_humanoid_v1", root_offset: [0, 0, 0], joints: { upper_arm_r: [0, 0, 0.7071, 0.7071] }, builtin: false },
+    ],
+  },
   "/majoor/omnicam/motion_profiles": {
     default: "generic",
     warn_ratio: 0.85,

@@ -101,6 +101,20 @@ export function outlinerPanel() {
             <div class="oc-rig-grid" data-role="rig-mapper-grid"></div>
           </div>
         </details>
+        <div class="oc-pose-editor" data-role="pose-editor" hidden>
+          <div class="oc-field-row">
+            <span class="oc-field-label">${t("Pose")}</span>
+            <select data-role="pose-preset" title="${t("Pose preset")}" style="flex:1;min-width:0"></select>
+            <button type="button" class="oc-btn" data-pose-act="edit" title="${t("Toggle FK pose editing")}">${t("Edit Pose")}</button>
+            <button type="button" class="oc-btn" data-pose-act="save" title="${t("Save the current pose")}">${t("Save Pose…")}</button>
+          </div>
+          <div class="oc-vec-row oc-pose-joint" data-role="pose-joint-row" hidden>
+            <span class="oc-field-label"><span data-role="pose-joint-name">joint</span></span>
+            <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="pose-rot-x" type="number" step="1" aria-label="X"></label>
+            <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="pose-rot-y" type="number" step="1" aria-label="Y"></label>
+            <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="pose-rot-z" type="number" step="1" aria-label="Z"></label>
+          </div>
+        </div>
       </div>
       <div class="oc-field-row"><span class="oc-field-label">${t("Upstream reference")}</span>
         <select data-role="reference-select"><option value="0">${t("Upstream 1")}</option></select>

@@ -122,6 +122,8 @@ export function createRenderMethods(dependencies) {
     // Viewport Labels are DOM too, for the same reason -- and the overlay hides
     // itself while this.recording is set (design spec section 14).
     this.labelOverlay?.update();
+    // Character rig joint dots (only while Pose editing is on).
+    this.rigOverlay?.update();
     this.perf && (this.perf.viewportRenderCount = (this.perf.viewportRenderCount || 0) + 1);
   },
   // The single "something changed, repaint soon" entry point. Every

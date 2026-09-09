@@ -330,6 +330,7 @@ export function refreshInspector(ui) {
       lens: t("FOV / Roll / Zoom"),
     });
     ui.rigMapper?.sync();
+    ui.poseEditor?.sync();
     return;
   }
   const badgeEl = q('[data-role="object-recon-badge"]');
@@ -462,6 +463,7 @@ export function refreshInspector(ui) {
   // The Rig Mapper shows itself only for a Character and reloads its grid when
   // the selected object changes.
   ui.rigMapper?.sync();
+  ui.poseEditor?.sync();
 }
 
 export function updateSelectedObject(ui) {

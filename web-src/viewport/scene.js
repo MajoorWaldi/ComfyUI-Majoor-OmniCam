@@ -468,6 +468,41 @@ export function createSceneMethods(dependencies) {
     const world = new THREE.Vector3();
     found.getWorldPosition(world);
     return { name: boneName, world: [world.x, world.y, world.z] };
+  },
+
+  /**
+   * Apply an FK pose to a loaded character (design spec section 29,
+   * ui.characterRuntime.applyPose). `boneMap` is canonical joint -> bone name;
+   * `joints` is canonical joint -> local quaternion [x,y,z,w]. Bones not named
+   * by `joints` are left at their bind rotation, captured once per bone.
+   */
+  applyCharacterPose(objectId, boneMap, joints) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return false;
+    const bones = new Map();
+    node.traverse((child) => {
+      if (child.isBone && child.name) bones.set(child.name, child);
+    });
+    if (!bones.size) return false;
+    for (const bone of bones.values()) {
+      if (!bone.userData.omnicamBindQuat) {
+        bone.userData.omnicamBindQuat = bone.quaternion.clone();
+      }
+    }
+    const overrides = joints && typeof joints === "object" ? joints : {};
+    for (const [joint, boneName] of Object.entries(boneMap || {})) {
+      const bone = bones.get(boneName);
+      if (!bone) continue;
+      const quat = overrides[joint];
+      if (Array.isArray(quat) && quat.length === 4 && quat.every(Number.isFinite)) {
+        bone.quaternion.fromArray(quat).normalize();
+      } else if (bone.userData.omnicamBindQuat) {
+        bone.quaternion.copy(bone.userData.omnicamBindQuat);
+      }
+      bone.updateMatrixWorld(true);
+    }
+    this.invalidate();
+    return true;
   }
 
   };
