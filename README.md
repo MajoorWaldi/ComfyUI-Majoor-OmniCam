@@ -136,6 +136,7 @@ neutral proxy playblast. This is where a MotionScene is authored:
 - **Dynamic Layout Splitters**: Drag-resizable Outliner list, Camera Previews column, Right Inspector / Side Panel, and Graph Editor — all persistent in saved workflows and fully keyboard-operable (`role="separator"`).
 - **Interactive Camera Authoring**: Freehand **Draw Camera Path** in Top View with automatic keyframe timing, Follow Path orientation, Look At targets, and editable 3D spatial Bézier control handles.
 - **Inspector & Quick Controls**: Axis scrubbing, vector reset buttons (`⟲`), lens presets (`14mm`–`135mm`, including `18mm`), and Camera Health analysis.
+- **Unified Asset Library & Characters**: a **SCENE / ASSETS** left panel with a filtered thumbnail grid over one semantic catalog (characters, props, environments, vehicles). Double-click to instantiate. Rigged characters map any Mixamo / generic-GLTF rig to `OMNICAM_HUMANOID_V1`, with an FK **Pose editor** (canonical-joint overlay + X/Y/Z rotation + source-independent presets) and **Motion clips** (timeline-driven, speed / loop / range, *Bake current frame to pose*). Objects carry semantic **tags** and visible viewport **Labels** (`Off / Selected / All`). See [Asset Library](docs/ASSET_LIBRARY.md) and [Characters](docs/CHARACTERS.md).
 
 ### OmniCam Extractor
 
@@ -224,6 +225,8 @@ These are preflight results, not bugs:
 - [User Guide](docs/USER_GUIDE.md) — authoring, playblasts, extraction, installation.
 - [In-app help](web-src/help/defs.js) — contextual help from each node.
 - [Shortcuts](docs/SHORTCUTS.md) — viewport, timeline and editing controls.
+- [Asset Library](docs/ASSET_LIBRARY.md) — the unified catalog, routes, Semantic API, limits.
+- [Characters](docs/CHARACTERS.md) — `OMNICAM_HUMANOID_V1`, Rig Mapper, FK poses, motion clips.
 - [Technical Reference](docs/TECHNICAL_REFERENCE.md) — runtime behaviour, DPVO, validation, development.
 - [Security](docs/SECURITY.md) — managed files, upload limits, request boundaries.
 

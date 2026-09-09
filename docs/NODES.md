@@ -254,6 +254,35 @@ to the playback range. The authored layers serialize in `state_json` and compile
 into `OMNICAM_MOTION_SCENE`. Their editor overlay is excluded from playblast
 capture.
 
+### Unified asset library and characters
+
+The left panel carries **SCENE** and **ASSETS** tabs. The ASSETS tab is a
+filtered thumbnail grid over one semantic catalog — characters, props,
+environments, vehicles — merged from a writable user catalog, the read-only
+blockout library and shipped defaults (`user > legacy > default`). Assets live
+under `<ComfyUI input>/omnicam/library/`; the catalog is metadata only.
+
+* **Instantiate** (double-click / *Add to scene*) runs through the Semantic
+  Director API (`asset.instantiate`), so it is deterministic and one undo step.
+* **Characters** stay `type: "glb"` with additive `asset_kind` / `asset_id` /
+  `character`. A rig maps any Mixamo / generic-GLTF rig to
+  `OMNICAM_HUMANOID_V1` (22 canonical joints); the mapping is owned by the
+  catalog row, never the scene object. An incomplete map = a normal model, no
+  `RIGGED` badge.
+* **FK Pose editor** — canonical-joint overlay, per-joint X/Y/Z rotation,
+  source-independent presets, custom-pose save. **Motion clips** —
+  timeline-driven mixer time, `speed [0.05, 8.0]`, loop, frame window, *Bake
+  current frame to pose*. Pose editing and an active clip are mutually
+  exclusive.
+* **Tags** (machine semantics) and **Labels** (visible viewport annotations,
+  `Off / Selected / All`) are separate from `name`. Labels are editor-only and
+  stay out of the playblast.
+
+New scene-object fields (`asset_id`, `asset_kind`, `tags`, `annotation`,
+`character`) are additive: old workflows load unchanged and no MotionScene
+version bump is required. Routes, limits and the Semantic API are in
+[docs/ASSET_LIBRARY.md](ASSET_LIBRARY.md) and [docs/CHARACTERS.md](CHARACTERS.md).
+
 ### Upstream `solved_scene` import
 
 The Director's optional `solved_scene` input selects the scene's playblast

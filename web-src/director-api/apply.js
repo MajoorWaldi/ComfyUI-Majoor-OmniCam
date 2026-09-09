@@ -174,7 +174,14 @@ const HANDLERS = {
     const object = requireCharacter(state, op.objectId);
     const motion = sanitizeMotion(op.motion);
     if (!motion) throw new DirectorApiError("BAD_MOTION", "motion failed validation (clip_id, speed, range)");
-    object.character = { ...(object.character || {}), motion };
+    // Pose and motion are mutually exclusive (design spec section 27): drop any
+    // stale FK joint overrides so they cannot reappear when the clip is cleared.
+    const priorPose = object.character?.pose || {};
+    object.character = {
+      ...(object.character || {}),
+      pose: { preset_id: priorPose.preset_id || "neutral", root_offset: priorPose.root_offset || [0, 0, 0], joints: {} },
+      motion,
+    };
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector };
   },
 
