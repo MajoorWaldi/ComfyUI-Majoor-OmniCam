@@ -139,13 +139,21 @@ def _validate_rig(definition: AssetDefinition) -> None:
     rig = definition.rig
     if rig is None:
         return
+    from .rig import CANONICAL_JOINTS, OMNICAM_HUMANOID_V1
+
+    if rig.profile and rig.profile != OMNICAM_HUMANOID_V1:
+        raise AssetCatalogInvalidError(
+            f"asset {definition.id!r}: unsupported rig profile {rig.profile!r}"
+        )
     if len(rig.bone_map) > MAX_BONE_MAPPINGS_PER_ASSET:
         raise AssetCatalogInvalidError(
             f"asset {definition.id!r}: more than {MAX_BONE_MAPPINGS_PER_ASSET} bone mappings"
         )
     for canonical, bone in rig.bone_map.items():
-        if not canonical or not isinstance(canonical, str) or len(canonical) > MAX_TAG_CHARS:
-            raise AssetCatalogInvalidError(f"asset {definition.id!r}: invalid canonical joint {canonical!r}")
+        if canonical not in CANONICAL_JOINTS:
+            raise AssetCatalogInvalidError(
+                f"asset {definition.id!r}: {canonical!r} is not an OMNICAM_HUMANOID_V1 joint"
+            )
         if not bone or len(bone) > 160:
             raise AssetCatalogInvalidError(f"asset {definition.id!r}: invalid runtime bone {bone!r}")
 

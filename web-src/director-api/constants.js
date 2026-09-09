@@ -33,6 +33,7 @@ export const DIRECTOR_QUERIES = Object.freeze({
   TIMELINE_GET: "timeline.get",
   SELECTION_GET: "selection.get",
   HEALTH_GET: "health.get",
+  CHARACTER_GET_RIG: "character.get_rig",
 });
 
 export const DIRECTOR_QUERY_VALUES = Object.freeze(Object.values(DIRECTOR_QUERIES));

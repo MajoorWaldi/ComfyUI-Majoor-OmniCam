@@ -41,8 +41,11 @@ def test_from_dict_parses_every_section():
     assert definition.id == "omnicam.character.human_01"
     assert definition.kind == "character"
     assert definition.source == "user"
-    assert definition.is_character and definition.has_rig
+    assert definition.is_character
+    # A 2-joint map parses fine but is not a complete OMNICAM_HUMANOID_V1 rig.
     assert isinstance(definition.rig, RigBinding)
+    assert definition.rig_status == "incomplete"
+    assert not definition.has_rig
     assert definition.rig.bone_map["pelvis"] == "Hips"
     assert [clip.id for clip in definition.animations] == ["idle", "walk"]
     # A bare clip mirrors its id into name/clip.

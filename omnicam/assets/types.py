@@ -149,8 +149,19 @@ class AssetDefinition:
         return self.kind == "character"
 
     @property
+    def rig_status(self) -> str:
+        """``"rigged"`` | ``"incomplete"`` | ``"none"`` -- see
+        :func:`omnicam.assets.rig.rig_status`."""
+        from .rig import rig_status
+
+        return rig_status(self.rig.to_dict() if self.rig is not None else None)
+
+    @property
     def has_rig(self) -> bool:
-        return self.rig is not None and bool(self.rig.bone_map)
+        """True only when the rig maps every required ``OMNICAM_HUMANOID_V1``
+        joint. An incomplete mapping leaves the asset a normal model and must
+        never show a RIGGED badge (design spec section 22)."""
+        return self.rig_status == "rigged"
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {

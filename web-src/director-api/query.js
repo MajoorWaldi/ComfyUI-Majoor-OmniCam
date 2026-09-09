@@ -71,6 +71,25 @@ export function executeDirectorQuery(ui, request) {
         frames: normalizeSolveHealth(state.metadata, state.duration_frames),
       };
 
+    case DIRECTOR_QUERIES.CHARACTER_GET_RIG: {
+      const object = (state.objects || []).find((item) => item.id === request.objectId);
+      if (!object) throw new DirectorApiError("UNKNOWN_OBJECT", `Unknown object: ${request.objectId}`);
+      const character = object.character || null;
+      return {
+        version: 1,
+        type: request.type,
+        rig: clone({
+          objectId: object.id,
+          asset_id: object.asset_id || null,
+          asset_kind: object.asset_kind || null,
+          is_character: object.asset_kind === "character",
+          rig_profile: character?.rig_profile || null,
+          pose_preset: character?.pose?.preset_id || null,
+          has_motion: Boolean(character?.motion),
+        }),
+      };
+    }
+
     default:
       throw new DirectorApiError("UNKNOWN_QUERY", `Unsupported query: ${request?.type}`);
   }
