@@ -40,6 +40,12 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-panel-head>strong{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--oc-text-dim)}
       .majoor-omnicam .oc-panel-spacer{flex:1 1 auto}
       .majoor-omnicam .oc-left .scene-tree{height:var(--oc-outliner-h,220px);min-height:80px}
+      /* ASSETS tab: .oc-left is align-self:start (content height) with no
+         independent track height, so the card grid MUST carry its own bound or
+         its content drives root.scrollHeight and stretches the whole node.
+         Mirrors the fixed-height .scene-tree; the drawer layout (<=1120px)
+         gives .oc-left a real height and releases this cap in responsive.js. */
+      .majoor-omnicam .oc-left .oc-asset-grid{max-height:var(--oc-assets-h,340px)}
       .majoor-omnicam .oc-body .viewport-wrap{border-radius:var(--oc-radius);overflow:hidden;box-shadow:none;border:1px solid var(--oc-line)}
       /* Fullscreen keeps the full DCC shell: Scene | Viewport | Inspector + deck. */
       .majoor-omnicam.oc-fullscreen .oc-lower,.majoor-omnicam.oc-fullscreen .oc-graph{display:block}

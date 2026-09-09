@@ -43,6 +43,10 @@ test("every starter-library asset loads in the viewport and gets a thumbnail", a
 
   await mountDirector(page);
 
+  const heightBefore = await page.evaluate(
+    () => window.omnicamLiveNode.__majoorOmniCam.root.scrollHeight,
+  );
+
   // 1. open ASSETS and let the catalog load
   await page.locator('.majoor-omnicam [data-asset-view="assets"]').click();
   await page.waitForFunction(
@@ -50,6 +54,24 @@ test("every starter-library asset loads in the viewport and gets a thumbnail", a
     null,
     { timeout: 20_000 },
   );
+  await page.waitForTimeout(1_500);
+
+  // opening ASSETS must not stretch the node: the card grid scrolls inside a
+  // bounded column, it does not grow root.scrollHeight (regression guard).
+  const layout = await page.evaluate(() => {
+    const ui = window.omnicamLiveNode.__majoorOmniCam;
+    const grid = ui.root.querySelector(".oc-asset-grid");
+    return {
+      scrollH: ui.root.scrollHeight,
+      clientH: ui.root.clientHeight,
+      gridClientH: grid?.clientHeight ?? 0,
+      gridScrolls: grid ? grid.scrollHeight > grid.clientHeight + 4 : false,
+    };
+  });
+  expect(layout.scrollH, "node grew when ASSETS opened").toBeLessThanOrEqual(heightBefore + 8);
+  expect(layout.scrollH).toBeLessThanOrEqual(layout.clientH + 8);
+  expect(layout.gridClientH).toBeLessThan(700);
+  expect(layout.gridScrolls, "asset grid should scroll internally").toBe(true);
 
   const catalog = await page.evaluate(async () => {
     const api = window.comfyAPI.app.app.api;
