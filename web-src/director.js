@@ -15,6 +15,7 @@ import { createLabelOverlay } from "./assets/label-overlay.js";
 import { createCharacterRuntime } from "./assets/character/rig-runtime.js";
 import { createRigMapper } from "./assets/character/rig-mapper.js";
 import { createPoseEditor } from "./assets/character/pose-editor.js";
+import { createMotionEditor } from "./assets/character/motion-editor.js";
 import { buildDirectorDomCache } from "./director/dom-cache.js";
 import {
   activeCameraTrack,
@@ -283,6 +284,7 @@ export function attachDirector(node) {
     ui.characterRuntime = createCharacterRuntime(ui);
     ui.rigMapper = createRigMapper(ui);
     ui.poseEditor = createPoseEditor(ui);
+    ui.motionEditor = createMotionEditor(ui);
   } catch (error) {
     console.warn("[OmniCam] Character tools unavailable", error);
   }
@@ -353,6 +355,7 @@ export function attachDirector(node) {
     ui.labelOverlay?.dispose?.();
     ui.rigMapper?.dispose?.();
     ui.poseEditor?.dispose?.();
+    ui.motionEditor?.dispose?.();
     ui.dispose();
     originalRemoved?.apply(this, arguments);
   };

@@ -331,6 +331,7 @@ export function refreshInspector(ui) {
     });
     ui.rigMapper?.sync();
     ui.poseEditor?.sync();
+    ui.motionEditor?.sync();
     return;
   }
   const badgeEl = q('[data-role="object-recon-badge"]');
@@ -464,6 +465,7 @@ export function refreshInspector(ui) {
   // the selected object changes.
   ui.rigMapper?.sync();
   ui.poseEditor?.sync();
+  ui.motionEditor?.sync();
 }
 
 export function updateSelectedObject(ui) {

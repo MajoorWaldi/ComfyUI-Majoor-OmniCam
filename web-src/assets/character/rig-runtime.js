@@ -3,6 +3,7 @@
 // never serialised and never handed to the future Agent; the Semantic Director
 // API (character.get_rig) is the only mutation/read surface that is.
 
+import { sanitizeMotion } from "./motion-state.js";
 import { autoMapBones, rigStatus } from "./rig-profile.js";
 
 export function createCharacterRuntime(ui) {
@@ -41,6 +42,20 @@ export function createCharacterRuntime(ui) {
     /** Run the auto-mapper on whatever is loaded for this object now. */
     autoMap(objectId) {
       return autoMapBones(boneNames(objectId));
+    },
+
+    /** Preview a motion clip on the loaded model (viewport only -- the durable
+     * state write goes through the Semantic API). */
+    setMotion(objectId, motionState) {
+      const motion = sanitizeMotion(motionState);
+      if (!motion) return false;
+      return Boolean(ui.webgl?.applyMotionClip?.(objectId, motion) ?? true);
+    },
+
+    /** Sample the live bone rotations at the current frame, mapped to canonical
+     * joints -- the input to "Bake current frame to pose". */
+    sampleCanonicalPose(objectId, boneMap) {
+      return ui.webgl?.sampleCharacterBonePose?.(objectId, boneMap) || {};
     },
   };
 }

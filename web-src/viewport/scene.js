@@ -503,6 +503,29 @@ export function createSceneMethods(dependencies) {
     }
     this.invalidate();
     return true;
+  },
+
+  /**
+   * Read the current local rotation of every mapped canonical joint -- what
+   * "Bake current frame to pose" samples off the live mixer (design spec
+   * section 27). A joint still at its captured bind rotation is omitted.
+   */
+  sampleCharacterBonePose(objectId, boneMap) {
+    const node = this.objectNodes.get(objectId);
+    if (!node || !boneMap) return {};
+    const bones = new Map();
+    node.traverse((child) => {
+      if (child.isBone && child.name) bones.set(child.name, child);
+    });
+    const out = {};
+    for (const [joint, boneName] of Object.entries(boneMap)) {
+      const bone = bones.get(boneName);
+      if (!bone) continue;
+      const bind = bone.userData.omnicamBindQuat;
+      if (bind && bone.quaternion.angleTo(bind) < 1e-4) continue;
+      out[joint] = bone.quaternion.toArray();
+    }
+    return out;
   }
 
   };

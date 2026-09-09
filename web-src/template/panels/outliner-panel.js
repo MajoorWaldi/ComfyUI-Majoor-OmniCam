@@ -115,6 +115,21 @@ export function outlinerPanel() {
             <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="pose-rot-z" type="number" step="1" aria-label="Z"></label>
           </div>
         </div>
+        <div class="oc-motion-editor" data-role="motion-editor" hidden>
+          <div class="oc-field-row">
+            <span class="oc-field-label">${t("Motion")}</span>
+            <select data-role="motion-clip" title="${t("Animation clip")}" style="flex:1;min-width:0"></select>
+          </div>
+          <div class="oc-field-row oc-motion-timing">
+            <label class="oc-motion-num">${t("Start")}<input data-role="motion-start" type="number" step="1" min="0"></label>
+            <label class="oc-motion-num">${t("End")}<input data-role="motion-end" type="number" step="1" min="0"></label>
+            <label class="oc-motion-num">${t("Speed")}<input data-role="motion-speed" type="number" step="0.05" min="0.05" max="8"></label>
+            <label class="oc-motion-check"><input data-role="motion-loop" type="checkbox" checked> ${t("Loop")}</label>
+          </div>
+          <div class="oc-field-row">
+            <button type="button" class="oc-btn" data-motion-act="bake">${t("Bake current frame to pose")}</button>
+          </div>
+        </div>
       </div>
       <div class="oc-field-row"><span class="oc-field-label">${t("Upstream reference")}</span>
         <select data-role="reference-select"><option value="0">${t("Upstream 1")}</option></select>

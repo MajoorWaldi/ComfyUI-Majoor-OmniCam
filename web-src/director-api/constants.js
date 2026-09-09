@@ -20,6 +20,8 @@ export const DIRECTOR_OPS = Object.freeze({
   OBJECT_SET_ANNOTATION: "object.set_annotation",
   CHARACTER_SET_POSE: "character.set_pose",
   CHARACTER_SET_JOINT_ROTATION: "character.set_joint_rotation",
+  CHARACTER_SET_MOTION: "character.set_motion",
+  CHARACTER_CLEAR_MOTION: "character.clear_motion",
   KEYFRAME_UPSERT: "keyframe.upsert",
   KEYFRAME_REMOVE: "keyframe.remove",
   KEYFRAME_SET_INTERPOLATION: "keyframe.set_interpolation",

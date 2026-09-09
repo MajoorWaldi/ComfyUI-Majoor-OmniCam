@@ -2,6 +2,7 @@
 
 import { DEFAULT_BG_COLOR, applyQuality, qualityPreset, setStudioEnabled } from "./studio.js";
 import { createQualityMonitor, recordFrame, resetMonitor } from "./adaptive-quality.js";
+import { motionClipTime } from "../assets/character/motion-state.js";
 
 export function createRenderMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh, SelectionOutlineRenderer } = dependencies;
@@ -111,8 +112,23 @@ export function createRenderMethods(dependencies) {
     if (sceneKey !== this.sceneKey || mediaSignature !== this.mediaSignature || modelSignature !== this.modelSignature) {
       this.sceneKey = sceneKey; this.mediaSignature = mediaSignature; this.modelSignature = modelSignature; this.rebuild(state, mediaById, modelUrlsById, cleanCapture);
     }
-    for (const model of this.models.values()) {
-      if (model.mixer && model.duration > 0) model.mixer.setTime((frame / Math.max(1, state.fps || 24)) % model.duration);
+    // Advance each animated model's mixer from the Director timeline. A
+    // character with a motion clip honours its start/end/speed/loop/offset
+    // (design spec section 27); everything else free-runs as before.
+    const fps = Math.max(1, state.fps || 24);
+    const motionByModel = new Map();
+    for (const object of state.objects) {
+      if (object.character?.motion && this.models.has(object.id)) motionByModel.set(object.id, object.character.motion);
+    }
+    for (const [id, model] of this.models) {
+      if (!model.mixer || !(model.duration > 0)) continue;
+      const motion = motionByModel.get(id);
+      if (motion) {
+        this.applyMotionClip?.(id, motion);
+        model.mixer.setTime(motionClipTime(motion, frame, fps, model.duration));
+      } else {
+        model.mixer.setTime((frame / fps) % model.duration);
+      }
     }
     for (const object of state.objects) {
       const node = this.objectNodes.get(object.id); if (!node) continue;

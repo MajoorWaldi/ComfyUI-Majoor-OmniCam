@@ -128,6 +128,29 @@ function validateOperationShape(operation, index) {
       }
       break;
 
+    case DIRECTOR_OPS.CHARACTER_SET_MOTION: {
+      assertString(operation.objectId, "objectId", index);
+      const motion = operation.motion;
+      if (!motion || typeof motion !== "object" || Array.isArray(motion)) {
+        throw new DirectorApiError("BAD_VALUE", "character.set_motion needs a motion object", index);
+      }
+      assertString(motion.clip_id, "motion.clip_id", index);
+      for (const key of ["start_frame", "end_frame", "speed", "offset_seconds"]) {
+        if (motion[key] !== undefined && !isFiniteNumber(motion[key])) {
+          throw new DirectorApiError("BAD_VALUE", `motion.${key} must be a finite number`, index);
+        }
+      }
+      if (isFiniteNumber(motion.start_frame) && isFiniteNumber(motion.end_frame)
+        && motion.end_frame > 0 && motion.end_frame <= motion.start_frame) {
+        throw new DirectorApiError("BAD_MOTION_RANGE", "motion end_frame is not after start_frame", index);
+      }
+      break;
+    }
+
+    case DIRECTOR_OPS.CHARACTER_CLEAR_MOTION:
+      assertString(operation.objectId, "objectId", index);
+      break;
+
     case DIRECTOR_OPS.KEYFRAME_UPSERT:
       if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
       assertFrame(operation.frame, "frame", index);

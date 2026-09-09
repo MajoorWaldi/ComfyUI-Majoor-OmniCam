@@ -7,6 +7,7 @@ import { UI_DIRTY } from "../director/ui-dirty.js";
 import { INTERPOLATION_MODES } from "../director/core.js";
 import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
 import { normalizeQuaternion, sanitizePose, withJointRotation } from "../assets/character/pose-state.js";
+import { sanitizeMotion } from "../assets/character/motion-state.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 
@@ -147,6 +148,21 @@ const HANDLERS = {
       pose: withJointRotation(object.character?.pose, op.joint, op.rotation),
     };
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_SET_MOTION](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    const motion = sanitizeMotion(op.motion);
+    if (!motion) throw new DirectorApiError("BAD_MOTION", "motion failed validation (clip_id, speed, range)");
+    object.character = { ...(object.character || {}), motion };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_CLEAR_MOTION](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    if (!object.character) return { dirtyMask: 0 };
+    object.character = { ...object.character, motion: null };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector };
   },
 
   [DIRECTOR_OPS.KEYFRAME_UPSERT](state, op) {

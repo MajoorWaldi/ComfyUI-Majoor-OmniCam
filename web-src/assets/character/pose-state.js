@@ -5,6 +5,7 @@
 // and this module owns the middle-and-right of that chain. Quaternion
 // validation mirrors omnicam/assets/pose_library.py. No DOM, no three.js.
 
+import { sanitizeMotion } from "./motion-state.js";
 import { REQUIRED_INDEX } from "./rig-profile.js";
 
 export const IDENTITY_QUAT = Object.freeze([0, 0, 0, 1]);
@@ -106,6 +107,6 @@ export function sanitizeCharacterBlock(raw) {
   return {
     rig_profile: profile,
     pose: sanitizePose(raw.pose),
-    motion: raw.motion ?? null,
+    motion: sanitizeMotion(raw.motion),
   };
 }

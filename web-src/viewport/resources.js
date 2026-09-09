@@ -28,8 +28,30 @@ export function createResourceMethods(dependencies) {
     if (!model?.mixer || !model.clips.length) return;
     model.selectedClip = Math.max(0, Math.min(model.clips.length - 1, Number(index) || 0));
     model.duration = model.clips[model.selectedClip].duration || 0;
+    model.motionClipId = null;
     model.mixer.stopAllAction();
     model.mixer.clipAction(model.clips[model.selectedClip]).play();
+    this.invalidate();
+  },
+
+  /** Select the clip a character motion names (by clip name, else index, else
+   * the first clip). Idempotent -- re-selecting the same clip is a no-op so the
+   * per-frame render loop can call it freely (design spec section 27). */
+  applyMotionClip(id, motion) {
+    const model = this.models.get(id);
+    if (!model?.mixer || !model.clips.length) return;
+    const clipId = String(motion?.clip_id ?? "");
+    if (model.motionClipId === clipId) return;
+    let index = model.clips.findIndex((clip) => (clip.name || "").toLowerCase() === clipId.toLowerCase());
+    if (index < 0 && /^\d+$/.test(clipId)) index = Number(clipId);
+    if (index < 0 || index >= model.clips.length) index = 0;
+    model.selectedClip = index;
+    model.motionClipId = clipId;
+    model.duration = model.clips[index].duration || 0;
+    model.mixer.stopAllAction();
+    const action = model.mixer.clipAction(model.clips[index]);
+    action.reset();
+    action.play();
     this.invalidate();
   },
 

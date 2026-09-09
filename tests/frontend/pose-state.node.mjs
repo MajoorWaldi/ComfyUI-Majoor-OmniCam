@@ -77,5 +77,7 @@ test("sanitizeCharacterBlock keeps rig_profile / pose / motion, nulls a bad prof
   const block = sanitizeCharacterBlock({ rig_profile: "some_other", pose: { joints: { head: [0, 0.13, 0, 0.99] } }, motion: { clip_id: "walk" } });
   assert.equal(block.rig_profile, null);
   assert.ok(block.pose.joints.head);
-  assert.deepEqual(block.motion, { clip_id: "walk" });
+  assert.equal(block.motion.clip_id, "walk");
+  assert.equal(block.motion.speed, 1);
+  assert.equal(block.motion.loop, true);
 });
