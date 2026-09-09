@@ -90,6 +90,17 @@ export function outlinerPanel() {
             <option value="bottom">${t("Bottom")}</option>
           </select>
         </div>
+        <details class="compact-panel oc-rig-mapper" data-role="rig-mapper" hidden>
+          <summary><i class="pi pi-sitemap"></i> ${t("Rig Mapper")} <span class="oc-rig-status" data-role="rig-mapper-status"></span></summary>
+          <div class="panel-body">
+            <div class="oc-rig-actions">
+              <button type="button" class="oc-btn" data-rig-act="auto">${t("Auto Map")}</button>
+              <button type="button" class="oc-btn" data-rig-act="validate">${t("Validate")}</button>
+              <button type="button" class="oc-btn" data-rig-act="save">${t("Save Mapping")}</button>
+            </div>
+            <div class="oc-rig-grid" data-role="rig-mapper-grid"></div>
+          </div>
+        </details>
       </div>
       <div class="oc-field-row"><span class="oc-field-label">${t("Upstream reference")}</span>
         <select data-role="reference-select"><option value="0">${t("Upstream 1")}</option></select>

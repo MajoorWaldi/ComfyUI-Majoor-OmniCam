@@ -349,6 +349,18 @@ const COMPONENT_STYLES = `
       .majoor-omnicam .scene-item-tag{font-size:8px;font-weight:700;letter-spacing:.03em;padding:0 4px;border-radius:8px;background:#2b2b35;border:1px solid #3b3b48;color:#b9b9c6;white-space:nowrap;text-transform:uppercase}
       .majoor-omnicam .scene-item-tag-more{background:transparent;border-color:transparent;color:#8b8b96}
       .majoor-omnicam .oc-labels-row select{height:24px;font-size:10px}
+      /* Rig Mapper */
+      .majoor-omnicam .oc-rig-status{margin-left:auto;font-size:9px;font-weight:700;letter-spacing:.03em}
+      .majoor-omnicam .oc-rig-status[data-state="ok"]{color:#7fd694}
+      .majoor-omnicam .oc-rig-status[data-state="warn"]{color:#f0b866}
+      .majoor-omnicam .oc-rig-actions{display:flex;gap:4px;margin-bottom:6px}
+      .majoor-omnicam .oc-rig-actions .oc-btn{font-size:10px;padding:3px 8px}
+      .majoor-omnicam .oc-rig-grid{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto;overscroll-behavior:contain}
+      .majoor-omnicam .oc-rig-row{display:grid;grid-template-columns:78px 1fr 12px;align-items:center;gap:5px;font-size:10px}
+      .majoor-omnicam .oc-rig-joint{color:#b9b9c6}
+      .majoor-omnicam .oc-rig-row select{height:22px;font-size:10px;min-width:0}
+      .majoor-omnicam .oc-rig-row.ok .oc-rig-joint{color:#e2e2e8}
+      .majoor-omnicam .oc-rig-tick{color:#7fd694;font-weight:700;text-align:center}
       @container (max-width:700px){.majoor-omnicam .top{overflow-x:auto;overflow-y:hidden}.majoor-omnicam .viewport-quick-bar{right:10px;max-width:calc(100% - 20px)}.majoor-omnicam .selection-mode-group button span{display:none}.majoor-omnicam .viewport-tally-banner{top:82px;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.majoor-omnicam .hud{top:108px;right:10px;max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis}.majoor-omnicam .viewport-inspector{top:auto;bottom:10px;width:min(250px,calc(100% - 20px));max-height:42%}.majoor-omnicam .timeline-toolbar{overflow-x:auto;flex-wrap:nowrap}.majoor-omnicam .timeline-summary{display:none}}
       @container (max-width:460px){.majoor-omnicam .viewport-wrap{min-height:360px;aspect-ratio:auto}.majoor-omnicam .camera-preview-strip[data-layout="2"],.majoor-omnicam .camera-preview-strip[data-layout="4"]{grid-auto-flow:row;grid-template-columns:1fr;grid-auto-columns:100%}.majoor-omnicam .menu-panel{width:min(240px,calc(100cqw - 24px))}}
 `;

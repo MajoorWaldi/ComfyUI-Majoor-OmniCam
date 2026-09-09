@@ -329,6 +329,7 @@ export function refreshInspector(ui) {
       target: t("Target XYZ"),
       lens: t("FOV / Roll / Zoom"),
     });
+    ui.rigMapper?.sync();
     return;
   }
   const badgeEl = q('[data-role="object-recon-badge"]');
@@ -457,6 +458,10 @@ export function refreshInspector(ui) {
   if (annColor && document.activeElement !== annColor) annColor.value = object.annotation?.color || "#8d7ee8";
   const annAnchor = q('[data-role="object-annotation-anchor"]');
   if (annAnchor && document.activeElement !== annAnchor) annAnchor.value = object.annotation?.anchor || "top";
+
+  // The Rig Mapper shows itself only for a Character and reloads its grid when
+  // the selected object changes.
+  ui.rigMapper?.sync();
 }
 
 export function updateSelectedObject(ui) {

@@ -442,6 +442,32 @@ export function createSceneMethods(dependencies) {
     const pos = new THREE.Vector3();
     node.getWorldPosition(pos);
     return [pos.x, pos.y, pos.z];
+  },
+
+  /** Every bone name in a loaded model, for the Rig Mapper (design spec 23). */
+  getModelBoneNames(objectId) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return [];
+    const names = [];
+    node.traverse((child) => {
+      if (child.isBone && child.name) names.push(child.name);
+    });
+    return names;
+  },
+
+  /** Resolve one loaded bone by name, plus its world position. */
+  resolveModelBone(objectId, boneName) {
+    const node = this.objectNodes.get(objectId);
+    if (!node || !boneName) return null;
+    let found = null;
+    node.traverse((child) => {
+      if (!found && child.isBone && child.name === boneName) found = child;
+    });
+    if (!found) return null;
+    found.updateWorldMatrix(true, false);
+    const world = new THREE.Vector3();
+    found.getWorldPosition(world);
+    return { name: boneName, world: [world.x, world.y, world.z] };
   }
 
   };

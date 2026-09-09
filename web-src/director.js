@@ -12,6 +12,8 @@ import { watchGraphConnections } from "./graph-connection-watch.js";
 import { attachDirectorApi } from "./director-api/index.js";
 import { createAssetBrowserPanel } from "./assets/panel.js";
 import { createLabelOverlay } from "./assets/label-overlay.js";
+import { createCharacterRuntime } from "./assets/character/rig-runtime.js";
+import { createRigMapper } from "./assets/character/rig-mapper.js";
 import { buildDirectorDomCache } from "./director/dom-cache.js";
 import {
   activeCameraTrack,
@@ -274,6 +276,14 @@ export function attachDirector(node) {
   } catch (error) {
     console.warn("[OmniCam] Label overlay unavailable", error);
   }
+  // Character rig: the transient bone bridge (never serialised) and the Rig
+  // Mapper panel. refreshInspector() calls ui.rigMapper.sync() on selection.
+  try {
+    ui.characterRuntime = createCharacterRuntime(ui);
+    ui.rigMapper = createRigMapper(ui);
+  } catch (error) {
+    console.warn("[OmniCam] Rig Mapper unavailable", error);
+  }
   node.__majoorOmniCam = ui;
   recordDirectorTrace("director:marker:assigned", node);
   ui.hideInternalWidgets();
@@ -339,6 +349,7 @@ export function attachDirector(node) {
     ui.unwatchGraphConnections?.();
     ui.assetBrowser?.dispose?.();
     ui.labelOverlay?.dispose?.();
+    ui.rigMapper?.dispose?.();
     ui.dispose();
     originalRemoved?.apply(this, arguments);
   };

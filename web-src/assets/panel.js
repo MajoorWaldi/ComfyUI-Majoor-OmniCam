@@ -11,6 +11,7 @@ import { t } from "../i18n.js";
 import { createAssetLibraryApi } from "./api.js";
 import { createCatalogStore } from "./catalog-store.js";
 import { KIND_TABS } from "./filters.js";
+import { rigStatus } from "./character/rig-profile.js";
 import { compileInstance, placementPoint } from "./instantiate.js";
 import { createPreviewCache } from "./preview-cache.js";
 
@@ -46,8 +47,9 @@ export function kindTabsMarkup(activeKind, counts = {}) {
 
 export function assetCardMarkup(definition, { selected = false, thumbUrl = "" } = {}) {
   const glyph = ASSET_KIND_GLYPH[definition.kind] || "pi-box";
-  const rigged = definition.kind === "character" && definition.rig
-    && Object.keys(definition.rig.bone_map || {}).length
+  // A RIGGED badge means a COMPLETE OMNICAM_HUMANOID_V1 map, never a partial
+  // one (design spec section 22).
+  const rigged = definition.kind === "character" && rigStatus(definition.rig) === "rigged"
     ? `<span class="oc-asset-badge">${t("RIGGED")}</span>` : "";
   const media = thumbUrl
     ? `<img class="oc-asset-thumb" src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">`

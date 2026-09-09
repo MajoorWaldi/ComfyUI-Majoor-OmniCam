@@ -8,12 +8,16 @@ import {
   kindTabsMarkup,
   resolveCardIntent,
 } from "../../web-src/assets/panel.js";
+import { REQUIRED_JOINTS } from "../../web-src/assets/character/rig-profile.js";
+
+// A complete OMNICAM_HUMANOID_V1 map -- only a complete rig earns the badge.
+const COMPLETE_MAP = Object.fromEntries(REQUIRED_JOINTS.map((j) => [j, `Bone_${j}`]));
 
 const CHAR = {
   id: "omnicam.character.human_01",
   name: "Human 01",
   kind: "character",
-  rig: { bone_map: { pelvis: "Hips" } },
+  rig: { bone_map: COMPLETE_MAP },
   tags: ["human"],
 };
 const PROP = { id: "omnicam.prop.chair", name: "Chair <x>", kind: "prop", tags: [] };
@@ -26,11 +30,16 @@ test("kind tabs render every tab, mark the active one and show counts", () => {
   assert.ok(html.includes(">7<"));
 });
 
-test("a rigged character card carries the RIGGED badge and a user glyph fallback", () => {
+test("a fully-rigged character card carries the RIGGED badge and a user glyph fallback", () => {
   const html = assetCardMarkup(CHAR, {});
   assert.ok(html.includes("RIGGED"));
   assert.ok(html.includes(ASSET_KIND_GLYPH.character));
   assert.ok(html.includes('data-asset-id="omnicam.character.human_01"'));
+});
+
+test("an incompletely-mapped character shows no RIGGED badge (spec section 22)", () => {
+  const html = assetCardMarkup({ ...CHAR, rig: { bone_map: { pelvis: "Hips" } } }, {});
+  assert.ok(!html.includes("RIGGED"));
 });
 
 test("a card with a thumbnail uses <img>, and card text is HTML-escaped", () => {
