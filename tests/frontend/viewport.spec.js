@@ -15,6 +15,9 @@ test("director UI mounts with viewport, timeline, curve editor and previews", as
   expect(result.unsafeNameElements).toBe(0);
   expect(result.nameExecuted).toBe(false);
 
+  // The Director now opens at "animation" density; vertex/edge/face selection is
+  // an advanced-tier tool, so raise the density before exercising the rail.
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setDensity("advanced"));
   const modeButtons = page.locator("[data-select-mode]");
   await expect(modeButtons).toHaveCount(4);
   for (let index = 0; index < 4; index++) await expect(modeButtons.nth(index)).toBeVisible();
@@ -68,6 +71,9 @@ test("the axis gizmo tracks the camera and stays out of the recorded canvas", as
   const before = await read();
   await page.evaluate(() => {
     const ui = window.omnicamNode.__majoorOmniCam;
+    // The gizmo follows the shot camera only in camera view; the Director now
+    // defaults to perspective, so switch back before moving the camera.
+    ui.setViewMode("camera");
     ui.camera = { ...ui.camera, position: [-6, 4, -6] };
     ui.render();
   });
