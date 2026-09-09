@@ -127,8 +127,9 @@ python scripts/bootstrap_asset_library.py --verify
 python scripts/bootstrap_asset_library.py --preset characters-extra --download
 ```
 
-Presets: `starter` (default seven packs), `characters`, `characters-extra`,
-`props`, `vehicles`, `environment`, `environments-extra`. `--from-dir DIR` uses
+Presets: `starter` (seven kits + three FBX character packs), `characters`,
+`characters-extra`, `props`, `vehicles`, `environment`, `environments-extra`.
+`--from-dir DIR` uses
 ZIPs you already downloaded instead of the network; `--source ID` narrows a
 preset; `--dest` points at a specific ComfyUI input root; `--update` permits
 replacing a previously installed file after its upstream pack changed;
@@ -144,9 +145,14 @@ What it does and does not do:
   live under `<input>/omnicam/library/`, never in Git.
 - **Cache:** the downloaded ZIPs sit in `.bootstrap/cache/` during a run and are
   deleted on success unless you pass `--keep-cache`.
-- **Characters:** selected only from *inspected* GLB skin + joint data that maps
-  every required `OMNICAM_HUMANOID_V1` joint; sex/gender is never inferred.
-  Animation clips are taken from the real GLB, never invented.
+- **Characters:** the three *Animated Characters* packs ship a full biped as
+  **FBX** (`characterMedium.fbx`). The bootstrap reads the FBX skeleton
+  directly, strips the IK/control bones, and installs the model only when
+  every required `OMNICAM_HUMANOID_V1` joint maps with a plausible hierarchy.
+  Kenney's *Blocky* / *Mini Characters* carry only a 7-bone stylised rig, so
+  they install as **animated proxy props** (`character-proxy` tag, no RIGGED
+  badge), keeping their embedded clips. Sex/gender is never inferred; clip
+  names come from the real file, never invented.
 - **Thumbnails:** not rendered here — the Asset Browser's existing lazy
   `ThumbnailRenderer` generates them on first view.
 - **Excluded:** Quaternius and Mixamo (redistribution terms), Poly Haven

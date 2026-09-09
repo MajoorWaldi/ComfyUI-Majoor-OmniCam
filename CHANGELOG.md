@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   downloader, ZIP-safe archive inventory, header-only GLB inspector, curation
   engine, install transaction, lockfile + report) and
   `omnicam.assets.rig.hierarchy_is_plausible()`.
+- Binary-FBX skeleton inspector (`omnicam.assets.bootstrap.fbx_inspect`) and
+  `omnicam.assets.rig.deform_joint_names()` (strips IK/control/`_end` bones
+  before rig mapping). The `starter` preset now also downloads Kenney's three
+  *Animated Characters* packs, whose `characterMedium.fbx` is the only Kenney
+  rig that satisfies all 22 `OMNICAM_HUMANOID_V1` joints; *Blocky* / *Mini
+  Characters* install as animated proxy props (7-bone stylised rig). GLB is
+  preferred over the FBX mirror when a pack ships both.
 
 ### Changed
 
