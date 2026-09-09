@@ -9,12 +9,35 @@
 // asset-browser spec.
 
 import { t } from "../i18n.js";
+import { annotatedAssetUrl } from "../shared/managed-assets.js";
 import { createAssetLibraryApi } from "./api.js";
 import { createCatalogStore } from "./catalog-store.js";
 import { KIND_TABS } from "./filters.js";
 import { rigStatus } from "./character/rig-profile.js";
-import { placementPoint } from "./instantiate.js";
-import { createPreviewCache } from "./preview-cache.js";
+import { assetReference, placementPoint } from "./instantiate.js";
+import { createPreviewCache, createPreviewQueue } from "./preview-cache.js";
+import { createThumbnailRenderer } from "./thumbnail-renderer.js";
+
+// three.js + the model loaders are pulled in only when the ASSETS tab is first
+// shown, so panel.js stays importable under node (markup/intent unit tests) and
+// out of the eager chunk. Mirrors viewport.js's own imports.
+async function loadThumbnailDeps() {
+  const [THREE, gltf, fbx] = await Promise.all([
+    import("../three-runtime.js"),
+    import("three/addons/loaders/GLTFLoader.js"),
+    import("three/addons/loaders/FBXLoader.js"),
+  ]);
+  return { THREE, GLTFLoader: gltf.GLTFLoader, FBXLoader: fbx.FBXLoader };
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [head, body] = String(dataUrl).split(",");
+  const mime = /:(.*?);/.exec(head)?.[1] || "image/webp";
+  const bytes = atob(body || "");
+  const buffer = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i += 1) buffer[i] = bytes.charCodeAt(i);
+  return new Blob([buffer], { type: mime });
+}
 
 export const ASSET_KIND_GLYPH = Object.freeze({
   character: "pi-user",
@@ -96,6 +119,60 @@ export function createAssetBrowserPanel(ui, options = {}) {
   const apiClient = options.apiClient || createAssetLibraryApi({ fetchApi });
   const store = options.store || createCatalogStore(apiClient);
   const previews = createPreviewCache();
+  const previewQueue = options.previewQueue || createPreviewQueue();
+  const api = ui.api || ui.app?.api || null;
+  let thumbnailRenderer = options.thumbnailRenderer || null;
+  let thumbnailRendererPromise = null;
+  //: asset ids whose thumbnail render already failed -- do not retry every grid paint.
+  const thumbFailed = new Set();
+
+  function ensureThumbnailRenderer() {
+    if (thumbnailRenderer) return Promise.resolve(thumbnailRenderer);
+    if (!thumbnailRendererPromise) {
+      thumbnailRendererPromise = loadThumbnailDeps()
+        .then((deps) => (thumbnailRenderer = createThumbnailRenderer(deps)))
+        .catch(() => (thumbnailRenderer = createThumbnailRenderer({})));
+    }
+    return thumbnailRendererPromise;
+  }
+
+  function assetModelUrl(item) {
+    return annotatedAssetUrl(api, assetReference(item));
+  }
+
+  function persistedThumbUrl(item) {
+    return item.thumbnail ? annotatedAssetUrl(api, `omnicam/library/${item.thumbnail} [input]`) : "";
+  }
+
+  /**
+   * Lazily render a studio thumbnail for every catalog row that has neither a
+   * cached preview nor a server-persisted one, one at a time, and POST the
+   * result back so it survives a reload (design spec section 19 / plan §22).
+   */
+  function hydrateThumbnails() {
+    for (const item of store.state.items) {
+      if (item.kind === "helper" || !item.file) continue;
+      if (previews.get(item.id) || item.thumbnail || thumbFailed.has(item.id)) continue;
+      const url = assetModelUrl(item);
+      if (!url) continue;
+      previewQueue.enqueue(item.id, async () => {
+        const renderer = await ensureThumbnailRenderer();
+        const dataUrl = await renderer.render(url, item.format || "glb");
+        if (!dataUrl) {
+          thumbFailed.add(item.id);
+          return;
+        }
+        previews.set(item.id, dataUrl);
+        renderGrid();
+        try {
+          const saved = await apiClient.uploadThumbnail(item.id, dataUrlToBlob(dataUrl));
+          if (saved?.asset) store.upsert(saved.asset);
+        } catch {
+          /* a persisted copy is a bonus; the in-memory preview already shows */
+        }
+      });
+    }
+  }
 
   const el = (role) => root.querySelector(`[data-role="${role}"]`);
   const panel = el("assets-panel");
@@ -123,15 +200,23 @@ export function createAssetBrowserPanel(ui, options = {}) {
     }
   }
 
+  let rendering = false;
+
   function renderGrid() {
     if (kinds) kinds.innerHTML = kindTabsMarkup(store.state.filter.kind, store.state.kinds);
     if (grid) {
       const thumbUrls = {};
       for (const item of store.state.items) {
-        const cached = previews.get(item.id);
+        const cached = previews.get(item.id) || persistedThumbUrl(item);
         if (cached) thumbUrls[item.id] = cached;
       }
       grid.innerHTML = assetGridMarkup(store.state.items, { selectedId, thumbUrls });
+    }
+    // Kick lazy thumbnail rendering once the grid markup exists. Guarded so the
+    // re-render each finished job triggers does not recurse.
+    if (!rendering) {
+      rendering = true;
+      try { hydrateThumbnails(); } finally { rendering = false; }
     }
     if (store.state.error) setStatus(store.state.error.message);
     else if (store.state.loading) setStatus(t("Loading assets..."));
@@ -249,6 +334,8 @@ export function createAssetBrowserPanel(ui, options = {}) {
       root.querySelector('[data-role="left-tabs"]')?.removeEventListener("click", onClick);
       search?.removeEventListener("input", onSearchInput);
       fileInput?.removeEventListener("change", onFileChange);
+      previewQueue.clear();
+      thumbnailRenderer?.dispose?.();
       previews.clear();
     },
   };
