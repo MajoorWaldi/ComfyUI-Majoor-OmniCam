@@ -10,6 +10,7 @@ machine report on stdout.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from pathlib import Path
@@ -41,6 +42,15 @@ def _log(message: str) -> None:
     print(message, file=sys.stderr)
 
 
+def _force_utf8() -> None:
+    """Windows consoles default to cp1252; the report + logs are UTF-8."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            with contextlib.suppress(ValueError, OSError):
+                reconfigure(encoding="utf-8", errors="backslashreplace")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bootstrap_asset_library",
@@ -62,6 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenney_archive) -> int:
+    _force_utf8()
     args = build_parser().parse_args(argv)
     try:
         if args.verify:

@@ -101,7 +101,7 @@ def write_report(input_root: Path | str | None, report: dict) -> Path:
 
 
 def render_report_text(report: dict) -> str:
-    lines = ["OmniCam Starter Asset Bootstrap", "─" * 40]
+    lines = ["OmniCam Starter Asset Bootstrap", "-" * 40]
     src, arc, inst = report["sources"], report["archives"], report["installed"]
     lines.append(f"Sources resolved        {src['resolved']} / {src['total']}")
     lines.append(f"Archives downloaded     {arc['downloaded']}")
@@ -125,7 +125,7 @@ def render_report_text(report: dict) -> str:
     verify = report.get("verify")
     if verify is not None:
         lines.append("")
-        lines.append(f"{'✓' if verify['ok'] else '✗'} verify {verify['checked']} asset(s)")
+        lines.append(f"[{'OK ' if verify['ok'] else 'FAIL'}] verify {verify['checked']} asset(s)")
         lines.extend(f"  ! {i['kind']}: {i['detail']}" for i in verify["issues"])
     return "\n".join(lines)
 
