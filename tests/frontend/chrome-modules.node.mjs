@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { getLocale, registerLocale, setLocale, t } from "../../web-src/i18n.js";
-import { OMNICAM_SETTINGS, adaptiveQualityEnabled, applyDirectorDefaults, directorDefaults, registerOmniCamLocales, unregisterDirector, viewportQuality } from "../../web-src/settings.js";
+import { OMNICAM_SETTINGS, adaptiveQualityEnabled, applyDirectorDefaults, directorDefaults, omniCamShortcutsEnabled, registerOmniCamLocales, unregisterDirector, viewportQuality } from "../../web-src/settings.js";
 import { FR } from "../../web-src/locales/fr.js";
 import { LENS_PRESETS, focalLengthToFov, formatFocalLength, formatFov, fovToFocalLength } from "../../web-src/lens.js";
 import { DOPE_CHANNELS, dopeSheetRows } from "../../web-src/dope-sheet.js";
@@ -33,7 +33,7 @@ test("director defaults fall back cleanly when the settings store is unavailable
   registerOmniCamLocales({});
   assert.deepEqual(directorDefaults(), {
     fps: 24, durationSeconds: 5, width: 1280, height: 720,
-    renderMode: "omni_ref", encoder: "auto", playblastResolution: "output", playblastGrid: false,
+    renderMode: "omni_ref", encoder: "auto", playblastResolution: "output", playblastQuality: "balanced", playblastGrid: false,
     pointDensity: "balanced", pointSpread: "all_views", pointColor: "#cbd5e1", cardFit: "contain",
     backgroundColor: "#121212",
     showGrid: true, showRadar: false, showCameraPaths: true, showCameraGizmos: true,
@@ -42,10 +42,15 @@ test("director defaults fall back cleanly when the settings store is unavailable
     burnIn: false, speedHeatmap: false, showWireframe: false, showVertices: false,
     selectMode: "object", gizmoMode: "translate", gizmoSpace: "world",
     spatialSnapMode: "none", spatialGridSize: 0.5,
-    navigationProfile: "maya", flySpeed: 1, viewMode: "camera",
-    snapEnabled: true, snapFrames: 1, autoKey: false, timecodeMode: "time", loopPlayback: false,
+    navigationProfile: "maya", flySpeed: 1,
+    invertOrbitY: false, zoomSensitivity: 1, orbitSensitivity: 1, panSensitivity: 1, dollySensitivity: 1,
+    viewMode: "camera",
+    snapEnabled: true, snapFrames: 1, autoKey: false,
+    defaultInterpolation: "ease",
+    timecodeMode: "time", loopPlayback: false,
     uiDensity: "advanced", previewLayout: "auto", cameraViewVisible: true,
     undoLimit: 100,
+    extractorBackend: "dpvo", monitorProfile: "wan_camera_native",
   });
 });
 
@@ -58,6 +63,7 @@ test("every catalogue setting is actually read by the runtime", () => {
   directorDefaults();
   viewportQuality();
   adaptiveQualityEnabled();
+  omniCamShortcutsEnabled();
   const unread = OMNICAM_SETTINGS.map((setting) => setting.id).filter((id) => !read.has(id));
   assert.deepEqual(unread, [], "these settings are declared but never consumed");
 });
@@ -67,6 +73,7 @@ test("director defaults read the ComfyUI settings store when present", () => {
     "MajoorOmniCam.Defaults.Fps": 30,
     "MajoorOmniCam.Defaults.RenderMode": "graybox",
     "MajoorOmniCam.Defaults.PlayblastResolution": "output",
+    "MajoorOmniCam.Playblast.Quality": "high",
     "MajoorOmniCam.Proxy.PointSpread": "dome",
     "MajoorOmniCam.Viewport.BackgroundColor": "1a2b3c",
     "MajoorOmniCam.Display.CameraGizmos": false,
@@ -74,6 +81,8 @@ test("director defaults read the ComfyUI settings store when present", () => {
     "MajoorOmniCam.Tools.GizmoSpace": "local",
     "MajoorOmniCam.Tools.SpatialGridSize": 0.25,
     "MajoorOmniCam.Navigation.Profile": "blender",
+    "MajoorOmniCam.Navigation.PanSensitivity": 0.65,
+    "MajoorOmniCam.Navigation.DollySensitivity": 1.8,
     "MajoorOmniCam.Timeline.TimecodeMode": "timecode",
     "MajoorOmniCam.Interface.Density": "basic",
     "MajoorOmniCam.History.Limit": 250,
@@ -83,6 +92,7 @@ test("director defaults read the ComfyUI settings store when present", () => {
   assert.equal(defaults.fps, 30);
   assert.equal(defaults.renderMode, "graybox");
   assert.equal(defaults.playblastResolution, "output");
+  assert.equal(defaults.playblastQuality, "high");
   assert.equal(defaults.pointSpread, "dome");
   assert.equal(defaults.backgroundColor, "#1a2b3c", "bare hex from the colour picker gains its #");
   assert.equal(defaults.showCameraGizmos, false);
@@ -90,6 +100,8 @@ test("director defaults read the ComfyUI settings store when present", () => {
   assert.equal(defaults.gizmoSpace, "local");
   assert.equal(defaults.spatialGridSize, 0.25);
   assert.equal(defaults.navigationProfile, "blender");
+  assert.equal(defaults.panSensitivity, 0.65);
+  assert.equal(defaults.dollySensitivity, 1.8);
   assert.equal(defaults.timecodeMode, "timecode");
   assert.equal(defaults.uiDensity, "basic");
   assert.equal(defaults.undoLimit, 250);
@@ -103,6 +115,9 @@ test("a stale or malformed stored value never reaches the editor state", () => {
     "MajoorOmniCam.Viewport.BackgroundColor": "not-a-colour",
     "MajoorOmniCam.Display.Grid": "yes",
     "MajoorOmniCam.Tools.SpatialGridSize": 9999,
+    "MajoorOmniCam.Navigation.PanSensitivity": -1,
+    "MajoorOmniCam.Navigation.DollySensitivity": 10,
+    "MajoorOmniCam.Playblast.Quality": "lossless",
   }[id]) } } });
   const defaults = directorDefaults();
   assert.equal(defaults.selectMode, "object");
@@ -110,6 +125,9 @@ test("a stale or malformed stored value never reaches the editor state", () => {
   assert.equal(defaults.backgroundColor, "#121212");
   assert.equal(defaults.showGrid, true, "a non-boolean must not be coerced into a toggle");
   assert.equal(defaults.spatialGridSize, 100, "out-of-range values clamp instead of passing through");
+  assert.equal(defaults.panSensitivity, 0.2);
+  assert.equal(defaults.dollySensitivity, 3);
+  assert.equal(defaults.playblastQuality, "balanced");
 });
 
 test("applying the defaults seeds every preference onto a fresh node state", () => {
@@ -124,6 +142,7 @@ test("applying the defaults seeds every preference onto a fresh node state", () 
   assert.equal(ui.state.preview_layout, "4");
   assert.equal(ui.state.burn_in, true);
   assert.equal(ui.state.card_fit, "cover");
+  assert.equal(ui.state.playblast_quality, "balanced");
   assert.equal(ui.state.gizmo_mode, "translate");
   assert.equal(ui.state.snap_enabled, true);
   assert.equal(ui.state.viewport_bg_color, "#121212");
@@ -150,6 +169,19 @@ test("the French catalogue translates every UI string it declares", () => {
     assert.equal(t(source), translated);
   }
   setLocale("en");
+});
+
+test("the in-editor preferences entry uses the radio-button emoji and exposes new settings", async () => {
+  const {
+    preferenceTabFieldIds,
+    preferencesTitleMarkup,
+  } = await import("../../web-src/settings/preferences-modal.js");
+
+  assert.match(preferencesTitleMarkup(), /🔘/, "settings entry icon should be the radio-button emoji");
+  assert.ok(preferenceTabFieldIds("nav").includes("MajoorOmniCam.Navigation.PanSensitivity"));
+  assert.ok(preferenceTabFieldIds("nav").includes("MajoorOmniCam.Navigation.DollySensitivity"));
+  assert.ok(preferenceTabFieldIds("nav").includes("MajoorOmniCam.Controls.EnableShortcuts"));
+  assert.ok(preferenceTabFieldIds("defaults").includes("MajoorOmniCam.Playblast.Quality"));
 });
 
 test("focal length and FOV round-trip through the 24mm vertical gate", () => {
@@ -481,9 +513,10 @@ test("only tagged markers resolve to a keyframe handle", () => {
 
 test("realtime playblast reports requested frames, duration, and timing drift", async () => {
   let clock = 100;
+  const recorderOptions = [];
   class FakeRecorder {
     static isTypeSupported() { return true; }
-    constructor() { this.mimeType = "video/webm"; this.state = "inactive"; this.listeners = {}; }
+    constructor(_stream, options) { recorderOptions.push(options); this.mimeType = "video/webm"; this.state = "inactive"; this.listeners = {}; }
     addEventListener(name, callback) { this.listeners[name] = callback; }
     start() { this.state = "recording"; }
     stop() { this.state = "inactive"; this.listeners.stop?.(); }
@@ -492,6 +525,7 @@ test("realtime playblast reports requested frames, duration, and timing drift", 
   const metricsSeen = [];
   const blob = await captureRealtimePlayblast({
     canvas, fps: 24, frameCount: 120, renderFrame() {}, mediaRecorder: FakeRecorder,
+    quality: "low",
     now: () => clock,
     sleep: async (milliseconds) => { clock += milliseconds + 0.25; },
     onMetrics: (metrics) => metricsSeen.push(metrics),
@@ -500,6 +534,7 @@ test("realtime playblast reports requested frames, duration, and timing drift", 
   assert.equal(blob.omnicamMetrics.expectedDurationMs, 5000);
   assert.ok(Math.abs(blob.omnicamMetrics.recordedDurationMs - 5030) < 1e-9);
   assert.ok(Math.abs(blob.omnicamMetrics.driftMs - 30) < 1e-9);
+  assert.equal(recorderOptions[0].videoBitsPerSecond, 3_000_000);
   assert.deepEqual(metricsSeen, [blob.omnicamMetrics]);
 });
 

@@ -9,6 +9,7 @@ export class ContextMenuController {
   constructor(root) {
     this.root = root;
     this.menu = root.querySelector('[data-role="context-menu"]');
+    this.submenus = [];
     this.returnFocus = null;
     this.dismissHandler = null;
     this.dismissTimer = null;
@@ -22,6 +23,7 @@ export class ContextMenuController {
       this.menu.addEventListener("keydown", (e) => this.onKey(e));
     }
   }
+
   hide({ restoreFocus = false } = {}) {
     if (this.dismissTimer !== null) {
       clearTimeout(this.dismissTimer);
@@ -32,14 +34,163 @@ export class ContextMenuController {
       document.removeEventListener("contextmenu", this.dismissHandler, true);
       this.dismissHandler = null;
     }
+    for (const sub of this.submenus) {
+      sub.hidden = true;
+      sub.remove();
+    }
+    this.submenus = [];
     if (!this.menu) return;
     this.menu.hidden = true;
     if (restoreFocus) this.returnFocus?.focus?.({ preventScroll: true });
   }
+
+  closeSubmenusFrom(container) {
+    for (const btn of container.querySelectorAll(".oc-has-submenu.active")) {
+      btn.classList.remove("active");
+    }
+  }
+
+  renderActions(container, actions, title = null) {
+    container.innerHTML = "";
+    if (title) {
+      const heading = document.createElement("div");
+      heading.className = "context-menu-title";
+      heading.textContent = title;
+      container.appendChild(heading);
+    }
+
+    for (const action of actions) {
+      if (action === null) {
+        const separator = document.createElement("div");
+        separator.className = "context-menu-separator";
+        container.appendChild(separator);
+        continue;
+      }
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.disabled = Boolean(action.disabled);
+      button.classList.toggle("danger", Boolean(action.danger));
+      button.title = action.help || action.label;
+
+      if (action.checked !== undefined) {
+        const check = document.createElement("i");
+        check.className = `pi ${action.checked ? "pi-check" : ""} oc-menu-check`;
+        check.style.width = "14px";
+        check.style.fontSize = "10px";
+        check.style.color = action.checked ? "var(--oc-accent, #38bdf8)" : "transparent";
+        button.appendChild(check);
+      }
+
+      if (action.icon) {
+        const icon = document.createElement("i");
+        icon.className = `pi ${action.icon}`;
+        button.appendChild(icon);
+      } else if (action.iconSvg) {
+        const svgWrap = document.createElement("span");
+        svgWrap.className = "oc-menu-icon-svg";
+        svgWrap.innerHTML = action.iconSvg;
+        button.appendChild(svgWrap);
+      }
+
+      const label = document.createElement("span");
+      label.className = "oc-menu-label";
+      label.textContent = action.label;
+      button.appendChild(label);
+
+      const subItems = action.items || action.submenu;
+      if (Array.isArray(subItems) && subItems.length) {
+        button.classList.add("oc-has-submenu");
+        const chevron = document.createElement("i");
+        chevron.className = "pi pi-chevron-right oc-submenu-chevron";
+        chevron.style.marginLeft = "auto";
+        chevron.style.fontSize = "9px";
+        chevron.style.opacity = "0.7";
+        button.appendChild(chevron);
+
+        const subMenu = document.createElement("div");
+        subMenu.className = "context-menu context-submenu majoor-omnicam";
+        subMenu.hidden = true;
+        document.body.appendChild(subMenu);
+        this.submenus.push(subMenu);
+
+        this.renderActions(subMenu, subItems, null);
+
+        let openTimer = null;
+        let closeTimer = null;
+
+        const openSub = () => {
+          clearTimeout(closeTimer);
+          if (subMenu.parentElement !== document.body) document.body.appendChild(subMenu);
+          subMenu.hidden = false;
+          button.classList.add("active");
+          const rect = button.getBoundingClientRect();
+          const subRect = subMenu.getBoundingClientRect();
+          const margin = 8;
+          let left = rect.right + 2;
+          if (left + subRect.width > window.innerWidth - margin) {
+            left = Math.max(margin, rect.left - subRect.width - 2);
+          }
+          let top = rect.top - 4;
+          if (top + subRect.height > window.innerHeight - margin) {
+            top = Math.max(margin, window.innerHeight - subRect.height - margin);
+          }
+          subMenu.style.left = `${left}px`;
+          subMenu.style.top = `${top}px`;
+        };
+
+        const closeSub = () => {
+          clearTimeout(openTimer);
+          closeTimer = setTimeout(() => {
+            subMenu.hidden = true;
+            button.classList.remove("active");
+          }, 160);
+        };
+
+        button.addEventListener("pointerenter", () => {
+          clearTimeout(closeTimer);
+          openTimer = setTimeout(openSub, 60);
+        });
+        button.addEventListener("pointerleave", closeSub);
+        subMenu.addEventListener("pointerenter", () => clearTimeout(closeTimer));
+        subMenu.addEventListener("pointerleave", closeSub);
+        subMenu.addEventListener("keydown", (e) => this.onKey(e));
+
+        button._submenuEl = subMenu;
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (subMenu.hidden) openSub(); else closeSub();
+        });
+      } else {
+        if (action.shortcut) {
+          const shortcut = document.createElement("kbd");
+          shortcut.className = "shortcut";
+          shortcut.textContent = action.shortcut;
+          button.appendChild(shortcut);
+        }
+
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.hide();
+          try {
+            action.run?.();
+          } catch (err) {
+            console.error("Context menu action failed:", err);
+          }
+        });
+      }
+
+      button.addEventListener("pointerdown", (e) => e.stopPropagation());
+      button.addEventListener("mousedown", (e) => e.stopPropagation());
+      container.appendChild(button);
+    }
+  }
+
   show(event, title, actions) {
     if (!this.menu || this.disposed) return;
-    // A re-show before the previous deferred attach has fired would otherwise
-    // leave that setTimeout live, re-adding the dismiss handler after hide().
     if (this.dismissTimer !== null) {
       clearTimeout(this.dismissTimer);
       this.dismissTimer = null;
@@ -49,56 +200,16 @@ export class ContextMenuController {
     event.stopImmediatePropagation?.();
     this.returnFocus = document.activeElement;
 
-    // Ensure menu is attached directly to document.body so that ComfyUI canvas transforms don't distort coordinates
     if (this.menu.parentElement !== document.body) {
       document.body.appendChild(this.menu);
     }
     this.menu.classList.add("majoor-omnicam");
-    this.menu.innerHTML = "";
 
-    const heading = document.createElement("div");
-    heading.className = "context-menu-title";
-    heading.textContent = title;
-    this.menu.appendChild(heading);
+    // Clean up old submenus
+    for (const sub of this.submenus) sub.remove();
+    this.submenus = [];
 
-    for (const action of actions) {
-      if (action === null) {
-        const separator = document.createElement("div");
-        separator.className = "context-menu-separator";
-        this.menu.appendChild(separator);
-        continue;
-      }
-      const button = document.createElement("button");
-      button.type = "button";
-      button.setAttribute("role", "menuitem");
-      button.disabled = Boolean(action.disabled);
-      button.classList.toggle("danger", Boolean(action.danger));
-      button.title = action.help || action.label;
-      const icon = document.createElement("i");
-      icon.className = `pi ${action.icon || "pi-angle-right"}`;
-      const label = document.createElement("span");
-      label.textContent = action.label;
-      button.append(icon, label);
-      if (action.shortcut) {
-        const shortcut = document.createElement("span");
-        shortcut.className = "shortcut";
-        shortcut.textContent = action.shortcut;
-        button.appendChild(shortcut);
-      }
-      button.addEventListener("pointerdown", (e) => e.stopPropagation());
-      button.addEventListener("mousedown", (e) => e.stopPropagation());
-      button.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.hide();
-        try {
-          action.run?.();
-        } catch (err) {
-          console.error("Context menu action failed:", err);
-        }
-      });
-      this.menu.appendChild(button);
-    }
+    this.renderActions(this.menu, actions, title);
 
     this.menu.hidden = false;
     const margin = 8;
@@ -114,7 +225,7 @@ export class ContextMenuController {
       document.removeEventListener("contextmenu", this.dismissHandler, true);
     }
     this.dismissHandler = (e) => {
-      if (e.target && this.menu.contains(e.target)) return;
+      if (e.target && (this.menu.contains(e.target) || this.submenus.some((sub) => sub.contains(e.target)))) return;
       this.hide();
     };
     this.dismissTimer = setTimeout(() => {
@@ -124,28 +235,72 @@ export class ContextMenuController {
       document.addEventListener("contextmenu", this.dismissHandler, true);
     }, 0);
   }
+
   dispose() {
     if (this.disposed) return;
     this.hide();
     this.disposed = true;
+    for (const sub of this.submenus) sub.remove();
+    this.submenus = [];
     this.menu?.remove();
     this.menu = null;
   }
+
   onKey(event) {
     if (!this.menu || this.menu.hidden) return false;
-    const buttons = [...this.menu.querySelectorAll("button:not(:disabled)")];
-    const index = buttons.indexOf(document.activeElement);
+    const active = document.activeElement;
+    const currentContainer = active?.closest?.(".context-menu");
+    if (!currentContainer) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.hide({ restoreFocus: true });
+        return true;
+      }
+      return false;
+    }
+
+    const buttons = [...currentContainer.querySelectorAll("button:not(:disabled)")];
+    const index = buttons.indexOf(active);
+
     if (event.key === "Escape") {
       event.preventDefault();
-      this.hide({ restoreFocus: true });
+      if (currentContainer !== this.menu) {
+        currentContainer.hidden = true;
+        const parentBtn = [...document.querySelectorAll(".oc-has-submenu")].find((b) => b._submenuEl === currentContainer);
+        parentBtn?.focus();
+      } else {
+        this.hide({ restoreFocus: true });
+      }
       return true;
     }
+
     if (["ArrowDown", "ArrowUp"].includes(event.key)) {
       event.preventDefault();
       const delta = event.key === "ArrowDown" ? 1 : -1;
       buttons[(index + delta + buttons.length) % buttons.length]?.focus();
       return true;
     }
+
+    if (event.key === "ArrowRight") {
+      if (active?._submenuEl) {
+        event.preventDefault();
+        active._submenuEl.hidden = false;
+        active.classList.add("active");
+        active._submenuEl.querySelector("button:not(:disabled)")?.focus();
+        return true;
+      }
+    }
+
+    if (event.key === "ArrowLeft") {
+      if (currentContainer !== this.menu) {
+        event.preventDefault();
+        currentContainer.hidden = true;
+        const parentBtn = [...document.querySelectorAll(".oc-has-submenu")].find((b) => b._submenuEl === currentContainer);
+        parentBtn?.focus();
+        return true;
+      }
+    }
+
     return false;
   }
 }

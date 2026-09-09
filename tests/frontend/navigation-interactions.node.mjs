@@ -286,6 +286,45 @@ test("Maya: the canonical Alt gestures still work wherever Alt does arrive", () 
   assert.equal(dolly.drag?.dolly, true);
 });
 
+test("Simple profile: a bare left drag orbits, with no marquee and no modifier", () => {
+  const ui = fixture("simple");
+  onPointerDown(ui, event());
+  assert.ok(!ui.boxSelection, "the simple profile has no viewport marquee");
+  assert.ok(ui.drag, "a bare left drag arms a camera gesture");
+  assert.equal(ui.drag.shift, false, "left drag orbits, it does not pan");
+  assert.equal(ui.drag.dolly, false, "left drag orbits, it does not dolly");
+});
+
+test("Simple profile: a bare right drag pans the viewport", () => {
+  const ui = fixture("simple");
+  onPointerDown(ui, event({ button: 2 }));
+  assert.ok(ui.drag, "the secondary button navigates in the simple profile");
+  assert.equal(ui.drag.shift, true, "right drag pans");
+});
+
+test("Simple profile: a bare left click still reaches the picker and selects", () => {
+  const ui = fixture("simple");
+  const object = { id: "cube", type: "cube", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
+  ui.state.objects = [object];
+  ui.selectedObjectId = null;
+  ui.selectedObjectIds = new Set();
+  ui.activateCamera = () => {};
+  ui.webgl = { pick: () => ({ type: "object", id: "cube" }) };
+  onPointerDown(ui, event());
+  assert.equal(ui.selectedObjectId, "cube", "a stationary left press still picks");
+  assert.ok(!ui.drag, "and it does not also arm an orbit");
+});
+
+test("Simple profile: the modified Maya/Blender bindings still work underneath it", () => {
+  const dolly = fixture("simple");
+  onPointerDown(dolly, event({ button: 1, ctrlKey: true }));
+  assert.equal(dolly.drag?.dolly, true, "Ctrl+middle still dollies");
+
+  const pan = fixture("simple");
+  onPointerDown(pan, event({ altKey: true, shiftKey: true }));
+  assert.equal(pan.drag?.shift, true, "Alt+Shift+left still pans");
+});
+
 test("Blender Fly drag looks around instead of starting marquee selection", () => {
   const ui = fixture("blender");
   ui.isNavigatingFly = true;
@@ -366,6 +405,33 @@ test("pan tracks CSS pixels equally on standard and high DPI canvases", () => {
     return ui.state.editor_views.front;
   });
   assert.deepEqual(results[0], results[1]);
+});
+
+test("pan sensitivity scales viewport tracking without changing the gesture", () => {
+  const positions = [1, 0.5].map((panSensitivity) => {
+    const ui = fixture("maya", "front");
+    ui.panSensitivity = panSensitivity;
+    onPointerDown(ui, event({ button: 1, shiftKey: true }));
+    onPointerMove(ui, event({ button: 1, shiftKey: true, clientX: 100 }));
+    return ui.state.editor_views.front.position[0];
+  });
+  assert.ok(Math.abs(positions[1] / positions[0] - 0.5) < 1e-9);
+});
+
+test("dolly sensitivity scales drag dolly distance", () => {
+  const distances = [1, 0.5].map((dollySensitivity) => {
+    const ui = fixture("maya", "perspective");
+    ui.dollySensitivity = dollySensitivity;
+    onPointerDown(ui, event({ button: 1, ctrlKey: true }));
+    onPointerMove(ui, event({ button: 1, ctrlKey: true, clientY: 120 }));
+    const camera = ui.state.editor_views.perspective;
+    return Math.hypot(
+      camera.position[0] - camera.target[0],
+      camera.position[1] - camera.target[1],
+      camera.position[2] - camera.target[2],
+    );
+  });
+  assert.ok(distances[0] > distances[1], "lower sensitivity must dolly less for the same drag");
 });
 
 test("F frames the whole selection within a portrait viewport in perspective and ortho", () => {

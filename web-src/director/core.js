@@ -412,8 +412,11 @@ export function defaultState() {
   return {
     schema_version: 1, fps: 24, duration_frames: 120, width: 1280, height: 720, render_mode: "omni_ref", camera, keyframes,
     cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(camera), keyframes }], active_camera_id: "camera_1", playblast_camera_id: "camera_1",
-    objects: [{ id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" }],
-    metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_resolution: "output", card_fit: "contain", card_asset: "", reference_index: 0,
+    objects: [
+      { id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" },
+      { id: "sun_light", type: "sun_light", name: "Sun light", position: [5.0, 8.5, 4.0], rotation: [-55, 35, 0], size: [1, 1, 1], color: "#fff6ec", intensity: 2.2, cast_shadow: true, keyframes: [], enabled: true },
+    ],
+    metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_resolution: "output", playblast_quality: "balanced", card_fit: "contain", card_asset: "", reference_index: 0,
     // Interactive inspection defaults to the recovered source texture (the plan's
     // "interactive layout inspection may use Source Texture"); omni_ref conditioning
     // playblasts force Neutral regardless of this value (see viewport/resources.js's
@@ -560,6 +563,10 @@ export function sanitizeState(raw) {
     rotation: Array.isArray(object.rotation) ? object.rotation.map(Number) : [0, 0, 0],
     size: Array.isArray(object.size) ? (object.size.length === 2 ? [...object.size.map(Number), 0.01] : object.size.map(Number)) : [1, 1, 1],
     material_mode: ["textured", "checker", "neutral", "wireframe", "wireframe_texture", "wireframe_neutral", "matte"].includes(object.material_mode) ? object.material_mode : "textured",
+    ...(object?.intensity !== undefined ? { intensity: Number.isFinite(Number(object.intensity)) ? Math.max(0, Number(object.intensity)) : (object.type === "sun_light" ? 2.2 : 2.0) } : {}),
+    ...(object?.cast_shadow !== undefined ? { cast_shadow: Boolean(object.cast_shadow) } : {}),
+    ...(object?.cone_angle !== undefined ? { cone_angle: clamp(Number(object.cone_angle) || 45, 1, 90) } : {}),
+    ...(object?.penumbra !== undefined ? { penumbra: clamp(Number(object.penumbra) || 0.25, 0, 1) } : {}),
     keyframes: (Array.isArray(object.keyframes) ? object.keyframes : []).map((key) => ({
       frame: Math.max(0, Math.round(Number(key.frame || 0))),
       transform: cloneTransform(key.transform || object),
@@ -567,7 +574,7 @@ export function sanitizeState(raw) {
       ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     })).sort((a, b) => a.frame - b.frame)
   }));
-  out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = out.navigation_profile === "blender" ? "blender" : "maya"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
+  out.gizmo_mode = ["translate", "rotate", "scale"].includes(out.gizmo_mode) ? out.gizmo_mode : "translate"; out.gizmo_space = out.gizmo_space === "local" ? "local" : "world"; out.navigation_profile = ["blender", "simple"].includes(out.navigation_profile) ? out.navigation_profile : "maya"; out.spatial_snap_mode = ["none", "grid", "vertex"].includes(out.spatial_snap_mode) ? out.spatial_snap_mode : "none"; out.spatial_grid_size = clamp(Number(out.spatial_grid_size) || 0.5, 0.01, 100); out.ui_density = ["basic", "animation", "advanced"].includes(out.ui_density) ? out.ui_density : "advanced";
   out.select_mode = ["object", "vertex", "edge", "face"].includes(out.select_mode) ? out.select_mode : "object";
   out.show_grid = out.show_grid !== false;
   out.show_camera_paths = out.show_camera_paths !== false;
@@ -595,7 +602,7 @@ export function sanitizeState(raw) {
   out.graph_height = Math.round(boundedNumber(out.graph_height, PANEL_LAYOUT.graphHeight.default, PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max));
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
-  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
+  out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.playblast_quality = ["low", "balanced", "high"].includes(out.playblast_quality) ? out.playblast_quality : "balanced"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "camera"; out.camera_view_visible = out.camera_view_visible !== false;
   // The MotionScene omnicam/reconstruction produces never sets this field (it
   // isn't part of the canonical schema), so every freshly-adopted reconstruction
   // falls through to this default -- source_texture, so it doesn't render as an

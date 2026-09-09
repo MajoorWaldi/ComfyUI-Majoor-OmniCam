@@ -340,11 +340,11 @@ function withTimeout(promise, timeoutMs, operation) {
   ]).finally(() => clearTimeout(timer));
 }
 
-export async function encodeDeterministicPlayblast(canvas, frameCount, fps, renderFrame, signal) {
+export async function encodeDeterministicPlayblast(canvas, frameCount, fps, renderFrame, signal, quality = "balanced") {
   const codec = await supportsDeterministicEncoding(canvas.width, canvas.height);
   if (!codec) throw new Error("No supported WebCodecs WebM encoder");
   const output = new Output({ format: new WebMOutputFormat(), target: new BufferTarget() });
-  const source = new CanvasSource(canvas, { codec, quality: new Quality("high"), keyFrameInterval: 1 });
+  const source = new CanvasSource(canvas, { codec, quality: new Quality(["low", "balanced", "high"].includes(quality) ? quality : "balanced"), keyFrameInterval: 1 });
   output.addVideoTrack(source, { frameRate: fps });
   await withTimeout(output.start(), 10_000, "Starting deterministic encoder");
   try {

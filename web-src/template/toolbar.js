@@ -97,7 +97,7 @@ function viewTab() {
   return `
     <details class="toolbar-menu" data-menu="view"><summary><i class="pi pi-compass"></i> ${t("View")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
       <div class="menu-title">${t("Navigation & Selection")}</div>
-      <label title="${t("Middle drag orbits, Shift+middle pans, Ctrl+middle dollies -- no Alt needed anywhere. Alt+left/middle/right are aliases for orbit/pan/dolly; with no middle button, Ctrl+drag over empty space orbits and Ctrl+Shift+drag pans. The profile only decides whether Alt+right dollies (Maya) or does nothing (Blender).")}">${t("Navigation profile")} <select data-role="navigation-profile"><option value="maya">Maya</option><option value="blender">Blender</option></select></label>
+      <label title="${t("Middle drag orbits, Shift+middle pans, Ctrl+middle dollies -- no Alt needed anywhere. Alt+left/middle/right are aliases for orbit/pan/dolly; with no middle button, Ctrl+drag over empty space orbits and Ctrl+Shift+drag pans. Maya vs Blender only decides whether Alt+right dollies (Maya) or does nothing (Blender). Simple is mouse-only: left drag orbits, right drag pans, wheel zooms -- no modifiers, no middle button, no viewport marquee or right-click menu.")}">${t("Navigation profile")} <select data-role="navigation-profile"><option value="maya">Maya</option><option value="blender">Blender</option><option value="simple">${t("Simple")}</option></select></label>
       <div class="menu-section" data-density-min="advanced">
         <label>${t("Select mode")} <select data-role="select-mode">
           <option value="object" selected>${t("Object (4)")}</option>

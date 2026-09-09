@@ -14,7 +14,7 @@ outliner row or the axis gizmo -- so the panels stay keyboard-operable.
 Keys are scoped to the zone the event came from: the **viewport** owns the
 spatial keys, the **timeline / graph editor** own the temporal keys, and the
 **sequence editor** owns its own. Only a small transport set (undo/redo,
-copy/paste, duplicate, `Space`, `Escape`) fires from any zone.
+copy/paste, duplicate, `Ctrl`/`Cmd`+`,` preferences, `Space`, `Escape`) fires from any zone.
 
 ## Viewport navigation
 
@@ -38,9 +38,20 @@ space**, so multi-select (`Ctrl` + *click*, which reaches the picker first) is
 untouched.
 
 The profile chosen in the toolbar's **Navigation & Selection** menu (seeded per
-node by *Settings → OmniCam → Navigation*) now only decides one thing: `Alt` +
-right drag dollies in **Maya**, while **Blender** binds no camera gesture to the
-secondary button. Every other gesture above is identical in both.
+node by *Settings → OmniCam → Navigation*) decides two things. Between **Maya**
+and **Blender**, only whether `Alt` + right drag dollies (Maya) or does nothing
+(Blender) — every other gesture above is identical in both. The third profile,
+**Simple**, is mouse-only for people with no modifier keys or middle button:
+left drag orbits, right drag pans, the wheel zooms. It has no viewport marquee
+(a bare left drag orbits instead) and no viewport right-click menu (that button
+pans); a bare left *click* still selects, and the modified Maya/Blender bindings
+above stay available underneath it.
+
+The same Settings panel exposes global navigation sensitivity for orbit, pan,
+dolly drag, mouse-wheel zoom and fly speed. These are user preferences: changing
+them affects interaction speed, not the saved camera path. *Settings -> OmniCam
+-> Controls -> Enable OmniCam shortcuts* releases all OmniCam keyboard shortcuts
+back to ComfyUI while leaving pointer navigation available.
 
 `Alt`/`Option` always means navigation and never opens a menu: an
 `Alt` + right drag dollies without the context menu appearing on release.
@@ -93,7 +104,16 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 | `Shift`/`Ctrl`/`Cmd` + click | Add / remove from the selection |
 | Left drag in empty space | Marquee selection (both profiles) |
 | Hold `Shift` when the marquee starts | Additive marquee |
+| `B` | Box / marquee selection tool toggle |
+| `Ctrl`/`Cmd` + `A` | Select all objects |
+| `Alt` + `A` | Deselect all |
+| `Ctrl`/`Cmd` + `I` | Invert object selection |
+| `Ctrl`/`Cmd` + `,` | Open OmniCam Preferences dialog |
 | `Shift` + `G` | Select the active object and all its descendants |
+| `Shift` + `D` or `Ctrl`/`Cmd` + `D` | Duplicate selected object(s) (batch duplicate when multiple selected) |
+| `H` / `Alt`+`H` | Hide or toggle selected object(s) (batch if multiple selected) / show all |
+| `L` | Lock / unlock selected object(s) (batch if multiple selected) |
+| `Delete` / `Backspace` | Delete selected object(s) (batch if multiple selected, spares subject) |
 | `T` | Modal translate |
 | `R` | Modal rotate |
 | `S` | Modal scale |
@@ -104,8 +124,6 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 | `Escape` or right click | Cancel the transform |
 | `Tab` | Toggle Object Mode / Component Mode |
 | `1` `2` `3` `4` (not numpad) | Component select mode: vertex / edge / face / object |
-| `H` / `Alt`+`H` | Hide the selected object / show all |
-| `Delete` / `Backspace` | Delete the selected object or camera |
 | Draw Camera Path + LMB drag | Draw and commit a new camera trajectory in the current editor view |
 | Continue Camera Path + LMB drag | Append a new segment from the active camera's last key |
 | Draw / Continue Camera Path + RMB | Cancel the uncommitted path |
@@ -312,7 +330,7 @@ The Outliner quick-bar, toolbar, and viewport right-click menu provide instant o
   - `ArrowLeft` / `ArrowRight` inside graph tabs cycles between Curves, Dope Sheet, and Sequence.
   - `ArrowUp` / `ArrowDown` inside the scene tree navigates through cameras and objects, scrolling items smoothly into view.
 - **Smooth Scrolling & Sticky Headers**:
-  - Outliner search, primitive buttons, and category chips stick to the top while scrolling large scenes.
+  - Outliner search, Add object dropdown, and category chips stick to the top while scrolling large scenes.
   - Shot panel transport/timecode bar sticks to the top while scrolling keyframe properties.
   - Health panel quality score banner remains anchored at top while reviewing problem zones.
   - Shift + Mouse Wheel or trackpad 2-finger horizontal swipe smoothly pans the timeline.
@@ -323,7 +341,9 @@ The Outliner quick-bar, toolbar, and viewport right-click menu provide instant o
 2. Run `T X 2 Enter`, `R Z 45 Enter`, `S 1.5 Enter`, then Undo / Redo.
 3. Test Grid and Vertex snapping without changing the timeline snap.
 4. Test the additive marquee and `Shift`+`G` on a hierarchy.
-5. Switch Maya / Blender and check orbit, pan and dolly in each profile.
+5. Switch Maya / Blender / Simple and check orbit, pan and dolly in each
+   profile. In Simple, confirm left drag orbits, right drag pans, the wheel
+   zooms, a bare left click still selects, and no menu appears on right release.
 6. Enter Fly with `C`, move with `W`/`A`/`S`/`D`/`Q`/`E`, exit with `Esc`.
 7. Alt-drag over an object in Maya; check that the selection stays unchanged.
 8. Frame two distant objects with `F` in perspective and front views, including

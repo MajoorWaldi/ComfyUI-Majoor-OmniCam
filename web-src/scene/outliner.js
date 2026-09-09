@@ -115,8 +115,9 @@ export function refreshObjects(ui) {
     return { header, isCollapsed };
   };
 
+  const isLightType = (type) => ["sun_light", "point_light", "spot_light"].includes(type);
   const showCameras = category === "all" || category === "cameras" || (category === "hidden" && ui.state.cameras.some((c) => c.muted));
-  const showObjects = category === "all" || category === "objects" || (category === "hidden" && ui.state.objects.some((o) => o.enabled === false));
+  const showObjects = category === "all" || category === "objects" || category === "lights" || (category === "hidden" && ui.state.objects.some((o) => o.enabled === false));
 
   // --- Render Cameras ---
   if (showCameras) {
@@ -255,11 +256,13 @@ export function refreshObjects(ui) {
 
     const matchingObjects = orderedObjectsWithLevel.filter(({ object }) => {
       if (!matches(object.name || object.type)) return false;
+      if (category === "lights" && !isLightType(object.type)) return false;
+      if (category === "objects" && isLightType(object.type)) return false;
       if (category === "hidden" && object.enabled !== false) return false;
       return true;
     });
 
-    const { header, isCollapsed } = createSectionHeader(t("Objects"), matchingObjects.length, "objects");
+    const { header, isCollapsed } = createSectionHeader(category === "lights" ? t("Lights") : t("Objects"), matchingObjects.length, "objects");
     box.appendChild(header);
 
     if (!isCollapsed) {
@@ -269,8 +272,9 @@ export function refreshObjects(ui) {
         element.tabIndex = 0;
         element.dataset.objectId = object.id;
         const isSelected = ui.selectedEntity === "object" && (object.id === ui.selectedObjectId || ui.selectedObjectIds?.has?.(object.id));
+        const isPrimary = ui.selectedEntity === "object" && object.id === ui.selectedObjectId;
         element.setAttribute("aria-selected", String(isSelected));
-        element.className = `scene-item${isSelected ? " selected" : ""}${level > 0 && !filter ? " scene-item-child" : ""}`;
+        element.className = `scene-item${isSelected ? " selected" : ""}${isPrimary ? " primary" : ""}${level > 0 && !filter ? " scene-item-child" : ""}`;
         if (level > 0 && !filter) {
           element.style.paddingLeft = `${level * 16 + 6}px`;
         }
@@ -282,6 +286,10 @@ export function refreshObjects(ui) {
           : object.type === "sphere" ? { icon: "pi-circle", color: "#fbbf24" }
           : object.type === "cylinder" ? { icon: "pi-database", color: "#fbbf24" }
           : object.type === "torus" ? { icon: "pi-circle", color: "#fbbf24" }
+          : object.type === "pyramid" ? { icon: "pi-play", color: "#fbbf24" }
+          : object.type === "sun_light" ? { icon: "pi-sun", color: "#f59e0b" }
+          : object.type === "point_light" ? { icon: "pi-bolt", color: "#fbbf24" }
+          : object.type === "spot_light" ? { icon: "pi-compass", color: "#38bdf8" }
           : object.type === "human" ? { icon: "pi-user", color: "#34d399" }
           : { icon: "pi-plus", color: "#94a3b8" };
 
@@ -380,8 +388,17 @@ export function refreshObjects(ui) {
           ui.editingKeyFrame = null;
           for (const row of box.querySelectorAll(".scene-item")) {
             const selected = Boolean(row.dataset.objectId && ui.selectedObjectIds.has(row.dataset.objectId));
+            const primary = Boolean(row.dataset.objectId && row.dataset.objectId === ui.selectedObjectId);
             row.classList.toggle("selected", selected);
+            row.classList.toggle("primary", primary);
             if (row.dataset.objectId) row.setAttribute("aria-selected", String(selected));
+          }
+          const batchBar = ui.root.querySelector('[data-role="outliner-batch-bar"]');
+          if (batchBar) {
+            const count = ui.selectedObjectIds?.size || 0;
+            batchBar.hidden = count < 2;
+            const badge = batchBar.querySelector('[data-role="batch-count"]');
+            if (badge) badge.textContent = `${count} ${t("selected")}`;
           }
           ui.refreshKeys();
           ui.refreshInspector();
@@ -405,6 +422,13 @@ export function refreshObjects(ui) {
         box.appendChild(element);
       }
     }
+  }
+  const batchBar = ui.root.querySelector('[data-role="outliner-batch-bar"]');
+  if (batchBar) {
+    const count = ui.selectedObjectIds?.size || 0;
+    batchBar.hidden = count < 2;
+    const badge = batchBar.querySelector('[data-role="batch-count"]');
+    if (badge) badge.textContent = `${count} ${t("selected")}`;
   }
   ui.refreshInspector();
 }

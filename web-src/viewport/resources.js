@@ -101,13 +101,73 @@ export function createResourceMethods(dependencies) {
         const cull = Boolean(state.backface_culling);
         const effectiveAppearance = reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
         if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object, cull); }
-        else mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2] || 1), wire.clone());
-      } else if (object.type === "sphere") mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode, Boolean(state.backface_culling)));
-      else if (object.type === "cylinder") mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), objectMaterial(object, mode, Boolean(state.backface_culling)));
-      else if (object.type === "torus") {
+      } else if (object.type === "sphere") {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode, Boolean(state.backface_culling)));
+      } else if (object.type === "cylinder") {
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), objectMaterial(object, mode, Boolean(state.backface_culling)));
+      } else if (object.type === "torus") {
         const torusGeom = new THREE.TorusGeometry(0.5, 0.2, 16, 32);
         torusGeom.rotateX(Math.PI / 2);
         mesh = new THREE.Mesh(torusGeom, objectMaterial(object, mode, Boolean(state.backface_culling)));
+      } else if (object.type === "pyramid") {
+        const pyrGeom = new THREE.ConeGeometry(0.7, 1, 4);
+        pyrGeom.rotateY(Math.PI / 4);
+        mesh = new THREE.Mesh(pyrGeom, objectMaterial(object, mode, Boolean(state.backface_culling)));
+      } else if (object.type === "sun_light") {
+        const lightGroup = new THREE.Group();
+        const dirLight = new THREE.DirectionalLight(object.color || 0xfff6ec, object.intensity ?? 2.2);
+        dirLight.castShadow = object.cast_shadow !== false;
+        if (dirLight.castShadow) {
+          dirLight.shadow.mapSize.set(1024, 1024);
+          dirLight.shadow.bias = -0.0008;
+          dirLight.shadow.normalBias = 0.02;
+          dirLight.shadow.radius = 2.4;
+          dirLight.shadow.camera.near = 0.5;
+          dirLight.shadow.camera.far = 70;
+          dirLight.shadow.camera.left = dirLight.shadow.camera.bottom = -14;
+          dirLight.shadow.camera.right = dirLight.shadow.camera.top = 14;
+        }
+        const rot = (object.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad);
+        const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(rot[0], rot[1], rot[2], "YXZ"));
+        dirLight.target.position.copy(dirLight.position).add(dir.multiplyScalar(10));
+        lightGroup.add(dirLight, dirLight.target);
+        const sunHelper = new THREE.Mesh(
+          new THREE.SphereGeometry(0.28, 12, 8),
+          new THREE.MeshBasicMaterial({ color: object.color || 0xf59e0b, wireframe: true })
+        );
+        sunHelper.userData.omnicamLightHelper = true;
+        sunHelper.visible = !cleanCapture;
+        lightGroup.add(sunHelper);
+        mesh = lightGroup;
+      } else if (object.type === "point_light") {
+        const lightGroup = new THREE.Group();
+        const pLight = new THREE.PointLight(object.color || 0xffffff, object.intensity ?? 2.0, 0, 2);
+        lightGroup.add(pLight);
+        const pointHelper = new THREE.Mesh(
+          new THREE.SphereGeometry(0.2, 12, 8),
+          new THREE.MeshBasicMaterial({ color: object.color || 0xfbbf24, wireframe: true })
+        );
+        pointHelper.userData.omnicamLightHelper = true;
+        pointHelper.visible = !cleanCapture;
+        lightGroup.add(pointHelper);
+        mesh = lightGroup;
+      } else if (object.type === "spot_light") {
+        const lightGroup = new THREE.Group();
+        const coneAngle = ((object.cone_angle ?? 45) * Math.PI) / 180;
+        const penumbra = object.penumbra ?? 0.25;
+        const sLight = new THREE.SpotLight(object.color || 0xffffff, object.intensity ?? 3.0, 0, coneAngle, penumbra, 2);
+        const rot = (object.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad);
+        const dir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(rot[0], rot[1], rot[2], "YXZ"));
+        sLight.target.position.copy(sLight.position).add(dir.multiplyScalar(10));
+        lightGroup.add(sLight, sLight.target);
+        const spotHelper = new THREE.Mesh(
+          new THREE.ConeGeometry(0.25, 0.5, 8),
+          new THREE.MeshBasicMaterial({ color: object.color || 0x38bdf8, wireframe: true })
+        );
+        spotHelper.userData.omnicamLightHelper = true;
+        spotHelper.visible = !cleanCapture;
+        lightGroup.add(spotHelper);
+        mesh = lightGroup;
       } else if (object.type === "human") {
         mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), objectMaterial(object, mode, Boolean(state.backface_culling)));
       } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode, Boolean(state.backface_culling)));
@@ -119,9 +179,11 @@ export function createResourceMethods(dependencies) {
       } else {
         mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode, Boolean(state.backface_culling)));
       }
+      if (!mesh) continue;
       mesh.position.fromArray(object.position || [0, 0, 0]);
       mesh.rotation.set(...(object.rotation || [0, 0, 0]).map(THREE.MathUtils.degToRad));
-      if (object.type !== "card") mesh.scale.fromArray(size);
+      const isLight = ["sun_light", "point_light", "spot_light"].includes(object.type);
+      if (object.type !== "card" && !isLight) mesh.scale.fromArray(size);
       mesh.userData.omnicamId = object.id;
       mesh.frustumCulled = false;
       mesh.traverse((c) => {
@@ -129,13 +191,15 @@ export function createResourceMethods(dependencies) {
         c.userData.omnicamId = object.id;
       });
 
-      const isWireframeActive = Boolean(
-        state.show_wireframe ||
-        state.render_mode === "wireframe_texture" ||
-        object.material_mode === "wireframe_texture" ||
-        object.material_mode === "wireframe_neutral"
-      );
-      attachMeshOverlays(THREE, mesh, { wireframe: isWireframeActive, vertices: state.show_vertices });
+      if (!isLight) {
+        const isWireframeActive = Boolean(
+          state.show_wireframe ||
+          state.render_mode === "wireframe_texture" ||
+          object.material_mode === "wireframe_texture" ||
+          object.material_mode === "wireframe_neutral"
+        );
+        attachMeshOverlays(THREE, mesh, { wireframe: isWireframeActive, vertices: state.show_vertices });
+      }
 
       this.objectNodes.set(object.id, mesh);
       this.content.add(mesh);

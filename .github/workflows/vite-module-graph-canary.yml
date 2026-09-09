@@ -56,4 +56,4 @@ jobs:
           merge-multiple: true
 
       - name: Compare module graphs
-        run: node scripts/compare_vite_graphs.mjs vite-graph-Linux.json vite-graph-Windows.json --report-only
+        run: node scripts/compare_vite_graphs.mjs vite-graph-Linux.json vite-graph-Windows.json --strict

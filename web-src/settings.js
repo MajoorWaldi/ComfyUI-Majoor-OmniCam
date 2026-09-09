@@ -12,16 +12,20 @@ import { getLocale, registerLocale, setLocale, t } from "./i18n.js";
 import { FR } from "./locales/fr.js";
 import {
   SETTING_ADAPTIVE, SETTING_ASPECT_RATIO, SETTING_AUTO_KEY, SETTING_BG_COLOR, SETTING_BURN_IN,
-  SETTING_CAMERA_VIEW_VISIBLE, SETTING_CARD_FIT, SETTING_DURATION, SETTING_ENCODER, SETTING_FLY_SPEED,
-  SETTING_FPS, SETTING_GIZMO_MODE, SETTING_GIZMO_SPACE, SETTING_GUIDES, SETTING_HEIGHT, SETTING_LOCALE,
-  SETTING_LOOP_PLAYBACK, SETTING_NAVIGATION_PROFILE, SETTING_PLAYBLAST_GRID, SETTING_PLAYBLAST_RESOLUTION,
-  SETTING_POINT_COLOR, SETTING_POINT_DENSITY, SETTING_POINT_SPREAD, SETTING_PREVIEW_LAYOUT, SETTING_QUALITY,
-  SETTING_RENDER_MODE, SETTING_RESOLUTION_GATE, SETTING_SAFE_AREAS, SETTING_SELECT_MODE,
-  SETTING_SHOW_CAMERA_GIZMOS, SETTING_SHOW_CAMERA_PATHS, SETTING_SHOW_GIZMO, SETTING_SHOW_GRID,
-  SETTING_SHOW_HELPER_AXES, SETTING_SHOW_LOOK_AT, SETTING_SHOW_RADAR, SETTING_SHOW_VERTICES,
-  SETTING_SHOW_WIREFRAME, SETTING_SNAP_ENABLED, SETTING_SNAP_FRAMES, SETTING_SNAP_GRID_SIZE,
-  SETTING_SNAP_MODE, SETTING_SPEED_HEATMAP, SETTING_TIMECODE_MODE, SETTING_UI_DENSITY,
-  SETTING_UNDO_LIMIT, SETTING_VIEW_MODE, SETTING_WIDTH,
+  SETTING_CAMERA_VIEW_VISIBLE, SETTING_CARD_FIT, SETTING_DEFAULT_INTERP, SETTING_DOLLY_SENSITIVITY,
+  SETTING_DURATION, SETTING_ENABLE_SHORTCUTS, SETTING_ENCODER, SETTING_EXTRACTOR_BACKEND,
+  SETTING_FLY_SPEED, SETTING_FPS, SETTING_GIZMO_MODE, SETTING_GIZMO_SPACE, SETTING_GUIDES,
+  SETTING_HEIGHT, SETTING_INVERT_ORBIT_Y, SETTING_LOCALE, SETTING_LOOP_PLAYBACK,
+  SETTING_MONITOR_PROFILE, SETTING_NAVIGATION_PROFILE, SETTING_ORBIT_SENSITIVITY,
+  SETTING_PAN_SENSITIVITY, SETTING_PLAYBLAST_GRID, SETTING_PLAYBLAST_QUALITY,
+  SETTING_PLAYBLAST_RESOLUTION, SETTING_POINT_COLOR, SETTING_POINT_DENSITY, SETTING_POINT_SPREAD,
+  SETTING_PREVIEW_LAYOUT, SETTING_QUALITY, SETTING_RENDER_MODE, SETTING_RESOLUTION_GATE,
+  SETTING_SAFE_AREAS, SETTING_SELECT_MODE, SETTING_SHOW_CAMERA_GIZMOS, SETTING_SHOW_CAMERA_PATHS,
+  SETTING_SHOW_GIZMO, SETTING_SHOW_GRID, SETTING_SHOW_HELPER_AXES, SETTING_SHOW_LOOK_AT,
+  SETTING_SHOW_RADAR, SETTING_SHOW_VERTICES, SETTING_SHOW_WIREFRAME, SETTING_SNAP_ENABLED,
+  SETTING_SNAP_FRAMES, SETTING_SNAP_GRID_SIZE, SETTING_SNAP_MODE, SETTING_SPEED_HEATMAP,
+  SETTING_TIMECODE_MODE, SETTING_UI_DENSITY, SETTING_UNDO_LIMIT, SETTING_VIEW_MODE,
+  SETTING_WIDTH, SETTING_ZOOM_SENSITIVITY,
   buildOmniCamSettings,
 } from "./settings/catalogue.js";
 
@@ -42,6 +46,27 @@ function readSetting(id, fallback) {
     return value === undefined || value === null ? fallback : value;
   } catch {
     return fallback; // older frontends without extensionManager.setting
+  }
+}
+
+export function writeSetting(id, value) {
+  try {
+    appRef?.extensionManager?.setting?.set?.(id, value);
+  } catch (error) {
+    console.warn("OmniCam: writeSetting failed", id, value, error);
+  }
+}
+
+export function readSettingValue(id, fallback) {
+  return readSetting(id, fallback);
+}
+
+export function resetOmniCamSettingsToDefaults() {
+  for (const def of OMNICAM_SETTINGS) {
+    if (def.defaultValue !== undefined) {
+      writeSetting(def.id, def.defaultValue);
+      def.onChange?.(def.defaultValue);
+    }
   }
 }
 
@@ -116,11 +141,21 @@ export function anyDirectorsLive() {
   return false;
 }
 
-/** The mounted Director whose root contains `target`, for the global key interceptor. */
+/** The mounted Director whose root contains `target`, or active interacting director. */
 export function directorForTarget(target) {
-  if (!(target instanceof Node)) return null;
   for (const ui of liveDirectors) {
-    if (!ui.disposed && ui.root?.contains(target)) return ui;
+    if (!ui.disposed && (ui.drag || ui.boxSelection || ui.gizmoDrag || ui.activePointerId != null)) {
+      return ui;
+    }
+  }
+  if (target instanceof Node) {
+    for (const ui of liveDirectors) {
+      if (!ui.disposed && ui.root?.contains(target)) return ui;
+    }
+  }
+  if (liveDirectors.size === 1) {
+    const [sole] = liveDirectors;
+    if (sole && !sole.disposed) return sole;
   }
   return null;
 }
@@ -131,6 +166,10 @@ export function viewportQuality() {
 
 export function adaptiveQualityEnabled() {
   return readSetting(SETTING_ADAPTIVE, true) !== false;
+}
+
+export function omniCamShortcutsEnabled() {
+  return readSetting(SETTING_ENABLE_SHORTCUTS, true) !== false;
 }
 
 export function applyViewportQuality(quality = viewportQuality()) {
@@ -157,6 +196,7 @@ export function directorDefaults() {
     renderMode: String(readSetting(SETTING_RENDER_MODE, "omni_ref")),
     encoder: String(readSetting(SETTING_ENCODER, "auto")),
     playblastResolution: choiceSetting(SETTING_PLAYBLAST_RESOLUTION, "output", ["viewport", "half", "output", "double"]),
+    playblastQuality: choiceSetting(SETTING_PLAYBLAST_QUALITY, "balanced", ["low", "balanced", "high"]),
     playblastGrid: booleanSetting(SETTING_PLAYBLAST_GRID, false),
 
     pointDensity: choiceSetting(SETTING_POINT_DENSITY, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
@@ -189,11 +229,17 @@ export function directorDefaults() {
 
     navigationProfile: choiceSetting(SETTING_NAVIGATION_PROFILE, "maya", ["maya", "blender"]),
     flySpeed: numericSetting(SETTING_FLY_SPEED, 1, 0.05, 5),
+    invertOrbitY: booleanSetting(SETTING_INVERT_ORBIT_Y, false),
+    zoomSensitivity: numericSetting(SETTING_ZOOM_SENSITIVITY, 1, 0.2, 3),
+    orbitSensitivity: numericSetting(SETTING_ORBIT_SENSITIVITY, 1, 0.2, 3),
+    panSensitivity: numericSetting(SETTING_PAN_SENSITIVITY, 1, 0.2, 3),
+    dollySensitivity: numericSetting(SETTING_DOLLY_SENSITIVITY, 1, 0.2, 3),
     viewMode: choiceSetting(SETTING_VIEW_MODE, "camera", ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"]),
 
     snapEnabled: booleanSetting(SETTING_SNAP_ENABLED, true),
     snapFrames: numericSetting(SETTING_SNAP_FRAMES, 1, 1, 24, true),
     autoKey: booleanSetting(SETTING_AUTO_KEY, false),
+    defaultInterpolation: choiceSetting(SETTING_DEFAULT_INTERP, "ease", ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"]),
     timecodeMode: choiceSetting(SETTING_TIMECODE_MODE, "time", ["time", "timecode"]),
     loopPlayback: booleanSetting(SETTING_LOOP_PLAYBACK, false),
 
@@ -202,6 +248,9 @@ export function directorDefaults() {
     cameraViewVisible: booleanSetting(SETTING_CAMERA_VIEW_VISIBLE, true),
 
     undoLimit: numericSetting(SETTING_UNDO_LIMIT, 100, 10, 500, true),
+
+    extractorBackend: choiceSetting(SETTING_EXTRACTOR_BACKEND, "dpvo", ["dpvo", "pycolmap"]),
+    monitorProfile: choiceSetting(SETTING_MONITOR_PROFILE, "wan_camera_native", ["wan_camera_native", "minimax_h3", "ltx_motion", "generic_video"]),
   };
 }
 
@@ -253,6 +302,7 @@ export function seedDirectorDefaults(ui) {
   ui.history && (ui.history.limit = defaults.undoLimit);
   Object.assign(ui.state, {
     playblast_resolution: defaults.playblastResolution,
+    playblast_quality: defaults.playblastQuality,
     playblast_grid: defaults.playblastGrid,
 
     point_density: defaults.pointDensity,
@@ -284,17 +334,26 @@ export function seedDirectorDefaults(ui) {
     spatial_grid_size: defaults.spatialGridSize,
 
     navigation_profile: defaults.navigationProfile,
+    invert_orbit_y: defaults.invertOrbitY,
+    zoom_sensitivity: defaults.zoomSensitivity,
+    orbit_sensitivity: defaults.orbitSensitivity,
+    pan_sensitivity: defaults.panSensitivity,
+    dolly_sensitivity: defaults.dollySensitivity,
     view_mode: defaults.viewMode,
 
     snap_enabled: defaults.snapEnabled,
     snap_frames: defaults.snapFrames,
     auto_key: defaults.autoKey,
+    default_interpolation: defaults.defaultInterpolation,
     timecode_mode: defaults.timecodeMode,
     loop_playback: defaults.loopPlayback,
 
     ui_density: defaults.uiDensity,
     preview_layout: defaults.previewLayout,
     camera_view_visible: defaults.cameraViewVisible,
+
+    extractor_backend: defaults.extractorBackend,
+    monitor_profile: defaults.monitorProfile,
   });
   ui.syncFromWidgets?.();
 }

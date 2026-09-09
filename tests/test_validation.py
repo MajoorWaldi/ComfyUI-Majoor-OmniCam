@@ -175,6 +175,29 @@ def test_cylinder_and_torus_object_types_are_valid():
     assert {o["type"] for o in track["objects"]} == {"cylinder", "torus", "card"}
 
 
+def test_lights_and_pyramid_object_types_are_valid():
+    state = {
+        "duration_frames": 10,
+        "objects": [
+            {"id": "pyr_1", "type": "pyramid", "position": [0, 0, 0]},
+            {"id": "sun_1", "type": "sun_light", "position": [5, 8, 4], "intensity": 2.5, "color": "#fff6ec", "cast_shadow": True},
+            {"id": "point_1", "type": "point_light", "position": [0, 3, 0], "intensity": 1.8, "color": "#ffeedd"},
+            {"id": "spot_1", "type": "spot_light", "position": [0, 4, 0], "intensity": 3.0, "cone_angle": 35.0, "penumbra": 0.2},
+        ],
+        "cameras": [{"id": "c", "keyframes": []}],
+        "active_camera_id": "c",
+    }
+    track = editor_state_to_track(state)
+    assert len(track["objects"]) == 4
+    assert {o["type"] for o in track["objects"]} == {"pyramid", "sun_light", "point_light", "spot_light"}
+    sun = next(o for o in track["objects"] if o["id"] == "sun_1")
+    assert sun["intensity"] == 2.5
+    assert sun["cast_shadow"] is True
+    spot = next(o for o in track["objects"] if o["id"] == "spot_1")
+    assert spot["cone_angle"] == 35.0
+
+
+
 def test_editor_state_marks_missing_and_disabled_look_at_targets():
     base = {"cameras": [{"id": "cam", "camera": {}, "keyframes": [], "target_object_id": "actor"}], "active_camera_id": "cam"}
     missing = editor_state_to_track(base)

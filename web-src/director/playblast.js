@@ -2,12 +2,18 @@ import { attachPlayblastMetrics } from "../playblast-contract.js";
 import { waitForMediaEvent } from "../dom-media.js";
 
 const MIME_TYPES = ["video/mp4;codecs=avc1.42E01E", "video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+const BITRATES = { low: 3_000_000, balanced: 6_000_000, high: 12_000_000 };
+
+function videoBitrate(quality) {
+  return BITRATES[quality] || BITRATES.balanced;
+}
 
 export async function captureRealtimePlayblast({
   canvas,
   fps,
   frameCount,
   renderFrame,
+  quality = "balanced",
   mediaRecorder = globalThis.MediaRecorder,
   signal,
   now = () => globalThis.performance?.now?.() ?? Date.now(),
@@ -17,7 +23,7 @@ export async function captureRealtimePlayblast({
   if (!mediaRecorder || !canvas.captureStream) throw new Error("MediaRecorder unsupported in this browser");
   const stream = canvas.captureStream(fps); let recorder;
   try {
-    for (const mimeType of MIME_TYPES) { if (mediaRecorder.isTypeSupported && !mediaRecorder.isTypeSupported(mimeType)) continue; try { recorder = new mediaRecorder(stream, { mimeType, videoBitsPerSecond: 6_000_000 }); break; } catch (_) {} }
+    for (const mimeType of MIME_TYPES) { if (mediaRecorder.isTypeSupported && !mediaRecorder.isTypeSupported(mimeType)) continue; try { recorder = new mediaRecorder(stream, { mimeType, videoBitsPerSecond: videoBitrate(quality) }); break; } catch (_) {} }
     if (!recorder) throw new Error("Cannot create MediaRecorder");
     const chunks = []; recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
     const finished = new Promise((resolve, reject) => { recorder.addEventListener("stop", resolve, { once: true }); recorder.addEventListener("error", () => reject(recorder.error || new Error("MediaRecorder failed")), { once: true }); });

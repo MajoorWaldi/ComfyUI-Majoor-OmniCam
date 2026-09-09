@@ -19,7 +19,7 @@ import { add, cameraBasis, mul } from "./director/core.js";
 import { cancelViewportInteraction } from "./viewport-controls/interactions.js";
 import { cancelMotionCreation } from "./motion-tracks/creation.js";
 import { beginModalTransform, handleModalTransformKey } from "./viewport-controls/modal-transform.js";
-import { anyDirectorsLive, directorForTarget } from "./settings.js";
+import { anyDirectorsLive, directorForTarget, omniCamShortcutsEnabled } from "./settings.js";
 import { oppositeViewFor, orbitView } from "./view-navigation.js";
 import {
   autoSequenceCuts, cutAtFrame, removeCut, sequenceCuts, splitCutAtFrame,
@@ -52,10 +52,12 @@ function isActivatableTarget(target) {
 }
 
 export function isEditableTarget(target) {
+  const ElementClass = typeof Element !== "undefined" ? Element : (typeof HTMLElement !== "undefined" ? HTMLElement : null);
+  if (ElementClass && !(target instanceof ElementClass)) return false;
+  if (!target || typeof target !== "object") return false;
   return (
-    !(target instanceof HTMLElement) ||
     ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName) ||
-    target.isContentEditable ||
+    Boolean(target.isContentEditable) ||
     Boolean(target.closest?.('[contenteditable="true"],span.property_value'))
   );
 }
@@ -106,6 +108,7 @@ export function installGlobalKeyInterceptor() {
 
 // Returns true when the event was consumed by an OmniCam command.
 export function dispatchDirectorKey(ui, event) {
+  if (!omniCamShortcutsEnabled()) return false;
   const target = event.composedPath?.()[0] || event.target;
   if (isEditableTarget(target)) return false;
   if ((event.code === "Space" || event.key === "Enter") && isActivatableTarget(target)) return false;

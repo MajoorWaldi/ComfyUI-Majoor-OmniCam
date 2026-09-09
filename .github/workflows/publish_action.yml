@@ -18,20 +18,24 @@ permissions:
   issues: write
 
 jobs:
-  test:
+  release-test:
+    name: Release tests
     uses: ./.github/workflows/test.yml
     permissions:
       contents: read
 
-  publish-node:
-    name: Publish Custom Node to registry
-    needs: test
+  release-build:
+    name: Build release artifacts
+    needs: release-test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      issues: write
     # Never fires from a fork.
     if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      asset: ${{ steps.release.outputs.asset }}
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -51,9 +55,10 @@ jobs:
         # 2026-09-06), not just different chunk-hash filenames -- committing
         # whichever platform happened to build last has already been tried
         # twice (515c835, dbdcc22) and reverted once for exactly this reason
-        # (8ec2bba). Build immediately before packaging and keep this
-        # workspace intact through `comfy node publish`; a second checkout
-        # would git-clean these files.
+        # (8ec2bba). Build on Linux, package the release archive from that
+        # workspace, then upload the generated frontend as an artifact for the
+        # Registry publish job; a plain second checkout would git-clean these
+        # files.
         run: |
           npm ci
           npm run build
@@ -69,7 +74,7 @@ jobs:
         # this step is blocking.
         run: python scripts/adapter_contract_canary.py .adapter-release/ltx .adapter-release/wan-video-wrapper
       - name: Install Comfy CLI
-        run: pip install comfy-cli
+        run: pip install comfy-cli==1.20.0
       - name: Verify release contract
         run: pytest -q tests/test_release_contract.py
       - name: Pack Registry archive
@@ -94,6 +99,55 @@ jobs:
         with:
           name: majoor-omnicam-${{ steps.release.outputs.version }}
           path: ${{ steps.release.outputs.asset }}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-frontend-${{ steps.release.outputs.version }}
+          path: |
+            web/omnicam.js
+            web-chunks
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          ASSET: ${{ steps.release.outputs.asset }}
+        run: |
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; refreshing archive."
+            gh release upload "${TAG}" "${ASSET}" --clobber
+          else
+            gh release create "${TAG}" "${ASSET}" \
+              --target "${GITHUB_SHA}" \
+              --title "Majoor OmniCam ${TAG}" \
+              --generate-notes \
+              --draft
+          fi
+
+  release-registry:
+    name: Publish Custom Node to Registry
+    needs: release-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v5
+        with:
+          name: majoor-omnicam-frontend-${{ needs.release-build.outputs.version }}
+          path: .
+      - name: Install Comfy CLI
+        run: pip install comfy-cli==1.20.0
+      - name: Verify packaged frontend artifact
+        run: |
+          test -f web/omnicam.js
+          test -d web-chunks
+          pytest -q tests/test_release_contract.py
       - name: Publish Custom Node
         # Do not use the pinned publish-node composite action here: that action
         # performs its own actions/checkout, whose default git clean removes the
@@ -101,16 +155,29 @@ jobs:
         run: |
           comfy --skip-prompt --no-enable-telemetry env
           comfy --skip-prompt --no-enable-telemetry node publish --token "${{ secrets.REGISTRY_ACCESS_TOKEN }}"
-      - name: Create synchronized GitHub Release
+
+  release-github:
+    name: Finalize GitHub Release
+    needs: [release-build, release-registry]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: majoor-omnicam-${{ needs.release-build.outputs.version }}
+          path: .
+      - name: Publish synchronized GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.release.outputs.tag }}
-          ASSET: ${{ steps.release.outputs.asset }}
-          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ needs.release-build.outputs.tag }}
+          ASSET: ${{ needs.release-build.outputs.asset }}
         run: |
           if gh release view "${TAG}" >/dev/null 2>&1; then
-            echo "Release ${TAG} already exists; refreshing archive."
+            echo "Release ${TAG} already exists; refreshing archive and publishing."
             gh release upload "${TAG}" "${ASSET}" --clobber
+            gh release edit "${TAG}" --draft=false --latest
           else
             gh release create "${TAG}" "${ASSET}" \
               --target "${GITHUB_SHA}" \
