@@ -94,10 +94,32 @@ def load_selection_document(path: Path | str | None = None) -> dict:
     return document
 
 
+def _dedupe_prefer_glb(members: tuple[InspectedMember, ...]) -> tuple[InspectedMember, ...]:
+    """Kenney packs ship the same asset as both ``Models/GLB format/x.glb`` and
+    ``Models/FBX format/x.fbx``. Keep one per normalized stem, preferring the
+    self-contained GLB; FBX only wins when it is the sole format (the character
+    packs)."""
+    chosen: dict[str, InspectedMember] = {}
+    order: list[str] = []
+    for im in members:
+        key = normalize_stem(im.member.stem)
+        current = chosen.get(key)
+        if current is None:
+            chosen[key] = im
+            order.append(key)
+        elif model_format(im.member.name) == "glb" and model_format(current.member.name) != "glb":
+            chosen[key] = im
+    return tuple(chosen[k] for k in order)
+
+
 def select_starter_assets(
     inventories: dict[str, SourceInventory],
     selection_document: dict,
 ) -> SelectionResult:
+    inventories = {
+        sid: SourceInventory(inv.source_id, inv.page_url, _dedupe_prefer_glb(inv.members))
+        for sid, inv in inventories.items()
+    }
     selected: list[SelectedAsset] = []
     warnings: list[str] = []
     missing_required: list[str] = []

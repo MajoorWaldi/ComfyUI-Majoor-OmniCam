@@ -165,3 +165,28 @@ def test_dynamic_contains_excludes_part_keywords(tmp_path):
 def test_normalize_stem():
     assert normalize_stem("light-square") == "lightsquare"
     assert normalize_stem("Lounge_Chair") == "loungechair"
+
+
+def test_glb_wins_when_a_pack_ships_both_formats(tmp_path):
+    from omnicam.assets.bootstrap.archive import list_model_members
+    from omnicam.assets.bootstrap.model_inspect import inspect_member
+
+    from .fbx_fixture import build_humanoid_fbx
+
+    archive = tmp_path / "kenney.furniture_kit.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("Models/GLB format/chair.glb", build_static_glb())
+        zf.writestr("Models/FBX format/chair.fbx", build_humanoid_fbx())
+    inspected = tuple(
+        InspectedMember(m, inspect_member(m)) for m in list_model_members(archive)
+    )
+    inv = SourceInventory("kenney.furniture_kit", "https://kenney.nl/assets/furniture-kit", inspected)
+    doc = {"exact": [{
+        "source": "kenney.furniture_kit", "stem": "chair", "id": "omnicam.prop.chair_01",
+        "name": "Chair 01", "kind": "prop", "output": "props/chair_01.glb",
+        "base_size": [1, 1, 1], "fit": "uniform", "tags": ["chair"],
+    }]}
+    result = select_starter_assets({inv.source_id: inv}, doc)
+    (chosen,) = result.selected
+    assert chosen.member.name.endswith(".glb")
+    assert chosen.model_format == "glb"
