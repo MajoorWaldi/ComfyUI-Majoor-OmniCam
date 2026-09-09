@@ -149,8 +149,8 @@ def run_solve_job(job, manager, publisher) -> None:
         job.raw_track = refine_raw_solve(raw, RefinementSettings(
             position_smoothing=0.0, rotation_smoothing=0.0, motion_scale=1.0,
             normalize_origin=False, simplify_keys=False,
-        ))
-        job.refined_track = refine_raw_solve(raw, settings)
+        ), solve_health=job.quality_samples)
+        job.refined_track = refine_raw_solve(raw, settings, solve_health=job.quality_samples)
         job.progress = 1.0
         job.stage_progress = 1.0
 

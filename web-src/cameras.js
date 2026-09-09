@@ -66,6 +66,12 @@ export function importExtractorTrackAsCamera(ui, track, { label = "Extracted Cam
     const scaledDuration = Math.round(Number(track.duration_frames) * scale);
     ui.state.duration_frames = Math.max(ui.state.duration_frames || 1, scaledDuration);
   }
+  // Carry the additive per-frame solve health (metadata.solve_health_v1) across
+  // the import so the timeline strip and the semantic API's health.get see the
+  // adopted solve's diagnostics instead of dropping them. Last import wins.
+  if (track?.metadata?.solve_health_v1) {
+    ui.state.metadata = { ...ui.state.metadata, solve_health_v1: track.metadata.solve_health_v1 };
+  }
   ui.cameraPreviewSignature = "";
   ui.activateCamera(id);
   return id;

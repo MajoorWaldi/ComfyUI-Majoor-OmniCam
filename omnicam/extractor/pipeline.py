@@ -162,8 +162,18 @@ def solve_raw_poses(
     )
 
 
-def refine_raw_solve(raw: RawSolve, settings: RefinementSettings) -> dict[str, Any]:
-    """The cheap half: derive a canonical track from an existing raw solve."""
+def refine_raw_solve(
+    raw: RawSolve,
+    settings: RefinementSettings,
+    *,
+    solve_health: Any = None,
+) -> dict[str, Any]:
+    """The cheap half: derive a canonical track from an existing raw solve.
+
+    ``solve_health`` carries the backend quality readings collected during the
+    solve (they live on the job, not on the immutable RawSolve), so a refine
+    re-run keeps the same additive ``metadata.solve_health_v1`` block.
+    """
     return build_refined_track(
         raw_poses=raw.poses,
         settings=settings,
@@ -177,6 +187,7 @@ def refine_raw_solve(raw: RawSolve, settings: RefinementSettings) -> dict[str, A
         frame_step=raw.frame_step,
         intrinsics_source=raw.intrinsics_source,
         warnings=raw.warnings,
+        solve_health=solve_health,
     )
 
 
