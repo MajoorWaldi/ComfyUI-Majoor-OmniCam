@@ -164,6 +164,11 @@ export function createAssetBrowserPanel(ui, options = {}) {
         }
         previews.set(item.id, dataUrl);
         renderGrid();
+        // Only persist for user-owned rows. Uploading a thumbnail for a
+        // `default` / `legacy` row would copy-on-write it into the user
+        // catalog and, for a legacy row, strand its `file` under the wrong
+        // prefix -- keep those as an in-memory preview only.
+        if (item.source && item.source !== "user") return;
         try {
           const saved = await apiClient.uploadThumbnail(item.id, dataUrlToBlob(dataUrl));
           if (saved?.asset) store.upsert(saved.asset);
