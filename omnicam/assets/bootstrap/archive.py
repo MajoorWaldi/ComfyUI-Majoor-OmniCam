@@ -51,12 +51,21 @@ def safe_member_name(info: zipfile.ZipInfo) -> str:
 
 
 def list_glb_members(archive: Path | str) -> tuple[ArchiveMember, ...]:
-    """Validate every entry, enforce the size caps, return the ``.glb`` members.
+    """``list_model_members`` restricted to ``.glb`` (back-compat wrapper)."""
+    return list_model_members(archive, (".glb",))
 
-    Non-GLB members are ignored for starter curation but still validated for
-    path safety (plan section 11).
+
+def list_model_members(
+    archive: Path | str, suffixes: tuple[str, ...] = (".glb", ".fbx")
+) -> tuple[ArchiveMember, ...]:
+    """Validate every entry, enforce the size caps, return members whose name
+    ends with one of ``suffixes``.
+
+    Other members are ignored for curation but still validated for path safety
+    (plan section 11).
     """
     archive = Path(archive)
+    suffixes = tuple(s.lower() for s in suffixes)
     try:
         handle = zipfile.ZipFile(archive)
     except (OSError, zipfile.BadZipFile) as exc:
@@ -75,7 +84,7 @@ def list_glb_members(archive: Path | str) -> tuple[ArchiveMember, ...]:
                     f"{archive}: uncompressed size exceeds "
                     f"{MAX_TOTAL_UNCOMPRESSED} bytes (possible zip bomb)"
                 )
-            if not name.lower().endswith(".glb"):
+            if not name.lower().endswith(suffixes):
                 continue
             if info.file_size > MAX_MEMBER_BYTES:
                 raise _fail(

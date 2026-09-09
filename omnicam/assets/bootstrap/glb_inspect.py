@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from ..rig import (
     auto_map_bones,
+    deform_joint_names,
     hierarchy_is_plausible,
     missing_required_joints,
 )
@@ -124,9 +125,18 @@ def inspect_glb_member(member: ArchiveMember) -> GlbInfo:
         stream.close()
 
 
-def build_rig_evidence(info: GlbInfo) -> RigEvidence:
-    """Map ``info``'s joint names through the canonical mapper and score it."""
-    bone_map = auto_map_bones(list(info.joint_names)) if info.has_skin else {}
+def build_rig_evidence(info) -> RigEvidence:
+    """Map ``info``'s joint names through the canonical mapper and score it.
+
+    ``info`` is any object exposing ``has_skin`` / ``joint_names`` /
+    ``joint_parents`` -- :class:`GlbInfo` or
+    :class:`omnicam.assets.bootstrap.fbx_inspect.FbxInfo`.
+    """
+    bone_map = (
+        auto_map_bones(deform_joint_names(list(info.joint_names)))
+        if info.has_skin
+        else {}
+    )
     missing = tuple(missing_required_joints(bone_map))
     hierarchy_ok = hierarchy_is_plausible(bone_map, info.joint_parents)
     complete = bool(info.has_skin) and not missing and hierarchy_ok

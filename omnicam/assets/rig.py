@@ -76,6 +76,24 @@ def normalize_bone_name(name: str) -> str:
     return _SEP.sub("", text).lower()
 
 
+#: Substrings that mark an IK / control / helper bone rather than a deform
+#: joint. Kenney's FBX rigs ship a full control rig alongside the skeleton
+#: (``LeftFootIK``, ``HipsCtrl``, ``LeftToeRoll``, ``Head_end`` …); mapping
+#: those instead of the real joints breaks the hierarchy check. None of these
+#: tokens occur in a standard deform-bone name.
+_CONTROL_BONE = re.compile(
+    r"(ctrl|roll|heel|pole|target|ik$|ik[_.]|_end$|\.end$)",
+    re.IGNORECASE,
+)
+
+
+def deform_joint_names(names: list[str] | tuple[str, ...]) -> list[str]:
+    """Drop obvious IK / control / end-effector bones, keeping the deform
+    skeleton the animator actually skins to."""
+    kept = [n for n in names if n and not _CONTROL_BONE.search(str(n))]
+    return kept or [n for n in names if n]  # never return empty if input wasn't
+
+
 def _side_variants(normalised: str) -> tuple[str, ...]:
     """Fold ``left``/``right`` words into a trailing ``l``/``r`` so an alias
     table keyed on ``leftarm`` also catches ``arm.l`` -> ``arml``."""
