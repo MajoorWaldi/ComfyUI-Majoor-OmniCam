@@ -10,6 +10,7 @@ export const DIRECTOR_API_VERSION = 1;
 export const MAX_OPERATIONS_PER_TRANSACTION = 50;
 
 export const DIRECTOR_OPS = Object.freeze({
+  ASSET_INSTANTIATE: "asset.instantiate",
   CAMERA_SET_ACTIVE: "camera.set_active",
   CAMERA_TRANSFORM: "camera.transform",
   CAMERA_LOOK_AT: "camera.look_at",
@@ -33,6 +34,8 @@ export const DIRECTOR_OP_VALUES = Object.freeze(Object.values(DIRECTOR_OPS));
 
 export const DIRECTOR_QUERIES = Object.freeze({
   SCENE_GET: "scene.get",
+  ASSET_LIST: "asset.list",
+  ASSET_GET: "asset.get",
   CAMERA_GET: "camera.get",
   TIMELINE_GET: "timeline.get",
   SELECTION_GET: "selection.get",

@@ -1,7 +1,8 @@
 // The Director Asset Browser panel: the ASSETS half of the left panel
 // (design spec section 16). Renders a filtered thumbnail grid over the unified
-// catalog and turns a double-click / Add into a deterministic scene object via
-// compileInstance().
+// catalog; a double-click / Add resolves the catalog row here (no HTTP) and
+// then instantiates it through the Semantic Director API -- the same surface
+// the future Agent uses (design spec sections 2 and 28).
 //
 // Pure markup + intent helpers are exported for node tests; the imperative
 // wiring (`createAssetBrowserPanel`) is exercised by tests/frontend's Playwright
@@ -12,7 +13,7 @@ import { createAssetLibraryApi } from "./api.js";
 import { createCatalogStore } from "./catalog-store.js";
 import { KIND_TABS } from "./filters.js";
 import { rigStatus } from "./character/rig-profile.js";
-import { compileInstance, placementPoint } from "./instantiate.js";
+import { placementPoint } from "./instantiate.js";
 import { createPreviewCache } from "./preview-cache.js";
 
 export const ASSET_KIND_GLYPH = Object.freeze({
@@ -141,22 +142,32 @@ export function createAssetBrowserPanel(ui, options = {}) {
 
   function instantiate(definition) {
     if (!definition) return;
-    const existingIds = new Set((ui.state.objects || []).map((object) => object.id));
     const point = placementPoint({
       groundHit: ui.webgl?.orbitGroundHit?.(),
       orbitTarget: ui.webgl?.getOrbitTarget?.() || ui.camera?.target,
     });
-    const object = compileInstance(definition, { existingIds, point });
-    ui.checkpoint?.(t("Add asset"));
-    ui.state.objects.push(object);
-    ui.selectedEntity = "object";
-    ui.selectedObjectId = object.id;
-    ui.selectedObjectIds = new Set([object.id]);
-    ui.selectedKeyFrame = null;
+    // The catalog row is already resolved (in the store) -- hand it straight to
+    // the Semantic API, which compiles a deterministic object with no HTTP.
+    const result = ui.directorApi?.execute({
+      version: 1,
+      id: `tx_instantiate_${Date.now().toString(36)}`,
+      description: t("Add asset"),
+      operations: [{ type: "asset.instantiate", asset: definition, point }],
+    });
+    if (!result?.ok) {
+      ui.setStatus?.(result?.error?.message || t("Could not add the asset"));
+      return;
+    }
+    const objectId = result.outcomes?.[0]?.objectId;
+    if (objectId) {
+      ui.selectedEntity = "object";
+      ui.selectedObjectId = objectId;
+      ui.selectedObjectIds = new Set([objectId]);
+      ui.selectedKeyFrame = null;
+    }
     ui.restoreAssets?.();
-    ui.serialize?.();
     ui.refreshObjects?.();
-    ui.refreshKeys?.();
+    ui.refreshInspector?.();
     ui.render?.();
     ui.setStatus?.(t("{name} added").replace("{name}", definition.name));
   }

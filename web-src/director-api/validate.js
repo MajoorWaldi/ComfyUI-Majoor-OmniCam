@@ -45,6 +45,35 @@ function validateOperationShape(operation, index) {
   }
 
   switch (type) {
+    case DIRECTOR_OPS.ASSET_INSTANTIATE: {
+      const asset = operation.asset;
+      if (!asset || typeof asset !== "object" || Array.isArray(asset)) {
+        throw new DirectorApiError("BAD_VALUE", "asset.instantiate needs a resolved asset object", index);
+      }
+      assertString(asset.id, "asset.id", index);
+      assertString(asset.kind, "asset.kind", index);
+      if (String(asset.id).length > 120 || String(asset.kind).length > 32) {
+        throw new DirectorApiError("BAD_VALUE", "asset.id / asset.kind exceed their bounds", index);
+      }
+      if (asset.tags !== undefined && (!Array.isArray(asset.tags) || asset.tags.length > 32)) {
+        throw new DirectorApiError("BAD_VALUE", "asset.tags must be a list of at most 32", index);
+      }
+      if (asset.animations !== undefined && (!Array.isArray(asset.animations) || asset.animations.length > 256)) {
+        throw new DirectorApiError("BAD_VALUE", "asset.animations must be a list of at most 256", index);
+      }
+      if (asset.rig !== undefined && asset.rig !== null) {
+        if (typeof asset.rig !== "object" || Array.isArray(asset.rig)) {
+          throw new DirectorApiError("BAD_VALUE", "asset.rig must be an object", index);
+        }
+        if (asset.rig.bone_map && Object.keys(asset.rig.bone_map).length > 128) {
+          throw new DirectorApiError("BAD_VALUE", "asset.rig.bone_map exceeds 128 entries", index);
+        }
+      }
+      if (operation.point !== undefined) assertVec3(operation.point, "point", index);
+      if (operation.id !== undefined) assertString(operation.id, "id", index);
+      break;
+    }
+
     case DIRECTOR_OPS.CAMERA_SET_ACTIVE:
       assertString(operation.cameraId, "cameraId", index);
       break;

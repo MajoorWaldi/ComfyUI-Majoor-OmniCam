@@ -8,6 +8,7 @@ import { INTERPOLATION_MODES } from "../director/core.js";
 import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
 import { normalizeQuaternion, sanitizePose, withJointRotation } from "../assets/character/pose-state.js";
 import { sanitizeMotion } from "../assets/character/motion-state.js";
+import { compileInstance } from "../assets/instantiate.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 
@@ -42,6 +43,25 @@ function keyframeAt(track, frame) {
 }
 
 const HANDLERS = {
+  [DIRECTOR_OPS.ASSET_INSTANTIATE](state, op) {
+    // The caller resolves the catalog entry (HTTP) *before* the transaction and
+    // hands the resolved AssetDefinition in here; compileInstance is pure and
+    // deterministic given the same asset, point and id seed (design spec
+    // section 28).
+    const existingIds = new Set((state.objects || []).map((item) => item.id));
+    let object;
+    try {
+      object = compileInstance(op.asset, { point: op.point, idSeed: op.id, existingIds });
+    } catch (error) {
+      throw new DirectorApiError("BAD_ASSET", `asset.instantiate could not compile: ${error.message}`);
+    }
+    (state.objects ||= []).push(object);
+    return {
+      dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector,
+      outcome: { objectId: object.id, assetId: object.asset_id || null },
+    };
+  },
+
   [DIRECTOR_OPS.CAMERA_SET_ACTIVE](state, op) {
     findCamera(state, op.cameraId);
     state.active_camera_id = op.cameraId;

@@ -54,12 +54,14 @@ export function executeDirectorTransaction(ui, input) {
   const draft = clone(ui.state);
   let dirtyMask = 0;
   const warnings = [];
+  const outcomes = [];
 
   for (let index = 0; index < tx.operations.length; index += 1) {
     try {
       const result = applyDirectorOperation({ ui, state: draft, operation: tx.operations[index] });
       dirtyMask |= result?.dirtyMask || 0;
       if (result?.warning) warnings.push(result.warning);
+      if (result?.outcome) outcomes.push({ index, ...result.outcome });
     } catch (error) {
       if (error instanceof DirectorApiError) {
         if (error.operationIndex === null || error.operationIndex === undefined) {
@@ -78,6 +80,7 @@ export function executeDirectorTransaction(ui, input) {
       id: tx.id,
       applied: tx.operations.length,
       warnings,
+      outcomes,
       dirtyMask,
       validateOnly: true,
     };
@@ -95,6 +98,7 @@ export function executeDirectorTransaction(ui, input) {
     id: tx.id,
     applied: tx.operations.length,
     warnings,
+    outcomes,
     dirtyMask,
   };
 }
