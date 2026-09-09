@@ -22,9 +22,15 @@ runs on your machine, so does the example.
 | `03_wan_move_native_tracks.json` | `wan_move_native` | `video_wanmove_480p.json` | the `GenerateTracks` chain |
 | `04_minimax_h3_native_reference.json` | `h3_native` | `video_minimax_h3_r2v.json` | the manual prompt and the 17n+5 expression |
 | `05_minimax_h3_api_reference.json` | `h3_api` | `api_minimax_h3_r2v.json` | the uploaded reference video |
+| `06_image_scene_reconstruction_to_director.json` | `h3_api` | OmniCam image reconstruction starter | a manual proxy scene setup |
+| [`07_minimax_h3_native_global_example.json`](workflows/07_minimax_h3_native_global_example.json) | `h3_native` | `video_minimax_h3_r2v.json` | a global MiniMax H3 native reference setup |
 
 Each carries a Note explaining what changed and how to drive it, plus the
 upstream MarkdownNotes with model download links and VRAM figures.
+
+The shipped workflows are refreshed for OmniCam `0.3.0`: Director nodes carry
+an explicit starter state with Perspective view, Simple navigation, Animation
+interface density, and the radar mini-map enabled.
 
 ### Lengths are driven, not typed
 

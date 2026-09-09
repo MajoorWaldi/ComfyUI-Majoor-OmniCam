@@ -8,10 +8,13 @@
 // widgets after nodeCreated() runs. The two exceptions are Language and Studio
 // quality, which apply to already-open editors through their onChange.
 //
-// The settings dialog groups by the `category` path, so the third segment is
-// the group heading a user actually sees.
+// The settings dialog builds a tree from the full `category` path and treats its
+// LAST segment as the setting's own leaf node. Every entry therefore needs a
+// distinct final segment (we use its display name); entries that shared a path
+// collapsed onto one node and all but the last-registered vanished from the
+// dialog. `category[1]` is the group heading the user sees under the panel.
 
-const CATEGORY = ["OmniCam", "Director"];
+const CATEGORY = ["OmniCam"];
 
 export const SETTING_LOCALE = "MajoorOmniCam.Locale";
 
@@ -94,15 +97,15 @@ export const SETTING_MONITOR_PROFILE = "MajoorOmniCam.Monitor.DefaultProfile";
 
 /** Shorthand for the many on/off preferences, which are otherwise identical. */
 function toggle(id, group, name, tooltip, defaultValue) {
-  return { id, category: [...CATEGORY, group], name, tooltip, type: "boolean", defaultValue };
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "boolean", defaultValue };
 }
 
 function choice(id, group, name, tooltip, options, defaultValue) {
-  return { id, category: [...CATEGORY, group], name, tooltip, type: "combo", options, defaultValue };
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "combo", options, defaultValue };
 }
 
 function slider(id, group, name, tooltip, attrs, defaultValue) {
-  return { id, category: [...CATEGORY, group], name, tooltip, type: "slider", attrs, defaultValue };
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "slider", attrs, defaultValue };
 }
 
 export function buildOmniCamSettings({
@@ -124,7 +127,7 @@ export function buildOmniCamSettings({
   return [
     {
       id: SETTING_LOCALE,
-      category: [...CATEGORY, "Language"],
+      category: [...CATEGORY, "Language", "Viewport language"],
       name: "Viewport language",
       tooltip: "Language of the OmniCam Director viewport. 'Follow ComfyUI' uses the ComfyUI locale.",
       type: "combo",
@@ -178,7 +181,7 @@ export function buildOmniCamSettings({
         { text: "Ground + low angle", value: "ground_focus" },
         { text: "Spherical dome", value: "dome" },
       ], "all_views"),
-    { id: SETTING_POINT_COLOR, category: [...CATEGORY, "Proxy"], name: "Default point colour",
+    { id: SETTING_POINT_COLOR, category: [...CATEGORY, "Proxy", "Default point colour"], name: "Default point colour",
       tooltip: "Colour of the reference point field.", type: "color", defaultValue: "cbd5e1" },
     choice(SETTING_CARD_FIT, "Proxy", "Default card fit",
       "How media is fitted inside a subject card.", [
@@ -189,7 +192,7 @@ export function buildOmniCamSettings({
 
     {
       id: SETTING_QUALITY,
-      category: [...CATEGORY, "Viewport"],
+      category: [...CATEGORY, "Viewport", "Studio quality"],
       name: "Studio quality",
       tooltip: "Image-based lighting and soft shadows in the editing viewport. Lower it on a modest GPU.",
       type: "combo",
@@ -207,7 +210,7 @@ export function buildOmniCamSettings({
       onChange: () => onAdaptiveChange?.(),
     },
     {
-      id: SETTING_BG_COLOR, category: [...CATEGORY, "Viewport"], name: "Default background colour",
+      id: SETTING_BG_COLOR, category: [...CATEGORY, "Viewport", "Default background colour"], name: "Default background colour",
       tooltip: "Viewport background. Leave it at the default to keep the studio sky.",
       type: "color", defaultValue: "121212",
       onChange: (value) => onBgColorChange?.(value),
@@ -216,7 +219,7 @@ export function buildOmniCamSettings({
     toggle(SETTING_SHOW_GRID, "Display", "Show grid by default",
       "Shows the viewport floor grid on newly created Director nodes.", true),
     toggle(SETTING_SHOW_RADAR, "Display", "Show camera mini-map by default",
-      "Shows the radar mini-map on newly created Director nodes.", false),
+      "Shows the radar mini-map on newly created Director nodes.", true),
     toggle(SETTING_SHOW_CAMERA_PATHS, "Display", "Show camera paths by default",
       "Shows camera trajectories on newly created Director nodes.", true),
     toggle(SETTING_SHOW_CAMERA_GIZMOS, "Display", "Show camera gizmos by default",
@@ -269,7 +272,7 @@ export function buildOmniCamSettings({
           { text: "Maya", value: "maya" },
           { text: "Blender", value: "blender" },
           { text: "Simple (mouse only)", value: "simple" },
-        ], "maya"),
+        ], "simple"),
       onChange: (value) => onNavigationProfileChange?.(value),
     },
     {
@@ -304,7 +307,7 @@ export function buildOmniCamSettings({
     },
     choice(SETTING_VIEW_MODE, "Navigation", "Default view",
       "View a newly created Director node opens in.",
-      ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"], "camera"),
+      ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"], "perspective"),
 
     toggle(SETTING_ENABLE_SHORTCUTS, "Controls", "Enable OmniCam shortcuts",
       "Lets OmniCam consume viewport and timeline keyboard shortcuts while a Director is focused.", true),
@@ -332,7 +335,7 @@ export function buildOmniCamSettings({
           { text: "Basic", value: "basic" },
           { text: "Animation", value: "animation" },
           { text: "Advanced", value: "advanced" },
-        ], "advanced"),
+        ], "animation"),
       onChange: (value) => onUiDensityChange?.(value),
     },
     choice(SETTING_PREVIEW_LAYOUT, "Interface", "Default camera preview layout",

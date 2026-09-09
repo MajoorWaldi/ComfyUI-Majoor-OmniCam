@@ -76,8 +76,13 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-body .viewport-tally-banner{top:44px}
 
       /* Tool rail space badge and snapping */
-      .majoor-omnicam .vp-space-badge{font-size:10px;font-weight:750;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--oc-accent)}
+      .majoor-omnicam .vp-space-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;font-size:12px;font-weight:800;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--oc-accent)}
       .majoor-omnicam .vp-tool.active .vp-space-badge{color:#fff}
+      .majoor-omnicam .vp-tool-space{width:30px;height:30px}
+      .majoor-omnicam .vp-tool-snap{width:36px;height:30px;gap:1px;grid-template-rows:14px 10px}
+      .majoor-omnicam .vp-tool-snap .pi{font-size:12px;line-height:1}
+      .majoor-omnicam .vp-snap-label{font-size:9px;font-weight:750;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1;color:var(--oc-text-dim)}
+      .majoor-omnicam .vp-tool.active .vp-snap-label,.majoor-omnicam .vp-tool[aria-pressed="true"] .vp-snap-label{color:#fff}
 
       /* Camera HUD & OSD */
       .majoor-omnicam .vp-camera-hud{position:absolute;top:9px;left:50%;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:7px;padding:3px 12px;border-radius:999px;background:rgba(20,20,26,.88);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.45);pointer-events:auto}

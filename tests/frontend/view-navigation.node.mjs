@@ -5,6 +5,7 @@ import { defaultEditorViews, sanitizeState } from "../../web-src/director/core.j
 import { setViewMode } from "../../web-src/viewport-controls.js";
 import { QUICK_VIEW_MODES, axisViewFor } from "../../web-src/view-navigation.js";
 import { viewportMarkup } from "../../web-src/template/viewport.js";
+import { syncFromWidgets } from "../../web-src/state-sync.js";
 
 test("ISO is a serialized editor view and never mutates the camera track", () => {
   const state = sanitizeState({ view_mode: "iso" });
@@ -44,6 +45,42 @@ test("viewport markup exposes six direct views and interactive axis targets", ()
   for (const mode of QUICK_VIEW_MODES) assert.match(markup, new RegExp(`data-view="${mode}"`));
   assert.match(markup, /option value="iso"/);
   assert.match(markup, /data-axis-center/);
+});
+
+test("initial widget sync marks Perspective as the active quick view", () => {
+  const buttons = ["camera", "perspective"].map((view) => {
+    const classes = new Set(view === "camera" ? ["active"] : []);
+    return {
+      dataset: { view },
+      attrs: new Map([["aria-pressed", view === "camera" ? "true" : "false"]]),
+      classList: {
+        toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); },
+        contains(name) { return classes.has(name); },
+      },
+      setAttribute(name, value) { this.attrs.set(name, String(value)); },
+      getAttribute(name) { return this.attrs.get(name) ?? null; },
+    };
+  });
+  const ui = {
+    state: sanitizeState({ view_mode: "perspective" }),
+    camera: {},
+    frame: 0,
+    root: {
+      dataset: {},
+      querySelector() { return null; },
+      querySelectorAll(selector) { return selector === "[data-view]" ? buttons : []; },
+    },
+    timelineKeyframes() { return this.state.keyframes; },
+    refreshCameraSelectors() {},
+    serialize() {},
+  };
+
+  syncFromWidgets(ui, false);
+
+  assert.equal(buttons[0].classList.contains("active"), false);
+  assert.equal(buttons[0].getAttribute("aria-pressed"), "false");
+  assert.equal(buttons[1].classList.contains("active"), true);
+  assert.equal(buttons[1].getAttribute("aria-pressed"), "true");
 });
 
 test("axis tips select the positive view first and flip from the current opposite pair", () => {

@@ -63,19 +63,19 @@ export function toggleSelectedObjects(ui, targetVisibility = null) {
   if (!ids.length) return;
 
   const primary = ui.state.objects.find((o) => o.id === (ui.selectedObjectId || ids[0]));
-  const nextVisible = typeof targetVisibility === "boolean" ? targetVisibility : !(primary?.visible ?? true);
+  const nextEnabled = typeof targetVisibility === "boolean" ? targetVisibility : !(primary?.enabled ?? true);
 
   ui.checkpoint("Toggle objects visibility");
   for (const id of ids) {
     const obj = ui.state.objects.find((o) => o.id === id);
-    if (obj) obj.visible = nextVisible;
+    if (obj) obj.enabled = nextEnabled;
   }
 
   ui.serialize();
   ui.refreshObjects();
   ui.render();
   ui.setStatus(
-    nextVisible
+    nextEnabled
       ? t("Show {count} objects").replace("{count}", String(ids.length))
       : t("Hide {count} objects").replace("{count}", String(ids.length))
   );

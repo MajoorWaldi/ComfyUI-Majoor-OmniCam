@@ -884,7 +884,7 @@
         "Node name for S&R": "MajoorOmniCamDirector"
       },
       "widgets_values": [
-        "{}",
+        "{\"schema_version\":1,\"fps\":16,\"duration_frames\":81,\"width\":720,\"height\":480,\"render_mode\":\"omni_ref\",\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"keyframes\":[{\"frame\":0,\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"interpolation\":\"ease\"}],\"cameras\":[{\"id\":\"camera_1\",\"name\":\"Camera 1\",\"color\":\"#4aa3ef\",\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"keyframes\":[{\"frame\":0,\"camera\":{\"position\":[6,4,6],\"target\":[0,1.5,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000},\"interpolation\":\"ease\"}]}],\"active_camera_id\":\"camera_1\",\"playblast_camera_id\":\"camera_1\",\"objects\":[{\"id\":\"subject\",\"type\":\"card\",\"name\":\"Subject Card\",\"position\":[0,1.5,0],\"rotation\":[0,0,0],\"size\":[2,3,0.01],\"material_mode\":\"textured\",\"color\":\"#8c929b\",\"keyframes\":[],\"enabled\":true,\"asset\":\"\"},{\"id\":\"sun_light\",\"type\":\"sun_light\",\"name\":\"Sun light\",\"position\":[5,8.5,4],\"rotation\":[-55,35,0],\"size\":[1,1,1],\"color\":\"#fff6ec\",\"intensity\":2.2,\"cast_shadow\":true,\"keyframes\":[],\"enabled\":true}],\"metadata\":{},\"guides\":true,\"burn_in\":false,\"speed_heatmap\":false,\"playblast_grid\":false,\"playblast_resolution\":\"output\",\"playblast_quality\":\"balanced\",\"card_fit\":\"contain\",\"card_asset\":\"\",\"reference_index\":0,\"reconstruction_appearance\":\"source_texture\",\"point_density\":\"balanced\",\"point_spread\":\"all_views\",\"point_color\":\"#cbd5e1\",\"viewport_bg_color\":\"#121212\",\"viewport_bg_image\":\"\",\"viewport_bg_sequence\":[],\"show_grid\":true,\"show_radar\":true,\"show_camera_paths\":true,\"show_camera_gizmos\":true,\"show_look_at\":true,\"show_helper_axes\":true,\"show_gizmo\":true,\"show_wireframe\":false,\"show_vertices\":false,\"backface_culling\":false,\"select_mode\":\"object\",\"gizmo_mode\":\"translate\",\"gizmo_space\":\"world\",\"navigation_profile\":\"simple\",\"spatial_snap_mode\":\"none\",\"spatial_grid_size\":0.5,\"auto_key\":false,\"view_mode\":\"perspective\",\"camera_view_visible\":true,\"editor_views\":{\"perspective\":{\"position\":[8,6,8],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"perspective\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"iso\":{\"position\":[10,11,10],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"front\":{\"position\":[0,1,14],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"back\":{\"position\":[0,1,-14],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"top\":{\"position\":[0,14,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,0,-1]},\"bottom\":{\"position\":[0,-12,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,0,1]},\"right\":{\"position\":[14,1,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]},\"left\":{\"position\":[-14,1,0],\"target\":[0,1,0],\"fov\":35,\"roll\":0,\"camera_type\":\"orthographic\",\"zoom\":1,\"near\":0.01,\"far\":10000,\"up\":[0,1,0]}},\"ui_density\":\"animation\",\"snap_enabled\":true,\"snap_frames\":1,\"timecode_mode\":\"time\",\"loop_playback\":false,\"playback_range\":null,\"markers\":[],\"preview_layout\":\"auto\",\"maximized_camera_id\":null,\"safe_areas\":false,\"resolution_gate\":false,\"aspect_ratio\":\"auto\",\"outliner_height\":220,\"preview_width\":236,\"side_width\":280,\"graph_height\":220,\"health_profile\":\"generic\",\"motion_layers\":[],\"selected_motion_layer_id\":null,\"motion_tool\":\"select\",\"sequence\":{\"enabled\":false,\"cuts\":[],\"recording_path\":\"\"}}",
         "",
         "",
         720,
@@ -994,7 +994,7 @@
         720,
         480,
         5.0625,
-        16.0
+        16
       ],
       "id": 264,
       "flags": {},
@@ -1306,7 +1306,8 @@
     "VHS_MetadataImage": true,
     "VHS_KeepIntermediate": true,
     "ue_links": [],
-    "links_added_by_ue": []
+    "links_added_by_ue": [],
+    "omnicam_example_version": "0.3.0"
   },
   "version": 0.4
 }

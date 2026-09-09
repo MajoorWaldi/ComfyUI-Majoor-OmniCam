@@ -101,6 +101,9 @@ export function updateViewportControls(ui) {
   if (snapBtn) {
     const isSnapping = Boolean(ui.state.spatial_snap_mode && ui.state.spatial_snap_mode !== "none");
     snapBtn.classList.toggle("active", isSnapping);
+    snapBtn.setAttribute?.("aria-pressed", String(isSnapping));
+    const snapLabel = snapBtn.querySelector?.('[data-role="spatial-snap-label"]');
+    if (snapLabel) snapLabel.textContent = isSnapping ? String(ui.state.spatial_snap_mode).toUpperCase() : "OFF";
     snapBtn.title = isSnapping
       ? t("Snapping: {mode} (click to disable)").replace("{mode}", ui.state.spatial_snap_mode)
       : t("Toggle Snapping (Grid / None)");

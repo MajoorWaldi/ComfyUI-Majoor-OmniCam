@@ -153,9 +153,15 @@ export function syncFromWidgets(ui, persist = true) {
   for (const el of ui.root.querySelectorAll('[data-role="navigation-profile"]')) el.value = ui.state.navigation_profile || "maya";
   for (const el of ui.root.querySelectorAll('[data-role="spatial-snap-mode"]')) el.value = ui.state.spatial_snap_mode || "none";
   for (const el of ui.root.querySelectorAll('[data-role="spatial-grid-size"]')) el.value = String(ui.state.spatial_grid_size || 0.5);
-  for (const el of ui.root.querySelectorAll('[data-role="view-mode"]')) el.value = ui.state.view_mode || "camera";
-  for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) el.value = ui.state.ui_density || "advanced";
-  ui.root.dataset.density = ui.state.ui_density || "advanced";
+  const viewMode = ui.state.view_mode || "perspective";
+  for (const el of ui.root.querySelectorAll('[data-role="view-mode"]')) el.value = viewMode;
+  for (const btn of ui.root.querySelectorAll("[data-view]")) {
+    const active = btn.dataset.view === viewMode;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", String(active));
+  }
+  for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) el.value = ui.state.ui_density || "animation";
+  ui.root.dataset.density = ui.state.ui_density || "animation";
   applyPanelLayout(ui);
   for (const el of ui.root.querySelectorAll('[data-role="camera-view-row"]')) el.hidden = !ui.state.camera_view_visible;
   for (const tcv of ui.root.querySelectorAll('[data-act="toggle-camera-view"]')) {

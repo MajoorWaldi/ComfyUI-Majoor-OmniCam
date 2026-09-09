@@ -182,8 +182,8 @@ export function drawTopDownRadar(ui, c, w, h) {
     const [ox, oz] = toRadar(pos[0], pos[2]);
     if (ox < rx + 3 || ox > rx + radarSize - 3 || oz < ry + 3 || oz > ry + radarSize - 3) continue;
 
-    const isSelected = ui.state.selected_object_id === obj.id ||
-      (ui.state.__selectedObjectIds && ui.state.__selectedObjectIds.has(obj.id));
+    const isSelected = ui.selectedObjectId === obj.id ||
+      ui.selectedObjectIds?.has?.(obj.id);
 
     c.save();
     c.translate(ox, oz);
