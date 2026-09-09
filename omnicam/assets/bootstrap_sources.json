@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "kenney.blocky_characters",
+      "provider": "kenney",
+      "name": "Blocky Characters",
+      "page_url": "https://kenney.nl/assets/blocky-characters",
+      "license": "CC0-1.0",
+      "kind_hint": "character",
+      "presets": ["starter", "characters"]
+    },
+    {
+      "id": "kenney.mini_characters",
+      "provider": "kenney",
+      "name": "Mini Characters",
+      "page_url": "https://kenney.nl/assets/mini-characters",
+      "license": "CC0-1.0",
+      "kind_hint": "character",
+      "presets": ["starter", "characters"]
+    },
+    {
+      "id": "kenney.furniture_kit",
+      "provider": "kenney",
+      "name": "Furniture Kit",
+      "page_url": "https://kenney.nl/assets/furniture-kit",
+      "license": "CC0-1.0",
+      "kind_hint": "prop",
+      "presets": ["starter", "props"]
+    },
+    {
+      "id": "kenney.car_kit",
+      "provider": "kenney",
+      "name": "Car Kit",
+      "page_url": "https://kenney.nl/assets/car-kit",
+      "license": "CC0-1.0",
+      "kind_hint": "vehicle",
+      "presets": ["starter", "vehicles"]
+    },
+    {
+      "id": "kenney.nature_kit",
+      "provider": "kenney",
+      "name": "Nature Kit",
+      "page_url": "https://kenney.nl/assets/nature-kit",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["starter", "environment"]
+    },
+    {
+      "id": "kenney.city_roads",
+      "provider": "kenney",
+      "name": "City Kit (Roads)",
+      "page_url": "https://kenney.nl/assets/city-kit-roads",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["starter", "environment"]
+    },
+    {
+      "id": "kenney.building_kit",
+      "provider": "kenney",
+      "name": "Building Kit",
+      "page_url": "https://kenney.nl/assets/building-kit",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["starter", "environment"]
+    },
+    {
+      "id": "kenney.animated_survivors",
+      "provider": "kenney",
+      "name": "Animated Characters Survivors",
+      "page_url": "https://kenney.nl/assets/animated-characters-survivors",
+      "license": "CC0-1.0",
+      "kind_hint": "character",
+      "presets": ["characters-extra"]
+    },
+    {
+      "id": "kenney.animated_protagonists",
+      "provider": "kenney",
+      "name": "Animated Characters Protagonists",
+      "page_url": "https://kenney.nl/assets/animated-characters-protagonists",
+      "license": "CC0-1.0",
+      "kind_hint": "character",
+      "presets": ["characters-extra"]
+    },
+    {
+      "id": "kenney.animated_retro",
+      "provider": "kenney",
+      "name": "Animated Characters Retro",
+      "page_url": "https://kenney.nl/assets/animated-characters-retro",
+      "license": "CC0-1.0",
+      "kind_hint": "character",
+      "presets": ["characters-extra"]
+    },
+    {
+      "id": "kenney.city_suburban",
+      "provider": "kenney",
+      "name": "City Kit (Suburban)",
+      "page_url": "https://kenney.nl/assets/city-kit-suburban",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["environments-extra"]
+    },
+    {
+      "id": "kenney.city_commercial",
+      "provider": "kenney",
+      "name": "City Kit (Commercial)",
+      "page_url": "https://kenney.nl/assets/city-kit-commercial",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["environments-extra"]
+    },
+    {
+      "id": "kenney.city_industrial",
+      "provider": "kenney",
+      "name": "City Kit (Industrial)",
+      "page_url": "https://kenney.nl/assets/city-kit-industrial",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["environments-extra"]
+    },
+    {
+      "id": "kenney.factory_kit",
+      "provider": "kenney",
+      "name": "Factory Kit",
+      "page_url": "https://kenney.nl/assets/factory-kit",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["environments-extra"]
+    },
+    {
+      "id": "kenney.modular_space_kit",
+      "provider": "kenney",
+      "name": "Modular Space Kit",
+      "page_url": "https://kenney.nl/assets/modular-space-kit",
+      "license": "CC0-1.0",
+      "kind_hint": "environment",
+      "presets": ["environments-extra"]
+    }
+  ]
+}
