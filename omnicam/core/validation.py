@@ -34,6 +34,7 @@ RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "textured", "grid"
 CAMERA_TYPES = frozenset({"perspective", "orthographic"})
 OBJECT_TYPES = frozenset({"card", "cube", "sphere", "cylinder", "torus", "human", "null", "ground", "model", "glb", "pyramid", "sun_light", "point_light", "spot_light"})
 MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe", "wireframe_texture", "wireframe_neutral", "matte"})
+ASSET_KINDS = frozenset({"character", "prop", "environment", "vehicle", "helper"})
 PROJECTION_MODES = CAMERA_TYPES
 TANGENT_MODES = frozenset({"auto", "clamped", "vector", "free", "aligned", "flat"})
 
@@ -275,6 +276,24 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
                 for axis, value in axis_confidence.items()
             }
         obj["reconstruction"] = recon_dict
+    # Unified-catalog linkage + semantic tags (unified-assets design spec
+    # sections 11-12). Additive and bounded; a plain object carries none of it.
+    if "asset_id" in obj:
+        obj["asset_id"] = str(obj["asset_id"])[:120]
+    if "asset_kind" in obj:
+        obj["asset_kind"] = whitelist(obj.get("asset_kind", "prop"), ASSET_KINDS, f"{path}.asset_kind")
+    if "tags" in obj:
+        raw_tags = obj.get("tags")
+        if not isinstance(raw_tags, list):
+            raise ValidationError(f"{path}.tags must be a list")
+        seen_tags: set[str] = set()
+        clean_tags: list[str] = []
+        for tag in raw_tags[:32]:
+            slug = str(tag).strip().lower()[:64]
+            if slug and slug not in seen_tags:
+                seen_tags.add(slug)
+                clean_tags.append(slug)
+        obj["tags"] = clean_tags
     if "intensity" in obj:
         obj["intensity"] = clamp_number(obj["intensity"], 0.0, 1000.0, f"{path}.intensity")
     if "color" in obj:

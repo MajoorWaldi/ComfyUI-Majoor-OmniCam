@@ -45,6 +45,35 @@ function validateOperationShape(operation, index) {
   }
 
   switch (type) {
+    case DIRECTOR_OPS.ASSET_INSTANTIATE: {
+      const asset = operation.asset;
+      if (!asset || typeof asset !== "object" || Array.isArray(asset)) {
+        throw new DirectorApiError("BAD_VALUE", "asset.instantiate needs a resolved asset object", index);
+      }
+      assertString(asset.id, "asset.id", index);
+      assertString(asset.kind, "asset.kind", index);
+      if (String(asset.id).length > 120 || String(asset.kind).length > 32) {
+        throw new DirectorApiError("BAD_VALUE", "asset.id / asset.kind exceed their bounds", index);
+      }
+      if (asset.tags !== undefined && (!Array.isArray(asset.tags) || asset.tags.length > 32)) {
+        throw new DirectorApiError("BAD_VALUE", "asset.tags must be a list of at most 32", index);
+      }
+      if (asset.animations !== undefined && (!Array.isArray(asset.animations) || asset.animations.length > 256)) {
+        throw new DirectorApiError("BAD_VALUE", "asset.animations must be a list of at most 256", index);
+      }
+      if (asset.rig !== undefined && asset.rig !== null) {
+        if (typeof asset.rig !== "object" || Array.isArray(asset.rig)) {
+          throw new DirectorApiError("BAD_VALUE", "asset.rig must be an object", index);
+        }
+        if (asset.rig.bone_map && Object.keys(asset.rig.bone_map).length > 128) {
+          throw new DirectorApiError("BAD_VALUE", "asset.rig.bone_map exceeds 128 entries", index);
+        }
+      }
+      if (operation.point !== undefined) assertVec3(operation.point, "point", index);
+      if (operation.id !== undefined) assertString(operation.id, "id", index);
+      break;
+    }
+
     case DIRECTOR_OPS.CAMERA_SET_ACTIVE:
       assertString(operation.cameraId, "cameraId", index);
       break;
@@ -90,6 +119,65 @@ function validateOperationShape(operation, index) {
       if (typeof operation.value !== "boolean") {
         throw new DirectorApiError("BAD_VALUE", `${type} needs a boolean value`, index);
       }
+      break;
+
+    case DIRECTOR_OPS.OBJECT_SET_TAGS:
+      assertString(operation.objectId, "objectId", index);
+      if (!Array.isArray(operation.tags) || operation.tags.some((tag) => typeof tag !== "string")) {
+        throw new DirectorApiError("BAD_VALUE", "object.set_tags needs a string array", index);
+      }
+      if (operation.tags.length > 64) {
+        throw new DirectorApiError("BAD_VALUE", "object.set_tags: too many tags", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.OBJECT_SET_ANNOTATION:
+      assertString(operation.objectId, "objectId", index);
+      if (operation.annotation !== null && (typeof operation.annotation !== "object" || Array.isArray(operation.annotation))) {
+        throw new DirectorApiError("BAD_VALUE", "object.set_annotation needs an object or null", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.CHARACTER_SET_POSE:
+      assertString(operation.objectId, "objectId", index);
+      if (operation.pose !== null && (typeof operation.pose !== "object" || Array.isArray(operation.pose))) {
+        throw new DirectorApiError("BAD_VALUE", "character.set_pose needs a pose object or null", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.CHARACTER_SET_JOINT_ROTATION:
+      assertString(operation.objectId, "objectId", index);
+      assertString(operation.joint, "joint", index);
+      if (
+        !Array.isArray(operation.rotation) ||
+        operation.rotation.length !== 4 ||
+        !operation.rotation.every(isFiniteNumber)
+      ) {
+        throw new DirectorApiError("BAD_QUATERNION", "rotation must be [x,y,z,w] of finite numbers", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.CHARACTER_SET_MOTION: {
+      assertString(operation.objectId, "objectId", index);
+      const motion = operation.motion;
+      if (!motion || typeof motion !== "object" || Array.isArray(motion)) {
+        throw new DirectorApiError("BAD_VALUE", "character.set_motion needs a motion object", index);
+      }
+      assertString(motion.clip_id, "motion.clip_id", index);
+      for (const key of ["start_frame", "end_frame", "speed", "offset_seconds"]) {
+        if (motion[key] !== undefined && !isFiniteNumber(motion[key])) {
+          throw new DirectorApiError("BAD_VALUE", `motion.${key} must be a finite number`, index);
+        }
+      }
+      if (isFiniteNumber(motion.start_frame) && isFiniteNumber(motion.end_frame)
+        && motion.end_frame > 0 && motion.end_frame <= motion.start_frame) {
+        throw new DirectorApiError("BAD_MOTION_RANGE", "motion end_frame is not after start_frame", index);
+      }
+      break;
+    }
+
+    case DIRECTOR_OPS.CHARACTER_CLEAR_MOTION:
+      assertString(operation.objectId, "objectId", index);
       break;
 
     case DIRECTOR_OPS.KEYFRAME_UPSERT:

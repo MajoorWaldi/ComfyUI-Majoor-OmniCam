@@ -367,7 +367,18 @@ def run_scan_pipeline(
         report("SAVE_ASSETS", 0.91, "Retrieving library assets")
         from ..asset_library import resolve_placements
 
-        asset_placements = resolve_placements(objects, asset_library)
+        # Prefer the unified asset catalog; the blockout library stays a
+        # compatibility fallback (unified-assets design spec section 33).
+        catalog = None
+        try:
+            from ...assets import load_catalog
+
+            catalog = load_catalog(input_root=input_root)
+        except Exception:  # noqa: BLE001 - no catalog is a supported state
+            catalog = None
+        asset_placements = resolve_placements(
+            objects, asset_library, catalog=catalog, input_root=input_root
+        )
 
     provider_summary = {
         "geometry": getattr(geometry_provider, "provider_id", "vggt"),

@@ -165,6 +165,29 @@ inside the decoder to the requested solver resolution, never upscaled, and a
 solve is refused above a hard sample budget rather than allowed to exhaust
 memory.
 
+## Unified asset library
+
+The catalog lives under `<ComfyUI input>/omnicam/library/`. Every asset-library
+route confines its paths to that folder and rejects an absolute path, a `..`
+segment or a drive letter. `GET /majoor/omnicam/assets` (the managed **file**
+index) is left exactly as it was — the semantic routes are additive.
+
+- **Import** (`POST /library/import`) reuses the existing model-upload path:
+  extension allow-list (`.glb` / `.fbx`), magic-byte signature check, the
+  folder-quota reservation and the vertex / triangle / GLB-JSON-chunk
+  complexity ceilings. FBX keeps its tighter byte budget.
+- **Thumbnails** are WebP / PNG / JPEG only, bounded (`≤ 4 MiB`) and validated
+  with the same image-metadata check as card uploads.
+- **Catalog writes** are re-validated as a whole file and written atomically
+  (`.tmp` + replace). Bounds: `≤ 5000` entries, `≤ 8 MiB` JSON, `≤ 32` tags and
+  `≤ 256` clips and `≤ 128` bone mappings per asset.
+- **Labels** are rendered with `textContent`, never `innerHTML`; annotation text
+  rejects `<`, `>`, `://` and CSS `expression(`, and the colour is a strict hex.
+- **Semantic Director API**: `asset.instantiate` never performs an HTTP lookup
+  inside a transaction — the caller resolves the catalog row first and passes a
+  bounded payload. No operation accepts code, a raw JSON patch, a shell string,
+  a filesystem path or a DOM / three.js object.
+
 ## Interactive solve jobs
 
 An interactive solve runs outside the prompt queue, so its input arrives from

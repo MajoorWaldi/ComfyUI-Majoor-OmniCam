@@ -442,6 +442,90 @@ export function createSceneMethods(dependencies) {
     const pos = new THREE.Vector3();
     node.getWorldPosition(pos);
     return [pos.x, pos.y, pos.z];
+  },
+
+  /** Every bone name in a loaded model, for the Rig Mapper (design spec 23). */
+  getModelBoneNames(objectId) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return [];
+    const names = [];
+    node.traverse((child) => {
+      if (child.isBone && child.name) names.push(child.name);
+    });
+    return names;
+  },
+
+  /** Resolve one loaded bone by name, plus its world position. */
+  resolveModelBone(objectId, boneName) {
+    const node = this.objectNodes.get(objectId);
+    if (!node || !boneName) return null;
+    let found = null;
+    node.traverse((child) => {
+      if (!found && child.isBone && child.name === boneName) found = child;
+    });
+    if (!found) return null;
+    found.updateWorldMatrix(true, false);
+    const world = new THREE.Vector3();
+    found.getWorldPosition(world);
+    return { name: boneName, world: [world.x, world.y, world.z] };
+  },
+
+  /**
+   * Apply an FK pose to a loaded character (design spec section 29,
+   * ui.characterRuntime.applyPose). `boneMap` is canonical joint -> bone name;
+   * `joints` is canonical joint -> local quaternion [x,y,z,w]. Bones not named
+   * by `joints` are left at their bind rotation, captured once per bone.
+   */
+  applyCharacterPose(objectId, boneMap, joints) {
+    const node = this.objectNodes.get(objectId);
+    if (!node) return false;
+    const bones = new Map();
+    node.traverse((child) => {
+      if (child.isBone && child.name) bones.set(child.name, child);
+    });
+    if (!bones.size) return false;
+    for (const bone of bones.values()) {
+      if (!bone.userData.omnicamBindQuat) {
+        bone.userData.omnicamBindQuat = bone.quaternion.clone();
+      }
+    }
+    const overrides = joints && typeof joints === "object" ? joints : {};
+    for (const [joint, boneName] of Object.entries(boneMap || {})) {
+      const bone = bones.get(boneName);
+      if (!bone) continue;
+      const quat = overrides[joint];
+      if (Array.isArray(quat) && quat.length === 4 && quat.every(Number.isFinite)) {
+        bone.quaternion.fromArray(quat).normalize();
+      } else if (bone.userData.omnicamBindQuat) {
+        bone.quaternion.copy(bone.userData.omnicamBindQuat);
+      }
+      bone.updateMatrixWorld(true);
+    }
+    this.invalidate();
+    return true;
+  },
+
+  /**
+   * Read the current local rotation of every mapped canonical joint -- what
+   * "Bake current frame to pose" samples off the live mixer (design spec
+   * section 27). A joint still at its captured bind rotation is omitted.
+   */
+  sampleCharacterBonePose(objectId, boneMap) {
+    const node = this.objectNodes.get(objectId);
+    if (!node || !boneMap) return {};
+    const bones = new Map();
+    node.traverse((child) => {
+      if (child.isBone && child.name) bones.set(child.name, child);
+    });
+    const out = {};
+    for (const [joint, boneName] of Object.entries(boneMap)) {
+      const bone = bones.get(boneName);
+      if (!bone) continue;
+      const bind = bone.userData.omnicamBindQuat;
+      if (bind && bone.quaternion.angleTo(bind) < 1e-4) continue;
+      out[joint] = bone.quaternion.toArray();
+    }
+    return out;
   }
 
   };

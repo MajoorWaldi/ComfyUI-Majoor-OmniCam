@@ -76,6 +76,60 @@ export function outlinerPanel() {
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="scale" title="${t("Reset Scale")}">⟲</button>
         </div>
         <div class="animation-row" data-role="animation-row" hidden><i class="pi pi-play-circle"></i><select data-role="animation-select" title="${t("Animation clip")}"></select></div>
+        <div class="oc-field-row oc-labels-row">
+          <span class="oc-field-label">${t("Tags")}</span>
+          <input data-role="object-tags" type="text" placeholder="${t("hero, subject")}" title="${t("Machine-semantic tags, comma separated")}" style="flex:1;min-width:0">
+        </div>
+        <div class="oc-field-row oc-labels-row">
+          <span class="oc-field-label">${t("Label")}</span>
+          <input data-role="object-annotation" type="text" maxlength="128" placeholder="${t("Visible viewport label")}" style="flex:1;min-width:0">
+          <input data-role="object-annotation-color" type="color" value="#8d7ee8" title="${t("Label colour")}">
+          <select data-role="object-annotation-anchor" title="${t("Label anchor")}">
+            <option value="top">${t("Top")}</option>
+            <option value="center">${t("Center")}</option>
+            <option value="bottom">${t("Bottom")}</option>
+          </select>
+        </div>
+        <details class="compact-panel oc-rig-mapper" data-role="rig-mapper" hidden>
+          <summary><i class="pi pi-sitemap"></i> ${t("Rig Mapper")} <span class="oc-rig-status" data-role="rig-mapper-status"></span></summary>
+          <div class="panel-body">
+            <div class="oc-rig-actions">
+              <button type="button" class="oc-btn" data-rig-act="auto">${t("Auto Map")}</button>
+              <button type="button" class="oc-btn" data-rig-act="validate">${t("Validate")}</button>
+              <button type="button" class="oc-btn" data-rig-act="save">${t("Save Mapping")}</button>
+            </div>
+            <div class="oc-rig-grid" data-role="rig-mapper-grid"></div>
+          </div>
+        </details>
+        <div class="oc-pose-editor" data-role="pose-editor" hidden>
+          <div class="oc-field-row">
+            <span class="oc-field-label">${t("Pose")}</span>
+            <select data-role="pose-preset" title="${t("Pose preset")}" style="flex:1;min-width:0"></select>
+            <button type="button" class="oc-btn" data-pose-act="edit" title="${t("Toggle FK pose editing")}">${t("Edit Pose")}</button>
+            <button type="button" class="oc-btn" data-pose-act="save" title="${t("Save the current pose")}">${t("Save Pose…")}</button>
+          </div>
+          <div class="oc-vec-row oc-pose-joint" data-role="pose-joint-row" hidden>
+            <span class="oc-field-label"><span data-role="pose-joint-name">joint</span></span>
+            <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="pose-rot-x" type="number" step="1" aria-label="X"></label>
+            <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="pose-rot-y" type="number" step="1" aria-label="Y"></label>
+            <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="pose-rot-z" type="number" step="1" aria-label="Z"></label>
+          </div>
+        </div>
+        <div class="oc-motion-editor" data-role="motion-editor" hidden>
+          <div class="oc-field-row">
+            <span class="oc-field-label">${t("Motion")}</span>
+            <select data-role="motion-clip" title="${t("Animation clip")}" style="flex:1;min-width:0"></select>
+          </div>
+          <div class="oc-field-row oc-motion-timing">
+            <label class="oc-motion-num">${t("Start")}<input data-role="motion-start" type="number" step="1" min="0"></label>
+            <label class="oc-motion-num">${t("End")}<input data-role="motion-end" type="number" step="1" min="0"></label>
+            <label class="oc-motion-num">${t("Speed")}<input data-role="motion-speed" type="number" step="0.05" min="0.05" max="8"></label>
+            <label class="oc-motion-check"><input data-role="motion-loop" type="checkbox" checked> ${t("Loop")}</label>
+          </div>
+          <div class="oc-field-row">
+            <button type="button" class="oc-btn" data-motion-act="bake">${t("Bake current frame to pose")}</button>
+          </div>
+        </div>
       </div>
       <div class="oc-field-row"><span class="oc-field-label">${t("Upstream reference")}</span>
         <select data-role="reference-select"><option value="0">${t("Upstream 1")}</option></select>

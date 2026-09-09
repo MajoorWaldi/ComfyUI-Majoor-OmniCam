@@ -131,6 +131,16 @@ export function viewportMarkup() {
           <option value="grid">Grid</option>
           <option value="beauty">Beauty</option>
         </select>
+        <select class="vp-pill vp-pill-select" data-role="label-mode" title="${t("Viewport Labels")}">
+          <option value="off">${t("Labels: Off")}</option>
+          <option value="selected">${t("Labels: Selected")}</option>
+          <option value="all">${t("Labels: All")}</option>
+        </select>
+        <select class="vp-pill vp-pill-select" data-role="label-content" title="${t("Label content")}">
+          <option value="annotation">${t("Annotation")}</option>
+          <option value="name">${t("Object Name")}</option>
+          <option value="tag">${t("Primary Tag")}</option>
+        </select>
         <span class="vp-zoom" data-role="viewport-zoom" title="${t("Viewport zoom")}">1.00x</span>
         <button class="vp-tool" data-act="toggle-fullscreen" title="${t("Toggle Fullscreen Viewport")}"><i class="pi pi-window-maximize"></i></button>
       </div>

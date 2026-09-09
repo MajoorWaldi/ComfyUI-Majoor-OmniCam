@@ -151,6 +151,25 @@ def test_asset_placements_add_a_glb_branch_and_keep_the_box_in_proxy_mode():
     assert scene["metadata"]["reconstruction"]["asset_count"] == 1
 
 
+def test_catalog_resolved_placement_forwards_tags_asset_id_and_kind():
+    from omnicam.reconstruction.asset_library import AssetPlacement
+
+    placement = AssetPlacement(
+        source_object_id="person_1", semantic_class="person", category="characters",
+        asset_ref="omnicam/library/characters/walker.glb [input]",
+        position=(0.0, 0.0, -2.0), rotation=(0.0, 0.0, 0.0), size=(0.6, 1.8, 0.4), confidence=0.8,
+        tags=("reconstruction", "person"), asset_id="omnicam.character.walker", asset_kind="character",
+    )
+    scene = compile_blockout_scene(
+        _scene(), canvas_width=1280, canvas_height=720, asset_placements=[placement], asset_mode="proxy",
+    )
+    asset = {o["id"]: o for o in scene["objects"]}["person_1_asset"]
+    # survives MotionScene validation (compile returns MotionScene.from_dict(...).to_dict())
+    assert asset["asset_id"] == "omnicam.character.walker"
+    assert asset["asset_kind"] == "character"
+    assert asset["tags"] == ["reconstruction", "person"]
+
+
 def test_replace_mode_hides_the_box_the_prop_stands_in_for():
     scene = compile_blockout_scene(
         _scene(),

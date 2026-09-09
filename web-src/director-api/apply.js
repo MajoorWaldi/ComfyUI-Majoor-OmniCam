@@ -5,6 +5,10 @@
 
 import { UI_DIRTY } from "../director/ui-dirty.js";
 import { INTERPOLATION_MODES } from "../director/core.js";
+import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
+import { normalizeQuaternion, sanitizePose, withJointRotation } from "../assets/character/pose-state.js";
+import { sanitizeMotion } from "../assets/character/motion-state.js";
+import { compileInstance } from "../assets/instantiate.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 
@@ -21,6 +25,14 @@ function findObject(state, objectId) {
   return object;
 }
 
+function requireCharacter(state, objectId) {
+  const object = findObject(state, objectId);
+  if (object.asset_kind !== "character") {
+    throw new DirectorApiError("NOT_A_CHARACTER", `${objectId} is not a character`);
+  }
+  return object;
+}
+
 function ensureBaseCamera(track) {
   if (!track.camera || typeof track.camera !== "object") track.camera = {};
   return track.camera;
@@ -31,6 +43,25 @@ function keyframeAt(track, frame) {
 }
 
 const HANDLERS = {
+  [DIRECTOR_OPS.ASSET_INSTANTIATE](state, op) {
+    // The caller resolves the catalog entry (HTTP) *before* the transaction and
+    // hands the resolved AssetDefinition in here; compileInstance is pure and
+    // deterministic given the same asset, point and id seed (design spec
+    // section 28).
+    const existingIds = new Set((state.objects || []).map((item) => item.id));
+    let object;
+    try {
+      object = compileInstance(op.asset, { point: op.point, idSeed: op.id, existingIds });
+    } catch (error) {
+      throw new DirectorApiError("BAD_ASSET", `asset.instantiate could not compile: ${error.message}`);
+    }
+    (state.objects ||= []).push(object);
+    return {
+      dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector,
+      outcome: { objectId: object.id, assetId: object.asset_id || null },
+    };
+  },
+
   [DIRECTOR_OPS.CAMERA_SET_ACTIVE](state, op) {
     findCamera(state, op.cameraId);
     state.active_camera_id = op.cameraId;
@@ -90,6 +121,75 @@ const HANDLERS = {
   [DIRECTOR_OPS.OBJECT_SET_LOCKED](state, op) {
     findObject(state, op.objectId).locked = op.value;
     return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.OBJECT_SET_TAGS](state, op) {
+    const object = findObject(state, op.objectId);
+    const tags = sanitizeTags(op.tags);
+    const warning = tags.length !== op.tags.length ? "some tags were dropped or normalised" : undefined;
+    if (tags.length) object.tags = tags;
+    else delete object.tags;
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport, warning };
+  },
+
+  [DIRECTOR_OPS.OBJECT_SET_ANNOTATION](state, op) {
+    const object = findObject(state, op.objectId);
+    const annotation = op.annotation === null ? null : sanitizeAnnotation(op.annotation);
+    if (op.annotation && !annotation) {
+      throw new DirectorApiError("BAD_ANNOTATION", "annotation failed validation (text, hex colour, anchor)");
+    }
+    if (annotation) object.annotation = annotation;
+    else delete object.annotation;
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.outliner | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_SET_POSE](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    if (object.character?.motion) {
+      throw new DirectorApiError("POSE_MOTION_EXCLUSIVE", "clear the motion clip before editing the pose");
+    }
+    object.character = {
+      ...(object.character || {}),
+      pose: op.pose === null ? sanitizePose(null) : sanitizePose(op.pose),
+    };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_SET_JOINT_ROTATION](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    if (object.character?.motion) {
+      throw new DirectorApiError("POSE_MOTION_EXCLUSIVE", "clear the motion clip before editing the pose");
+    }
+    if (!normalizeQuaternion(op.rotation)) {
+      throw new DirectorApiError("BAD_QUATERNION", "rotation is not a usable unit quaternion");
+    }
+    object.character = {
+      ...(object.character || {}),
+      pose: withJointRotation(object.character?.pose, op.joint, op.rotation),
+    };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_SET_MOTION](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    const motion = sanitizeMotion(op.motion);
+    if (!motion) throw new DirectorApiError("BAD_MOTION", "motion failed validation (clip_id, speed, range)");
+    // Pose and motion are mutually exclusive (design spec section 27): drop any
+    // stale FK joint overrides so they cannot reappear when the clip is cleared.
+    const priorPose = object.character?.pose || {};
+    object.character = {
+      ...(object.character || {}),
+      pose: { preset_id: priorPose.preset_id || "neutral", root_offset: priorPose.root_offset || [0, 0, 0], joints: {} },
+      motion,
+    };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector };
+  },
+
+  [DIRECTOR_OPS.CHARACTER_CLEAR_MOTION](state, op) {
+    const object = requireCharacter(state, op.objectId);
+    if (!object.character) return { dirtyMask: 0 };
+    object.character = { ...object.character, motion: null };
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector };
   },
 
   [DIRECTOR_OPS.KEYFRAME_UPSERT](state, op) {

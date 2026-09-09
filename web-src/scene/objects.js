@@ -329,6 +329,9 @@ export function refreshInspector(ui) {
       target: t("Target XYZ"),
       lens: t("FOV / Roll / Zoom"),
     });
+    ui.rigMapper?.sync();
+    ui.poseEditor?.sync();
+    ui.motionEditor?.sync();
     return;
   }
   const badgeEl = q('[data-role="object-recon-badge"]');
@@ -446,6 +449,23 @@ export function refreshInspector(ui) {
     const names = model?.animationNames || [];
     syncSelectOptions(animationSelect, `A${names.join("|")}`, () => names.map((name, index) => optionEl(String(index), name)), String(object.animation_index || 0));
   }
+
+  // Semantic tags + visible viewport label. Never stomp a field the user is
+  // typing into (refreshInspector runs on every frame change).
+  const tagsInput = q('[data-role="object-tags"]');
+  if (tagsInput && document.activeElement !== tagsInput) tagsInput.value = (object.tags || []).join(", ");
+  const annInput = q('[data-role="object-annotation"]');
+  if (annInput && document.activeElement !== annInput) annInput.value = object.annotation?.text || "";
+  const annColor = q('[data-role="object-annotation-color"]');
+  if (annColor && document.activeElement !== annColor) annColor.value = object.annotation?.color || "#8d7ee8";
+  const annAnchor = q('[data-role="object-annotation-anchor"]');
+  if (annAnchor && document.activeElement !== annAnchor) annAnchor.value = object.annotation?.anchor || "top";
+
+  // The Rig Mapper shows itself only for a Character and reloads its grid when
+  // the selected object changes.
+  ui.rigMapper?.sync();
+  ui.poseEditor?.sync();
+  ui.motionEditor?.sync();
 }
 
 export function updateSelectedObject(ui) {

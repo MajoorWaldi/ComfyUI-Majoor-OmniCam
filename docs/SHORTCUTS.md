@@ -275,9 +275,31 @@ altitude dot coloured by height band. The scale adapts to keep the paths, the
 - **Near Presets**: Quick camera clipping presets: `0.001` (Interior / Close-up), `0.01` (Standard), `0.1` (Large scene / Exterior).
 - **Sensor / Gate Presets**: Dropdown selection for standard camera formats: Full Frame 35mm, Super 35, Micro 4/3, 16:9 Digital Cinema, Mobile 9:16 Vertical.
 
+## Asset Browser, characters & labels
+
+- **SCENE / ASSETS tabs** (left panel top): switch between the outliner and the
+  asset catalog grid. The ASSETS tab fetches nothing until first opened.
+- **Double-click an asset card** — instantiate at the placement point (ground
+  hit → orbit target → origin). Single-click selects; **Add to scene** places
+  the selected card; **Import…** uploads a `.glb` / `.fbx`.
+- **Kind chips / search** — narrow the grid by kind or by id / name / tag.
+- **Rig Mapper** (character Inspector): **Auto Map**, **Validate**, **Save
+  Mapping**.
+- **Edit Pose** — toggle FK pose mode; click a viewport **joint dot** to select
+  it, then scrub its **X / Y / Z**. A joint at identity clears the override.
+  Disabled while a motion clip is set.
+- **Bake current frame to pose** (Motion section) — sample the animated pose and
+  clear the clip.
+- **Labels** (viewport corner, two selects): `Off / Selected / All` ×
+  `Annotation / Object Name / Primary Tag`. Default `Selected + Annotation`.
+  Excluded from playblast capture.
+- **Tags / Label** fields — in the object Inspector, committed on blur / Enter.
+
 ## Outliner hierarchy & filter chips
 
 - **Filter Chips**: Filter scene rows by category: `All`, `Cameras`, `Objects`, `Hidden`.
+- **Tag chips**: an object's first two semantic tags show on its row (`+N` for
+  more); the outliner search also matches tags and the linked asset.
 - **Collapsible Section Headers**: Toggle visibility of `Cameras (n)` and `Objects (n)` groups.
 - **Parent/Child Tree Indentation**: Hierarchical nesting visualizes object `parent_id` relationships with subtle tree guide lines.
 - **Entity Type Colors**: Color-coded type badges (Camera blue, Model purple, Card cyan, Primitive amber, Human emerald, Null slate).

@@ -3,9 +3,11 @@
 // actions and the object tree itself -- lives here, out of the right-hand
 // contextual Inspector.
 //
-// Selectors moved verbatim from panels/outliner-panel.js so every existing
-// event binding in event-bindings/ and scene/outliner.js keeps working; only
-// their DOM home changed.
+// The panel carries two tabs: SCENE (the outliner, unchanged) and ASSETS (the
+// unified-catalog browser, driven by web-src/assets/panel.js). Selectors under
+// SCENE moved verbatim from panels/outliner-panel.js so every existing event
+// binding in event-bindings/ and scene/outliner.js keeps working; only their
+// DOM home changed.
 
 import { t } from "../i18n.js";
 import {
@@ -19,9 +21,35 @@ import {
   assetsIcon,
 } from "./object-icons.js";
 
+function assetsTabMarkup() {
+  return `
+    <div class="oc-left-body oc-assets" data-role="assets-tab" hidden>
+      <div class="oc-asset-panel" data-role="assets-panel">
+        <div class="oc-asset-toolbar">
+          <input class="oc-search" data-role="asset-search" type="search"
+                 placeholder="${t("Search assets...")}" aria-label="${t("Search assets")}">
+          <button type="button" class="icon-button" data-asset-act="asset-import"
+                  title="${t("Import 3D Model (+)")}"><i class="pi pi-upload"></i></button>
+        </div>
+        <div class="oc-asset-kinds" data-role="asset-kinds"></div>
+        <div class="oc-asset-grid" data-role="asset-grid"></div>
+        <div class="oc-asset-foot">
+          <button type="button" class="oc-btn" data-asset-act="asset-add">${t("Add to scene")}</button>
+          <span class="oc-asset-status hint" data-role="asset-status"></span>
+        </div>
+        <input type="file" data-role="asset-import-file" accept=".glb,.fbx" hidden>
+      </div>
+    </div>`;
+}
+
 export function leftPanelMarkup() {
   return `
     <aside class="oc-left" data-role="scene-panel" aria-label="${t("Scene")}">
+      <div class="oc-left-tabs" data-role="left-tabs" role="tablist">
+        <button type="button" class="oc-left-tab active" data-asset-view="scene" role="tab">${t("Scene")}</button>
+        <button type="button" class="oc-left-tab" data-asset-view="assets" role="tab">${t("Assets")}</button>
+      </div>
+      <div class="oc-left-body" data-role="scene-tab">
       <div class="oc-panel-head">
         <strong>${t("Scene")}</strong>
         <span class="oc-panel-spacer"></span>
@@ -95,5 +123,7 @@ export function leftPanelMarkup() {
       <div class="scene-tree" data-role="objects"></div>
       <div class="oc-resize-v" data-role="outliner-resize" role="separator" aria-orientation="horizontal" tabindex="0"
            title="${t("Drag to resize the outliner — double-click to reset")}" aria-label="${t("Resize the outliner")}"></div>
+      </div>
+      ${assetsTabMarkup()}
     </aside>`;
 }

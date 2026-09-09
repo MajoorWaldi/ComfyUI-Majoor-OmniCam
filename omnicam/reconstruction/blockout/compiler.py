@@ -98,7 +98,7 @@ def _asset_object(
     placement: Any, provider_summary: dict[str, Any], source_kind: str
 ) -> dict[str, Any]:
     """A retrieved GLB prop standing in the fitted box of one blockout object."""
-    return {
+    node = {
         "id": f"{placement.source_object_id}_asset",
         "name": (placement.semantic_class or "asset").replace("_", " ").title(),
         "type": "glb",
@@ -123,6 +123,15 @@ def _asset_object(
             "source_object_id": placement.source_object_id,
         },
     }
+    # Unified-catalog linkage + factual tags (design spec section 33). Additive:
+    # older OmniCam still renders the GLB and ignores these.
+    tags = [str(t) for t in getattr(placement, "tags", ())]
+    if tags:
+        node["tags"] = tags
+    if getattr(placement, "asset_id", ""):
+        node["asset_id"] = str(placement.asset_id)
+    node["asset_kind"] = str(getattr(placement, "asset_kind", "") or "prop")
+    return node
 
 
 def _reference_object(asset: dict[str, Any], provider_summary: dict[str, Any], source_kind: str) -> dict[str, Any]:

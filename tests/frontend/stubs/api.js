@@ -3,8 +3,36 @@
 // Each OmniCam route has its own response shape; a single canned reply broke
 // silently the moment a second route (motion_profiles) started being fetched
 // at mount, because it received a payload built for a different endpoint.
+// A complete OMNICAM_HUMANOID_V1 map, so the RIGGED badge / Rig Mapper status
+// resolve to "rigged" in the browser specs.
+const HUMANOID_JOINTS = [
+  "root", "pelvis", "spine", "chest", "neck", "head",
+  "clavicle_l", "upper_arm_l", "lower_arm_l", "hand_l",
+  "clavicle_r", "upper_arm_r", "lower_arm_r", "hand_r",
+  "upper_leg_l", "lower_leg_l", "foot_l", "toe_l",
+  "upper_leg_r", "lower_leg_r", "foot_r", "toe_r",
+];
+const COMPLETE_BONE_MAP = Object.fromEntries(HUMANOID_JOINTS.map((j) => [j, `Bone_${j}`]));
+
+const HUMAN_NEUTRAL_ROW = {
+  version: 2, id: "omnicam.character.human_neutral_01", name: "Human Neutral 01",
+  kind: "character", category: "characters", file: "characters/human_neutral_01.glb",
+  format: "glb", base_size: [0.62, 1.78, 0.4], fit: "upright",
+  tags: ["human", "adult", "neutral"], thumbnail: "",
+  animations: [{ id: "idle", name: "Idle", clip: "Idle", tags: [] }],
+  license: { spdx: "CC0-1.0" }, source: "default",
+  rig: { profile: "omnicam_humanoid_v1", root_bone: "Bone_root", forward_axis: "-Z", up_axis: "+Y", bone_map: COMPLETE_BONE_MAP },
+};
+
 const RESPONSES = {
   "/majoor/omnicam/capabilities": { capabilities: [], diagnostic: { issues: [] } },
+  "/majoor/omnicam/library/omnicam.character.human_neutral_01": { asset: HUMAN_NEUTRAL_ROW },
+  "/majoor/omnicam/library/poses": {
+    poses: [
+      { id: "neutral", name: "Standing Neutral", profile: "omnicam_humanoid_v1", root_offset: [0, 0, 0], joints: {}, builtin: true },
+      { id: "t_pose", name: "T Pose", profile: "omnicam_humanoid_v1", root_offset: [0, 0, 0], joints: { upper_arm_r: [0, 0, 0.7071, 0.7071] }, builtin: false },
+    ],
+  },
   "/majoor/omnicam/motion_profiles": {
     default: "generic",
     warn_ratio: 0.85,
@@ -17,6 +45,19 @@ const RESPONSES = {
     }],
   },
   "/majoor/omnicam/exchange_formats": { export: [], import: [], notes: {} },
+  "/majoor/omnicam/library": {
+    format: "majoor.omnicam.library.v2",
+    items: [
+      HUMAN_NEUTRAL_ROW,
+      {
+        version: 2, id: "omnicam.prop.crate_01", name: "Crate 01", kind: "prop",
+        category: "props", file: "props/crate_01.glb", format: "glb",
+        base_size: [0.6, 0.6, 0.6], fit: "stretch", tags: ["crate", "box"], thumbnail: "",
+        animations: [], license: { spdx: "CC0-1.0" }, source: "default",
+      },
+    ],
+    total: 2, offset: 2, limit: 60, kinds: { character: 1, prop: 1 },
+  },
   "/majoor/omnicam/reconstruction/capabilities": {
     feature: "scene_reconstruction",
     version: 2,

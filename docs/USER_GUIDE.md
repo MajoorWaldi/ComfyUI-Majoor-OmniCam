@@ -113,6 +113,29 @@ Director offers Basic, Animation, and Advanced interface modes. They reveal prog
 - **Viewport HUD & Controls**: Live camera OSD (Focal mm, FOV, target distance, Camera Lock `🔒`, roll reset `⮑`), 1-click World/Local coordinate toggle (`W`/`L`) & Snapping (🧲) on the tool rail, quick-toggle overlay cluster, and fullscreen floating transport.
 - **Graph Editor**: Fine-tune camera motion and object animation using 12 easing curves (`Ease`, `Smooth`, `Bezier`, `Linear`, `Hold`, `Sine`, `Cubic`, `Quintic`, `Expo`, `Back`, etc.) and 6 Bézier tangent modes (`Auto`, `Clamped`, `Vector`, `Free`, `Aligned`, `Flat`) with dynamic vertical coordinate scaling.
 
+### Asset Library, Characters & Labels
+
+The left panel has **SCENE** and **ASSETS** tabs.
+
+- **Browse & place**: the ASSETS tab is a searchable thumbnail grid of
+  characters, props, environments and vehicles. Double-click (or **Add to
+  scene**) to instantiate; **Import…** adds your own `.glb` / `.fbx`. A `RIGGED`
+  badge means the character's rig is fully mapped.
+- **Rig a character**: select it, open **Rig Mapper**, press **Auto Map**
+  (recognises Mixamo and generic GLTF rigs), fix any red rows, **Save Mapping**.
+- **Pose (FK)**: **Edit Pose** shows clickable joint dots in the viewport; pick
+  a joint and scrub its X / Y / Z. Pick a **preset**, or **Save Pose…** your
+  own. One drag = one undo.
+- **Motion**: pick a clip in **Motion**, set its start / end frame, speed and
+  loop. **Bake current frame to pose** freezes the animated pose so you can
+  hand-edit it. A clip and hand-posing are mutually exclusive.
+- **Tags & Labels**: give objects machine **tags** (`hero`, `subject`) in the
+  Inspector; toggle visible viewport **Labels** (`Off / Selected / All`,
+  showing the annotation, name or primary tag) from the viewport corner. Labels
+  never appear in a playblast.
+
+Full reference: [Asset Library](ASSET_LIBRARY.md) · [Characters](CHARACTERS.md).
+
 ### Resizable Panels & Ergonomics
 
 The interface layout adapts to your workflow with drag-resizable splitters:

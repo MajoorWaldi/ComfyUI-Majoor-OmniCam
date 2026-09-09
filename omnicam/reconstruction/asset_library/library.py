@@ -183,6 +183,10 @@ class AssetLibrary:
 
         scale = self._scale_for(fit, box, entry.base_size, entry.unit_scale)
         yaw = float(rotation[1]) + float(entry.yaw_offset_degrees)
+        slug = entry.semantic_class.strip().lower().replace(" ", "_")
+        # Factual tags only (design spec section 33). A legacy blockout human is
+        # a static posed mesh -- it never has a rig, so it stays a prop.
+        tags = ("reconstruction", slug) + (("person",) if entry.category == "human" else ())
         return AssetPlacement(
             source_object_id=str(object_id),
             semantic_class=entry.semantic_class,
@@ -193,6 +197,8 @@ class AssetLibrary:
             size=scale,
             pose=pose,
             confidence=float(confidence),
+            tags=tags,
+            asset_kind="prop",
         )
 
     @staticmethod

@@ -21,6 +21,23 @@ stable release.
 | Current Frontend Gate | pinned in GitHub Actions |
 | Nodes 2.0 | live Playwright validation |
 
+## Scene format — unified assets & characters
+
+The unified asset library adds fields to a scene object — `asset_id`,
+`asset_kind`, `tags`, `annotation`, `character` (`rig_profile` / `pose` /
+`motion`) — and a `metadata.viewport_labels` preference.
+
+| | |
+|---|---|
+| Old workflows | load unchanged; missing fields default to `null` / empty. |
+| Object `type` | still `"glb"` for a character — the new fields are additive. |
+| MotionScene schema | **no version bump** — existing `type` values and field meanings are unchanged. |
+| Older OmniCam | renders the GLB and ignores `asset_kind` / `character` / `tags`. |
+| Conversion | an existing GLB stays a normal model; the user opts in with the Asset Browser or a `Convert to Character` action. |
+| Reconstruction | `MotionScene` objects gain factual `tags` / `asset_id` / `asset_kind`; the blockout library remains a compatibility fallback. |
+
+The low-poly `human` primitive is unaffected and still available.
+
 ## Monitor Profiles
 
 | Profile | Semantic | Downstream | Contract | Model Certification |

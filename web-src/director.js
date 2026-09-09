@@ -10,6 +10,12 @@ import { buildRoot } from "./omnicam-template.js";
 import { dispatchDirectorKey } from "./omnicam-commands.js";
 import { watchGraphConnections } from "./graph-connection-watch.js";
 import { attachDirectorApi } from "./director-api/index.js";
+import { createAssetBrowserPanel } from "./assets/panel.js";
+import { createLabelOverlay } from "./assets/label-overlay.js";
+import { createCharacterRuntime } from "./assets/character/rig-runtime.js";
+import { createRigMapper } from "./assets/character/rig-mapper.js";
+import { createPoseEditor } from "./assets/character/pose-editor.js";
+import { createMotionEditor } from "./assets/character/motion-editor.js";
 import { buildDirectorDomCache } from "./director/dom-cache.js";
 import {
   activeCameraTrack,
@@ -252,6 +258,36 @@ export function attachDirector(node) {
   recordDirectorTrace("director:constructor:complete", node);
   // Versioned, bounded transaction/query surface over canonical Director state.
   attachDirectorApi(ui);
+  // The ASSETS tab of the left panel. Constructed here (after the DOM and the
+  // event bindings exist) rather than in the constructor so it stays out of the
+  // core editor's method soup; it fetches nothing until the tab is first shown.
+  try {
+    ui.assetBrowser = createAssetBrowserPanel(ui);
+  } catch (error) {
+    console.warn("[OmniCam] Asset Browser unavailable", error);
+  }
+  // Pooled DOM overlay for viewport Labels (tags / annotations). renderViewport
+  // calls ui.labelOverlay.update() after each paint; the overlay hides itself
+  // during a capture.
+  try {
+    ui.labelOverlay = createLabelOverlay(ui);
+    const modeSel = ui.root.querySelector('[data-role="label-mode"]');
+    const contentSel = ui.root.querySelector('[data-role="label-content"]');
+    if (modeSel) modeSel.value = ui.labelOverlay.settings.mode;
+    if (contentSel) contentSel.value = ui.labelOverlay.settings.content;
+  } catch (error) {
+    console.warn("[OmniCam] Label overlay unavailable", error);
+  }
+  // Character rig: the transient bone bridge (never serialised) and the Rig
+  // Mapper panel. refreshInspector() calls ui.rigMapper.sync() on selection.
+  try {
+    ui.characterRuntime = createCharacterRuntime(ui);
+    ui.rigMapper = createRigMapper(ui);
+    ui.poseEditor = createPoseEditor(ui);
+    ui.motionEditor = createMotionEditor(ui);
+  } catch (error) {
+    console.warn("[OmniCam] Character tools unavailable", error);
+  }
   node.__majoorOmniCam = ui;
   recordDirectorTrace("director:marker:assigned", node);
   ui.hideInternalWidgets();
@@ -315,6 +351,11 @@ export function attachDirector(node) {
   const originalRemoved = node.onRemoved;
   node.onRemoved = function() {
     ui.unwatchGraphConnections?.();
+    ui.assetBrowser?.dispose?.();
+    ui.labelOverlay?.dispose?.();
+    ui.rigMapper?.dispose?.();
+    ui.poseEditor?.dispose?.();
+    ui.motionEditor?.dispose?.();
     ui.dispose();
     originalRemoved?.apply(this, arguments);
   };
