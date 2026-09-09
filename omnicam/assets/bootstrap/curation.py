@@ -27,12 +27,13 @@ from .glb_inspect import GlbInfo, RigEvidence, build_rig_evidence
 from .types import EXIT_CURATION, BootstrapError
 
 _SELECTION_PATH = Path(__file__).resolve().parent.parent / "starter_selection.json"
-_SEP = re.compile(r"[\s_\-.]+")
+_NON_ALNUM = re.compile(r"[^a-z0-9]+")
 
 
 def normalize_stem(text: str) -> str:
-    """Lowercased, separators removed: ``light-square`` -> ``lightsquare``."""
-    return _SEP.sub("", str(text or "")).lower()
+    """Lowercased, every non-alphanumeric character removed:
+    ``light-square`` / ``City Kit (Roads)`` -> ``lightsquare`` / ``citykitroads``."""
+    return _NON_ALNUM.sub("", str(text or "").lower())
 
 
 @dataclass(frozen=True, slots=True)
