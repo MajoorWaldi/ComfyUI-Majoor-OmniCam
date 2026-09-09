@@ -119,6 +119,9 @@ export function createRenderMethods(dependencies) {
     // The gizmo is DOM, so it repaints with the view and never reaches the
     // canvas the playblast records.
     if (this.state.show_gizmo) drawAxisGizmo(this);
+    // Viewport Labels are DOM too, for the same reason -- and the overlay hides
+    // itself while this.recording is set (design spec section 14).
+    this.labelOverlay?.update();
     this.perf && (this.perf.viewportRenderCount = (this.perf.viewportRenderCount || 0) + 1);
   },
   // The single "something changed, repaint soon" entry point. Every

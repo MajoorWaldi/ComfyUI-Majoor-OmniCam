@@ -11,6 +11,7 @@ import { dispatchDirectorKey } from "./omnicam-commands.js";
 import { watchGraphConnections } from "./graph-connection-watch.js";
 import { attachDirectorApi } from "./director-api/index.js";
 import { createAssetBrowserPanel } from "./assets/panel.js";
+import { createLabelOverlay } from "./assets/label-overlay.js";
 import { buildDirectorDomCache } from "./director/dom-cache.js";
 import {
   activeCameraTrack,
@@ -261,6 +262,18 @@ export function attachDirector(node) {
   } catch (error) {
     console.warn("[OmniCam] Asset Browser unavailable", error);
   }
+  // Pooled DOM overlay for viewport Labels (tags / annotations). renderViewport
+  // calls ui.labelOverlay.update() after each paint; the overlay hides itself
+  // during a capture.
+  try {
+    ui.labelOverlay = createLabelOverlay(ui);
+    const modeSel = ui.root.querySelector('[data-role="label-mode"]');
+    const contentSel = ui.root.querySelector('[data-role="label-content"]');
+    if (modeSel) modeSel.value = ui.labelOverlay.settings.mode;
+    if (contentSel) contentSel.value = ui.labelOverlay.settings.content;
+  } catch (error) {
+    console.warn("[OmniCam] Label overlay unavailable", error);
+  }
   node.__majoorOmniCam = ui;
   recordDirectorTrace("director:marker:assigned", node);
   ui.hideInternalWidgets();
@@ -325,6 +338,7 @@ export function attachDirector(node) {
   node.onRemoved = function() {
     ui.unwatchGraphConnections?.();
     ui.assetBrowser?.dispose?.();
+    ui.labelOverlay?.dispose?.();
     ui.dispose();
     originalRemoved?.apply(this, arguments);
   };

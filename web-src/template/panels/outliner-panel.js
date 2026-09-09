@@ -76,6 +76,20 @@ export function outlinerPanel() {
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="scale" title="${t("Reset Scale")}">⟲</button>
         </div>
         <div class="animation-row" data-role="animation-row" hidden><i class="pi pi-play-circle"></i><select data-role="animation-select" title="${t("Animation clip")}"></select></div>
+        <div class="oc-field-row oc-labels-row">
+          <span class="oc-field-label">${t("Tags")}</span>
+          <input data-role="object-tags" type="text" placeholder="${t("hero, subject")}" title="${t("Machine-semantic tags, comma separated")}" style="flex:1;min-width:0">
+        </div>
+        <div class="oc-field-row oc-labels-row">
+          <span class="oc-field-label">${t("Label")}</span>
+          <input data-role="object-annotation" type="text" maxlength="128" placeholder="${t("Visible viewport label")}" style="flex:1;min-width:0">
+          <input data-role="object-annotation-color" type="color" value="#8d7ee8" title="${t("Label colour")}">
+          <select data-role="object-annotation-anchor" title="${t("Label anchor")}">
+            <option value="top">${t("Top")}</option>
+            <option value="center">${t("Center")}</option>
+            <option value="bottom">${t("Bottom")}</option>
+          </select>
+        </div>
       </div>
       <div class="oc-field-row"><span class="oc-field-label">${t("Upstream reference")}</span>
         <select data-role="reference-select"><option value="0">${t("Upstream 1")}</option></select>

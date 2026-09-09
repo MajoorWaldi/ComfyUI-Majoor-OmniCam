@@ -446,6 +446,17 @@ export function refreshInspector(ui) {
     const names = model?.animationNames || [];
     syncSelectOptions(animationSelect, `A${names.join("|")}`, () => names.map((name, index) => optionEl(String(index), name)), String(object.animation_index || 0));
   }
+
+  // Semantic tags + visible viewport label. Never stomp a field the user is
+  // typing into (refreshInspector runs on every frame change).
+  const tagsInput = q('[data-role="object-tags"]');
+  if (tagsInput && document.activeElement !== tagsInput) tagsInput.value = (object.tags || []).join(", ");
+  const annInput = q('[data-role="object-annotation"]');
+  if (annInput && document.activeElement !== annInput) annInput.value = object.annotation?.text || "";
+  const annColor = q('[data-role="object-annotation-color"]');
+  if (annColor && document.activeElement !== annColor) annColor.value = object.annotation?.color || "#8d7ee8";
+  const annAnchor = q('[data-role="object-annotation-anchor"]');
+  if (annAnchor && document.activeElement !== annAnchor) annAnchor.value = object.annotation?.anchor || "top";
 }
 
 export function updateSelectedObject(ui) {

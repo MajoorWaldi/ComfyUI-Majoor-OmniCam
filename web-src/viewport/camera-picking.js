@@ -166,6 +166,25 @@ export function createCameraPickingMethods(dependencies) {
     return { type: candidates[0].type, id: candidates[0].id };
   },
 
+  /**
+   * World point -> logical viewport pixels, for the DOM label overlay
+   * (design spec section 14). `behind` is true when the point is outside the
+   * near/far clip and the caller should hide its label.
+   */
+  projectWorldToScreen(world) {
+    if (!this.activeCamera || !Array.isArray(world) || world.length < 3) return null;
+    const { w, h } = logicalSize(this);
+    const v = new THREE.Vector3(Number(world[0]) || 0, Number(world[1]) || 0, Number(world[2]) || 0);
+    v.project(this.activeCamera);
+    return {
+      x: (v.x * 0.5 + 0.5) * w,
+      y: (1 - (v.y * 0.5 + 0.5)) * h,
+      behind: v.z < -1 || v.z > 1,
+      width: w,
+      height: h,
+    };
+  },
+
   pickSubElement(x, y, width, height, mode = "vertex") {
     if (!this.activeCamera) return null;
     this.pointer.set((x / Math.max(1, width)) * 2 - 1, 1 - (y / Math.max(1, height)) * 2);

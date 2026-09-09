@@ -255,7 +255,11 @@ export function refreshObjects(ui) {
     for (const root of roots) addBranch(root, 0);
 
     const matchingObjects = orderedObjectsWithLevel.filter(({ object }) => {
-      if (!matches(object.name || object.type)) return false;
+      // Search covers name, type, semantic tags and the linked asset
+      // (design spec section 15).
+      const haystack = [object.name, object.type, ...(object.tags || []), object.asset_kind, object.asset_id]
+        .filter(Boolean).join(" ");
+      if (!matches(haystack)) return false;
       if (category === "lights" && !isLightType(object.type)) return false;
       if (category === "objects" && isLightType(object.type)) return false;
       if (category === "hidden" && object.enabled !== false) return false;
@@ -312,6 +316,24 @@ export function refreshObjects(ui) {
           startInlineRename(ui, object, objectName);
         });
         label.appendChild(objectName);
+        const tags = Array.isArray(object.tags) ? object.tags : [];
+        if (tags.length) {
+          const chipWrap = document.createElement("span");
+          chipWrap.className = "scene-item-tags";
+          for (const tag of tags.slice(0, 2)) {
+            const chip = document.createElement("span");
+            chip.className = "scene-item-tag";
+            chip.textContent = tag;
+            chipWrap.appendChild(chip);
+          }
+          if (tags.length > 2) {
+            const more = document.createElement("span");
+            more.className = "scene-item-tag scene-item-tag-more";
+            more.textContent = `+${tags.length - 2}`;
+            chipWrap.appendChild(more);
+          }
+          label.appendChild(chipWrap);
+        }
         if (hasError) {
           const formatError = document.createElement("span");
           formatError.style.cssText = "color:#ef4444;font-size:9px;font-weight:700";

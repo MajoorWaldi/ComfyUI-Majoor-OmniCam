@@ -13,6 +13,7 @@ import { renderChannelList } from "../curve-editor/channel-list.js";
 import { renderGraphDopeSheet } from "../curve-editor/dope-view.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { parseTagInput, sanitizeAnnotation } from "../assets/labels.js";
 import {
   handleMinimapPointerDown,
   handleMinimapPointerMove,
@@ -46,6 +47,36 @@ export function bindEditorAndGlobal(ui, q, signal) {
   }
   q('[data-role="animation-select"]')?.addEventListener("change", (event) => ui.selectObjectAnimation(Number(event.target.value)), { signal });
   q('[data-role="object-parent"]')?.addEventListener("change", (event) => ui.setObjectParent(event.target.value || null), { signal });
+
+  // Tags + visible annotation for the selected object. Committed on change
+  // (blur / Enter) so a keystroke burst is one checkpoint and one repaint.
+  const commitObjectLabels = () => {
+    const object = ui.selectedObject?.();
+    if (!object || object.locked) return;
+    ui.checkpoint?.("Edit labels");
+    const tags = parseTagInput(q('[data-role="object-tags"]')?.value || "");
+    if (tags.length) object.tags = tags;
+    else delete object.tags;
+    const text = String(q('[data-role="object-annotation"]')?.value || "").trim();
+    const annotation = text
+      ? sanitizeAnnotation({
+          text,
+          color: q('[data-role="object-annotation-color"]')?.value,
+          anchor: q('[data-role="object-annotation-anchor"]')?.value,
+          visible: true,
+        })
+      : null;
+    if (annotation) object.annotation = annotation;
+    else delete object.annotation;
+    ui.serialize?.();
+    ui.refreshObjects?.();
+    ui.refreshInspector?.();
+    ui.labelOverlay?.update?.();
+    ui.render?.();
+  };
+  for (const role of ["object-tags", "object-annotation", "object-annotation-color", "object-annotation-anchor"]) {
+    q(`[data-role="${role}"]`)?.addEventListener("change", commitObjectLabels, { signal });
+  }
   q('[data-role="duration-seconds"]')?.addEventListener("change", (event) => {
     if (ui.durationWidget && Number(ui.durationWidget.value) !== Number(event.target.value)) ui.checkpoint("Change duration");
     if (ui.durationWidget) ui.durationWidget.value = Number(event.target.value);
@@ -169,6 +200,18 @@ export function bindEditorAndGlobal(ui, q, signal) {
   }
   for (const viewSelect of ui.root.querySelectorAll('[data-role="view-mode"]')) {
     viewSelect.addEventListener("change", (e) => ui.setViewMode(e.target.value), { signal });
+  }
+  // Viewport Labels mode / content (design spec section 14). Seed the selects
+  // from whatever the overlay restored, then drive it on change.
+  const labelModeSelect = q('[data-role="label-mode"]');
+  const labelContentSelect = q('[data-role="label-content"]');
+  if (labelModeSelect) {
+    labelModeSelect.value = ui.labelOverlay?.settings?.mode || "selected";
+    labelModeSelect.addEventListener("change", (e) => ui.labelOverlay?.setMode(e.target.value), { signal });
+  }
+  if (labelContentSelect) {
+    labelContentSelect.value = ui.labelOverlay?.settings?.content || "annotation";
+    labelContentSelect.addEventListener("change", (e) => ui.labelOverlay?.setContent(e.target.value), { signal });
   }
   for (const btn of ui.root.querySelectorAll('[data-act="toggle-inspector"]')) {
     btn.addEventListener("click", () => ui.toggleInspector(), { signal });
