@@ -9,6 +9,7 @@ import { renderChannelList } from "./curve-editor/channel-list.js";
 import { renderGraphDopeSheet } from "./curve-editor/dope-view.js";
 import { refreshGraphTab } from "./curve-editor/tabs.js";
 import { renderHealthZones } from "./motion-health/panel.js";
+import { renderSolveHealthStrip } from "./scene/solve-health-strip.js";
 
 export * from "./timeline-interaction.js";
 export * from "./curve-editor.js";
@@ -213,4 +214,6 @@ export function refreshKeys(ui) {
   ui.refreshKeyEditor();
   ui.updateEditState();
   ui.drawCurveEditor();
+  if (ui.perf) ui.perf.timelineRefreshCount = (ui.perf.timelineRefreshCount || 0) + 1;
+  renderSolveHealthStrip(ui);
 }

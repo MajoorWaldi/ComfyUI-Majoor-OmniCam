@@ -213,6 +213,8 @@ export const FR_EDITOR = {
   "Resize side panel": "Redimensionner le panneau latéral",
   "Drag to resize the scene panel — double-click to reset": "Glisser pour redimensionner le panneau de scène — double-clic pour réinitialiser",
   "Resize scene panel": "Redimensionner le panneau de scène",
+  "Solve Health": "Santé du solve",
+  "Per-frame solve health": "Santé du solve image par image",
   "Drag to resize graph editor — double-click to reset": "Glisser pour redimensionner l'éditeur de courbes — double-clic pour réinitialiser",
   "Resize graph editor": "Redimensionner l'éditeur de courbes",
   "Scene": "Scène",

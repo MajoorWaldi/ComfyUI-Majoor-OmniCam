@@ -173,6 +173,22 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-gdope-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--channel-color,var(--oc-line));opacity:.4}
       .majoor-omnicam .oc-gdope-playhead{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--oc-accent);opacity:.85;pointer-events:none}
 
+      /* ---- solve-health strip ------------------------------------------ */
+      /* One traffic-light row above the dope sheet. Muted, semantic, and grey
+         (not green) when the solve carries no per-frame diagnostics. */
+      .majoor-omnicam .oc-health-strip{display:flex;align-items:center;gap:8px;padding:3px 6px 4px;min-height:16px}
+      .majoor-omnicam .oc-health-strip-label{flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--oc-text-faint)}
+      .majoor-omnicam .oc-health-cells{flex:1 1 auto;display:flex;gap:1px;height:8px;min-width:0}
+      .majoor-omnicam .oc-health-cell{flex:1 1 0;min-width:0;border-radius:1px;background:var(--oc-line);cursor:pointer}
+      .majoor-omnicam .oc-health-cell[data-state="good"]{background:color-mix(in srgb,var(--oc-ok) 78%,transparent)}
+      .majoor-omnicam .oc-health-cell[data-state="warning"]{background:color-mix(in srgb,var(--oc-warn) 82%,transparent)}
+      .majoor-omnicam .oc-health-cell[data-state="bad"]{background:color-mix(in srgb,var(--oc-danger) 85%,transparent)}
+      .majoor-omnicam .oc-health-cell[data-state="unknown"]{background:var(--oc-line)}
+      .majoor-omnicam .oc-health-cell.at-playhead{outline:1px solid var(--oc-accent);outline-offset:0}
+      .majoor-omnicam .oc-health-cell:hover{filter:brightness(1.25)}
+      .majoor-omnicam .oc-health-strip-readout{flex:0 0 auto;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--oc-text-dim);min-width:96px;text-align:right}
+      .majoor-omnicam .oc-health-strip-empty .oc-health-strip-label{opacity:.55}
+
       @container (max-width:820px){
         .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr)}
         .majoor-omnicam .oc-side-resize{display:none}

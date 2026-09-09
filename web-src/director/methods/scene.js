@@ -236,7 +236,6 @@ export function createSceneMethods(dependencies) {
     this.setStatus(isCollapsed ? "Inspector hidden (N)" : "Inspector shown");
   },
   refreshKeys() {
-    this.perf && (this.perf.timelineRefreshCount = (this.perf.timelineRefreshCount || 0) + 1);
     refreshKeys(this);
   },
   refreshKeyEditor() {

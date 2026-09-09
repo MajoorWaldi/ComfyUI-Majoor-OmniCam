@@ -2,6 +2,7 @@
 
 import { t } from "../i18n.js";
 import { DOPE_CHANNELS } from "../dope-sheet.js";
+import { solveHealthStripMarkup } from "./solve-health-strip.js";
 
 function previewPanel() {
   return `
@@ -163,6 +164,7 @@ export function timelinePanelMarkup() {
            title="${t("Drag to resize the camera view — double-click to reset")}" aria-label="${t("Resize the camera view")}"></div>
       <div class="timeline oc-timeline">
         ${transportBar()}
+        ${solveHealthStripMarkup()}
         ${dopeSheet()}
         <div class="motion-timeline" data-role="motion-timeline" aria-label="${t("Motion track timeline")}"></div>
       </div>
