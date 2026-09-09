@@ -104,10 +104,8 @@ test("updateCameraHud reflects camera optics and lock state", () => {
 test("updateViewportControls updates W/L space badge and snap button", () => {
   const spaceBadge = makeElement("span");
   const snapBtn = makeElement("button");
-  const snapLabel = makeElement("span");
   const gridBtn = makeElement("button");
   const shadingSelect = makeElement("select");
-  snapBtn._map = { '[data-role="spatial-snap-label"]': snapLabel };
 
   const root = {
     querySelector(selector) {
@@ -134,7 +132,7 @@ test("updateViewportControls updates W/L space badge and snap button", () => {
   assert.equal(spaceBadge.textContent, "L");
   assert.equal(snapBtn.classList.contains("active"), true);
   assert.equal(snapBtn.getAttribute("aria-pressed"), "true");
-  assert.equal(snapLabel.textContent, "GRID");
+  assert.match(snapBtn.title, /grid/i);
   assert.equal(gridBtn.classList.contains("active"), true);
   assert.equal(shadingSelect.value, "beauty");
 
@@ -142,7 +140,6 @@ test("updateViewportControls updates W/L space badge and snap button", () => {
   updateViewportControls(ui);
   assert.equal(snapBtn.classList.contains("active"), false);
   assert.equal(snapBtn.getAttribute("aria-pressed"), "false");
-  assert.equal(snapLabel.textContent, "OFF");
 });
 
 test("viewport tool rail gives transform space and snapping readable fixed-size controls", () => {
@@ -150,10 +147,10 @@ test("viewport tool rail gives transform space and snapping readable fixed-size 
 
   assert.match(markup, /data-role="gizmo-space-badge">W<\/span>/);
   assert.match(markup, /data-role="spatial-snap-toggle"[^>]*aria-pressed="false"/);
+  // Snap is a plain magnet icon button now -- no oversized ON/OFF text label.
   assert.match(markup, /pi pi-magnet/);
-  assert.match(markup, /data-role="spatial-snap-label">OFF<\/span>/);
+  assert.doesNotMatch(markup, /vp-snap-label/);
   assert.match(DIRECTOR_STYLES, /\.vp-space-badge\{[^}]*min-width:18px[^}]*font-size:12px/s);
-  assert.match(DIRECTOR_STYLES, /\.vp-snap-label\{[^}]*font-size:9px/s);
 });
 
 test("SENSOR_PRESETS calculate accurate field of view", () => {

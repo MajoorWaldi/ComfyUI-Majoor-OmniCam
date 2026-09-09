@@ -24,10 +24,9 @@ function toolRail() {
               title="${t("Toggle Transform Space (World / Local)")}">
         <span class="vp-space-badge" data-role="gizmo-space-badge">W</span>
       </button>
-      <button class="vp-tool vp-tool-snap" data-act="toggle-spatial-snap" data-role="spatial-snap-toggle" aria-pressed="false"
-              title="${t("Toggle Snapping (Grid / None)")}">
+      <button class="vp-tool" data-act="toggle-spatial-snap" data-role="spatial-snap-toggle" aria-pressed="false"
+              title="${t("Toggle Snapping (Grid / None)")}" aria-label="${t("Toggle Snapping (Grid / None)")}">
         <i class="pi pi-magnet"></i>
-        <span class="vp-snap-label" data-role="spatial-snap-label">OFF</span>
       </button>
       <span class="vp-rail-divider"></span>
       <button class="vp-tool" data-select-mode="vertex" data-density-min="advanced" title="${t("Vertex Selection Mode (1)")}"><i class="pi pi-circle"></i></button>
