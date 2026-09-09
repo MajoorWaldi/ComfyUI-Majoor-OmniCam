@@ -147,6 +147,7 @@ def build_refined_track(
     frame_step: int,
     intrinsics_source: str,
     warnings: Sequence[str] = (),
+    solve_health: Sequence[Any] | None = None,
 ) -> dict[str, Any]:
     """Refine and emit a validated, fingerprinted canonical track."""
     poses = refine_poses(raw_poses, settings)
@@ -166,6 +167,7 @@ def build_refined_track(
         motion_scale=settings.motion_scale,
         raw_key_count=len(raw_poses),
         warnings=warnings,
+        solve_health=solve_health,
     )
     # Recorded so a reloaded panel can show the settings that produced the
     # track it is holding, rather than the defaults.

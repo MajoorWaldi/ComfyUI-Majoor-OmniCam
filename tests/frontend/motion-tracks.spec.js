@@ -7,7 +7,7 @@ test("Motion Track tools author, edit and serialize the scene", async ({ page })
 
   // Motion authoring lives in its own workspace now: the viewport motion
   // toolbar and the track panel are only shown while the Motion tab is active.
-  await page.locator('[data-tab="motion"]').click();
+  await page.locator('[data-inspector-mode="motion"]').click();
 
   const tools = page.locator("button[data-motion-tool]");
   await expect(tools).toHaveCount(5);

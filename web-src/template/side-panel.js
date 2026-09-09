@@ -1,10 +1,12 @@
-// Right-hand side panel: shell + tabs only. Each workspace lives in its own
-// file under template/panels/.
+// Right-hand Inspector: a selection-driven shell. The five panes keep their
+// data-tab-panel names (scene / motion / camera / display / health) so every
+// binding and the markup contract are unchanged; what switched is that a scene
+// selection routes the pane (see inspector/context.js) instead of a tab row.
 //
-// Tab buttons keep both `.inspector-tab` and `data-tab`, and panels keep both
-// `.inspector-tab-content` and `data-tab-panel`, because
-// event-bindings/viewport-settings.js switches them with the selector
-// ".inspector-tab, [data-tab]".
+// The head carries the contextual title plus compact buttons for the three
+// secondary modes. Motion / Shot / Health keep `data-tab` alongside
+// `data-inspector-mode` so the density system still shows/hides Health by the
+// same selector.
 
 import { t } from "../i18n.js";
 import { outlinerPanel } from "./panels/outliner-panel.js";
@@ -16,12 +18,12 @@ import { healthPanel } from "./panels/health-panel.js";
 export function sidePanelMarkup() {
   return `
     <div class="viewport-inspector oc-side" data-role="viewport-inspector">
-      <div class="inspector-tabs oc-side-tabs">
-        <button class="inspector-tab active" data-tab="scene">${t("Outliner")}</button>
-        <button class="inspector-tab" data-tab="motion">${t("Motion")}</button>
-        <button class="inspector-tab" data-tab="camera">${t("Inspector")}</button>
-        <button class="inspector-tab" data-tab="display">${t("Shot")}</button>
-        <button class="inspector-tab" data-tab="health" data-density-min="animation">${t("Health")}</button>
+      <div class="oc-inspector-head oc-side-tabs">
+        <strong class="oc-inspector-title" data-role="inspector-title">${t("Inspector")}</strong>
+        <span class="oc-panel-spacer"></span>
+        <button class="oc-mode-btn inspector-tab" data-inspector-mode="motion" data-tab="motion" aria-pressed="false">${t("Motion")}</button>
+        <button class="oc-mode-btn inspector-tab" data-inspector-mode="shot" data-tab="display" aria-pressed="false">${t("Shot")}</button>
+        <button class="oc-mode-btn inspector-tab" data-inspector-mode="health" data-tab="health" data-density-min="animation" aria-pressed="false">${t("Health")}</button>
       </div>
       ${outlinerPanel()}
       ${motionPanel()}

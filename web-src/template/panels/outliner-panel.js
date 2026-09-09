@@ -1,92 +1,14 @@
-// Outliner panel: scene tree + object transform. Motion Tracks now live in
-// their own Motion panel (template/panels/motion-panel.js).
+// Scene tab body: the selected object's transform + display properties.
+//
+// Scene browsing (search, the add-object menu, filter chips, batch actions and
+// the object tree) moved to template/left-panel.js. This panel now only holds
+// the contextual object editor for the current selection.
 
 import { t } from "../../i18n.js";
-import {
-  sphereIcon,
-  cubeIcon,
-  pyramidIcon,
-  sunLightIcon,
-  pointLightIcon,
-  spotLightIcon,
-  cameraIcon,
-  assetsIcon,
-} from "../object-icons.js";
 
 export function outlinerPanel() {
   return `
     <div class="inspector-tab-content oc-side-body" data-tab-panel="scene">
-      <div class="oc-side-toolbar">
-        <button class="icon-button" data-act="load-model" title="${t("Import 3D Model (+)")}"><i class="pi pi-plus"></i></button>
-        <button class="icon-button" data-act="add-camera" title="${t("Create camera from current view")}"><i class="pi pi-video"></i></button>
-        <input class="oc-search" data-role="outliner-search" type="search" placeholder="${t("Search")}" aria-label="${t("Filter the outliner")}">
-      </div>
-      <div class="oc-outliner-add-bar">
-        <details class="toolbar-menu oc-add-menu" data-menu="add-object">
-          <summary class="oc-add-summary-btn" title="${t("Add object (+)")}">
-            <i class="pi pi-plus" style="font-size:11px"></i>
-            <span>${t("Add object")}</span>
-            <i class="pi pi-chevron-down" style="font-size:9px;margin-left:auto;opacity:0.7"></i>
-          </summary>
-          <div class="menu-panel oc-add-menu-panel">
-            <div class="oc-add-header">${t("Add object")}</div>
-            <button type="button" class="oc-add-menu-item" data-object-type="sphere">
-              ${sphereIcon} <span>${t("Sphere")}</span>
-            </button>
-            <button type="button" class="oc-add-menu-item" data-object-type="cube">
-              ${cubeIcon} <span>${t("Cube")}</span>
-            </button>
-            <button type="button" class="oc-add-menu-item" data-object-type="pyramid">
-              ${pyramidIcon} <span>${t("Pyramide")}</span>
-            </button>
-            <button type="button" class="oc-add-menu-item" data-object-type="sun_light">
-              ${sunLightIcon} <span>${t("Sun light")}</span>
-            </button>
-            <button type="button" class="oc-add-menu-item" data-object-type="point_light">
-              ${pointLightIcon} <span>${t("Point light")}</span>
-            </button>
-            <button type="button" class="oc-add-menu-item" data-object-type="spot_light">
-              ${spotLightIcon} <span>${t("Spot light")}</span>
-            </button>
-            <button type="button" class="oc-add-menu-item" data-act="add-camera">
-              ${cameraIcon} <span>${t("Camera")}</span>
-            </button>
-            <div class="oc-add-menu-item oc-has-submenu" tabindex="0">
-              ${assetsIcon} <span>${t("Assets")}</span>
-              <i class="pi pi-chevron-right oc-submenu-arrow"></i>
-              <div class="oc-add-submenu">
-                <button type="button" class="oc-add-menu-item" data-object-type="card"><i class="pi pi-image"></i> <span>${t("Card")}</span></button>
-                <button type="button" class="oc-add-menu-item" data-object-type="cylinder"><i class="pi pi-database"></i> <span>${t("Cylinder")}</span></button>
-                <button type="button" class="oc-add-menu-item" data-object-type="torus"><i class="pi pi-circle"></i> <span>${t("Torus")}</span></button>
-                <button type="button" class="oc-add-menu-item" data-object-type="human"><i class="pi pi-user"></i> <span>${t("Human")}</span></button>
-                <button type="button" class="oc-add-menu-item" data-object-type="null"><i class="pi pi-plus"></i> <span>${t("Null")}</span></button>
-                <div class="menu-divider"></div>
-                <button type="button" class="oc-add-menu-item" data-act="load-model"><i class="pi pi-box"></i> <span>${t("Import 3D Model (+)")}</span></button>
-              </div>
-            </div>
-          </div>
-        </details>
-      </div>
-      <div class="outliner-filter-chips" data-role="outliner-filter-chips">
-        <button type="button" class="oc-chip active" data-filter="all">${t("All")}</button>
-        <button type="button" class="oc-chip" data-filter="cameras">${t("Cameras")}</button>
-        <button type="button" class="oc-chip" data-filter="objects">${t("Objects")}</button>
-        <button type="button" class="oc-chip" data-filter="lights">${t("Lights")}</button>
-        <button type="button" class="oc-chip" data-filter="hidden">${t("Hidden")}</button>
-      </div>
-      <div class="oc-batch-toolbar" data-role="outliner-batch-bar" hidden>
-        <span class="oc-batch-badge" data-role="batch-count">0 ${t("selected")}</span>
-        <div class="oc-batch-actions">
-          <button type="button" class="icon-button" data-act="batch-toggle-visibility" title="${t("Toggle visibility (H)")}"><i class="pi pi-eye"></i></button>
-          <button type="button" class="icon-button" data-act="batch-toggle-lock" title="${t("Toggle lock (L)")}"><i class="pi pi-lock"></i></button>
-          <button type="button" class="icon-button" data-act="batch-duplicate" title="${t("Duplicate selection (Shift+D)")}"><i class="pi pi-copy"></i></button>
-          <button type="button" class="icon-button danger" data-act="batch-delete" title="${t("Delete selection (Del)")}"><i class="pi pi-trash"></i></button>
-          <button type="button" class="icon-button" data-act="batch-deselect" title="${t("Deselect all (Alt+A)")}"><i class="pi pi-times"></i></button>
-        </div>
-      </div>
-      <div class="scene-tree" data-role="objects"></div>
-      <div class="oc-resize-v" data-role="outliner-resize" role="separator" aria-orientation="horizontal" tabindex="0"
-           title="${t("Drag to resize the outliner — double-click to reset")}" aria-label="${t("Resize the outliner")}"></div>
       <div class="oc-card" data-role="object-panel">
         <div class="oc-card-title" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
           <span data-role="selected-name">${t("Object Transform")}</span>

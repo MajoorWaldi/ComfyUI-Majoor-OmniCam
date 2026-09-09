@@ -140,13 +140,18 @@ export const LOWER_DECK_STYLES = `
 
       /* ---- graph editor ---------------------------------------------- */
       .majoor-omnicam .oc-graph{margin:0 8px 8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);overflow:hidden}
-      .majoor-omnicam .oc-graph>summary{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--oc-line)}
+      .majoor-omnicam .oc-graph>.oc-graph-head{display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid var(--oc-line)}
+      /* Collapsed by the transport's graph toggle: keep the mode row, drop the rest. */
+      .majoor-omnicam .oc-graph.oc-graph-collapsed>.oc-graph-head{border-bottom:0}
+      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-toolbar,
+      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-body,
+      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-resize{display:none}
       .majoor-omnicam .oc-graph-tabs{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-graph-tab{padding:4px 12px;border:0;border-radius:5px;background:transparent;color:var(--oc-text-dim);font-size:11.5px;cursor:pointer}
       .majoor-omnicam .oc-graph-tab strong{font-weight:600}
       .majoor-omnicam .oc-graph-tab:hover{color:var(--oc-text)}
       .majoor-omnicam .oc-graph-tab.active{background:var(--oc-panel-2);color:var(--oc-text);box-shadow:inset 0 0 0 1px var(--oc-line)}
-      .majoor-omnicam .oc-graph>summary .hint{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--oc-text-faint)}
+      .majoor-omnicam .oc-graph>.oc-graph-head .hint{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--oc-text-faint)}
       /* overflow-x:auto here used to clip the overflow popover, leaving its
          interpolation and tangent buttons unreachable. It wraps instead. */
       .majoor-omnicam .oc-graph-toolbar{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--oc-line-soft);flex-wrap:wrap}
@@ -172,6 +177,22 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-gdope-track{position:relative;height:26px;border-radius:6px;background:var(--oc-panel-2);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-gdope-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--channel-color,var(--oc-line));opacity:.4}
       .majoor-omnicam .oc-gdope-playhead{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--oc-accent);opacity:.85;pointer-events:none}
+
+      /* ---- solve-health strip ------------------------------------------ */
+      /* One traffic-light row above the dope sheet. Muted, semantic, and grey
+         (not green) when the solve carries no per-frame diagnostics. */
+      .majoor-omnicam .oc-health-strip{display:flex;align-items:center;gap:8px;padding:3px 6px 4px;min-height:16px}
+      .majoor-omnicam .oc-health-strip-label{flex:0 0 auto;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--oc-text-faint)}
+      .majoor-omnicam .oc-health-cells{flex:1 1 auto;display:flex;gap:1px;height:8px;min-width:0}
+      .majoor-omnicam .oc-health-cell{flex:1 1 0;min-width:0;border-radius:1px;background:var(--oc-line);cursor:pointer}
+      .majoor-omnicam .oc-health-cell[data-state="good"]{background:color-mix(in srgb,var(--oc-ok) 78%,transparent)}
+      .majoor-omnicam .oc-health-cell[data-state="warning"]{background:color-mix(in srgb,var(--oc-warn) 82%,transparent)}
+      .majoor-omnicam .oc-health-cell[data-state="bad"]{background:color-mix(in srgb,var(--oc-danger) 85%,transparent)}
+      .majoor-omnicam .oc-health-cell[data-state="unknown"]{background:var(--oc-line)}
+      .majoor-omnicam .oc-health-cell.at-playhead{outline:1px solid var(--oc-accent);outline-offset:0}
+      .majoor-omnicam .oc-health-cell:hover{filter:brightness(1.25)}
+      .majoor-omnicam .oc-health-strip-readout{flex:0 0 auto;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--oc-text-dim);min-width:96px;text-align:right}
+      .majoor-omnicam .oc-health-strip-empty .oc-health-strip-label{opacity:.55}
 
       @container (max-width:820px){
         .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr)}

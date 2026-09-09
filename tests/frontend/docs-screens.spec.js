@@ -20,7 +20,7 @@ test("director - outliner", async ({ page }) => {
 
 test("director - inspector", async ({ page }) => {
   await mountDirector(page);
-  await page.locator('[data-tab="camera"]').click();
+  // camera inspector shows by default (selection-driven)
   await page.waitForTimeout(200);
   await page.locator(HOST).first().screenshot({ path: "test-results/docs-director-inspector.png" });
 });

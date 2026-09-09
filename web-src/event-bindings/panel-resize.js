@@ -25,6 +25,10 @@ export function applyPanelLayout(ui) {
     Number(ui.state.side_width) || PANEL_LAYOUT.sideWidth.default,
     PANEL_LAYOUT.sideWidth.min, PANEL_LAYOUT.sideWidth.max,
   );
+  const leftWidth = clamp(
+    Number(ui.state.left_width) || PANEL_LAYOUT.leftWidth.default,
+    PANEL_LAYOUT.leftWidth.min, PANEL_LAYOUT.leftWidth.max,
+  );
   const graphHeight = clamp(
     Number(ui.state.graph_height) || PANEL_LAYOUT.graphHeight.default,
     PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max,
@@ -32,6 +36,7 @@ export function applyPanelLayout(ui) {
   ui.root.style.setProperty("--oc-outliner-h", `${Math.round(height)}px`);
   ui.root.style.setProperty("--oc-preview-w", `${Math.round(width)}px`);
   ui.root.style.setProperty("--oc-side-w", `${Math.round(sideWidth)}px`);
+  ui.root.style.setProperty("--oc-left-w", `${Math.round(leftWidth)}px`);
   ui.root.style.setProperty("--oc-graph-h", `${Math.round(graphHeight)}px`);
 }
 
@@ -39,6 +44,7 @@ const HANDLES = {
   "outliner-resize": { axis: "y", direction: 1, stateKey: "outliner_height", bounds: PANEL_LAYOUT.outlinerHeight, cssVar: "--oc-outliner-h" },
   "preview-resize": { axis: "x", direction: 1, stateKey: "preview_width", bounds: PANEL_LAYOUT.previewWidth, cssVar: "--oc-preview-w" },
   "side-resize": { axis: "x", direction: -1, stateKey: "side_width", bounds: PANEL_LAYOUT.sideWidth, cssVar: "--oc-side-w" },
+  "left-resize": { axis: "x", direction: 1, stateKey: "left_width", bounds: PANEL_LAYOUT.leftWidth, cssVar: "--oc-left-w" },
   "graph-resize": { axis: "y", direction: 1, stateKey: "graph_height", bounds: PANEL_LAYOUT.graphHeight, cssVar: "--oc-graph-h" },
 };
 
@@ -68,7 +74,7 @@ export function bindPanelResize(ui, signal) {
       setLive(next);
       // A wider/narrower preview column re-fits the WebGL preview tiles.
       if (config.stateKey === "preview_width") { ui.refreshCameraPreviews?.(); ui.requestRender?.("layout"); }
-      else if (config.stateKey === "side_width") { ui.scheduleResizeAndRender?.(); }
+      else if (config.stateKey === "side_width" || config.stateKey === "left_width") { ui.scheduleResizeAndRender?.(); }
       else if (config.stateKey === "graph_height") { ui.refreshGraph?.(); ui.drawCurveEditor?.(); }
       // Grow the node so the taller panel is not clipped behind a scrollbar.
       ui.refitNode?.();

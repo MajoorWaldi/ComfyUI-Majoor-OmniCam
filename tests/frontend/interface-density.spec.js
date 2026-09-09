@@ -132,12 +132,15 @@ test("the Interface selector itself is never hidden by its own setting", async (
   }
 });
 
-test("dropping to basic while on the Health tab falls back to the Outliner instead of going blank", async ({ page }) => {
+test("dropping to basic while in Health mode falls back to the selected entity instead of going blank", async ({ page }) => {
   await mount(page);
-  await page.locator('[data-tab="health"]').click();
+  await page.locator('[data-inspector-mode="health"]').click();
   await expect(page.locator('[data-tab-panel="health"]')).toBeVisible();
 
   await setDensity(page, "basic");
-  await expect(page.locator('[data-tab="scene"]')).toHaveClass(/active/);
-  await expect(page.locator('[data-tab-panel="scene"]')).toBeVisible();
+  // The default selection is the camera, so the Inspector returns to the
+  // camera pane -- never a blank panel with Health hidden behind it.
+  await expect(page.locator('[data-tab-panel="health"]')).toBeHidden();
+  await expect(page.locator('[data-tab-panel="camera"]')).toBeVisible();
+  await expect(page.locator('[data-inspector-mode="health"]')).not.toHaveClass(/active/);
 });

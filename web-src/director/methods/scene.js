@@ -7,6 +7,8 @@ import { updatePlayhead } from "../../timeline/playhead.js";
 import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
+import { buildDirectorDomCache } from "../dom-cache.js";
+import { syncInspectorSelection, setInspectorMode } from "../../inspector/context.js";
 import { deselectAll, duplicateSelectedObjects, invertSelection, lockSelectedObjects, selectAllObjects, toggleSelectedObjects } from "../../scene/batch-actions.js";
 
 export function createSceneMethods(dependencies) {
@@ -23,20 +25,23 @@ export function createSceneMethods(dependencies) {
     // one camera the playhead actually drives.
     applyAimConstraint(this, this.activeCameraTrack(), this.camera, this.frame);
     this.applyObjectAnimationFrame();
-    for (const el of this.root.querySelectorAll('[data-role="frame"]')) if (document.activeElement !== el) el.value = String(this.frame);
-    for (const el of this.root.querySelectorAll('[data-role="scrub"]')) el.value = String(this.frame);
-    for (const el of this.root.querySelectorAll('[data-role="camera-fov"]')) if (document.activeElement !== el) el.value = String(Math.round(this.camera.fov * 100) / 100);
-    for (const el of this.root.querySelectorAll('[data-role="camera-roll"]')) if (document.activeElement !== el) el.value = String(Math.round((this.camera.roll || 0) * 100) / 100);
+    // Fixed, whole-life controls come from the DOM cache instead of ten
+    // querySelectorAll() sweeps per scrubbed frame (see director/dom-cache.js).
+    const dom = (this.dom ||= buildDirectorDomCache(this.root));
+    for (const el of dom.frames) if (document.activeElement !== el) el.value = String(this.frame);
+    for (const el of dom.scrubs) el.value = String(this.frame);
+    for (const el of dom.cameraFov) if (document.activeElement !== el) el.value = String(Math.round(this.camera.fov * 100) / 100);
+    for (const el of dom.cameraRoll) if (document.activeElement !== el) el.value = String(Math.round((this.camera.roll || 0) * 100) / 100);
     // The Lens card shows the same value in millimetres alongside the FOV.
-    for (const el of this.root.querySelectorAll('[data-role="camera-focal"]')) if (document.activeElement !== el) el.value = formatFocalLength(this.camera.fov);
-    for (const el of this.root.querySelectorAll('[data-role="viewport-zoom"]')) el.textContent = `${(Number(this.camera.zoom) || 1).toFixed(2)}x`;
-    for (const el of this.root.querySelectorAll('[data-role="camera-type"]')) if (document.activeElement !== el) el.value = this.camera.camera_type || "perspective";
-    for (const el of this.root.querySelectorAll('[data-role="camera-near"]')) if (document.activeElement !== el) el.value = String(this.camera.near ?? 0.01);
-    for (const el of this.root.querySelectorAll('[data-role="camera-far"]')) if (document.activeElement !== el) el.value = String(this.camera.far ?? 10000);
+    for (const el of dom.cameraFocal) if (document.activeElement !== el) el.value = formatFocalLength(this.camera.fov);
+    for (const el of dom.viewportZoom) el.textContent = `${(Number(this.camera.zoom) || 1).toFixed(2)}x`;
+    for (const el of dom.cameraType) if (document.activeElement !== el) el.value = this.camera.camera_type || "perspective";
+    for (const el of dom.cameraNear) if (document.activeElement !== el) el.value = String(this.camera.near ?? 0.01);
+    for (const el of dom.cameraFar) if (document.activeElement !== el) el.value = String(this.camera.far ?? 10000);
     const sec = this.frame / this.state.fps;
     for (const media of this.cardMediaById.values()) media instanceof HTMLVideoElement && Number.isFinite(media.duration) && media.duration > 0 && (media.currentTime = sec % media.duration);
     const minutes = Math.floor(sec / 60), seconds = Math.floor(sec % 60), milliseconds = Math.floor(sec % 1 * 1e3), frames = this.frame % Math.max(1, Math.round(this.state.fps)), totalSeconds = Math.floor(this.frame / this.state.fps);
-    this.root.querySelector('[data-role="time"]').textContent = this.state.timecode_mode === "timecode"
+    (dom.time || this.root.querySelector('[data-role="time"]')).textContent = this.state.timecode_mode === "timecode"
       ? `${String(Math.floor(totalSeconds / 3600)).padStart(2, "0")}:${String(Math.floor(totalSeconds / 60) % 60).padStart(2, "0")}:${String(totalSeconds % 60).padStart(2, "0")}:${String(frames).padStart(2, "0")}`
       : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(milliseconds).padStart(3, "0")}`;
     if (refreshTimeline) this.refreshKeys();
@@ -333,11 +338,12 @@ export function createSceneMethods(dependencies) {
     this.state.ui_density = density;
     this.root.dataset.density = density;
     this.root.querySelector('[data-role="ui-density"]').value = density;
-    // A tab that just became density-hidden must not stay "active" behind an
-    // invisible pane -- fall back to the Outliner, which every tier keeps.
-    const activeTab = this.root.querySelector(".inspector-tab.active");
-    if (activeTab && getComputedStyle(activeTab).display === "none") {
-      this.root.querySelector('[data-tab="scene"]')?.click();
+    // A secondary mode whose button just became density-hidden (Health under
+    // "basic") must not leave the Inspector stranded on an invisible pane --
+    // drop back to the selected entity.
+    const activeMode = this.root.querySelector("[data-inspector-mode].active");
+    if (activeMode && getComputedStyle(activeMode).display === "none") {
+      this.setInspectorMode("entity");
     }
     this.serialize();
     requestAnimationFrame(() => {
@@ -357,7 +363,12 @@ export function createSceneMethods(dependencies) {
     setTransformMode(this, mode);
   },
   refreshInspector() {
+    this.perf && (this.perf.inspectorRefreshCount = (this.perf.inspectorRefreshCount || 0) + 1);
     refreshInspector(this);
+    syncInspectorSelection(this);
+  },
+  setInspectorMode(mode) {
+    setInspectorMode(this, mode);
   },
   updateSelectedObject() {
     updateSelectedObject(this);

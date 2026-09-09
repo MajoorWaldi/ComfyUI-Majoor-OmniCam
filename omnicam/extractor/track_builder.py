@@ -17,6 +17,7 @@ from ..core.track import OmniCamTrack
 from ..core.validation import validate_track_payload
 from .filters import is_static_solve
 from .fingerprint import stamp_fingerprint
+from .solve_health import normalize_solve_health
 from .transforms import pose_to_camera_payload
 from .types import PoseSample
 
@@ -49,8 +50,15 @@ def build_omnicam_track(
     motion_scale: float,
     raw_key_count: int,
     warnings: Sequence[str] = (),
+    solve_health: Sequence[Any] | None = None,
 ) -> dict[str, Any]:
-    """Build, validate and fingerprint the canonical track for one solve."""
+    """Build, validate and fingerprint the canonical track for one solve.
+
+    ``solve_health`` is an optional iterable of backend quality readings
+    (``frame`` / ``state`` / ``coverage``); when it yields anything usable an
+    additive ``metadata.solve_health_v1`` block is attached. It never changes
+    the schema version.
+    """
     if not poses:
         raise ValueError("OmniCam Extractor cannot build a track from an empty pose list")
 
@@ -107,6 +115,10 @@ def build_omnicam_track(
             "warnings": list(dict.fromkeys(collected)),
         },
     }
+
+    health_block = normalize_solve_health(solve_health, payload["duration_frames"])
+    if health_block is not None:
+        payload["metadata"]["solve_health_v1"] = health_block
 
     track = validate_track_payload(payload)
     stamp_fingerprint(track)

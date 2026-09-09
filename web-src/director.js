@@ -9,6 +9,8 @@ import { ObjectUrlRegistry } from "./omnicam-media.js";
 import { buildRoot } from "./omnicam-template.js";
 import { dispatchDirectorKey } from "./omnicam-commands.js";
 import { watchGraphConnections } from "./graph-connection-watch.js";
+import { attachDirectorApi } from "./director-api/index.js";
+import { buildDirectorDomCache } from "./director/dom-cache.js";
 import {
   activeCameraTrack,
   bindWidgetCallbacks,
@@ -165,7 +167,7 @@ configureDomMedia({ api });
 configureBackgroundManager({ api });
 class OmniCamDirectorUI {
   constructor(node) {
-    this.app = app, this.api = api, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
+    this.app = app, this.api = api, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.dom = buildDirectorDomCache(this.root), this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
     this.disposed = false;
     this.renderRevision = 0;
     // three.js and mediabunny total ~1.4 MB and nothing outside the viewport
@@ -189,7 +191,7 @@ class OmniCamDirectorUI {
       // the state the node mounts with is that baseline until then.
       this.sceneBaseline = this.stateWidget?.value || JSON.stringify(this.state),
       this.sceneName = this.state.metadata?.scene_name || "",
-      this.frame = 0, this.camera = sampleCamera(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.cardMediaAssetById = /* @__PURE__ */ new Map(), this.objectUrls = new ObjectUrlRegistry(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.contextMenu = new ContextMenuController(this.root), this.history = new EditorHistory({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedObjectIds: [...(this.selectedObjectIds || [])], selectedKeyFrame: this.selectedKeyFrame, selectedKeyFrames: [...(this.selectedKeyFrames || [])], subSelection: this.subSelection }), restore: (snapshot) => this.restoreHistorySnapshot(snapshot) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bind(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic(),
+      this.frame = 0, this.camera = sampleCamera(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.cardMediaAssetById = /* @__PURE__ */ new Map(), this.objectUrls = new ObjectUrlRegistry(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.uiDirtyMask = 0, this.perf = globalThis.__omnicamPerf === true ? { renderCount: 0, viewportRenderCount: 0, previewRenderCount: 0, timelineRefreshCount: 0, inspectorRefreshCount: 0, lastFrameMs: 0 } : null, this.contextMenu = new ContextMenuController(this.root), this.history = new EditorHistory({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedObjectIds: [...(this.selectedObjectIds || [])], selectedKeyFrame: this.selectedKeyFrame, selectedKeyFrames: [...(this.selectedKeyFrames || [])], subSelection: this.subSelection }), restore: (snapshot) => this.restoreHistorySnapshot(snapshot) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bind(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic(),
       // Seed every frame-derived readout (timecode, lens millimetres, viewport
       // zoom, dope rows) instead of waiting for the first scrub.
       this.setFrame(this.frame, false, true);
@@ -248,6 +250,8 @@ export function attachDirector(node) {
   recordDirectorTrace("director:constructor:start", node);
   const ui = new OmniCamDirectorUI(node);
   recordDirectorTrace("director:constructor:complete", node);
+  // Versioned, bounded transaction/query surface over canonical Director state.
+  attachDirectorApi(ui);
   node.__majoorOmniCam = ui;
   recordDirectorTrace("director:marker:assigned", node);
   ui.hideInternalWidgets();

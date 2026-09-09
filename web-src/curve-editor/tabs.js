@@ -10,7 +10,7 @@ import { t } from "../i18n.js";
 // on the dope sheet they would look wired but do nothing visible.
 const CURVE_ONLY = ['[data-act="curve-zoom-in"]', '[data-act="curve-zoom-out"]', '[data-act="curve-fit"]', '[data-act="curve-handles"]'];
 
-const TAB_LABELS = { curves: "Graph Editor", dope: "Dope Sheet", sequence: "Sequence" };
+const TAB_LABELS = { curves: "Graph", dope: "Timeline", sequence: "Sequence" };
 
 export function setGraphTab(ui, tab) {
   const mode = tab in TAB_LABELS ? tab : "curves";

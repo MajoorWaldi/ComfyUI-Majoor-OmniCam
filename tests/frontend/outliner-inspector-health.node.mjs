@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { outlinerPanel } from "../../web-src/template/panels/outliner-panel.js";
+import { leftPanelMarkup } from "../../web-src/template/left-panel.js";
 import { inspectorPanel } from "../../web-src/template/panels/inspector-panel.js";
 import { shotPanel } from "../../web-src/template/panels/shot-panel.js";
 import { healthPanel } from "../../web-src/template/panels/health-panel.js";
@@ -9,14 +10,17 @@ import { calculateQualityScore } from "../../web-src/motion-health/panel.js";
 import { LENS_PRESETS } from "../../web-src/lens.js";
 import { setupAxisResetButtons } from "../../web-src/scene/axis-scrub.js";
 
-test("outlinerPanel includes category filter chips, axis tags, and reset buttons", () => {
-  const html = outlinerPanel();
-  assert.match(html, /data-role="outliner-filter-chips"/);
-  assert.match(html, /data-filter="all"/);
-  assert.match(html, /data-filter="cameras"/);
-  assert.match(html, /data-filter="objects"/);
-  assert.match(html, /data-filter="hidden"/);
+test("category filter chips live in the left scene panel", () => {
+  const left = leftPanelMarkup();
+  assert.match(left, /data-role="outliner-filter-chips"/);
+  assert.match(left, /data-filter="all"/);
+  assert.match(left, /data-filter="cameras"/);
+  assert.match(left, /data-filter="objects"/);
+  assert.match(left, /data-filter="hidden"/);
+});
 
+test("outlinerPanel includes axis tags and reset buttons", () => {
+  const html = outlinerPanel();
   assert.match(html, /class="oc-axis-tag"/);
   assert.match(html, /data-act="reset-vector"\s+data-target="position"/);
   assert.match(html, /data-act="reset-vector"\s+data-target="rotation"/);

@@ -6,16 +6,16 @@ import { SHARED_STYLES } from "../../web-src/template/styles/shared.js";
 test("Director and Monitor share the canonical OmniCam visual language", () => {
   const compact = SHARED_STYLES.replace(/\s+/g, "");
   for (const token of [
-    "--oc-bg:#141419",
-    "--oc-panel:#1a1a21",
-    "--oc-panel-2:#20202a",
-    "--oc-sunken:#101014",
-    "--oc-accent:#8b7bd8",
-    "--oc-radius:10px",
-    "--oc-radius-sm:7px",
-    "--oc-ok:#46a758",
-    "--oc-warn:#e5a23c",
-    "--oc-danger:#e5484d",
+    "--oc-bg:#111214",
+    "--oc-panel:#18191c",
+    "--oc-panel-2:#202126",
+    "--oc-sunken:#0d0e10",
+    "--oc-accent:#8d7ee8",
+    "--oc-radius:8px",
+    "--oc-radius-sm:6px",
+    "--oc-ok:#58a56a",
+    "--oc-warn:#d6a04d",
+    "--oc-danger:#d85b61",
   ]) assert.match(compact, new RegExp(token));
 });
 

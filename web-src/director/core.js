@@ -429,7 +429,7 @@ export function defaultState() {
     snap_enabled: true, snap_frames: 1, timecode_mode: "time", loop_playback: false, playback_range: null, markers: [],
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
     outliner_height: PANEL_LAYOUT.outlinerHeight.default, preview_width: PANEL_LAYOUT.previewWidth.default,
-    side_width: PANEL_LAYOUT.sideWidth.default, graph_height: PANEL_LAYOUT.graphHeight.default,
+    side_width: PANEL_LAYOUT.sideWidth.default, left_width: PANEL_LAYOUT.leftWidth.default, graph_height: PANEL_LAYOUT.graphHeight.default,
     health_profile: "generic",
     motion_layers: [], selected_motion_layer_id: null, motion_tool: "select",
     sequence: defaultSequence(),
@@ -480,6 +480,7 @@ export const PANEL_LAYOUT = {
   outlinerHeight: { default: 220, min: 90, max: 1600 },
   previewWidth: { default: 236, min: 150, max: 760 },
   sideWidth: { default: 280, min: 200, max: 640 },
+  leftWidth: { default: 264, min: 214, max: 520 },
   graphHeight: { default: 220, min: 140, max: 720 },
 };
 
@@ -599,6 +600,7 @@ export function sanitizeState(raw) {
   out.outliner_height = Math.round(boundedNumber(out.outliner_height, PANEL_LAYOUT.outlinerHeight.default, PANEL_LAYOUT.outlinerHeight.min, PANEL_LAYOUT.outlinerHeight.max));
   out.preview_width = Math.round(boundedNumber(out.preview_width, PANEL_LAYOUT.previewWidth.default, PANEL_LAYOUT.previewWidth.min, PANEL_LAYOUT.previewWidth.max));
   out.side_width = Math.round(boundedNumber(out.side_width, PANEL_LAYOUT.sideWidth.default, PANEL_LAYOUT.sideWidth.min, PANEL_LAYOUT.sideWidth.max));
+  out.left_width = Math.round(boundedNumber(out.left_width, PANEL_LAYOUT.leftWidth.default, PANEL_LAYOUT.leftWidth.min, PANEL_LAYOUT.leftWidth.max));
   out.graph_height = Math.round(boundedNumber(out.graph_height, PANEL_LAYOUT.graphHeight.default, PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max));
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);

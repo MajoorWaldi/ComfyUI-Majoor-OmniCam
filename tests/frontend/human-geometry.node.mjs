@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 
 import * as THREE from "../../web-src/three-runtime.js";
 import { createLowPolyHumanGeometry } from "../../web-src/viewport/human-geometry.js";
-import { outlinerPanel } from "../../web-src/template/panels/outliner-panel.js";
+import { leftPanelMarkup } from "../../web-src/template/left-panel.js";
 
 test("createLowPolyHumanGeometry builds a valid non-empty BufferGeometry", () => {
   const geom = createLowPolyHumanGeometry(THREE);
@@ -35,8 +35,8 @@ test("createLowPolyHumanGeometry builds a valid non-empty BufferGeometry", () =>
   assert.ok(height > 0.85 && height < 1.05, `proportional height expected, got ${height}`);
 });
 
-test("outlinerPanel quick-bar replaces Ground with Card and includes Cylinder and Torus", () => {
-  const html = outlinerPanel();
+test("left panel add-object menu replaces Ground with Card and includes Cylinder and Torus", () => {
+  const html = leftPanelMarkup();
   // Must contain new primitives
   assert.match(html, /data-object-type="card"/, "Card button is present");
   assert.match(html, /data-object-type="cube"/, "Cube button is present");

@@ -258,7 +258,7 @@ def refine_job(manager: SolveJobManager, job_id: str, body: Any, *, client_id: s
 
     settings = RefinementSettings.from_dict((body or {}).get("settings"))
     try:
-        job.refined_track = refine_raw_solve(job.raw_solve, settings)
+        job.refined_track = refine_raw_solve(job.raw_solve, settings, solve_health=job.quality_samples)
     except ValueError as exc:
         raise ApiError(400, str(exc)) from exc
     job.refine_settings = settings.to_dict()
