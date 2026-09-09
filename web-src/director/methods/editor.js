@@ -2,8 +2,18 @@
 
 import { applyAimConstraint } from "../../aim-constraint.js";
 import { SPATIAL_HANDLE_MODES, spatialHandleMode } from "../../camera-path-curve.js";
+import { t } from "../../i18n.js";
+import { toggleObjectLock } from "../../scene/object-lock.js";
 
-const HANDLE_MODE_LABELS = { auto: "Auto Smooth", aligned: "Aligned", free: "Free", corner: "Corner" };
+function handleModeLabel(mode) {
+  switch (mode) {
+    case "auto": return t("Auto Smooth");
+    case "aligned": return t("Aligned");
+    case "free": return t("Free");
+    case "corner": return t("Corner");
+    default: return mode;
+  }
+}
 
 // Smallest horizontal resolution a camera preview is rendered at.
 const MIN_PREVIEW_WIDTH = 220;
@@ -13,18 +23,18 @@ const MIN_PREVIEW_WIDTH = 220;
 // op is confined to that range (see simplifyActiveKeys).
 function keyOpsMenuItems(self, promptTextFn, appRef, timelineObjectFn) {
   const scope = self.selectedEntity === "object" && timelineObjectFn(self) ? "object" : "camera";
-  const suffix = (self.selectedKeyFrames?.size || 0) >= 2 ? " (selection)" : "";
+  const suffix = (self.selectedKeyFrames?.size || 0) >= 2 ? ` (${t("Selection")})` : "";
   return [
-    { label: `Simplify keys${suffix}`, icon: "pi-chart-line", help: "Drop keys that barely change the motion", run: () => self.simplifyActiveKeys({ mode: "simplify", tolerance: 0.35, scope }) },
+    { label: `${t("Simplify keys")}${suffix}`, icon: "pi-chart-line", help: t("Drop keys that barely change the motion"), run: () => self.simplifyActiveKeys({ mode: "simplify", tolerance: 0.35, scope }) },
     {
-      label: `Reduce keys…${suffix}`, icon: "pi-minus-circle", help: "Decimate down to a target key count",
+      label: `${t("Reduce keys…")}${suffix}`, icon: "pi-minus-circle", help: t("Decimate down to a target key count"),
       run: async () => {
-        const answer = await promptTextFn(appRef, "Reduce keys", "Target number of keys", "8");
+        const answer = await promptTextFn(appRef, t("Reduce keys"), t("Target number of keys"), "8");
         const target = Math.round(Number(answer));
         if (Number.isFinite(target) && target >= 2) self.simplifyActiveKeys({ mode: "reduce", target, scope });
       },
     },
-    { label: `Clean keys${suffix}`, icon: "pi-filter", help: "Remove duplicate, too-close and redundant keys", run: () => self.simplifyActiveKeys({ mode: "clean", scope }) },
+    { label: `${t("Clean keys")}${suffix}`, icon: "pi-filter", help: t("Remove duplicate, too-close and redundant keys"), run: () => self.simplifyActiveKeys({ mode: "clean", scope }) },
   ];
 }
 
@@ -213,6 +223,10 @@ export function createEditorMethods(dependencies) {
     // button popped up a menu at the release point -- something real Maya
     // never does; Alt always means navigation, never a menu request.
     if (event.altKey) return;
+    // The simple navigation profile binds a right-drag to panning the viewport,
+    // so the release must not raise a menu there. Every other context menu
+    // (scene tree, timeline, curve editor) is outside .viewport-wrap and stays.
+    if (this.state.navigation_profile === "simple" && event.target?.closest?.(".viewport-wrap")) return;
     const target = event.target, preview = target.closest?.(".camera-preview-tile"), sceneItem = target.closest?.(".scene-item"), keyElement = target.closest?.(".key");
     if (preview) return this.openCameraContext(event, preview.dataset.cameraId, !0);
     if (sceneItem?.dataset.cameraId) return this.openCameraContext(event, sceneItem.dataset.cameraId, !1);
@@ -268,24 +282,87 @@ export function createEditorMethods(dependencies) {
   },
   openViewportContext(event) {
     const object = this.selectedObject();
-    this.showContextMenu(event, "Viewport", [
-      { label: object ? `Set key · ${object.name || object.type}` : `Set key · ${this.activeCameraTrack().name}`, icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
-      { label: "Create camera from view", icon: "pi-video", run: () => this.addCamera() },
-      { label: "Set camera target here", icon: "pi-bullseye", help: "Set camera Look-At target to this 3D point in the scene", run: () => this.setTargetAtCursor(event) },
-      { label: "Frame subject", icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
+    this.showContextMenu(event, t("Viewport"), [
+      {
+        label: object ? `${t("Set key")} · ${object.name || object.type}` : `${t("Set key")} · ${this.activeCameraTrack().name}`,
+        icon: "pi-key",
+        shortcut: "I",
+        run: () => this.insertKeyframe(),
+      },
+      { label: t("Frame subject"), icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
+      { label: t("Set camera target here"), icon: "pi-bullseye", help: t("Set camera Look-At target to this 3D point in the scene"), run: () => this.setTargetAtCursor(event) },
       null,
-      { label: "Create card", icon: "pi-image", run: () => this.addPrimitive("card") },
-      { label: "Create cube", icon: "pi-stop", run: () => this.addPrimitive("cube") },
-      { label: "Create sphere", icon: "pi-circle", run: () => this.addPrimitive("sphere") },
-      { label: "Create cylinder", icon: "pi-database", run: () => this.addPrimitive("cylinder") },
-      { label: "Create torus", icon: "pi-circle", run: () => this.addPrimitive("torus") },
-      { label: "Create human proxy", icon: "pi-user", run: () => this.addPrimitive("human") },
-      { label: "Create null", icon: "pi-plus", run: () => this.addPrimitive("null") },
+      {
+        label: t("Add object"),
+        icon: "pi-plus-circle",
+        items: [
+          { label: t("Sphere"), icon: "pi-circle", run: () => this.addPrimitive("sphere") },
+          { label: t("Cube"), icon: "pi-stop", run: () => this.addPrimitive("cube") },
+          { label: t("Pyramide"), icon: "pi-caret-up", run: () => this.addPrimitive("pyramid") },
+          { label: t("Sun light"), icon: "pi-sun", run: () => this.addPrimitive("sun_light") },
+          { label: t("Point light"), icon: "pi-bolt", run: () => this.addPrimitive("point_light") },
+          { label: t("Spot light"), icon: "pi-forward", run: () => this.addPrimitive("spot_light") },
+          { label: t("Camera"), icon: "pi-video", run: () => this.addCamera() },
+          null,
+          {
+            label: t("Assets"),
+            icon: "pi-box",
+            items: [
+              { label: t("Card"), icon: "pi-image", run: () => this.addPrimitive("card") },
+              { label: t("Cylinder"), icon: "pi-database", run: () => this.addPrimitive("cylinder") },
+              { label: t("Torus"), icon: "pi-circle", run: () => this.addPrimitive("torus") },
+              { label: t("Human"), icon: "pi-user", run: () => this.addPrimitive("human") },
+              { label: t("Null"), icon: "pi-plus", run: () => this.addPrimitive("null") },
+              null,
+              { label: t("Import 3D Model (+)"), icon: "pi-upload", run: () => this.root.querySelector('[data-act="load-model"]')?.click() },
+            ],
+          },
+        ],
+      },
+      {
+        label: t("Selection"),
+        icon: "pi-check-square",
+        items: [
+          { label: t("Select all"), icon: "pi-check-square", shortcut: "Ctrl+A", run: () => this.selectAllObjects() },
+          { label: t("Deselect all"), icon: "pi-times", shortcut: "Alt+A", run: () => this.deselectAll() },
+          { label: t("Invert selection"), icon: "pi-sync", shortcut: "Ctrl+I", run: () => this.invertSelection() },
+          null,
+          {
+            label: t("Box selection tool"),
+            icon: "pi-stop",
+            shortcut: "B",
+            run: () => {
+              this.boxSelectMode = true;
+              if (this.interactionElement?.style) this.interactionElement.style.cursor = "crosshair";
+              this.setStatus(t("Box select mode (drag over objects in viewport)"));
+            },
+          },
+        ],
+      },
+      {
+        label: t("Camera & Views"),
+        icon: "pi-eye",
+        items: [
+          { label: t("Camera View (Active)"), icon: "pi-video", checked: this.state.view_mode === "camera", run: () => this.setViewMode("camera") },
+          { label: t("Perspective View"), icon: "pi-compass", checked: this.state.view_mode === "perspective", run: () => this.setViewMode("perspective") },
+          { label: t("Top"), icon: "pi-arrow-up", checked: this.state.view_mode === "top", run: () => this.setViewMode("top") },
+          { label: t("Front"), icon: "pi-arrow-circle-up", checked: this.state.view_mode === "front", run: () => this.setViewMode("front") },
+          { label: t("Right"), icon: "pi-arrow-right", checked: this.state.view_mode === "right", run: () => this.setViewMode("right") },
+          { label: t("ISO"), icon: "pi-box", checked: this.state.view_mode === "iso", run: () => this.setViewMode("iso") },
+          null,
+          { label: t("Show / hide camera previews"), icon: "pi-images", run: () => this.toggleCameraView() },
+        ],
+      },
       null,
-      { label: "Show / hide camera previews", icon: "pi-images", run: () => this.toggleCameraView() },
-      { label: "Record primary preview", icon: "pi-video", run: () => this.makePlayblast() },
-      null,
-      { label: "Clear caches & clean memory", icon: "pi-trash", run: () => this.clearCaches() }
+      {
+        label: t("Tools & Playblast"),
+        icon: "pi-cog",
+        items: [
+          { label: t("Record primary preview"), icon: "pi-video", run: () => this.makePlayblast() },
+          null,
+          { label: t("Clear caches & clean memory"), icon: "pi-trash", danger: true, run: () => this.clearCaches() },
+        ],
+      },
     ]);
   },
   openObjectContext(event, id) {
@@ -297,26 +374,95 @@ export function createEditorMethods(dependencies) {
     this.refreshKeys();
     this.refreshInspector();
     this.render();
+
+    const isLight = ["sun_light", "point_light", "spot_light"].includes(object.type);
+    const n = this.selectedObjectIds?.size || 0;
+
+    if (n >= 2 && this.selectedObjectIds.has(id)) {
+      this.showContextMenu(event, `${n} ${t("objects selected")}`, [
+        { label: t("Duplicate {count} objects").replace("{count}", String(n)), icon: "pi-copy", shortcut: "Shift+D", run: () => this.duplicateSelectedObjects() },
+        { label: t("Toggle visibility"), icon: "pi-eye", shortcut: "H", run: () => this.toggleSelectedObjects() },
+        { label: t("Toggle lock"), icon: "pi-lock", shortcut: "L", run: () => this.lockSelectedObjects() },
+        null,
+        {
+          label: t("Transform mode"),
+          icon: "pi-arrows-alt",
+          items: [
+            { label: t("Translate"), icon: "pi-arrows-alt", shortcut: "W", checked: (this.state.gizmo_mode || "translate") === "translate", run: () => this.setTransformMode("translate") },
+            { label: t("Rotate"), icon: "pi-refresh", shortcut: "E", checked: this.state.gizmo_mode === "rotate", run: () => this.setTransformMode("rotate") },
+            { label: t("Scale"), icon: "pi-expand", shortcut: "R", checked: this.state.gizmo_mode === "scale", run: () => this.setTransformMode("scale") },
+          ],
+        },
+        null,
+        {
+          label: t("Reset entire animation"),
+          icon: "pi-replay",
+          danger: true,
+          run: () => {
+            for (const objId of this.selectedObjectIds) this.resetObjectAnimation(objId);
+          },
+        },
+        { label: t("Delete {count} objects").replace("{count}", String(n)), icon: "pi-trash", danger: true, shortcut: "Del", run: () => this.deleteSelectedObjects() },
+        null,
+        { label: t("Deselect all"), icon: "pi-times", shortcut: "Alt+A", run: () => this.deselectAll() },
+      ]);
+      return;
+    }
+
     this.showContextMenu(event, object.name || object.type, [
-      { label: "Set key", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
-      { label: "Rename object…", icon: "pi-pencil", run: () => this.renameObject(id) },
-      { label: "Duplicate object", icon: "pi-copy", run: () => this.duplicateObject(id) },
-      { label: object.enabled === !1 ? "Show object" : "Hide object", icon: object.enabled === !1 ? "pi-eye" : "pi-eye-slash", run: () => this.toggleObject(id) },
+      { label: t("Set key"), icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
+      { label: t("Frame subject"), icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
+      { label: t("Rename object…"), icon: "pi-pencil", run: () => this.renameObject(id) },
+      { label: t("Duplicate object"), icon: "pi-copy", run: () => this.duplicateObject(id) },
+      { label: object.enabled === false ? t("Show object") : t("Hide object"), icon: object.enabled === false ? "pi-eye" : "pi-eye-slash", run: () => this.toggleObject(id) },
+      { label: object.locked ? t("Unlock object") : t("Lock object"), icon: object.locked ? "pi-lock" : "pi-lock-open", run: () => toggleObjectLock(this, object) },
       null,
-      { label: "Camera tracks this object (Look-At)", icon: "pi-bullseye", help: "Lock camera live look-at tracking to this moving object", run: () => this.aimAtSelectedObject(id) },
-      { label: "Bake tracking to all camera keys", icon: "pi-check-square", help: "Write this object's motion into camera target keyframes", run: () => this.bakeAimToKeyframes() },
-      { label: "Select hierarchy", icon: "pi-sitemap", shortcut: "Shift+G", help: "Select this object and all descendants", run: () => this.selectHierarchy(id) },
+      {
+        label: t("Transform mode"),
+        icon: "pi-arrows-alt",
+        items: [
+          { label: t("Translate"), icon: "pi-arrows-alt", shortcut: "W", checked: (this.state.gizmo_mode || "translate") === "translate", run: () => this.setTransformMode("translate") },
+          { label: t("Rotate"), icon: "pi-refresh", shortcut: "E", checked: this.state.gizmo_mode === "rotate", run: () => this.setTransformMode("rotate") },
+          { label: t("Scale"), icon: "pi-expand", shortcut: "R", disabled: isLight, checked: this.state.gizmo_mode === "scale", run: () => this.setTransformMode("scale") },
+        ],
+      },
+      {
+        label: t("Tracking & Constraints"),
+        icon: "pi-bullseye",
+        items: [
+          { label: t("Camera tracks this object (Look-At)"), icon: "pi-bullseye", help: t("Lock camera live look-at tracking to this moving object"), run: () => this.aimAtSelectedObject(id) },
+          { label: t("Bake tracking to all camera keys"), icon: "pi-check-square", help: t("Write this object's motion into camera target keyframes"), run: () => this.bakeAimToKeyframes() },
+          null,
+          { label: t("Select hierarchy"), icon: "pi-sitemap", shortcut: "Shift+G", help: t("Select this object and all descendants"), run: () => this.selectHierarchy(id) },
+        ],
+      },
+      ...(isLight ? [
+        {
+          label: t("Light"),
+          icon: "pi-sun",
+          items: [
+            {
+              label: t("Shadow"),
+              icon: "pi-circle-fill",
+              checked: object.cast_shadow !== false,
+              run: () => {
+                this.checkpoint("Toggle light shadow");
+                object.cast_shadow = object.cast_shadow === false;
+                this.serialize();
+                this.refreshInspector();
+                this.render();
+              },
+            },
+          ],
+        },
+      ] : []),
       null,
-      { label: "Translation gizmo", icon: "pi-arrows-alt", run: () => this.setTransformMode("translate") },
-      { label: "Rotation gizmo", icon: "pi-refresh", run: () => this.setTransformMode("rotate") },
-      { label: "Scale gizmo", icon: "pi-expand", run: () => this.setTransformMode("scale") },
+      { label: t("Reset entire animation"), icon: "pi-replay", danger: true, help: t("Delete every animation key and return position/rotation to zero"), run: () => this.resetObjectAnimation(id) },
       null,
-      { label: "Reset entire animation", icon: "pi-replay", help: "Delete every animation key and return position/rotation to zero", run: () => this.resetObjectAnimation(id) },
-      null,
-      { label: "Delete object", icon: "pi-trash", danger: !0, disabled: id === "subject", help: id === "subject" ? "The canonical subject card cannot be deleted" : "Delete this object and its animation keys", run: () => this.deleteObject(id) }
+      { label: t("Delete object"), icon: "pi-trash", danger: true, disabled: id === "subject", help: id === "subject" ? t("The canonical subject card cannot be deleted") : t("Delete this object and its animation keys"), run: () => this.deleteObject(id) },
     ]);
   },
-  openCameraContext(event, id, preview = !1) {
+  openCameraContext(event, id, preview = false) {
     const camera = this.state.cameras.find((item) => item.id === id);
     if (!camera) return;
     this.selectedEntity = "camera";
@@ -327,31 +473,39 @@ export function createEditorMethods(dependencies) {
     this.refreshInspector();
     this.render();
     this.showContextMenu(event, `${camera.name}${preview ? " preview" : ""}`, [
-      { label: "Edit this camera", icon: "pi-video", run: () => this.activateCamera(id) },
-      { label: "Select whole path — move / scale / rotate", icon: "pi-arrows-alt", disabled: (camera.keyframes || []).length < 1, run: () => {
-        this.activateCamera(id);
-        if (this.selectCameraPath()) this.setStatus(`${camera.name} · whole path selected — move / scale / rotate`);
-      } },
-      { label: "Set as primary / playblast", icon: "pi-star", disabled: id === this.state.playblast_camera_id, run: () => this.setPlayblastCamera(id) },
-      { label: "Set key at playhead", icon: "pi-key", shortcut: "I", run: () => {
-        this.activateCamera(id), this.insertKeyframe();
-      } },
-      { label: "Record this preview", icon: "pi-circle-fill", run: () => {
-        this.setPlayblastCamera(id), this.makePlayblast();
-      } },
-      { label: this.state.maximized_camera_id === id ? "Restore preview size" : "Maximize preview", icon: "pi-window-maximize", run: () => this.maximizeCameraPreview(id) },
+      { label: t("Edit this camera"), icon: "pi-video", run: () => this.activateCamera(id) },
+      {
+        label: t("Select whole path — move / scale / rotate"),
+        icon: "pi-arrows-alt",
+        disabled: (camera.keyframes || []).length < 1,
+        run: () => {
+          this.activateCamera(id);
+          if (this.selectCameraPath()) this.setStatus(`${camera.name} · ${t("whole path selected — move / scale / rotate")}`);
+        },
+      },
+      { label: t("Set as primary / playblast"), icon: "pi-star", disabled: id === this.state.playblast_camera_id, run: () => this.setPlayblastCamera(id) },
+      { label: t("Set key at playhead"), icon: "pi-key", shortcut: "I", run: () => { this.activateCamera(id); this.insertKeyframe(); } },
+      { label: t("Record this preview"), icon: "pi-circle-fill", run: () => { this.setPlayblastCamera(id); this.makePlayblast(); } },
+      { label: this.state.maximized_camera_id === id ? t("Restore preview size") : t("Maximize preview"), icon: "pi-window-maximize", run: () => this.maximizeCameraPreview(id) },
       null,
-      { label: "Shot: move earlier", icon: "pi-arrow-up", disabled: this.state.cameras.findIndex((item) => item.id === id) <= 0, run: () => this.moveShot(id, -1) },
-      { label: "Shot: move later", icon: "pi-arrow-down", disabled: this.state.cameras.findIndex((item) => item.id === id) >= this.state.cameras.length - 1, run: () => this.moveShot(id, 1) },
-      { label: "Shot handles…", icon: "pi-sliders-h", run: () => this.editShotHandles(id) },
+      {
+        label: t("Shot order & handles"),
+        icon: "pi-sliders-h",
+        items: [
+          { label: t("Shot: move earlier"), icon: "pi-arrow-up", disabled: this.state.cameras.findIndex((item) => item.id === id) <= 0, run: () => this.moveShot(id, -1) },
+          { label: t("Shot: move later"), icon: "pi-arrow-down", disabled: this.state.cameras.findIndex((item) => item.id === id) >= this.state.cameras.length - 1, run: () => this.moveShot(id, 1) },
+          null,
+          { label: t("Shot handles…"), icon: "pi-sliders-h", run: () => this.editShotHandles(id) },
+        ],
+      },
       null,
-      { label: "Rename camera…", icon: "pi-pencil", run: () => this.renameCamera(id) },
-      { label: "Duplicate camera", icon: "pi-copy", run: () => this.duplicateCamera(id) },
-      { label: "Create camera from current view", icon: "pi-plus", run: () => this.addCamera() },
+      { label: t("Rename camera…"), icon: "pi-pencil", run: () => this.renameCamera(id) },
+      { label: t("Duplicate camera"), icon: "pi-copy", run: () => this.duplicateCamera(id) },
+      { label: t("Create camera from current view"), icon: "pi-plus", run: () => this.addCamera() },
       null,
-      { label: "Reset entire animation", icon: "pi-replay", help: "Delete every camera key and return to a static zero pose at frame 0", run: () => this.resetCameraAnimation(id) },
+      { label: t("Reset entire animation"), icon: "pi-replay", danger: true, help: t("Delete every camera key and return to a static zero pose at frame 0"), run: () => this.resetCameraAnimation(id) },
       null,
-      { label: "Delete camera", icon: "pi-trash", danger: !0, disabled: this.state.cameras.length <= 1, run: () => this.deleteCamera(id) }
+      { label: t("Delete camera"), icon: "pi-trash", danger: true, disabled: this.state.cameras.length <= 1, run: () => this.deleteCamera(id) },
     ]);
   },
   openPathKeyContext(event, id, frame) {
@@ -367,22 +521,33 @@ export function createEditorMethods(dependencies) {
     this.refreshInspector();
     this.render();
     const current = key ? spatialHandleMode(key) : "auto";
+    const n = this.selectedKeyFrames?.size || 0;
     this.showContextMenu(event, `Path key F${frame}`, [
-      { label: "Set key at playhead", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
-      { label: "Frame subject", icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
+      { label: t("Set key at playhead"), icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
+      { label: t("Frame subject"), icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
       null,
-      ...SPATIAL_HANDLE_MODES.map((mode) => ({
-        label: `Handle Type: ${HANDLE_MODE_LABELS[mode]}`,
-        icon: current === mode ? "pi-check" : "pi-share-alt",
-        run: () => this.setSpatialHandleMode(mode),
-      })),
+      {
+        label: t("Handle Type"),
+        icon: "pi-share-alt",
+        items: SPATIAL_HANDLE_MODES.map((mode) => ({
+          label: handleModeLabel(mode),
+          checked: current === mode,
+          run: () => this.setSpatialHandleMode(mode),
+        })),
+      },
+      {
+        label: t("Keyframe operations"),
+        icon: "pi-sliders-v",
+        items: keyOpsMenuItems(this, promptText, app, timelineObject),
+      },
       null,
-      ...keyOpsMenuItems(this, promptText, app, timelineObject),
-      null,
-      (() => {
-        const n = this.selectedKeyFrames?.size || 0;
-        return { label: n >= 2 ? `Delete ${n} keys` : "Delete key", icon: "pi-trash", danger: !0, disabled: (camera.keyframes || []).length <= 1, run: () => this.deleteSelectedKeyframes() };
-      })(),
+      {
+        label: n >= 2 ? t("Delete {count} keys").replace("{count}", String(n)) : t("Delete key"),
+        icon: "pi-trash",
+        danger: true,
+        disabled: (camera.keyframes || []).length <= 1,
+        run: () => this.deleteSelectedKeyframes(),
+      },
     ]);
   },
   moveShot(id, delta) {
@@ -398,31 +563,73 @@ export function createEditorMethods(dependencies) {
     const camera = this.state.cameras.find((item) => item.id === id);
     if (!camera) return;
     const handles = camera.handles || { in: 0, out: 0 };
-    const value = await promptText(app, "Shot handles", "Handle frames: in,out", `${handles.in},${handles.out}`);
+    const value = await promptText(app, t("Shot handles…"), "Handle frames: in,out", `${handles.in},${handles.out}`);
     if (value === null || value === undefined) return;
     const match = String(value).match(/^\s*(\d+)\s*[,;\s]\s*(\d+)\s*$/);
     if (!match) return this.setStatus("Handles must be two integers: in,out");
     this.checkpoint("Shot handles"), camera.handles = { in: Math.min(600, Number(match[1])), out: Math.min(600, Number(match[2])) }, this.serialize(), this.setStatus(`${camera.name} handles: ${camera.handles.in} / ${camera.handles.out}`);
   },
   openTimelineContext(event, onKey) {
+    const n = this.selectedKeyFrames?.size || 0;
+    const key = this.selectedKeyframe();
+    const currentInterp = key?.interpolation || "ease";
+    const currentTangent = key ? (spatialHandleMode(key) || "auto") : "auto";
+    const interpModes = ["ease", "linear", "bezier", "smooth", "ease_in", "ease_out", "sine", "cubic", "quintic", "expo", "back"];
+    const tangentModes = ["auto", "clamped", "vector", "free", "aligned", "flat"];
+
     this.showContextMenu(event, onKey ? `Keyframe F${this.selectedKeyFrame}` : `Timeline F${this.frame}`, [
-      { label: "Fit timeline view (F)", icon: "pi-arrows-alt", shortcut: "F", run: () => resetTimelineZoom(this) },
-      { label: "Set / replace key", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
-      (() => {
-        const n = this.selectedKeyFrames?.size || 0;
-        return { label: n >= 2 ? `Delete ${n} keys` : "Delete selected key", icon: "pi-trash", shortcut: "Delete", danger: !0, disabled: n < 2 && !this.selectedKeyframe(), run: () => this.deleteSelectedKeyframes() };
-      })(),
-      { label: "Copy selected key", icon: "pi-copy", shortcut: "Ctrl+C", disabled: !this.selectedKeyframe(), run: () => this.copyKeyframe() },
-      { label: "Paste key at playhead", icon: "pi-clipboard", shortcut: "Ctrl+V", disabled: !this.copiedKeyframe, run: () => this.pasteKeyframe() },
+      { label: t("Fit timeline view (F)"), icon: "pi-arrows-alt", shortcut: "F", run: () => resetTimelineZoom(this) },
+      { label: t("Set / replace key"), icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
+      { label: t("Copy selected key"), icon: "pi-copy", shortcut: "Ctrl+C", disabled: !key, run: () => this.copyKeyframe() },
+      { label: t("Paste key at playhead"), icon: "pi-clipboard", shortcut: "Ctrl+V", disabled: !this.copiedKeyframe, run: () => this.pasteKeyframe() },
       null,
-      { label: "Previous key", icon: "pi-fast-backward", shortcut: ",", run: () => this.goToAdjacentKey(-1) },
-      { label: "Next key", icon: "pi-fast-forward", shortcut: ".", run: () => this.goToAdjacentKey(1) },
-      { label: this.state.auto_key ? "Disable Auto Key" : "Enable Auto Key", icon: "pi-circle-fill", run: () => this.toggleAutoKey() },
+      {
+        label: t("Interpolation"),
+        icon: "pi-chart-line",
+        disabled: !key && n < 2,
+        items: interpModes.map((mode) => ({
+          label: mode.replaceAll("_", " "),
+          checked: currentInterp === mode,
+          run: () => this.setSelectedKeysInterpolation(mode),
+        })),
+      },
+      {
+        label: t("Tangents"),
+        icon: "pi-share-alt",
+        disabled: !key && n < 2,
+        items: tangentModes.map((mode) => ({
+          label: mode[0].toUpperCase() + mode.slice(1),
+          checked: currentTangent === mode,
+          run: () => this.setSelectedKeysTangentMode(mode),
+        })),
+      },
+      {
+        label: t("Markers"),
+        icon: "pi-bookmark",
+        items: [
+          { label: t("Add marker at playhead"), icon: "pi-bookmark", run: () => this.addMarker() },
+          { label: t("Remove nearest marker"), icon: "pi-bookmark-fill", danger: true, disabled: !(this.state.markers || []).length, run: () => this.removeNearestMarker() },
+        ],
+      },
       null,
-      { label: "Add marker at playhead", icon: "pi-bookmark", run: () => this.addMarker() },
-      ...((this.state.markers || []).length ? [{ label: "Remove nearest marker", icon: "pi-bookmark-fill", danger: !0, run: () => this.removeNearestMarker() }] : []),
+      { label: t("Previous key"), icon: "pi-fast-backward", shortcut: ",", run: () => this.goToAdjacentKey(-1) },
+      { label: t("Next key"), icon: "pi-fast-forward", shortcut: ".", run: () => this.goToAdjacentKey(1) },
+      { label: this.state.auto_key ? t("Disable Auto Key") : t("Enable Auto Key"), icon: "pi-circle-fill", checked: Boolean(this.state.auto_key), run: () => this.toggleAutoKey() },
       null,
-      ...keyOpsMenuItems(this, promptText, app, timelineObject),
+      {
+        label: t("Keyframe operations"),
+        icon: "pi-sliders-v",
+        items: keyOpsMenuItems(this, promptText, app, timelineObject),
+      },
+      null,
+      {
+        label: n >= 2 ? t("Delete {count} keys").replace("{count}", String(n)) : t("Delete selected key"),
+        icon: "pi-trash",
+        shortcut: "Delete",
+        danger: true,
+        disabled: n < 2 && !key,
+        run: () => this.deleteSelectedKeyframes(),
+      },
     ]);
   },
   addMarker() {
@@ -438,20 +645,46 @@ export function createEditorMethods(dependencies) {
   },
   openCurveContext(event) {
     const n = this.selectedKeyFrames?.size || 0;
-    const many = n >= 2 ? ` (${n} keys)` : "";
     const disabled = n < 2 && !this.selectedKeyframe();
-    this.showContextMenu(event, "Curve editor", [
-      { label: "Fit all curves (Framing)", icon: "pi-arrows-alt", shortcut: "F", run: () => resetCurveZoom(this) },
-      { label: "Set key at playhead", icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
-      { label: this.showCurveHandles ? "Hide Bézier handles" : "Show Bézier handles", icon: "pi-share-alt", run: () => this.toggleCurveHandles() },
+    const key = this.selectedKeyframe();
+    const currentInterp = key?.interpolation || "ease";
+    const currentTangent = key ? (spatialHandleMode(key) || "auto") : "auto";
+    const interpModes = ["bezier", "smooth", "linear", "ease_in", "ease_out", "ease", "sine", "cubic", "quintic", "expo", "back"];
+    const tangentModes = ["auto", "clamped", "vector", "free", "aligned", "flat"];
+
+    this.showContextMenu(event, t("Curve editor"), [
+      { label: t("Fit all curves (Framing)"), icon: "pi-arrows-alt", shortcut: "F", run: () => resetCurveZoom(this) },
+      { label: t("Set key at playhead"), icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
+      { label: this.showCurveHandles ? t("Hide Bézier handles") : t("Show Bézier handles"), icon: "pi-share-alt", run: () => this.toggleCurveHandles() },
       null,
-      ...["bezier", "smooth", "linear", "ease_in", "ease_out", "ease", "sine", "cubic", "quintic", "expo", "back"].map((mode) => ({ label: `Interpolation${many}: ${mode.replaceAll("_", " ")}`, icon: "pi-chart-line", disabled, run: () => this.setSelectedKeysInterpolation(mode) })),
+      {
+        label: t("Interpolation"),
+        icon: "pi-chart-line",
+        disabled,
+        items: interpModes.map((mode) => ({
+          label: mode.replaceAll("_", " "),
+          checked: currentInterp === mode,
+          run: () => this.setSelectedKeysInterpolation(mode),
+        })),
+      },
+      {
+        label: t("Tangents"),
+        icon: "pi-share-alt",
+        disabled,
+        items: tangentModes.map((mode) => ({
+          label: mode[0].toUpperCase() + mode.slice(1),
+          checked: currentTangent === mode,
+          run: () => this.setSelectedKeysTangentMode(mode),
+        })),
+      },
       null,
-      ...["auto", "clamped", "vector", "free", "aligned", "flat"].map((mode) => ({ label: `Tangents${many}: ${mode[0].toUpperCase()}${mode.slice(1)}`, icon: "pi-share-alt", disabled, run: () => this.setSelectedKeysTangentMode(mode) })),
+      {
+        label: t("Keyframe operations"),
+        icon: "pi-sliders-v",
+        items: keyOpsMenuItems(this, promptText, app, timelineObject),
+      },
       null,
-      ...keyOpsMenuItems(this, promptText, app, timelineObject),
-      null,
-      { label: n >= 2 ? `Delete ${n} keys` : "Delete selected key", icon: "pi-trash", danger: !0, disabled, run: () => this.deleteSelectedKeyframes() }
+      { label: n >= 2 ? t("Delete {count} keys").replace("{count}", String(n)) : t("Delete selected key"), icon: "pi-trash", danger: true, disabled, run: () => this.deleteSelectedKeyframes() },
     ]);
   },
   scheduleResizeAndRender() {

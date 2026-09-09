@@ -25,13 +25,23 @@ function setDiff(left, right) {
   };
 }
 
+function normalizeModuleId(id) {
+  if (!id) return null;
+
+  const clean = String(id).split("?")[0].replaceAll("\\", "/");
+  if (clean.endsWith("/scripts/app.js")) return "comfyui:scripts/app.js";
+  if (clean.endsWith("/scripts/api.js")) return "comfyui:scripts/api.js";
+
+  return clean;
+}
+
 function normalizeModuleList(values = []) {
-  return uniqueSorted(values.map((value) => String(value).replaceAll("\\", "/")));
+  return uniqueSorted(values.map(normalizeModuleId));
 }
 
 function normalizeChunk(chunk) {
   const facadeModuleId = chunk.facadeModuleId ?? chunk.facade ?? null;
-  const normalizedFacade = facadeModuleId ? String(facadeModuleId).replaceAll("\\", "/") : null;
+  const normalizedFacade = normalizeModuleId(facadeModuleId);
   const name = chunk.name ? String(chunk.name) : "anonymous";
   const kind = chunk.isEntry ? "entry" : chunk.isDynamicEntry ? "lazy" : "chunk";
   const id = chunk.logicalId ? String(chunk.logicalId) : `${kind}:${normalizedFacade || name}`;

@@ -24,10 +24,21 @@ import { length, sub } from "../director/core.js";
 // marquee declines Ctrl (multi-select is Ctrl+*click*, which still picks),
 // which is what leaves that drag free. Alt+right stays Maya-only, since
 // Blender binds no camera gesture to the secondary button.
+//
+// The "simple" profile is the mouse-only fallback: a bare left drag orbits, a
+// bare right drag pans, the wheel dollies (as it does everywhere), and nothing
+// needs a modifier or the middle button. Bare left is still deferred to
+// navigationGesture -- exactly like the Ctrl fallback -- so a stationary click
+// reaches the picker and can still select. All the modified Maya/Blender
+// bindings stay live underneath it for anyone who wants them.
 const ORBIT = "orbit", PAN = "pan", DOLLY = "dolly";
 
-function gestureMode(profile, event, { includeCtrlFallback }) {
+function gestureMode(profile, event, { includeCtrlFallback, includeSimpleLeft = includeCtrlFallback }) {
   const ctrl = Boolean(event.ctrlKey || event.metaKey);
+  if (profile === "simple" && !event.altKey && !ctrl && !event.shiftKey) {
+    if (event.button === 2) return PAN;
+    if (event.button === 0) return includeSimpleLeft ? ORBIT : null;
+  }
   if (event.button === 1) {
     if (ctrl) return DOLLY;
     // Alt+middle is Maya's track gesture and must stay a pan; plain middle is
@@ -57,7 +68,7 @@ function gestureMode(profile, event, { includeCtrlFallback }) {
  * the same substitution Maya's own orthographic views make.
  */
 export function navigationGesture(ui, event, camera) {
-  const profile = ui.state.navigation_profile === "blender" ? "blender" : "maya";
+  const profile = navigationProfile(ui);
   const mode = gestureMode(profile, event, { includeCtrlFallback: true });
   if (mode === ORBIT && camera?.camera_type === "orthographic") return PAN;
   return mode;
@@ -74,8 +85,13 @@ export function navigationGesture(ui, event, camera) {
  */
 export function isNavigationGesture(ui, event) {
   if (ui.isNavigatingFly) return true;
-  const profile = ui.state.navigation_profile === "blender" ? "blender" : "maya";
-  return gestureMode(profile, event, { includeCtrlFallback: false }) !== null;
+  return gestureMode(navigationProfile(ui), event, { includeCtrlFallback: false }) !== null;
+}
+
+const PROFILES = ["maya", "blender", "simple"];
+export function navigationProfile(ui) {
+  const profile = ui.state?.navigation_profile;
+  return PROFILES.includes(profile) ? profile : "maya";
 }
 
 export function wheelPixels(event, height) {

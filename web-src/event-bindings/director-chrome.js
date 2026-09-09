@@ -307,6 +307,20 @@ function bindShotPanelStepNav(ui, signal) {
   }
 }
 
+function bindOutlinerBatchActions(ui, signal) {
+  const bar = ui.root.querySelector('[data-role="outliner-batch-bar"]');
+  if (!bar) return;
+  bar.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    if (btn.dataset.act === "batch-toggle-visibility") ui.toggleSelectedObjects?.();
+    else if (btn.dataset.act === "batch-toggle-lock") ui.lockSelectedObjects?.();
+    else if (btn.dataset.act === "batch-duplicate") ui.duplicateSelectedObjects?.();
+    else if (btn.dataset.act === "batch-delete") ui.deleteSelectedObjects?.();
+    else if (btn.dataset.act === "batch-deselect") ui.deselectAll?.();
+  }, { signal });
+}
+
 export function bindDirectorChrome(ui, signal) {
   bindCameraExchange(ui, signal);
   bindLensCard(ui, signal);
@@ -314,6 +328,7 @@ export function bindDirectorChrome(ui, signal) {
   bindKeySimplify(ui, signal);
   bindOutlinerSearch(ui, signal);
   bindOutlinerFilterChips(ui, signal);
+  bindOutlinerBatchActions(ui, signal);
   bindShotPanelStepNav(ui, signal);
   setupAxisScrubbing(ui, signal);
   setupAxisResetButtons(ui, signal);

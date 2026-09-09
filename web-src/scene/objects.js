@@ -40,12 +40,20 @@ export function addPrimitive(ui, type) {
   const isCard = type === "card";
   const isCylinder = type === "cylinder";
   const isTorus = type === "torus";
+  const isPyramid = type === "pyramid";
+  const isSunLight = type === "sun_light";
+  const isPointLight = type === "point_light";
+  const isSpotLight = type === "spot_light";
 
   let name;
   if (isHuman) name = t("Human Proxy");
   else if (isCard) name = t("Card");
   else if (isCylinder) name = t("Cylinder");
   else if (isTorus) name = t("Torus");
+  else if (isPyramid) name = t("Pyramide");
+  else if (isSunLight) name = t("Sun light");
+  else if (isPointLight) name = t("Point light");
+  else if (isSpotLight) name = t("Spot light");
   else name = type[0].toUpperCase() + type.slice(1);
 
   let size;
@@ -54,14 +62,48 @@ export function addPrimitive(ui, type) {
   else if (isCard) size = [2, 3];
   else size = [1.5, 1.5, 1.5];
 
+  let position = [0, 0, 0];
+  let rotation = [0, 0, 0];
+  let color = "#8c929b";
+  let intensity;
+  let cast_shadow;
+  let cone_angle;
+  let penumbra;
+
+  if (isSunLight) {
+    position = [5.0, 8.5, 4.0];
+    rotation = [-55, 35, 0];
+    color = "#fff6ec";
+    intensity = 2.2;
+    cast_shadow = true;
+  } else if (isPointLight) {
+    position = [0, 3, 0];
+    color = "#ffffff";
+    intensity = 2.0;
+    cast_shadow = false;
+  } else if (isSpotLight) {
+    position = [0, 4, 0];
+    rotation = [-60, 0, 0];
+    color = "#ffffff";
+    intensity = 3.0;
+    cone_angle = 45;
+    penumbra = 0.25;
+    cast_shadow = true;
+  }
+
   const object = {
     id,
     type,
     name,
-    position: [0, 0, 0],
-    rotation: [0, 0, 0],
+    position,
+    rotation,
     size,
+    color,
     material_mode: ground ? "checker" : "textured",
+    ...(intensity !== undefined ? { intensity } : {}),
+    ...(cast_shadow !== undefined ? { cast_shadow } : {}),
+    ...(cone_angle !== undefined ? { cone_angle } : {}),
+    ...(penumbra !== undefined ? { penumbra } : {}),
     keyframes: [],
     enabled: true,
   };
@@ -343,6 +385,9 @@ export function refreshInspector(ui) {
   for (const el of ui.root.querySelectorAll('[data-role="object-color"]')) {
     if (document.activeElement !== el) el.value = object.color || "#8c929b";
   }
+  for (const el of ui.root.querySelectorAll('[data-role="object-light-color"]')) {
+    if (document.activeElement !== el) el.value = object.color || "#ffffff";
+  }
   for (const button of ui.root.querySelectorAll("[data-transform-mode]")) button.classList.toggle("active", button.dataset.transformMode === (ui.state.gizmo_mode || "translate"));
   const animationRow = q('[data-role="animation-row"]');
   const animationSelect = q('[data-role="animation-select"]');
@@ -367,6 +412,34 @@ export function refreshInspector(ui) {
       ...candidates.map((candidate) => optionEl(candidate.id, candidate.name || candidate.type)),
     ], object.parent_id || "");
   }
+  const isLight = ["sun_light", "point_light", "spot_light"].includes(object.type);
+  const isSpot = object.type === "spot_light";
+  const lightRow = q('[data-role="light-props-row"]');
+  if (lightRow) lightRow.hidden = !isLight;
+  const spotRow = q('[data-role="spot-props-row"]');
+  if (spotRow) spotRow.hidden = !isSpot;
+  const matRow = q('[data-role="material-row"]');
+  if (matRow) matRow.hidden = isLight;
+  const scaleRow = q('[data-role="scale-row"]');
+  if (scaleRow) scaleRow.hidden = isLight;
+  const rotRow = q('[data-role="rotation-row"]');
+  if (rotRow) rotRow.hidden = object.type === "point_light";
+
+  if (isLight) {
+    const intensityEl = q('[data-role="object-intensity"]');
+    if (intensityEl && document.activeElement !== intensityEl) {
+      intensityEl.value = String(object.intensity ?? (object.type === "sun_light" ? 2.2 : object.type === "spot_light" ? 3.0 : 2.0));
+    }
+    const shadowEl = q('[data-role="object-cast-shadow"]');
+    if (shadowEl) shadowEl.checked = object.cast_shadow !== false;
+    if (isSpot) {
+      const coneEl = q('[data-role="object-cone-angle"]');
+      if (coneEl && document.activeElement !== coneEl) coneEl.value = String(object.cone_angle ?? 45);
+      const penumbraEl = q('[data-role="object-penumbra"]');
+      if (penumbraEl && document.activeElement !== penumbraEl) penumbraEl.value = String(object.penumbra ?? 0.25);
+    }
+  }
+
   const model = ui.modelInfoById.get(object.id);
   if (animationRow) animationRow.hidden = !model?.animations;
   if (animationSelect) {
@@ -398,6 +471,26 @@ export function updateSelectedObject(ui) {
   object.position = [read("object-x", pos[0]), read("object-y", pos[1]), read("object-z", pos[2])];
   object.rotation = [read("object-rx", rot[0]), read("object-ry", rot[1]), read("object-rz", rot[2])];
   object.size = [Math.max(0.01, read("object-sx", sz[0])), Math.max(0.01, read("object-sy", sz[1])), Math.max(0.01, read("object-sz", sz[2]))];
+  if (["sun_light", "point_light", "spot_light"].includes(object.type)) {
+    const intensityInput = ui.root.querySelector('[data-role="object-intensity"]');
+    if (intensityInput && intensityInput.value !== "") {
+      object.intensity = Math.max(0, Number(intensityInput.value) || 0);
+    }
+    const shadowInput = ui.root.querySelector('[data-role="object-cast-shadow"]');
+    if (shadowInput) {
+      object.cast_shadow = shadowInput.checked;
+    }
+    if (object.type === "spot_light") {
+      const coneInput = ui.root.querySelector('[data-role="object-cone-angle"]');
+      if (coneInput && coneInput.value !== "") {
+        object.cone_angle = clamp(Number(coneInput.value) || 45, 1, 90);
+      }
+      const penumbraInput = ui.root.querySelector('[data-role="object-penumbra"]');
+      if (penumbraInput && penumbraInput.value !== "") {
+        object.penumbra = clamp(Number(penumbraInput.value) || 0.25, 0, 1);
+      }
+    }
+  }
   ui.commitObjectEdit(object);
   ui.refreshObjects();
   ui.render();

@@ -15,6 +15,9 @@ export function createRenderMethods(dependencies) {
       setStudioEnabled(THREE, this.scene, this.renderer, this.studio, wantStudio);
       for (const light of this.flatLights || []) light.visible = !wantStudio;
     }
+    const hasSunLight = Boolean(state.objects?.some((o) => o.type === "sun_light" && o.enabled !== false));
+    if (this.studio?.key) this.studio.key.visible = !hasSunLight && wantStudio;
+    if (this.flatLights?.[1]) this.flatLights[1].visible = !hasSunLight && !wantStudio;
     if (this.disposed) return;
     if (this.canvas.width !== width || this.canvas.height !== height) this.renderer.setSize(width, height, false);
 
@@ -225,16 +228,20 @@ export function createRenderMethods(dependencies) {
     // Ortho views fall back to the plain render + the box helper from
     // updateSelection().
     let outlined = false;
-    if (!cleanCapture && !orthographic && selectedEntity === "object" && selectedObjectId && !subSelection) {
-      const node = this.objectNodes.get(selectedObjectId);
-      if (node && hasOutlineMesh(node)) {
+    if (!cleanCapture && !orthographic && selectedEntity === "object" && (selectedObjectId || state.__selectedObjectIds?.length) && !subSelection) {
+      const selectedIds = state.__selectedObjectIds?.length
+        ? state.__selectedObjectIds
+        : (selectedObjectId ? [selectedObjectId] : []);
+      const nodes = [];
+      for (const id of selectedIds) {
+        const node = this.objectNodes.get(id);
+        if (node && hasOutlineMesh(node)) nodes.push(node);
+      }
+      if (nodes.length) {
         if (!this.outlineRenderer) {
           this.outlineRenderer = new SelectionOutlineRenderer(this.renderer, this.scene, undefined, camera);
         }
-        // The outline pass modifies the object material temporarily, so we need to pass an array of the selected objects.
-        // OutlinePass expects a flat array of meshes, but we can pass the root node and it might handle it or we pass the meshes.
-        // Wait, OutlinePass handles traversing Object3D. We just pass `[node]`.
-        this.outlineRenderer.render(camera, width, height, [node]);
+        this.outlineRenderer.render(camera, width, height, nodes);
         outlined = true;
       }
     }

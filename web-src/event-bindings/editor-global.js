@@ -13,10 +13,16 @@ import { renderChannelList } from "../curve-editor/channel-list.js";
 import { renderGraphDopeSheet } from "../curve-editor/dope-view.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import {
+  handleMinimapPointerDown,
+  handleMinimapPointerMove,
+  handleMinimapPointerUp,
+  handleMinimapWheel,
+} from "../viewport/minimap.js";
 import { t } from "../i18n.js";
 
 export function bindEditorAndGlobal(ui, q, signal) {
-  for (const role of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz"]) {
+  for (const role of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz", "object-intensity", "object-cone-angle", "object-penumbra", "object-cast-shadow"]) {
     for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
       input.addEventListener("input", () => ui.updateSelectedObject(), { signal });
       input.addEventListener("change", () => ui.updateSelectedObject(), { signal });
@@ -145,7 +151,7 @@ export function bindEditorAndGlobal(ui, q, signal) {
   }
   for (const el of ui.root.querySelectorAll('[data-role="navigation-profile"]')) {
     el.addEventListener("change", (event) => {
-      ui.state.navigation_profile = event.target.value === "blender" ? "blender" : "maya";
+      ui.state.navigation_profile = ["blender", "simple"].includes(event.target.value) ? event.target.value : "maya";
       ui.scheduleSerialize(); ui.setStatus(`Navigation: ${ui.state.navigation_profile}`);
     }, { signal });
   }
@@ -229,8 +235,17 @@ export function bindEditorAndGlobal(ui, q, signal) {
       ui.editingKeyFrame = null;
       for (const row of ui.root.querySelectorAll(".scene-item")) {
         const selected = Boolean(row.dataset.objectId && ui.selectedObjectIds.has(row.dataset.objectId));
+        const primary = Boolean(row.dataset.objectId && row.dataset.objectId === ui.selectedObjectId);
         row.classList.toggle("selected", selected);
+        row.classList.toggle("primary", primary);
         row.setAttribute("aria-selected", String(selected));
+      }
+      const batchBar = ui.root.querySelector('[data-role="outliner-batch-bar"]');
+      if (batchBar) {
+        const count = ui.selectedObjectIds?.size || 0;
+        batchBar.hidden = count < 2;
+        const badge = batchBar.querySelector('[data-role="batch-count"]');
+        if (badge) badge.textContent = `${count} ${t("selected")}`;
       }
       ui.refreshKeys();
       ui.refreshInspector();
@@ -267,13 +282,40 @@ export function bindEditorAndGlobal(ui, q, signal) {
   // Let row-specific object/camera handlers run first; the root bubble handler
   // remains the fallback for the canvas, timeline and empty viewport areas.
   ui.root.addEventListener("contextmenu", (event) => ui.onContextMenu(event), { signal });
-  ui.interactionElement?.addEventListener("pointerdown", (event) => ui.onPointerDown(event), { signal });
-  ui.interactionElement?.addEventListener("pointermove", (event) => ui.onPointerMove(event), { signal });
-  ui.interactionElement?.addEventListener("pointerup", (event) => ui.onPointerUp(event), { signal });
-  ui.interactionElement?.addEventListener("pointercancel", (event) => ui.onPointerUp(event), { signal });
-  ui.interactionElement?.addEventListener("lostpointercapture", (event) => ui.onPointerUp(event), { signal });
+  ui.interactionElement?.addEventListener("pointerdown", (event) => {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const py = ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (handleMinimapPointerDown(ui, event, px, py)) return;
+    ui.onPointerDown(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("pointermove", (event) => {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const py = ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (handleMinimapPointerMove(ui, event, px, py)) return;
+    ui.onPointerMove(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("pointerup", (event) => {
+    if (handleMinimapPointerUp(ui, event)) return;
+    ui.onPointerUp(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("pointercancel", (event) => {
+    handleMinimapPointerUp(ui, event);
+    ui.onPointerUp(event);
+  }, { signal });
+  ui.interactionElement?.addEventListener("lostpointercapture", (event) => {
+    handleMinimapPointerUp(ui, event);
+    ui.onPointerUp(event);
+  }, { signal });
   ui.interactionElement?.addEventListener("dblclick", (event) => ui.setTargetAtCursor(event), { signal });
-  ui.interactionElement?.addEventListener("wheel", (event) => ui.onWheel(event), { passive: false, signal });
+  ui.interactionElement?.addEventListener("wheel", (event) => {
+    const rect = ui.interactionElement.getBoundingClientRect();
+    const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
+    const py = ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height);
+    if (handleMinimapWheel(ui, event, px, py)) return;
+    ui.onWheel(event);
+  }, { passive: false, signal });
   // Mouse wheel over a scrollable panel inside the node (the side-panel body,
   // long lists, the help sheet) must scroll that panel -- not fall through to
   // LiteGraph and zoom the graph canvas behind the node.

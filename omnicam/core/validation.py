@@ -32,7 +32,7 @@ INTERPOLATION_MODES = frozenset({
 # from a pretty reference, which is exactly what the proxy exists to avoid.
 RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "textured", "grid", "point_field", "wireframe", "wireframe_texture", "beauty"})
 CAMERA_TYPES = frozenset({"perspective", "orthographic"})
-OBJECT_TYPES = frozenset({"card", "cube", "sphere", "cylinder", "torus", "human", "null", "ground", "model", "glb"})
+OBJECT_TYPES = frozenset({"card", "cube", "sphere", "cylinder", "torus", "human", "null", "ground", "model", "glb", "pyramid", "sun_light", "point_light", "spot_light"})
 MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe", "wireframe_texture", "wireframe_neutral", "matte"})
 PROJECTION_MODES = CAMERA_TYPES
 TANGENT_MODES = frozenset({"auto", "clamped", "vector", "free", "aligned", "flat"})
@@ -275,6 +275,16 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
                 for axis, value in axis_confidence.items()
             }
         obj["reconstruction"] = recon_dict
+    if "intensity" in obj:
+        obj["intensity"] = clamp_number(obj["intensity"], 0.0, 1000.0, f"{path}.intensity")
+    if "color" in obj:
+        obj["color"] = str(obj["color"])[:32]
+    if "cast_shadow" in obj:
+        obj["cast_shadow"] = bool(obj["cast_shadow"])
+    if "cone_angle" in obj:
+        obj["cone_angle"] = clamp_number(obj["cone_angle"], 1.0, 90.0, f"{path}.cone_angle")
+    if "penumbra" in obj:
+        obj["penumbra"] = clamp_number(obj["penumbra"], 0.0, 1.0, f"{path}.penumbra")
     return obj
 
 

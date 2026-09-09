@@ -35,6 +35,7 @@ export function headerMarkup() {
             <div class="menu-divider"></div>
             <div class="menu-title">${t("Maintenance")}</div>
             <button data-act="clear-caches" title="${t("Clear WebGL textures, temporary files and memory caches")}"><i class="pi pi-trash"></i> ${t("Clear Caches & Clean")}</button>
+            <button data-act="open-preferences" title="${t("Configure OmniCam preferences")}"><span aria-hidden="true">🔘</span> ${t("Preferences…")}</button>
           </div>
           <div class="menu-divider"></div>
           <div class="setup-badge" data-role="setup-badge" hidden></div>

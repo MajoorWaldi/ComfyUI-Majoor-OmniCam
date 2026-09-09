@@ -140,3 +140,42 @@ test("strict comparison fails when public entrypoints differ", () => {
   assert.equal(result.status, 1);
   assert.equal(result.report.entrypoint_delta, 1);
 });
+
+test("comparison canonicalizes ComfyUI app and API script module ids", () => {
+  const dir = mkdtempSync(join(tmpdir(), "omnicam-vite-graph-"));
+  const linux = writeReport(dir, "linux", {
+    module_count: 2,
+    modules: ["../../scripts/app.js", "../../scripts/api.js"],
+    chunks: [
+      {
+        name: "omnicam",
+        facadeModuleId: "web-src/main.js",
+        isEntry: true,
+        isDynamicEntry: false,
+        dynamicImports: ["../../scripts/app.js"],
+        modules: ["../../scripts/app.js", "../../scripts/api.js"],
+      },
+    ],
+  });
+  const windows = writeReport(dir, "windows", {
+    module_count: 2,
+    modules: ["..\\..\\scripts\\app.js", "C:\\ComfyUI\\scripts\\api.js"],
+    chunks: [
+      {
+        name: "omnicam",
+        facadeModuleId: "web-src/main.js",
+        isEntry: true,
+        isDynamicEntry: false,
+        dynamicImports: ["D:\\ComfyUI\\scripts\\app.js"],
+        modules: ["C:\\ComfyUI\\scripts\\app.js", "..\\..\\scripts\\api.js"],
+      },
+    ],
+  });
+
+  const result = compare(linux, windows);
+
+  assert.equal(result.status, 0);
+  assert.equal(result.report.delta, 0);
+  assert.deepEqual(result.report.only_left, []);
+  assert.deepEqual(result.report.only_right, []);
+});

@@ -202,7 +202,7 @@ jobs:
       - run: python scripts/verify_package.py
       - name: Pack and inspect the Registry archive
         run: |
-          pip install comfy-cli
+          pip install comfy-cli==1.20.0
           comfy --skip-prompt --no-enable-telemetry node pack
           python - <<'PY'
           import zipfile

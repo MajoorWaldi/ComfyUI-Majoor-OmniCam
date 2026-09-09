@@ -23,6 +23,7 @@ export const SETTING_HEIGHT = "MajoorOmniCam.Defaults.Height";
 export const SETTING_RENDER_MODE = "MajoorOmniCam.Defaults.RenderMode";
 export const SETTING_ENCODER = "MajoorOmniCam.Defaults.Encoder";
 export const SETTING_PLAYBLAST_RESOLUTION = "MajoorOmniCam.Defaults.PlayblastResolution";
+export const SETTING_PLAYBLAST_QUALITY = "MajoorOmniCam.Playblast.Quality";
 export const SETTING_PLAYBLAST_GRID = "MajoorOmniCam.Defaults.PlayblastGrid";
 
 // Proxy look
@@ -63,12 +64,20 @@ export const SETTING_SNAP_GRID_SIZE = "MajoorOmniCam.Tools.SpatialGridSize";
 // Navigation
 export const SETTING_NAVIGATION_PROFILE = "MajoorOmniCam.Navigation.Profile";
 export const SETTING_FLY_SPEED = "MajoorOmniCam.Navigation.FlySpeed";
+export const SETTING_INVERT_ORBIT_Y = "MajoorOmniCam.Navigation.InvertOrbitY";
+export const SETTING_ZOOM_SENSITIVITY = "MajoorOmniCam.Navigation.ZoomSensitivity";
+export const SETTING_ORBIT_SENSITIVITY = "MajoorOmniCam.Navigation.OrbitSensitivity";
+export const SETTING_PAN_SENSITIVITY = "MajoorOmniCam.Navigation.PanSensitivity";
+export const SETTING_DOLLY_SENSITIVITY = "MajoorOmniCam.Navigation.DollySensitivity";
 export const SETTING_VIEW_MODE = "MajoorOmniCam.Navigation.ViewMode";
+
+export const SETTING_ENABLE_SHORTCUTS = "MajoorOmniCam.Controls.EnableShortcuts";
 
 // Timeline
 export const SETTING_SNAP_ENABLED = "MajoorOmniCam.Timeline.SnapEnabled";
 export const SETTING_SNAP_FRAMES = "MajoorOmniCam.Timeline.SnapFrames";
 export const SETTING_AUTO_KEY = "MajoorOmniCam.Timeline.AutoKey";
+export const SETTING_DEFAULT_INTERP = "MajoorOmniCam.Timeline.DefaultInterpolation";
 export const SETTING_TIMECODE_MODE = "MajoorOmniCam.Timeline.TimecodeMode";
 export const SETTING_LOOP_PLAYBACK = "MajoorOmniCam.Timeline.LoopPlayback";
 
@@ -78,6 +87,10 @@ export const SETTING_PREVIEW_LAYOUT = "MajoorOmniCam.Interface.PreviewLayout";
 export const SETTING_CAMERA_VIEW_VISIBLE = "MajoorOmniCam.Interface.CameraPreviews";
 
 export const SETTING_UNDO_LIMIT = "MajoorOmniCam.History.Limit";
+
+// Extractor & Monitor defaults
+export const SETTING_EXTRACTOR_BACKEND = "MajoorOmniCam.Extractor.DefaultBackend";
+export const SETTING_MONITOR_PROFILE = "MajoorOmniCam.Monitor.DefaultProfile";
 
 /** Shorthand for the many on/off preferences, which are otherwise identical. */
 function toggle(id, group, name, tooltip, defaultValue) {
@@ -92,12 +105,22 @@ function slider(id, group, name, tooltip, attrs, defaultValue) {
   return { id, category: [...CATEGORY, group], name, tooltip, type: "slider", attrs, defaultValue };
 }
 
-/**
- * @param {object} handlers - `onLocaleChange` and `onQualityChange` are injected
- *   rather than imported, so this data module never depends on the runtime that
- *   consumes it.
- */
-export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdaptiveChange } = {}) {
+export function buildOmniCamSettings({
+  onLocaleChange,
+  onQualityChange,
+  onAdaptiveChange,
+  onNavigationProfileChange,
+  onUiDensityChange,
+  onUndoLimitChange,
+  onBgColorChange,
+  onFlySpeedChange,
+  onInvertOrbitYChange,
+  onZoomSensitivityChange,
+  onOrbitSensitivityChange,
+  onPanSensitivityChange,
+  onDollySensitivityChange,
+  onCameraViewVisibleChange,
+} = {}) {
   return [
     {
       id: SETTING_LOCALE,
@@ -137,6 +160,12 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdapti
         { text: "Match node output", value: "output" },
         { text: "2x node output (sharp)", value: "double" },
       ], "viewport"),
+    choice(SETTING_PLAYBLAST_QUALITY, "Defaults", "Default playblast quality",
+      "Encoder quality target for newly created Director playblasts.", [
+        { text: "Low (smaller file)", value: "low" },
+        { text: "Balanced", value: "balanced" },
+        { text: "High", value: "high" },
+      ], "balanced"),
     toggle(SETTING_PLAYBLAST_GRID, "Defaults", "Keep the grid in the playblast",
       "Records the floor grid into the playblast instead of hiding it for the capture.", false),
 
@@ -177,9 +206,12 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdapti
         "Steps the studio quality down automatically if navigation falls below ~40fps, and leaves it there for the session.", true),
       onChange: () => onAdaptiveChange?.(),
     },
-    { id: SETTING_BG_COLOR, category: [...CATEGORY, "Viewport"], name: "Default background colour",
+    {
+      id: SETTING_BG_COLOR, category: [...CATEGORY, "Viewport"], name: "Default background colour",
       tooltip: "Viewport background. Leave it at the default to keep the studio sky.",
-      type: "color", defaultValue: "121212" },
+      type: "color", defaultValue: "121212",
+      onChange: (value) => onBgColorChange?.(value),
+    },
 
     toggle(SETTING_SHOW_GRID, "Display", "Show grid by default",
       "Shows the viewport floor grid on newly created Director nodes.", true),
@@ -231,16 +263,51 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdapti
     slider(SETTING_SNAP_GRID_SIZE, "Tools", "Default snap grid size",
       "Grid increment used by spatial grid snapping, in scene units.", { min: 0.01, max: 10, step: 0.01 }, 0.5),
 
-    choice(SETTING_NAVIGATION_PROFILE, "Navigation", "Default navigation profile",
-      "Viewport navigation profile applied to newly created Director nodes.", [
-        { text: "Maya", value: "maya" },
-        { text: "Blender", value: "blender" },
-      ], "maya"),
-    slider(SETTING_FLY_SPEED, "Navigation", "Default fly speed",
-      "WASD / QE fly speed applied to newly created Director nodes.", { min: 0.05, max: 5, step: 0.05 }, 1),
+    {
+      ...choice(SETTING_NAVIGATION_PROFILE, "Navigation", "Default navigation profile",
+        "Viewport navigation profile applied to newly created Director nodes.", [
+          { text: "Maya", value: "maya" },
+          { text: "Blender", value: "blender" },
+          { text: "Simple (mouse only)", value: "simple" },
+        ], "maya"),
+      onChange: (value) => onNavigationProfileChange?.(value),
+    },
+    {
+      ...slider(SETTING_FLY_SPEED, "Navigation", "Default fly speed",
+        "WASD / QE fly speed applied to newly created Director nodes.", { min: 0.05, max: 5, step: 0.05 }, 1),
+      onChange: (value) => onFlySpeedChange?.(value),
+    },
+    {
+      ...toggle(SETTING_INVERT_ORBIT_Y, "Navigation", "Invert vertical orbit (Invert Y)",
+        "Invert the vertical axis when orbiting the viewport.", false),
+      onChange: (value) => onInvertOrbitYChange?.(value),
+    },
+    {
+      ...slider(SETTING_ZOOM_SENSITIVITY, "Navigation", "Mouse wheel zoom sensitivity",
+        "Multiplier for mouse wheel zoom speed in the viewport.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onZoomSensitivityChange?.(value),
+    },
+    {
+      ...slider(SETTING_ORBIT_SENSITIVITY, "Navigation", "Orbit rotation sensitivity",
+        "Multiplier for camera orbit rotation speed in the viewport.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onOrbitSensitivityChange?.(value),
+    },
+    {
+      ...slider(SETTING_PAN_SENSITIVITY, "Navigation", "Pan sensitivity",
+        "Multiplier for viewport pan gestures.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onPanSensitivityChange?.(value),
+    },
+    {
+      ...slider(SETTING_DOLLY_SENSITIVITY, "Navigation", "Dolly drag sensitivity",
+        "Multiplier for middle-button and Alt-drag dolly gestures.", { min: 0.2, max: 3, step: 0.1 }, 1),
+      onChange: (value) => onDollySensitivityChange?.(value),
+    },
     choice(SETTING_VIEW_MODE, "Navigation", "Default view",
       "View a newly created Director node opens in.",
       ["camera", "perspective", "front", "back", "top", "bottom", "right", "left"], "camera"),
+
+    toggle(SETTING_ENABLE_SHORTCUTS, "Controls", "Enable OmniCam shortcuts",
+      "Lets OmniCam consume viewport and timeline keyboard shortcuts while a Director is focused.", true),
 
     toggle(SETTING_SNAP_ENABLED, "Timeline", "Enable timeline snapping by default",
       "Snaps dragged keyframes to the frame increment below.", true),
@@ -248,6 +315,9 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdapti
       "Frame increment used by timeline snapping on newly created Director nodes.", { min: 1, max: 24, step: 1 }, 1),
     toggle(SETTING_AUTO_KEY, "Timeline", "Enable Auto Key by default",
       "Enables Auto Key on newly created Director nodes.", false),
+    choice(SETTING_DEFAULT_INTERP, "Timeline", "Default key interpolation",
+      "Interpolation mode assigned to newly created camera and object keyframes.",
+      ["ease", "smooth", "bezier", "linear", "ease_in", "ease_out", "hold"], "ease"),
     choice(SETTING_TIMECODE_MODE, "Timeline", "Default time display",
       "Elapsed time, or HH:MM:SS:FF timecode.", [
         { text: "Time (mm:ss.ms)", value: "time" },
@@ -256,12 +326,15 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdapti
     toggle(SETTING_LOOP_PLAYBACK, "Timeline", "Loop playback by default",
       "Restarts playback at the first frame instead of stopping at the last.", false),
 
-    choice(SETTING_UI_DENSITY, "Interface", "Default interface density",
-      "How much of the editor chrome is shown.", [
-        { text: "Basic", value: "basic" },
-        { text: "Animation", value: "animation" },
-        { text: "Advanced", value: "advanced" },
-      ], "advanced"),
+    {
+      ...choice(SETTING_UI_DENSITY, "Interface", "Default interface density",
+        "How much of the editor chrome is shown.", [
+          { text: "Basic", value: "basic" },
+          { text: "Animation", value: "animation" },
+          { text: "Advanced", value: "advanced" },
+        ], "advanced"),
+      onChange: (value) => onUiDensityChange?.(value),
+    },
     choice(SETTING_PREVIEW_LAYOUT, "Interface", "Default camera preview layout",
       "How the camera preview tiles are arranged.", [
         { text: "Auto strip", value: "auto" },
@@ -269,10 +342,29 @@ export function buildOmniCamSettings({ onLocaleChange, onQualityChange, onAdapti
         { text: "Side by side", value: "2" },
         { text: "Quad", value: "4" },
       ], "auto"),
-    toggle(SETTING_CAMERA_VIEW_VISIBLE, "Interface", "Show camera previews by default",
-      "Opens newly created Director nodes with the camera preview strip visible.", true),
+    {
+      ...toggle(SETTING_CAMERA_VIEW_VISIBLE, "Interface", "Show camera previews by default",
+        "Opens newly created Director nodes with the camera preview strip visible.", true),
+      onChange: (value) => onCameraViewVisibleChange?.(value),
+    },
 
-    slider(SETTING_UNDO_LIMIT, "History", "Undo history limit",
-      "Maximum number of Undo steps held by each Director editor.", { min: 10, max: 500, step: 10 }, 100),
+    {
+      ...slider(SETTING_UNDO_LIMIT, "History", "Undo history limit",
+        "Maximum number of Undo steps held by each Director editor.", { min: 10, max: 500, step: 10 }, 100),
+      onChange: (value) => onUndoLimitChange?.(value),
+    },
+
+    choice(SETTING_EXTRACTOR_BACKEND, "Defaults", "Default extractor tracker",
+      "Default tracking backend for OmniCam Extractor.", [
+        { text: "DPVO (Dense Point-Visual Odometry)", value: "dpvo" },
+        { text: "PyColmap (SfM feature matching)", value: "pycolmap" },
+      ], "dpvo"),
+    choice(SETTING_MONITOR_PROFILE, "Defaults", "Default monitor profile",
+      "Default compilation profile for OmniCam Monitor.", [
+        { text: "Wan 2.1 Native Camera (Trajectory/Plücker)", value: "wan_camera_native" },
+        { text: "MiniMax Hailuo H3 (Omni Reference)", value: "minimax_h3" },
+        { text: "LTX-Video Motion Profile", value: "ltx_motion" },
+        { text: "Generic Video Reference", value: "generic_video" },
+      ], "wan_camera_native"),
   ];
 }

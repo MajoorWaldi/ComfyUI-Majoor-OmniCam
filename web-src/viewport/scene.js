@@ -343,7 +343,7 @@ export function createSceneMethods(dependencies) {
           if ((orthographic || !hasOutlineMesh(node)) && !box.isEmpty() && Number.isFinite(box.min.x)) {
             box.expandByScalar(0.04);
             const helper = new THREE.Box3Helper(box, new THREE.Color(0xA78BFA));
-            helper.material.transparent = true; helper.material.opacity = 0.35; helper.material.depthTest = false; helper.renderOrder = 9997;
+            helper.material.transparent = true; helper.material.opacity = 0.6; helper.material.depthTest = false; helper.renderOrder = 9997;
             this.selectionGroup.add(helper);
           }
         } catch (_) {}

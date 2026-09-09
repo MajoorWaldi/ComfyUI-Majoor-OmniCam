@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
+import { defineConfig, normalizePath } from "vite";
 import { readdir, unlink, writeFile } from "node:fs/promises";
-import { relative, resolve } from "node:path";
+import { resolve } from "node:path";
 
 const sourceAliases = {
   "omnicam-webgl": "viewport.js",
@@ -35,9 +35,7 @@ function publicEntryStub() {
   return {
     name: "omnicam-public-entry-stub",
     resolveId(id) {
-      const match = id.match(/(?:^|\/)omnicam-[^/]+\.js$/);
-      const key = match?.[0].split("/").at(-1).replace(/\.js$/, "");
-      return key && sourceAliases[key] ? resolve("web-src", sourceAliases[key]) : null;
+      return resolvePublicEntrySourceId(id);
     },
     async closeBundle() {
       // web/ must keep exactly one .js -- the stub -- or ComfyUI would load a
@@ -50,12 +48,22 @@ function publicEntryStub() {
   };
 }
 
-function normalizeModuleId(id) {
+export function resolvePublicEntrySourceId(id) {
+  const normalizedId = normalizePath(String(id || ""));
+  const match = normalizedId.match(/(?:^|\/)omnicam-[^/]+\.js$/);
+  const key = match?.[0].split("/").at(-1).replace(/\.js$/, "");
+  return key && sourceAliases[key] ? normalizePath(resolve("web-src", sourceAliases[key])) : null;
+}
+
+export function normalizeModuleId(id) {
   if (!id) return null;
 
-  const clean = String(id).split("?")[0].replaceAll("\\", "/");
-  const root = resolve(".").replaceAll("\\", "/");
-  const rel = clean.startsWith(root) ? relative(root, clean).replaceAll("\\", "/") : clean;
+  const clean = normalizePath(String(id).split("?")[0]);
+  if (clean.endsWith("/scripts/app.js")) return "comfyui:scripts/app.js";
+  if (clean.endsWith("/scripts/api.js")) return "comfyui:scripts/api.js";
+
+  const root = normalizePath(resolve("."));
+  const rel = clean.startsWith(`${root}/`) ? clean.slice(root.length + 1) : clean;
 
   return rel;
 }

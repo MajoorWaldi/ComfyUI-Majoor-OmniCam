@@ -5,6 +5,8 @@
 // under the project's source-line ceiling.
 
 import { project, sampleObjectTransform } from "../director/core.js";
+import { viewportCamera } from "../viewport-controls.js";
+import { t } from "../i18n.js";
 
 export function checkpointDrag(ui, drag, label) {
   if (!drag || drag.historyCheckpointed) return;
@@ -82,4 +84,29 @@ export function spatiallySnap(ui, position, pointer, excludedIds = [], axisLock 
     if (hit?.point && !excludedIds.includes(hit.objectId)) return [...hit.point];
   }
   return position;
+}
+
+export function finishBoxSelection(ui) {
+  if (!ui.boxSelection) return false;
+  const selection = ui.boxSelection;
+  const camera = viewportCamera(ui);
+  const minX = Math.min(selection.start[0], selection.current[0]), maxX = Math.max(selection.start[0], selection.current[0]);
+  const minY = Math.min(selection.start[1], selection.current[1]), maxY = Math.max(selection.start[1], selection.current[1]);
+  const ids = selection.additive ? new Set(selection.initial) : new Set();
+  for (const object of ui.state.objects) {
+    if (object.enabled === false) continue;
+    const screenBox = projectedObjectScreenBounds(ui, object, camera);
+    if (screenBox && screenBox.maxX >= minX && screenBox.minX <= maxX && screenBox.maxY >= minY && screenBox.minY <= maxY) ids.add(object.id);
+  }
+  ui.selectedObjectIds = ids;
+  ui.selectedObjectId = [...ids].at(-1) || null;
+  ui.selectedEntity = ids.size ? "object" : "camera";
+  ui.boxSelection = null;
+  ui.boxSelectMode = false;
+  if (ui.interactionElement?.style) ui.interactionElement.style.cursor = "";
+  ui.refreshObjects();
+  ui.refreshInspector();
+  ui.render();
+  ui.setStatus(t("{count} object(s) selected").replace("{count}", String(ids.size)));
+  return true;
 }

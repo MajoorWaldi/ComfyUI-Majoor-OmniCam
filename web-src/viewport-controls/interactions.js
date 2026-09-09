@@ -7,7 +7,7 @@ import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
 import { cancelModalTransform, confirmModalTransform, selectedTransformObjects, updateModalTransform } from "./modal-transform.js";
-import { isNavigationGesture, navigationGesture, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
+import { isNavigationGesture, navigationGesture, navigationProfile, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
 import {
   applyTrackingOffset,
   checkpointDrag,
@@ -25,7 +25,7 @@ export function onPointerDown(ui, e) {
     return;
   }
   if (e.target?.closest?.("button,input,select")) return;
-  if (e.button === 2 && !e.altKey) {
+  if (e.button === 2 && !isNavigationGesture(ui, e)) {
     // The unmodified secondary button belongs to the OmniCam context menu.
     // Swallow its pointer event before ComfyUI's graph canvas can see it;
     // the following `contextmenu` event will open the local menu.
@@ -338,7 +338,7 @@ export function onPointerDown(ui, e) {
   // fallback below (the left-button orbit for hardware with no middle button
   // and no working Alt); multi-select stays on Ctrl+*click*, which is picked
   // by the branches above and never reaches either of these two.
-  if (!hit && canPick && !e.ctrlKey && !e.metaKey) {
+  if (!hit && canPick && !e.ctrlKey && !e.metaKey && navigationProfile(ui) !== "simple") {
     ui.boxSelection = {
       start: [pointerX, pointerY], current: [pointerX, pointerY],
       additive: e.shiftKey, initial: new Set(ui.selectedObjectIds || []),
@@ -600,7 +600,7 @@ export function onPointerMove(ui, e) {
   const base = ui.drag.camera;
 
   if (ui.drag.dolly) {
-    const factor = Math.exp(dy * 5e-3);
+    const factor = Math.exp(dy * 5e-3 * (ui.dollySensitivity ?? 1));
     const offset = sub(base.position, base.target);
     ui.drag.target.position = add(base.target, mul(offset, factor));
     if (ui.drag.target.camera_type === "orthographic") {
@@ -620,7 +620,7 @@ export function onPointerMove(ui, e) {
     ];
   } else if (ui.drag.shift) {
     const { right, up } = cameraBasis(base);
-    const scale = worldPerPixel(base, ui.interactionElement.getBoundingClientRect().height);
+    const scale = worldPerPixel(base, ui.interactionElement.getBoundingClientRect().height) * (ui.panSensitivity ?? 1);
     const delta = add(mul(right, -dx * scale), mul(up, dy * scale));
     ui.drag.target.position = add(base.position, delta);
     ui.drag.target.target = add(base.target, delta);
@@ -638,10 +638,7 @@ export function onPointerMove(ui, e) {
     ];
   }
   if (ui.drag.editorView) {
-    // Repaint now, but fold the full state serialization (JSON.stringify of
-    // the whole scene + every widget write + a ComfyUI canvas invalidation)
-    // into the rAF-batched path so a fast pointer stream cannot trigger
-    // several complete serializations inside one frame.
+    // Repaint now and fold state serialization into rAF-batched path.
     ui.scheduleSerialize();
     ui.render();
   } else ui.commitCameraEdit();
@@ -652,6 +649,10 @@ export function cancelViewportInteraction(ui) {
   const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag, ui.keyDrag, ui.curveDrag].some((drag) => drag?.historyCheckpointed);
   ui.keyDrag?.badge?.remove?.();
   ui.boxSelect?.overlay?.remove?.();
+  if (ui.drag?.camera && ui.drag?.target) {
+    Object.assign(ui.drag.target, ui.drag.camera);
+    if (ui.drag.editorView) ui.scheduleSerialize();
+  }
   ui.drag = null; ui.gizmoDrag = null; ui.targetFreeDrag = null;
   ui.boxSelection = null; ui.pathDrag = null; ui.keyDrag = null; ui.curveDrag = null; ui.timelineDrag = null; ui.timelinePanDrag = null; ui.boxSelect = null; ui.curvePanDrag = null; ui.curveScrub = null; ui.curveBoxSelect = null;
   releaseViewportPointer(ui);
@@ -709,7 +710,7 @@ export function onPointerUp(ui, event) {
     ui.selectedObjectIds = ids; ui.selectedObjectId = [...ids].at(-1) || null;
     ui.selectedEntity = ids.size ? "object" : "camera"; ui.boxSelection = null;
     releaseViewportPointer(ui);
-    ui.refreshObjects(); ui.refreshInspector(); ui.render(); ui.setStatus(t(`${ids.size} object(s) selected`));
+    ui.refreshObjects(); ui.refreshInspector(); ui.render(); ui.setStatus(t("{count} object(s) selected").replace("{count}", String(ids.size)));
     return;
   }
   const finishedKeyDrag = ui.keyDrag;

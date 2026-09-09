@@ -52,20 +52,46 @@ def test_generated_frontend_is_gitignored_not_committed() -> None:
     assert result.stdout.strip() == ""
 
 
-def test_publish_workflow_does_not_recheckout_after_frontend_build() -> None:
-    """The publish job must build web-chunks/ and web/omnicam.js itself,
-    immediately before packaging, and never hand off to an action whose own
-    checkout would git-clean that freshly built, gitignored bundle before
-    `comfy node publish` can pack it.
+def test_publish_workflow_preserves_generated_frontend_for_registry_publish() -> None:
+    """The publish workflow must preserve web-chunks/ and web/omnicam.js.
+
+    The release build job creates the generated frontend and uploads it as an
+    artifact. The Registry job may do its own checkout, but it must download
+    that artifact before `comfy node publish`; otherwise checkout/git-clean
+    removes the gitignored bundle the Registry archive needs.
     """
     workflow = _text(".github/workflows/publish_action.yml")
     build_command = "          npm run build"
+    download_command = "          name: majoor-omnicam-frontend-${{ needs.release-build.outputs.version }}"
     publish_command = "          comfy --skip-prompt --no-enable-telemetry node publish"
     build = workflow.index(build_command)
+    download = workflow.index(download_command)
     publish = workflow.index(publish_command)
-    assert build < publish
+    assert build < download < publish
     assert "Comfy-Org/publish-node-action" not in workflow
     assert "contents: write" in workflow
+
+
+def test_publish_workflow_splits_registry_and_github_release_finalization() -> None:
+    """A GitHub Release failure must be rerunnable without republishing Registry.
+
+    Registry versions are immutable once accepted by Comfy Registry, so the
+    final GitHub Release step has to be its own job consuming the packaged
+    archive artifact. If it lives in the same job as `comfy node publish`, a
+    retry of the GitHub side repeats the Registry publish first.
+    """
+    workflow = _text(".github/workflows/publish_action.yml")
+    registry_job = workflow.index("  release-registry:")
+    github_job = workflow.index("  release-github:")
+    assert registry_job < github_job
+
+    registry_body = workflow[registry_job:github_job]
+    github_body = workflow[github_job:]
+    assert "comfy --skip-prompt --no-enable-telemetry node publish" in registry_body
+    assert "gh release" not in registry_body
+    assert "comfy --skip-prompt --no-enable-telemetry node publish" not in github_body
+    assert "actions/download-artifact" in github_body
+    assert "gh release create" in github_body
 
 
 def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
@@ -80,6 +106,19 @@ def test_ci_builds_and_inspects_the_real_comfy_registry_archive() -> None:
     assert 'zipfile.ZipFile("node.zip")' in workflow
     assert "web/omnicam.js" in workflow
     assert "web-chunks/" in workflow
+
+
+def test_release_tooling_pins_comfy_cli_everywhere() -> None:
+    """Release packaging must not float to a new comfy-cli on release day."""
+    workflows = [
+        _text(".github/workflows/publish_action.yml"),
+        _text(".github/workflows/test.yml"),
+    ]
+    for workflow in workflows:
+        assert "pip install comfy-cli\n" not in workflow
+        assert "pip install comfy-cli\r\n" not in workflow
+    assert "pip install comfy-cli==1.20.0" in workflows[0]
+    assert "pip install comfy-cli==1.20.0" in workflows[1]
 
 
 def test_source_install_docs_include_frontend_build_step() -> None:

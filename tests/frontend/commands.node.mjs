@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { dispatchDirectorKey, resolveZone, zoneOf } from "../../web-src/commands.js";
+import { registerOmniCamLocales } from "../../web-src/settings.js";
 
 // A minimal DOM element that answers closest() by walking a class chain.
 function el(classes = [], role = null, attrs = {}) {
@@ -100,6 +101,7 @@ test("T starts a modal transform in the viewport, is ignored in the sequence edi
 });
 
 test("Ctrl+Z is consumed from every zone, so ComfyUI's graph undo never sees it", () => {
+  registerOmniCamLocales({ extensionManager: { setting: { get: () => undefined } } });
   for (const zone of [["viewport-wrap"], ["oc-timeline"], ["oc-graph"], ["oc-graph"]]) {
     const undo = [];
     const consumed = withMockElement(() => dispatchDirectorKey(
@@ -112,6 +114,23 @@ test("Ctrl+Z is consumed from every zone, so ComfyUI's graph undo never sees it"
     assert.equal(consumed, true);
     assert.deepEqual(undo, [1]);
   }
+});
+
+test("the global shortcuts preference releases keys back to ComfyUI", () => {
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => (
+    id === "MajoorOmniCam.Controls.EnableShortcuts" ? false : undefined
+  ) } } });
+  const undo = [];
+  const consumed = withMockElement(() => dispatchDirectorKey(
+    { contextMenu: { onKey: () => false }, undo: () => undo.push(1), redo: () => {} },
+    {
+      key: "z", code: "KeyZ", ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, repeat: false,
+      target: el(["viewport-wrap"]), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+    },
+  ));
+  assert.equal(consumed, false);
+  assert.deepEqual(undo, []);
+  registerOmniCamLocales({ extensionManager: { setting: { get: () => undefined } } });
 });
 
 test("Ctrl+C / Ctrl+V only claim the key when there is a keyframe op to do", () => {

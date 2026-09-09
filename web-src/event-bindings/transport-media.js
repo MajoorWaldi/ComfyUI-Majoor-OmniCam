@@ -1,4 +1,4 @@
-﻿// Extracted DOM bindings.
+// Extracted DOM bindings.
 
 import { clamp } from "../director/core.js";
 import { applyCinemaLens } from "../cameras.js";
@@ -6,6 +6,7 @@ import { applyBlockingScenePreset } from "../motion-presets.js";
 import { onCurveWheel } from "../curve-editor.js";
 import { onTimelineWheel } from "../timeline-interaction.js";
 import { syncMirroredControl } from "../event-bindings.js";
+import { openPreferencesModal } from "../settings/preferences-modal.js";
 
 export function bindTransportAndMedia(ui, q, signal) {
   for (const btn of ui.root.querySelectorAll('[data-act="play"]')) {
@@ -125,6 +126,12 @@ export function bindTransportAndMedia(ui, q, signal) {
     btn.addEventListener("click", () => {
       ui.clearCaches();
       ui.closeMenus();
+    }, { signal });
+  }
+  for (const btn of ui.root.querySelectorAll('[data-act="open-preferences"]')) {
+    btn.addEventListener("click", () => {
+      ui.closeMenus();
+      openPreferencesModal(ui);
     }, { signal });
   }
   for (const button of ui.root.querySelectorAll("[data-object-type]")) {
