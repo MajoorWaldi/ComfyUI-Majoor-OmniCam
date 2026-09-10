@@ -5,12 +5,10 @@ import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 import { clearExtractorCache } from "./clear-cache.js";
 
-import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
-import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
 import { bindExtractorQueueEvents } from "./queue/events.js";
+import { cancelExtractorJob } from "./queue/execution.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
-import { CAMERA_TRACK_REFINE_WIDGETS as REFINE_SETTING_WIDGETS } from "./queue/widget-sync.js";
 import {
   cancelQueuedRun,
   prepareForQueuedRun,
@@ -78,8 +76,10 @@ export class ExtractorUI {
     this.upstreamPreviewActive = false;
     this.motionLimits = null;
 
-    this.client = new SolveJobClient(api);
-    this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
+    // Cleanup-desk edits accumulate on the controller; a queued run reads them
+    // off the node widgets (see queue/widget-sync.js). Instant post-solve
+    // refinement without a re-queue is a separate follow-up.
+    this.refine = new RefineController({ onRefine: () => {} });
     this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
     this.sourceViewer = new SourceViewer(this.$("source-video"), {
       onFrame: (frame) => this.coordinator.seek(frame, "media"),
@@ -111,16 +111,6 @@ export class ExtractorUI {
     this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
     this.viewer = null;
     this.viewerLoad = null;
-
-    this.events = new SolveEventSubscription(api, {
-      job: (payload) => this.dispatch({ type: "JOB_STATE", state: payload.state }),
-      progress: (payload) => this.onProgress(payload),
-      pose: (payload) => this.onPose(payload),
-      quality: (payload) => this.onQuality(payload),
-      features: (payload) => this.onFeatures(payload),
-      completed: (payload) => this.onCompleted(payload),
-      failed: (payload) => this.dispatch({ type: "FAILED", error: payload.error }),
-    }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
 
     // The queued path follows ComfyUI's native lifecycle. queuePromptId is
     // transient identity (STOP, status, late-event rejection) and never serialized.
@@ -352,69 +342,12 @@ export class ExtractorUI {
     return prepareForQueuedRun(this);
   }
 
-  /** The socket is transport; the server is the truth. Re-read after a gap. */
-  async recoverStatus() {
-    if (!this.state.jobId) return null;
-    try {
-      const status = await this.client.getSolveStatus(this.state.jobId);
-      this.dispatch({ type: "STATUS", status });
-      this.coordinator.reconcileFrameCount(status);
-      if (status.state === "COMPLETED") await this.loadResult();
-      return status;
-    } catch {
-      return null;
-    }
-  }
-
-  onProgress(payload) {
-    this.dispatch({ type: "PROGRESS", progress: payload });
-    this.coordinator.reconcileFrameCount(payload);
-    if (this.sourceViewer.follow) this.coordinator.seek(Number(payload.frame) || 0, "backend");
-  }
-
-  onPose(payload) {
-    this.dispatch({ type: "POSE", pose: payload });
-  }
-
-  onQuality(payload) {
-    this.dispatch({ type: "QUALITY", samples: payload.samples || [] });
-  }
-
   /**
-   * Paint the features the solver matched on this frame.
-   *
-   * Live telemetry, so it is drawn straight onto the overlay rather than routed
-   * through the reducer: keeping every frame's points in panel state would grow
-   * without bound over a long clip, and none of it is needed once the frame has
-   * moved on.
+   * Adopt a solved track that arrived through the Extractor's queued
+   * executed() -> parseExtractorMessage() envelope. This is the only way a
+   * camera-track result reaches the panel now.
    */
-  onFeatures(payload) {
-    const diagnostics = this.diagnostics.set(Number(payload.frame) || 0, {
-      points: payload.points || [],
-      frame: Number(payload.frame) || 0,
-      state: String(payload.state || "unknown"),
-    });
-    if (diagnostics.frame === this.state.frame) this.overlay.setDiagnostics(diagnostics);
-  }
-
-  async onCompleted(payload) {
-    this.dispatch({ type: "COMPLETED", result: payload });
-    await this.loadResult();
-  }
-
-  async loadResult() {
-    if (!this.state.jobId) return null;
-    try {
-      const result = await this.client.getSolveResult(this.state.jobId);
-      this.acceptSolvedResult(result, "interactive");
-      return result;
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-      return null;
-    }
-  }
-
-  acceptSolvedResult(result, origin = "interactive") {
+  acceptSolvedResult(result) {
     const raw = result?.raw_track || result?.raw || result?.track || null;
     const refined = result?.refined_track || result?.refined || result?.track || raw;
     if (!refined?.keyframes?.length) return false;
@@ -423,54 +356,23 @@ export class ExtractorUI {
     );
     this.result = { raw: raw || refined, refined };
     this.landmarks = Array.isArray(result?.landmarks_3d) ? result.landmarks_3d : [];
-    if (origin === "queued") this.dispatch({ type: "QUEUED_RESULT" });
+    this.dispatch({ type: "QUEUED_RESULT" });
     this.dispatch({
       type: "STATUS",
       status: {
         anomalies: result?.anomalies || [], state: "COMPLETED",
-        job_id: this.state.jobId, backend: refined?.metadata?.backend,
+        backend: refined?.metadata?.backend,
       },
     });
     this.dispatch({ type: "REFINED", fingerprint });
     this.pushTracksToViewer();
-    if (origin === "queued") {
-      cacheExtractorResult(this.node, {
-        track: refined, fingerprint,
-        confidence: Number(result?.confidence ?? refined?.metadata?.confidence) || 0,
-      });
-      if (result?.source) cacheExtractorSource(this.node, result.source);
-      this.node.__majoorOmniCamStatus = statusLine({
-        track: refined, fingerprint,
-        confidence: Number(result?.confidence ?? refined?.metadata?.confidence) || 0,
-      });
-      this.dispatch({ type: "APPLIED", fingerprint });
-      if (result?.source) this.refreshSource();
-    }
+    const confidence = Number(result?.confidence ?? refined?.metadata?.confidence) || 0;
+    cacheExtractorResult(this.node, { track: refined, fingerprint, confidence });
+    if (result?.source) cacheExtractorSource(this.node, result.source);
+    this.node.__majoorOmniCamStatus = statusLine({ track: refined, fingerprint, confidence });
+    this.dispatch({ type: "APPLIED", fingerprint });
+    if (result?.source) this.refreshSource();
     return true;
-  }
-
-  async requestRefine(settings) {
-    if (!this.state.jobId || this.state.solveState !== "COMPLETED") return null;
-    try {
-      this.syncRefineWidgets(settings);
-      const payload = await this.client.refineSolve(this.state.jobId, settings);
-      this.result = { ...this.result, refined: payload.refined_track };
-      this.dispatch({ type: "REFINED", fingerprint: payload.fingerprint });
-      this.pushTracksToViewer();
-      return payload;
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-      return null;
-    }
-  }
-
-  /** Keep queued execution and interactive cleanup on the same widget values. */
-  syncRefineWidgets(settings) {
-    for (const name of REFINE_SETTING_WIDGETS) {
-      if (settings[name] === undefined) continue;
-      const item = widget(this.node, name);
-      if (item) item.value = settings[name];
-    }
   }
 
   /**
@@ -708,7 +610,7 @@ export class ExtractorUI {
       this.reconstruction?.acceptQueuedResult(result);
       return;
     }
-    this.acceptSolvedResult(result, "queued");
+    this.acceptSolvedResult(result);
   }
 
   setExtractMode(mode) {
@@ -748,13 +650,14 @@ export class ExtractorUI {
   }
 
   dispose() {
-    stopActiveSolveOnDispose(this.client, this.state);
+    // A queued solve outlives this panel: cancel it so a deleted node does not
+    // leave a job running on stale footage.
+    if (this.queuePromptId) void cancelExtractorJob(this.api, this.queuePromptId).catch(() => {});
     this.unbindQueueEvents?.();
     this.reconstruction?.dispose();
     this.disposed = true;
     closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
     this.requests.dispose();
-    this.events.dispose();
     this.refine.dispose();
     this.coordinator.dispose();
     this.sourceViewer.dispose();

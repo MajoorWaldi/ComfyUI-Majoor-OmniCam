@@ -1,9 +1,7 @@
-// The interactive solve panel: source resolution, the job client, panel state
-// and the refine debounce.
-//
-// The load-bearing assertion is the first one: pressing TRACK must reach the
-// jobs route and must never touch queuePrompt. Everything else in this feature
-// is a convenience; that one is the feature.
+// The Extractor solve panel: source resolution, panel-state reducer, the
+// applied/refined markers and the refine debounce. Execution itself is a
+// queue-only concern covered by extractor-queue-*.node.mjs and the live
+// partial-queue gate.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -14,9 +12,7 @@ globalThis.HTMLImageElement ??= class FakeImageElement {};
 globalThis.HTMLVideoElement ??= class FakeVideoElement {};
 globalThis.HTMLCanvasElement ??= class FakeCanvasElement {};
 
-import { SolveJobClient, stopActiveSolveOnDispose } from "../../web-src/extractor/job-client.js";
 import { FallbackFrameViewer } from "../../web-src/extractor/fallback-frame-viewer.js";
-import { SOLVE_EVENTS, SolveEventSubscription, solveEventMatcher } from "../../web-src/extractor/job-events.js";
 import { RefineController, alignmentQuaternion } from "../../web-src/extractor/refine-controls.js";
 import { SCENE_WIDGET } from "../../web-src/extractor/result-cache.js";
 import { ResultApplyError, appliedStatus, applyRefinedTrack } from "../../web-src/extractor/result-sync.js";
@@ -297,77 +293,6 @@ test("the source strip describes the resolved footage", () => {
     info: { width: 1920, height: 1080, fps: 24, frame_count: 121 },
   });
   assert.equal(described, "shot.mov · 1920x1080 · 24fps · 121 frames");
-});
-
-// --- the no-run guarantee --------------------------------------------------
-
-test("starting a solve calls the jobs route and never queuePrompt", async () => {
-  let queued = 0;
-  const api = fakeApi(() => ({ ok: true, async json() { return { job_id: "j1", state: "PREPARING" }; } }));
-  api.queuePrompt = () => { queued += 1; };
-
-  const client = new SolveJobClient(api);
-  await client.startSolve({
-    nodeId: 7, source: { kind: "annotated_input", value: "shot.mov" }, settings: { method: "auto" },
-  });
-
-  assert.equal(queued, 0, "the interactive path must never enqueue a prompt");
-  assert.equal(api.calls.length, 1);
-  assert.match(api.calls[0].path, /^\/majoor\/omnicam\/extractor\/jobs\?/);
-  assert.equal(api.calls[0].method, "POST");
-});
-
-test("the job client only ever talks to the extractor job routes", async () => {
-  const api = fakeApi(() => ({ ok: true, async json() { return {}; } }));
-  const client = new SolveJobClient(api);
-  await client.startSolve({ nodeId: 1, source: {}, settings: {} });
-  await client.getSolveStatus("j1");
-  await client.stopSolve("j1");
-  await client.refineSolve("j1", { motion_scale: 2 });
-  await client.getSolveResult("j1");
-  await client.deleteSolve("j1");
-
-  assert.equal(api.calls.length, 6);
-  for (const call of api.calls) {
-    assert.match(call.path, /^\/majoor\/omnicam\/extractor\/jobs/);
-    assert.doesNotMatch(call.path, /prompt|queue/i);
-  }
-  assert.deepEqual(
-    api.calls.map((call) => call.method),
-    ["POST", "GET", "POST", "POST", "GET", "DELETE"],
-  );
-});
-
-test("the client identifies its session so another tab cannot steer the job", async () => {
-  const api = fakeApi(() => ({ ok: true, async json() { return {}; } }));
-  await new SolveJobClient(api, { clientId: "tab-7" }).getSolveStatus("j1");
-  assert.match(api.calls[0].path, /clientId=tab-7/);
-});
-
-test("disposing an active panel requests a cooperative stop", async () => {
-  const api = fakeApi(() => ({ ok: true, async json() { return { state: "STOPPING" }; } }));
-  const client = new SolveJobClient(api);
-
-  assert.equal(stopActiveSolveOnDispose(client, { jobId: "j1", solveState: "TRACKING" }), true);
-  await new Promise((resolve) => setTimeout(resolve, 0));
-
-  assert.equal(api.calls.length, 1);
-  assert.match(api.calls[0].path, /\/j1\/stop\?/);
-});
-
-test("disposing a terminal panel sends no stop request", () => {
-  const api = fakeApi();
-  const client = new SolveJobClient(api);
-  assert.equal(stopActiveSolveOnDispose(client, { jobId: "j1", solveState: "COMPLETED" }), false);
-  assert.equal(api.calls.length, 0);
-});
-
-test("a server refusal surfaces its message", async () => {
-  const api = fakeApi(() => ({ ok: false, status: 409, async text() { return "Another solve is active"; } }));
-  await assert.rejects(
-    () => new SolveJobClient(api).startSolve({ nodeId: 1, source: {}, settings: {} }),
-    /Another solve is active/,
-  );
 });
 
 // --- panel state -----------------------------------------------------------
@@ -663,35 +588,6 @@ test("disposing the refine controller cancels a pending request", () => {
   controller.dispose();
   assert.equal(timers.pending, false);
   assert.equal(sent.length, 0);
-});
-
-// --- events ----------------------------------------------------------------
-
-test("solve events are filtered to this node and this job", () => {
-  const match = solveEventMatcher(() => ({ jobId: "j1", nodeId: 7 }));
-  assert.equal(match({ job_id: "j1", node_id: "7" }), true);
-  assert.equal(match({ job_id: "j2", node_id: "7" }), false, "another job must not steer this panel");
-  assert.equal(match({ job_id: "j1", node_id: "9" }), false, "another Extractor must not either");
-});
-
-test("every documented solve event is subscribed and then released", () => {
-  const listeners = new Map();
-  const api = {
-    addEventListener(event, listener) { listeners.set(event, listener); },
-    removeEventListener(event) { listeners.delete(event); },
-  };
-  const seen = [];
-  const handlers = Object.fromEntries(
-    Object.keys(SOLVE_EVENTS).map((key) => [key, () => seen.push(key)]),
-  );
-  const subscription = new SolveEventSubscription(api, handlers);
-  assert.deepEqual([...listeners.keys()].sort(), Object.values(SOLVE_EVENTS).sort());
-
-  listeners.get(SOLVE_EVENTS.progress)({ detail: { job_id: "j1" } });
-  assert.deepEqual(seen, ["progress"]);
-
-  subscription.dispose();
-  assert.equal(listeners.size, 0, "a disposed panel must leave no listeners behind");
 });
 
 // --- transport -------------------------------------------------------------

@@ -103,10 +103,11 @@ export function attachExtractor(node) {
   node.onAfterGraphConfigured = function () {
     configured?.apply(this, arguments);
     ui.refreshSource();
-    ui.recoverStatus();
-    ui.reconstruction?.recoverStatus?.();
     // A workflow reload restores the recon_* widgets after this panel was
-    // built; re-hydrate its DOM controls from them.
+    // built; re-hydrate its DOM controls from them. The solved result comes
+    // back from the serialized cache widgets (restoreCachedResult), and a
+    // still-running queued solve is followed through ComfyUI's own events --
+    // no custom status recovery.
     ui.reconstruction?.syncFromWidgets?.();
   };
 }

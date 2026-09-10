@@ -2,6 +2,8 @@ import { api } from "../comfy-runtime.js";
 import { annotatedAssetUrl } from "../shared/managed-assets.js";
 import { resizeTrackingOverlay, syncUpstreamPreviewCanvas } from "./source-stage.js";
 import { resolveInteractiveExtractorSource } from "./source-resolver.js";
+import { describeExtractorSourceInfo } from "./source-client.js";
+import { cancelExtractorJob } from "./queue/execution.js";
 
 export function refreshExtractorSource(ui) {
   const mode = ui.extractMode || "camera_track";
@@ -9,10 +11,11 @@ export function refreshExtractorSource(ui) {
   const sourceKey = resolved.ref ? `${resolved.ref.kind}:${resolved.ref.value}` : "";
   const sourceChanged = sourceKey !== (ui.sourceKey || "");
   if (sourceChanged) {
-    const priorJobId = ui.state.jobId;
     ui.sourceKey = sourceKey;
     ui.describing = "";
-    if (priorJobId) void ui.client.stopSolve(priorJobId).catch(() => {});
+    // A queued solve targets the source it was started against; if the input
+    // changes under it, cancel it rather than let it finish on stale footage.
+    if (ui.queuePromptId) void cancelExtractorJob(ui.api, ui.queuePromptId).catch(() => {});
     ui.dispatch({ type: "SOURCE_RESET", source: { ...resolved, playbackError: "" } });
     ui.coordinator.setRate(24);
     ui.coordinator.setFrameCount(0);
@@ -38,7 +41,7 @@ export async function describeExtractorSource(ui, resolved) {
   if (ui.describing === resolved.ref?.value) return null;
   ui.describing = resolved.ref?.value;
   try {
-    const payload = await ui.client.describeSource(resolved.ref);
+    const payload = await describeExtractorSourceInfo(resolved.ref);
     if (ui.disposed || ui.sourceKey !== `${resolved.ref.kind}:${resolved.ref.value}`) return null;
     const info = payload?.info || null;
     ui.dispatch({ type: "SOURCE", source: { info } });
