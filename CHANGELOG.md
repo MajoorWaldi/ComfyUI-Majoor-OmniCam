@@ -28,7 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Animation Library* — QAL v1.0 forbids automatic download / redistribution),
   and installs the rig-complete ones as `character` rows with the real bone map
   and embedded clips. Merges into the existing lockfile / `SOURCES.md`; no
-  network. `SOURCES.md` is now regenerated from the full lockfile.
+  network. `SOURCES.md` is now regenerated from the full lockfile. Also exposed
+  in the Director → ASSETS panel as a folder button + `POST
+  /majoor/omnicam/library/import-local` (Scan / Install; the panel refreshes
+  itself, no ComfyUI restart).
 - Binary-FBX skeleton inspector (`omnicam.assets.bootstrap.fbx_inspect`) and
   `omnicam.assets.rig.deform_joint_names()` (strips IK/control/`_end` bones
   before rig mapping). The `starter` preset now also downloads Kenney's three

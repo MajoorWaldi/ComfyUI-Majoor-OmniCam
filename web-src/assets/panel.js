@@ -193,8 +193,16 @@ export function createAssetBrowserPanel(ui, options = {}) {
   let searchTimer = null;
   let firstOpen = true;
 
-  function setStatus(message) {
-    if (status) status.textContent = message || "";
+  // A transient message (import result, error) survives the frequent renderGrid()
+  // repaints the lazy thumbnail queue triggers; the "{n} of {total}" line only
+  // reclaims the status area once it has expired.
+  let stickyUntil = 0;
+
+  function setStatus(message, { sticky = false } = {}) {
+    if (!status) return;
+    if (!sticky && stickyUntil > Date.now()) return;
+    status.textContent = message || "";
+    stickyUntil = sticky ? Date.now() + 9000 : 0;
   }
 
   function markSelected(id) {
@@ -274,6 +282,49 @@ export function createAssetBrowserPanel(ui, options = {}) {
     }
   }
 
+  const localForm = el("asset-local-form");
+  const localFolder = el("asset-local-folder");
+  const localNote = el("asset-local-note");
+
+  function toggleLocalForm() {
+    if (!localForm) return;
+    localForm.hidden = !localForm.hidden;
+    if (!localForm.hidden) localFolder?.focus();
+  }
+
+  async function runLocalImport(dryRun) {
+    const folder = (localFolder?.value || "").trim();
+    if (!folder) { setStatus(t("Point to the folder you extracted the pack into."), { sticky: true }); return; }
+    stickyUntil = 0;
+    setStatus(dryRun ? t("Scanning {folder}...").replace("{folder}", folder)
+                     : t("Installing characters from {folder}...").replace("{folder}", folder));
+    try {
+      const result = await apiClient.importLocalCharacters({
+        folder, licenseNote: (localNote?.value || "").trim(), dryRun,
+      });
+      const skipped = (result.skipped || []).length;
+      if (dryRun) {
+        const names = (result.candidates || []).map((c) => c.name).join(", ");
+        setStatus((result.candidates || []).length
+          ? t("{n} rig-complete character(s): {names}")
+              .replace("{n}", result.candidates.length).replace("{names}", names)
+          : t("No rig-complete .glb/.fbx character found ({n} skipped)").replace("{n}", skipped),
+          { sticky: true });
+        return;
+      }
+      const installed = (result.installed || []).filter((r) => r.status !== "conflict").length;
+      const conflicts = (result.installed || []).filter((r) => r.status === "conflict").length;
+      setStatus(t("{n} character(s) installed{extra} — no restart needed")
+        .replace("{n}", installed)
+        .replace("{extra}", (skipped || conflicts)
+          ? ` (${skipped} ${t("skipped")}${conflicts ? `, ${conflicts} ${t("unchanged")}` : ""})` : ""),
+        { sticky: true });
+      if (installed) { store.refresh(); if (localForm) localForm.hidden = true; }
+    } catch (error) {
+      setStatus(error.message || t("Import failed"), { sticky: true });
+    }
+  }
+
   function switchView(view) {
     const showAssets = view === "assets";
     if (sceneTab) sceneTab.hidden = showAssets;
@@ -298,6 +349,9 @@ export function createAssetBrowserPanel(ui, options = {}) {
     if (intent.action === "asset-import") {
       return fileInput?.click();
     }
+    if (intent.action === "local-toggle") return toggleLocalForm();
+    if (intent.action === "local-scan") return void runLocalImport(true);
+    if (intent.action === "local-install") return void runLocalImport(false);
     if (intent.action === "card") {
       markSelected(intent.assetId);
     }

@@ -77,6 +77,15 @@ export function createAssetLibraryApi({ fetchApi = defaultFetchApi } = {}) {
       form.append("file", file, meta.filename || file.name || "model.glb");
       return call(`${LIBRARY_ROUTE}/import${queryString(meta)}`, { method: "POST", body: form });
     },
+    importLocalCharacters({ folder, licenseNote = "", idPrefix = "", dryRun = false } = {}) {
+      return call(`${LIBRARY_ROUTE}/import-local`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          folder, license_note: licenseNote, id_prefix: idPrefix, dry_run: dryRun,
+        }),
+      });
+    },
     uploadThumbnail(assetId, blob, filename = "thumb.webp") {
       const form = new FormData();
       form.append("file", blob, filename);

@@ -105,50 +105,38 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
 # -- local character import (plan section 49) --------------------------
 
 def _run_local_characters(args) -> int:
-    from datetime import datetime, timezone
+    from .local_import import run_import
 
-    from .local_import import install_local_characters, scan_character_dir
-    from .lockfile import merge_assets_into_lockfile
-
-    accepted, notes = scan_character_dir(args.character_dir, id_prefix=args.id_prefix)
+    result = run_import(
+        args.dest, args.character_dir,
+        license_note=args.license_note, id_prefix=args.id_prefix,
+        dry_run=args.dry_run, update=args.update,
+    )
+    skipped = result.get("skipped", [])
     if args.verbose:
-        for note in notes:
+        for note in skipped:
             _log(f"  ~ {note}")
-    elif notes:
-        _log(f"  ~ {len(notes)} file(s) skipped (--verbose for details)")
-    if not accepted:
-        _log(f"error: no rig-complete .glb/.fbx character found in {args.character_dir}")
-        return EXIT_CURATION
+    elif skipped:
+        _log(f"  ~ {len(skipped)} file(s) skipped (--verbose for details)")
 
-    if args.dry_run:
-        for candidate in accepted:
-            _log(f"  would install {candidate.asset_id}  <- {candidate.path.name} "
-                 f"[{candidate.model_format}] {len(candidate.info.animation_names)} clip(s)")
+    if result["dry_run"]:
+        for candidate in result["candidates"]:
+            _log(f"  would install {candidate['id']}  <- {candidate['source_file']} "
+                 f"[{candidate['format']}] {len(candidate['animations'])} clip(s)")
+        if not result["candidates"]:
+            _log(f"error: no rig-complete .glb/.fbx character in {args.character_dir}")
+            return EXIT_CURATION
         _log("dry run: nothing written")
         return EXIT_OK
 
-    installed = install_local_characters(
-        args.dest, accepted, license_note=args.license_note, update=args.update,
-    )
-    for result in installed:
-        _log(f"  {result.status:<9} {result.asset_id}  <- {result.archive_member}")
-
-    lock_source = LockSource("", "", "", args.license_note or "local import (restricted licence)")
-    merge_assets_into_lockfile(args.dest, installed, source_id="local", lock_source=lock_source)
-    write_sources_md(
-        args.dest, {"local": lock_source}, installed,
-        install_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-        source_names={"local": "Local import (you downloaded these)"},
-    )
-
-    report = build_report(
-        preset="local-characters", sources_total=1, sources_resolved=1,
-        archives_downloaded=0, archives_verified=0,
-        selection=_empty_selection(), installed=installed,
-    )
-    write_report(args.dest, report)
-    _emit(args, report)
-    conflicts = [r for r in installed if r.status == "conflict"]
+    installed = result["installed"]
+    if not installed:
+        _log(f"error: no rig-complete .glb/.fbx character in {args.character_dir}")
+        return EXIT_CURATION
+    for row in installed:
+        _log(f"  {row['status']:<9} {row['id']}")
+    _emit(args, result["report"])
+    conflicts = [r for r in installed if r["status"] == "conflict"]
     return EXIT_INSTALL if conflicts and not args.update else EXIT_OK
 
 

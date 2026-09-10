@@ -203,3 +203,70 @@ def _sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _summarise(item: LocalCharacter | InstalledAsset) -> dict:
+    if isinstance(item, LocalCharacter):
+        return {
+            "id": item.asset_id, "name": item.name, "format": item.model_format,
+            "source_file": item.path.name, "rigged": item.rig.complete,
+            "animations": list(item.info.animation_names),
+        }
+    return {
+        "id": item.asset_id, "name": item.output.rsplit("/", 1)[-1],
+        "format": item.output.rsplit(".", 1)[-1], "status": item.status,
+        "rig_status": item.rig_status, "animations": list(item.animation_ids),
+    }
+
+
+def run_import(
+    input_root: Path | str | None,
+    folder: Path | str,
+    *,
+    license_note: str = "",
+    id_prefix: str = "omnicam.character.",
+    dry_run: bool = False,
+    update: bool = False,
+) -> dict:
+    """Scan ``folder``, install every rig-complete character, and merge the
+    result into the library lockfile / ``SOURCES.md`` / report. Shared by the
+    ``--character-dir`` CLI path and the Asset Browser's import button."""
+    from datetime import datetime, timezone
+
+    from .curation import SelectionResult
+    from .lockfile import LockSource, merge_assets_into_lockfile
+    from .report import build_report, write_report, write_sources_md
+
+    accepted, notes = scan_character_dir(folder, id_prefix=id_prefix)
+    if dry_run:
+        return {
+            "dry_run": True,
+            "candidates": [_summarise(c) for c in accepted],
+            "skipped": list(notes),
+        }
+    if not accepted:
+        return {"dry_run": False, "installed": [], "skipped": list(notes)}
+
+    installed = install_local_characters(
+        input_root, accepted, license_note=license_note, update=update,
+    )
+    lock_source = LockSource("", "", "", license_note or "local import (restricted licence)")
+    merge_assets_into_lockfile(input_root, installed, source_id="local", lock_source=lock_source)
+    write_sources_md(
+        input_root, {}, [],
+        install_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        source_names={"local": "Local import (you downloaded these)"},
+    )
+    report = build_report(
+        preset="local-characters", sources_total=1, sources_resolved=1,
+        archives_downloaded=0, archives_verified=0,
+        selection=SelectionResult(selected=(), warnings=(), missing_required=()),
+        installed=installed,
+    )
+    write_report(input_root, report)
+    return {
+        "dry_run": False,
+        "installed": [_summarise(a) for a in installed],
+        "skipped": list(notes),
+        "report": report,
+    }

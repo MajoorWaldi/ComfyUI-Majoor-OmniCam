@@ -72,6 +72,7 @@ surface.
 GET    /majoor/omnicam/library                filtered, paginated list (100 / 500 max)
 GET    /majoor/omnicam/library/{asset_id}     one row
 POST   /majoor/omnicam/library/import         multipart model + ?kind&name&tags -> row
+POST   /majoor/omnicam/library/import-local   {folder,license_note?,dry_run?} -> rig-verified characters
 POST   /majoor/omnicam/library/register       JSON AssetDefinition -> row
 PATCH  /majoor/omnicam/library/{asset_id}     merge fields into a user row (copy-on-write)
 DELETE /majoor/omnicam/library/{asset_id}     drop a user row (a built-in cannot be deleted)
@@ -173,6 +174,12 @@ What it does and does not do:
   redistributed — the files are used within your project. `.gltf` (multi-file)
   is not supported; export FBX or GLB. `--license-note` fills the row's
   `license.source`; the import merges into the same lockfile / `SOURCES.md`.
+- **From the UI:** the Director → ASSETS panel has a folder button
+  (`local-toggle`) that runs the same import — paste the folder path, *Scan*
+  to preview, *Install characters* to apply. `POST /majoor/omnicam/library/
+  import-local` drives it. No ComfyUI restart is needed afterwards (the catalog
+  is re-read on the next list); the panel refreshes itself. Adding this route
+  the first time does need one restart to load the new backend code.
 
 `fetch_blockout_library.py` is the legacy blockout entry point and now shares
 this same Kenney download / archive core.
