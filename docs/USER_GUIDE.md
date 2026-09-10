@@ -132,7 +132,8 @@ The left panel has **SCENE** and **ASSETS** tabs.
 - **Tags & Labels**: give objects machine **tags** (`hero`, `subject`) in the
   Inspector; toggle visible viewport **Labels** (`Off / Selected / All`,
   showing the annotation, name or primary tag) from the viewport corner. Labels
-  never appear in a playblast.
+  are hidden from a playblast by default — tick **Burn labels / annotations
+  into the playblast** (Display menu) to record them.
 
 Full reference: [Asset Library](ASSET_LIBRARY.md) · [Characters](CHARACTERS.md).
 

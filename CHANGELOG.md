@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Display ▸ Burn labels / annotations into the playblast** (`playblast_labels`,
+  off by default): paints the viewport Labels overlay onto the recorded 2D
+  canvas during a capture. The live overlay is DOM and still hides itself for a
+  clean capture; this draws the same text / annotation pills via `project()` so
+  they scale with the playblast resolution. Mirrors *Keep the grid in the
+  playblast*; also a Settings default (`MajoorOmniCam.Defaults.PlayblastLabels`).
 - Starter asset library bootstrap (`scripts/bootstrap_asset_library.py`): an
   explicit, opt-in pipeline that resolves approved CC0 Kenney packs, inventories
   and validates their GLB contents, curates a ~30–45 GLB previs starter set,

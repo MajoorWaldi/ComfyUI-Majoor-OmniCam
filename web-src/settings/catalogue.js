@@ -28,6 +28,7 @@ export const SETTING_ENCODER = "MajoorOmniCam.Defaults.Encoder";
 export const SETTING_PLAYBLAST_RESOLUTION = "MajoorOmniCam.Defaults.PlayblastResolution";
 export const SETTING_PLAYBLAST_QUALITY = "MajoorOmniCam.Playblast.Quality";
 export const SETTING_PLAYBLAST_GRID = "MajoorOmniCam.Defaults.PlayblastGrid";
+export const SETTING_PLAYBLAST_LABELS = "MajoorOmniCam.Defaults.PlayblastLabels";
 
 // Proxy look
 export const SETTING_POINT_DENSITY = "MajoorOmniCam.Proxy.PointDensity";
@@ -171,6 +172,8 @@ export function buildOmniCamSettings({
       ], "balanced"),
     toggle(SETTING_PLAYBLAST_GRID, "Defaults", "Keep the grid in the playblast",
       "Records the floor grid into the playblast instead of hiding it for the capture.", false),
+    toggle(SETTING_PLAYBLAST_LABELS, "Defaults", "Burn labels / annotations into the playblast",
+      "Paints the viewport Labels overlay onto the recorded frames (they are hidden by default for a clean capture).", false),
 
     choice(SETTING_POINT_DENSITY, "Proxy", "Default point density",
       "Point count of the omni-reference point field.",

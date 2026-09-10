@@ -292,7 +292,8 @@ altitude dot coloured by height band. The scale adapts to keep the paths, the
   clear the clip.
 - **Labels** (viewport corner, two selects): `Off / Selected / All` ×
   `Annotation / Object Name / Primary Tag`. Default `Selected + Annotation`.
-  Excluded from playblast capture.
+  Hidden from playblast capture unless **Display ▸ Burn labels / annotations
+  into the playblast** is ticked (mirrors *Keep the grid in the playblast*).
 - **Tags / Label** fields — in the object Inspector, committed on blur / Enter.
 
 ## Outliner hierarchy & filter chips

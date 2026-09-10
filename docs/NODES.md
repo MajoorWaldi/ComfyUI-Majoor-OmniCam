@@ -276,7 +276,8 @@ under `<ComfyUI input>/omnicam/library/`; the catalog is metadata only.
   exclusive.
 * **Tags** (machine semantics) and **Labels** (visible viewport annotations,
   `Off / Selected / All`) are separate from `name`. Labels are editor-only and
-  stay out of the playblast.
+  stay out of the playblast unless **Burn labels / annotations into the
+  playblast** (Display menu) is on.
 
 New scene-object fields (`asset_id`, `asset_kind`, `tags`, `annotation`,
 `character`) are additive: old workflows load unchanged and no MotionScene
