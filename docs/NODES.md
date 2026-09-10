@@ -341,30 +341,32 @@ The solver and refinement stages still operate on the internal schema-v1
 **V1 limits.** No metric scale, no animated zoom, no lens distortion, no
 rolling shutter, no multi-shot solve, no object or body capture.
 
-### Interactive solve panel
+### Matchmove panel
 
-The node carries a matchmove panel. `▶ TRACK` starts the solve immediately and
-**does not queue a ComfyUI prompt** — no graph run, no model loaded. Four
-transport controls:
+The node carries a matchmove panel. `▶ TRACK` **queues a partial ComfyUI
+execution** ending at `MajoorOmniCamExtractor`: required upstream nodes (a
+Load Video, say) run, the Extractor solves, and downstream
+Director / Monitor / video generation are **not** executed. ComfyUI owns
+queue admission, ordering, cancellation and high-level progress.
 
 ```text
-▶ TRACK     start solving now
-■ STOP      abandon it, keeping the partial path for review
+▶ TRACK     queue a partial solve now
+■ STOP      cancel the ComfyUI job (pending → dequeued, running → interrupted)
 ```
 
-Job states:
+Display states:
 
 ```text
-IDLE → PREPARING → TRACKING → SOLVING → REFINING → COMPLETED
-any active state → STOPPING → STOPPED
+IDLE → QUEUED → PREPARING → TRACKING → SOLVING → FINALIZING → COMPLETED
+any active state → CANCELLING → CANCELLED
 any active state → FAILED
 ```
 
-Stop is cooperative: the solver is asked between safe frames, and the panel
-reports `STOPPING` until the worker reaches one. No thread is killed and no CUDA
-context is force-destroyed. Pause/Resume is intentionally absent because native
-GPU backends cannot guarantee it safely. A `STOPPED` or `FAILED` solve never
-produces a final track and `APPLY REFINED` stays disabled.
+STOP cancels the actual ComfyUI job. A running solve is interrupted
+cooperatively — the solver is asked between safe frames, the spawned DPVO
+child is reaped, and no CUDA context is force-destroyed. A `CANCELLED` or
+`FAILED` solve never produces a final track and `APPLY REFINED` stays disabled.
+A busy GPU simply means the solve sits in the queue as `QUEUED`.
 
 While it runs the panel shows two tabs:
 
@@ -510,7 +512,11 @@ Extractor features two operating modes:
 - **Camera Track** (`extract_mode: "camera_track"`, default): recovers relative 6DoF camera motion from continuous video footage.
 - **Scene Reconstruct** (`extract_mode: "scene_reconstruct"`): recovers a 3D proxy scene (mesh, hold camera, and ground/wall planes) from a single still reference image.
 
-When switched to Scene Reconstruct mode, the panel provides interactive 3D proxy scene recovery without queueing a ComfyUI prompt or running diffusion models.
+In Scene Reconstruct mode the panel's `Start` queues the same partial
+execution as TRACK (`extract_mode: "scene_reconstruct"`), ending at the
+Extractor; downstream Director / Monitor / video generation are not executed.
+The reconstructed scene returns through the Extractor's result envelope and is
+routed back into the panel for preview and Director adoption.
 
 #### Result modes
 
