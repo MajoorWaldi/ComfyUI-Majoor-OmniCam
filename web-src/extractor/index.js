@@ -10,6 +10,10 @@ import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
 import { queueExtractor } from "./queue/execution.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
+import {
+  CAMERA_TRACK_REFINE_WIDGETS as REFINE_SETTING_WIDGETS,
+  syncExtractorPanelToWidgets,
+} from "./queue/widget-sync.js";
 import { RefineController } from "./refine-controls.js";
 import {
   cacheExtractorResult,
@@ -44,11 +48,6 @@ import { TrackingOverlay } from "./tracking-overlay.js";
 import { renderAnomalies } from "./views.js";
 import { loadTrackViewer } from "./track-viewer-host.js";
 import { renderExtractorRuler, renderFrameReadouts } from "./transport-readouts.js";
-
-const REFINE_SETTING_WIDGETS = [
-  "normalize_origin", "motion_scale", "position_smoothing", "rotation_smoothing",
-  "simplify_keys", "position_tolerance", "rotation_tolerance_deg",
-];
 
 function widget(node, name) {
   return node?.widgets?.find((item) => item.name === name) || null;
@@ -336,12 +335,23 @@ export class ExtractorUI {
   }
 
   /**
-   * Push the panel's settings onto the real Extractor node widgets before a
-   * queued run reads them. The full settings round-trip is filled in by the
-   * widget-sync task; extract_mode is already synced by setExtractMode().
+   * Make the real Extractor node widgets the single settings source a queued
+   * run reads.
+   *
+   * The panel only owns two things: the extract mode and the cleanup-desk
+   * controls. Everything else a queued execute() reads -- method, lens_mode,
+   * fov_degrees, focal_length_mm, sensor_width_mm, max_dimension, frame_step --
+   * has no panel control and is left exactly as the user set it on the node.
+   * In reconstruct mode the recon_* widgets are driven from the reconstruction
+   * panel's own DOM bridge.
    */
   syncPanelToNodeWidgets() {
-    // Intentionally minimal for now -- see extractor-settings-sync.
+    syncExtractorPanelToWidgets({
+      node: this.node,
+      root: this.root,
+      mode: this.extractMode,
+      refineSettings: this.refine.settings,
+    });
   }
 
   /** Reset transient solve UI for a fresh queued run. */
