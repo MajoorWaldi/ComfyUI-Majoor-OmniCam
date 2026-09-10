@@ -126,3 +126,19 @@ test("Stop delegates to the parent cancellation", async () => {
   assert.equal(controller.state.jobState, "STOPPING");
   controller.dispose();
 });
+
+test("a queued scene_reconstruct result routes into the panel by mode", async () => {
+  const { controller } = build();
+  controller.acceptQueuedResult({
+    mode: "scene_reconstruct",
+    motionScene: { version: 1, objects: [], cameras: [] },
+    fingerprint: "recon-fp-9",
+    solver_coverage: 0.9,
+    reconstruction: { provider: "comfy_moge", warnings: ["w1"] },
+  });
+  assert.equal(controller.state.jobState, "DONE");
+  assert.equal(controller.state.result.version, 1);
+  assert.deepEqual(controller.state.warnings, ["w1"]);
+  assert.equal(controller.state.fingerprint, "recon-fp-9");
+  controller.dispose();
+});

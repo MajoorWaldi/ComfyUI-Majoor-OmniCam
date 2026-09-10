@@ -39,6 +39,14 @@ def test_solver_coverage_reports_overall_confidence_not_ground_confidence(tmp_pa
 
     assert confidence == 0.95
     assert envelope["solver_coverage"] == 0.95
+    # The scene_reconstruct envelope shares the camera_track outer transport
+    # contract: kind / mode / motion_scene / solver_coverage / report / source.
+    assert envelope["kind"] == "omnicam_extractor_result_v2"
+    assert envelope["mode"] == "scene_reconstruct"
+    for key in ("motion_scene", "solver_coverage", "report", "source", "fingerprint"):
+        assert key in envelope
+    # Reconstruction-specific detail rides in its own block.
+    assert "reconstruction" in envelope
 
 
 def test_solver_coverage_falls_back_to_ground_confidence_for_old_cache_entries(tmp_path, monkeypatch):

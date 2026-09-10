@@ -265,6 +265,24 @@ export class ReconstructionPanelController {
     }
   }
 
+  /**
+   * Adopt a scene_reconstruct result that arrived through the Extractor's
+   * queued executed() envelope (parseExtractorMessage). Same outer contract as
+   * camera_track; the reconstruction-specific detail rides in `reconstruction`.
+   */
+  acceptQueuedResult(parsed) {
+    if (this.disposed) return;
+    this.runGeneration += 1;
+    this.dispatch({
+      type: "DONE",
+      jobId: "",
+      result: parsed.motionScene,
+      summary: parsed.reconstruction || null,
+      warnings: parsed.reconstruction?.warnings || [],
+      fingerprint: parsed.fingerprint,
+    });
+  }
+
   acceptResultEnvelope(jobId, result) {
     if (this.disposed) return;
     this.dispatch({

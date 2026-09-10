@@ -704,6 +704,10 @@ export class ExtractorUI {
   executed(message) {
     const result = parseExtractorMessage(message);
     if (!result) return;
+    if (result.mode === "scene_reconstruct") {
+      this.reconstruction?.acceptQueuedResult(result);
+      return;
+    }
     this.acceptSolvedResult(result, "queued");
   }
 
