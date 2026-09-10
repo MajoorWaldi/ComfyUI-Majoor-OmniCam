@@ -363,7 +363,7 @@ def run_scan_pipeline(
         source_camera = _anchor_source_camera(cameras[0], width=width, height=height)
 
     asset_placements: list[Any] = []
-    if asset_library is not None and asset_mode != "off":
+    if asset_mode != "off":
         report("SAVE_ASSETS", 0.91, "Retrieving library assets")
         from ..asset_library import resolve_placements
 

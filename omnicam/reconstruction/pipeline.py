@@ -15,6 +15,7 @@ from typing import Any
 
 from ..comfy_compat.gpu_guard import GpuContentionGuard
 from .errors import (
+    ReconAssetLibraryInvalidError,
     ReconAssetLibraryUnavailableError,
     ReconRequestInvalidError,
     ReconSegmentationUnavailableError,
@@ -80,16 +81,32 @@ def _resolve_completion_provider(settings: ReconstructionSettings) -> Any | None
     return get_completion_provider(settings.completion_provider)
 
 
+def _catalog_has_assets(input_root: Path | str | None) -> bool:
+    """True when the unified asset catalog holds at least one file-backed,
+    on-disk asset -- i.e. it can supply blockout replacements on its own."""
+    try:
+        from ..assets import load_catalog
+        from ..assets.reconstruction_bridge import catalog_asset_file_exists
+
+        catalog = load_catalog(input_root=input_root)
+    except Exception:  # noqa: BLE001 - no unified catalog is a supported state
+        return False
+    return any(
+        definition.file and catalog_asset_file_exists(definition, input_root)
+        for definition in catalog.all()
+    )
+
+
 def _resolve_asset_library(
     settings: ReconstructionSettings, input_root: Path | str | None
 ) -> tuple[Any | None, str]:
     """(library, mode) for blockout asset retrieval.
 
-    ``blockout_assets='off'`` -> ``(None, 'off')``. Otherwise the library is
-    loaded and its GLBs must be present: a requested-but-missing library raises
-    :class:`ReconAssetLibraryUnavailableError` rather than silently producing
-    boxes only (same "explicit error over silent substitution" rule the
-    segmentation resolver follows).
+    ``blockout_assets='off'`` -> ``(None, 'off')``. Otherwise assets come from
+    the **unified catalog** first; the legacy blockout library is an optional
+    fallback. An error is raised only when *neither* source can supply an asset
+    (same "explicit error over silent substitution" rule the segmentation
+    resolver follows).
     """
     mode = settings.blockout_assets
     if mode == "off":
@@ -98,9 +115,21 @@ def _resolve_asset_library(
     from .asset_library.library import stage_custom_library
 
     path = settings.asset_library_path.strip() or None
-    library = load_asset_library(path, input_root=input_root)
+    try:
+        library = load_asset_library(path, input_root=input_root)
+    except ReconAssetLibraryInvalidError:
+        # No legacy blockout manifest at the managed location. That is fine as
+        # long as the unified catalog -- the single source of truth -- can
+        # supply assets on its own; a bad *custom* path is still a hard error.
+        if path is None and _catalog_has_assets(input_root):
+            return None, mode
+        raise
     available, reason = library.status()
     if not available:
+        # The unified catalog is the single source of truth: fall through to it
+        # when the (optional) legacy blockout library is absent or incomplete.
+        if path is None and _catalog_has_assets(input_root):
+            return None, mode
         raise ReconAssetLibraryUnavailableError(reason)
     if path is not None:
         # A library outside the managed folder must be materialised there or its

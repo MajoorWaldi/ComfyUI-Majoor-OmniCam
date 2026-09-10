@@ -208,6 +208,33 @@ def test_facade_raises_when_assets_requested_but_library_absent(tmp_path):
         _resolve_asset_library(on, tmp_path)
 
 
+def test_facade_falls_through_to_the_unified_catalog_when_the_blockout_library_is_absent(
+    tmp_path, monkeypatch
+):
+    """Single source of truth: with no blockout library but a file-backed unified
+    catalog, retrieval resolves via the catalog instead of erroring out."""
+    import omnicam.reconstruction.pipeline as pipeline_mod
+    from omnicam.reconstruction.settings import ReconstructionSettings
+
+    monkeypatch.setattr(pipeline_mod, "_catalog_has_assets", lambda _root: True)
+
+    on = ReconstructionSettings(mode="blockout", provider="fake", blockout_assets="proxy")
+    # No library.json under tmp_path -> library.status() is False, but the catalog
+    # can supply assets, so we get (None, mode) rather than an exception.
+    assert pipeline_mod._resolve_asset_library(on, tmp_path) == (None, "proxy")
+
+    # An explicit custom path still errors -- the fall-through is only for the
+    # default (managed) location.
+    on_custom = ReconstructionSettings(
+        mode="blockout",
+        provider="fake",
+        blockout_assets="proxy",
+        asset_library_path=str(tmp_path / "missing"),
+    )
+    with pytest.raises(ReconAssetLibraryInvalidError):
+        pipeline_mod._resolve_asset_library(on_custom, tmp_path)
+
+
 def test_shipped_default_manifest_is_valid_and_kenney_cc0():
     import json
     from pathlib import Path
