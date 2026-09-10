@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from pathlib import Path
 
 DEFAULT_PAGE_SIZE = 200
 MAX_PAGE_SIZE = 500
-_CACHE_TTL_SECONDS = max(0, int(os.environ.get("OMNICAM_ASSET_INDEX_TTL_SECONDS", "30")))
+#: How long a directory scan stays fresh. A fixed, conservative value -- not an
+#: environment override -- so the shipped Registry package has no runtime
+#: process-environment read for it to flag.
+_CACHE_TTL_SECONDS = 30
 _cache_lock = asyncio.Lock()
 _cache: dict[Path, tuple[float, list[dict[str, float | int | str]], int]] = {}
 _generations: dict[Path, int] = {}

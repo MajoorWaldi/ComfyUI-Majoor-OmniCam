@@ -28,41 +28,35 @@ _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
 _EXECUTABLE_EXTENSIONS = {".exe", ".bat", ".ps1", ".sh", ".js", ".py", ".dll", ".com"}
 
 
-def _env_limit(name: str, default: int, *, minimum: int = 1, maximum: int = 1 << 50) -> int:
-    """Read a positive bounded byte/count limit without breaking extension import."""
-    try:
-        value = int(os.environ.get(name, default))
-    except (TypeError, ValueError):
-        return default
-    return value if minimum <= value <= maximum else default
-
-
-# Configurable limits (safe environment overrides).
-MAX_CARD_BYTES = _env_limit("OMNICAM_MAX_CARD_BYTES", 128 * 1024 * 1024)
-MAX_MODEL_BYTES = _env_limit("OMNICAM_MAX_MODEL_BYTES", 256 * 1024 * 1024)
-MAX_MODEL_VERTICES = _env_limit("OMNICAM_MAX_MODEL_VERTICES", 5_000_000)
-MAX_MODEL_TRIANGLES = _env_limit("OMNICAM_MAX_MODEL_TRIANGLES", 10_000_000)
+# Fixed, conservative upload / cache / complexity ceilings. Deliberately not
+# environment-configurable: the shipped Registry package must contain no
+# runtime process-environment read for a scanner to flag, and these values are
+# a safety floor rather than a tuning knob. See docs/SECURITY.md.
+MAX_CARD_BYTES = 128 * 1024 * 1024
+MAX_MODEL_BYTES = 256 * 1024 * 1024
+MAX_MODEL_VERTICES = 5_000_000
+MAX_MODEL_TRIANGLES = 10_000_000
 # Binary FBX is expensive to inspect safely without shipping an FBX parser. A
 # tighter byte ceiling is therefore its conservative complexity proxy; the
 # other supported formats receive actual vertex/triangle checks below.
-MAX_FBX_MODEL_BYTES = _env_limit("OMNICAM_MAX_FBX_MODEL_BYTES", 64 * 1024 * 1024)
-MAX_PLAYBLAST_BYTES = _env_limit("OMNICAM_MAX_PLAYBLAST_BYTES", 512 * 1024 * 1024)
-MAX_FOLDER_BYTES = _env_limit("OMNICAM_MAX_FOLDER_BYTES", 4 * 1024 * 1024 * 1024)
-MIN_FREE_BYTES = _env_limit("OMNICAM_MIN_FREE_BYTES", 512 * 1024 * 1024)
-MAX_IMAGE_PIXELS = _env_limit("OMNICAM_MAX_IMAGE_PIXELS", 80_000_000)
-MAX_IMAGE_FRAMES = _env_limit("OMNICAM_MAX_IMAGE_FRAMES", 2_000)
-MAX_VIDEO_PIXELS = _env_limit("OMNICAM_MAX_VIDEO_PIXELS", 16_777_216)
+MAX_FBX_MODEL_BYTES = 64 * 1024 * 1024
+MAX_PLAYBLAST_BYTES = 512 * 1024 * 1024
+MAX_FOLDER_BYTES = 4 * 1024 * 1024 * 1024
+MIN_FREE_BYTES = 512 * 1024 * 1024
+MAX_IMAGE_PIXELS = 80_000_000
+MAX_IMAGE_FRAMES = 2_000
+MAX_VIDEO_PIXELS = 16_777_216
 #: A Director's state_json can run large on a long multi-camera edit; this is
 #: an HTTP body limit, well above MAX_STATE_JSON_CHARS in monitor_live.py,
 #: which is the one that actually bounds what gets parsed.
-MAX_LIVE_PREFLIGHT_BYTES = _env_limit("OMNICAM_MAX_LIVE_PREFLIGHT_BYTES", 4 * 1024 * 1024)
-MAX_VIDEO_DURATION_SECONDS = _env_limit("OMNICAM_MAX_VIDEO_DURATION_SECONDS", 3_600)
-MAX_CLEANUP_JSON_BYTES = _env_limit("OMNICAM_MAX_CLEANUP_JSON_BYTES", 256 * 1024)
-MAX_EXPORT_JSON_BYTES = _env_limit("OMNICAM_MAX_EXPORT_JSON_BYTES", 8 * 1024 * 1024)
-MAX_EXPORT_FOLDER_BYTES = _env_limit("OMNICAM_MAX_EXPORT_FOLDER_BYTES", 512 * 1024 * 1024)
+MAX_LIVE_PREFLIGHT_BYTES = 4 * 1024 * 1024
+MAX_VIDEO_DURATION_SECONDS = 3_600
+MAX_CLEANUP_JSON_BYTES = 256 * 1024
+MAX_EXPORT_JSON_BYTES = 8 * 1024 * 1024
+MAX_EXPORT_FOLDER_BYTES = 512 * 1024 * 1024
 # The cached folder size goes stale as soon as anything deletes managed files
 # without going through /cleanup. Re-scan at most this often.
-QUOTA_CACHE_TTL_SECONDS = _env_limit("OMNICAM_QUOTA_CACHE_TTL_SECONDS", 300)
+QUOTA_CACHE_TTL_SECONDS = 300
 
 _quota_lock = asyncio.Lock()
 _quota_usage: int | None = None
@@ -564,7 +558,7 @@ async def cleanup_assets(request: web.Request):
 
 
 _EXPORT_ROOT_NAME = "omnicam/exports"
-MAX_IMPORT_BYTES = _env_limit("OMNICAM_MAX_IMPORT_BYTES", 64 * 1024 * 1024)
+MAX_IMPORT_BYTES = 64 * 1024 * 1024
 
 
 def _export_root() -> Path:

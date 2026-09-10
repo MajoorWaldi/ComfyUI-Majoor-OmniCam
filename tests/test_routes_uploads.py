@@ -275,13 +275,32 @@ async def test_cleanup_rejects_declared_and_streamed_oversize_json(input_dir):
         await routes.cleanup_assets(FakeRequest(raw_body=[b'{"files":["', b"x" * limit, b'"]}']))
 
 
-def test_env_limit_rejects_invalid_and_out_of_range(monkeypatch):
-    monkeypatch.setenv("OMNICAM_TEST_LIMIT", "not-a-number")
-    assert routes._env_limit("OMNICAM_TEST_LIMIT", 123) == 123
-    monkeypatch.setenv("OMNICAM_TEST_LIMIT", "-1")
-    assert routes._env_limit("OMNICAM_TEST_LIMIT", 123) == 123
-    monkeypatch.setenv("OMNICAM_TEST_LIMIT", "456")
-    assert routes._env_limit("OMNICAM_TEST_LIMIT", 123) == 456
+def test_upload_ceilings_are_fixed_constants_not_environment_reads():
+    # The shipped Registry package must contain no runtime process-environment
+    # read for these; they are a deterministic safety floor.
+    import inspect
+
+    source = inspect.getsource(routes)
+    assert "os.environ" not in source
+    assert not hasattr(routes, "_env_limit")
+    assert routes.MAX_CARD_BYTES == 128 * 1024 * 1024
+    assert routes.MAX_MODEL_BYTES == 256 * 1024 * 1024
+    assert routes.MAX_MODEL_VERTICES == 5_000_000
+    assert routes.MAX_MODEL_TRIANGLES == 10_000_000
+    assert routes.MAX_FBX_MODEL_BYTES == 64 * 1024 * 1024
+    assert routes.MAX_PLAYBLAST_BYTES == 512 * 1024 * 1024
+    assert routes.MAX_FOLDER_BYTES == 4 * 1024 * 1024 * 1024
+    assert routes.MIN_FREE_BYTES == 512 * 1024 * 1024
+    assert routes.MAX_IMAGE_PIXELS == 80_000_000
+    assert routes.MAX_IMAGE_FRAMES == 2_000
+    assert routes.MAX_VIDEO_PIXELS == 16_777_216
+    assert routes.MAX_LIVE_PREFLIGHT_BYTES == 4 * 1024 * 1024
+    assert routes.MAX_VIDEO_DURATION_SECONDS == 3_600
+    assert routes.MAX_CLEANUP_JSON_BYTES == 256 * 1024
+    assert routes.MAX_EXPORT_JSON_BYTES == 8 * 1024 * 1024
+    assert routes.MAX_EXPORT_FOLDER_BYTES == 512 * 1024 * 1024
+    assert routes.QUOTA_CACHE_TTL_SECONDS == 300
+    assert routes.MAX_IMPORT_BYTES == 64 * 1024 * 1024
 
 
 @pytest.mark.asyncio
