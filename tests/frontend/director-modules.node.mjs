@@ -415,7 +415,9 @@ test("render and disposal paths use revisions and release asynchronous resources
   const renderSource = await readFile(new URL("../../web-src/viewport/render.js", import.meta.url), "utf8");
   const directorSource = await readFile(new URL("../../web-src/director/methods/render.js", import.meta.url), "utf8");
   assert.match(renderSource, /state\.__omnicamRevision \?\?/);
-  assert.match(directorSource, /audioContext\?\.close/);
+  // The soundtrack is an <audio> element plus a blob URL, so disposal is
+  // releaseAudio() rather than closing an AudioContext.
+  assert.match(directorSource, /releaseAudio\(this\)/);
   assert.match(directorSource, /cancelAnimationFrame/);
   assert.match(directorSource, /upstreamFetchController\?\.abort/);
 });

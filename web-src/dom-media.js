@@ -10,6 +10,9 @@ import { upstreamPreviewMedia } from "./shared/upstream-preview.js";
 import { linkedOrigin } from "./graph-links.js";
 import { adoptUpstreamMediaMetadata } from "./upstream-media-metadata.js";
 import { fileSizeError } from "./shared/upload-limits.js";
+// The real path, not the omnicam-* build alias: both resolve to this same
+// module in vite, but only this one resolves under plain node for the tests.
+import { releaseAudio } from "./playback-transport.js";
 
 let comfyApi = null;
 
@@ -521,12 +524,7 @@ export async function syncUpstreamInputs(ui) {
 
   // 2. Cleanup disconnected Audio
   if (!hasAudioLink && ui.upstreamAudioConnected) {
-    if (ui.audioSource) {
-      try { ui.audioSource.stop(); } catch (_) {}
-      ui.audioSource = null;
-    }
-    ui.audioBuffer = null;
-    ui.audioWaveformPeaks = null;
+    releaseAudio(ui);
     ui.upstreamAudioConnected = false;
     ui.refreshKeys();
     anyUpdated = true;
