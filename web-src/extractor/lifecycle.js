@@ -77,11 +77,10 @@ export function attachExtractor(node) {
     ui.dispose();
     removed?.apply(this, arguments);
   };
-  const executed = node.onExecuted;
-  node.onExecuted = function (message) {
-    executed?.apply(this, arguments);
-    ui.executed(message);
-  };
+  // The solved result is adopted from the `executed` websocket event
+  // (queue/events.js), which carries the prompt_id this panel filters on --
+  // node.onExecuted has only the output, so a stale result from a superseded
+  // run could not be told apart there.
   const resync = () => {
     if (ui.disposed) return;
     ui.refreshSource();

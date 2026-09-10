@@ -1,15 +1,21 @@
 // Bind the Extractor panel to ComfyUI's public execution lifecycle events.
 //
-// OmniCam queues a partial prompt (queue/execution.js) and then follows it
-// purely through native events -- there is no OmniCam job socket in this path.
+// OmniCam queues a partial prompt (queue/execution.js), which captures the
+// prompt id from the /prompt response, and then follows it purely through
+// native events -- there is no OmniCam job socket in this path.
 //
-// Two rules, same as the retired subscription had:
-//   * correlate by prompt id. A graph can hold two Extractors and the user can
-//     also press the global Queue; an event for another prompt must not move
-//     this panel.
-//   * reject late events. Once this panel's prompt reaches a terminal state its
-//     id is cleared, so a straggler frame for it is dropped rather than
-//     resurrecting a finished solve.
+// Two rules:
+//   * correlate by prompt id. `ui.queuePromptId` is the id this panel's TRACK /
+//     Reconstruct started under; every lifecycle event is filtered on it. There
+//     is no "first execution_start wins" guess -- that misidentifies the run
+//     when another prompt is already queued.
+//   * reject late events. Once the run reaches a terminal state its id is
+//     cleared, so a straggler frame is dropped rather than resurrecting a
+//     finished solve.
+//
+// A result from a plain global Queue Prompt (no OmniCam-initiated run in
+// flight) is still adopted: the user ran the graph and the Extractor produced
+// a track.
 
 import { reconcileDisplayState } from "./job-state.js";
 
@@ -17,14 +23,15 @@ const NATIVE_EVENTS = [
   "execution_start",
   "executing",
   "progress",
+  "executed",
   "execution_error",
   "execution_interrupted",
   "execution_success",
 ];
 
 /**
- * @param {object} ui - the ExtractorUI instance (reads node/extractMode,
- *   writes queuePromptId/awaitingQueueStart, calls dispatch()).
+ * @param {object} ui - the ExtractorUI instance (reads node/extractMode/
+ *   queuePromptId, calls dispatch() and executed()).
  * @param {object} api - the ComfyUI api singleton.
  * @returns {() => void} an unbind function.
  */
@@ -43,20 +50,10 @@ export function bindExtractorQueueEvents(ui, api) {
   };
   const set = (state, extra = {}) =>
     ui.dispatch({ type: "QUEUE_LIFECYCLE", state, ...extra });
-  const clear = () => {
-    ui.queuePromptId = "";
-    ui.awaitingQueueStart = false;
-  };
+  const clear = () => { ui.queuePromptId = ""; };
 
   on("execution_start", (p) => {
-    // We just queued and have no id yet: adopt the first execution_start while
-    // still waiting for it. Anything else (a global Queue run, a superseded
-    // prompt) is ignored.
-    if (ui.awaitingQueueStart && !ui.queuePromptId && p.prompt_id != null) {
-      ui.queuePromptId = String(p.prompt_id);
-      ui.awaitingQueueStart = false;
-      set("PREPARING");
-    }
+    if (mine(p.prompt_id)) set("PREPARING");
   });
 
   on("executing", (p) => {
@@ -72,6 +69,15 @@ export function bindExtractorQueueEvents(ui, api) {
     if (p.node != null && String(p.node) !== nodeId()) return;
     const max = Number(p.max) || 0;
     if (max > 0) set(null, { progress: (Number(p.value) || 0) / max });
+  });
+
+  on("executed", (p) => {
+    // The solved track. Accept it for this node when it is our run, or when
+    // there is no OmniCam-initiated run in flight (a global Queue Prompt).
+    if (String(p.node ?? p.display_node ?? "") !== nodeId()) return;
+    if (!mine(p.prompt_id) && ui.queuePromptId) return;
+    clear();
+    ui.executed(p.output ?? p);
   });
 
   on("execution_error", (p) => {
@@ -90,9 +96,8 @@ export function bindExtractorQueueEvents(ui, api) {
 
   on("execution_success", (p) => {
     if (!mine(p.prompt_id)) return;
-    // The solved track arrives separately through executed() ->
-    // parseExtractorMessage() -> acceptSolvedResult(..., "queued"), which sets
-    // COMPLETED. This only closes the lifecycle if that has not landed yet.
+    // The track arrives through the `executed` event above (which sets
+    // COMPLETED). This only closes the lifecycle if that has not landed yet.
     set("FINALIZING");
     clear();
   });

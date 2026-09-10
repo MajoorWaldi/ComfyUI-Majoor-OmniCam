@@ -49,26 +49,48 @@ test("TRACK pressed while a prompt runs is QUEUED, not rejected", async ({ page 
     null, { timeout: 30_000 },
   );
 
-  // Occupy the queue with a full run, then press TRACK immediately after.
+  // Occupy the queue with a full run, capturing its prompt id, then press
+  // TRACK immediately after.
   const pressed = await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
+    const { api } = await import("/scripts/api.js");
     const ui = window.omniExtractor.__majoorOmniCamExtractor;
-    // frame_step 2 for the full run; the partial TRACK will set its own below.
+
+    // Sniff the full run's prompt id off its /prompt POST response.
+    let fullPromptId = "";
+    const realFetch = api.fetchApi;
+    api.fetchApi = async (url, opts = {}) => {
+      const res = await realFetch.call(api, url, opts);
+      if (String(url).endsWith("/prompt") && (opts.method || "GET") === "POST" && !fullPromptId) {
+        try { fullPromptId = (await res.clone().json())?.prompt_id || ""; } catch { /* */ }
+      }
+      return res;
+    };
+    // frame_step 2 for the full run; the partial TRACK sets its own below.
     await app.queuePrompt(0, 1);
+    api.fetchApi = realFetch;
+
     const step = window.omniExtractor.widgets?.find((w) => w.name === "frame_step");
     if (step) step.value = 1; // different cache key -> TRACK is real work, queued behind
     await ui.startSolve();
     return {
       state: ui.state.solveState,
       error: ui.state.error,
+      fullPromptId,
+      trackPromptId: ui.queuePromptId,
     };
   });
 
-  // The load-bearing assertion: TRACK was accepted and is waiting, not failed
-  // with a custom rejection.
+  // TRACK was accepted and is waiting, not failed with a custom rejection.
   expect(pressed.error).toBe("");
   expect(["QUEUED", "PREPARING", "TRACKING"], `TRACK state was ${pressed.state}`)
     .toContain(pressed.state);
+
+  // The load-bearing assertion the reviewer flagged: OmniCam follows ITS OWN
+  // prompt, not "the first execution_start". The two ids must differ, and
+  // TRACK's must be the one it captured from /prompt (non-empty).
+  expect(pressed.trackPromptId).toBeTruthy();
+  expect(pressed.trackPromptId).not.toBe(pressed.fullPromptId);
 
   // And it drains on its own once the queue clears.
   await page.waitForFunction(

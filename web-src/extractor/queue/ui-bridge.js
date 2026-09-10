@@ -13,9 +13,18 @@ import { syncExtractorPanelToWidgets } from "./widget-sync.js";
  * result returns through executed() -> parseExtractorMessage() ->
  * acceptSolvedResult(..., "queued").
  */
+const QUEUE_REFUSAL = {
+  "subgraph-not-supported":
+    "OmniCam TRACK does not support an Extractor inside a subgraph yet. Move "
+    + "it to the root graph, or run the whole workflow with Queue Prompt.",
+  "no-execution-id": "This Extractor has no resolvable node id and cannot be queued.",
+};
+
 export async function startQueuedSolve(ui, mode = "camera_track") {
   try {
-    await queueExtractor(ui, mode);
+    const result = await queueExtractor(ui, mode);
+    const message = QUEUE_REFUSAL[result?.reason];
+    if (message) ui.dispatch({ type: "FAILED", error: message });
   } catch (error) {
     ui.dispatch({ type: "FAILED", error: String(error?.message || error) });
   }
@@ -38,13 +47,13 @@ export function syncPanelToNodeWidgets(ui) {
   });
 }
 
-/** Reset transient solve UI for a fresh queued run. */
+/** Reset transient solve UI for a fresh queued run. queueExtractor() then
+ *  records the prompt id this run is accepted under. */
 export function prepareForQueuedRun(ui) {
   ui.sourceViewer.setFollow(true);
   ui.overlay.clear();
   ui.diagnostics.clear();
   ui.queuePromptId = "";
-  ui.awaitingQueueStart = true;
   ui.dispatch({ type: "JOB_STARTED", status: { job_id: "", state: "QUEUED" } });
   ui.coordinator.seek(0, "backend");
 }

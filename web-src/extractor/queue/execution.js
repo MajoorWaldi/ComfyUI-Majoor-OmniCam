@@ -4,8 +4,13 @@
 // free, it does not poll, it does not retry. It asks ComfyUI to run a partial
 // prompt whose only target is the Extractor node, and ComfyUI owns everything
 // after that -- admission, dependency closure, ordering, cancellation,
-// progress and the final NodeOutput. The result comes back through the
-// existing `ExtractorUI.executed()` / `parseExtractorMessage()` bridge.
+// progress and the final NodeOutput.
+//
+// The prompt id is captured deterministically from the /prompt POST response
+// (app.queuePrompt reduces that to a boolean and the public promptQueued event
+// does not carry it), so every event, the STOP call and the result are
+// filtered on THIS run -- never "the first execution_start after TRACK", which
+// misidentifies a solve when another prompt was already queued.
 //
 // There is deliberately no import of `SolveJobClient` or any `/extractor/jobs`
 // route here. TRACK must never reach the old out-of-queue scheduler.
@@ -21,42 +26,114 @@ const TRIGGER_SOURCE = {
 /**
  * The partial-execution target ID for an Extractor node.
  *
- * For a root-graph node this is just the string node id. Nodes living inside a
- * subgraph instance need a colon-separated execution path; that case is handled
- * where subgraph support is added and is intentionally not guessed here.
+ * For a root-graph node this is just the string node id. A node inside a
+ * subgraph instance needs a colon-separated execution path; that is not
+ * supported yet, so this returns null there rather than target the wrong node.
  *
- * @param {{ id?: string | number }} node
+ * @param {object} node - a LiteGraph node.
  * @returns {string | null}
  */
 export function resolveExecutionId(node) {
   const id = node?.id;
   if (id === undefined || id === null || id === "") return null;
+  if (isInsideSubgraph(node)) return null;
   return String(id);
 }
 
+/** Whether this node lives inside a subgraph instance rather than the root graph. */
+export function isInsideSubgraph(node) {
+  if (node == null) return false;
+  // A colon in the id is the execution-path form ComfyUI uses for nested nodes.
+  if (String(node.id ?? "").includes(":")) return true;
+  const graph = node.graph;
+  if (!graph) return false;
+  // LiteGraph/ComfyUI subgraph graphs expose one of these.
+  if (graph.isRootGraph === false) return true;
+  if (graph._is_subgraph || graph.is_subgraph || graph._subgraph_node) return true;
+  if (graph.rootGraph && graph.rootGraph !== graph) return true;
+  return false;
+}
+
 /**
- * Enqueue a partial ComfyUI execution ending at this Extractor.
+ * Enqueue a partial ComfyUI execution ending at this Extractor and record the
+ * prompt id it was accepted under.
  *
  * @param {object} ui - the ExtractorUI instance.
  * @param {"camera_track" | "scene_reconstruct"} [mode]
- * @returns {Promise<{ accepted: boolean, reason?: string }>}
+ * @returns {Promise<{ accepted: boolean, reason?: string, promptId?: string }>}
  */
 export async function queueExtractor(ui, mode = "camera_track") {
   const source = ui.refreshSource();
   if (!source?.available) return { accepted: false, reason: "no-source" };
 
+  if (isInsideSubgraph(ui.node)) {
+    return { accepted: false, reason: "subgraph-not-supported" };
+  }
+  const executionId = resolveExecutionId(ui.node);
+  if (!executionId) return { accepted: false, reason: "no-execution-id" };
+
   ui.setExtractMode(mode);
   ui.syncPanelToNodeWidgets?.();
   ui.prepareForQueuedRun?.();
 
-  const executionId = resolveExecutionId(ui.node);
-  if (!executionId) return { accepted: false, reason: "no-execution-id" };
-
-  const accepted = await queuePartialPrompt(ui.app, [executionId], {
-    intent: { trigger_source: TRIGGER_SOURCE[mode] || "omnicam_track" },
-  });
-  return { accepted: Boolean(accepted) };
+  const { accepted, promptId } = await queueAndCapturePromptId(
+    ui.app,
+    ui.api,
+    [executionId],
+    { intent: { trigger_source: TRIGGER_SOURCE[mode] || "omnicam_track" } },
+  );
+  ui.queuePromptId = accepted ? String(promptId || "") : "";
+  return { accepted, promptId: ui.queuePromptId };
 }
+
+/**
+ * Call queuePartialPrompt and pull the prompt id out of the /prompt POST it
+ * makes. api.fetchApi is wrapped only for the duration of that one call, and
+ * only a /prompt POST whose partial_execution_targets exactly match ours is
+ * read -- a concurrent full Queue Prompt is never mistaken for this run.
+ *
+ * @returns {Promise<{ accepted: boolean, promptId: string }>}
+ */
+export async function queueAndCapturePromptId(app, api, executionIds, options) {
+  const wanted = executionIds.map(String).sort();
+  const original = api.fetchApi;
+  let promptId = "";
+
+  api.fetchApi = async (url, opts = {}) => {
+    const response = await original.call(api, url, opts);
+    try {
+      const path = String(url).split("?")[0];
+      const isPromptPost =
+        String(opts.method || "GET").toUpperCase() === "POST" &&
+        (path === "/prompt" || path.endsWith("/prompt"));
+      if (isPromptPost && response.ok && !promptId) {
+        let body = {};
+        try { body = JSON.parse(opts.body || "{}"); } catch { body = {}; }
+        const targets = Array.isArray(body.partial_execution_targets)
+          ? body.partial_execution_targets.map(String).sort()
+          : null;
+        const isOurs = targets && targets.length === wanted.length
+          && targets.every((id, i) => id === wanted[i]);
+        if (isOurs) {
+          const json = await response.clone().json().catch(() => ({}));
+          if (typeof json?.prompt_id === "string") promptId = json.prompt_id;
+        }
+      }
+    } catch {
+      // leave promptId empty; the run still executes, it is just uncorrelated
+    }
+    return response;
+  };
+
+  try {
+    const accepted = await queuePartialPrompt(app, executionIds, options);
+    return { accepted: Boolean(accepted), promptId };
+  } finally {
+    api.fetchApi = original;
+  }
+}
+
+export { queuePartialPrompt };
 
 /**
  * Cancel a queued Extractor solve through ComfyUI's Jobs API.

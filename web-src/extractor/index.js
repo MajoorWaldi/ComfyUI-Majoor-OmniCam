@@ -115,10 +115,10 @@ export class ExtractorUI {
     this.viewer = null;
     this.viewerLoad = null;
 
-    // The queued path follows ComfyUI's native lifecycle. queuePromptId is
-    // transient identity (STOP, status, late-event rejection) and never serialized.
+    // The queued path follows ComfyUI's native lifecycle. queuePromptId is the
+    // id this panel's TRACK / Reconstruct was accepted under (captured from the
+    // /prompt response) -- transient, never serialized.
     this.queuePromptId = "";
-    this.awaitingQueueStart = false;
     this.unbindQueueEvents = bindExtractorQueueEvents(this, api);
 
     // Read back whatever the workflow saved, rather than always booting into

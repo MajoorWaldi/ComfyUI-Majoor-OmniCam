@@ -65,32 +65,59 @@ function harness({ mode = "camera_track" } = {}) {
     removeEventListener: (name) => handlers.delete(name),
   };
   const dispatched = [];
+  const executedCalls = [];
   const ui = {
     node: { id: 7 },
     extractMode: mode,
     queuePromptId: "",
-    awaitingQueueStart: false,
     dispatch: (action) => dispatched.push(action),
+    executed: (message) => executedCalls.push(message),
   };
   const unbind = bindExtractorQueueEvents(ui, api);
   const emit = (name, detail) => handlers.get(name)?.({ detail });
-  return { ui, dispatched, emit, unbind, handlers };
+  return { ui, dispatched, executedCalls, emit, unbind, handlers };
 }
 
-test("execution_start is adopted only while awaiting our own queued run", () => {
+test("lifecycle events are filtered strictly on the captured prompt id -- no adoption", () => {
   const h = harness();
+  // No queuePromptId yet: nothing is adopted, whatever execution_start says.
   h.emit("execution_start", { prompt_id: "p1" });
-  assert.equal(h.ui.queuePromptId, ""); // not awaiting -> ignored
-
-  h.ui.awaitingQueueStart = true;
   h.emit("execution_start", { prompt_id: "p2" });
-  assert.equal(h.ui.queuePromptId, "p2");
-  assert.equal(h.ui.awaitingQueueStart, false);
-  assert.deepEqual(h.dispatched.at(-1), { type: "QUEUE_LIFECYCLE", state: "PREPARING" });
+  assert.equal(h.ui.queuePromptId, "");
+  assert.equal(h.dispatched.length, 0);
 
-  // A second execution_start (another prompt) does not steal the panel.
-  h.emit("execution_start", { prompt_id: "p3" });
-  assert.equal(h.ui.queuePromptId, "p2");
+  // queueExtractor() set our id from the /prompt response. Now our own
+  // execution_start moves us to PREPARING; another prompt's is ignored.
+  h.ui.queuePromptId = "p2";
+  h.emit("execution_start", { prompt_id: "p1" });
+  assert.equal(h.dispatched.length, 0);
+  h.emit("execution_start", { prompt_id: "p2" });
+  assert.deepEqual(h.dispatched.at(-1), { type: "QUEUE_LIFECYCLE", state: "PREPARING" });
+});
+
+test("the executed event routes the result for our run and for a plain global Queue", () => {
+  // Our run: prompt id matches, node matches -> routed, id cleared.
+  const mine = harness();
+  mine.ui.queuePromptId = "p1";
+  mine.emit("executed", { prompt_id: "p1", node: "7", output: { text: ["envelope"] } });
+  assert.deepEqual(mine.executedCalls, [{ text: ["envelope"] }]);
+  assert.equal(mine.ui.queuePromptId, "");
+
+  // No OmniCam run in flight (global Queue Prompt): still adopted for our node.
+  const global = harness();
+  global.emit("executed", { prompt_id: "whatever", node: "7", output: { text: ["e2"] } });
+  assert.deepEqual(global.executedCalls, [{ text: ["e2"] }]);
+
+  // A run IS in flight but the executed event is for a different prompt: dropped.
+  const stale = harness();
+  stale.ui.queuePromptId = "p9";
+  stale.emit("executed", { prompt_id: "p1", node: "7", output: { text: ["old"] } });
+  assert.equal(stale.executedCalls.length, 0);
+
+  // Another node's executed is never ours.
+  const other = harness();
+  other.emit("executed", { prompt_id: "p1", node: "42", output: { text: ["x"] } });
+  assert.equal(other.executedCalls.length, 0);
 });
 
 test("executing our node maps to TRACKING or RECONSTRUCTING by mode", () => {
