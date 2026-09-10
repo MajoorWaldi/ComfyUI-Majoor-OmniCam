@@ -142,6 +142,10 @@ export class ExtractorUI {
       app,
       getSource: () => this.state.source?.ref || null,
       onAdopt: (result) => adoptReconstructionIntoDownstreamDirectors(this.node, result),
+      // Scene Reconstruction Start / Stop run through the same partial queue as
+      // Camera TRACK; the panel no longer owns a job manager.
+      onQueue: () => this.startSolve("scene_reconstruct"),
+      onCancel: () => this.cancelQueuedRun(),
       listen: (target, event, handler) => this.listen(target, event, handler),
     });
 
@@ -330,9 +334,9 @@ export class ExtractorUI {
     return clearExtractorCache(this);
   }
 
-  /** Camera TRACK -> a partial ComfyUI execution. See queue/ui-bridge.js. */
-  startSolve() {
-    return startQueuedSolve(this, "camera_track");
+  /** TRACK / Reconstruct Start -> a partial ComfyUI execution. See queue/ui-bridge.js. */
+  startSolve(mode = "camera_track") {
+    return startQueuedSolve(this, mode);
   }
 
   /** STOP -> cancel this panel's ComfyUI job. Idempotent. */

@@ -1,7 +1,7 @@
 // Orchestrator for the scene reconstruction panel.
 
 import { loadReconstructionCapabilities } from "./capabilities.js";
-import { bindReconstructionControls, readReconstructionSettings } from "./controls.js";
+import { bindReconstructionControls } from "./controls.js";
 import { ReconstructionEventSubscription, matchesReconstructionEvent } from "./events.js";
 import { ReconstructionJobClient, stopActiveReconstructionOnDispose } from "./job-client.js";
 import {
@@ -24,6 +24,8 @@ export class ReconstructionPanelController {
     app = null,
     getSource = () => null,
     onAdopt = () => {},
+    onQueue = () => {},
+    onCancel = () => {},
     listen = (target, event, handler) => target?.addEventListener?.(event, handler),
   }) {
     this.root = root;
@@ -32,6 +34,11 @@ export class ReconstructionPanelController {
     this.app = app;
     this.getSource = getSource;
     this.onAdopt = onAdopt;
+    // Start / Stop delegate to the parent's partial-queue path. The panel keeps
+    // capabilities, source inspection, the 3D preview, discard and Director
+    // adoption -- but no longer owns a heavy job manager.
+    this.onQueue = onQueue;
+    this.onCancel = onCancel;
     this.listen = listen;
 
     this.client = new ReconstructionJobClient(api);
@@ -216,29 +223,16 @@ export class ReconstructionPanelController {
   async run() {
     const source = this.state.source || this.getSource();
     if (!source || this.disposed) return;
-    const generation = ++this.runGeneration;
-    // Last-write wins: flush the panel onto the widgets so this run and a save
-    // immediately after it agree.
+    this.runGeneration += 1;
+    // Last-write wins: flush the panel onto the widgets so this run -- and a
+    // save immediately after it -- agree. The parent's queueExtractor() also
+    // does this, but the panel's own Start must not depend on that ordering.
     syncWidgetsFromPanel(this.node, this.root);
-    const settings = readReconstructionSettings(this.root);
-
     this.dispatch({ type: "STATE", jobState: "PREPARING" });
-    try {
-      const resp = await this.client.startJob({
-        nodeId: this.node?.id || "",
-        source,
-        settings,
-        signal: this.requestLifetime.signal,
-      });
-      if (this.disposed || generation !== this.runGeneration) {
-        if (resp?.job_id) void this.client.stopJob(resp.job_id).catch(() => {});
-        return;
-      }
-      this.applyJobResponse(resp);
-    } catch (err) {
-      if (this.disposed || isAbortError(err)) return;
-      this.dispatch({ type: "ERROR", error: { message: err.message } });
-    }
+    // Enqueue a partial ComfyUI execution in scene_reconstruct mode. The
+    // solved scene returns through the Extractor's executed() envelope and is
+    // routed back here by mode.
+    await this.onQueue();
   }
 
   /**
@@ -320,14 +314,11 @@ export class ReconstructionPanelController {
   }
 
   async stop() {
-    if (!this.state.jobId) return;
     this.runGeneration += 1;
     this.dispatch({ type: "STATE", jobState: "STOPPING" });
-    try {
-      await this.client.stopJob(this.state.jobId);
-    } catch {
-      // Ignored
-    }
+    // Cancel the actual ComfyUI job. The move to a terminal state comes from
+    // the execution_interrupted event the parent listens for.
+    await this.onCancel();
   }
 
   openDirector() {
