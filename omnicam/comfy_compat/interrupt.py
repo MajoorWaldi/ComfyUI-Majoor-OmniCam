@@ -72,3 +72,22 @@ class ComfyInterruptControl:
         except BaseException:  # noqa: BLE001 - any interruption means cancelled
             return True
         return False
+
+
+class ComfyReconCancel:
+    """A reconstruction :class:`CancelToken` backed by ComfyUI's interruption.
+
+    The scene-reconstruction pipeline polls ``is_cancelled()`` at every stage
+    boundary; a Comfy job cancel makes it return ``True`` and the pipeline
+    unwinds cooperatively (``ReconCancelledError``). ``check`` is a test hook.
+    """
+
+    def __init__(self, check: Callable[[], None] | None = None) -> None:
+        self._check = check if check is not None else check_interrupted
+
+    def is_cancelled(self) -> bool:
+        try:
+            self._check()
+        except BaseException:  # noqa: BLE001 - any interruption means cancelled
+            return True
+        return False

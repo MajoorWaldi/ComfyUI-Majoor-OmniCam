@@ -10,7 +10,11 @@ from __future__ import annotations
 import json
 
 from ..comfy_compat import IO, UI
-from ..comfy_compat.interrupt import ComfyInterruptControl
+from ..comfy_compat.interrupt import (
+    ComfyInterruptControl,
+    ComfyReconCancel,
+    check_interrupted,
+)
 from ..comfy_compat.progress import CAMERA_TRACK_PHASES, ExecutionProgress
 from ..core.motion_scene import motion_scene_from_camera_track
 from ..extractor.pipeline import extract_camera_track
@@ -309,6 +313,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         recon_scene_scale: float = 1.0,
     ) -> IO.NodeOutput:
         if extract_mode == "scene_reconstruct":
+            from ..reconstruction.errors import ReconCancelledError
             from ..reconstruction.node_bridge import (
                 execute_reconstruction,
                 reconstruction_settings_from_widgets,
@@ -339,9 +344,19 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 recon_scene_scale=recon_scene_scale,
             )
             recon_progress = ExecutionProgress()
-            motion_scene, confidence, report, envelope = execute_reconstruction(
-                video, settings=recon_settings, progress=recon_progress
-            )
+            try:
+                motion_scene, confidence, report, envelope = execute_reconstruction(
+                    video,
+                    settings=recon_settings,
+                    progress=recon_progress,
+                    cancel=ComfyReconCancel(),
+                )
+            except ReconCancelledError:
+                # Surface a cooperative reconstruction stop as ComfyUI's own
+                # interruption so the queue marks the prompt cancelled, not
+                # errored.
+                check_interrupted()
+                raise
             recon_preview = json.dumps(envelope, separators=(",", ":"))
             recon_progress.update(100.0, 100.0)
             return IO.NodeOutput(

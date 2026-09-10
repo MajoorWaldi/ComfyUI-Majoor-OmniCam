@@ -12,7 +12,11 @@ import numpy as np
 import pytest
 
 from omnicam.comfy_compat import interrupt as interrupt_mod
-from omnicam.comfy_compat.interrupt import ComfyInterruptControl, check_interrupted
+from omnicam.comfy_compat.interrupt import (
+    ComfyInterruptControl,
+    ComfyReconCancel,
+    check_interrupted,
+)
 
 
 class _InterruptedError(RuntimeError):
@@ -69,6 +73,12 @@ def test_control_cancelled_is_true_only_when_the_check_raises():
     assert ComfyInterruptControl(check=lambda: None).cancelled() is False
     raising = ComfyInterruptControl(check=lambda: (_ for _ in ()).throw(_InterruptedError()))
     assert raising.cancelled() is True
+
+
+def test_recon_cancel_token_reports_a_comfy_interruption():
+    assert ComfyReconCancel(check=lambda: None).is_cancelled() is False
+    raising = ComfyReconCancel(check=lambda: (_ for _ in ()).throw(_InterruptedError()))
+    assert raising.is_cancelled() is True
 
 
 def test_a_cancelled_dpvo_solve_reaps_the_child_and_clears_the_exchange(monkeypatch, tmp_path):
