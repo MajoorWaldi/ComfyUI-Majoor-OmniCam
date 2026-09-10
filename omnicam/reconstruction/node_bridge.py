@@ -146,11 +146,19 @@ def execute_reconstruction(
     *,
     settings: ReconstructionSettings | None = None,
     provider_id: str | None = None,
+    progress: Any | None = None,
 ) -> tuple[dict[str, Any], float, str, dict[str, Any]]:
     """Execute scene reconstruction synchronously for ComfyUI graph execution.
 
-    Returns (motion_scene, solver_coverage, report, envelope).
+    Returns (motion_scene, solver_coverage, report, envelope). ``progress`` is
+    an optional :class:`omnicam.comfy_compat.progress.ExecutionProgress`; when
+    given, coarse phase transitions are reported through ComfyUI.
     """
+    from ..comfy_compat.progress import SCENE_RECONSTRUCT_PHASES
+
+    def _mark(phase: str) -> None:
+        if progress is not None:
+            progress.phase_done(SCENE_RECONSTRUCT_PHASES[phase])
     if not isinstance(image_input, torch.Tensor):
         raise ValueError(
             "Scene reconstruction requires an IMAGE input (a single still, or a batch "
@@ -216,6 +224,7 @@ def execute_reconstruction(
 
     rel_value = f"majoor_omnicam/reconstruction/inputs/{filename} [input]"
     source = ReconstructionSource(kind="annotated_input", value=rel_value)
+    _mark("source")
 
     provider = get_provider(active_settings.provider)
 
@@ -225,6 +234,7 @@ def execute_reconstruction(
         provider=provider,
         scan_samples=scan_samples,
     )
+    _mark("completion")
 
     # solver_coverage must report the overall reconstruction confidence, not
     # the ground plane's alone -- an excellent mesh over a scene with no

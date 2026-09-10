@@ -8,6 +8,7 @@ __all__ = [
     "IO",
     "UI",
     "ComfyAPI",
+    "ComfyAPISync",
     "ComfyExtension",
     "InputImpl",
     "PromptServer",
@@ -18,7 +19,15 @@ __all__ = [
 
 def __getattr__(name: str) -> Any:
     """Load only the ComfyUI surface the importing module actually needs."""
-    if name in {"ComfyAPI", "ComfyExtension", "IO", "InputImpl", "UI", "VideoComponents"}:
+    if name in {
+        "ComfyAPI",
+        "ComfyAPISync",
+        "ComfyExtension",
+        "IO",
+        "InputImpl",
+        "UI",
+        "VideoComponents",
+    }:
         from . import api
 
         return getattr(api, name)

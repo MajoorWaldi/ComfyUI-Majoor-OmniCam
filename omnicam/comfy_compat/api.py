@@ -23,7 +23,15 @@ from typing import Any
 # newer numbered API here when ComfyUI cuts one and it settles as stable.
 _API_MODULE_NAMES = ("comfy_api.v0_0_2", "comfy_api.latest")
 
-__all__ = ["IO", "UI", "ComfyAPI", "ComfyExtension", "InputImpl", "VideoComponents"]
+__all__ = [
+    "IO",
+    "UI",
+    "ComfyAPI",
+    "ComfyAPISync",
+    "ComfyExtension",
+    "InputImpl",
+    "VideoComponents",
+]
 
 
 def _load_api_modules() -> list[Any]:
@@ -67,6 +75,9 @@ def _resolve_video_components() -> Any:
 IO = _resolve("IO")
 UI = _resolve("UI")
 ComfyAPI = _resolve("ComfyAPI")
+# The synchronous execution API. V3 nodes run on a worker thread, so OmniCam's
+# solve code reports progress through this rather than the awaitable ComfyAPI.
+ComfyAPISync = _resolve("ComfyAPISync")
 ComfyExtension = _resolve("ComfyExtension")
 InputImpl = _resolve("InputImpl")
 VideoComponents = _resolve_video_components()
