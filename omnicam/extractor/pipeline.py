@@ -243,9 +243,12 @@ def extract_camera_track(
         rotation_tolerance_deg=rotation_tolerance_deg,
     )
     track = refine_raw_solve(raw, settings)
+    from .raw_solve_io import raw_solve_to_dict
+
     return ExtractionResult(
         track=track,
         confidence=raw.coverage,
         report=build_report(track),
         fingerprint=str(track["metadata"]["extractor_fingerprint"]),
+        raw_solve=raw_solve_to_dict(raw),
     )

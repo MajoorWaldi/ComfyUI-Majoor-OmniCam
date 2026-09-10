@@ -116,6 +116,24 @@ test("the Extractor previews its source and its solved track", async ({ page }) 
   // not emit yet (design spec: "may remain"). It is a documented follow-up, not
   // a regression in the load-bearing result path asserted above.
 
+  // --- live post-solve refine (no re-TRACK) ------------------------------
+  const refined = await page.evaluate(async () => {
+    const ui = window.omnicamExtractor.__majoorOmniCamExtractor;
+    const before = ui.result.refined.keyframes.length;
+    const hadRaw = Boolean(ui.rawSolve);
+    // A heavy simplify should drop keys; no solver runs.
+    await ui.requestRefine({ ...ui.refine.settings, simplify_keys: true, position_tolerance: 5 });
+    return {
+      hadRaw,
+      before,
+      after: ui.result.refined.keyframes.length,
+      state: ui.state.solveState,
+    };
+  });
+  expect(refined.hadRaw, "the raw solve rode in the result envelope").toBe(true);
+  expect(refined.state, "a live refine must not tear down the solve").toBe("COMPLETED");
+  expect(refined.after).toBeLessThan(refined.before);
+
   // --- the 3D track preview ------------------------------------------------
   await page.evaluate(() => window.omnicamExtractor.__majoorOmniCamExtractor.setViewerMode("track3d"));
   await page.waitForFunction(

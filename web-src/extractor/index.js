@@ -7,6 +7,7 @@ import { clearExtractorCache } from "./clear-cache.js";
 
 import { bindExtractorQueueEvents } from "./queue/events.js";
 import { cancelExtractorJob } from "./queue/execution.js";
+import { postRefine } from "./refine-client.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
 import {
@@ -77,10 +78,11 @@ export class ExtractorUI {
     this.upstreamPreviewActive = false;
     this.motionLimits = null;
 
-    // Cleanup-desk edits accumulate on the controller; a queued run reads them
-    // off the node widgets (see queue/widget-sync.js). Instant post-solve
-    // refinement without a re-queue is a separate follow-up.
-    this.refine = new RefineController({ onRefine: () => {} });
+    // Cleanup-desk edits accumulate on the controller. A queued run reads them
+    // off the node widgets (queue/widget-sync.js); after a solve, dragging a
+    // slider re-derives the track live from the raw solve (requestRefine).
+    this.rawSolve = null;
+    this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
     this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
     this.sourceViewer = new SourceViewer(this.$("source-video"), {
       onFrame: (frame) => this.coordinator.seek(frame, "media"),
@@ -357,6 +359,9 @@ export class ExtractorUI {
     );
     this.result = { raw: raw || refined, refined };
     this.landmarks = Array.isArray(result?.landmarks_3d) ? result.landmarks_3d : [];
+    // The immutable raw solve, held in session so the cleanup sliders can
+    // re-derive a track without re-running TRACK.
+    this.rawSolve = result?.rawSolve || null;
     this.dispatch({ type: "QUEUED_RESULT" });
     this.dispatch({
       type: "STATUS",
@@ -377,6 +382,34 @@ export class ExtractorUI {
     this.dispatch({ type: "APPLIED", fingerprint });
     if (result?.source) this.refreshSource();
     return true;
+  }
+
+  /**
+   * Re-derive the refined track from the raw solve when a cleanup slider moves.
+   *
+   * No queue, no re-solve: POST the raw solve + settings to the bounded refine
+   * route and swap the result in. A no-op until a solve has produced a raw
+   * solve this session (after a reload, press TRACK to refine again).
+   */
+  async requestRefine(settings) {
+    if (!this.rawSolve || this.state.solveState !== "COMPLETED") return null;
+    try {
+      const payload = await postRefine(this.api, this.rawSolve, settings);
+      const refined = payload?.refined_track;
+      if (!refined?.keyframes?.length) return null;
+      this.result = { ...this.result, refined };
+      const fingerprint = String(payload.fingerprint || "");
+      this.dispatch({ type: "REFINED", fingerprint });
+      this.pushTracksToViewer();
+      cacheExtractorResult(this.node, { motionScene: motionSceneFromTrack(refined), fingerprint });
+      return payload;
+    } catch (error) {
+      // A refine hiccup must not tear down a good solve: keep COMPLETED and the
+      // last good track, just report it.
+      console.warn("[OmniCam] live refine failed", error);
+      this.setStatus?.(String(error?.message || error));
+      return null;
+    }
   }
 
   /**

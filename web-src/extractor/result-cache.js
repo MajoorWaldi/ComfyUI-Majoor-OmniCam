@@ -85,7 +85,14 @@ export function parseExtractorMessage(message) {
 
   const track = motionSceneCameraTrack(motionScene);
   if (!track) return null;
-  return { ...common, track, source: String(envelope.source || "") };
+  return {
+    ...common,
+    track,
+    source: String(envelope.source || ""),
+    // The immutable raw solve, for live post-solve refinement without a
+    // re-TRACK (POST /majoor/omnicam/extractor/refine). Held in session only.
+    rawSolve: envelope.raw_solve && typeof envelope.raw_solve === "object" ? envelope.raw_solve : null,
+  };
 }
 
 function hide(widget) {

@@ -82,3 +82,6 @@ class ExtractionResult:
     confidence: float
     report: str
     fingerprint: str
+    #: The immutable raw solve, serialized (see raw_solve_io). Carried so the
+    #: panel's cleanup sliders can re-derive a track without re-running TRACK.
+    raw_solve: dict[str, Any] | None = None

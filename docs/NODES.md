@@ -403,14 +403,19 @@ envelope carries only the annotated reference, never an absolute path.
 ```text
 POST   /majoor/omnicam/extractor/source
 POST   /majoor/omnicam/extractor/frame
-POST   /majoor/omnicam/extractor/jobs
-GET    /majoor/omnicam/extractor/jobs/{job_id}
-POST   /majoor/omnicam/extractor/jobs/{job_id}/stop
-POST   /majoor/omnicam/extractor/jobs/{job_id}/refine
-GET    /majoor/omnicam/extractor/jobs/{job_id}/result
-DELETE /majoor/omnicam/extractor/jobs/{job_id}
+POST   /majoor/omnicam/extractor/refine
 POST   /majoor/omnicam/upload_extractor_source
 ```
+
+None of these queue a prompt, start a job, or touch the GPU. TRACK and Scene
+Reconstruction Start run through ComfyUI's native partial queue instead (they
+enqueue a partial execution ending at `MajoorOmniCamExtractor`).
+
+`/extractor/refine` takes the immutable raw solve the queued Extractor emitted
+plus the current cleanup settings and returns a freshly refined track --
+`build_refined_track` only, so dragging a slider updates the track without
+re-running TRACK. Bounded to 4 MiB; a solve too large to fit is refined by
+pressing TRACK again with the settings you want.
 
 `/extractor/source` measures a source without starting anything: the panel
 needs the frame rate and count before the first solve, or its scrubber has no
@@ -464,7 +469,10 @@ raw → spike actions → trim → origin → global alignment
 
 Alignment is **global**: one pitch/yaw/roll offset for the whole solve, never
 per key. Spike detection uses median and MAD, so a camera that is simply moving
-fast is not flagged. `RESET` returns to the raw solve exactly.
+fast is not flagged. `RESET` returns to the raw solve exactly. The re-derive
+runs through `POST /majoor/omnicam/extractor/refine` in the same session as the
+solve; after a workflow reload the refined track is restored from the node's
+serialized cache and a fresh TRACK re-enables live refinement.
 
 `APPLY REFINED` writes the result into the node's serialized state and notifies
 the connected Director. Changing a control afterwards marks the result

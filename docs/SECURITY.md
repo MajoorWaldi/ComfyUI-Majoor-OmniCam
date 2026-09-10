@@ -20,6 +20,16 @@ The HTTP request is bounded by the fixed `MAX_LIVE_PREFLIGHT_BYTES` constant
 (4 MiB). The nested Director `state_json` is additionally bounded to 2,000,000
 characters by `omnicam/nodes/monitor_live.py`.
 
+## Extractor no-run routes
+
+`POST /majoor/omnicam/extractor/source` and `/extractor/frame` inspect a source
+without starting a solve; `POST /majoor/omnicam/extractor/refine` re-derives a
+track from the raw solve the queued Extractor emitted (`build_refined_track`
+only -- no decode, no solver, no GPU, no job). None queue a prompt. The refine
+body is bounded by `MAX_REFINE_BYTES` (4 MiB); a solve too large is refined by
+re-running TRACK. Camera TRACK and Scene Reconstruction Start themselves run
+through ComfyUI's native partial queue.
+
 The route accepts:
 
 ### director

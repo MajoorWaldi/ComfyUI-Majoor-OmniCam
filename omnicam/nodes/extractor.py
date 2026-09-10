@@ -251,6 +251,10 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             "solver_coverage": result.confidence,
             "report": result.report,
             "source": source_reference,
+            # The immutable raw solve, so the panel's cleanup sliders can
+            # re-derive a track through POST /majoor/omnicam/extractor/refine
+            # without re-running TRACK.
+            "raw_solve": result.raw_solve,
         }
         preview = json.dumps(envelope, separators=(",", ":"))
         # Only now that the result has serialized cleanly is the solve done.

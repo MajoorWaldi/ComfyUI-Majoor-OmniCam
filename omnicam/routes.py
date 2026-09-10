@@ -675,6 +675,7 @@ async def import_camera_route(request: web.Request):
 from . import routes_chunks as _routes_chunks  # noqa: E402,F401
 from . import routes_scenes as _routes_scenes  # noqa: E402,F401
 from .assets import routes as _routes_assets  # noqa: E402,F401
+from .extractor import refine_route as _routes_extractor_refine  # noqa: E402,F401
 from .extractor import source_routes as _routes_extractor_source  # noqa: E402,F401
 from .reconstruction import routes as _routes_reconstruction  # noqa: E402
 

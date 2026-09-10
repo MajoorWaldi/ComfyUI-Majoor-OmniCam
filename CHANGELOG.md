@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that process and reaps it.
 - The queued result still returns through the Extractor's `NodeOutput` / UI
   envelope; both modes now share one outer transport contract.
+- Post-solve refinement is decoupled from execution: dragging a cleanup slider
+  re-derives the track through the bounded `POST /majoor/omnicam/extractor/refine`
+  route (no decode, no solver, no job) instead of re-running TRACK.
+
+### Removed
+- The out-of-queue camera solve scheduler and reconstruction job scheduler,
+  and their `/majoor/omnicam/{extractor,reconstruction}/jobs*` routes.
 
 ### Security
 
