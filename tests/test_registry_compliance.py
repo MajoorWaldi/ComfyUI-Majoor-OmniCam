@@ -107,13 +107,40 @@ def test_eval_in_a_comment_or_docstring_is_not_flagged(tmp_path):
     assert result.ok, result.violations
 
 
-def test_ipc_and_js_bindings_are_reported_not_failed(tmp_path):
+def test_a_duplex_worker_connection_is_a_violation_not_a_note(tmp_path):
+    """The DPVO child moved to a one-way Queue plus a stop Event on purpose.
+
+    ``connection.send``/``recv`` was the single strongest networking heuristic
+    in shipped Python; letting it back in silently would undo that, so it fails
+    the audit the same way a reintroduced ``os.environ`` read does.
+    """
     files = {
         **MINIMAL,
         "omnicam/child.py": b"def go(connection):\n    connection.send({'k': 1})\n    connection.recv()\n",
-        "web-chunks/chunk-three.js": b"obj.connect(dest); node.bind(x); el.listen(y)\n",
     }
     result = _audit(files, tmp_path)
+
+    assert not result.ok
+    assert any("connection.send(" in v for v in result.violations)
+    assert any("connection.recv(" in v for v in result.violations)
+
+
+def test_js_binding_hits_are_reported_split_by_provenance(tmp_path):
+    """A ``.bind(`` inside three.js is a fact about three.js, not about OmniCam.
+
+    The report has to separate the two so a Registry reviewer can check the
+    OmniCam column is zero without reading a 1.2 MB vendor chunk.
+    """
+    files = {
+        **MINIMAL,
+        "web-chunks/chunk-DZbK8L7w.js": b"el.listen(y)\n",
+        "web-chunks/vendor-three-AeKB2.js": b"obj.connect(dest); node.bind(x); node.bind(z)\n",
+    }
+    result = _audit(files, tmp_path)
+
     assert result.ok, result.violations
-    assert any("multiprocessing IPC" in n for n in result.notes)
-    assert any("generated JS" in n for n in result.notes)
+    notes = "\n".join(result.notes)
+    assert "OMNICAM SOURCE: .bind( 0, .connect( 0, .listen( 1" in notes
+    assert "THIRD PARTY: .bind( 2, .connect( 1, .listen( 0" in notes
+    # And the vendor hits are attributed to the file a reviewer can go look at.
+    assert "vendor-three-AeKB2.js: .bind( 2, .connect( 1" in notes

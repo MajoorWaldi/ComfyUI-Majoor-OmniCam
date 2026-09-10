@@ -14,14 +14,15 @@ It **fails** (exit 1) on:
 * a direct runtime ``eval(...)`` / ``exec(...)`` or a ``pip install`` subprocess
   in shipped Python -- matched on the AST, never on comment/docstring text;
 * the return of avoidable scanner triggers OmniCam removed on purpose:
-  ``os.environ`` / ``os.getenv`` reads in shipped code, and the string-based
-  ``importlib.import_module("comfy_extras.nodes_moge")``.
+  ``os.environ`` / ``os.getenv`` reads in shipped code, the string-based
+  ``importlib.import_module("comfy_extras.nodes_moge")``, and duplex
+  ``Connection.send``/``recv`` in the DPVO worker.
 
-It **reports** (exit 0) known-legitimate heuristics -- ``multiprocessing``
-connection ``send``/``recv`` for the isolated DPVO child, and
-``.bind(`` / ``.connect(`` / ``.listen(`` in generated JavaScript (Three.js,
-WebAudio, ordinary event/function binding) -- so a Registry reviewer sees them
-acknowledged rather than hidden.
+It **reports** (exit 0) a provenance breakdown of the ``.bind(`` /
+``.connect(`` / ``.listen(`` hits in the shipped JavaScript, split into
+OmniCam's own bundle and the ``vendor-*`` chunks (three.js, mediabunny). A
+Registry reviewer chasing a networking heuristic can then see at a glance
+whether it landed on our code or on upstream library code we bundle.
 """
 
 from __future__ import annotations
@@ -35,9 +36,19 @@ FORBIDDEN_TOP_DIRS = ("tests", "scripts", "web-src", ".github", "node_modules", 
 REQUIRED_FILES = ("web/omnicam.js", "pyproject.toml")
 REQUIRED_PREFIXES = ("omnicam/",)
 
-# Reported, never failed: legitimate local IPC / browser APIs.
-IPC_MARKERS = ("connection.send(", "connection.recv(", ".Connection")
+# Removed on purpose and never to return: the DPVO child talks over a one-way
+# ``multiprocessing.Queue`` plus a ``multiprocessing.Event``, so nothing in
+# shipped Python should look like a duplex connection again.
+FORBIDDEN_IPC_MARKERS = ("connection.send(", "connection.recv(", "Pipe(duplex=")
+
+#: Heuristics a Registry scanner reads as networking or event wiring. Counted
+#: per file and attributed, never failed -- ``.bind(`` inside three.js is not a
+#: fact about OmniCam, and the report has to be able to say so.
 JS_BINDING_MARKERS = (".bind(", ".connect(", ".listen(")
+
+#: Emitted by vite's manualChunks (see vite.config.mjs). Everything else under
+#: web-chunks/ is OmniCam's own source.
+VENDOR_CHUNK_PREFIX = "vendor-"
 
 
 @dataclass
@@ -180,30 +191,57 @@ def audit(zip_path: str) -> AuditResult:
         raw_by_logical = dict(zip(names, raw_names, strict=True))
         _check_paths(names, result)
 
-        ipc_hits: list[str] = []
-        js_binding_hits: list[str] = []
+        own_js: dict[str, dict[str, int]] = {}
+        vendor_js: dict[str, dict[str, int]] = {}
         for logical, raw in raw_by_logical.items():
             if logical.endswith(".py") and (logical.startswith("omnicam/") or logical == "__init__.py"):
                 source = archive.read(raw).decode("utf-8", "replace")
                 _scan_python(logical, source, result)
-                if any(marker in source for marker in IPC_MARKERS):
-                    ipc_hits.append(logical)
+                for marker in FORBIDDEN_IPC_MARKERS:
+                    if marker in source:
+                        result.violations.append(
+                            f"{logical}: {marker!r} returned -- the DPVO child uses a one-way "
+                            "multiprocessing.Queue and a stop Event, not a duplex connection"
+                        )
             if logical.endswith(".js"):
                 text = archive.read(raw).decode("utf-8", "replace")
-                if any(marker in text for marker in JS_BINDING_MARKERS):
-                    js_binding_hits.append(logical)
+                counts = {m: text.count(m) for m in JS_BINDING_MARKERS if m in text}
+                if not counts:
+                    continue
+                bucket = vendor_js if _is_vendor_chunk(logical) else own_js
+                bucket[logical] = counts
 
-    if ipc_hits:
-        result.notes.append(
-            "multiprocessing IPC (isolated DPVO child, not networking): "
-            + ", ".join(sorted(ipc_hits))
-        )
-    if js_binding_hits:
-        result.notes.append(
-            f".bind/.connect/.listen in {len(js_binding_hits)} generated JS file(s) "
-            "(Three.js / WebAudio / event binding, reviewed as false positives)"
-        )
+    result.notes.extend(_provenance_report(own_js, vendor_js))
     return result
+
+
+def _is_vendor_chunk(logical: str) -> bool:
+    """True for a bundled third-party chunk (three.js, mediabunny)."""
+    return logical.rsplit("/", 1)[-1].startswith(VENDOR_CHUNK_PREFIX)
+
+
+def _provenance_report(
+    own: dict[str, dict[str, int]], vendor: dict[str, dict[str, int]]
+) -> list[str]:
+    """Attribute every ``.bind`` / ``.connect`` / ``.listen`` hit to its author.
+
+    A Registry reviewer reading a heuristic report needs one question answered:
+    did OmniCam write this, or is it upstream library code we bundle? Ideally
+    the OmniCam column is all zeros and every hit sits under a ``vendor-*``
+    chunk whose licence is in THIRD_PARTY_NOTICES.
+    """
+    lines = []
+    for label, files in (("OMNICAM SOURCE", own), ("THIRD PARTY", vendor)):
+        totals = {marker: 0 for marker in JS_BINDING_MARKERS}
+        for counts in files.values():
+            for marker, count in counts.items():
+                totals[marker] += count
+        summary = ", ".join(f"{marker} {totals[marker]}" for marker in JS_BINDING_MARKERS)
+        lines.append(f"{label}: {summary}")
+        for name in sorted(files):
+            detail = ", ".join(f"{m} {c}" for m, c in sorted(files[name].items()))
+            lines.append(f"  {name}: {detail}")
+    return lines
 
 
 def main(argv: list[str] | None = None) -> int:
