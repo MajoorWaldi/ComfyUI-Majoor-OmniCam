@@ -12,17 +12,17 @@ function withConfirmDialog(confirmResult, fn) {
   });
 }
 
-function makeUi({ jobId = "", reconJobId = "" } = {}) {
+function makeUi({ queuePromptId = "" } = {}) {
   const calls = [];
   return {
     calls,
-    state: { jobId },
+    state: { jobId: "" },
+    queuePromptId,
+    cancelQueuedRun: () => calls.push(["cancelQueuedRun"]),
     dispatch: (action) => calls.push(["dispatch", action]),
-    client: { stopSolve: async (id) => calls.push(["stopSolve", id]) },
     reconstruction: {
-      state: { jobId: reconJobId },
+      state: { jobId: "" },
       client: {
-        stopJob: async (id) => calls.push(["stopJob", id]),
         clearCache: async () => { calls.push(["clearCache"]); return { cleared: true, entries_removed: 2 }; },
       },
       dispatch: (action) => calls.push(["reconDispatch", action]),
@@ -46,24 +46,23 @@ function makeUi({ jobId = "", reconJobId = "" } = {}) {
 }
 
 test("clearExtractorCache does nothing when the user declines the confirm dialog", async () => {
-  const ui = makeUi({ jobId: "job_1" });
+  const ui = makeUi({ queuePromptId: "p1" });
 
   const cleared = await withConfirmDialog(false, () => clearExtractorCache(ui));
 
   assert.equal(cleared, false);
   assert.deepEqual(ui.calls, []);
-  assert.equal(ui.state.jobId, "job_1"); // untouched
+  assert.equal(ui.calls.length, 0);
 });
 
 test("clearExtractorCache stops active jobs, wipes disk cache, and resets node state", async () => {
-  const ui = makeUi({ jobId: "job_camera_1", reconJobId: "job_recon_1" });
+  const ui = makeUi({ queuePromptId: "p1" });
 
   const cleared = await withConfirmDialog(true, () => clearExtractorCache(ui));
 
   assert.equal(cleared, true);
   const kinds = ui.calls.map((c) => c[0]);
-  assert.ok(kinds.includes("stopSolve"));
-  assert.ok(kinds.includes("stopJob"));
+  assert.ok(kinds.includes("cancelQueuedRun"));
   assert.ok(kinds.includes("clearCache"));
   assert.ok(kinds.includes("reconDispatch"));
   assert.ok(kinds.includes("render"));
@@ -87,13 +86,12 @@ test("clearExtractorCache stops active jobs, wipes disk cache, and resets node s
 });
 
 test("clearExtractorCache skips stopping jobs that were never running", async () => {
-  const ui = makeUi(); // no jobId, no reconJobId
+  const ui = makeUi(); // no queued run
 
   await withConfirmDialog(true, () => clearExtractorCache(ui));
 
   const kinds = ui.calls.map((c) => c[0]);
-  assert.ok(!kinds.includes("stopSolve"));
-  assert.ok(!kinds.includes("stopJob"));
+  assert.ok(!kinds.includes("cancelQueuedRun"));
   assert.ok(kinds.includes("clearCache"));
 });
 
@@ -110,7 +108,7 @@ test("clearExtractorCache reports failure and stops short when the server call f
 });
 
 test("clearExtractorCache confirms through ui.app's dialog, not window.app", async () => {
-  const ui = makeUi({ jobId: "job_1" });
+  const ui = makeUi({ queuePromptId: "p1" });
   let askedVia = "";
   // The real fix: the button passes ExtractorUI.app so the dialog manager
   // resolves. window.app here is a decoy with NO dialog.

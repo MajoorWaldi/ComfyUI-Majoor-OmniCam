@@ -41,7 +41,7 @@ def _registered_paths() -> set[str]:
         sys.modules["server"] = server_stub
     sys.modules.setdefault("folder_paths", _folder_paths_stub())
 
-    import omnicam.extractor.jobs.routes
+    import omnicam.extractor.source_routes
     import omnicam.routes  # noqa: F401
     from omnicam.comfy_compat.server import PromptServer
 
@@ -76,8 +76,8 @@ def test_every_frontend_api_path_is_registered():
     assert "/majoor/omnicam/motion_profiles" in frontend, (
         "expected the Health panel roster fetch to still be in web-src"
     )
-    assert "/majoor/omnicam/reconstruction/jobs" in registered
     assert "/majoor/omnicam/reconstruction/capabilities" in registered
+    assert "/majoor/omnicam/extractor/source" in registered
     missing = {
         path: sorted(set(callers))
         for path, callers in frontend.items()
