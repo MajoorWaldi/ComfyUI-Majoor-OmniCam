@@ -44,6 +44,12 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 "video camera track",
             ],
             is_experimental=True,
+            # An output node: the solved MotionScene + PreviewText envelope is a
+            # real result, and -- load-bearing for the queue-only path -- a
+            # partial ComfyUI execution can only target output nodes. A plain
+            # Queue Prompt still runs it once and then serves the execution
+            # cache on unchanged inputs.
+            is_output_node=True,
             inputs=[
                 media_input(
                     "video",

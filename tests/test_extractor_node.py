@@ -21,6 +21,10 @@ def test_node_schema_declares_the_canonical_contract():
     assert [output.display_name for output in schema.outputs] == [
         "motion_scene", "solver_coverage", "report",
     ]
+    # An output node -- ComfyUI partial execution (the queue-only TRACK /
+    # Reconstruct path) can only target output nodes.
+    assert schema.is_output_node is True
+    assert MajoorOmniCamExtractor.OUTPUT_NODE is True
 
 
 def test_node_takes_a_required_video_or_image_input():
