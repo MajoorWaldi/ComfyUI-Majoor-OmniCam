@@ -7,14 +7,16 @@ import { clearExtractorCache } from "./clear-cache.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
-import { queueExtractor } from "./queue/execution.js";
 import { bindExtractorQueueEvents } from "./queue/events.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
+import { CAMERA_TRACK_REFINE_WIDGETS as REFINE_SETTING_WIDGETS } from "./queue/widget-sync.js";
 import {
-  CAMERA_TRACK_REFINE_WIDGETS as REFINE_SETTING_WIDGETS,
-  syncExtractorPanelToWidgets,
-} from "./queue/widget-sync.js";
+  cancelQueuedRun,
+  prepareForQueuedRun,
+  startQueuedSolve,
+  syncPanelToNodeWidgets,
+} from "./queue/ui-bridge.js";
 import { RefineController } from "./refine-controls.js";
 import {
   cacheExtractorResult,
@@ -60,6 +62,8 @@ export class ExtractorUI {
     // The ComfyUI app object -- passed to confirmAction/promptText so the
     // dialog manager resolves even behind the bundle (see clear-cache.js).
     this.app = app;
+    // The ComfyUI api object -- queued-run cancellation talks to the Jobs API.
+    this.api = api;
     this.root = buildExtractorRoot();
     this.state = createExtractorState();
     this.disposed = false;
@@ -226,7 +230,7 @@ export class ExtractorUI {
     }
 
     this.listen(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
-    this.listen(this.root.querySelector('[data-act="stop"]'), "click", () => this.control("stopSolve"));
+    this.listen(this.root.querySelector('[data-act="stop"]'), "click", () => this.cancelQueuedRun());
     this.listen(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
     this.listen(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
     this.listen(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
@@ -326,61 +330,22 @@ export class ExtractorUI {
     return clearExtractorCache(this);
   }
 
-  /**
-   * Camera TRACK: enqueue a partial ComfyUI execution ending at this Extractor.
-   *
-   * There is no interactive solve job any more. ComfyUI owns admission,
-   * ordering, cancellation, progress and the final output; the solved result
-   * returns through executed() -> parseExtractorMessage() -> acceptSolvedResult.
-   */
-  async startSolve() {
-    try {
-      await queueExtractor(this, "camera_track");
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-    }
+  /** Camera TRACK -> a partial ComfyUI execution. See queue/ui-bridge.js. */
+  startSolve() {
+    return startQueuedSolve(this, "camera_track");
   }
 
-  /**
-   * Make the real Extractor node widgets the single settings source a queued
-   * run reads.
-   *
-   * The panel only owns two things: the extract mode and the cleanup-desk
-   * controls. Everything else a queued execute() reads -- method, lens_mode,
-   * fov_degrees, focal_length_mm, sensor_width_mm, max_dimension, frame_step --
-   * has no panel control and is left exactly as the user set it on the node.
-   * In reconstruct mode the recon_* widgets are driven from the reconstruction
-   * panel's own DOM bridge.
-   */
+  /** STOP -> cancel this panel's ComfyUI job. Idempotent. */
+  cancelQueuedRun() {
+    return cancelQueuedRun(this);
+  }
+
   syncPanelToNodeWidgets() {
-    syncExtractorPanelToWidgets({
-      node: this.node,
-      root: this.root,
-      mode: this.extractMode,
-      refineSettings: this.refine.settings,
-    });
+    return syncPanelToNodeWidgets(this);
   }
 
-  /** Reset transient solve UI for a fresh queued run. */
   prepareForQueuedRun() {
-    this.sourceViewer.setFollow(true);
-    this.overlay.clear();
-    this.diagnostics.clear();
-    this.queuePromptId = "";
-    this.awaitingQueueStart = true;
-    this.dispatch({ type: "JOB_STARTED", status: { job_id: "", state: "QUEUED" } });
-    this.coordinator.seek(0, "backend");
-  }
-
-  async control(method) {
-    if (!this.state.jobId) return;
-    try {
-      const status = await this.client[method](this.state.jobId);
-      this.dispatch({ type: "STATUS", status });
-      this.coordinator.reconcileFrameCount(status);
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-    }
+    return prepareForQueuedRun(this);
   }
 
   /** The socket is transport; the server is the truth. Re-read after a gap. */

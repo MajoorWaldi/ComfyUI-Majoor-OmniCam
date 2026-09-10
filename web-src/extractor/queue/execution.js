@@ -57,3 +57,26 @@ export async function queueExtractor(ui, mode = "camera_track") {
   });
   return { accepted: Boolean(accepted) };
 }
+
+/**
+ * Cancel a queued Extractor solve through ComfyUI's Jobs API.
+ *
+ * A pending job is dequeued; a running job is interrupted. The endpoint is
+ * idempotent -- cancelling a job that already finished returns cleanly.
+ *
+ * @param {{ fetchApi: Function }} api - the ComfyUI api singleton.
+ * @param {string} jobId - the queued prompt / job id.
+ * @returns {Promise<boolean>} whether the server reports it cancelled.
+ */
+export async function cancelExtractorJob(api, jobId) {
+  if (!jobId) return false;
+  const response = await api.fetchApi(
+    `/api/jobs/${encodeURIComponent(jobId)}/cancel`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    throw new Error(`Comfy job cancellation failed (${response.status})`);
+  }
+  const payload = await response.json().catch(() => ({}));
+  return Boolean(payload?.cancelled);
+}
