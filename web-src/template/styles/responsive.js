@@ -13,12 +13,18 @@ export const RESPONSIVE_STYLES = `
       .majoor-omnicam .oc-drawer-toggle{display:none !important}
 
       @container (max-width:1120px){
-        .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr) 9px var(--oc-side-w,280px)}
+        .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr) 9px var(--oc-side-w,280px);position:relative}
         .majoor-omnicam .oc-left,.majoor-omnicam .oc-left-resize{
           position:absolute;z-index:40;top:0;left:0;bottom:0;width:min(300px,80%);
           box-shadow:0 12px 40px rgba(0,0,0,.6);transform:translateX(-104%);
           transition:transform .18s ease;pointer-events:none;opacity:0;
+          overflow:hidden;
         }
+        /* the drawer is a bounded box (top:0;bottom:0 of the relative oc-body)
+           -- let the ASSETS grid flex to fill it and scroll, no arbitrary cap */
+        .majoor-omnicam .oc-left .oc-asset-grid{max-height:none}
+        .majoor-omnicam .oc-left .oc-asset-panel,
+        .majoor-omnicam .oc-left>.oc-left-body{min-height:0}
         .majoor-omnicam .oc-left-resize{display:none}
         .majoor-omnicam.oc-scene-open .oc-left{transform:none;pointer-events:auto;opacity:1}
         .majoor-omnicam .oc-drawer-toggle[data-act="toggle-scene-panel"]{display:inline-grid !important}

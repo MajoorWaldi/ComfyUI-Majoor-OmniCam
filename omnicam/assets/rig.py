@@ -14,6 +14,7 @@ the tests use; the browser Rig Mapper mirrors it in
 from __future__ import annotations
 
 import re
+from itertools import pairwise
 
 OMNICAM_HUMANOID_V1 = "omnicam_humanoid_v1"
 
@@ -73,6 +74,24 @@ def normalize_bone_name(name: str) -> str:
     """Lowercased, ``mixamorig:`` stripped, separators removed."""
     text = _MIXAMO_PREFIX.sub("", str(name or "").strip())
     return _SEP.sub("", text).lower()
+
+
+#: Substrings that mark an IK / control / helper bone rather than a deform
+#: joint. Kenney's FBX rigs ship a full control rig alongside the skeleton
+#: (``LeftFootIK``, ``HipsCtrl``, ``LeftToeRoll``, ``Head_end`` …); mapping
+#: those instead of the real joints breaks the hierarchy check. None of these
+#: tokens occur in a standard deform-bone name.
+_CONTROL_BONE = re.compile(
+    r"(ctrl|roll|heel|pole|target|ik$|ik[_.]|_end$|\.end$)",
+    re.IGNORECASE,
+)
+
+
+def deform_joint_names(names: list[str] | tuple[str, ...]) -> list[str]:
+    """Drop obvious IK / control / end-effector bones, keeping the deform
+    skeleton the animator actually skins to."""
+    kept = [n for n in names if n and not _CONTROL_BONE.search(str(n))]
+    return kept or [n for n in names if n]  # never return empty if input wasn't
 
 
 def _side_variants(normalised: str) -> tuple[str, ...]:
@@ -142,6 +161,42 @@ def missing_required_joints(bone_map: dict[str, str] | None) -> list[str]:
 
 def rig_is_complete(bone_map: dict[str, str] | None) -> bool:
     return not missing_required_joints(bone_map)
+
+
+#: Canonical parent -> child chains a real humanoid skeleton must nest in the
+#: same order (design spec / bootstrap plan section 13.1). Intermediate
+#: twist / helper bones between two canonical joints are allowed.
+HIERARCHY_CHAINS: tuple[tuple[str, ...], ...] = (
+    ("pelvis", "spine", "chest", "neck", "head"),
+    ("clavicle_l", "upper_arm_l", "lower_arm_l", "hand_l"),
+    ("clavicle_r", "upper_arm_r", "lower_arm_r", "hand_r"),
+    ("upper_leg_l", "lower_leg_l", "foot_l", "toe_l"),
+    ("upper_leg_r", "lower_leg_r", "foot_r", "toe_r"),
+)
+
+
+def hierarchy_is_plausible(
+    bone_map: dict[str, str] | None,
+    source_parents: dict[str, tuple[str, ...]] | None,
+) -> bool:
+    """True when every mapped joint nests under the previous mapped joint of its
+    canonical chain.
+
+    ``source_parents`` maps a source bone name to its ancestor source bone
+    names, nearest first. When it is missing or empty the hierarchy cannot be
+    checked and the function is permissive (returns ``True``) -- a flat joint
+    list is not evidence of a *broken* rig.
+    """
+    if not bone_map or not source_parents:
+        return True
+    for chain in HIERARCHY_CHAINS:
+        mapped = [bone_map[joint] for joint in chain if bone_map.get(joint)]
+        for upper, lower in pairwise(mapped):
+            if upper == lower:
+                continue
+            if upper not in source_parents.get(lower, ()):
+                return False
+    return True
 
 
 def rig_status(rig: dict | None) -> str:

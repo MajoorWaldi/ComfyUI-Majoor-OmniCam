@@ -7,8 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Starter asset library bootstrap (`scripts/bootstrap_asset_library.py`): an
+  explicit, opt-in pipeline that resolves approved CC0 Kenney packs, inventories
+  and validates their GLB contents, curates a ~30–45 GLB previs starter set,
+  installs it under `<input>/omnicam/library/` via `manifest.register_asset()`,
+  detects real humanoid rigs from inspected GLB skin/joint data, and writes a
+  provenance lockfile + `SOURCES.md` + report. Never runs implicitly; licence-
+  and host-gated; nothing vendored in Git. Presets: `starter`, `characters`,
+  `characters-extra`, `props`, `vehicles`, `environment`, `environments-extra`.
+  `--dry-run` / `--verify` / `--from-dir` / `--update` / `--json` supported.
+- `omnicam.assets.bootstrap` package (source registry, Kenney resolver, bounded
+  downloader, ZIP-safe archive inventory, header-only GLB inspector, curation
+  engine, install transaction, lockfile + report) and
+  `omnicam.assets.rig.hierarchy_is_plausible()`.
+- Binary-FBX skeleton inspector (`omnicam.assets.bootstrap.fbx_inspect`) and
+  `omnicam.assets.rig.deform_joint_names()` (strips IK/control/`_end` bones
+  before rig mapping). The `starter` preset now also downloads Kenney's three
+  *Animated Characters* packs, whose `characterMedium.fbx` is the only Kenney
+  rig that satisfies all 22 `OMNICAM_HUMANOID_V1` joints; *Blocky* / *Mini
+  Characters* install as animated proxy props (7-bone stylised rig). GLB is
+  preferred over the FBX mirror when a pack ships both.
+
 ### Changed
 
+- `scripts/fetch_blockout_library.py` now shares the Kenney page resolver,
+  bounded download and ZIP-safety core with `omnicam.assets.bootstrap` — one
+  Kenney downloader in the project. Its legacy flags and `library.json` /
+  `SOURCES.md` output are unchanged.
 - Examples: `07_minimax_h3_native_global_example.json` is now the full
   Omnicam → MiniMax H3 reference production graph (external-reference Monitor,
   Set/Get virtual wiring, upscale + interpolation chain). The example-workflow

@@ -120,6 +120,28 @@ query  character.get_pose             preset_id, root_offset, joints, has_motion
 A detected `person` becomes `asset_kind = "character"` **only** when the resolved
 catalog asset has a complete rig. A static posed human stays a `prop`.
 
+## Starter bootstrap characters
+
+`scripts/bootstrap_asset_library.py` (see [ASSET_LIBRARY.md](ASSET_LIBRARY.md))
+marks a downloaded model `character` only from **inspected** skeleton data: a
+skin / bone hierarchy, and `auto_map_bones()` must resolve every required
+`OMNICAM_HUMANOID_V1` joint with a plausible hierarchy and ≤ 75 k triangles.
+
+- The **GLB** reader parses only the glТF JSON chunk (`skins[].joints`).
+- The **FBX** reader (Kenney's *Animated Characters* packs) walks the binary
+  node tree for `Model`/`LimbNode` records and their `OO` connections.
+- Both then run through `deform_joint_names()`, which drops IK / control /
+  `_end` helper bones so the mapper matches the real deform skeleton
+  (`LeftToes`, not `LeftToeRoll`).
+
+Kenney's *Blocky* / *Mini Characters* only carry a 7-bone stylised rig, so they
+install as animated **proxy props** (`character-proxy`), never as rigged
+characters. The illustrative rig maps in `catalog.default.json` are never
+trusted for a downloaded file. Generated tags are factual only (`human`,
+`character`, `proxy`, `kenney`, `animated`) — sex and gender are never
+inferred. Animation clip ids come from real embedded clip names; unknown names
+get no guessed semantic tags.
+
 ## Deferred
 
 full IK · foot locking · animation retargeting · blending / NLA · mocap · facial

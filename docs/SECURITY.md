@@ -249,6 +249,36 @@ pipe; neither is accepted from the browser. All terminal paths join or
 terminate the child, which also makes CUDA VRAM release independent of the
 long-lived ComfyUI allocator.
 
+## Starter asset bootstrap (`scripts/bootstrap_asset_library.py`)
+
+The bootstrap is the only part of OmniCam that fetches 3D assets over the
+network, and it does so only on an explicit `--download` run — never at
+ComfyUI or Director start-up, never from asset browsing.
+
+- **Source allow-list.** Pack pages must be `https://kenney.nl/assets/…`; the
+  resolved archive must be `https://kenney.nl/media/pages/assets/….zip`. The
+  final URL after redirects is re-checked. Any other host or path fails closed
+  with a non-zero exit.
+- **Licence gate.** The pack page must still contain visible
+  *Creative Commons CC0* text or the download is refused.
+- **Bounded download.** Standard-library HTTP only, 30 s timeout, 1 MiB chunks,
+  512 MiB per pack, 4 MiB per HTML page. The stream is written to a `.partial`
+  file, must begin with the ZIP magic `PK\x03\x04`, and is SHA-256 hashed into
+  the lockfile before the atomic rename.
+- **Archive safety.** Members with absolute paths, `..` traversal, drive
+  letters or symlink bits reject the whole archive. `ZipFile.extractall()` is
+  never used; extraction is one member at a time with a 256 MiB per-member and
+  2 GiB per-archive uncompressed ceiling. Only `.glb` members are installed.
+- **GLB inspection.** Only the 12-byte header + JSON chunk (≤ 16 MiB) are
+  parsed to discover rigs; binary geometry is never loaded into memory.
+- **Install transaction.** Files land via a temp sibling + atomic replace,
+  under `<input>/omnicam/library/` only, through
+  `manifest.register_asset()` (same validation as every other catalog write).
+  Existing files are never overwritten without `--update`. A failed catalog
+  write rolls the file back.
+- **No new dependency, no pip, no Blender, no telemetry.** Quaternius, Mixamo
+  and a Poly Haven mass downloader are deliberately absent.
+
 ## Frontend trust boundary
 
 Camera and object names are treated as text, including after workflow reload.

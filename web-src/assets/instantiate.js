@@ -80,6 +80,10 @@ export function compileInstance(definition, options = {}) {
   const object = {
     id: uniqueId(kind === "character" ? "character" : kind, options.existingIds, seed),
     type: "glb",
+    // `type` stays "glb" for legacy render compatibility; `format` drives which
+    // three.js loader the viewport picks (a catalog FBX character needs
+    // FBXLoader, not GLTFLoader).
+    format: String(definition.format || "glb").toLowerCase() === "fbx" ? "fbx" : "glb",
     name: definition.name || definition.id,
     position: point,
     rotation: [0, 0, 0],

@@ -50,3 +50,12 @@ docs/*
 # ComfyUI reconstruction cache / staged asset library, if it ever lands in the
 # repo root instead of ComfyUI/input (test artefact, never source).
 /majoor_omnicam/
+
+# Starter asset bootstrap. Downloaded packs, installed models and generated
+# provenance (SOURCES.md, library.lock.json, last-report.json) live under
+# <ComfyUI input>/omnicam/library/, never in this repo. Ignore any that leak in
+# from a wrong --dest or a smoke test.
+/omnicam/library/
+**/.bootstrap/
+tmp_bootstrap_input/
+*.partial
