@@ -14,6 +14,7 @@ import {
   isInsideSubgraph,
   queueExtractor,
   resolveExecutionId,
+  waitForPromptSubmissionIdle,
 } from "../../web-src/extractor/queue/execution.js";
 
 globalThis.__COMFYUI_FRONTEND_VERSION__ = "1.52.7";
@@ -42,6 +43,9 @@ function fakeUi({ available = true, nodeId = 7, graph = null, promptId = "p-42" 
     node,
     api,
     app: {
+      // ComfyUI's app.queuePrompt refuses to send while another submission is
+      // in flight; mirror that flag so the idle guard can be exercised.
+      processingQueue: false,
       // Model the real app.queuePrompt -> api.queuePrompt -> POST /prompt flow.
       queuePrompt: async (number, batchCount, options) => {
         queueCalls.push([number, batchCount, options]);
@@ -153,4 +157,78 @@ test("a subgraph Extractor refuses with a clear reason", async () => {
   assert.deepEqual(result, { accepted: false, reason: "subgraph-not-supported" });
   assert.equal(ui.queueCalls.length, 0);
   assert.equal(ui.events.prepared, 0);
+});
+
+// -- the app.processingQueue race -------------------------------------------
+//
+// ComfyUI's app.queuePrompt pushes onto app.queueItems and returns false when
+// app.processingQueue is already true; the real POST /prompt for that item
+// then happens later, outside our capture window. queueExtractor must wait for
+// the flag to clear before it installs the capture and calls queuePrompt.
+
+test("TRACK does not queue while ComfyUI is still sending another prompt", async () => {
+  const ui = fakeUi({ promptId: "prompt-later" });
+  ui.app.processingQueue = true; // a prior submission is in flight
+
+  const pending = queueExtractor(ui, "camera_track");
+  // Let the idle poller spin for a while.
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.equal(ui.queueCalls.length, 0, "must not call queuePrompt yet");
+  assert.equal(ui.events.prepared, 0, "and must not disturb the panel yet");
+  assert.equal(ui.events.setExtractMode.length, 0);
+
+  ui.app.processingQueue = false; // the prior submission finishes
+  const result = await pending;
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.promptId, "prompt-later");
+  assert.equal(ui.queueCalls.length, 1, "exactly one queuePrompt once idle");
+  assert.deepEqual(ui.promptPosts, [{ partial_execution_targets: ["7"] }]);
+});
+
+test("TRACK refuses cleanly if the submission never goes idle", async () => {
+  const ui = fakeUi();
+  ui.app.processingQueue = true; // stuck
+
+  const result = await queueExtractor(ui, "camera_track", {
+    idle: { timeoutMs: 40, intervalMs: 5 },
+  });
+
+  assert.deepEqual(result, { accepted: false, reason: "submission-busy" });
+  assert.equal(ui.queueCalls.length, 0, "no uncorrelated run may be fired");
+  assert.equal(ui.events.prepared, 0, "and the panel is left untouched");
+});
+
+test("waitForPromptSubmissionIdle is immediate when nothing is in flight", async () => {
+  assert.equal(await waitForPromptSubmissionIdle({ processingQueue: false }), true);
+  assert.equal(await waitForPromptSubmissionIdle({}), true);
+  assert.equal(await waitForPromptSubmissionIdle(null), true);
+});
+
+test("waitForPromptSubmissionIdle polls until the flag clears", async () => {
+  const app = { processingQueue: true };
+  let ticks = 0;
+  const sleep = () => {
+    ticks += 1;
+    if (ticks >= 3) app.processingQueue = false;
+    return Promise.resolve();
+  };
+  let t = 0;
+  const now = () => (t += 1);
+
+  assert.equal(
+    await waitForPromptSubmissionIdle(app, { timeoutMs: 1000, now, sleep }),
+    true,
+  );
+  assert.equal(ticks, 3);
+});
+
+test("waitForPromptSubmissionIdle gives up after the timeout", async () => {
+  let t = 0;
+  const now = () => (t += 10);
+  const result = await waitForPromptSubmissionIdle(
+    { processingQueue: true },
+    { timeoutMs: 25, now, sleep: () => Promise.resolve() },
+  );
+  assert.equal(result, false);
 });

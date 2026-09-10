@@ -18,6 +18,8 @@ const QUEUE_REFUSAL = {
     "OmniCam TRACK does not support an Extractor inside a subgraph yet. Move "
     + "it to the root graph, or run the whole workflow with Queue Prompt.",
   "no-execution-id": "This Extractor has no resolvable node id and cannot be queued.",
+  "submission-busy":
+    "ComfyUI is still sending another prompt. Press TRACK again in a moment.",
 };
 
 export async function startQueuedSolve(ui, mode = "camera_track") {

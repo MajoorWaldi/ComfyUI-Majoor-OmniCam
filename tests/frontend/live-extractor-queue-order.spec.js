@@ -66,20 +66,32 @@ test("TRACK pressed while a prompt runs is QUEUED, not rejected", async ({ page 
       }
       return res;
     };
-    // frame_step 2 for the full run; the partial TRACK sets its own below.
-    await app.queuePrompt(0, 1);
-    api.fetchApi = realFetch;
+
+    // Fire the full workflow but DO NOT await it. app.queuePrompt sets
+    // app.processingQueue = true synchronously, so TRACK is now pressed while
+    // ComfyUI's frontend is mid-submission -- the exact race the idle guard
+    // covers. Before the fix, TRACK's queuePrompt returned false, its capture
+    // wrapper was gone before the real POST, and the run was uncorrelated.
+    const fullRun = app.queuePrompt(0, 1);
+    const busyAtPress = app.processingQueue === true;
 
     const step = window.omniExtractor.widgets?.find((w) => w.name === "frame_step");
     if (step) step.value = 1; // different cache key -> TRACK is real work, queued behind
     await ui.startSolve();
+    await fullRun;
+    api.fetchApi = realFetch;
     return {
       state: ui.state.solveState,
       error: ui.state.error,
       fullPromptId,
       trackPromptId: ui.queuePromptId,
+      busyAtPress,
     };
   });
+
+  // The race window was real: the full run had the submission lock when TRACK
+  // was pressed.
+  expect(pressed.busyAtPress).toBe(true);
 
   // TRACK was accepted and is waiting, not failed with a custom rejection.
   expect(pressed.error).toBe("");
@@ -87,8 +99,10 @@ test("TRACK pressed while a prompt runs is QUEUED, not rejected", async ({ page 
     .toContain(pressed.state);
 
   // The load-bearing assertion the reviewer flagged: OmniCam follows ITS OWN
-  // prompt, not "the first execution_start". The two ids must differ, and
-  // TRACK's must be the one it captured from /prompt (non-empty).
+  // prompt, not "the first execution_start" and not the prompt that held the
+  // submission lock. The two ids must differ, and TRACK's must be the one it
+  // captured from its own /prompt POST (non-empty) even though queuePrompt was
+  // called while the frontend was busy.
   expect(pressed.trackPromptId).toBeTruthy();
   expect(pressed.trackPromptId).not.toBe(pressed.fullPromptId);
 

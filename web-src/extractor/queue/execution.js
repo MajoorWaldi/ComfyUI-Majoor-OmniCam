@@ -55,14 +55,52 @@ export function isInsideSubgraph(node) {
 }
 
 /**
+ * Wait out an in-flight ComfyUI prompt submission.
+ *
+ * `app.queuePrompt` serialises submissions through `app.processingQueue`: when
+ * a previous prompt is still being sent to the server, a fresh call is pushed
+ * onto `app.queueItems`, returns `false` immediately, and the real POST /prompt
+ * for it happens later, inside the earlier call's drain loop. Our prompt-id
+ * capture wraps `api.fetchApi` only around our own `queuePrompt` call, so a
+ * deferred POST lands after the wrapper is gone and the run is never
+ * correlated -- STOP then cannot target it and the panel state is wrong.
+ *
+ * This waits for that window to clear so OUR call is the one that drives the
+ * POST. It is a frontend-flush wait of a few milliseconds, NOT a GPU-idle
+ * wait: once submitted, a busy backend still just means the solve is QUEUED.
+ *
+ * @returns {Promise<boolean>} true once idle, false if it stayed busy past the
+ *   timeout (the caller then refuses rather than fire an uncorrelated run).
+ */
+export async function waitForPromptSubmissionIdle(
+  app,
+  {
+    timeoutMs = 4000,
+    intervalMs = 16,
+    now = () => Date.now(),
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  } = {},
+) {
+  if (!app || typeof app !== "object" || !app.processingQueue) return true;
+  const start = now();
+  while (app.processingQueue) {
+    if (now() - start >= timeoutMs) return false;
+    await sleep(intervalMs);
+  }
+  return true;
+}
+
+/**
  * Enqueue a partial ComfyUI execution ending at this Extractor and record the
  * prompt id it was accepted under.
  *
  * @param {object} ui - the ExtractorUI instance.
  * @param {"camera_track" | "scene_reconstruct"} [mode]
+ * @param {{ idle?: object }} [options] - `idle` is forwarded to
+ *   waitForPromptSubmissionIdle (test seam for the clock).
  * @returns {Promise<{ accepted: boolean, reason?: string, promptId?: string }>}
  */
-export async function queueExtractor(ui, mode = "camera_track") {
+export async function queueExtractor(ui, mode = "camera_track", { idle } = {}) {
   const source = ui.refreshSource();
   if (!source?.available) return { accepted: false, reason: "no-source" };
 
@@ -71,6 +109,14 @@ export async function queueExtractor(ui, mode = "camera_track") {
   }
   const executionId = resolveExecutionId(ui.node);
   if (!executionId) return { accepted: false, reason: "no-execution-id" };
+
+  // Before touching the panel: if we cannot get a clean submission slot we
+  // refuse and leave the UI exactly as the other early returns do. There is no
+  // `await` between this resolving idle and app.queuePrompt claiming the slot
+  // (processingQueue is set synchronously there), so the window cannot reopen.
+  if (!(await waitForPromptSubmissionIdle(ui.app, idle))) {
+    return { accepted: false, reason: "submission-busy" };
+  }
 
   ui.setExtractMode(mode);
   ui.syncPanelToNodeWidgets?.();
