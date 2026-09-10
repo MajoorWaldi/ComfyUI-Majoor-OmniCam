@@ -19,10 +19,18 @@ downloaded at pipeline time — you populate the folder once.
 
 > **Now one source of the unified catalog.** The Director's
 > [unified asset library](ASSET_LIBRARY.md) mounts this blockout library
-> **read-only** as its `legacy` source (`user > legacy > default`). The
+> **read-only** as its `legacy` source (`user > legacy > default`). Once the
+> starter library is installed the two overlap (Chair vs Chair 01, …); drop
+> the legacy rows with
+> `python scripts/bootstrap_asset_library.py --disable-legacy-blockout`
+> (reversible; it only renames `library.json`). The
 > reconstruction resolver tries the unified catalog first and falls back to
-> this library when nothing matches or the matched file is missing, so
-> everything below still applies unchanged. Placements now also carry factual
+> this library when nothing matches or the matched file is missing. Since the
+> catalog is the single source of truth, this blockout `library.json` is now
+> **fully optional**: with it disabled (or never installed) a `proxy` / `replace`
+> run resolves assets straight from the catalog instead of erroring, as long as
+> the catalog has at least one file-backed asset. Everything below still applies
+> unchanged when the library *is* present. Placements now also carry factual
 > tags (`reconstruction`, `<class>`, and `person` for a human), and a legacy
 > human stays a static prop — it has no rig.
 
@@ -86,14 +94,17 @@ objects; move / rescale / delete them like any other.
 
 ### Errors instead of silent fallback
 
-If `recon_blockout_assets` is `proxy`/`replace` but the library is absent or its
-GLBs are missing, the job fails with a specific code rather than silently
-producing boxes only:
+If `recon_blockout_assets` is `proxy`/`replace` and **neither** the unified
+catalog nor this blockout library can supply an asset, the job fails with a
+specific code rather than silently producing boxes only:
 
 | Code | Cause |
 |---|---|
-| `RECON_ASSET_LIBRARY_INVALID` | no `library.json`, or it is malformed |
-| `RECON_ASSET_LIBRARY_UNAVAILABLE` | manifest is valid but referenced GLBs are not on disk |
+| `RECON_ASSET_LIBRARY_INVALID` | an explicit `recon_asset_library_path` with no `library.json`, or a malformed one |
+| `RECON_ASSET_LIBRARY_UNAVAILABLE` | a manifest is valid but its GLBs are not on disk, and the unified catalog is also empty |
+
+A missing / disabled blockout `library.json` at the default managed location is
+**not** an error on its own — the run falls through to the unified catalog.
 
 ---
 

@@ -71,6 +71,24 @@ def test_no_source_flag_exits_config_error(tmp_path):
     assert cli.run(["--dest", str(tmp_path)]) == 2
 
 
+def test_disable_and_enable_legacy_blockout(tmp_path, capsys):
+    lib = tmp_path / "majoor_omnicam" / "blockout_library"
+    lib.mkdir(parents=True)
+    manifest = lib / "library.json"
+    manifest.write_text('{"version": 1, "name": "x", "assets": {"chair": {"glb": "interior/chair.glb"}}}', encoding="utf-8")
+
+    assert cli.run(["--disable-legacy-blockout", "--dest", str(tmp_path)]) == 0
+    assert not manifest.exists()
+    assert (lib / "library.json.disabled").is_file()
+
+    # idempotent
+    assert cli.run(["--disable-legacy-blockout", "--dest", str(tmp_path)]) == 0
+
+    assert cli.run(["--enable-legacy-blockout", "--dest", str(tmp_path)]) == 0
+    assert manifest.is_file()
+    assert not (lib / "library.json.disabled").exists()
+
+
 def test_prune_drops_missing_rows_and_orphan_thumbnails(tmp_path, capsys):
     from omnicam.assets import manifest
     from omnicam.assets.catalog import load_catalog

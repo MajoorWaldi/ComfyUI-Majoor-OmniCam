@@ -72,6 +72,7 @@ surface.
 GET    /majoor/omnicam/library                filtered, paginated list (100 / 500 max)
 GET    /majoor/omnicam/library/{asset_id}     one row
 POST   /majoor/omnicam/library/import         multipart model + ?kind&name&tags -> row
+POST   /majoor/omnicam/library/import-local   {folder,license_note?,dry_run?} -> rig-verified characters
 POST   /majoor/omnicam/library/register       JSON AssetDefinition -> row
 PATCH  /majoor/omnicam/library/{asset_id}     merge fields into a user row (copy-on-write)
 DELETE /majoor/omnicam/library/{asset_id}     drop a user row (a built-in cannot be deleted)
@@ -126,8 +127,17 @@ python scripts/bootstrap_asset_library.py --verify
 # drop user-catalog rows whose model file is missing + their orphan thumbnails
 python scripts/bootstrap_asset_library.py --prune
 
+# stop mounting the old reconstruction blockout library as a catalog source
+# (its ~23 rows -- Chair, Table, Sofa... -- duplicate the starter props)
+python scripts/bootstrap_asset_library.py --disable-legacy-blockout   # --enable-... to undo
+
 # optional themed character packs
 python scripts/bootstrap_asset_library.py --preset characters-extra --download
+
+# import full-humanoid characters from a pack YOU downloaded (offline, no
+# redistribution) -- e.g. Quaternius' Universal Animation Library
+python scripts/bootstrap_asset_library.py --character-dir "C:/Downloads/UAL2/FBX" \
+    --license-note "Quaternius QAL v1.0"
 ```
 
 Presets: `starter` (seven kits + three FBX character packs), `characters`,
@@ -158,9 +168,22 @@ What it does and does not do:
   names come from the real file, never invented.
 - **Thumbnails:** not rendered here — the Asset Browser's existing lazy
   `ThumbnailRenderer` generates them on first view.
-- **Excluded:** Quaternius and Mixamo (redistribution terms), Poly Haven
-  (deferred to a future bridge). Use normal local import for packs you hold a
-  licence to yourself.
+- **Auto-download is Kenney only.** Quaternius (QAL v1.0 forbids repackaging /
+  automatic download / hosting), Mixamo and Poly Haven are **not** network
+  sources. For a full-humanoid character with a real animation set, download a
+  pack yourself (e.g. Quaternius *Universal Animation Library*, FBX or GLB
+  flavour) and run `--character-dir <folder>`: every `.glb` / `.fbx` there is
+  rig-inspected the same way, and only files that map every
+  `OMNICAM_HUMANOID_V1` joint install as a `character`. Nothing is fetched or
+  redistributed — the files are used within your project. `.gltf` (multi-file)
+  is not supported; export FBX or GLB. `--license-note` fills the row's
+  `license.source`; the import merges into the same lockfile / `SOURCES.md`.
+- **From the UI:** the Director → ASSETS panel has a folder button
+  (`local-toggle`) that runs the same import — paste the folder path, *Scan*
+  to preview, *Install characters* to apply. `POST /majoor/omnicam/library/
+  import-local` drives it. No ComfyUI restart is needed afterwards (the catalog
+  is re-read on the next list); the panel refreshes itself. Adding this route
+  the first time does need one restart to load the new backend code.
 
 `fetch_blockout_library.py` is the legacy blockout entry point and now shares
 this same Kenney download / archive core.
@@ -168,8 +191,11 @@ this same Kenney download / archive core.
 ## Reconstruction
 
 `semantic class -> unified catalog resolver -> AssetDefinition -> placement
-adapter -> AssetPlacement`. The blockout library is the fallback when the
-catalog has no match or the matched file is missing. Reconstructed assets carry
+adapter -> AssetPlacement`. This catalog is the **single source of truth** for
+blockout / hybrid / scan retrieval; the legacy blockout `library.json` is only a
+fallback when the catalog has no match or the matched file is missing, and is
+fully optional — a run with the blockout library disabled or absent resolves
+straight from the catalog instead of erroring. Reconstructed assets carry
 only **factual** tags (`reconstruction`, `chair`, `person`) — never an editorial
 role — and a detected `person` becomes a Character only when the resolved
 catalog asset has a valid rig.

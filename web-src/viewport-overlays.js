@@ -1,8 +1,75 @@
 // 2D Canvas fallback renderer and composition overlays (Grid, Safe Areas, Rule of Thirds, Burn-In, Speed Map, Camera Paths) for OmniCam Director.
 
-import { add, clamp, generatePointField, length, project, sampleCamera, sub, worldTransform } from "./director/core.js";
+import { add, clamp, generatePointField, length, project, sampleCamera, sampleObjectWorldTransform, sub, worldTransform } from "./director/core.js";
+import { labelAnchorWorld, labelText, sanitizeLabelSettings, shouldShowLabel } from "./assets/labels.js";
 import { drawResolutionGate } from "./viewport/resolution-gate.js";
 import { drawTopDownRadar } from "./viewport/minimap.js";
+
+// Viewport Labels are normally a DOM layer that hides itself during a capture
+// (design spec section 14). With `playblast_labels` on, this paints the same
+// labels straight onto the 2D canvas the playblast records.
+export function drawPlayblastLabels(ui) {
+  const settings = sanitizeLabelSettings(ui.state?.metadata?.viewport_labels);
+  if (settings.mode === "off") return;
+  const objects = Array.isArray(ui.state?.objects) ? ui.state.objects : [];
+  const camera = ui.viewportCamera();
+  const c = ui.ctx;
+  const w = ui.canvas.width;
+  const h = ui.canvas.height;
+  const scale = clamp(h / 720, 0.75, 4);
+  const frame = Number(ui.frame) || 0;
+  const selected = ui.selectedObjectIds instanceof Set ? ui.selectedObjectIds : new Set();
+
+  c.save();
+  c.font = `${Math.round(12 * scale)}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  c.textBaseline = "alphabetic";
+  for (const object of objects) {
+    if (object.enabled === false) continue;
+    if (!shouldShowLabel(object, { mode: settings.mode, selectedIds: selected })) continue;
+    const text = labelText(object, settings.content);
+    if (!text) continue;
+    const transform = sampleObjectWorldTransform(objects, object, frame)
+      || { position: object.position, size: object.size };
+    const projected = project(labelAnchorWorld(transform, object.type), camera, w, h);
+    if (!projected) continue;
+    const [px, py] = projected;
+    const accent = settings.content === "annotation" ? object.annotation?.color || "" : "";
+    const padX = 6 * scale;
+    const padY = 4 * scale;
+    const textW = c.measureText(text).width;
+    const boxW = textW + padX * 2;
+    const boxH = 12 * scale + padY * 2;
+    const bx = Math.round(px - boxW / 2);
+    const by = Math.round(py - boxH - 6 * scale);
+    c.fillStyle = "rgba(16,17,22,0.82)";
+    _roundRect(c, bx, by, boxW, boxH, 4 * scale);
+    c.fill();
+    if (accent) {
+      c.strokeStyle = accent;
+      c.lineWidth = Math.max(1, scale);
+      c.stroke();
+    }
+    c.fillStyle = accent || "#e6e6ec";
+    c.fillText(text, bx + padX, by + boxH - padY - 2 * scale);
+  }
+  c.restore();
+}
+
+function _roundRect(c, x, y, width, height, radius) {
+  if (typeof c.roundRect === "function") {
+    c.beginPath();
+    c.roundRect(x, y, width, height, radius);
+    return;
+  }
+  const r = Math.min(radius, width / 2, height / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + width, y, x + width, y + height, r);
+  c.arcTo(x + width, y + height, x, y + height, r);
+  c.arcTo(x, y + height, x, y, r);
+  c.arcTo(x, y, x + width, y, r);
+  c.closePath();
+}
 
 export function drawLine3D(ui, a, b, color = "#5a5a5a", width = 1) {
   const camera = ui.viewportCamera();
@@ -416,6 +483,9 @@ export function drawOverlays(ui) {
     c.fillText(`F ${ui.frame}/${ui.state.duration_frames - 1}  ${ui.state.fps}fps  FOV ${camera.fov.toFixed(1)}  ${ui.state.render_mode}`, 12, h - 12);
     c.restore();
   }
+  // Burned-in Viewport Labels: opt in with `playblast_labels` (the live DOM
+  // overlay stays hidden during a capture).
+  if (ui.recording && ui.state.playblast_labels) drawPlayblastLabels(ui);
 }
 
 export { drawTopDownRadar, getCameraHeightColor, getCameraHeightLabel } from "./viewport/minimap.js";

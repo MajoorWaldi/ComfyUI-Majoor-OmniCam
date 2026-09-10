@@ -13,6 +13,8 @@ touched.
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -68,9 +70,25 @@ def _write_rows(input_root: Path | str | None, rows: list[dict[str, Any]]) -> No
         raise AssetCatalogInvalidError(f"user catalog would exceed {MAX_CATALOG_JSON_BYTES} bytes")
     ensure_library_tree(input_root)
     path = user_catalog_path(input_root)
-    tmp = path.with_suffix(".json.tmp")
+    tmp = path.with_suffix(f".{os.getpid()}.json.tmp")
     tmp.write_bytes(payload)
-    tmp.replace(path)
+    _atomic_replace(tmp, path)
+
+
+def _atomic_replace(tmp: Path, path: Path, *, attempts: int = 8) -> None:
+    """``tmp.replace(path)`` with a short backoff: on Windows an AV / indexer can
+    briefly hold the target and make ``os.replace`` raise ``PermissionError``.
+    A rapid install loop (dozens of ``register_asset`` calls) hits this
+    otherwise-invisible race."""
+    for attempt in range(attempts):
+        try:
+            tmp.replace(path)
+            return
+        except PermissionError:
+            if attempt == attempts - 1:
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(0.02 * (attempt + 1))
 
 
 def _row_without_derived(definition: AssetDefinition) -> dict[str, Any]:

@@ -132,41 +132,47 @@ def render_report_text(report: dict) -> str:
 
 def write_sources_md(
     input_root: Path | str | None,
-    sources: dict[str, LockSource],
-    installed: list[InstalledAsset],
+    sources: dict[str, LockSource],  # kept for signature compatibility; unused
+    installed: list[InstalledAsset],  # kept for signature compatibility; unused
     *,
     install_date: str,
     source_names: dict[str, str] | None = None,
 ) -> Path:
+    """Regenerate ``SOURCES.md`` from the full lockfile so a later
+    ``--character-dir`` import never clobbers the Kenney provenance."""
+    from .lockfile import load_lockfile
+
     ensure_library_tree(input_root)
     path = resolve_library_root(input_root) / SOURCES_RELATIVE
     names = source_names or {}
-    by_source: dict[str, list[InstalledAsset]] = {}
-    for asset in installed:
-        if asset.status != "conflict":
-            by_source.setdefault(asset.source_id, []).append(asset)
+    try:
+        lock = load_lockfile(input_root)
+    except Exception:  # noqa: BLE001 -- a missing lock just yields an empty file
+        lock = {"sources": {}, "assets": {}}
+
+    lock_sources = lock.get("sources") or {}
+    by_source: dict[str, list[dict]] = {}
+    for asset_id, entry in (lock.get("assets") or {}).items():
+        by_source.setdefault(str(entry.get("source", "?")), []).append({**entry, "id": asset_id})
 
     out = [
         "# OmniCam local asset library sources",
         "",
-        "The files below were installed locally by OmniCam's explicit asset "
-        "bootstrap. They are not vendored in the OmniCam Git repository.",
-        "",
-        "## Kenney — CC0",
+        "Installed locally by OmniCam's explicit asset bootstrap "
+        f"(regenerated {install_date}). Not vendored in the Git repository.",
         "",
     ]
     for source_id in sorted(by_source):
-        source = sources.get(source_id)
-        label = names.get(source_id, source_id)
-        page = source.page_url if source else ""
-        sha = source.archive_sha256 if source else ""
-        out.append(f"- {label} — {page}")
-        out.append(f"  - license: {source.license if source else 'CC0-1.0'}")
-        if sha:
-            out.append(f"  - archive sha256: {sha}")
-        out.append(f"  - installed: {install_date}")
-        for asset in sorted(by_source[source_id], key=lambda a: a.output):
-            out.append(f"  - {asset.output}  ({asset.asset_id})")
+        meta = lock_sources.get(source_id, {})
+        label = names.get(source_id, meta.get("page_url") or source_id)
+        page = meta.get("page_url") or ""
+        out.append(f"## {label}{f' — {page}' if page else ''}")
+        if meta.get("license"):
+            out.append(f"- license: {meta['license']}")
+        if meta.get("archive_sha256"):
+            out.append(f"- archive sha256: {meta['archive_sha256']}")
+        for asset in sorted(by_source[source_id], key=lambda a: a["file"]):
+            out.append(f"- {asset['file']}  ({asset['id']})")
         out.append("")
     path.write_text("\n".join(out), encoding="utf-8")
     return path

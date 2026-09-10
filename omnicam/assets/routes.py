@@ -166,6 +166,39 @@ async def library_import(request: web.Request):
     return web.json_response({"asset": registered.to_dict(), "file": payload})
 
 
+@PromptServer.instance.routes.post("/majoor/omnicam/library/import-local")
+async def library_import_local(request: web.Request):
+    """Import rig-complete ``.glb`` / ``.fbx`` characters from a folder the user
+    downloaded themselves (Quaternius etc.) -- the Asset Browser button over the
+    same code as ``bootstrap_asset_library.py --character-dir``. Local dev
+    action: it only *reads* ``.glb`` / ``.fbx`` from ``folder`` (size-capped,
+    magic-checked, no execution) and copies the rig-verified ones into the
+    managed library. No network, no ComfyUI restart -- the catalog is re-read
+    on the next list request."""
+    body = await read_bounded_json_object(request, max_bytes=MAX_LIBRARY_JSON_BYTES)
+    folder = str(body.get("folder", "")).strip()
+    if not folder:
+        raise web.HTTPBadRequest(text="'folder' is required: an absolute path on this machine")
+    if not Path(folder).expanduser().is_dir():
+        raise web.HTTPBadRequest(text=f"not a folder on this machine: {folder}")
+    license_note = str(body.get("license_note", "")).strip()[:400]
+    id_prefix = str(body.get("id_prefix", "") or "omnicam.character.").strip()
+    dry_run = bool(body.get("dry_run", False))
+
+    from .bootstrap.local_import import run_import
+    from .bootstrap.types import BootstrapError
+
+    try:
+        result = await asyncio.to_thread(
+            run_import, None, str(Path(folder).expanduser()),
+            license_note=license_note, id_prefix=id_prefix, dry_run=dry_run,
+        )
+    except BootstrapError as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
+    result.pop("report", None)  # counts only; the panel refreshes the catalog itself
+    return web.json_response({"format": "majoor.omnicam.library.import-local.v1", **result})
+
+
 @PromptServer.instance.routes.post("/majoor/omnicam/library/thumbnail/{asset_id}")
 async def library_thumbnail(request: web.Request):
     asset_id = request.match_info["asset_id"]

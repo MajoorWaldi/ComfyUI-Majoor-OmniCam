@@ -33,6 +33,7 @@ from .source_registry import SourceDefinition, select_sources
 from .types import (
     EXIT_CONFIG,
     EXIT_CURATION,
+    EXIT_INSTALL,
     EXIT_OK,
     BootstrapError,
 )
@@ -66,6 +67,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verify", action="store_true", help="verify the installed lock offline; no network")
     parser.add_argument("--prune", action="store_true",
                         help="drop user-catalog rows whose model file is missing + their orphan thumbnails; no network")
+    parser.add_argument("--disable-legacy-blockout", dest="legacy_blockout", action="store_const", const="off",
+                        help="stop mounting <input>/majoor_omnicam/blockout_library as the 'legacy' catalog "
+                             "source (removes ~23 duplicate rows now covered by the starter library)")
+    parser.add_argument("--enable-legacy-blockout", dest="legacy_blockout", action="store_const", const="on",
+                        help="undo --disable-legacy-blockout")
+    parser.add_argument("--character-dir", type=Path, default=None, metavar="PATH",
+                        help="import rig-complete .glb/.fbx characters from a folder YOU downloaded "
+                             "(e.g. a Quaternius pack); no network, no redistribution")
+    parser.add_argument("--license-note", default="", metavar="TEXT",
+                        help="license.source string for --character-dir imports (e.g. 'Quaternius QAL v1.0')")
+    parser.add_argument("--id-prefix", default="omnicam.character.", metavar="PREFIX",
+                        help="catalog id prefix for --character-dir imports")
     parser.add_argument("--update", action="store_true", help="allow replacing installed files whose source changed")
     parser.add_argument("--keep-cache", action="store_true", help="keep downloaded ZIPs after a successful install")
     parser.add_argument("--json", action="store_true", dest="as_json", help="emit the machine report on stdout")
@@ -77,8 +90,12 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     _force_utf8()
     args = build_parser().parse_args(argv)
     try:
+        if getattr(args, "legacy_blockout", None) is not None:
+            return _run_legacy_blockout(args)
         if args.prune:
             return _run_prune(args)
+        if args.character_dir is not None:
+            return _run_local_characters(args)
         if args.verify:
             return _run_verify(args)
         if not args.download and args.from_dir is None:
@@ -90,6 +107,75 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     except BootstrapError as exc:
         _log(f"error: {exc}")
         return exc.exit_code
+
+
+# -- legacy blockout library toggle -----------------------------------
+
+def _blockout_manifest(dest) -> Path:
+    from ...reconstruction.asset_library.library import (  # local: reconstruction is optional
+        MANIFEST_NAME,
+        resolve_library_root,
+    )
+
+    return resolve_library_root(dest) / MANIFEST_NAME
+
+
+def _run_legacy_blockout(args) -> int:
+    live = _blockout_manifest(args.dest)
+    disabled = live.with_suffix(live.suffix + ".disabled")
+    if args.legacy_blockout == "off":
+        if not live.is_file():
+            _log("legacy blockout library already disabled (or never populated)")
+            return EXIT_OK
+        live.replace(disabled)
+        _log(f"disabled the legacy blockout library -> {disabled.name}")
+        _log("  its ~23 'legacy' catalog rows are gone; the starter library covers them")
+        _log("  undo: --enable-legacy-blockout (or rename the file back)")
+    else:
+        if not disabled.is_file():
+            _log("legacy blockout library is not disabled")
+            return EXIT_OK
+        disabled.replace(live)
+        _log(f"re-enabled the legacy blockout library -> {live.name}")
+    return EXIT_OK
+
+
+# -- local character import (plan section 49) --------------------------
+
+def _run_local_characters(args) -> int:
+    from .local_import import run_import
+
+    result = run_import(
+        args.dest, args.character_dir,
+        license_note=args.license_note, id_prefix=args.id_prefix,
+        dry_run=args.dry_run, update=args.update,
+    )
+    skipped = result.get("skipped", [])
+    if args.verbose:
+        for note in skipped:
+            _log(f"  ~ {note}")
+    elif skipped:
+        _log(f"  ~ {len(skipped)} file(s) skipped (--verbose for details)")
+
+    if result["dry_run"]:
+        for candidate in result["candidates"]:
+            _log(f"  would install {candidate['id']}  <- {candidate['source_file']} "
+                 f"[{candidate['format']}] {len(candidate['animations'])} clip(s)")
+        if not result["candidates"]:
+            _log(f"error: no rig-complete .glb/.fbx character in {args.character_dir}")
+            return EXIT_CURATION
+        _log("dry run: nothing written")
+        return EXIT_OK
+
+    installed = result["installed"]
+    if not installed:
+        _log(f"error: no rig-complete .glb/.fbx character in {args.character_dir}")
+        return EXIT_CURATION
+    for row in installed:
+        _log(f"  {row['status']:<9} {row['id']}")
+    _emit(args, result["report"])
+    conflicts = [r for r in installed if r["status"] == "conflict"]
+    return EXIT_INSTALL if conflicts and not args.update else EXIT_OK
 
 
 # -- prune --------------------------------------------------------------

@@ -30,6 +30,18 @@ function assetsTabMarkup() {
                  placeholder="${t("Search assets...")}" aria-label="${t("Search assets")}">
           <button type="button" class="icon-button" data-asset-act="asset-import"
                   title="${t("Import 3D Model (+)")}"><i class="pi pi-upload"></i></button>
+          <button type="button" class="icon-button" data-asset-act="local-toggle"
+                  title="${t("Install a character pack you downloaded (Quaternius / local)")}"><i class="pi pi-folder-open"></i></button>
+        </div>
+        <div class="oc-asset-local" data-role="asset-local-form" hidden>
+          <input class="oc-search" data-role="asset-local-folder" type="text"
+                 placeholder="${t("Absolute path to the extracted pack folder")}" spellcheck="false">
+          <input class="oc-search" data-role="asset-local-note" type="text"
+                 placeholder="${t("License note (e.g. Quaternius QAL v1.0)")}" spellcheck="false">
+          <div class="oc-asset-local-actions">
+            <button type="button" class="oc-btn" data-asset-act="local-scan">${t("Scan")}</button>
+            <button type="button" class="oc-btn oc-btn--primary" data-asset-act="local-install">${t("Install characters")}</button>
+          </div>
         </div>
         <div class="oc-asset-kinds" data-role="asset-kinds"></div>
         <div class="oc-asset-grid" data-role="asset-grid"></div>

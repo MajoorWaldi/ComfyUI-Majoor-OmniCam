@@ -194,6 +194,15 @@ export function bindViewportSettings(ui, q, signal) {
       ui.render();
     }, { signal });
   }
+  for (const box of ui.root.querySelectorAll('[data-role="playblast-labels"]')) {
+    box.addEventListener("change", (e) => {
+      if (ui.state.playblast_labels !== e.target.checked) ui.checkpoint("Toggle playblast labels");
+      ui.state.playblast_labels = e.target.checked;
+      syncMirroredControl(ui.root, "playblast-labels", e.target, "checked");
+      ui.scheduleSerialize();
+      ui.render();
+    }, { signal });
+  }
   for (const box of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) {
     box.addEventListener("change", (e) => {
       if (ui.state.playblast_resolution !== e.target.value) ui.checkpoint("Change playblast resolution");

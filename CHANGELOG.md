@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Display ▸ Burn labels / annotations into the playblast** (`playblast_labels`,
+  off by default): paints the viewport Labels overlay onto the recorded 2D
+  canvas during a capture. The live overlay is DOM and still hides itself for a
+  clean capture; this draws the same text / annotation pills via `project()` so
+  they scale with the playblast resolution. Mirrors *Keep the grid in the
+  playblast*; also a Settings default (`MajoorOmniCam.Defaults.PlayblastLabels`).
 - Starter asset library bootstrap (`scripts/bootstrap_asset_library.py`): an
   explicit, opt-in pipeline that resolves approved CC0 Kenney packs, inventories
   and validates their GLB contents, curates a ~30–45 GLB previs starter set,
@@ -22,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   downloader, ZIP-safe archive inventory, header-only GLB inspector, curation
   engine, install transaction, lockfile + report) and
   `omnicam.assets.rig.hierarchy_is_plausible()`.
+- Local restricted-licence character import: `bootstrap_asset_library.py
+  --character-dir <folder>` (+ `--license-note`, `--id-prefix`) inspects every
+  `.glb` / `.fbx` in a pack you downloaded yourself (e.g. Quaternius *Universal
+  Animation Library* — QAL v1.0 forbids automatic download / redistribution),
+  and installs the rig-complete ones as `character` rows with the real bone map
+  and embedded clips. Merges into the existing lockfile / `SOURCES.md`; no
+  network. `SOURCES.md` is now regenerated from the full lockfile. Also exposed
+  in the Director → ASSETS panel as a folder button + `POST
+  /majoor/omnicam/library/import-local` (Scan / Install; the panel refreshes
+  itself, no ComfyUI restart).
 - Binary-FBX skeleton inspector (`omnicam.assets.bootstrap.fbx_inspect`) and
   `omnicam.assets.rig.deform_joint_names()` (strips IK/control/`_end` bones
   before rig mapping). The `starter` preset now also downloads Kenney's three
@@ -32,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The unified asset catalog is now the single source of truth for **both** the
+  Director and Reconstruction. Blockout / hybrid / scan asset retrieval resolves
+  placements through the catalog first; the legacy `blockout_library/library.json`
+  is only an optional compatibility fallback. When no blockout library is
+  installed at the managed location (e.g. after `--disable-legacy-blockout`) but
+  the catalog holds file-backed assets, reconstruction uses the catalog instead
+  of failing with "asset library unavailable". An explicit
+  `recon_asset_library_path` that is missing or empty is still a hard error.
 - `scripts/fetch_blockout_library.py` now shares the Kenney page resolver,
   bounded download and ZIP-safety core with `omnicam.assets.bootstrap` — one
   Kenney downloader in the project. Its legacy flags and `library.json` /
@@ -45,6 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `bootstrap_asset_library.py --disable-legacy-blockout` (and `--enable-…` to
+  undo) renames `<input>/majoor_omnicam/blockout_library/library.json` so the
+  unified catalog stops mounting it as the `legacy` source — after the starter
+  library is installed its ~23 rows (Chair, Table, Sofa…) duplicate the
+  `_01` starter props.
+- Rig auto-mapper (`omnicam.assets.rig` + `web-src/.../rig-profile.js`) now
+  knows the Epic / Unreal *SK_Mannequin* skeleton (`spine_01/02/03`, `calf_l`,
+  `ball_l`) used by Quaternius UAL2, MetaHuman and many CC0 packs — previously
+  `chest` / `lower_leg_*` stayed unmapped and the character was rejected.
+  `--character-dir` also de-duplicates a pack that ships one rig as several
+  exports (mesh-only / +anims / +root-motion, GLB and FBX).
+- `manifest._write_rows` retries the catalog `os.replace` on a Windows
+  `PermissionError` (AV / indexer holding the file), which a rapid install loop
+  of dozens of `register_asset` calls could hit intermittently.
 - Settings: every OmniCam preference now shows up in **Settings > OmniCam**. The
   catalogue declared a shared 3-segment `category` path (`OmniCam / Director /
   <group>`), and ComfyUI's settings dialog collapses entries that share a full

@@ -380,11 +380,23 @@ def run_single_blockout_pipeline(
 
     # 6b. Asset-library retrieval (optional) -------------------- #
     asset_placements: list[Any] = []
-    if asset_library is not None and asset_mode != "off":
+    if asset_mode != "off":
         report("SAVE_ASSETS", 0.88, "Retrieving library assets")
         from ..asset_library import resolve_placements
 
-        asset_placements = resolve_placements(objects, asset_library)
+        # The unified asset catalog is the single source of truth; the blockout
+        # library stays a compatibility fallback (unified-assets design spec
+        # section 33) -- mirrors the multi-view scan pipeline.
+        catalog = None
+        try:
+            from ...assets import load_catalog
+
+            catalog = load_catalog(input_root=input_root)
+        except Exception:  # noqa: BLE001 - no catalog is a supported state
+            catalog = None
+        asset_placements = resolve_placements(
+            objects, asset_library, catalog=catalog, input_root=input_root
+        )
 
     # 7. Compile ------------------------------------------------- #
     report("SAVE_ASSETS", 0.90, "Compiling blockout scene")
