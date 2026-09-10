@@ -94,6 +94,25 @@ def test_publish_workflow_splits_registry_and_github_release_finalization() -> N
     assert "gh release create" in github_body
 
 
+def test_github_release_is_gated_on_registry_active_status() -> None:
+    """A successful `node publish` is an upload, not acceptance. release-github
+    must wait for the Registry version to become Active."""
+    workflow = _text(".github/workflows/publish_action.yml")
+
+    verify_job = workflow.index("  registry-verify:")
+    github_job = workflow.index("  release-github:")
+    assert verify_job < github_job
+
+    verify_body = workflow[verify_job:github_job]
+    assert "scripts/check_registry_status.py" in verify_body
+    assert "--node majoor-omnicam" in verify_body
+    assert "needs: [release-build, release-registry]" in verify_body
+
+    github_body = workflow[github_job:]
+    header = github_body[: github_body.index("steps:")]
+    assert "registry-verify" in header  # release-github now depends on the gate
+
+
 def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
     workflow = _text(".github/workflows/test.yml")
     assert "test_wan_camera_official_parity.py" in workflow
