@@ -142,6 +142,15 @@ trusted for a downloaded file. Generated tags are factual only (`human`,
 inferred. Animation clip ids come from real embedded clip names; unknown names
 get no guessed semantic tags.
 
+For a full-humanoid character with a large animation set, use
+`--character-dir <folder>` on a pack you downloaded yourself (Quaternius
+*Universal Animation Library*, etc. — QAL forbids automatic download). Each
+`.glb` / `.fbx` is inspected by the same skeleton reader; only files that map
+every `OMNICAM_HUMANOID_V1` joint install as `character`, with the real
+inspected `bone_map`, the file's embedded clips, and `license.source` set from
+`--license-note`. The import merges into the existing lockfile so Kenney and
+local provenance coexist.
+
 ## Deferred
 
 full IK · foot locking · animation retargeting · blending / NLA · mocap · facial

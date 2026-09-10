@@ -128,6 +128,11 @@ python scripts/bootstrap_asset_library.py --prune
 
 # optional themed character packs
 python scripts/bootstrap_asset_library.py --preset characters-extra --download
+
+# import full-humanoid characters from a pack YOU downloaded (offline, no
+# redistribution) -- e.g. Quaternius' Universal Animation Library
+python scripts/bootstrap_asset_library.py --character-dir "C:/Downloads/UAL2/FBX" \
+    --license-note "Quaternius QAL v1.0"
 ```
 
 Presets: `starter` (seven kits + three FBX character packs), `characters`,
@@ -158,9 +163,16 @@ What it does and does not do:
   names come from the real file, never invented.
 - **Thumbnails:** not rendered here — the Asset Browser's existing lazy
   `ThumbnailRenderer` generates them on first view.
-- **Excluded:** Quaternius and Mixamo (redistribution terms), Poly Haven
-  (deferred to a future bridge). Use normal local import for packs you hold a
-  licence to yourself.
+- **Auto-download is Kenney only.** Quaternius (QAL v1.0 forbids repackaging /
+  automatic download / hosting), Mixamo and Poly Haven are **not** network
+  sources. For a full-humanoid character with a real animation set, download a
+  pack yourself (e.g. Quaternius *Universal Animation Library*, FBX or GLB
+  flavour) and run `--character-dir <folder>`: every `.glb` / `.fbx` there is
+  rig-inspected the same way, and only files that map every
+  `OMNICAM_HUMANOID_V1` joint install as a `character`. Nothing is fetched or
+  redistributed — the files are used within your project. `.gltf` (multi-file)
+  is not supported; export FBX or GLB. `--license-note` fills the row's
+  `license.source`; the import merges into the same lockfile / `SOURCES.md`.
 
 `fetch_blockout_library.py` is the legacy blockout entry point and now shares
 this same Kenney download / archive core.

@@ -33,6 +33,7 @@ from .source_registry import SourceDefinition, select_sources
 from .types import (
     EXIT_CONFIG,
     EXIT_CURATION,
+    EXIT_INSTALL,
     EXIT_OK,
     BootstrapError,
 )
@@ -66,6 +67,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verify", action="store_true", help="verify the installed lock offline; no network")
     parser.add_argument("--prune", action="store_true",
                         help="drop user-catalog rows whose model file is missing + their orphan thumbnails; no network")
+    parser.add_argument("--character-dir", type=Path, default=None, metavar="PATH",
+                        help="import rig-complete .glb/.fbx characters from a folder YOU downloaded "
+                             "(e.g. a Quaternius pack); no network, no redistribution")
+    parser.add_argument("--license-note", default="", metavar="TEXT",
+                        help="license.source string for --character-dir imports (e.g. 'Quaternius QAL v1.0')")
+    parser.add_argument("--id-prefix", default="omnicam.character.", metavar="PREFIX",
+                        help="catalog id prefix for --character-dir imports")
     parser.add_argument("--update", action="store_true", help="allow replacing installed files whose source changed")
     parser.add_argument("--keep-cache", action="store_true", help="keep downloaded ZIPs after a successful install")
     parser.add_argument("--json", action="store_true", dest="as_json", help="emit the machine report on stdout")
@@ -79,6 +87,8 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     try:
         if args.prune:
             return _run_prune(args)
+        if args.character_dir is not None:
+            return _run_local_characters(args)
         if args.verify:
             return _run_verify(args)
         if not args.download and args.from_dir is None:
@@ -90,6 +100,56 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     except BootstrapError as exc:
         _log(f"error: {exc}")
         return exc.exit_code
+
+
+# -- local character import (plan section 49) --------------------------
+
+def _run_local_characters(args) -> int:
+    from datetime import datetime, timezone
+
+    from .local_import import install_local_characters, scan_character_dir
+    from .lockfile import merge_assets_into_lockfile
+
+    accepted, notes = scan_character_dir(args.character_dir, id_prefix=args.id_prefix)
+    if args.verbose:
+        for note in notes:
+            _log(f"  ~ {note}")
+    elif notes:
+        _log(f"  ~ {len(notes)} file(s) skipped (--verbose for details)")
+    if not accepted:
+        _log(f"error: no rig-complete .glb/.fbx character found in {args.character_dir}")
+        return EXIT_CURATION
+
+    if args.dry_run:
+        for candidate in accepted:
+            _log(f"  would install {candidate.asset_id}  <- {candidate.path.name} "
+                 f"[{candidate.model_format}] {len(candidate.info.animation_names)} clip(s)")
+        _log("dry run: nothing written")
+        return EXIT_OK
+
+    installed = install_local_characters(
+        args.dest, accepted, license_note=args.license_note, update=args.update,
+    )
+    for result in installed:
+        _log(f"  {result.status:<9} {result.asset_id}  <- {result.archive_member}")
+
+    lock_source = LockSource("", "", "", args.license_note or "local import (restricted licence)")
+    merge_assets_into_lockfile(args.dest, installed, source_id="local", lock_source=lock_source)
+    write_sources_md(
+        args.dest, {"local": lock_source}, installed,
+        install_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        source_names={"local": "Local import (you downloaded these)"},
+    )
+
+    report = build_report(
+        preset="local-characters", sources_total=1, sources_resolved=1,
+        archives_downloaded=0, archives_verified=0,
+        selection=_empty_selection(), installed=installed,
+    )
+    write_report(args.dest, report)
+    _emit(args, report)
+    conflicts = [r for r in installed if r.status == "conflict"]
+    return EXIT_INSTALL if conflicts and not args.update else EXIT_OK
 
 
 # -- prune --------------------------------------------------------------

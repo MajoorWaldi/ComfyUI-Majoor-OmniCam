@@ -76,8 +76,49 @@ def build_lock_document(
                 "rig_status": asset.rig_status,
             }
             for asset in sorted(installed, key=lambda a: a.asset_id)
+            if asset.status != "conflict"
         },
     }
+
+
+def merge_assets_into_lockfile(
+    input_root: Path | str | None,
+    installed: list[InstalledAsset],
+    *,
+    source_id: str = "local",
+    lock_source: LockSource | None = None,
+) -> Path:
+    """Add ``installed`` (and optionally one ``lock_source``) to the existing
+    lockfile without disturbing the rest -- used by the offline
+    ``--character-dir`` import so it does not clobber the Kenney provenance."""
+    ensure_library_tree(input_root)
+    path = lock_path(input_root)
+    try:
+        document = load_lockfile(input_root)
+    except BootstrapError:
+        document = build_lock_document({}, [])
+    document["generated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if lock_source is not None:
+        document.setdefault("sources", {})[source_id] = {
+            "page_url": lock_source.page_url,
+            "resolved_archive_url": lock_source.resolved_archive_url,
+            "archive_sha256": lock_source.archive_sha256,
+            "license": lock_source.license,
+        }
+    assets = document.setdefault("assets", {})
+    for asset in installed:
+        if asset.status == "conflict":
+            continue
+        assets[asset.asset_id] = {
+            "file": asset.output,
+            "sha256": asset.sha256,
+            "source": asset.source_id,
+            "archive_member": asset.archive_member,
+            "rig_status": asset.rig_status,
+        }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_json(path, document)
+    return path
 
 
 def write_lockfile(

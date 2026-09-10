@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   downloader, ZIP-safe archive inventory, header-only GLB inspector, curation
   engine, install transaction, lockfile + report) and
   `omnicam.assets.rig.hierarchy_is_plausible()`.
+- Local restricted-licence character import: `bootstrap_asset_library.py
+  --character-dir <folder>` (+ `--license-note`, `--id-prefix`) inspects every
+  `.glb` / `.fbx` in a pack you downloaded yourself (e.g. Quaternius *Universal
+  Animation Library* — QAL v1.0 forbids automatic download / redistribution),
+  and installs the rig-complete ones as `character` rows with the real bone map
+  and embedded clips. Merges into the existing lockfile / `SOURCES.md`; no
+  network. `SOURCES.md` is now regenerated from the full lockfile.
 - Binary-FBX skeleton inspector (`omnicam.assets.bootstrap.fbx_inspect`) and
   `omnicam.assets.rig.deform_joint_names()` (strips IK/control/`_end` bones
   before rig mapping). The `starter` preset now also downloads Kenney's three

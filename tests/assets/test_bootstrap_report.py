@@ -71,17 +71,20 @@ def test_write_report_persists_json(tmp_path):
     assert on_disk["preset"] == "starter"
 
 
-def test_sources_md_lists_every_installed_source_and_license(tmp_path):
+def test_sources_md_is_regenerated_from_the_lockfile(tmp_path):
+    # SOURCES.md now renders from the lockfile so a later --character-dir import
+    # cannot clobber the Kenney provenance.
+    from omnicam.assets.bootstrap.lockfile import write_lockfile
+
     sources = {
         "kenney.furniture_kit": LockSource("https://kenney.nl/assets/furniture-kit", "https://kenney.nl/media/pages/assets/furniture-kit/x.zip", "a" * 64, "CC0-1.0"),
-        "kenney.blocky_characters": LockSource("https://kenney.nl/assets/blocky-characters", "https://kenney.nl/media/pages/assets/blocky-characters/y.zip", "b" * 64, "CC0-1.0"),
         "kenney.car_kit": LockSource("https://kenney.nl/assets/car-kit", "https://kenney.nl/media/pages/assets/car-kit/z.zip", "c" * 64, "CC0-1.0"),
-        "kenney.nature_kit": LockSource("https://kenney.nl/assets/nature-kit", "https://kenney.nl/media/pages/assets/nature-kit/w.zip", "e" * 64, "CC0-1.0"),
     }
-    path = write_sources_md(tmp_path, sources, _INSTALLED, install_date="2026-09-09")
+    write_lockfile(tmp_path, sources, _INSTALLED)
+    path = write_sources_md(tmp_path, {}, [], install_date="2026-09-09")
     text = path.read_text(encoding="utf-8")
     assert "https://kenney.nl/assets/furniture-kit" in text
     assert "https://kenney.nl/assets/car-kit" in text
     assert "CC0-1.0" in text
     assert "characters/k_01.glb" in text
-    assert "props/desk_01.glb" not in text  # conflicted asset omitted
+    assert "props/desk_01.glb" not in text  # conflicted asset never entered the lock
