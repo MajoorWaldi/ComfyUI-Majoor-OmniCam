@@ -7,6 +7,7 @@ import multiprocessing.spawn as mp_spawn
 import os
 import pickle
 import sys
+import threading
 import time
 import types
 
@@ -54,57 +55,69 @@ def _request(tmp_path) -> DpvoWorkerRequest:
     )
 
 
-def _successful_child(connection, request) -> None:
-    connection.send({"kind": "ready", "index": 0, "source_frame": request.source_frames[0]})
-    if connection.recv().get("kind") != "continue":
-        return
-    connection.send({"kind": "progress", "done": 1, "total": 1, "source_frame": 0})
-    connection.send({
+def _successful_child(result_queue, stop_event, request) -> None:
+    del stop_event, request
+    result_queue.put({"kind": "progress", "done": 1, "total": 1, "source_frame": 0})
+    result_queue.put({
         "kind": "result",
         "poses": [[0, 0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0, 1]],
         "timestamps": [0, 1],
     })
-    connection.close()
+    result_queue.close()
+    result_queue.join_thread()
 
 
-def _feature_child(connection, request) -> None:
-    connection.send({"kind": "ready", "index": 0, "source_frame": request.source_frames[0]})
-    if connection.recv().get("kind") != "continue":
-        return
-    connection.send({
+def _feature_child(result_queue, stop_event, request) -> None:
+    del stop_event
+    result_queue.put({
         "kind": "features",
         "source_frame": request.source_frames[0],
         "points": [{"x": 0.5, "y": 0.25, "state": "accepted"}],
     })
-    connection.send({"kind": "progress", "done": 1, "total": 1, "source_frame": request.source_frames[0]})
-    connection.send({
+    result_queue.put({"kind": "progress", "done": 1, "total": 1, "source_frame": request.source_frames[0]})
+    result_queue.put({
         "kind": "result",
         "poses": [[0, 0, 0, 0, 0, 0, 1], [1, 0, 0, 0, 0, 0, 1]],
         "timestamps": [0, 1],
     })
-    connection.close()
+    result_queue.close()
+    result_queue.join_thread()
 
 
-def _crashing_child(connection, request) -> None:
-    del request
-    connection.send({"kind": "error", "error": "synthetic child crash"})
-    connection.close()
+def _crashing_child(result_queue, stop_event, request) -> None:
+    del stop_event, request
+    result_queue.put({"kind": "error", "error": "synthetic child crash"})
+    result_queue.close()
+    result_queue.join_thread()
 
 
-def _hung_child(connection, request) -> None:
-    del connection, request
+def _hung_child(result_queue, stop_event, request) -> None:
+    del result_queue, stop_event, request
     time.sleep(30)
 
 
-def _hung_finalization_child(connection, request) -> None:
-    del request
-    connection.send({"kind": "finalizing", "total": 2})
+def _hung_finalization_child(result_queue, stop_event, request) -> None:
+    del stop_event, request
+    result_queue.put({"kind": "finalizing", "total": 2})
     time.sleep(30)
 
 
-def _hard_exit_child(connection, request) -> None:
-    del connection, request
+def _hard_exit_child(result_queue, stop_event, request) -> None:
+    del result_queue, stop_event, request
     os._exit(1)
+
+
+def _stoppable_child(result_queue, stop_event, request) -> None:
+    """Report one frame, then wait for the parent's stop flag like the real child."""
+    del request
+    result_queue.put({"kind": "progress", "done": 1, "total": 2, "source_frame": 0})
+    for _ in range(3000):
+        if stop_event.is_set():
+            result_queue.put({"kind": "cancelled", "done": 1})
+            result_queue.close()
+            result_queue.join_thread()
+            return
+        time.sleep(0.01)
 
 
 class _CancelledError(Exception):
@@ -114,6 +127,21 @@ class _CancelledError(Exception):
 class _CancellingControl:
     def checkpoint(self) -> None:
         raise _CancelledError
+
+
+class _CancelWhenControl:
+    """Cancel the moment ``ready()`` turns true -- never on a wall clock.
+
+    Spawning a child costs a second or more on Windows, so a cancel keyed to a
+    poll count or a delay would fire before the child ever ran.
+    """
+
+    def __init__(self, ready) -> None:
+        self._ready = ready
+
+    def checkpoint(self) -> None:
+        if self._ready():
+            raise _CancelledError
 
 
 class _PatchTensor:
@@ -189,10 +217,15 @@ def test_worker_request_rejects_an_unknown_protocol():
         DpvoWorkerRequest.from_dict({"protocol": 999})
 
 
-def test_worker_request_uses_diagnostic_capable_protocol_version(tmp_path):
+def test_worker_request_uses_the_queue_and_event_protocol_version(tmp_path):
+    """Protocol 3 dropped the per-frame ready/continue handshake for a one-way
+    result queue plus a stop event, so a request pickled by an older build must
+    not be accepted by this child."""
     request = _request(tmp_path)
 
-    assert request.protocol == 2
+    assert request.protocol == 3
+    with pytest.raises(ValueError, match="protocol"):
+        DpvoWorkerRequest.from_dict({**request.to_dict(), "protocol": 2})
 
 
 def test_active_dpvo_patch_features_are_normalized_and_bounded():
@@ -304,6 +337,31 @@ def test_spawned_runner_sends_cooperative_stop_when_parent_is_cancelled(tmp_path
         runner.solve(_request(tmp_path), control=_CancellingControl())
 
     assert runner.process is None
+
+
+def test_a_cancel_sets_the_stop_event_and_the_child_exits_on_its_own(tmp_path):
+    """The stop flag replaces the old per-frame ready/continue handshake.
+
+    _stoppable_child never exits by itself within the grace window: if it is
+    reaped here it is because it saw stop_event and returned, not because it
+    was terminated. The child is therefore genuinely cooperative -- the DPVO
+    CUDA context unwinds normally instead of dying mid-kernel.
+    """
+    runner = DpvoProcessRunner(
+        target=_stoppable_child, poll_seconds=0.01, stop_grace_seconds=5.0,
+    )
+    seen: list[tuple[int, int]] = []
+
+    with pytest.raises(_CancelledError):
+        runner.solve(
+            _request(tmp_path),
+            control=_CancelWhenControl(lambda: bool(seen)),
+            progress=lambda done, total: seen.append((done, total)),
+        )
+
+    assert seen == [(1, 2)]  # the one frame it managed before the cancel
+    assert runner.process is None
+    assert runner.last_exitcode == 0  # a clean return, not a terminate/kill
 
 
 def _load_worker_as_comfyui_does(name: str):
@@ -495,19 +553,22 @@ def test_spawning_never_disturbs_the_parents_own_allocator_tuning(monkeypatch):
     assert os.environ["PYTORCH_CUDA_ALLOC_CONF"] == "backend:cudaMallocAsync"
 
 
-class _RecordingConnection:
-    """A pipe end that always says "continue" and keeps what the child sent."""
+class _RecordingQueue:
+    """An in-process stand-in for the child's result queue."""
 
     def __init__(self) -> None:
         self.sent: list[dict] = []
 
-    def send(self, message):
+    def put(self, message):
         self.sent.append(message)
 
-    def recv(self):
-        return {"kind": "continue"}
+    def put_nowait(self, message):
+        self.sent.append(message)
 
     def close(self):
+        pass
+
+    def join_thread(self):
         pass
 
 
@@ -559,14 +620,14 @@ def test_the_child_solves_with_autograd_disabled(tmp_path, monkeypatch):
         intrinsics=CameraIntrinsics(fx=64.0, fy=64.0, cx=32.0, cy=24.0, width=64, height=48, source="test"),
         checkpoint_path=str(tmp_path / "dpvo.pth"),
     )
-    connection = _RecordingConnection()
+    result_queue = _RecordingQueue()
     try:
-        run_dpvo_child(connection, request)
+        run_dpvo_child(result_queue, threading.Event(), request)
     finally:
         exchange.cleanup()
 
-    assert [message["kind"] for message in connection.sent if message["kind"] == "error"] == []
-    assert connection.sent[-1]["kind"] == "result"
+    assert [message["kind"] for message in result_queue.sent if message["kind"] == "error"] == []
+    assert result_queue.sent[-1]["kind"] == "result"
     # Construction, all three frames, and terminate() -- every one of them.
     assert len(grad_flags) == 5
     assert not any(grad_flags)
