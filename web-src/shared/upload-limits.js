@@ -4,9 +4,8 @@
 // each buffer the whole file, and a multi-hundred-megabyte FBX can freeze the
 // tab long before the backend's own HTTPRequestEntityTooLarge would fire.
 //
-// These match routes.py's _env_limit() defaults. The backend stays
-// authoritative (it also reads OMNICAM_MAX_* overrides this bundle cannot see);
-// this is a fast, friendly pre-check, not the source of truth.
+// These match routes.py's fixed MAX_* constants. The backend stays
+// authoritative; this is a fast, friendly pre-check, not the source of truth.
 
 const MB = 1024 * 1024;
 

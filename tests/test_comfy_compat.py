@@ -8,9 +8,18 @@ import pytest
 def test_comfy_compat_reexports_the_supported_v3_surface():
     pytest.importorskip("comfy_api.latest")
 
-    from omnicam.comfy_compat import IO, UI, ComfyAPI, ComfyExtension, InputImpl, PromptServer
+    from omnicam.comfy_compat import (
+        IO,
+        UI,
+        ComfyAPI,
+        ComfyAPISync,
+        ComfyExtension,
+        InputImpl,
+        PromptServer,
+    )
 
     assert ComfyAPI is not None
+    assert ComfyAPISync is not None
     assert ComfyExtension is not None
     assert IO is not None
     assert InputImpl is not None
@@ -42,7 +51,15 @@ def _reload_api(monkeypatch):
 
 def _fake_latest() -> types.ModuleType:
     latest = types.ModuleType("comfy_api.latest")
-    for attr in ("IO", "UI", "ComfyAPI", "ComfyExtension", "InputImpl", "VideoComponents"):
+    for attr in (
+        "IO",
+        "UI",
+        "ComfyAPI",
+        "ComfyAPISync",
+        "ComfyExtension",
+        "InputImpl",
+        "VideoComponents",
+    ):
         setattr(latest, attr, type(f"Latest{attr}", (), {}))
     return latest
 

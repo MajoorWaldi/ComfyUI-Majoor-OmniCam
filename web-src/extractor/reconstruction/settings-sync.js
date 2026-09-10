@@ -151,9 +151,16 @@ export function syncWidgetsFromPanel(node, root) {
   for (const f of RECON_PANEL_FIELDS) {
     const el = domControl(root, f.role);
     if (!el) continue;
-    let value = f.kind === "boolean" ? Boolean(el.checked) : el.value;
-    if (f.kind === "number") value = Number(value);
-    changed = setWidgetValue(node, f.widget, value) || changed;
+    if (f.kind === "boolean") {
+      changed = setWidgetValue(node, f.widget, Boolean(el.checked)) || changed;
+      continue;
+    }
+    // A <select> whose options have not loaded yet reads value "" -- never
+    // write that over a widget's valid schema default, or a queued run fails
+    // ComfyUI combo validation (recon_geometry_provider: '' not in [...]).
+    const raw = el.value;
+    if (raw === "" || raw == null) continue;
+    changed = setWidgetValue(node, f.widget, f.kind === "number" ? Number(raw) : raw) || changed;
   }
   const policy = widgetValue(node, "recon_completion_policy", "off");
   changed =

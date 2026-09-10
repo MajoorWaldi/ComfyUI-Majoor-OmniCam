@@ -1,5 +1,7 @@
 // Product-neutral lifecycle for a managed HTML video element.
 
+import { EventScope } from "./event-scope.js";
+
 export function frameAtMediaTime(time, fps, durationFrames = Number.POSITIVE_INFINITY) {
   const last = Math.max(0, Number(durationFrames || 1) - 1);
   return Math.max(0, Math.min(last, Math.round(Number(time || 0) * Math.max(1, Number(fps || 24)))));
@@ -24,18 +26,15 @@ export class ManagedVideoPlayer {
     this.url = "";
     this.error = "";
     this.primed = false;
-    this.disposers = [];
+    this.events = new EventScope();
     this._bind();
   }
 
   _bind() {
     if (!this.video) return;
-    const listen = (name, listener) => {
-      this.video.addEventListener(name, listener);
-      this.disposers.push(() => this.video?.removeEventListener(name, listener));
-    };
-    listen("timeupdate", () => this.onFrame(this.currentFrame()));
-    listen("loadedmetadata", () => {
+    const on = (name, listener) => this.events.on(this.video, name, listener);
+    on("timeupdate", () => this.onFrame(this.currentFrame()));
+    on("loadedmetadata", () => {
       const fromDuration = Math.round((Number(this.video.duration) || 0) * this.fps);
       this.frameCount = Math.max(this.frameCount, fromDuration);
       this.durationFrames = this.frameCount;
@@ -43,12 +42,12 @@ export class ManagedVideoPlayer {
       this.onFrame(this.currentFrame());
       this.primeFirstFrame();
     });
-    listen("loadeddata", () => {
+    on("loadeddata", () => {
       this.error = "";
       this.primeFirstFrame();
       this.onFrame(this.currentFrame());
     });
-    listen("error", () => {
+    on("error", () => {
       this.error = String(this.errorMessage(this.video?.error, this.url));
       this.onError(this.error);
     });
@@ -129,7 +128,7 @@ export class ManagedVideoPlayer {
 
   dispose() {
     this.url = "";
-    for (const dispose of this.disposers.splice(0)) dispose();
+    this.events.dispose();
     if (this.video) {
       this.video.pause?.();
       this.video.removeAttribute?.("src");

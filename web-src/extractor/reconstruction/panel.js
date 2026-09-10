@@ -1,9 +1,8 @@
 // Orchestrator for the scene reconstruction panel.
 
 import { loadReconstructionCapabilities } from "./capabilities.js";
-import { bindReconstructionControls, readReconstructionSettings } from "./controls.js";
-import { ReconstructionEventSubscription, matchesReconstructionEvent } from "./events.js";
-import { ReconstructionJobClient, stopActiveReconstructionOnDispose } from "./job-client.js";
+import { bindReconstructionControls } from "./controls.js";
+import { ReconstructionClient } from "./client.js";
 import {
   initialReconstructionState,
   reduceReconstructionState,
@@ -14,7 +13,6 @@ import { renderReconstructionView } from "./views.js";
 import { annotatedAssetUrl } from "../../shared/managed-assets.js";
 import { confirmAction } from "../../director/ui-services.js";
 import { t } from "../../i18n.js";
-import { RequestLifetime, isAbortError } from "../../request-lifetime.js";
 
 export class ReconstructionPanelController {
   constructor({
@@ -24,7 +22,9 @@ export class ReconstructionPanelController {
     app = null,
     getSource = () => null,
     onAdopt = () => {},
-    listen = (target, event, handler) => target?.addEventListener?.(event, handler),
+    onQueue = () => {},
+    onCancel = () => {},
+    on = (target, event, handler) => target?.addEventListener?.(event, handler),
   }) {
     this.root = root;
     this.node = node;
@@ -32,45 +32,20 @@ export class ReconstructionPanelController {
     this.app = app;
     this.getSource = getSource;
     this.onAdopt = onAdopt;
-    this.listen = listen;
+    // Start / Stop delegate to the parent's partial-queue path. The panel keeps
+    // capabilities, source inspection, the 3D preview, discard and Director
+    // adoption -- but no longer owns a heavy job manager.
+    this.onQueue = onQueue;
+    this.onCancel = onCancel;
+    this.on = on;
 
-    this.client = new ReconstructionJobClient(api);
-    this.requestLifetime = new RequestLifetime();
+    this.client = new ReconstructionClient(api);
     this.runGeneration = 0;
     this.state = initialReconstructionState();
     const initialSource = this.getSource();
     if (initialSource) {
       this.state.source = initialSource;
     }
-
-    this.events = new ReconstructionEventSubscription(
-      api,
-      {
-        // Field names follow omnicam/reconstruction/jobs/events.py: the server
-        // sends `state` (not job_state) and has no stage_progress field.
-        state: (payload) => this.dispatch({ type: "STATE", jobState: payload.state, jobId: payload.job_id }),
-        progress: (payload) => this.dispatch({ type: "PROGRESS", progress: payload.progress, stage: payload.stage }),
-        preview: (payload) => this.dispatch({ type: "PREVIEW", previewUrl: payload.preview_url }),
-        done: async (payload) => {
-          try {
-            const generation = this.runGeneration;
-            const res = await this.client.getJobResult(payload.job_id, { signal: this.requestLifetime.signal });
-            if (this.disposed || generation !== this.runGeneration || payload.job_id !== this.state.jobId) return;
-            this.dispatch({
-              type: "DONE",
-              result: res.result || res.motion_scene || res,
-              summary: res.summary,
-              warnings: res.warnings,
-            });
-          } catch (err) {
-            if (this.disposed || isAbortError(err)) return;
-            this.dispatch({ type: "ERROR", error: { message: err.message } });
-          }
-        },
-        error: (payload) => this.dispatch({ type: "ERROR", error: payload.error }),
-      },
-      (payload) => matchesReconstructionEvent(payload, { jobId: this.state.jobId, nodeId: this.node?.id })
-    );
 
     this.unbindControls = bindReconstructionControls(this.root, {
       onRun: () => this.run(),
@@ -82,7 +57,7 @@ export class ReconstructionPanelController {
         syncWidgetsFromPanel(this.node, this.root);
         this.dispatch({ type: "SETTINGS", settings });
       },
-      listen: this.listen,
+      on: this.on,
     });
 
     // Hydrate the panel from whatever the saved workflow put on the widgets,
@@ -97,25 +72,16 @@ export class ReconstructionPanelController {
     this.previewLoad = null;
     this.previewOpen = false;
     const previewToggle = this.root?.querySelector?.('[data-role="reconstruction-preview-toggle"]');
-    if (previewToggle) this.listen(previewToggle, "click", () => this.togglePreview());
+    if (previewToggle) this.on(previewToggle, "click", () => this.togglePreview());
     const previewFit = this.root?.querySelector?.('[data-role="reconstruction-preview-fit"]');
-    if (previewFit) this.listen(previewFit, "click", () => this.preview?.fit());
+    if (previewFit) this.on(previewFit, "click", () => this.preview?.fit());
     const discardBtn = this.root?.querySelector?.('[data-role="reconstruction-discard"]');
     if (discardBtn) {
-      this.listen(discardBtn, "click", () => {
+      this.on(discardBtn, "click", () => {
         discardBtn.disabled = true;
         Promise.resolve(this.discard()).finally(() => this.render());
       });
     }
-    if (typeof document !== "undefined") {
-      this.listen(document, "visibilitychange", () => {
-        if (document.visibilityState === "visible") this.recoverStatus();
-      });
-    }
-    if (typeof window !== "undefined") {
-      this.listen(window, "online", () => this.recoverStatus());
-    }
-
     this.initCapabilities();
     this.render();
   }
@@ -216,118 +182,45 @@ export class ReconstructionPanelController {
   async run() {
     const source = this.state.source || this.getSource();
     if (!source || this.disposed) return;
-    const generation = ++this.runGeneration;
-    // Last-write wins: flush the panel onto the widgets so this run and a save
-    // immediately after it agree.
+    this.runGeneration += 1;
+    // Last-write wins: flush the panel onto the widgets so this run -- and a
+    // save immediately after it -- agree. The parent's queueExtractor() also
+    // does this, but the panel's own Start must not depend on that ordering.
     syncWidgetsFromPanel(this.node, this.root);
-    const settings = readReconstructionSettings(this.root);
-
     this.dispatch({ type: "STATE", jobState: "PREPARING" });
-    try {
-      const resp = await this.client.startJob({
-        nodeId: this.node?.id || "",
-        source,
-        settings,
-        signal: this.requestLifetime.signal,
-      });
-      if (this.disposed || generation !== this.runGeneration) {
-        if (resp?.job_id) void this.client.stopJob(resp.job_id).catch(() => {});
-        return;
-      }
-      this.applyJobResponse(resp);
-    } catch (err) {
-      if (this.disposed || isAbortError(err)) return;
-      this.dispatch({ type: "ERROR", error: { message: err.message } });
-    }
+    // Enqueue a partial ComfyUI execution in scene_reconstruct mode. The
+    // solved scene returns through the Extractor's executed() envelope and is
+    // routed back here by mode.
+    await this.onQueue();
   }
 
   /**
-   * A cache hit can finish the job on its background thread before this
-   * POST even returns, racing the "done" WebSocket event: it may already
-   * have fired and been dropped (state.jobId was still empty when it
-   * matched against it), or it may never fire before this response lands.
-   * The HTTP response is the source of truth (job.to_dict() always embeds
-   * "result" once job.result is set), so a job that is already DONE/FAILED
-   * by the time we see it is resolved right here instead of waiting on a
-   * socket event that may not come.
+   * Adopt a scene_reconstruct result that arrived through the Extractor's
+   * queued executed() envelope (parseExtractorMessage). The
+   * reconstruction-specific detail rides in `reconstruction`.
    */
-  applyJobResponse(resp) {
+  acceptQueuedResult(parsed) {
     if (this.disposed) return;
-    if (resp.result) {
-      this.acceptResultEnvelope(resp.job_id, resp.result);
-      return;
-    }
-    if (resp.state === "FAILED") {
-      this.dispatch({ type: "ERROR", error: resp.error || { message: "Reconstruction failed" } });
-      return;
-    }
-    this.dispatch({ type: "STATE", jobState: resp.state || "PREPARING", jobId: resp.job_id });
-    // The job may already have finished on its worker thread while this POST
-    // was in flight, with the "done" WebSocket event lost (state.jobId was
-    // still empty when it fired). If the response says DONE but carries no
-    // result, pull it over HTTP instead of waiting on a socket event.
-    if (resp.state === "DONE" && resp.job_id) {
-      this.recoverResult(resp.job_id);
-    }
-  }
-
-  acceptResultEnvelope(jobId, result) {
-    if (this.disposed) return;
+    this.runGeneration += 1;
+    const recon = parsed.reconstruction || {};
     this.dispatch({
       type: "DONE",
-      jobId: jobId || this.state.jobId,
-      result: result.motion_scene || result,
-      summary: result.summary,
-      warnings: result.warnings,
+      jobId: "",
+      result: parsed.motionScene,
+      // The panel renders triangle_count / camera_fov_x etc. off the pipeline
+      // summary; fall back to the flatter reconstruction block if absent.
+      summary: recon.summary || recon,
+      warnings: recon.warnings || [],
+      fingerprint: parsed.fingerprint,
     });
   }
 
-  /** Fetch a finished job's result over HTTP after a missed WebSocket "done". */
-  async recoverResult(jobId) {
-    const generation = this.runGeneration;
-    try {
-      const resp = await this.client.result(jobId, { signal: this.requestLifetime.signal });
-      if (this.disposed || generation !== this.runGeneration || jobId !== this.state.jobId) return;
-      const result = resp?.result || resp;
-      if (result && (result.motion_scene || result.summary)) {
-        this.acceptResultEnvelope(jobId, result);
-      }
-    } catch (err) {
-      if (this.disposed || isAbortError(err)) return;
-      this.dispatch({ type: "ERROR", error: { message: err.message } });
-    }
-  }
-
-  /** Re-sync state from the server after a WebSocket gap (reconnect, sleep). */
-  async recoverStatus() {
-    if (!this.state.jobId || this.disposed) return;
-    const generation = this.runGeneration;
-    const jobId = this.state.jobId;
-    try {
-      const resp = await this.client.status(jobId, { signal: this.requestLifetime.signal });
-      if (this.disposed || generation !== this.runGeneration || jobId !== this.state.jobId) return;
-      if (resp?.state === "DONE") {
-        if (resp.result) this.acceptResultEnvelope(resp.job_id, resp.result);
-        else await this.recoverResult(jobId);
-      } else if (resp?.state === "FAILED") {
-        this.dispatch({ type: "ERROR", error: resp.error || { message: "Reconstruction failed" } });
-      } else if (resp?.state) {
-        this.dispatch({ type: "STATE", jobState: resp.state, jobId: this.state.jobId });
-      }
-    } catch {
-      // A failed status poll is not itself an error state; keep what we have.
-    }
-  }
-
   async stop() {
-    if (!this.state.jobId) return;
     this.runGeneration += 1;
     this.dispatch({ type: "STATE", jobState: "STOPPING" });
-    try {
-      await this.client.stopJob(this.state.jobId);
-    } catch {
-      // Ignored
-    }
+    // Cancel the actual ComfyUI job. The move to a terminal state comes from
+    // the execution_interrupted event the parent listens for.
+    await this.onCancel();
   }
 
   openDirector() {
@@ -372,9 +265,6 @@ export class ReconstructionPanelController {
     if (this.disposed) return;
     this.disposed = true;
     this.runGeneration += 1;
-    stopActiveReconstructionOnDispose(this.client, this.state);
-    this.requestLifetime.dispose();
-    this.events.dispose();
     this.unbindControls?.();
     this.unbindControls = null;
     this.preview?.dispose();

@@ -16,9 +16,19 @@ paths relative to that managed root.
 `POST /majoor/omnicam/monitor/live_preflight` evaluates the currently connected
 Director state against the selected Monitor profile without queueing a prompt.
 
-The HTTP request is bounded by `OMNICAM_MAX_LIVE_PREFLIGHT_BYTES` (default
-4 MiB). The nested Director `state_json` is additionally bounded to 2,000,000
+The HTTP request is bounded by the fixed `MAX_LIVE_PREFLIGHT_BYTES` constant
+(4 MiB). The nested Director `state_json` is additionally bounded to 2,000,000
 characters by `omnicam/nodes/monitor_live.py`.
+
+## Extractor no-run routes
+
+`POST /majoor/omnicam/extractor/source` and `/extractor/frame` inspect a source
+without starting a solve; `POST /majoor/omnicam/extractor/refine` re-derives a
+track from the raw solve the queued Extractor emitted (`build_refined_track`
+only -- no decode, no solver, no GPU, no job). None queue a prompt. The refine
+body is bounded by `MAX_REFINE_BYTES` (4 MiB); a solve too large is refined by
+re-running TRACK. Camera TRACK and Scene Reconstruction Start themselves run
+through ComfyUI's native partial queue.
 
 The route accepts:
 
@@ -83,9 +93,9 @@ before the browser can create GPU buffers. OBJ, STL, PLY and GLB files are
 inspected for bounded vertex/triangle counts. Binary FBX has no lightweight
 parser in OmniCam, so it receives a tighter byte-complexity ceiling instead of
 pretending that file size proves geometry safety. The defaults are 5,000,000
-vertices, 10,000,000 triangles and 64 MiB for FBX; all are configurable through
-the environment variables documented below. A file that exceeds the budget is
-deleted and its managed-input quota is released.
+vertices, 10,000,000 triangles and 64 MiB for FBX; all are fixed constants (see
+the table below). A file that exceeds the budget is deleted and its
+managed-input quota is released.
 
 Folder quota reservations are serialized so concurrent uploads cannot jointly
 exceed the configured quota. A reservation starts from the client-declared
@@ -93,7 +103,7 @@ exceed the configured quota. A reservation starts from the client-declared
 uploads no longer reject one another; if a client streams past what it declared,
 the reservation is grown incrementally and still refuses to cross the quota.
 The cached folder size is re-scanned when it is older than
-`OMNICAM_QUOTA_CACHE_TTL_SECONDS`, so files deleted outside the cleanup route no
+`QUOTA_CACHE_TTL_SECONDS` (300 s), so files deleted outside the cleanup route no
 longer keep the quota artificially full. Cleanup validates every requested
 relative path before deleting any file, and ignores duplicates within one
 request.
@@ -112,28 +122,35 @@ ComfyUI input directory, including through symbolic links or junctions.
 Superseded background uploads are ignored and their partial managed files are
 removed through the validated cleanup route.
 
-## Configuration
+## Resource ceilings
 
-Invalid, negative, empty, or excessively large environment values fall back to
-the defaults instead of preventing the extension from loading.
+Every upload, cache and complexity ceiling is a fixed constant in
+`omnicam/routes.py`. They are deliberately **not** environment-configurable:
+the extension performs no runtime process-environment read for them, so the
+package published to the Comfy Registry has nothing there for a scanner to
+flag, and the values act as a conservative safety floor rather than a tuning
+knob. Adjusting one means editing the source.
 
-| Variable | Default | Purpose |
+| Constant (`omnicam/routes.py`) | Value | Purpose |
 |---|---:|---|
-| `OMNICAM_MAX_CARD_BYTES` | 128 MiB | Maximum image/video card upload |
-| `OMNICAM_MAX_MODEL_BYTES` | 256 MiB | Maximum 3D model upload |
-| `OMNICAM_MAX_MODEL_VERTICES` | 5,000,000 | Maximum inspected 3D vertex count |
-| `OMNICAM_MAX_MODEL_TRIANGLES` | 10,000,000 | Maximum inspected 3D triangle count |
-| `OMNICAM_MAX_FBX_MODEL_BYTES` | 64 MiB | Conservative FBX complexity ceiling |
-| `OMNICAM_MAX_PLAYBLAST_BYTES` | 512 MiB | Maximum playblast upload |
-| `OMNICAM_MAX_FOLDER_BYTES` | 4 GiB | Total managed OmniCam input-asset quota |
-| `OMNICAM_MAX_EXPORT_FOLDER_BYTES` | 512 MiB | Total `output/omnicam/exports` quota |
-| `OMNICAM_MAX_IMPORT_BYTES` | 64 MiB | Maximum memory-only camera import |
-| `OMNICAM_MIN_FREE_BYTES` | 512 MiB | Disk space kept free after reservation/write |
-| `OMNICAM_MAX_IMAGE_PIXELS` | 80,000,000 | Maximum decoded image pixel count |
-| `OMNICAM_MAX_IMAGE_FRAMES` | 2,000 | Maximum animated-image frame count |
-| `OMNICAM_MAX_VIDEO_PIXELS` | 16,777,216 | Maximum video frame pixel count |
-| `OMNICAM_MAX_VIDEO_DURATION_SECONDS` | 3,600 | Maximum video duration |
-| `OMNICAM_QUOTA_CACHE_TTL_SECONDS` | 300 | Managed-folder size cache lifetime |
+| `MAX_CARD_BYTES` | 128 MiB | Maximum image/video card upload |
+| `MAX_MODEL_BYTES` | 256 MiB | Maximum 3D model upload |
+| `MAX_MODEL_VERTICES` | 5,000,000 | Maximum inspected 3D vertex count |
+| `MAX_MODEL_TRIANGLES` | 10,000,000 | Maximum inspected 3D triangle count |
+| `MAX_FBX_MODEL_BYTES` | 64 MiB | Conservative FBX complexity ceiling |
+| `MAX_PLAYBLAST_BYTES` | 512 MiB | Maximum playblast upload |
+| `MAX_FOLDER_BYTES` | 4 GiB | Total managed OmniCam input-asset quota |
+| `MAX_EXPORT_FOLDER_BYTES` | 512 MiB | Total `output/omnicam/exports` quota |
+| `MAX_IMPORT_BYTES` | 64 MiB | Maximum memory-only camera import |
+| `MIN_FREE_BYTES` | 512 MiB | Disk space kept free after reservation/write |
+| `MAX_IMAGE_PIXELS` | 80,000,000 | Maximum decoded image pixel count |
+| `MAX_IMAGE_FRAMES` | 2,000 | Maximum animated-image frame count |
+| `MAX_VIDEO_PIXELS` | 16,777,216 | Maximum video frame pixel count |
+| `MAX_VIDEO_DURATION_SECONDS` | 3,600 | Maximum video duration |
+| `QUOTA_CACHE_TTL_SECONDS` | 300 | Managed-folder size cache lifetime |
+
+The asset-index directory scan cache (`omnicam/asset_index.py`) is likewise a
+fixed 30 s.
 
 VIDEO previews and LTX guides never materialise the whole clip: sampling is
 planned from the container metadata, then decoded through bounded

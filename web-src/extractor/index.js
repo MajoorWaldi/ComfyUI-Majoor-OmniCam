@@ -1,19 +1,28 @@
 import { api, app } from "../comfy-runtime.js";
 import { RequestLifetime } from "../request-lifetime.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 import { clearExtractorCache } from "./clear-cache.js";
 
-import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
-import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
+import { bindExtractorQueueEvents } from "./queue/events.js";
+import { cancelExtractorJob } from "./queue/execution.js";
+import { postRefine } from "./refine-client.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
+import {
+  cancelQueuedRun,
+  prepareForQueuedRun,
+  startQueuedSolve,
+  syncPanelToNodeWidgets,
+} from "./queue/ui-bridge.js";
 import { RefineController } from "./refine-controls.js";
 import {
   cacheExtractorResult,
   cacheExtractorSource,
   ensureCacheWidgets,
+  motionSceneFromTrack,
   parseExtractorMessage,
   readCachedResult,
   restoreLateWidgetValues,
@@ -44,15 +53,6 @@ import { renderAnomalies } from "./views.js";
 import { loadTrackViewer } from "./track-viewer-host.js";
 import { renderExtractorRuler, renderFrameReadouts } from "./transport-readouts.js";
 
-const SOLVE_SETTING_WIDGETS = [
-  "method", "lens_mode", "fov_degrees", "focal_length_mm", "sensor_width_mm",
-  "max_dimension", "frame_step",
-];
-const REFINE_SETTING_WIDGETS = [
-  "normalize_origin", "motion_scale", "position_smoothing", "rotation_smoothing",
-  "simplify_keys", "position_tolerance", "rotation_tolerance_deg",
-];
-
 function widget(node, name) {
   return node?.widgets?.find((item) => item.name === name) || null;
 }
@@ -63,10 +63,12 @@ export class ExtractorUI {
     // The ComfyUI app object -- passed to confirmAction/promptText so the
     // dialog manager resolves even behind the bundle (see clear-cache.js).
     this.app = app;
+    // The ComfyUI api object -- queued-run cancellation talks to the Jobs API.
+    this.api = api;
     this.root = buildExtractorRoot();
     this.state = createExtractorState();
     this.disposed = false;
-    this.disposers = [];
+    this.events = new EventScope();
     // Requests belong to this panel. When the node is removed they are
     // cancelled, so a destroyed panel never reports its own teardown as a
     // network failure.
@@ -77,7 +79,10 @@ export class ExtractorUI {
     this.upstreamPreviewActive = false;
     this.motionLimits = null;
 
-    this.client = new SolveJobClient(api);
+    // Cleanup-desk edits accumulate on the controller. A queued run reads them
+    // off the node widgets (queue/widget-sync.js); after a solve, dragging a
+    // slider re-derives the track live from the raw solve (requestRefine).
+    this.rawSolve = null;
     this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
     this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
     this.sourceViewer = new SourceViewer(this.$("source-video"), {
@@ -105,21 +110,17 @@ export class ExtractorUI {
       coordinator: this.coordinator,
       getState: () => this.state,
       getTrack: () => this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
-      listen: (target, event, handler) => this.listen(target, event, handler),
+      on: (target, event, handler) => this.events.on(target, event, handler),
     });
     this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
     this.viewer = null;
     this.viewerLoad = null;
 
-    this.events = new SolveEventSubscription(api, {
-      job: (payload) => this.dispatch({ type: "JOB_STATE", state: payload.state }),
-      progress: (payload) => this.onProgress(payload),
-      pose: (payload) => this.onPose(payload),
-      quality: (payload) => this.onQuality(payload),
-      features: (payload) => this.onFeatures(payload),
-      completed: (payload) => this.onCompleted(payload),
-      failed: (payload) => this.dispatch({ type: "FAILED", error: payload.error }),
-    }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
+    // The queued path follows ComfyUI's native lifecycle. queuePromptId is the
+    // id this panel's TRACK / Reconstruct was accepted under (captured from the
+    // /prompt response) -- transient, never serialized.
+    this.queuePromptId = "";
+    this.unbindQueueEvents = bindExtractorQueueEvents(this, api);
 
     // Read back whatever the workflow saved, rather than always booting into
     // camera_track: the widget can carry "scene_reconstruct" from a previous
@@ -135,13 +136,17 @@ export class ExtractorUI {
       app,
       getSource: () => this.state.source?.ref || null,
       onAdopt: (result) => adoptReconstructionIntoDownstreamDirectors(this.node, result),
-      listen: (target, event, handler) => this.listen(target, event, handler),
+      // Scene Reconstruction Start / Stop run through the same partial queue as
+      // Camera TRACK; the panel no longer owns a job manager.
+      onQueue: () => this.startSolve("scene_reconstruct"),
+      onCancel: () => this.cancelQueuedRun(),
+      on: (target, event, handler) => this.events.on(target, event, handler),
     });
 
     const camModeBtn = this.$("extract-mode-camera");
     const reconModeBtn = this.$("extract-mode-reconstruct");
-    if (camModeBtn) this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
-    if (reconModeBtn) this.listen(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
+    if (camModeBtn) this.events.on(camModeBtn, "click", () => this.setExtractMode("camera_track"));
+    if (reconModeBtn) this.events.on(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
     // setExtractMode only dirties the canvas when the widget's value actually
     // changes (see below), so replaying the mode we just read back is a safe,
     // idempotent way to sync every other bit of UI (tab classes, panel
@@ -150,7 +155,7 @@ export class ExtractorUI {
 
     const clearCacheBtn = this.$("clear-cache");
     if (clearCacheBtn) {
-      this.listen(clearCacheBtn, "click", () => {
+      this.events.on(clearCacheBtn, "click", () => {
         clearCacheBtn.disabled = true;
         Promise.resolve()
           .then(() => this.clearCache())
@@ -170,12 +175,6 @@ export class ExtractorUI {
 
   $(role) {
     return this.root.querySelector(`[data-role="${role}"]`);
-  }
-
-  listen(target, event, handler, options) {
-    if (!target) return;
-    target.addEventListener(event, handler, options);
-    this.disposers.push(() => target.removeEventListener(event, handler, options));
   }
 
   dispatch(action) {
@@ -200,18 +199,18 @@ export class ExtractorUI {
 
   bind() {
     // Wheel over a scrollable panel scrolls it instead of zooming the graph.
-    this.listen(this.root, "wheel", panelWheelKeeper(this.root));
+    this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
     for (const tab of this.root.querySelectorAll("[data-tab]")) {
-      this.listen(tab, "click", () => this.setViewerMode(tab.dataset.tab));
+      this.events.on(tab, "click", () => this.setViewerMode(tab.dataset.tab));
     }
     for (const button of this.root.querySelectorAll("[data-track-mode]")) {
-      this.listen(button, "click", () => this.setTrackMode(button.dataset.trackMode));
+      this.events.on(button, "click", () => this.setTrackMode(button.dataset.trackMode));
     }
     for (const button of this.root.querySelectorAll("[data-view]")) {
-      this.listen(button, "click", () => this.viewer?.setView(button.dataset.view));
+      this.events.on(button, "click", () => this.viewer?.setView(button.dataset.view));
     }
     for (const button of this.root.querySelectorAll("[data-inspection-view]")) {
-      this.listen(button, "click", () => {
+      this.events.on(button, "click", () => {
         const view = this.viewer?.setInspectionView(button.dataset.inspectionView) || "scene";
         for (const item of this.root.querySelectorAll("[data-inspection-view]")) {
           item.setAttribute("aria-selected", String(item.dataset.inspectionView === view));
@@ -222,15 +221,15 @@ export class ExtractorUI {
       });
     }
 
-    this.listen(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
-    this.listen(this.root.querySelector('[data-act="stop"]'), "click", () => this.control("stopSolve"));
-    this.listen(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
-    this.listen(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
-    this.listen(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
-    this.listen(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
-    this.listen(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
-    this.listen(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
-    this.timeline.bind((target, event, handler) => this.listen(target, event, handler),
+    this.events.on(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
+    this.events.on(this.root.querySelector('[data-act="stop"]'), "click", () => this.cancelQueuedRun());
+    this.events.on(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
+    this.events.on(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
+    this.events.on(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
+    this.events.on(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.events.on(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.events.on(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
+    this.timeline.bind((target, event, handler) => this.events.on(target, event, handler),
       () => this.state.frameCount);
     this.bindRefineControls();
   }
@@ -244,19 +243,19 @@ export class ExtractorUI {
     };
     for (const [role, key] of Object.entries(sliders)) {
       const input = this.$(role);
-      this.listen(input, "input", () => {
+      this.events.on(input, "input", () => {
         this.refine.update({ [key]: Number(input.value) });
         this.renderRefineValues();
       });
     }
     for (const axis of ["pitch", "yaw", "roll"]) {
       const input = this.$(`align-${axis}`);
-      this.listen(input, "input", () => {
+      this.events.on(input, "input", () => {
         this.refine.setAlignment({ [axis]: Number(input.value) });
         this.renderRefineValues();
       });
     }
-    this.listen(this.root.querySelector('[data-act="reset-alignment"]'), "click", () => {
+    this.events.on(this.root.querySelector('[data-act="reset-alignment"]'), "click", () => {
       for (const axis of ["pitch", "yaw", "roll"]) {
         const input = this.$(`align-${axis}`);
         if (input) input.value = "0";
@@ -264,13 +263,13 @@ export class ExtractorUI {
       this.refine.setAlignment({ pitch: 0, yaw: 0, roll: 0 });
       this.renderRefineValues();
     });
-    this.listen(this.root.querySelector('[data-act="estimate-up"]'), "click", () => this.estimateUp());
+    this.events.on(this.root.querySelector('[data-act="estimate-up"]'), "click", () => this.estimateUp());
 
-    this.listen(this.root.querySelector('[data-act="set-in"]'), "click",
+    this.events.on(this.root.querySelector('[data-act="set-in"]'), "click",
       () => this.setTrim("trim-start", "trim_start_frame"));
-    this.listen(this.root.querySelector('[data-act="set-out"]'), "click",
+    this.events.on(this.root.querySelector('[data-act="set-out"]'), "click",
       () => this.setTrim("trim-end", "trim_end_frame"));
-    this.listen(this.root.querySelector('[data-act="reset-trim"]'), "click", () => {
+    this.events.on(this.root.querySelector('[data-act="reset-trim"]'), "click", () => {
       for (const role of ["trim-start", "trim-end"]) {
         const input = this.$(role);
         if (input) input.value = "0";
@@ -279,11 +278,11 @@ export class ExtractorUI {
     });
     for (const [role, key] of [["trim-start", "trim_start_frame"], ["trim-end", "trim_end_frame"]]) {
       const input = this.$(role);
-      this.listen(input, "change", () => this.refine.update({ [key]: Math.max(0, Number(input.value) || 0) }));
+      this.events.on(input, "change", () => this.refine.update({ [key]: Math.max(0, Number(input.value) || 0) }));
     }
     for (const [role, key] of [["normalize-origin", "normalize_origin"], ["simplify-keys", "simplify_keys"]]) {
       const input = this.$(role);
-      this.listen(input, "change", () => this.refine.update({ [key]: Boolean(input.checked) }));
+      this.events.on(input, "change", () => this.refine.update({ [key]: Boolean(input.checked) }));
     }
   }
 
@@ -312,24 +311,6 @@ export class ExtractorUI {
     return adoptExtractorSourceLength(this, frameCount);
   }
 
-  solveSettings() {
-    const settings = {};
-    for (const name of SOLVE_SETTING_WIDGETS) {
-      const item = widget(this.node, name);
-      if (!item) continue;
-      const numeric = ["fov_degrees", "focal_length_mm", "sensor_width_mm", "max_dimension", "frame_step"];
-      settings[name] = numeric.includes(name) ? Number(item.value) : String(item.value);
-    }
-    const refine = {};
-    for (const name of REFINE_SETTING_WIDGETS) {
-      const item = widget(this.node, name);
-      if (!item) continue;
-      refine[name] = typeof item.value === "boolean" ? item.value : Number(item.value);
-    }
-    settings.refine = refine;
-    return settings;
-  }
-
   // -- solve control -----------------------------------------------------
 
   /**
@@ -341,98 +322,30 @@ export class ExtractorUI {
     return clearExtractorCache(this);
   }
 
-  async startSolve() {
-    const source = this.refreshSource();
-    if (!source.available) return;
-    try {
-      this.sourceViewer.setFollow(true);
-      const status = await this.client.startSolve({
-        nodeId: this.node.id, source: source.ref, settings: this.solveSettings(),
-      });
-      this.overlay.clear();
-      this.diagnostics.clear();
-      this.dispatch({ type: "JOB_STARTED", status });
-      this.coordinator.reconcileFrameCount(status);
-      this.coordinator.seek(0, "backend");
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-    }
+  /** TRACK / Reconstruct Start -> a partial ComfyUI execution. See queue/ui-bridge.js. */
+  startSolve(mode = "camera_track") {
+    return startQueuedSolve(this, mode);
   }
 
-  async control(method) {
-    if (!this.state.jobId) return;
-    try {
-      const status = await this.client[method](this.state.jobId);
-      this.dispatch({ type: "STATUS", status });
-      this.coordinator.reconcileFrameCount(status);
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-    }
+  /** STOP -> cancel this panel's ComfyUI job. Idempotent. */
+  cancelQueuedRun() {
+    return cancelQueuedRun(this);
   }
 
-  /** The socket is transport; the server is the truth. Re-read after a gap. */
-  async recoverStatus() {
-    if (!this.state.jobId) return null;
-    try {
-      const status = await this.client.getSolveStatus(this.state.jobId);
-      this.dispatch({ type: "STATUS", status });
-      this.coordinator.reconcileFrameCount(status);
-      if (status.state === "COMPLETED") await this.loadResult();
-      return status;
-    } catch {
-      return null;
-    }
+  syncPanelToNodeWidgets() {
+    return syncPanelToNodeWidgets(this);
   }
 
-  onProgress(payload) {
-    this.dispatch({ type: "PROGRESS", progress: payload });
-    this.coordinator.reconcileFrameCount(payload);
-    if (this.sourceViewer.follow) this.coordinator.seek(Number(payload.frame) || 0, "backend");
-  }
-
-  onPose(payload) {
-    this.dispatch({ type: "POSE", pose: payload });
-  }
-
-  onQuality(payload) {
-    this.dispatch({ type: "QUALITY", samples: payload.samples || [] });
+  prepareForQueuedRun() {
+    return prepareForQueuedRun(this);
   }
 
   /**
-   * Paint the features the solver matched on this frame.
-   *
-   * Live telemetry, so it is drawn straight onto the overlay rather than routed
-   * through the reducer: keeping every frame's points in panel state would grow
-   * without bound over a long clip, and none of it is needed once the frame has
-   * moved on.
+   * Adopt a solved track that arrived through the Extractor's queued
+   * executed() -> parseExtractorMessage() envelope. This is the only way a
+   * camera-track result reaches the panel now.
    */
-  onFeatures(payload) {
-    const diagnostics = this.diagnostics.set(Number(payload.frame) || 0, {
-      points: payload.points || [],
-      frame: Number(payload.frame) || 0,
-      state: String(payload.state || "unknown"),
-    });
-    if (diagnostics.frame === this.state.frame) this.overlay.setDiagnostics(diagnostics);
-  }
-
-  async onCompleted(payload) {
-    this.dispatch({ type: "COMPLETED", result: payload });
-    await this.loadResult();
-  }
-
-  async loadResult() {
-    if (!this.state.jobId) return null;
-    try {
-      const result = await this.client.getSolveResult(this.state.jobId);
-      this.acceptSolvedResult(result, "interactive");
-      return result;
-    } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
-      return null;
-    }
-  }
-
-  acceptSolvedResult(result, origin = "interactive") {
+  acceptSolvedResult(result) {
     const raw = result?.raw_track || result?.raw || result?.track || null;
     const refined = result?.refined_track || result?.refined || result?.track || raw;
     if (!refined?.keyframes?.length) return false;
@@ -441,53 +354,56 @@ export class ExtractorUI {
     );
     this.result = { raw: raw || refined, refined };
     this.landmarks = Array.isArray(result?.landmarks_3d) ? result.landmarks_3d : [];
-    if (origin === "queued") this.dispatch({ type: "QUEUED_RESULT" });
+    // The immutable raw solve, held in session so the cleanup sliders can
+    // re-derive a track without re-running TRACK.
+    this.rawSolve = result?.rawSolve || null;
+    this.dispatch({ type: "QUEUED_RESULT" });
     this.dispatch({
       type: "STATUS",
       status: {
         anomalies: result?.anomalies || [], state: "COMPLETED",
-        job_id: this.state.jobId, backend: refined?.metadata?.backend,
+        backend: refined?.metadata?.backend,
       },
     });
     this.dispatch({ type: "REFINED", fingerprint });
     this.pushTracksToViewer();
-    if (origin === "queued") {
-      cacheExtractorResult(this.node, {
-        track: refined, fingerprint,
-        confidence: Number(result?.confidence ?? refined?.metadata?.confidence) || 0,
-      });
-      if (result?.source) cacheExtractorSource(this.node, result.source);
-      this.node.__majoorOmniCamStatus = statusLine({
-        track: refined, fingerprint,
-        confidence: Number(result?.confidence ?? refined?.metadata?.confidence) || 0,
-      });
-      this.dispatch({ type: "APPLIED", fingerprint });
-      if (result?.source) this.refreshSource();
-    }
+    const confidence = Number(result?.confidence ?? refined?.metadata?.confidence) || 0;
+    // The hidden SCENE widget stores the motion_scene (readCachedResult lifts
+    // the track back out of it), so a queued solve survives workflow reload.
+    const motionScene = result?.motionScene || motionSceneFromTrack(refined);
+    cacheExtractorResult(this.node, { motionScene, fingerprint });
+    if (result?.source) cacheExtractorSource(this.node, result.source);
+    this.node.__majoorOmniCamStatus = statusLine({ track: refined, fingerprint, confidence });
+    this.dispatch({ type: "APPLIED", fingerprint });
+    if (result?.source) this.refreshSource();
     return true;
   }
 
+  /**
+   * Re-derive the refined track from the raw solve when a cleanup slider moves.
+   *
+   * No queue, no re-solve: POST the raw solve + settings to the bounded refine
+   * route and swap the result in. A no-op until a solve has produced a raw
+   * solve this session (after a reload, press TRACK to refine again).
+   */
   async requestRefine(settings) {
-    if (!this.state.jobId || this.state.solveState !== "COMPLETED") return null;
+    if (!this.rawSolve || this.state.solveState !== "COMPLETED") return null;
     try {
-      this.syncRefineWidgets(settings);
-      const payload = await this.client.refineSolve(this.state.jobId, settings);
-      this.result = { ...this.result, refined: payload.refined_track };
-      this.dispatch({ type: "REFINED", fingerprint: payload.fingerprint });
+      const payload = await postRefine(this.api, this.rawSolve, settings);
+      const refined = payload?.refined_track;
+      if (!refined?.keyframes?.length) return null;
+      this.result = { ...this.result, refined };
+      const fingerprint = String(payload.fingerprint || "");
+      this.dispatch({ type: "REFINED", fingerprint });
       this.pushTracksToViewer();
+      cacheExtractorResult(this.node, { motionScene: motionSceneFromTrack(refined), fingerprint });
       return payload;
     } catch (error) {
-      this.dispatch({ type: "FAILED", error: String(error?.message || error) });
+      // A refine hiccup must not tear down a good solve: keep COMPLETED and the
+      // last good track, just report it.
+      console.warn("[OmniCam] live refine failed", error);
+      this.setStatus?.(String(error?.message || error));
       return null;
-    }
-  }
-
-  /** Keep queued execution and interactive cleanup on the same widget values. */
-  syncRefineWidgets(settings) {
-    for (const name of REFINE_SETTING_WIDGETS) {
-      if (settings[name] === undefined) continue;
-      const item = widget(this.node, name);
-      if (item) item.value = settings[name];
     }
   }
 
@@ -722,7 +638,11 @@ export class ExtractorUI {
   executed(message) {
     const result = parseExtractorMessage(message);
     if (!result) return;
-    this.acceptSolvedResult(result, "queued");
+    if (result.mode === "scene_reconstruct") {
+      this.reconstruction?.acceptQueuedResult(result);
+      return;
+    }
+    this.acceptSolvedResult(result);
   }
 
   setExtractMode(mode) {
@@ -762,12 +682,14 @@ export class ExtractorUI {
   }
 
   dispose() {
-    stopActiveSolveOnDispose(this.client, this.state);
+    // A queued solve outlives this panel: cancel it so a deleted node does not
+    // leave a job running on stale footage.
+    if (this.queuePromptId) void cancelExtractorJob(this.api, this.queuePromptId).catch(() => {});
+    this.unbindQueueEvents?.();
     this.reconstruction?.dispose();
     this.disposed = true;
     closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
     this.requests.dispose();
-    this.events.dispose();
     this.refine.dispose();
     this.coordinator.dispose();
     this.sourceViewer.dispose();
@@ -776,7 +698,7 @@ export class ExtractorUI {
     this.viewer?.dispose();
     this.viewer = null;
     this.viewerLoad = null;
-    for (const dispose of this.disposers.splice(0)) dispose();
+    this.events.dispose();
     this.result = { raw: null, refined: null };
   }
 }

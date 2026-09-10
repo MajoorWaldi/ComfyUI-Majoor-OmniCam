@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-10
+
+### Changed
+
+- Extractor TRACK and Scene Reconstruction now use native ComfyUI partial
+  execution instead of OmniCam's parallel heavy-job schedulers. TRACK /
+  Reconstruct enqueue a partial prompt ending at `MajoorOmniCamExtractor`;
+  downstream Director / Monitor / video generation is not executed.
+- ComfyUI owns heavy-job ordering, cancellation and high-level progress. A
+  busy GPU means the solve waits in the queue rather than a custom rejection.
+- STOP cancels the actual ComfyUI job through the Jobs API.
+- DPVO stays isolated in a spawned process; a ComfyUI cancel propagates into
+  that process and reaps it.
+- The queued result still returns through the Extractor's `NodeOutput` / UI
+  envelope; both modes now share one outer transport contract.
+- Post-solve refinement is decoupled from execution: dragging a cleanup slider
+  re-derives the track through the bounded `POST /majoor/omnicam/extractor/refine`
+  route (no decode, no solver, no job) instead of re-running TRACK.
+
+### Removed
+- The out-of-queue camera solve scheduler and reconstruction job scheduler,
+  and their `/majoor/omnicam/{extractor,reconstruction}/jobs*` routes.
+
+### Security
+
+- Runtime upload / cache / complexity ceilings are fixed constants rather
+  than `os.environ` reads.
+- Native MoGe is loaded through a normal lazy import, not
+  `importlib.import_module`.
+- The exact Registry `node.zip` is audited before publication
+  (`scripts/registry_package_audit.py`), and the GitHub Release is gated on
+  the Registry reporting the version Active
+  (`scripts/check_registry_status.py`).
+
 ### Added
 
 - **Display ▸ Burn labels / annotations into the playblast** (`playblast_labels`,

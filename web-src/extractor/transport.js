@@ -64,7 +64,7 @@ export function bindExtractorTransport(root, {
   coordinator,
   getState = () => ({}),
   getTrack = () => null,
-  listen = (target, name, handler) => target?.addEventListener?.(name, handler),
+  on = (target, name, handler) => target?.addEventListener?.(name, handler),
 } = {}) {
   const button = (action) => root?.querySelector?.(ACTION_SELECTORS[action]) || null;
   const state = () => getState() || {};
@@ -95,10 +95,10 @@ export function bindExtractorTransport(root, {
 
   for (const action of ACTIONS) {
     const element = button(action);
-    if (element) listen(element, "click", () => actions[action]());
+    if (element) on(element, "click", () => actions[action]());
   }
 
-  listen(root, "keydown", (event) => {
+  on(root, "keydown", (event) => {
     if (editableTarget(event.target)) return;
     const action = {
       " ": "play", Spacebar: "play", Space: "play",

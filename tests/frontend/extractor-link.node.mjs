@@ -194,6 +194,7 @@ function linkedPair() {
 
 test("an execution message is parsed only when it is an extractor envelope", () => {
   const parsed = parseExtractorMessage(solvedMessage("fp-9"));
+  assert.equal(parsed.mode, "camera_track");
   assert.equal(parsed.fingerprint, "fp-9");
   assert.equal(parsed.motionScene.active_camera_id, "extracted_camera");
   assert.equal(parsed.track.keyframes.length, 3);
@@ -202,6 +203,28 @@ test("an execution message is parsed only when it is an extractor envelope", () 
   assert.equal(parseExtractorMessage({ text: ["not json"] }), null);
   assert.equal(parseExtractorMessage({ text: [JSON.stringify({ kind: "something_else" })] }), null);
   assert.equal(parseExtractorMessage({ images: [{ filename: "a.png" }] }), null);
+});
+
+test("a scene_reconstruct envelope parses by mode and carries the reconstruction block", () => {
+  const message = {
+    text: [JSON.stringify({
+      kind: RESULT_ENVELOPE_KIND,
+      mode: "scene_reconstruct",
+      fingerprint: "recon-fp-1",
+      motion_scene: { version: 1, objects: [], cameras: [] },
+      solver_coverage: 0.87,
+      report: "OmniCam Reconstruction [depth_mesh]",
+      source: { kind: "annotated_input", value: "recon_input_abc.png [input]" },
+      reconstruction: { provider: "comfy_moge", triangle_count: 120000, warnings: ["low ground"] },
+    })],
+  };
+  const parsed = parseExtractorMessage(message);
+  assert.equal(parsed.mode, "scene_reconstruct");
+  assert.equal(parsed.fingerprint, "recon-fp-1");
+  assert.equal(parsed.solver_coverage, 0.87);
+  assert.equal(parsed.track, undefined);
+  assert.deepEqual(parsed.reconstruction.warnings, ["low ground"]);
+  assert.deepEqual(parsed.source, { kind: "annotated_input", value: "recon_input_abc.png [input]" });
 });
 
 test("an execution envelope preserves only its managed source annotation", () => {

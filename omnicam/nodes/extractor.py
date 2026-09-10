@@ -10,6 +10,12 @@ from __future__ import annotations
 import json
 
 from ..comfy_compat import IO, UI
+from ..comfy_compat.interrupt import (
+    ComfyInterruptControl,
+    ComfyReconCancel,
+    check_interrupted,
+)
+from ..comfy_compat.progress import CAMERA_TRACK_PHASES, ExecutionProgress
 from ..core.motion_scene import motion_scene_from_camera_track
 from ..extractor.pipeline import extract_camera_track
 from .base import OMNICAM_MOTION_SCENE
@@ -42,6 +48,12 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 "video camera track",
             ],
             is_experimental=True,
+            # An output node: the solved MotionScene + PreviewText envelope is a
+            # real result, and -- load-bearing for the queue-only path -- a
+            # partial ComfyUI execution can only target output nodes. A plain
+            # Queue Prompt still runs it once and then serves the execution
+            # cache on unchanged inputs.
+            is_output_node=True,
             inputs=[
                 media_input(
                     "video",
@@ -199,10 +211,17 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         position_tolerance: float,
         rotation_tolerance_deg: float,
     ) -> IO.NodeOutput:
+        # Coarse progress is reported through ComfyUI's own execution API so the
+        # node bar and queue view stay authoritative. Rich diagnostics stay on
+        # the separate PromptServer side channel.
+        progress = ExecutionProgress()
+
         # A solve seeks inside its source, so an IMAGE batch is encoded into
         # managed temp storage first and solved from the same file the
         # browser previews.
         video, source_reference = solve_source(video)
+        progress.phase_done(CAMERA_TRACK_PHASES["source"])
+
         result = extract_camera_track(
             video=video,
             method=method,
@@ -219,7 +238,14 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             simplify_keys=simplify_keys,
             position_tolerance=position_tolerance,
             rotation_tolerance_deg=rotation_tolerance_deg,
+            progress=progress.frame_reporter(CAMERA_TRACK_PHASES["tracking"]),
+            # A Comfy job cancel travels the solver's cooperative-stop path and
+            # reaps any spawned DPVO child through the existing bounded
+            # join / terminate / kill / cleanup.
+            control=ComfyInterruptControl(),
         )
+        progress.phase_done(CAMERA_TRACK_PHASES["solver"])
+
         motion_scene = motion_scene_from_camera_track(result.track).to_dict()
         envelope = {
             "kind": RESULT_ENVELOPE_KIND,
@@ -229,12 +255,19 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             "solver_coverage": result.confidence,
             "report": result.report,
             "source": source_reference,
+            # The immutable raw solve, so the panel's cleanup sliders can
+            # re-derive a track through POST /majoor/omnicam/extractor/refine
+            # without re-running TRACK.
+            "raw_solve": result.raw_solve,
         }
+        preview = json.dumps(envelope, separators=(",", ":"))
+        # Only now that the result has serialized cleanly is the solve done.
+        progress.update(100.0, 100.0)
         return IO.NodeOutput(
             motion_scene,
             result.confidence,
             result.report,
-            ui=UI.PreviewText(json.dumps(envelope, separators=(",", ":"))),
+            ui=UI.PreviewText(preview),
         )
 
     @classmethod
@@ -280,6 +313,7 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
         recon_scene_scale: float = 1.0,
     ) -> IO.NodeOutput:
         if extract_mode == "scene_reconstruct":
+            from ..reconstruction.errors import ReconCancelledError
             from ..reconstruction.node_bridge import (
                 execute_reconstruction,
                 reconstruction_settings_from_widgets,
@@ -309,14 +343,27 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
                 recon_detect_walls=recon_detect_walls,
                 recon_scene_scale=recon_scene_scale,
             )
-            motion_scene, confidence, report, envelope = execute_reconstruction(
-                video, settings=recon_settings
-            )
+            recon_progress = ExecutionProgress()
+            try:
+                motion_scene, confidence, report, envelope = execute_reconstruction(
+                    video,
+                    settings=recon_settings,
+                    progress=recon_progress,
+                    cancel=ComfyReconCancel(),
+                )
+            except ReconCancelledError:
+                # Surface a cooperative reconstruction stop as ComfyUI's own
+                # interruption so the queue marks the prompt cancelled, not
+                # errored.
+                check_interrupted()
+                raise
+            recon_preview = json.dumps(envelope, separators=(",", ":"))
+            recon_progress.update(100.0, 100.0)
             return IO.NodeOutput(
                 motion_scene,
                 confidence,
                 report,
-                ui=UI.PreviewText(json.dumps(envelope, separators=(",", ":"))),
+                ui=UI.PreviewText(recon_preview),
             )
         return cls._execute_camera_track(
             video=video,

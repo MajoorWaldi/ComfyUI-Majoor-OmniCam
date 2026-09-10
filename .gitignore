@@ -15,6 +15,9 @@ test-results/
 dist/
 *.log
 
+# `comfy node pack` / registry_package_audit.py output.
+node.zip
+
 # Vite build output. Never commit it: a Windows checkout and Linux CI resolve
 # a genuinely different module graph for the same web-src/ (268 vs 260 modules
 # measured 2026-09-06; 266 vs 258 previously), not just different chunk-hash

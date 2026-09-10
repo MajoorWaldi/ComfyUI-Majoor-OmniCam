@@ -209,12 +209,16 @@ def extract_camera_track(
     position_tolerance: float = 0.01,
     rotation_tolerance_deg: float = 0.25,
     progress=None,
+    control=None,
     backend=None,
 ) -> ExtractionResult:
     """Solve one continuous shot and return a canonical track plus its report.
 
-    ``backend`` is an injection point for tests; production callers leave it
-    unset and let ``method`` select.
+    ``control`` is the cooperative cancellation gate the solver polls at every
+    bounded wait; a queued run passes a ComfyInterruptControl so a Comfy job
+    cancel abandons the solve (and reaps the DPVO child). ``backend`` is an
+    injection point for tests; production callers leave it unset and let
+    ``method`` select.
     """
     raw = solve_raw_poses(
         video=video,
@@ -226,6 +230,7 @@ def extract_camera_track(
         max_dimension=max_dimension,
         frame_step=frame_step,
         progress=progress,
+        control=control,
         backend=backend,
     )
     settings = RefinementSettings(
@@ -238,9 +243,12 @@ def extract_camera_track(
         rotation_tolerance_deg=rotation_tolerance_deg,
     )
     track = refine_raw_solve(raw, settings)
+    from .raw_solve_io import raw_solve_to_dict
+
     return ExtractionResult(
         track=track,
         confidence=raw.coverage,
         report=build_report(track),
         fingerprint=str(track["metadata"]["extractor_fingerprint"]),
+        raw_solve=raw_solve_to_dict(raw),
     )

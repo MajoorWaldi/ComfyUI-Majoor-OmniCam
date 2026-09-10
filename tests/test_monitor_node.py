@@ -94,6 +94,10 @@ def test_monitor_v3_schema_has_stable_typed_contract():
         "camera_embedding", "native_tracks", "tracks_json",
         "target_width", "target_height", "target_length",
     ]
+    # An output node so a partial ComfyUI execution can target the Monitor to
+    # preflight a profile without running the downstream generation.
+    assert schema.is_output_node is True
+    assert MajoorOmniCamMonitor.OUTPUT_NODE is True
 
 
 def test_a_new_monitor_defaults_to_the_permissive_generic_profile():

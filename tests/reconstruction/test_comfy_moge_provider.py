@@ -26,6 +26,37 @@ def _reset_moge_model_cache():
     clear_moge_model_cache()
 
 
+def test_get_moge_module_returns_none_when_comfy_extras_is_absent(monkeypatch):
+    # Simulate a ComfyUI without the native MoGe node.
+    import sys
+
+    monkeypatch.setitem(sys.modules, "comfy_extras.nodes_moge", None)
+    monkeypatch.delitem(sys.modules, "comfy_extras.nodes_moge")
+    real_import = __import__
+
+    def fail_moge(name, *args, **kwargs):
+        if name == "comfy_extras.nodes_moge" or name == "comfy_extras":
+            raise ImportError("no native MoGe here")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fail_moge)
+    assert ComfyMoGeProvider()._get_moge_module() is None
+
+
+def test_get_moge_module_returns_the_native_module_when_present(monkeypatch):
+    import sys
+    import types
+
+    stub = types.ModuleType("comfy_extras.nodes_moge")
+    stub.LoadMoGeModel = object
+    pkg = sys.modules.get("comfy_extras") or types.ModuleType("comfy_extras")
+    monkeypatch.setitem(sys.modules, "comfy_extras", pkg)
+    monkeypatch.setitem(sys.modules, "comfy_extras.nodes_moge", stub)
+    monkeypatch.setattr(pkg, "nodes_moge", stub, raising=False)
+
+    assert ComfyMoGeProvider()._get_moge_module() is stub
+
+
 def test_capabilities_when_modules_absent(monkeypatch):
     provider = ComfyMoGeProvider()
     monkeypatch.setattr(provider, "_get_moge_module", lambda: None)

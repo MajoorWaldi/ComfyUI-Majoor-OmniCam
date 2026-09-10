@@ -43,7 +43,14 @@ export function motionSceneFromTrack(track) {
   };
 }
 
-/** Parse an onExecuted message into a result, or null if it is not ours. */
+/**
+ * Parse an onExecuted message into a result, or null if it is not ours.
+ *
+ * Both Extractor modes share the same outer transport contract -- kind, mode,
+ * motion_scene, solver_coverage, report, source. `mode` routes it: a
+ * camera_track result carries a `track` (the camera primitive lifted out of
+ * the scene); a scene_reconstruct result carries a `reconstruction` block.
+ */
 export function parseExtractorMessage(message) {
   const text = message?.text;
   const raw = Array.isArray(text) ? text[0] : text;
@@ -55,16 +62,36 @@ export function parseExtractorMessage(message) {
     return null;
   }
   if (!envelope || envelope.kind !== RESULT_ENVELOPE_KIND) return null;
+
+  const mode = envelope.mode === "scene_reconstruct" ? "scene_reconstruct" : "camera_track";
   const motionScene = envelope.motion_scene;
-  const track = motionSceneCameraTrack(motionScene);
-  if (!track) return null;
-  return {
+  const common = {
+    mode,
     motionScene,
-    track,
     fingerprint: String(envelope.fingerprint || ""),
     solver_coverage: Number(envelope.solver_coverage) || 0,
     report: String(envelope.report || ""),
+  };
+
+  if (mode === "scene_reconstruct") {
+    if (!motionScene) return null;
+    return {
+      ...common,
+      reconstruction: envelope.reconstruction || {},
+      // The reconstruct source annotation is an object; keep it whole.
+      source: envelope.source ?? "",
+    };
+  }
+
+  const track = motionSceneCameraTrack(motionScene);
+  if (!track) return null;
+  return {
+    ...common,
+    track,
     source: String(envelope.source || ""),
+    // The immutable raw solve, for live post-solve refinement without a
+    // re-TRACK (POST /majoor/omnicam/extractor/refine). Held in session only.
+    rawSolve: envelope.raw_solve && typeof envelope.raw_solve === "object" ? envelope.raw_solve : null,
   };
 }
 

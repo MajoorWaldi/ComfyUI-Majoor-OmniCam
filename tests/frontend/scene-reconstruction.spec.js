@@ -30,11 +30,75 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   const openDirectorBtn = extractorHost.locator('[data-role="reconstruction-open-director"]');
   await expect(openDirectorBtn).toBeDisabled();
 
-  // 3. Click Run Reconstruction
+  // 3. Press Run Reconstruction -- it enqueues a partial ComfyUI execution
+  //    (no job scheduler). The solved scene comes back through the Extractor's
+  //    executed() envelope, which we inject here the way ComfyUI would.
   const runBtn = extractorHost.locator('[data-role="reconstruction-run"]');
   await runBtn.click();
 
-  // 4. Progress advances and finishes
+  await page.evaluate(() => {
+    const ui = window.omnicamExtractor.__majoorOmniCamExtractor;
+    const motionScene = {
+      version: 1,
+      timeline: { duration_seconds: 5.0, authoring_fps: 24.0 },
+      canvas: { width: 1280, height: 720 },
+      cameras: [{
+        id: "camera_1", name: "Camera 1",
+        camera: { position: [0, 1.5, 3], target: [0, 1.5, 0], fov: 53.0 },
+        keyframes: [{ frame: 0, camera: { position: [0, 1.5, 3], target: [0, 1.5, 0], fov: 53.0 } }],
+      }],
+      active_camera_id: "camera_1",
+      playblast_camera_id: "camera_1",
+      objects: [
+        {
+          id: "recon_environment", type: "glb", name: "Environment Proxy",
+          position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1],
+          material_mode: "textured", keyframes: [], enabled: true, locked: true,
+          asset: "majoor_omnicam/reconstruction/abc123/environment.glb [input]",
+          reconstruction: {
+            version: 1, role: "environment", provider: "fake_provider",
+            source_kind: "single_image", confidence: 0.85,
+            geometry: { kind: "depth_mesh", triangle_count: 5000, textured: true },
+          },
+        },
+        {
+          id: "recon_ground", type: "ground", name: "Ground",
+          position: [0, 0, 0], rotation: [0, 0, 0], size: [10, 0.1, 10],
+          material_mode: "checker", keyframes: [], enabled: true, locked: true,
+          reconstruction: {
+            version: 1, role: "ground", provider: "fake_provider",
+            source_kind: "single_image", confidence: 0.9,
+            plane: { normal: [0, 1, 0], offset: 0, inlier_ratio: 0.95 },
+          },
+        },
+      ],
+      motion_layers: [], cuts: [],
+      metadata: { reconstruction: { provider: "fake_provider", mode: "geometry", warnings: ["Low texture contrast detected in corner."] } },
+    };
+    ui.executed({
+      text: [JSON.stringify({
+        kind: "omnicam_extractor_result_v2",
+        mode: "scene_reconstruct",
+        fingerprint: "recon-fp-1",
+        motion_scene: motionScene,
+        solver_coverage: 0.88,
+        report: "OmniCam Reconstruction [depth_mesh]",
+        source: { kind: "annotated_input", value: "test_room.png [input]" },
+        reconstruction: {
+          provider: "fake_provider",
+          recon_mode: "depth_mesh",
+          triangle_count: 5000,
+          warnings: ["Low texture contrast detected in corner."],
+          summary: {
+            provider: "fake_provider", triangle_count: 5000,
+            camera_fov_x: 53.0, confidence: 0.85, has_ground: true,
+          },
+        },
+      })],
+    });
+  });
+
+  // 4. The summary box shows the solved scene's detail.
   const summaryBox = extractorHost.locator('[data-role="reconstruction-summary"]');
   await expect(summaryBox).not.toHaveAttribute("hidden", { timeout: 10_000 });
 

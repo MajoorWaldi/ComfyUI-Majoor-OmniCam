@@ -15,9 +15,14 @@ import pytest
 # is faked. python-core omits Pillow; python-full installs it and runs this file.
 pytest.importorskip("PIL")
 
-from omnicam.extractor.backends.base import BackendAvailability, BackendUnavailableError, SolveError
+from omnicam.extractor.backends.base import (
+    BackendAvailability,
+    BackendUnavailableError,
+    SolveCancelled,
+    SolveControl,
+    SolveError,
+)
 from omnicam.extractor.backends.pycolmap_vo import PycolmapBackend
-from omnicam.extractor.jobs.control import SolveCancelled, SolveControl
 from omnicam.extractor.types import CameraIntrinsics, VideoFrameSample
 
 

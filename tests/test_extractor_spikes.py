@@ -1,11 +1,22 @@
 """Spike detection: catching broken frames without libelling a fast camera."""
 
+from dataclasses import dataclass
+
 import pytest
 
 from omnicam.core.camera_math import quaternion_from_euler
-from omnicam.extractor.jobs.types import QualitySample
 from omnicam.extractor.refine.spikes import detect_pose_spikes, robust_scores
 from omnicam.extractor.types import PoseSample
+
+
+@dataclass
+class QualitySample:
+    """One backend health reading, tied to a source frame."""
+
+    frame: int
+    coverage: float
+    inliers: int | None = None
+    state: str = "unknown"
 
 IDENTITY = [0.0, 0.0, 0.0, 1.0]
 

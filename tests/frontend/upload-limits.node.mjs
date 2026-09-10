@@ -35,13 +35,13 @@ test("a background sequence longer than the frame cap is rejected", () => {
   assert.match(sequenceLengthError(MAX_BACKGROUND_SEQUENCE_FRAMES + 1), /limited to/);
 });
 
-test("the client ceilings match routes.py's documented defaults", async () => {
+test("the client ceilings match routes.py's fixed constants", async () => {
   const routes = await readFile(new URL("../../omnicam/routes.py", import.meta.url), "utf8");
   const pyLimit = (name) => {
-    const match = routes.match(new RegExp(`${name}"\\s*,\\s*([0-9_]+)\\s*\\*\\s*1024\\s*\\*\\s*1024`));
+    const match = routes.match(new RegExp(`\\b${name}\\s*=\\s*([0-9_]+)\\s*\\*\\s*1024\\s*\\*\\s*1024`));
     return match ? Number(match[1].replace(/_/g, "")) * 1024 * 1024 : null;
   };
-  assert.equal(UPLOAD_LIMITS.card, pyLimit("OMNICAM_MAX_CARD_BYTES"));
-  assert.equal(UPLOAD_LIMITS.model, pyLimit("OMNICAM_MAX_MODEL_BYTES"));
-  assert.equal(UPLOAD_LIMITS.fbx, pyLimit("OMNICAM_MAX_FBX_MODEL_BYTES"));
+  assert.equal(UPLOAD_LIMITS.card, pyLimit("MAX_CARD_BYTES"));
+  assert.equal(UPLOAD_LIMITS.model, pyLimit("MAX_MODEL_BYTES"));
+  assert.equal(UPLOAD_LIMITS.fbx, pyLimit("MAX_FBX_MODEL_BYTES"));
 });

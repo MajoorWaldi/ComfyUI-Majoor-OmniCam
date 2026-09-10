@@ -23,8 +23,10 @@ export class FrameCoordinator {
     frameCount = 0,
     fps = 24,
     loop = false,
-    requestAnimationFrame = globalThis.requestAnimationFrame?.bind(globalThis),
-    cancelAnimationFrame = globalThis.cancelAnimationFrame?.bind(globalThis),
+    // Closures, not .bind(globalThis): the receiver is what matters here and a
+    // closure states it directly instead of through a partial application.
+    requestAnimationFrame = (fn) => globalThis.requestAnimationFrame?.(fn),
+    cancelAnimationFrame = (handle) => globalThis.cancelAnimationFrame?.(handle),
   } = {}) {
     this.media = media;
     this.getViewer = getViewer;

@@ -39,6 +39,14 @@ def test_solver_coverage_reports_overall_confidence_not_ground_confidence(tmp_pa
 
     assert confidence == 0.95
     assert envelope["solver_coverage"] == 0.95
+    # The scene_reconstruct envelope shares the camera_track outer transport
+    # contract: kind / mode / motion_scene / solver_coverage / report / source.
+    assert envelope["kind"] == "omnicam_extractor_result_v2"
+    assert envelope["mode"] == "scene_reconstruct"
+    for key in ("motion_scene", "solver_coverage", "report", "source", "fingerprint"):
+        assert key in envelope
+    # Reconstruction-specific detail rides in its own block.
+    assert "reconstruction" in envelope
 
 
 def test_solver_coverage_falls_back_to_ground_confidence_for_old_cache_entries(tmp_path, monkeypatch):
@@ -138,3 +146,43 @@ def test_queued_execution_builds_the_same_settings_the_bridge_receives(tmp_path,
     node_bridge.execute_reconstruction(_one_pixel_image(), settings=want)
     assert captured["settings"] is want
     assert captured["settings"].max_blockout_objects == 12
+
+
+def test_execute_reconstruction_threads_progress_and_cancel_into_the_pipeline(tmp_path, monkeypatch):
+    """The queued path must hand run_reconstruction_pipeline a real progress
+    sink and cancel token, not just accept the arguments and drop them."""
+    captured = {}
+
+    def _fake_pipeline(**kwargs):
+        captured["progress"] = kwargs.get("progress")
+        captured["cancel"] = kwargs.get("cancel")
+        # The pipeline reports mid-run progress through the sink.
+        if kwargs.get("progress"):
+            kwargs["progress"]("INFER_GEOMETRY", 0.4, "half way")
+        return PipelineOutput(
+            motion_scene={"version": 1, "objects": [], "cameras": []},
+            summary={"provider": "comfy_moge", "confidence": 0.9},
+            warnings=[],
+            fingerprint="fp",
+        )
+
+    monkeypatch.setattr(node_bridge, "get_provider", lambda pid: object())
+    monkeypatch.setattr(node_bridge, "run_reconstruction_pipeline", _fake_pipeline)
+    import folder_paths
+    monkeypatch.setattr(folder_paths, "get_input_directory", lambda: str(tmp_path))
+
+    from omnicam.comfy_compat.interrupt import ComfyReconCancel
+    from omnicam.comfy_compat.progress import ExecutionProgress
+
+    reports = []
+    progress = ExecutionProgress(setter=lambda **kw: reports.append(kw))
+    cancel = ComfyReconCancel(check=lambda: None)
+
+    node_bridge.execute_reconstruction(
+        _one_pixel_image(), progress=progress, cancel=cancel,
+    )
+
+    assert callable(captured["progress"])
+    assert captured["cancel"] is cancel
+    # The 0.4 fraction reached ComfyUI as 40 / 100.
+    assert any(kw["value"] == 40.0 and kw["max_value"] == 100.0 for kw in reports)

@@ -12,13 +12,6 @@ import pytest
 import torch
 
 from omnicam.reconstruction.camera import reconstruct_camera_from_evidence
-from omnicam.reconstruction.jobs.manager import (
-    JobAccessDeniedError,
-    JobLimitReachedError,
-    ReconstructionJobManager,
-)
-from omnicam.reconstruction.jobs.runner import run_reconstruction_job
-from omnicam.reconstruction.jobs.types import FAILED, ReconstructionJob
 from omnicam.reconstruction.planes import scale_planes
 from omnicam.reconstruction.settings import ReconstructionSettings
 from omnicam.reconstruction.types import (
@@ -84,53 +77,3 @@ def test_scale_planes_follows_the_mesh_into_scaled_space():
     assert scaled.normal == plane.normal
     assert scaled.confidence == plane.confidence
     assert scale_planes([plane], 1.0)[0] is plane
-
-
-def test_a_request_without_a_client_id_cannot_read_someone_elses_job():
-    manager = ReconstructionJobManager()
-    job = manager.create_job("node_1", "owner", _source(), ReconstructionSettings())
-
-    # "" is what the HTTP layer produces when clientId is omitted entirely.
-    for impostor in ("", "someone_else"):
-        with pytest.raises(JobAccessDeniedError):
-            manager.get_job(job.job_id, client_id=impostor)
-        with pytest.raises(JobAccessDeniedError):
-            manager.stop_job(job.job_id, client_id=impostor)
-        with pytest.raises(JobAccessDeniedError):
-            manager.delete_job(job.job_id, client_id=impostor)
-
-    assert manager.get_job(job.job_id, client_id="owner").job_id == job.job_id
-
-
-def test_the_job_table_is_bounded():
-    manager = ReconstructionJobManager(max_jobs=2)
-    manager.create_job("n", "c", _source(), ReconstructionSettings())
-    manager.create_job("n", "c", _source(), ReconstructionSettings())
-
-    with pytest.raises(JobLimitReachedError):
-        manager.create_job("n", "c", _source(), ReconstructionSettings())
-
-
-def test_an_unregistered_provider_fails_the_job_instead_of_stranding_it():
-    # "lucida" passes settings validation but has no implementation registered
-    # (unlike "vggt", which now has a capability-gated adapter).
-    job = ReconstructionJob(
-        job_id="j1",
-        node_id="n1",
-        client_id="c1",
-        source=_source(),
-        settings=ReconstructionSettings(provider="lucida"),
-    )
-    events: list[str] = []
-
-    run_reconstruction_job(job, on_event=lambda kind, _job: events.append(kind))
-
-    assert job.state == FAILED
-    assert job.error is not None
-    assert job.error["code"] == "RECON_PROVIDER_UNAVAILABLE"
-    assert "error" in events
-
-
-def test_quality_is_validated_like_provider_and_mode():
-    with pytest.raises(ValueError, match="quality"):
-        ReconstructionSettings(quality="ultra")

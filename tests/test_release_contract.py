@@ -94,18 +94,60 @@ def test_publish_workflow_splits_registry_and_github_release_finalization() -> N
     assert "gh release create" in github_body
 
 
+def test_compatibility_floor_is_held_and_covered_by_the_queue_adapter() -> None:
+    """0.3.1 keeps its declared floors. The version-aware partial-queue adapter
+    covers the whole declared frontend range, so raising the floor is not
+    required: v1.48.7 / v1.49.0 (array signature) and v1.49.1+ (options
+    signature) are both handled.
+    """
+    pyproject = _text("pyproject.toml")
+    assert 'comfyui-frontend-package>=1.48.7' in pyproject
+    assert 'requires-comfyui = ">=0.31.0"' in pyproject
+
+    compat = _text("web-src/extractor/queue/compat.js")
+    assert 'QUEUE_OPTIONS_SIGNATURE_MIN = "1.49.1"' in compat
+    # The cutover must sit strictly above the declared frontend floor, or the
+    # legacy-array branch would be dead and an unsupported shape could ship.
+    assert '"1.49.1"' > '"1.48.7"'
+
+
+def test_github_release_is_gated_on_registry_active_status() -> None:
+    """A successful `node publish` is an upload, not acceptance. release-github
+    must wait for the Registry version to become Active."""
+    workflow = _text(".github/workflows/publish_action.yml")
+
+    verify_job = workflow.index("  registry-verify:")
+    github_job = workflow.index("  release-github:")
+    assert verify_job < github_job
+
+    verify_body = workflow[verify_job:github_job]
+    assert "scripts/check_registry_status.py" in verify_body
+    assert "--node majoor-omnicam" in verify_body
+    assert "needs: [release-build, release-registry]" in verify_body
+
+    github_body = workflow[github_job:]
+    header = github_body[: github_body.index("steps:")]
+    assert "registry-verify" in header  # release-github now depends on the gate
+
+
 def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
     workflow = _text(".github/workflows/test.yml")
     assert "test_wan_camera_official_parity.py" in workflow
     assert "OMNICAM_COMFYUI_ROOT" in workflow
 
 
-def test_ci_builds_and_inspects_the_real_comfy_registry_archive() -> None:
-    workflow = _text(".github/workflows/test.yml")
-    assert "--no-enable-telemetry node pack" in workflow
-    assert 'zipfile.ZipFile("node.zip")' in workflow
-    assert "web/omnicam.js" in workflow
-    assert "web-chunks/" in workflow
+def test_ci_builds_and_audits_the_real_comfy_registry_archive() -> None:
+    for name in (".github/workflows/test.yml", ".github/workflows/publish_action.yml"):
+        workflow = _text(name)
+        assert "--no-enable-telemetry node pack" in workflow
+        assert "scripts/registry_package_audit.py node.zip" in workflow
+
+
+def test_registry_package_audit_flags_avoidable_scanner_triggers() -> None:
+    audit = _text("scripts/registry_package_audit.py")
+    assert "os.environ" in audit  # it must know to look for env reads
+    assert "comfy_extras.nodes_moge" in audit
+    assert "eval" in audit and "exec" in audit
 
 
 def test_release_tooling_pins_comfy_cli_everywhere() -> None:

@@ -27,7 +27,6 @@ from .routes import (
     MAX_EXPORT_FOLDER_BYTES,
     MAX_EXPORT_JSON_BYTES,
     _check_free_space,
-    _env_limit,
     _folder_size,
 )
 
@@ -38,7 +37,7 @@ _SLUG_UNSAFE = re.compile(r"[^a-z0-9._-]+")
 #: A generous ceiling on how many scenes the library will hold before a save is
 #: refused. This is a runaway guard, not a product limit -- a working library of
 #: a few hundred documents stays well under it.
-MAX_SCENES = _env_limit("OMNICAM_MAX_SCENES", 1000, minimum=1, maximum=100_000)
+MAX_SCENES = 1000
 
 
 def _scenes_root() -> Path:

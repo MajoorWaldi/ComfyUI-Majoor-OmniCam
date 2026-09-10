@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from threading import Event
 from typing import Protocol, runtime_checkable
 
 from ..types import BackendSolveResult, CameraIntrinsics, VideoFrameSample
@@ -21,10 +22,36 @@ ProgressCallback = Callable[[int, int], None]
 
 @runtime_checkable
 class SolveControlProtocol(Protocol):
-    """The cooperative gate a long solve polls; see :mod:`..jobs.control`."""
+    """The cooperative gate a long solve polls between safe steps.
+
+    A queued run passes :class:`omnicam.comfy_compat.interrupt.ComfyInterruptControl`;
+    headless callers and tests can pass :class:`SolveControl`.
+    """
 
     def checkpoint(self) -> None:
         ...
+
+
+class SolveCancelled(Exception):  # noqa: N818 - a cancellation, not an error
+    """Raised out of ``checkpoint()`` when a stop was requested. Not an error."""
+
+
+class SolveControl:
+    """A cooperative-stop control backed by a plain ``threading.Event``.
+
+    Nothing here interrupts a thread: a solver polls ``checkpoint()`` at points
+    it chose and gives up cleanly when the event is set.
+    """
+
+    def __init__(self, stop_requested: Event) -> None:
+        self.stop_requested = stop_requested
+
+    def cancelled(self) -> bool:
+        return self.stop_requested.is_set()
+
+    def checkpoint(self) -> None:
+        if self.stop_requested.is_set():
+            raise SolveCancelled
 
 
 @runtime_checkable

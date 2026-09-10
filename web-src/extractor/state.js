@@ -1,16 +1,27 @@
 // Extractor panel state, derived from the server's job state.
 //
+// Native ComfyUI execution/job lifecycle feeds this through QUEUE_LIFECYCLE;
+// see queue/job-state.js for the Comfy-state mapping and the "terminal state
+// always wins" rule.
+//
 // The server owns the truth; this file only decides what the panel shows and
 // which buttons are live. Keeping that as a pure reducer means the button rules
 // -- which are genuinely fiddly, because STOPPING is not STOPPED and STOPPED
 // is not COMPLETED -- are testable without a browser.
 
+import { reconcileDisplayState } from "./queue/job-state.js";
+
 export const SOLVE_STATES = [
-  "IDLE", "PREPARING", "TRACKING", "SOLVING", "REFINING",
-  "STOPPING", "STOPPED", "COMPLETED", "FAILED",
+  "IDLE", "QUEUED", "PREPARING", "TRACKING", "SOLVING", "RECONSTRUCTING",
+  "FINALIZING", "REFINING", "STOPPING", "CANCELLING", "STOPPED", "CANCELLED",
+  "COMPLETED", "FAILED",
 ];
 
-const ACTIVE = new Set(["PREPARING", "TRACKING", "SOLVING", "REFINING", "STOPPING"]);
+const ACTIVE = new Set([
+  "QUEUED", "PREPARING", "TRACKING", "SOLVING", "RECONSTRUCTING", "FINALIZING",
+  "REFINING", "STOPPING", "CANCELLING",
+]);
+const TERMINAL = new Set(["COMPLETED", "FAILED", "CANCELLED", "STOPPED"]);
 
 // Absent/non-numeric fields fall back to what is already known, not to zero:
 // coercing them reset a completed solve's progress bar to 0% the instant its
@@ -23,8 +34,10 @@ const keep = (value, fallback) => (
 
 // Status-pill colour families, matching the shared Director tokens.
 const TONES = {
-  IDLE: "neutral", PREPARING: "info", TRACKING: "active", SOLVING: "active", REFINING: "active",
-  STOPPING: "warn", STOPPED: "neutral",
+  IDLE: "neutral", QUEUED: "info", PREPARING: "info",
+  TRACKING: "active", SOLVING: "active", RECONSTRUCTING: "active",
+  FINALIZING: "active", REFINING: "active",
+  STOPPING: "warn", CANCELLING: "warn", STOPPED: "neutral", CANCELLED: "neutral",
   COMPLETED: "ok", FAILED: "danger",
 };
 
@@ -65,7 +78,25 @@ export function reduceExtractorState(state, action) {
     case "QUEUED_RESULT":
       // A queued execution has no interactive job to refine. Keeping the
       // previous id here could send a cleanup request to unrelated footage.
-      return { ...state, jobId: "", solveState: "COMPLETED" };
+      // A parsed result means the solve is done: the panel reads 100%.
+      return { ...state, jobId: "", solveState: "COMPLETED", progress: 1 };
+    case "QUEUE_LIFECYCLE": {
+      // Native ComfyUI execution/job lifecycle. A terminal Comfy state can
+      // never be walked back by a late frame or a stray telemetry sample --
+      // and neither can the progress bar.
+      const solveState = reconcileDisplayState(state.solveState, action.state);
+      const terminal = TERMINAL.has(state.solveState);
+      return {
+        ...state,
+        solveState,
+        progress: terminal || action.progress === undefined
+          ? state.progress
+          : keep(action.progress, state.progress),
+        error: action.error
+          ? String(action.error)
+          : solveState === "FAILED" ? state.error : "",
+      };
+    }
     case "JOB_STARTED":
       return {
         ...state, jobId: action.status.job_id, solveState: action.status.state,
@@ -156,7 +187,7 @@ export function controlAvailability(state) {
     // A partial solve is reviewable, never shippable.
     apply: completed && Boolean(state.refinedFingerprint),
     refine: completed,
-    retry: solve === "STOPPED" || solve === "FAILED",
+    retry: solve === "STOPPED" || solve === "FAILED" || solve === "CANCELLED",
   };
 }
 
@@ -170,9 +201,12 @@ export function statusLabel(state) {
   switch (state.solveState) {
     case "TRACKING":
     case "SOLVING":
+    case "RECONSTRUCTING":
+    case "FINALIZING":
       return `${state.solveState} ${percent}%`;
     case "STOPPING":
-      return "STOPPING…";
+    case "CANCELLING":
+      return `${state.solveState}…`;
     default:
       return state.solveState;
   }

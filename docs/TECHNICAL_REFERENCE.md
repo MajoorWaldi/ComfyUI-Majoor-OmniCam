@@ -45,7 +45,7 @@ The frontend has a small extension bootstrap in `web/omnicam.js`; product surfac
 
 DPVO is optional and runs in a fresh spawned process. Frames travel through a private NumPy memmap in ComfyUI's temporary directory, and the child process is reaped on success, stop, and failure so its CUDA context can be released.
 
-Read-only memmap frames are copied into writable, C-contiguous NumPy arrays before `torch.from_numpy`. The worker reports `finalizing` after frame ingest and immediately before `slam.terminate()`. Interactive jobs display that period as `SOLVING`.
+Read-only memmap frames are copied into writable, C-contiguous NumPy arrays before `torch.from_numpy`. The worker reports `finalizing` after frame ingest and immediately before `slam.terminate()`. The queued solve maps that period onto the `SOLVING` display state.
 
 A 120-second watchdog applies only while DPVO global optimization is finalizing. It reports an actionable failure when `slam.terminate()` does not return; it recommends a shorter clip, a lower `max_dimension`, or `opencv_sift`.
 

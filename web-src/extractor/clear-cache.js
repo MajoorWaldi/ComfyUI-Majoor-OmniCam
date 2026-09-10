@@ -26,10 +26,9 @@ export async function clearExtractorCache(ui) {
   );
   if (!proceed) return false;
 
-  if (ui.state.jobId) void ui.client.stopSolve(ui.state.jobId).catch(() => {});
-  if (ui.reconstruction?.state?.jobId) {
-    void ui.reconstruction.client.stopJob(ui.reconstruction.state.jobId).catch(() => {});
-  }
+  // A queued solve (camera track or reconstruct) targets this node; cancel it
+  // before wiping the cache out from under it.
+  if (ui.queuePromptId) void ui.cancelQueuedRun();
 
   try {
     await ui.reconstruction.client.clearCache();

@@ -77,11 +77,10 @@ export function attachExtractor(node) {
     ui.dispose();
     removed?.apply(this, arguments);
   };
-  const executed = node.onExecuted;
-  node.onExecuted = function (message) {
-    executed?.apply(this, arguments);
-    ui.executed(message);
-  };
+  // The solved result is adopted from the `executed` websocket event
+  // (queue/events.js), which carries the prompt_id this panel filters on --
+  // node.onExecuted has only the output, so a stale result from a superseded
+  // run could not be told apart there.
   const resync = () => {
     if (ui.disposed) return;
     ui.refreshSource();
@@ -103,10 +102,11 @@ export function attachExtractor(node) {
   node.onAfterGraphConfigured = function () {
     configured?.apply(this, arguments);
     ui.refreshSource();
-    ui.recoverStatus();
-    ui.reconstruction?.recoverStatus?.();
     // A workflow reload restores the recon_* widgets after this panel was
-    // built; re-hydrate its DOM controls from them.
+    // built; re-hydrate its DOM controls from them. The solved result comes
+    // back from the serialized cache widgets (restoreCachedResult), and a
+    // still-running queued solve is followed through ComfyUI's own events --
+    // no custom status recovery.
     ui.reconstruction?.syncFromWidgets?.();
   };
 }

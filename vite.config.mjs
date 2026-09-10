@@ -148,7 +148,16 @@ export default defineConfig(({ mode }) => {
         output: {
           // Hashed names: the chunk route serves them as ordinary static files,
           // so a new build must not reuse a URL the browser already cached.
-          chunkFileNames: "chunk-[hash].js",
+          //
+          // Third-party code keeps its vendor name in the filename. A Registry
+          // heuristic that flags `.bind(` / `.connect(` inside three.js should
+          // land on a file called vendor-three-<hash>.js, so a reviewer can see
+          // it is upstream MIT code rather than something OmniCam wrote.
+          chunkFileNames: (chunk) => (
+            String(chunk.name || "").startsWith("vendor-")
+              ? "[name]-[hash].js"
+              : "chunk-[hash].js"
+          ),
           assetFileNames: "asset-[hash][extname]",
           manualChunks(id) {
             if (id.includes("node_modules/three")) return "vendor-three";

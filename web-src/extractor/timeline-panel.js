@@ -62,20 +62,20 @@ export class TimelinePanelHost {
     return frameAtTimelineX(event.clientX - rect.left, rect.width, frameCount, 0);
   }
 
-  /** Wire scrubbing. `listen` is the panel's own disposal-tracked binder. */
-  bind(listen, frameCount) {
+  /** Wire scrubbing. `on` is the panel's own EventScope binder. */
+  bind(on, frameCount) {
     const tracks = this.$("extractor-dope-tracks");
-    listen(tracks, "pointerdown", (event) => {
+    on(tracks, "pointerdown", (event) => {
       tracks.setPointerCapture?.(event.pointerId);
       this.scrubbing = true;
       this.pointerId = event.pointerId;
       this.seek(event, frameCount());
     });
-    listen(tracks, "pointermove", (event) => {
+    on(tracks, "pointermove", (event) => {
       if (this.scrubbing && event.pointerId === this.pointerId) this.seek(event, frameCount());
     });
     for (const name of ["pointerup", "pointercancel"]) {
-      listen(tracks, name, (event) => {
+      on(tracks, name, (event) => {
         if (event.pointerId !== this.pointerId) return;
         tracks.releasePointerCapture?.(event.pointerId);
         this.scrubbing = false;

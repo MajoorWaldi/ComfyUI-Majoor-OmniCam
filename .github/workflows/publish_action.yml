@@ -86,6 +86,10 @@ jobs:
         run: |
           comfy --skip-prompt --no-enable-telemetry node pack
           test -f node.zip
+      - name: Audit the exact Registry archive
+        # Blocking: the bytes that ship must contain no dev paths, no missing
+        # runtime files, and none of the scanner triggers 0.3.1 removed.
+        run: python scripts/registry_package_audit.py node.zip
       - name: Resolve release version
         id: release
         shell: bash
@@ -162,9 +166,31 @@ jobs:
           comfy --skip-prompt --no-enable-telemetry env
           comfy --skip-prompt --no-enable-telemetry node publish --token "${{ secrets.REGISTRY_ACCESS_TOKEN }}"
 
+  registry-verify:
+    name: Verify Registry version is Active
+    needs: [release-build, release-registry]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: ${{ github.repository_owner == 'MajoorWaldi' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Wait for Comfy Registry Active status
+        # A successful `node publish` is only an upload. The GitHub Release is
+        # not finalized until the Registry has scanned this version and moved
+        # it to Active; Flagged / Banned / Deleted fail immediately.
+        run: |
+          python scripts/check_registry_status.py \
+            --node majoor-omnicam \
+            --version "${{ needs.release-build.outputs.version }}" \
+            --timeout 900 --interval 15
+
   release-github:
     name: Finalize GitHub Release
-    needs: [release-build, release-registry]
+    needs: [release-build, registry-verify]
     runs-on: ubuntu-latest
     permissions:
       contents: write

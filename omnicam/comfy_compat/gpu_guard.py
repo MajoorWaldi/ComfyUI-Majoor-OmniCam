@@ -16,7 +16,7 @@ Two ways to lose that race, two checks:
 
 This module holds only the throttling/probing primitive itself; job-specific
 wiring (which exception to raise, when to arm, what state transition follows)
-belongs to the caller. See omnicam/extractor/jobs/control.py for the
+belongs to the caller. See how ComfyInterruptControl in comfy_compat/interrupt.py wraps
 DPVO-specific sibling this generalizes from -- deliberately not rebuilt on top
 of this shared primitive, so its already-tested behavior stays exactly as it
 was.

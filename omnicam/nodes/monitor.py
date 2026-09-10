@@ -49,6 +49,12 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             description="Monitor, validate, preview and route an OmniCam MotionScene to supported AI-video models.",
             search_aliases=["camera monitor", "camera health", "camera preflight", "camera adapter", "camera prompt", "ati preview", "ltx guide", "wan camera"],
             is_experimental=True,
+            # An output node: compiling a MotionScene to a model-native
+            # artifact is a real result, and it lets a partial ComfyUI
+            # execution target the Monitor to preflight a profile without
+            # running the downstream generation. A plain Queue Prompt still
+            # runs it once and serves the execution cache after.
+            is_output_node=True,
             inputs=[
                 OMNICAM_MOTION_SCENE.Input("motion_scene"),
                 media_input("playblast_video", optional=True, tooltip="The playblast this scene describes, as a VIDEO or an IMAGE batch."),

@@ -3,6 +3,16 @@
 The parent process never imports Torch or DPVO through this module.  A solve
 gets a fresh child process and therefore a fresh CUDA context; when that child
 exits the driver, rather than PyTorch's caching allocator, owns VRAM cleanup.
+
+Parent and child talk over exactly two primitives, in one direction each::
+
+    result_queue   child -> parent   progress / features / finalizing
+                                     / result / error / cancelled
+    stop_event     parent -> child   cancel
+
+There is no request/response channel and no per-frame handshake: the child
+publishes what it has and polls ``stop_event`` before each frame, so a cancel
+costs one flag read instead of a round trip.
 """
 
 from __future__ import annotations
@@ -12,6 +22,7 @@ import importlib
 import math
 import multiprocessing
 import os
+import queue
 import shutil
 import sys
 import tempfile
@@ -28,8 +39,12 @@ from ..types import CameraIntrinsics, VideoFrameSample
 from ..vram import cuda_free_bytes, release_comfy_vram
 from .base import SolveError, checkpoint, report_progress, sample_features
 
-DPVO_WORKER_PROTOCOL = 2
+DPVO_WORKER_PROTOCOL = 3
 MAX_CHILD_ERROR_CHARS = 12_000
+#: Bounded so a stalled parent cannot let the child buffer a whole solve's
+#: telemetry in memory. Progress and features are best-effort under that bound;
+#: the terminal messages are not.
+RESULT_QUEUE_MAXSIZE = 16
 CANONICAL_MODULE_NAME = "omnicam.extractor.backends.dpvo_worker"
 _PACKAGE_ROOT_PATH = Path(__file__).resolve().parents[3]
 PACKAGE_ROOT = str(_PACKAGE_ROOT_PATH)
@@ -224,7 +239,21 @@ def writable_frame_copy(frames, index: int, height: int, width: int):
     return np.array(frames[index, :height, :width], dtype=np.uint8, copy=True, order="C")
 
 
-def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
+def publish(result_queue, message: dict, *, drop_if_full: bool = False) -> None:
+    """Hand one message to the parent.
+
+    ``drop_if_full`` is for telemetry only: a progress or feature message the
+    parent is too busy to read is superseded by the next one, and blocking the
+    solver on it would be worse than losing it. Terminal messages always block.
+    """
+    if drop_if_full:
+        with contextlib.suppress(Exception):
+            result_queue.put_nowait(message)
+        return
+    result_queue.put(message)
+
+
+def run_dpvo_child(result_queue, stop_event, request: DpvoWorkerRequest) -> None:
     """Import and execute DPVO inside the disposable CUDA process."""
     try:
         # Before ``import torch``: Torch reads this when it builds its CUDA
@@ -261,13 +290,8 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
                 intrinsics = intrinsics.cuda()
             total = len(frames)
             for index in range(total):
-                connection.send({
-                    "kind": "ready", "index": index,
-                    "source_frame": request.source_frames[index],
-                })
-                command = connection.recv()
-                if command.get("kind") != "continue":
-                    connection.send({"kind": "stopped"})
+                if stop_event.is_set():
+                    publish(result_queue, {"kind": "cancelled", "done": index})
                     return
                 image = torch.from_numpy(writable_frame_copy(frames, index, height, width)).permute(2, 0, 1)
                 if torch.cuda.is_available():
@@ -278,14 +302,14 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
                         slam, width // DPVO_FEATURE_RESOLUTION, height // DPVO_FEATURE_RESOLUTION,
                     )
                     if points:
-                        connection.send({
+                        publish(result_queue, {
                             "kind": "features", "source_frame": request.source_frames[index], "points": points,
-                        })
-                connection.send({
+                        }, drop_if_full=True)
+                publish(result_queue, {
                     "kind": "progress", "done": index + 1, "total": total,
                     "source_frame": request.source_frames[index],
-                })
-            connection.send({"kind": "finalizing", "total": total})
+                }, drop_if_full=True)
+            publish(result_queue, {"kind": "finalizing", "total": total})
             poses, timestamps = slam.terminate()
             result = {
                 "kind": "result",
@@ -296,14 +320,18 @@ def run_dpvo_child(connection, request: DpvoWorkerRequest) -> None:
                 landmarks = extract_landmarks_3d(slam)
                 if landmarks:
                     result["landmarks_3d"] = landmarks
-            connection.send(result)
+            publish(result_queue, result)
     except BaseException as exc:  # noqa: BLE001 - failure must cross the process boundary
         message = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
         with contextlib.suppress(Exception):
-            connection.send({"kind": "error", "error": message[-MAX_CHILD_ERROR_CHARS:]})
+            publish(result_queue, {"kind": "error", "error": message[-MAX_CHILD_ERROR_CHARS:]})
     finally:
+        # Block until the feeder thread has actually written everything to the
+        # pipe. Without this the interpreter can exit first and the parent sees
+        # a dead child with no result at all.
         with contextlib.suppress(Exception):
-            connection.close()
+            result_queue.close()
+            result_queue.join_thread()
 
 
 def canonical_worker_entry(
@@ -473,6 +501,19 @@ def describe_worker_oom(error_text: str, release) -> str:
     return error_text + "\n" + "\n".join(lines)
 
 
+def _next_message(result_queue, timeout: float) -> dict | None:
+    """One child message, or None if none arrived within ``timeout``."""
+    try:
+        return result_queue.get(timeout=timeout)
+    except queue.Empty:
+        return None
+    except (BrokenPipeError, EOFError, OSError):
+        # A native CUDA extension can terminate the child before Python has a
+        # chance to publish its traceback; Windows then reports the closed pipe
+        # from the read itself rather than reporting an empty queue.
+        return None
+
+
 class DpvoProcessRunner:
     """Own exactly one spawned child and reap it on every terminal path."""
 
@@ -491,7 +532,8 @@ class DpvoProcessRunner:
         self._stop_grace_seconds = float(stop_grace_seconds)
         self._finalization_timeout_seconds = finalization_timeout_seconds
         self.process = None
-        self._connection = None
+        self._result_queue = None
+        self._stop_event = None
         self.last_pid: int | None = None
         self.last_exitcode: int | None = None
         self.vram_release = None
@@ -520,17 +562,20 @@ class DpvoProcessRunner:
         # parent frees is already too late for the allocation that failed.
         self.vram_release = self._release_vram() if self._release_vram else None
         context = multiprocessing.get_context("spawn")
-        parent, child = context.Pipe(duplex=True)
-        process = context.Process(target=target, args=(child, payload), daemon=True)
+        result_queue = context.Queue(maxsize=RESULT_QUEUE_MAXSIZE)
+        stop_event = context.Event()
+        process = context.Process(
+            target=target, args=(result_queue, stop_event, payload), daemon=True,
+        )
         self.process = process  # type: ignore[assignment]
-        self._connection = parent  # type: ignore[assignment]
+        self._result_queue = result_queue  # type: ignore[assignment]
+        self._stop_event = stop_event  # type: ignore[assignment]
         self.landmarks_3d = []
         started = time.monotonic()
         finalization_started: float | None = None
         with _isolated_child_bootstrap():
             process.start()
         self.last_pid = process.pid
-        child.close()
         with _ACTIVE_RUNNERS_LOCK:
             _ACTIVE_RUNNERS.add(self)
         try:
@@ -551,64 +596,50 @@ class DpvoProcessRunner:
                         "optimization did not return a trajectory. Try a shorter clip, lower "
                         "max_dimension, or method=opencv_sift."
                     )
-                try:
-                    has_message = parent.poll(self._poll_seconds)
-                except (BrokenPipeError, EOFError, OSError):
-                    # A native CUDA extension can terminate the child before
-                    # Python has a chance to send its traceback.  Windows then
-                    # reports the closed named pipe from poll() itself.
-                    has_message = False
-                if has_message:
-                    try:
-                        message = parent.recv()
-                    except EOFError:
-                        message = None
+                message = _next_message(result_queue, self._poll_seconds)
+                if message is None:
+                    if process.is_alive():
+                        continue
+                    # The child's feeder thread flushes asynchronously, so an
+                    # empty queue the instant the process dies does not yet mean
+                    # there is nothing left. Give the flush one more poll before
+                    # calling it a crash.
+                    message = _next_message(result_queue, self._poll_seconds)
                     if message is None:
-                        if not process.is_alive():
-                            raise _worker_exit_error(process, last_state="eof")
-                        continue
-                    kind = message.get("kind")
-                    if kind == "ready":
-                        checkpoint(control)
-                        parent.send({"kind": "continue"})
-                    elif kind == "progress":
+                        raise _worker_exit_error(process, last_state="no_result")
+                kind = message.get("kind")
+                if kind == "progress":
+                    source_frame = int(message.get("source_frame", 0))
+                    if on_source_frame is not None:
+                        with contextlib.suppress(Exception):
+                            on_source_frame(source_frame)
+                    report_progress(progress, int(message["done"]), int(message["total"]))
+                elif kind == "features":
+                    if on_features is not None:
                         source_frame = int(message.get("source_frame", 0))
-                        if on_source_frame is not None:
+                        points = list(message.get("points") or [])
+                        with contextlib.suppress(Exception):
+                            on_features(source_frame, points)
+                elif kind == "finalizing":
+                    if finalization_started is None:
+                        finalization_started = time.monotonic()
+                        if on_finalizing is not None:
                             with contextlib.suppress(Exception):
-                                on_source_frame(source_frame)
-                        report_progress(progress, int(message["done"]), int(message["total"]))
-                    elif kind == "features":
-                        if on_features is not None:
-                            source_frame = int(message.get("source_frame", 0))
-                            points = list(message.get("points") or [])
-                            with contextlib.suppress(Exception):
-                                on_features(source_frame, points)
-                    elif kind == "finalizing":
-                        if finalization_started is None:
-                            finalization_started = time.monotonic()
-                            if on_finalizing is not None:
-                                with contextlib.suppress(Exception):
-                                    on_finalizing()
-                    elif kind == "result":
-                        self.landmarks_3d = list(message.get("landmarks_3d") or [])
-                        return list(message.get("poses", [])), list(message.get("timestamps", []))
-                    elif kind == "error":
-                        raise SolveError("DPVO worker failed:\n" + describe_worker_oom(
-                            str(message.get("error", "unknown error")), self.vram_release,
-                        ))
-                    elif kind == "stopped":
-                        checkpoint(control)
-                        raise SolveError("DPVO worker stopped before producing a result")
-                    else:
-                        raise SolveError(f"DPVO worker sent an unknown message {kind!r}")
-                elif not process.is_alive():
-                    try:
-                        has_pending_message = parent.poll()
-                    except (BrokenPipeError, EOFError, OSError):
-                        has_pending_message = False
-                    if has_pending_message:
-                        continue
-                    raise _worker_exit_error(process, last_state="no_result")
+                                on_finalizing()
+                elif kind == "result":
+                    self.landmarks_3d = list(message.get("landmarks_3d") or [])
+                    return list(message.get("poses", [])), list(message.get("timestamps", []))
+                elif kind == "error":
+                    raise SolveError("DPVO worker failed:\n" + describe_worker_oom(
+                        str(message.get("error", "unknown error")), self.vram_release,
+                    ))
+                elif kind == "cancelled":
+                    # Only reachable once stop_event was set, so the reason is
+                    # ours: surface it as the cancellation it is.
+                    checkpoint(control)
+                    raise SolveError("DPVO worker stopped before producing a result")
+                else:
+                    raise SolveError(f"DPVO worker sent an unknown message {kind!r}")
         finally:
             self._request_stop()
             self._reap()
@@ -620,27 +651,37 @@ class DpvoProcessRunner:
         self._reap()
 
     def _request_stop(self) -> None:
-        if self._connection is not None:
+        """Ask the child to stop at its next frame boundary."""
+        if self._stop_event is not None:
             with contextlib.suppress(Exception):
-                self._connection.send({"kind": "stop"})
+                self._stop_event.set()
 
     def _reap(self) -> None:
-        process, connection = self.process, self._connection
+        process, result_queue = self.process, self._result_queue
         self.process = None
-        self._connection = None
-        if connection is not None:
-            with contextlib.suppress(Exception):
-                connection.close()
-        if process is None:
-            return
-        process.join(timeout=self._stop_grace_seconds)
-        if process.is_alive():
-            process.terminate()
+        self._result_queue = None
+        self._stop_event = None
+        try:
+            if process is None:
+                return
+            # Reap before closing the queue, never after: a child stopping
+            # cooperatively is still flushing its last message, and tearing the
+            # read end down under it turns a clean exit into a broken pipe.
             process.join(timeout=self._stop_grace_seconds)
-        if process.is_alive() and hasattr(process, "kill"):
-            process.kill()
-            process.join(timeout=self._stop_grace_seconds)
-        self.last_exitcode = process.exitcode
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=self._stop_grace_seconds)
+            if process.is_alive() and hasattr(process, "kill"):
+                process.kill()
+                process.join(timeout=self._stop_grace_seconds)
+            self.last_exitcode = process.exitcode
+        finally:
+            if result_queue is not None:
+                with contextlib.suppress(Exception):
+                    # The parent only ever reads, so it owns no feeder thread to
+                    # join; cancelling it keeps close() from waiting on one.
+                    result_queue.cancel_join_thread()
+                    result_queue.close()
 
 
 def close_all_dpvo_runners() -> None:

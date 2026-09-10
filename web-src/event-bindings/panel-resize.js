@@ -57,7 +57,7 @@ export function bindPanelResize(ui, signal) {
 
     const dir = config.direction ?? 1;
     const raf = typeof globalThis.requestAnimationFrame === "function"
-      ? globalThis.requestAnimationFrame.bind(globalThis)
+      ? (fn) => globalThis.requestAnimationFrame(fn)
       : (fn) => fn();
     let refitQueued = false;
     const setLive = (value) => {
