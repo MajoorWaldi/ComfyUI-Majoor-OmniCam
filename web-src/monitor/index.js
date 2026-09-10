@@ -10,6 +10,7 @@ import { MonitorSourceWatcher } from "./source-sync.js";
 import { loadMonitorProfileInfo, renderMonitorProfileInfo } from "./profile-info.js";
 import { bindMonitorPreflightEvents } from "./preflight-events.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { buildMonitorRoot } from "./template.js";
 import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
@@ -40,7 +41,7 @@ class MonitorUI {
   constructor(node) {
     this.node = node;
     this.root = buildMonitorRoot();
-    this.disposers = [];
+    this.events = new EventScope();
     this.source = null;
     this.player = new MonitorPlayer(
       this.root.querySelector('[data-role="proxy-player"]'),
@@ -77,25 +78,19 @@ class MonitorUI {
     }
   }
 
-  listen(target, name, listener) {
-    if (!target) return;
-    target.addEventListener(name, listener);
-    this.disposers.push(() => target.removeEventListener(name, listener));
-  }
-
   bindControls() {
     // Wheel over a scrollable panel scrolls it instead of zooming the graph.
-    this.listen(this.root, "wheel", panelWheelKeeper(this.root));
-    this.listen(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle());
-    this.listen(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (event) => this.player.scrub(event.target.value));
-    this.listen(this.root.querySelector('[data-role="proxy-loop"]'), "change", (event) => this.player.setLoop(event.target.checked));
-    this.listen(this.root.querySelector('[data-role="proxy-mute"]'), "change", (event) => this.player.setMuted(event.target.checked));
-    this.listen(this.root.querySelector('[data-role="profile-select"]'), "change", (event) => {
+    this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
+    this.events.on(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle());
+    this.events.on(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (event) => this.player.scrub(event.target.value));
+    this.events.on(this.root.querySelector('[data-role="proxy-loop"]'), "change", (event) => this.player.setLoop(event.target.checked));
+    this.events.on(this.root.querySelector('[data-role="proxy-mute"]'), "change", (event) => this.player.setMuted(event.target.checked));
+    this.events.on(this.root.querySelector('[data-role="profile-select"]'), "change", (event) => {
       writeMonitorWidget(this.node, "target_profile", event.target.value);
       this.settingsChanged();
     });
     for (const control of this.root.querySelectorAll("[data-setting]")) {
-      this.listen(control, "change", () => {
+      this.events.on(control, "change", () => {
         writeMonitorWidget(this.node, control.dataset.setting, control.value);
         this.settingsChanged();
       });
@@ -330,7 +325,7 @@ class MonitorUI {
     this.refreshController?.dispose();
     this.watcher?.dispose();
     this.player.dispose();
-    for (const dispose of this.disposers.splice(0)) dispose();
+    this.events.dispose();
   }
 }
 
@@ -339,7 +334,7 @@ export function attachMonitor(node) {
   hideWidgets(node);
   const ui = new MonitorUI(node);
   const disposeBlockedPreflight = bindMonitorPreflightEvents(api, node, ui);
-  ui.disposers.push(disposeBlockedPreflight);
+  ui.events.add(disposeBlockedPreflight);
   node.__majoorOmniCamMonitor = ui;
   const preferredHeight = () => Math.max(620, ui.root.scrollHeight || 0);
   node.addDOMWidget("majoor_omnicam_monitor", "omnicam", ui.root, {

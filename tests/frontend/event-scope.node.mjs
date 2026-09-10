@@ -82,7 +82,11 @@ test("add() registers a non-listener teardown on the same lifetime", () => {
 });
 
 test("the panels bind through the scope, not a hand-rolled listen()", () => {
-  for (const path of ["../../web-src/extractor/index.js", "../../web-src/shared/video-player.js"]) {
+  for (const path of [
+    "../../web-src/extractor/index.js",
+    "../../web-src/shared/video-player.js",
+    "../../web-src/monitor/index.js",
+  ]) {
     const source = readFileSync(new URL(path, import.meta.url), "utf8");
     assert.ok(
       !/this\.disposers/.test(source),
