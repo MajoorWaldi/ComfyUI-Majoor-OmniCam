@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from ..comfy_compat import IO, UI
+from ..comfy_compat.interrupt import ComfyInterruptControl
 from ..comfy_compat.progress import CAMERA_TRACK_PHASES, ExecutionProgress
 from ..core.motion_scene import motion_scene_from_camera_track
 from ..extractor.pipeline import extract_camera_track
@@ -228,6 +229,10 @@ class MajoorOmniCamExtractor(IO.ComfyNode):
             position_tolerance=position_tolerance,
             rotation_tolerance_deg=rotation_tolerance_deg,
             progress=progress.frame_reporter(CAMERA_TRACK_PHASES["tracking"]),
+            # A Comfy job cancel travels the solver's cooperative-stop path and
+            # reaps any spawned DPVO child through the existing bounded
+            # join / terminate / kill / cleanup.
+            control=ComfyInterruptControl(),
         )
         progress.phase_done(CAMERA_TRACK_PHASES["solver"])
 
