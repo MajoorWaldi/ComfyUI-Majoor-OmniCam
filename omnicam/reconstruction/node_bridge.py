@@ -279,6 +279,10 @@ def execute_reconstruction(
             "blockout_object_count": output.summary.get("blockout_object_count", 0),
             "provider_summary": output.summary.get("provider_summary", {}),
             "warnings": list(output.warnings),
+            # The full pipeline summary (triangle_count, camera_fov_x,
+            # confidence, ...) so the panel renders the same detail a queued
+            # result shows as the old job did.
+            "summary": dict(output.summary),
         },
     }
 

@@ -202,12 +202,15 @@ export class ReconstructionPanelController {
   acceptQueuedResult(parsed) {
     if (this.disposed) return;
     this.runGeneration += 1;
+    const recon = parsed.reconstruction || {};
     this.dispatch({
       type: "DONE",
       jobId: "",
       result: parsed.motionScene,
-      summary: parsed.reconstruction || null,
-      warnings: parsed.reconstruction?.warnings || [],
+      // The panel renders triangle_count / camera_fov_x etc. off the pipeline
+      // summary; fall back to the flatter reconstruction block if absent.
+      summary: recon.summary || recon,
+      warnings: recon.warnings || [],
       fingerprint: parsed.fingerprint,
     });
   }
