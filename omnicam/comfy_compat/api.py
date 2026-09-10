@@ -14,14 +14,7 @@ symbol that is missing or relocated in one place is still found in the other.
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
-
-# Highest priority first. ``latest`` stays last: it is the fallback, never the
-# preferred source. ``v0_0_1`` is deliberately absent -- upstream marks it a
-# template that "no one should ever use" and it omits IO/UI entirely. Prepend a
-# newer numbered API here when ComfyUI cuts one and it settles as stable.
-_API_MODULE_NAMES = ("comfy_api.v0_0_2", "comfy_api.latest")
 
 __all__ = [
     "IO",
@@ -35,12 +28,26 @@ __all__ = [
 
 
 def _load_api_modules() -> list[Any]:
-    modules = []
-    for name in _API_MODULE_NAMES:
-        try:
-            modules.append(importlib.import_module(name))
-        except ImportError:
-            continue
+    """The V3 API modules OmniCam resolves symbols from, highest priority first.
+
+    Plain ``import`` statements, not ``importlib.import_module`` -- a Registry
+    scanner reads these as ordinary optional dependencies. ``latest`` stays the
+    fallback, never the preferred source. ``v0_0_1`` is deliberately skipped:
+    upstream marks it a template "no one should ever use" and it omits IO/UI.
+    """
+    modules: list[Any] = []
+    try:
+        import comfy_api.v0_0_2 as stable_api
+
+        modules.append(stable_api)
+    except ImportError:
+        pass
+    try:
+        import comfy_api.latest as latest_api
+
+        modules.append(latest_api)
+    except ImportError:
+        pass
     if not modules:
         raise ImportError(
             "OmniCam requires the ComfyUI V3 API (comfy_api). Update ComfyUI to "
@@ -58,7 +65,7 @@ def _resolve(name: str) -> Any:
         found = getattr(module, name, None)
         if found is not None:
             return found
-    raise ImportError(f"comfy_api exposes no {name!r} in {_API_MODULE_NAMES}")
+    raise ImportError(f"comfy_api exposes no {name!r}")
 
 
 def _resolve_video_components() -> Any:
@@ -69,7 +76,7 @@ def _resolve_video_components() -> Any:
             found = getattr(holder, "VideoComponents", None)
             if found is not None:
                 return found
-    raise ImportError(f"comfy_api exposes no VideoComponents in {_API_MODULE_NAMES}")
+    raise ImportError("comfy_api exposes no VideoComponents")
 
 
 IO = _resolve("IO")
