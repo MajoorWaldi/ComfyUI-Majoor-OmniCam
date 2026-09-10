@@ -94,6 +94,23 @@ def test_publish_workflow_splits_registry_and_github_release_finalization() -> N
     assert "gh release create" in github_body
 
 
+def test_compatibility_floor_is_held_and_covered_by_the_queue_adapter() -> None:
+    """0.3.1 keeps its declared floors. The version-aware partial-queue adapter
+    covers the whole declared frontend range, so raising the floor is not
+    required: v1.48.7 / v1.49.0 (array signature) and v1.49.1+ (options
+    signature) are both handled.
+    """
+    pyproject = _text("pyproject.toml")
+    assert 'comfyui-frontend-package>=1.48.7' in pyproject
+    assert 'requires-comfyui = ">=0.31.0"' in pyproject
+
+    compat = _text("web-src/extractor/queue/compat.js")
+    assert 'QUEUE_OPTIONS_SIGNATURE_MIN = "1.49.1"' in compat
+    # The cutover must sit strictly above the declared frontend floor, or the
+    # legacy-array branch would be dead and an unsupported shape could ship.
+    assert '"1.49.1"' > '"1.48.7"'
+
+
 def test_github_release_is_gated_on_registry_active_status() -> None:
     """A successful `node publish` is an upload, not acceptance. release-github
     must wait for the Registry version to become Active."""
