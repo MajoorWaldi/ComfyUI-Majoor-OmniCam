@@ -15,7 +15,6 @@ Upstream verification (ComfyUI Core comfy_extras/nodes_moge.py):
 from __future__ import annotations
 
 import contextlib
-import importlib
 import logging
 import threading
 import uuid
@@ -121,11 +120,17 @@ class ComfyMoGeProvider(ReconstructionProvider):
     provider_id: str = "comfy_moge"
 
     def _get_moge_module(self) -> Any:
-        """Lazily import comfy_extras.nodes_moge."""
+        """Lazily import ComfyUI's native MoGe node module, or ``None``.
+
+        A normal lazy ``import`` -- not ``importlib.import_module`` with a
+        string -- so a Registry scanner sees an ordinary optional dependency,
+        not a dynamic import it must flag.
+        """
         try:
-            return importlib.import_module("comfy_extras.nodes_moge")
-        except Exception:  # noqa: BLE001
+            from comfy_extras import nodes_moge
+        except Exception:  # noqa: BLE001 - optional native module: any import-time failure means "unavailable"
             return None
+        return nodes_moge
 
     def _get_checkpoints(self) -> list[str]:
         """Query folder_paths for geometry_estimation checkpoints."""
