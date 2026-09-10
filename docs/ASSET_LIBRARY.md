@@ -191,8 +191,11 @@ this same Kenney download / archive core.
 ## Reconstruction
 
 `semantic class -> unified catalog resolver -> AssetDefinition -> placement
-adapter -> AssetPlacement`. The blockout library is the fallback when the
-catalog has no match or the matched file is missing. Reconstructed assets carry
+adapter -> AssetPlacement`. This catalog is the **single source of truth** for
+blockout / hybrid / scan retrieval; the legacy blockout `library.json` is only a
+fallback when the catalog has no match or the matched file is missing, and is
+fully optional — a run with the blockout library disabled or absent resolves
+straight from the catalog instead of erroring. Reconstructed assets carry
 only **factual** tags (`reconstruction`, `chair`, `person`) — never an editorial
 role — and a detected `person` becomes a Character only when the resolved
 catalog asset has a valid rig.

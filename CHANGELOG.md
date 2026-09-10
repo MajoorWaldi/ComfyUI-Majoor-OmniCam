@@ -48,6 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The unified asset catalog is now the single source of truth for **both** the
+  Director and Reconstruction. Blockout / hybrid / scan asset retrieval resolves
+  placements through the catalog first; the legacy `blockout_library/library.json`
+  is only an optional compatibility fallback. When no blockout library is
+  installed at the managed location (e.g. after `--disable-legacy-blockout`) but
+  the catalog holds file-backed assets, reconstruction uses the catalog instead
+  of failing with "asset library unavailable". An explicit
+  `recon_asset_library_path` that is missing or empty is still a hard error.
 - `scripts/fetch_blockout_library.py` now shares the Kenney page resolver,
   bounded download and ZIP-safety core with `omnicam.assets.bootstrap` — one
   Kenney downloader in the project. Its legacy flags and `library.json` /
