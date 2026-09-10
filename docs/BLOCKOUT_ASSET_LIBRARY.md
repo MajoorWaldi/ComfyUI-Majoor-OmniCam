@@ -19,7 +19,11 @@ downloaded at pipeline time — you populate the folder once.
 
 > **Now one source of the unified catalog.** The Director's
 > [unified asset library](ASSET_LIBRARY.md) mounts this blockout library
-> **read-only** as its `legacy` source (`user > legacy > default`). The
+> **read-only** as its `legacy` source (`user > legacy > default`). Once the
+> starter library is installed the two overlap (Chair vs Chair 01, …); drop
+> the legacy rows with
+> `python scripts/bootstrap_asset_library.py --disable-legacy-blockout`
+> (reversible; it only renames `library.json`). The
 > reconstruction resolver tries the unified catalog first and falls back to
 > this library when nothing matches or the matched file is missing, so
 > everything below still applies unchanged. Placements now also carry factual

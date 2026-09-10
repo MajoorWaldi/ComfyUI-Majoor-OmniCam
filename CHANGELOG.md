@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `bootstrap_asset_library.py --disable-legacy-blockout` (and `--enable-…` to
+  undo) renames `<input>/majoor_omnicam/blockout_library/library.json` so the
+  unified catalog stops mounting it as the `legacy` source — after the starter
+  library is installed its ~23 rows (Chair, Table, Sofa…) duplicate the
+  `_01` starter props.
 - Rig auto-mapper (`omnicam.assets.rig` + `web-src/.../rig-profile.js`) now
   knows the Epic / Unreal *SK_Mannequin* skeleton (`spine_01/02/03`, `calf_l`,
   `ball_l`) used by Quaternius UAL2, MetaHuman and many CC0 packs — previously

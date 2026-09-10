@@ -67,6 +67,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verify", action="store_true", help="verify the installed lock offline; no network")
     parser.add_argument("--prune", action="store_true",
                         help="drop user-catalog rows whose model file is missing + their orphan thumbnails; no network")
+    parser.add_argument("--disable-legacy-blockout", dest="legacy_blockout", action="store_const", const="off",
+                        help="stop mounting <input>/majoor_omnicam/blockout_library as the 'legacy' catalog "
+                             "source (removes ~23 duplicate rows now covered by the starter library)")
+    parser.add_argument("--enable-legacy-blockout", dest="legacy_blockout", action="store_const", const="on",
+                        help="undo --disable-legacy-blockout")
     parser.add_argument("--character-dir", type=Path, default=None, metavar="PATH",
                         help="import rig-complete .glb/.fbx characters from a folder YOU downloaded "
                              "(e.g. a Quaternius pack); no network, no redistribution")
@@ -85,6 +90,8 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     _force_utf8()
     args = build_parser().parse_args(argv)
     try:
+        if getattr(args, "legacy_blockout", None) is not None:
+            return _run_legacy_blockout(args)
         if args.prune:
             return _run_prune(args)
         if args.character_dir is not None:
@@ -100,6 +107,37 @@ def run(argv: list[str] | None = None, *, opener=urlopen, resolver=resolve_kenne
     except BootstrapError as exc:
         _log(f"error: {exc}")
         return exc.exit_code
+
+
+# -- legacy blockout library toggle -----------------------------------
+
+def _blockout_manifest(dest) -> Path:
+    from ...reconstruction.asset_library.library import (  # local: reconstruction is optional
+        MANIFEST_NAME,
+        resolve_library_root,
+    )
+
+    return resolve_library_root(dest) / MANIFEST_NAME
+
+
+def _run_legacy_blockout(args) -> int:
+    live = _blockout_manifest(args.dest)
+    disabled = live.with_suffix(live.suffix + ".disabled")
+    if args.legacy_blockout == "off":
+        if not live.is_file():
+            _log("legacy blockout library already disabled (or never populated)")
+            return EXIT_OK
+        live.replace(disabled)
+        _log(f"disabled the legacy blockout library -> {disabled.name}")
+        _log("  its ~23 'legacy' catalog rows are gone; the starter library covers them")
+        _log("  undo: --enable-legacy-blockout (or rename the file back)")
+    else:
+        if not disabled.is_file():
+            _log("legacy blockout library is not disabled")
+            return EXIT_OK
+        disabled.replace(live)
+        _log(f"re-enabled the legacy blockout library -> {live.name}")
+    return EXIT_OK
 
 
 # -- local character import (plan section 49) --------------------------

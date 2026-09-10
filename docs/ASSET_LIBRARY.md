@@ -127,6 +127,10 @@ python scripts/bootstrap_asset_library.py --verify
 # drop user-catalog rows whose model file is missing + their orphan thumbnails
 python scripts/bootstrap_asset_library.py --prune
 
+# stop mounting the old reconstruction blockout library as a catalog source
+# (its ~23 rows -- Chair, Table, Sofa... -- duplicate the starter props)
+python scripts/bootstrap_asset_library.py --disable-legacy-blockout   # --enable-... to undo
+
 # optional themed character packs
 python scripts/bootstrap_asset_library.py --preset characters-extra --download
 
