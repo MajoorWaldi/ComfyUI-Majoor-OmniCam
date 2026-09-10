@@ -1,6 +1,7 @@
 import { api, app } from "../comfy-runtime.js";
 import { RequestLifetime } from "../request-lifetime.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
+import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 import { clearExtractorCache } from "./clear-cache.js";
@@ -67,7 +68,7 @@ export class ExtractorUI {
     this.root = buildExtractorRoot();
     this.state = createExtractorState();
     this.disposed = false;
-    this.disposers = [];
+    this.events = new EventScope();
     // Requests belong to this panel. When the node is removed they are
     // cancelled, so a destroyed panel never reports its own teardown as a
     // network failure.
@@ -109,7 +110,7 @@ export class ExtractorUI {
       coordinator: this.coordinator,
       getState: () => this.state,
       getTrack: () => this.state.trackMode === "raw" ? this.result.raw : this.result.refined,
-      listen: (target, event, handler) => this.listen(target, event, handler),
+      on: (target, event, handler) => this.events.on(target, event, handler),
     });
     this.overlay = new TrackingOverlay(this.$("tracking-overlay"));
     this.viewer = null;
@@ -139,13 +140,13 @@ export class ExtractorUI {
       // Camera TRACK; the panel no longer owns a job manager.
       onQueue: () => this.startSolve("scene_reconstruct"),
       onCancel: () => this.cancelQueuedRun(),
-      listen: (target, event, handler) => this.listen(target, event, handler),
+      on: (target, event, handler) => this.events.on(target, event, handler),
     });
 
     const camModeBtn = this.$("extract-mode-camera");
     const reconModeBtn = this.$("extract-mode-reconstruct");
-    if (camModeBtn) this.listen(camModeBtn, "click", () => this.setExtractMode("camera_track"));
-    if (reconModeBtn) this.listen(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
+    if (camModeBtn) this.events.on(camModeBtn, "click", () => this.setExtractMode("camera_track"));
+    if (reconModeBtn) this.events.on(reconModeBtn, "click", () => this.setExtractMode("scene_reconstruct"));
     // setExtractMode only dirties the canvas when the widget's value actually
     // changes (see below), so replaying the mode we just read back is a safe,
     // idempotent way to sync every other bit of UI (tab classes, panel
@@ -154,7 +155,7 @@ export class ExtractorUI {
 
     const clearCacheBtn = this.$("clear-cache");
     if (clearCacheBtn) {
-      this.listen(clearCacheBtn, "click", () => {
+      this.events.on(clearCacheBtn, "click", () => {
         clearCacheBtn.disabled = true;
         Promise.resolve()
           .then(() => this.clearCache())
@@ -174,12 +175,6 @@ export class ExtractorUI {
 
   $(role) {
     return this.root.querySelector(`[data-role="${role}"]`);
-  }
-
-  listen(target, event, handler, options) {
-    if (!target) return;
-    target.addEventListener(event, handler, options);
-    this.disposers.push(() => target.removeEventListener(event, handler, options));
   }
 
   dispatch(action) {
@@ -204,18 +199,18 @@ export class ExtractorUI {
 
   bind() {
     // Wheel over a scrollable panel scrolls it instead of zooming the graph.
-    this.listen(this.root, "wheel", panelWheelKeeper(this.root));
+    this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
     for (const tab of this.root.querySelectorAll("[data-tab]")) {
-      this.listen(tab, "click", () => this.setViewerMode(tab.dataset.tab));
+      this.events.on(tab, "click", () => this.setViewerMode(tab.dataset.tab));
     }
     for (const button of this.root.querySelectorAll("[data-track-mode]")) {
-      this.listen(button, "click", () => this.setTrackMode(button.dataset.trackMode));
+      this.events.on(button, "click", () => this.setTrackMode(button.dataset.trackMode));
     }
     for (const button of this.root.querySelectorAll("[data-view]")) {
-      this.listen(button, "click", () => this.viewer?.setView(button.dataset.view));
+      this.events.on(button, "click", () => this.viewer?.setView(button.dataset.view));
     }
     for (const button of this.root.querySelectorAll("[data-inspection-view]")) {
-      this.listen(button, "click", () => {
+      this.events.on(button, "click", () => {
         const view = this.viewer?.setInspectionView(button.dataset.inspectionView) || "scene";
         for (const item of this.root.querySelectorAll("[data-inspection-view]")) {
           item.setAttribute("aria-selected", String(item.dataset.inspectionView === view));
@@ -226,15 +221,15 @@ export class ExtractorUI {
       });
     }
 
-    this.listen(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
-    this.listen(this.root.querySelector('[data-act="stop"]'), "click", () => this.cancelQueuedRun());
-    this.listen(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
-    this.listen(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
-    this.listen(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
-    this.listen(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
-    this.listen(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
-    this.listen(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
-    this.timeline.bind((target, event, handler) => this.listen(target, event, handler),
+    this.events.on(this.root.querySelector('[data-act="track"]'), "click", () => this.startSolve());
+    this.events.on(this.root.querySelector('[data-act="stop"]'), "click", () => this.cancelQueuedRun());
+    this.events.on(this.root.querySelector('[data-act="fit"]'), "click", () => this.viewer?.fit());
+    this.events.on(this.root.querySelector('[data-act="apply"]'), "click", () => this.applyRefined());
+    this.events.on(this.root.querySelector('[data-act="reset-refine"]'), "click", () => this.resetRefine());
+    this.events.on(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.events.on(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
+    this.events.on(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
+    this.timeline.bind((target, event, handler) => this.events.on(target, event, handler),
       () => this.state.frameCount);
     this.bindRefineControls();
   }
@@ -248,19 +243,19 @@ export class ExtractorUI {
     };
     for (const [role, key] of Object.entries(sliders)) {
       const input = this.$(role);
-      this.listen(input, "input", () => {
+      this.events.on(input, "input", () => {
         this.refine.update({ [key]: Number(input.value) });
         this.renderRefineValues();
       });
     }
     for (const axis of ["pitch", "yaw", "roll"]) {
       const input = this.$(`align-${axis}`);
-      this.listen(input, "input", () => {
+      this.events.on(input, "input", () => {
         this.refine.setAlignment({ [axis]: Number(input.value) });
         this.renderRefineValues();
       });
     }
-    this.listen(this.root.querySelector('[data-act="reset-alignment"]'), "click", () => {
+    this.events.on(this.root.querySelector('[data-act="reset-alignment"]'), "click", () => {
       for (const axis of ["pitch", "yaw", "roll"]) {
         const input = this.$(`align-${axis}`);
         if (input) input.value = "0";
@@ -268,13 +263,13 @@ export class ExtractorUI {
       this.refine.setAlignment({ pitch: 0, yaw: 0, roll: 0 });
       this.renderRefineValues();
     });
-    this.listen(this.root.querySelector('[data-act="estimate-up"]'), "click", () => this.estimateUp());
+    this.events.on(this.root.querySelector('[data-act="estimate-up"]'), "click", () => this.estimateUp());
 
-    this.listen(this.root.querySelector('[data-act="set-in"]'), "click",
+    this.events.on(this.root.querySelector('[data-act="set-in"]'), "click",
       () => this.setTrim("trim-start", "trim_start_frame"));
-    this.listen(this.root.querySelector('[data-act="set-out"]'), "click",
+    this.events.on(this.root.querySelector('[data-act="set-out"]'), "click",
       () => this.setTrim("trim-end", "trim_end_frame"));
-    this.listen(this.root.querySelector('[data-act="reset-trim"]'), "click", () => {
+    this.events.on(this.root.querySelector('[data-act="reset-trim"]'), "click", () => {
       for (const role of ["trim-start", "trim-end"]) {
         const input = this.$(role);
         if (input) input.value = "0";
@@ -283,11 +278,11 @@ export class ExtractorUI {
     });
     for (const [role, key] of [["trim-start", "trim_start_frame"], ["trim-end", "trim_end_frame"]]) {
       const input = this.$(role);
-      this.listen(input, "change", () => this.refine.update({ [key]: Math.max(0, Number(input.value) || 0) }));
+      this.events.on(input, "change", () => this.refine.update({ [key]: Math.max(0, Number(input.value) || 0) }));
     }
     for (const [role, key] of [["normalize-origin", "normalize_origin"], ["simplify-keys", "simplify_keys"]]) {
       const input = this.$(role);
-      this.listen(input, "change", () => this.refine.update({ [key]: Boolean(input.checked) }));
+      this.events.on(input, "change", () => this.refine.update({ [key]: Boolean(input.checked) }));
     }
   }
 
@@ -703,7 +698,7 @@ export class ExtractorUI {
     this.viewer?.dispose();
     this.viewer = null;
     this.viewerLoad = null;
-    for (const dispose of this.disposers.splice(0)) dispose();
+    this.events.dispose();
     this.result = { raw: null, refined: null };
   }
 }

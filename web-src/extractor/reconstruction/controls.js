@@ -114,14 +114,14 @@ export function bindReconstructionControls(
     onStop = () => {},
     onOpenDirector = () => {},
     onSettingsChange = () => {},
-    listen = (target, event, handler) => target?.addEventListener?.(event, handler),
+    on = (target, event, handler) => target?.addEventListener?.(event, handler),
   } = {}
 ) {
   if (!root) return () => {};
 
   const unbinders = [];
   const track = (target, event, handler) => {
-    listen(target, event, handler);
+    on(target, event, handler);
     unbinders.push(() => target?.removeEventListener?.(event, handler));
   };
 

@@ -54,7 +54,11 @@ function applyNodeLayout(node, comfyClass, seedDefaults, restoredSize) {
 function captureRestoredSize(node) {
   if (typeof node.configure !== "function") return () => null;
   let size = null;
-  const originalConfigure = node.configure.bind(node);
+  // Kept as a plain reference and called with the node as the receiver, rather
+  // than a bound copy: the wrapper below is what needs to know it is calling
+  // LiteGraph's own configure on this node.
+  const litegraphConfigure = node.configure;
+  const originalConfigure = (data) => litegraphConfigure.call(node, data);
   node.configure = function (data) {
     if (size === null && Array.isArray(data?.size)) size = [...data.size];
     return originalConfigure(data);

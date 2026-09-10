@@ -24,7 +24,7 @@ export class ReconstructionPanelController {
     onAdopt = () => {},
     onQueue = () => {},
     onCancel = () => {},
-    listen = (target, event, handler) => target?.addEventListener?.(event, handler),
+    on = (target, event, handler) => target?.addEventListener?.(event, handler),
   }) {
     this.root = root;
     this.node = node;
@@ -37,7 +37,7 @@ export class ReconstructionPanelController {
     // adoption -- but no longer owns a heavy job manager.
     this.onQueue = onQueue;
     this.onCancel = onCancel;
-    this.listen = listen;
+    this.on = on;
 
     this.client = new ReconstructionClient(api);
     this.runGeneration = 0;
@@ -57,7 +57,7 @@ export class ReconstructionPanelController {
         syncWidgetsFromPanel(this.node, this.root);
         this.dispatch({ type: "SETTINGS", settings });
       },
-      listen: this.listen,
+      on: this.on,
     });
 
     // Hydrate the panel from whatever the saved workflow put on the widgets,
@@ -72,12 +72,12 @@ export class ReconstructionPanelController {
     this.previewLoad = null;
     this.previewOpen = false;
     const previewToggle = this.root?.querySelector?.('[data-role="reconstruction-preview-toggle"]');
-    if (previewToggle) this.listen(previewToggle, "click", () => this.togglePreview());
+    if (previewToggle) this.on(previewToggle, "click", () => this.togglePreview());
     const previewFit = this.root?.querySelector?.('[data-role="reconstruction-preview-fit"]');
-    if (previewFit) this.listen(previewFit, "click", () => this.preview?.fit());
+    if (previewFit) this.on(previewFit, "click", () => this.preview?.fit());
     const discardBtn = this.root?.querySelector?.('[data-role="reconstruction-discard"]');
     if (discardBtn) {
-      this.listen(discardBtn, "click", () => {
+      this.on(discardBtn, "click", () => {
         discardBtn.disabled = true;
         Promise.resolve(this.discard()).finally(() => this.render());
       });
