@@ -100,12 +100,18 @@ def test_ci_runs_official_wan_parity_against_checked_out_comfyui() -> None:
     assert "OMNICAM_COMFYUI_ROOT" in workflow
 
 
-def test_ci_builds_and_inspects_the_real_comfy_registry_archive() -> None:
-    workflow = _text(".github/workflows/test.yml")
-    assert "--no-enable-telemetry node pack" in workflow
-    assert 'zipfile.ZipFile("node.zip")' in workflow
-    assert "web/omnicam.js" in workflow
-    assert "web-chunks/" in workflow
+def test_ci_builds_and_audits_the_real_comfy_registry_archive() -> None:
+    for name in (".github/workflows/test.yml", ".github/workflows/publish_action.yml"):
+        workflow = _text(name)
+        assert "--no-enable-telemetry node pack" in workflow
+        assert "scripts/registry_package_audit.py node.zip" in workflow
+
+
+def test_registry_package_audit_flags_avoidable_scanner_triggers() -> None:
+    audit = _text("scripts/registry_package_audit.py")
+    assert "os.environ" in audit  # it must know to look for env reads
+    assert "comfy_extras.nodes_moge" in audit
+    assert "eval" in audit and "exec" in audit
 
 
 def test_release_tooling_pins_comfy_cli_everywhere() -> None:

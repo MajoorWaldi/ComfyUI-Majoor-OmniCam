@@ -86,6 +86,10 @@ jobs:
         run: |
           comfy --skip-prompt --no-enable-telemetry node pack
           test -f node.zip
+      - name: Audit the exact Registry archive
+        # Blocking: the bytes that ship must contain no dev paths, no missing
+        # runtime files, and none of the scanner triggers 0.3.1 removed.
+        run: python scripts/registry_package_audit.py node.zip
       - name: Resolve release version
         id: release
         shell: bash
