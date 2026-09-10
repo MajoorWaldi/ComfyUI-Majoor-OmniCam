@@ -10,6 +10,9 @@ import math
 
 import pytest
 
+# refine_route binds aiohttp routes at import time; python-core has no aiohttp.
+pytest.importorskip("aiohttp")
+
 from omnicam.extractor.pipeline import RawSolve
 from omnicam.extractor.raw_solve_io import (
     RawSolveDecodeError,
