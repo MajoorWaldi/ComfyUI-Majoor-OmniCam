@@ -8,6 +8,7 @@ import { clearExtractorCache } from "./clear-cache.js";
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
 import { queueExtractor } from "./queue/execution.js";
+import { bindExtractorQueueEvents } from "./queue/events.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
 import {
@@ -116,6 +117,12 @@ export class ExtractorUI {
       completed: (payload) => this.onCompleted(payload),
       failed: (payload) => this.dispatch({ type: "FAILED", error: payload.error }),
     }, solveEventMatcher(() => ({ jobId: this.state.jobId, nodeId: this.node.id })));
+
+    // The queued path follows ComfyUI's native lifecycle. queuePromptId is
+    // transient identity (STOP, status, late-event rejection) and never serialized.
+    this.queuePromptId = "";
+    this.awaitingQueueStart = false;
+    this.unbindQueueEvents = bindExtractorQueueEvents(this, api);
 
     // Read back whatever the workflow saved, rather than always booting into
     // camera_track: the widget can carry "scene_reconstruct" from a previous
@@ -359,7 +366,9 @@ export class ExtractorUI {
     this.sourceViewer.setFollow(true);
     this.overlay.clear();
     this.diagnostics.clear();
-    this.dispatch({ type: "JOB_STARTED", status: { job_id: "", state: "PREPARING" } });
+    this.queuePromptId = "";
+    this.awaitingQueueStart = true;
+    this.dispatch({ type: "JOB_STARTED", status: { job_id: "", state: "QUEUED" } });
     this.coordinator.seek(0, "backend");
   }
 
@@ -767,6 +776,7 @@ export class ExtractorUI {
 
   dispose() {
     stopActiveSolveOnDispose(this.client, this.state);
+    this.unbindQueueEvents?.();
     this.reconstruction?.dispose();
     this.disposed = true;
     closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
