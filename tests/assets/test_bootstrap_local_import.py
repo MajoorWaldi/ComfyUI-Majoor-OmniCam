@@ -27,6 +27,19 @@ def _pack(root):
     return root
 
 
+def test_scan_dedupes_the_same_skeleton_and_prefers_the_best_export(tmp_path):
+    # a pack ships one rig as mesh-only / +anims / +root-motion, GLB and FBX.
+    pack = tmp_path / "ual"
+    pack.mkdir()
+    (pack / "Char_meshonly.glb").write_bytes(build_humanoid_glb())
+    (pack / "Char.glb").write_bytes(build_humanoid_glb(animation_names=("walk", "run", "idle")))
+    (pack / "Char_RM.glb").write_bytes(build_humanoid_glb(animation_names=("walk", "run", "idle")))
+
+    accepted, notes = scan_character_dir(pack)
+    assert [c.path.name for c in accepted] == ["Char.glb"]  # most clips, no root motion
+    assert sum("same rig as Char.glb" in n for n in notes) == 2
+
+
 def test_scan_keeps_only_rig_complete_models(tmp_path):
     accepted, notes = scan_character_dir(_pack(tmp_path / "ual"))
     ids = sorted(c.asset_id for c in accepted)

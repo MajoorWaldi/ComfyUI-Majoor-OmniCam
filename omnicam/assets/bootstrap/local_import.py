@@ -47,6 +47,22 @@ class LocalCharacter:
     output: str
 
 
+@dataclass(frozen=True, slots=True)
+class _Candidate:
+    path: Path
+    fmt: str
+    info: ModelInfo
+    rig: RigEvidence
+
+
+def _rank_export(c: _Candidate) -> tuple:
+    """Best export of one skeleton: most clips, GLB before FBX, no baked root
+    motion, lightest mesh."""
+    lower = c.path.stem.lower()
+    root_motion = "_rm" in lower or "rootmotion" in lower or "root_motion" in lower
+    return (-len(c.info.animation_names), c.fmt != "glb", root_motion, c.info.triangle_count)
+
+
 def _slugify(text: str) -> str:
     return _SLUG.sub("_", text.lower()).strip("_") or "character"
 
@@ -80,9 +96,10 @@ def scan_character_dir(
         p for p in root.rglob("*")
         if p.is_file() and p.suffix.lower() in (".glb", ".fbx")
     )
-    accepted: list[LocalCharacter] = []
     notes: list[str] = []
-    used_ids: set[str] = set()
+
+    # 1. inspect + rig-gate every file.
+    passed: list[_Candidate] = []
     for path in files:
         try:
             model_format, info = _inspect_path(path)
@@ -99,6 +116,23 @@ def scan_character_dir(
         if not evidence.complete:
             notes.append(f"skip {path.name}: rig missing {list(evidence.missing)[:4]}")
             continue
+        passed.append(_Candidate(path, model_format, info, evidence))
+
+    # 2. a pack ships the same rig several times (mesh-only / +anims / +root
+    #    motion, GLB and FBX). Group by skeleton fingerprint and keep the best
+    #    export: most animations, GLB over FBX, no baked root motion, lightest.
+    groups: dict[frozenset, list[_Candidate]] = {}
+    for c in passed:
+        groups.setdefault(frozenset(c.info.joint_names), []).append(c)
+
+    accepted: list[LocalCharacter] = []
+    used_ids: set[str] = set()
+    for members in groups.values():
+        members.sort(key=_rank_export)
+        winner, *rest = members
+        for loser in rest:
+            notes.append(f"skip {loser.path.name}: same rig as {winner.path.name}")
+        path, model_format, info, evidence = winner.path, winner.fmt, winner.info, winner.rig
         stem = _slugify(path.stem)
         asset_id = f"{id_prefix}{stem}"
         n = 2

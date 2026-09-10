@@ -69,6 +69,27 @@ def test_auto_map_mixamo_is_complete():
     assert len(picks) == len(set(picks))
 
 
+_UNREAL_MANNEQUIN = [
+    "root", "pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "Head",
+    "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
+    "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
+    "thigh_l", "calf_l", "foot_l", "ball_l",
+    "thigh_r", "calf_r", "foot_r", "ball_r",
+    "index_01_l", "thumb_01_l",  # fingers ignored
+]
+
+
+def test_auto_map_unreal_mannequin_is_complete():
+    # UE / Epic SK_Mannequin naming (Quaternius UAL2, MetaHuman, lots of packs):
+    # spine_0N, calf_l, ball_l.
+    mapping = auto_map_bones(_UNREAL_MANNEQUIN)
+    assert rig_is_complete(mapping), missing_required_joints(mapping)
+    assert mapping["spine"] == "spine_01"
+    assert mapping["chest"] in ("spine_02", "spine_03")
+    assert mapping["lower_leg_l"] == "calf_l"
+    assert mapping["toe_r"] == "ball_r"
+
+
 def test_auto_map_generic_gltf_is_complete():
     mapping = auto_map_bones(_GENERIC_GLTF)
     assert rig_is_complete(mapping), missing_required_joints(mapping)

@@ -55,6 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Rig auto-mapper (`omnicam.assets.rig` + `web-src/.../rig-profile.js`) now
+  knows the Epic / Unreal *SK_Mannequin* skeleton (`spine_01/02/03`, `calf_l`,
+  `ball_l`) used by Quaternius UAL2, MetaHuman and many CC0 packs — previously
+  `chest` / `lower_leg_*` stayed unmapped and the character was rejected.
+  `--character-dir` also de-duplicates a pack that ships one rig as several
+  exports (mesh-only / +anims / +root-motion, GLB and FBX).
+- `manifest._write_rows` retries the catalog `os.replace` on a Windows
+  `PermissionError` (AV / indexer holding the file), which a rapid install loop
+  of dozens of `register_asset` calls could hit intermittently.
 - Settings: every OmniCam preference now shows up in **Settings > OmniCam**. The
   catalogue declared a shared 3-segment `category` path (`OmniCam / Director /
   <group>`), and ComfyUI's settings dialog collapses entries that share a full
