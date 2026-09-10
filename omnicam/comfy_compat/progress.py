@@ -14,7 +14,8 @@ pure test suite.
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+import contextlib
+from collections.abc import Callable
 
 #: Percentage bands for the two Extractor modes. ``omnicam/nodes/extractor.py``
 #: maps each solve phase onto one of these.
@@ -37,7 +38,7 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
-def _default_setter() -> Optional[Callable[..., None]]:
+def _default_setter() -> Callable[..., None] | None:
     try:
         from . import ComfyAPISync
     except Exception:  # noqa: BLE001 - ComfyUI absent: progress is simply silent
@@ -57,7 +58,7 @@ class ExecutionProgress:
 
     def __init__(
         self,
-        setter: Optional[Callable[..., None]] = None,
+        setter: Callable[..., None] | None = None,
         *,
         max_value: float = 100.0,
     ) -> None:
@@ -65,7 +66,7 @@ class ExecutionProgress:
         self._max = float(max_value)
         self._last = 0.0
 
-    def update(self, value: float, max_value: Optional[float] = None) -> None:
+    def update(self, value: float, max_value: float | None = None) -> None:
         if max_value is not None:
             self._max = float(max_value)
         current = _clamp(float(value), 0.0, self._max)
@@ -74,10 +75,9 @@ class ExecutionProgress:
         self._last = current
         if self._setter is None:
             return
-        try:
+        # progress is best-effort: a sink that misbehaves must not lose a solve.
+        with contextlib.suppress(Exception):
             self._setter(value=current, max_value=self._max)
-        except Exception:  # noqa: BLE001 - progress is best-effort only
-            pass
 
     def phase(self, band: tuple[float, float], fraction: float) -> None:
         """Report ``fraction`` (0..1) mapped into the percentage ``band``."""

@@ -15,7 +15,7 @@ from omnicam.comfy_compat import interrupt as interrupt_mod
 from omnicam.comfy_compat.interrupt import ComfyInterruptControl, check_interrupted
 
 
-class _Interrupted(RuntimeError):
+class _InterruptedError(RuntimeError):
     """Stand-in for comfy.model_management.InterruptProcessingException."""
 
 
@@ -60,14 +60,14 @@ def test_resolution_is_attempted_once_then_latched(monkeypatch):
 
 
 def test_control_checkpoint_propagates_the_interruption():
-    control = ComfyInterruptControl(check=lambda: (_ for _ in ()).throw(_Interrupted()))
-    with pytest.raises(_Interrupted):
+    control = ComfyInterruptControl(check=lambda: (_ for _ in ()).throw(_InterruptedError()))
+    with pytest.raises(_InterruptedError):
         control.checkpoint()
 
 
 def test_control_cancelled_is_true_only_when_the_check_raises():
     assert ComfyInterruptControl(check=lambda: None).cancelled() is False
-    raising = ComfyInterruptControl(check=lambda: (_ for _ in ()).throw(_Interrupted()))
+    raising = ComfyInterruptControl(check=lambda: (_ for _ in ()).throw(_InterruptedError()))
     assert raising.cancelled() is True
 
 
@@ -96,7 +96,7 @@ def test_a_cancelled_dpvo_solve_reaps_the_child_and_clears_the_exchange(monkeypa
     def check():
         ticks["n"] += 1
         if ticks["n"] >= 2:
-            raise _Interrupted()
+            raise _InterruptedError()
 
     reaped = []
 
@@ -104,7 +104,7 @@ def test_a_cancelled_dpvo_solve_reaps_the_child_and_clears_the_exchange(monkeypa
         def solve(self, request, *, progress, control, on_source_frame,
                   on_features, on_finalizing, pre_release_guard=None):
             try:
-                control.checkpoint()  # -> raises _Interrupted, like a real cancel
+                control.checkpoint()  # -> raises _InterruptedError, like a real cancel
                 raise AssertionError("unreachable: the cancel must abort the solve")
             finally:
                 # A real DpvoProcessRunner reaps its spawned child here.
@@ -115,7 +115,7 @@ def test_a_cancelled_dpvo_solve_reaps_the_child_and_clears_the_exchange(monkeypa
         "omnicam.extractor.backends.dpvo._managed_exchange_root", lambda: tmp_path
     )
 
-    with pytest.raises(_Interrupted):
+    with pytest.raises(_InterruptedError):
         DpvoBackend(runner_factory=Runner).solve(
             frames, intrinsics, control=ComfyInterruptControl(check=check),
         )

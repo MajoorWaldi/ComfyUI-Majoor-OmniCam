@@ -19,14 +19,14 @@ Import-safe without ComfyUI: the primitive is resolved lazily and, when
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 #: Resolved ComfyUI interruption primitive, cached after the first lookup.
-_CHECK: Optional[Callable[[], None]] = None
+_CHECK: Callable[[], None] | None = None
 _LOOKED = False
 
 
-def _comfy_interrupt_check() -> Optional[Callable[[], None]]:
+def _comfy_interrupt_check() -> Callable[[], None] | None:
     global _CHECK, _LOOKED
     if not _LOOKED:
         _LOOKED = True
@@ -59,7 +59,7 @@ class ComfyInterruptControl:
     an injection point for tests.
     """
 
-    def __init__(self, check: Optional[Callable[[], None]] = None) -> None:
+    def __init__(self, check: Callable[[], None] | None = None) -> None:
         self._check = check if check is not None else check_interrupted
 
     def checkpoint(self) -> None:
