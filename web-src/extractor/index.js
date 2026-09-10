@@ -20,6 +20,7 @@ import {
   cacheExtractorResult,
   cacheExtractorSource,
   ensureCacheWidgets,
+  motionSceneFromTrack,
   parseExtractorMessage,
   readCachedResult,
   restoreLateWidgetValues,
@@ -367,7 +368,10 @@ export class ExtractorUI {
     this.dispatch({ type: "REFINED", fingerprint });
     this.pushTracksToViewer();
     const confidence = Number(result?.confidence ?? refined?.metadata?.confidence) || 0;
-    cacheExtractorResult(this.node, { track: refined, fingerprint, confidence });
+    // The hidden SCENE widget stores the motion_scene (readCachedResult lifts
+    // the track back out of it), so a queued solve survives workflow reload.
+    const motionScene = result?.motionScene || motionSceneFromTrack(refined);
+    cacheExtractorResult(this.node, { motionScene, fingerprint });
     if (result?.source) cacheExtractorSource(this.node, result.source);
     this.node.__majoorOmniCamStatus = statusLine({ track: refined, fingerprint, confidence });
     this.dispatch({ type: "APPLIED", fingerprint });

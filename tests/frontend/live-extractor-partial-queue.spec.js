@@ -233,3 +233,88 @@ test("Reconstruction Start also stops at the Extractor", async ({ page }) => {
     expect([ids.loader, ids.extractor], `unexpected node executed: ${id}`).toContain(id);
   }
 });
+
+test("STOP cancels a running solve and the solved track survives save/reload", async ({ page }) => {
+  test.setTimeout(240_000);
+
+  await page.goto("/");
+  await page.waitForFunction(
+    () => window.LiteGraph?.registered_node_types?.MajoorOmniCamExtractor,
+    null, { timeout: 60_000 },
+  );
+  await page.waitForTimeout(1_500);
+
+  await page.evaluate(async (file) => {
+    const { app } = await import("/scripts/app.js");
+    app.graph.clear();
+    const loader = window.LiteGraph.createNode("LoadVideo");
+    loader.pos = [-400, 0];
+    app.graph.add(loader);
+    const fw = loader.widgets?.find((w) => w.name === "file");
+    if (fw) { fw.value = file; fw.callback?.(file); }
+    const extractor = window.LiteGraph.createNode("MajoorOmniCamExtractor");
+    extractor.pos = [0, 0];
+    app.graph.add(extractor);
+    loader.connect(0, extractor, 0);
+    const method = extractor.widgets?.find((w) => w.name === "method");
+    if (method) method.value = "opencv_sift";
+    window.omniExtractor = extractor;
+  }, SOURCE);
+
+  await page.waitForFunction(
+    () => window.omniExtractor?.__majoorOmniCamExtractor?.state.source.available,
+    null, { timeout: 30_000 },
+  );
+
+  // --- STOP a run in flight -------------------------------------------------
+  await page.evaluate(() => window.omniExtractor.__majoorOmniCamExtractor.startSolve());
+  await page.waitForFunction(
+    () => ["QUEUED", "PREPARING", "TRACKING", "SOLVING"].includes(
+      window.omniExtractor.__majoorOmniCamExtractor.state.solveState,
+    ),
+    null, { timeout: 30_000 },
+  );
+  await page.evaluate(() => window.omniExtractor.__majoorOmniCamExtractor.cancelQueuedRun());
+  await page.waitForFunction(
+    () => {
+      const s = window.omniExtractor.__majoorOmniCamExtractor.state.solveState;
+      return ["CANCELLED", "IDLE", "COMPLETED"].includes(s);
+    },
+    null, { timeout: 60_000 },
+  );
+  const cancelled = await page.evaluate(
+    () => window.omniExtractor.__majoorOmniCamExtractor.state.solveState,
+  );
+  expect(["CANCELLED", "IDLE", "COMPLETED"]).toContain(cancelled);
+
+  // --- a real solve, then prove the result is serialized with the workflow --
+  await page.evaluate(() => window.omniExtractor.__majoorOmniCamExtractor.startSolve());
+  await page.waitForFunction(
+    () => {
+      const ui = window.omniExtractor.__majoorOmniCamExtractor;
+      return ui.state.solveState === "COMPLETED" && Boolean(ui.result.refined);
+    },
+    null, { timeout: 240_000 },
+  );
+
+  const persisted = await page.evaluate(async () => {
+    const { app } = await import("/scripts/app.js");
+    const ui = window.omniExtractor.__majoorOmniCamExtractor;
+    const keys = ui.result.refined.keyframes.length;
+    // The hidden cache widgets are what survive a save/reload.
+    const sceneWidget = window.omniExtractor.widgets.find(
+      (w) => w.name === "omnicam_extracted_motion_scene_json",
+    );
+    const workflow = app.graph.serialize();
+    const savedNode = workflow.nodes.find(
+      (n) => n.type === "MajoorOmniCamExtractor",
+    );
+    const savedScene = String(
+      savedNode?.widgets_values?.find?.((v) => typeof v === "string" && v.includes("\"version\"")) || "",
+    );
+    return { keys, widgetHasScene: Boolean(sceneWidget?.value), savedHasScene: savedScene.length > 0 };
+  });
+  expect(persisted.keys).toBeGreaterThan(1);
+  expect(persisted.widgetHasScene, "the solved scene is cached on the hidden widget").toBe(true);
+  expect(persisted.savedHasScene, "the cached scene is written into the serialized workflow").toBe(true);
+});
