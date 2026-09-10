@@ -7,6 +7,7 @@ import { clearExtractorCache } from "./clear-cache.js";
 
 import { SolveEventSubscription, solveEventMatcher } from "./job-events.js";
 import { SolveJobClient, stopActiveSolveOnDispose } from "./job-client.js";
+import { queueExtractor } from "./queue/execution.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
 import { RefineController } from "./refine-controls.js";
@@ -44,10 +45,6 @@ import { renderAnomalies } from "./views.js";
 import { loadTrackViewer } from "./track-viewer-host.js";
 import { renderExtractorRuler, renderFrameReadouts } from "./transport-readouts.js";
 
-const SOLVE_SETTING_WIDGETS = [
-  "method", "lens_mode", "fov_degrees", "focal_length_mm", "sensor_width_mm",
-  "max_dimension", "frame_step",
-];
 const REFINE_SETTING_WIDGETS = [
   "normalize_origin", "motion_scale", "position_smoothing", "rotation_smoothing",
   "simplify_keys", "position_tolerance", "rotation_tolerance_deg",
@@ -312,24 +309,6 @@ export class ExtractorUI {
     return adoptExtractorSourceLength(this, frameCount);
   }
 
-  solveSettings() {
-    const settings = {};
-    for (const name of SOLVE_SETTING_WIDGETS) {
-      const item = widget(this.node, name);
-      if (!item) continue;
-      const numeric = ["fov_degrees", "focal_length_mm", "sensor_width_mm", "max_dimension", "frame_step"];
-      settings[name] = numeric.includes(name) ? Number(item.value) : String(item.value);
-    }
-    const refine = {};
-    for (const name of REFINE_SETTING_WIDGETS) {
-      const item = widget(this.node, name);
-      if (!item) continue;
-      refine[name] = typeof item.value === "boolean" ? item.value : Number(item.value);
-    }
-    settings.refine = refine;
-    return settings;
-  }
-
   // -- solve control -----------------------------------------------------
 
   /**
@@ -341,22 +320,37 @@ export class ExtractorUI {
     return clearExtractorCache(this);
   }
 
+  /**
+   * Camera TRACK: enqueue a partial ComfyUI execution ending at this Extractor.
+   *
+   * There is no interactive solve job any more. ComfyUI owns admission,
+   * ordering, cancellation, progress and the final output; the solved result
+   * returns through executed() -> parseExtractorMessage() -> acceptSolvedResult.
+   */
   async startSolve() {
-    const source = this.refreshSource();
-    if (!source.available) return;
     try {
-      this.sourceViewer.setFollow(true);
-      const status = await this.client.startSolve({
-        nodeId: this.node.id, source: source.ref, settings: this.solveSettings(),
-      });
-      this.overlay.clear();
-      this.diagnostics.clear();
-      this.dispatch({ type: "JOB_STARTED", status });
-      this.coordinator.reconcileFrameCount(status);
-      this.coordinator.seek(0, "backend");
+      await queueExtractor(this, "camera_track");
     } catch (error) {
       this.dispatch({ type: "FAILED", error: String(error?.message || error) });
     }
+  }
+
+  /**
+   * Push the panel's settings onto the real Extractor node widgets before a
+   * queued run reads them. The full settings round-trip is filled in by the
+   * widget-sync task; extract_mode is already synced by setExtractMode().
+   */
+  syncPanelToNodeWidgets() {
+    // Intentionally minimal for now -- see extractor-settings-sync.
+  }
+
+  /** Reset transient solve UI for a fresh queued run. */
+  prepareForQueuedRun() {
+    this.sourceViewer.setFollow(true);
+    this.overlay.clear();
+    this.diagnostics.clear();
+    this.dispatch({ type: "JOB_STARTED", status: { job_id: "", state: "PREPARING" } });
+    this.coordinator.seek(0, "backend");
   }
 
   async control(method) {
