@@ -279,23 +279,22 @@ class ComfyMoGeProvider(ReconstructionProvider):
         if progress:
             progress("INFER_GEOMETRY", 0.15, f"Loading model {checkpoint_name}")
 
-        # LoadMoGeModel/MoGeInference are called directly, outside ComfyUI's
-        # prompt queue -- that is the whole point of a no-prompt reconstruction
-        # job. But comfy.utils.ProgressBar (used internally by MoGeInference)
-        # is globally hijacked to route through the queue's execution context,
-        # and falls back to PromptServer.instance.last_prompt_id when there is
-        # none -- an attribute that plain doesn't exist until a real prompt has
-        # run at least once since server start. CurrentNodeContext is core's
-        # own public escape hatch for exactly this: it's contextvars-based
-        # (thread-local), so it can't collide with a real prompt executing
-        # concurrently on the main thread.
+        # MoGe now runs inside MajoorOmniCamExtractor.execute(), i.e. inside a
+        # real Comfy prompt, so core's executor has already set the execution
+        # context (prompt_id + node_id) that comfy.utils.ProgressBar reads.
+        # Never shadow it. Only when there is genuinely no context -- a headless
+        # or test call -- fall back to a throwaway one, because ProgressBar
+        # otherwise dereferences PromptServer.instance.last_prompt_id, which
+        # does not exist until the first real prompt of the session.
+        node_context = None
         try:
-            from comfy_execution.utils import CurrentNodeContext
+            from comfy_execution.utils import CurrentNodeContext, get_executing_context
 
-            node_context = CurrentNodeContext(
-                prompt_id=f"omnicam-reconstruction-{uuid.uuid4().hex[:12]}",
-                node_id="MajoorOmniCamReconstruction",
-            )
+            if get_executing_context() is None:
+                node_context = CurrentNodeContext(
+                    prompt_id=f"omnicam-reconstruction-{uuid.uuid4().hex[:12]}",
+                    node_id="MajoorOmniCamExtractor",
+                )
         except Exception:  # noqa: BLE001
             node_context = None
 
