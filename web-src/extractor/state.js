@@ -78,15 +78,18 @@ export function reduceExtractorState(state, action) {
     case "QUEUED_RESULT":
       // A queued execution has no interactive job to refine. Keeping the
       // previous id here could send a cleanup request to unrelated footage.
-      return { ...state, jobId: "", solveState: "COMPLETED" };
+      // A parsed result means the solve is done: the panel reads 100%.
+      return { ...state, jobId: "", solveState: "COMPLETED", progress: 1 };
     case "QUEUE_LIFECYCLE": {
       // Native ComfyUI execution/job lifecycle. A terminal Comfy state can
-      // never be walked back by a late frame or a stray telemetry sample.
+      // never be walked back by a late frame or a stray telemetry sample --
+      // and neither can the progress bar.
       const solveState = reconcileDisplayState(state.solveState, action.state);
+      const terminal = TERMINAL.has(state.solveState);
       return {
         ...state,
         solveState,
-        progress: action.progress === undefined
+        progress: terminal || action.progress === undefined
           ? state.progress
           : keep(action.progress, state.progress),
         error: action.error
