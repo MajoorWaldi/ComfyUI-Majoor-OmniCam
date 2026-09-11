@@ -61,12 +61,13 @@ class VideoDecodeError(RuntimeError):
 
 
 class FileVideoSource:
-    """The ``VIDEO`` contract, backed by a file an interactive solve resolved.
+    """The ``VIDEO`` contract, backed by a file an Extractor solve resolved.
 
-    An interactive solve has a path, not a ComfyUI ``VIDEO`` object -- that only
-    exists while a graph executes. Rather than growing a second decode path,
-    this adapter presents the handful of accessors :func:`decode_solver_frames`
-    actually uses, so both paths decode through exactly the same code.
+    A resolved solve source has a path, not a ComfyUI ``VIDEO`` object -- that
+    only exists while a graph executes. Rather than growing a second decode
+    path, this adapter presents the handful of accessors
+    :func:`decode_solver_frames` actually uses, so both paths decode through
+    exactly the same code.
     """
 
     __slots__ = ("_fps", "_frame_count", "_height", "_path", "_width")

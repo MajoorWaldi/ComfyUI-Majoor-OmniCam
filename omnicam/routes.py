@@ -318,7 +318,7 @@ async def upload_asset(request: web.Request):
 
 @PromptServer.instance.routes.post("/majoor/omnicam/upload_extractor_source")
 async def upload_extractor_source(request: web.Request):
-    """A video for an interactive solve, stored where the resolver can find it."""
+    """A video for Extractor source inspection, stored where the resolver can find it."""
     payload = await _save_multipart_file(
         request, "extractor_sources", _SOURCE_EXTENSIONS, MAX_PLAYBLAST_BYTES
     )
