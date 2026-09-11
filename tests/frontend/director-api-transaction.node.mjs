@@ -230,6 +230,84 @@ test("a failure response always reports the current revision", () => {
   assert.equal(result.revision, 5);
 });
 
+test("a locked object rejects object.transform with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.objects.find((o) => o.id === "subject").locked = true;
+  const before = JSON.stringify(ui.state);
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.transform", objectId: "subject", position: [1, 1, 1] }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+  assert.equal(JSON.stringify(ui.state), before);
+});
+
+test("a locked object rejects character.set_motion with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  const subject = ui.state.objects.find((o) => o.id === "subject");
+  subject.asset_kind = "character";
+  subject.locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{
+      type: "character.set_motion",
+      objectId: "subject",
+      motion: { clip_id: "walk" },
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("a locked camera rejects camera.transform with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.transform", cameraId: "camera_1", position: [1, 1, 1] }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("a locked camera rejects keyframe.upsert with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 1 }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("camera.set_locked and object.set_locked stay usable on a locked entity, and unlocking restores edits", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+  ui.state.objects.find((o) => o.id === "subject").locked = true;
+
+  const unlockCamera = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.set_locked", cameraId: "camera_1", value: false }],
+  }));
+  assert.equal(unlockCamera.ok, true);
+
+  const unlockObject = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_locked", objectId: "subject", value: false }],
+  }));
+  assert.equal(unlockObject.ok, true);
+
+  const editCamera = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.transform", cameraId: "camera_1", position: [9, 9, 9] }],
+  }));
+  assert.equal(editCamera.ok, true);
+  assert.deepEqual(ui.state.cameras.find((c) => c.id === "camera_1").camera.position, [9, 9, 9]);
+});
+
 test("camera.look_at at a point retargets every key and clears object tracking", () => {
   const ui = makeUi();
   const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "camera.look_at", point: [1, 2, 3] }] }));

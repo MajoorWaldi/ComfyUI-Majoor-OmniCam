@@ -12,6 +12,7 @@ export const MAX_OPERATIONS_PER_TRANSACTION = 50;
 export const DIRECTOR_OPS = Object.freeze({
   ASSET_INSTANTIATE: "asset.instantiate",
   CAMERA_SET_ACTIVE: "camera.set_active",
+  CAMERA_SET_LOCKED: "camera.set_locked",
   CAMERA_TRANSFORM: "camera.transform",
   CAMERA_LOOK_AT: "camera.look_at",
   OBJECT_TRANSFORM: "object.transform",

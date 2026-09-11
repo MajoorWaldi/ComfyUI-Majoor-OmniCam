@@ -78,6 +78,13 @@ function validateOperationShape(operation, index) {
       assertString(operation.cameraId, "cameraId", index);
       break;
 
+    case DIRECTOR_OPS.CAMERA_SET_LOCKED:
+      assertString(operation.cameraId, "cameraId", index);
+      if (typeof operation.value !== "boolean") {
+        throw new DirectorApiError("BAD_VALUE", "camera.set_locked needs a boolean value", index);
+      }
+      break;
+
     case DIRECTOR_OPS.CAMERA_TRANSFORM:
       if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
       if (operation.position !== undefined) assertVec3(operation.position, "position", index);
