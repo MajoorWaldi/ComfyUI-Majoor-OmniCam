@@ -14,12 +14,20 @@ stable release.
 
 | Surface | Policy |
 |---|---|
-| Minimum Core | ComfyUI 0.31.0 |
-| Stable Integration | ComfyUI 0.34.0 |
-| Core Canary | ComfyUI master |
-| Frontend minimum | comfyui-frontend-package >= 1.48.7 |
-| Current Frontend Gate | pinned in GitHub Actions |
+| Minimum Core | ComfyUI 0.31.0 — blocking |
+| Previous Stable Regression | ComfyUI 0.34.0 — blocking |
+| Current Stable Integration | ComfyUI 0.35.0 — blocking |
+| Core Canary | ComfyUI master — non-blocking |
+| Frontend minimum | `comfyui-frontend-package >= 1.48.7` — blocking live-browser gate |
+| Current stable Core frontend | 1.51.10 via ComfyUI 0.35.0 requirements |
+| Deterministic newer frontend gate | 1.55.2 — blocking at this audit baseline |
+| Latest frontend canary | dynamically resolved latest — non-blocking |
 | Nodes 2.0 | live Playwright validation |
+
+OmniCam's `omnicam/comfy_compat/api.py` is a compatibility adapter, not a claim
+that ComfyUI V3 has frozen an ABI. At this audit baseline `comfy_api.v0_0_2`
+still reports `STABLE = False`; integration CI is therefore the authoritative
+compatibility gate.
 
 ## Scene format — unified assets & characters
 

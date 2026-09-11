@@ -42,10 +42,16 @@
             "context": "comfyui-integration (minimum)"
           },
           {
-            "context": "comfyui-integration (v0.34.0)"
+            "context": "comfyui-integration (previous)"
+          },
+          {
+            "context": "comfyui-integration (stable)"
           },
           {
             "context": "comfyui-browser"
+          },
+          {
+            "context": "comfyui-browser-minimum-frontend"
           },
           {
             "context": "comfyui-browser-pinned-frontend"

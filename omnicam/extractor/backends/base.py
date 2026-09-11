@@ -56,7 +56,7 @@ class SolveControl:
 
 @runtime_checkable
 class SolveObserver(Protocol):
-    """Live per-frame reporting for an interactive solve.
+    """Live per-frame reporting for a solve.
 
     Backends call this as they go. Normal graph execution passes nothing, so
     the solvers behave exactly as they did before this existed.

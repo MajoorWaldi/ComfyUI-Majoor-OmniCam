@@ -46,8 +46,8 @@ test("reconstructionActions canStart/canStop/canOpenDirector across states", () 
   assert.equal(actions.canStop, false);
   assert.equal(actions.canOpenDirector, false);
 
-  // Active states: canStop is true, canStart is false. Mirrors the server's
-  // job state machine (omnicam/reconstruction/jobs/types.py).
+  // Active states: canStop is true, canStart is false. These are the queued
+  // Extractor execution's local lifecycle states, not a retired server API.
   const activeStates = [
     "PREPARING",
     "INFER_GEOMETRY",

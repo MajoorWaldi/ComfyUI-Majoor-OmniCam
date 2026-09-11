@@ -148,7 +148,14 @@ Two extraction modes:
   - Optional SAM 3D Objects completion refines weak hidden dimensions (Linux + ≥ 32 GB VRAM; absence does not affect the other modes).
   - Optional **asset library**: swap each fitted box for a real CC0 GLB prop (interior / exterior furniture + posed humans). Populate once with `python scripts/fetch_blockout_library.py --download` (23 CC0 Kenney props, ~0.5 MB); see [docs/BLOCKOUT_ASSET_LIBRARY.md](docs/BLOCKOUT_ASSET_LIBRARY.md).
 
-Solves and reconstructions run interactively outside the prompt queue without loading diffusion models or executing the workflow. Preview uses native browser video first and falls back to server-decoded frames when a container will not decode in the browser.
+TRACK and Scene Reconstruct run through ComfyUI's prompt queue as a partial
+execution ending at the Extractor output node. ComfyUI therefore owns queue
+ordering, cancellation, caching and high-level progress, while downstream
+Director / Monitor / diffusion or video-generation nodes are not executed.
+Browser-side `/source` and `/frame` routes only inspect/preview managed footage;
+`/refine` rebuilds a track from the immutable raw solve and does not run the
+solver again. Preview uses native browser video first and falls back to a
+server-decoded frame when a container will not decode in the browser.
 
 ### OmniCam Monitor
 

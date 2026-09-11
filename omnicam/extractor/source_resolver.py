@@ -1,9 +1,10 @@
-"""Resolving the video an interactive solve is allowed to read.
+"""Resolve browser-provided video references for Extractor inspection routes.
 
-An interactive solve runs outside the prompt queue, which means the path it
-opens comes from the browser rather than from a executed graph. That makes this
-module a trust boundary: it takes a *reference* (never a path) and answers with
-a real file only when that file sits inside a directory ComfyUI already owns.
+TRACK and Scene Reconstruct execution are queue-only. This module survives for
+browser-side source metadata and preview-frame requests, where the client sends
+a *reference* rather than an executed graph value. That makes it a trust
+boundary: a real file is returned only when it sits inside a directory ComfyUI
+already owns.
 
 Everything else is refused -- absolute paths, traversal, network shares, URLs,
 and anything whose extension or container does not read as video.
@@ -34,11 +35,11 @@ MAX_SOURCE_BYTES = 4 * 1024 * 1024 * 1024
 
 
 class SourceResolutionError(ValueError):
-    """The requested source cannot be used for an interactive solve."""
+    """The requested source cannot be used by Extractor inspection routes."""
 
 
 def approved_roots() -> list[Path]:
-    """The ComfyUI directories an interactive solve may read from."""
+    """The ComfyUI directories browser source inspection may read from."""
     try:
         import folder_paths
     except Exception as exc:  # pragma: no cover - only outside ComfyUI
@@ -74,7 +75,7 @@ def _strip_annotation(value: str) -> str:
 def _reject_unsafe_reference(reference: str) -> None:
     """Refuse anything that is a path rather than a reference, before touching disk."""
     if not reference:
-        raise SourceResolutionError("An interactive solve needs a video source")
+        raise SourceResolutionError("Extractor source inspection needs a video source")
     if len(reference) > 1024:
         raise SourceResolutionError("Video reference is too long")
     if "\x00" in reference:
@@ -106,7 +107,7 @@ def resolve_interactive_video_source(
     max_bytes: int = MAX_SOURCE_BYTES,
     validate_metadata: bool = True,
 ) -> Path:
-    """Turn a frontend source reference into a file an interactive solve may read.
+    """Turn a frontend source reference into a file Extractor inspection may read.
 
     ``roots`` exists for tests; production callers let it default to ComfyUI's
     own input/output/temp directories.

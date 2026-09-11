@@ -1,4 +1,4 @@
-// Deciding whether an interactive solve is even possible for this graph.
+// Deciding whether a source is even resolvable for this graph before queuing.
 //
 // A ComfyUI VIDEO -- or an IMAGE batch, which this socket also takes --
 // only becomes a real object while the graph executes. A
@@ -78,7 +78,7 @@ export function managedSourceOf(node) {
 }
 
 /**
- * Resolve the footage an interactive solve or reconstruction should read.
+ * Resolve the footage a queued camera track or reconstruction should read.
  *
  * A connected file-backed loader wins over the picked file, because that is
  * what the graph will actually execute with; the picker exists for when there

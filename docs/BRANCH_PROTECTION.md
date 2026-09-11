@@ -10,16 +10,20 @@ python-core (3.13)
 python-reconstruction
 frontend
 comfyui-integration (minimum)
-comfyui-integration (v0.34.0)
+comfyui-integration (previous)
+comfyui-integration (stable)
 comfyui-browser
+comfyui-browser-minimum-frontend
 comfyui-browser-pinned-frontend
 ```
 
-`comfyui-browser-pinned-frontend` re-runs the `live-ci` and `live-vue-ci`
-suites against an explicitly pinned newer frontend
-(`Comfy-Org/ComfyUI_frontend@1.54.6`). The pin is never `@latest`, so this lane
-is deterministic and belongs in the required set — it catches a frontend-only
-regression before a user hits it.
+`comfyui-browser-minimum-frontend` proves the declared compatibility floor with
+ComfyUI `v0.31.0` and `Comfy-Org/ComfyUI_frontend@1.48.7`.
+
+`comfyui-browser-pinned-frontend` re-runs the live suites against current stable
+Core plus an explicitly pinned newer frontend (`1.55.2` at the 2026-09-11
+baseline). The pin is deterministic; the separate dynamically-latest lane
+remains a non-blocking canary.
 
 `comfyui-integration (master)` and `comfyui-browser-latest-frontend` are
 intentionally non-blocking canaries. They give early warning about upstream
@@ -72,5 +76,9 @@ gh api /repos/MajoorWaldi/ComfyUI-Majoor-OmniCam/rules/branches/main
 
 **Remote state checked on 2026-09-08:** repository ruleset `Protect main`
 (`22587947`) is active for `refs/heads/main`. It blocks branch deletion,
-blocks non-fast-forward updates, and requires the strict status-check set
-listed above before `main` can be updated.
+blocks non-fast-forward updates, and required the status-check set tracked at
+that time — `comfyui-integration (v0.34.0)` and no `comfyui-browser-minimum-frontend`
+context. The tracked payload above already reflects the `previous` / `stable`
+relabeling and the new minimum-frontend gate; applying it to the remote
+ruleset is a separate, explicitly authorized administrative action, and the
+remote has not been re-verified against it yet.

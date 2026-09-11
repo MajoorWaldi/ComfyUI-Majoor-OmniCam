@@ -1,9 +1,6 @@
-// Reconstruction state reducer and action queries.
-
-// These mirror omnicam/reconstruction/jobs/types.py exactly. They are the
-// states the server actually reports; anything else here leaves the panel
-// thinking a running job is idle -- Run stays clickable mid-job, and Stop
-// never lights up.
+// Reconstruction panel execution state and action queries.
+// Queue events and Extractor result envelopes drive these local states; the
+// retired /reconstruction/jobs scheduler is not a server-side state source.
 export const RECONSTRUCTION_STATES = [
   "IDLE",
   "PREPARING",

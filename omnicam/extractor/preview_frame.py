@@ -63,7 +63,7 @@ def decode_preview_frame(source_ref: Any, frame: Any, max_dimension: Any) -> Pre
     """Resolve, clamp, decode, resize, and JPEG-encode one timeline frame.
 
     The source resolver remains the trust boundary: callers provide the same
-    ComfyUI-managed reference accepted by interactive solve routes, never a
+    ComfyUI-managed reference accepted by Extractor inspection routes, never a
     filesystem path.
     """
     bounded_dimension = _bounded_dimension(max_dimension)
