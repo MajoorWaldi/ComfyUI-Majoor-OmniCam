@@ -35,14 +35,22 @@ export const DIRECTOR_OP_VALUES = Object.freeze(Object.values(DIRECTOR_OPS));
 
 export const DIRECTOR_QUERIES = Object.freeze({
   SCENE_GET: "scene.get",
+  SCENE_SUMMARY: "scene.summary",
   ASSET_LIST: "asset.list",
   ASSET_GET: "asset.get",
   CAMERA_GET: "camera.get",
+  CAMERA_LIST: "camera.list",
   TIMELINE_GET: "timeline.get",
   SELECTION_GET: "selection.get",
   HEALTH_GET: "health.get",
   CHARACTER_GET_RIG: "character.get_rig",
   CHARACTER_GET_POSE: "character.get_pose",
+  CHARACTER_LIST: "character.list",
+  OBJECT_LIST: "object.list",
+  OBJECT_GET: "object.get",
+  OBJECT_SEARCH: "object.search",
+  SHOT_LIST: "shot.list",
+  KEYFRAME_LIST: "keyframe.list",
 });
 
 export const DIRECTOR_QUERY_VALUES = Object.freeze(Object.values(DIRECTOR_QUERIES));
