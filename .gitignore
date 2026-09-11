@@ -18,15 +18,16 @@ dist/
 # `comfy node pack` / registry_package_audit.py output.
 node.zip
 
-# Vite build output. Never commit it: a Windows checkout and Linux CI resolve
-# a genuinely different module graph for the same web-src/ (268 vs 260 modules
-# measured 2026-09-06; 266 vs 258 previously), not just different chunk-hash
-# filenames. Committing whichever platform happened to build last has already
-# been tried twice (515c835, dbdcc22) and reverted once for exactly this
-# reason (8ec2bba) -- the frontend CI job and the publish job both run
-# `npm run build` to regenerate it fresh, on Linux, right before it matters.
-/web-chunks/
-/web/omnicam.js
+# Vite build output IS committed (web-chunks/, web/omnicam.js) so a plain
+# `git clone` runs without a build step. This was gitignored twice before
+# (515c835, dbdcc22) and reverted (8ec2bba) because a Windows-built bundle
+# and Linux CI's fresh build resolved different module graphs (268 vs 260
+# modules measured 2026-09-06; 266 vs 258 previously) -- a stale filename
+# normalization bug in vite.config.mjs. That bug is fixed: `compare_vite_graphs.mjs
+# --strict` between a WSL/Ubuntu build and a Windows build now reports zero
+# delta and byte-identical chunk files (verified 2026-09-11). The frontend CI
+# job now fails if `npm run build` on Linux produces anything different from
+# what's committed -- see the `git diff --exit-code` step in test.yml.
 .DS_Store
 Thumbs.db
 

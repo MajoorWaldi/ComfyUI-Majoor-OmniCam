@@ -28,12 +28,11 @@ DisplayName = "Majoor OmniCam"
 Icon = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/web/assets/omnicam-icon.png"
 Banner = "https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/omnicam-cover.png"
 requires-comfyui = ">=0.31.0"
-# web-chunks/ and web/omnicam.js are gitignored (see .gitignore): a Windows
-# checkout and Linux CI resolve a genuinely different Vite module graph for
-# the same web-src/, so the publish job builds this fresh, on Linux, right
-# before packaging rather than trusting a committed copy. `includes` is the
-# official mechanism for forcing a gitignored, generated directory into the
-# archive anyway.
+# web-chunks/ and web/omnicam.js are committed (see .gitignore), and the
+# publish job still rebuilds them fresh on Linux before packaging as a
+# belt-and-suspenders check. `includes` is a backstop: it forces these
+# directories into the archive even if a future change moved them back
+# under a .comfyignore/.gitignore exclusion by mistake.
 includes = ["web", "web-chunks"]
 
 [tool.ruff]

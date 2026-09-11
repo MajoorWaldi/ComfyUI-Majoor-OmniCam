@@ -3,8 +3,8 @@
 # Runtime Python dependencies required by the Registry are declared in
 # pyproject.toml. OmniCam otherwise uses ComfyUI's bundled Python/aiohttp APIs.
 #
-# Published Comfy Registry / GitHub release archives include the generated
-# frontend bundle. A raw Git source checkout does not: run `npm ci` followed by
-# `npm run build` once after cloning.
+# The generated frontend bundle is committed, so a raw Git source checkout
+# works as-is. Contributors changing web-src/ should run `npm ci` followed by
+# `npm run build` to regenerate it before committing.
 #
 # Development and CI tooling lives in requirements-dev.txt.

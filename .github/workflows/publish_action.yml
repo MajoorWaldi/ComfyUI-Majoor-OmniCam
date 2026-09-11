@@ -49,16 +49,13 @@ jobs:
           node-version: "22"
           cache: npm
       - name: Build the frontend bundle
-        # web-chunks/ and web/omnicam.js are gitignored, not committed: a
-        # Windows checkout and Linux CI resolve a genuinely different Vite
-        # module graph for the same web-src/ (268 vs 260 modules measured
-        # 2026-09-06), not just different chunk-hash filenames -- committing
-        # whichever platform happened to build last has already been tried
-        # twice (515c835, dbdcc22) and reverted once for exactly this reason
-        # (8ec2bba). Build on Linux, package the release archive from that
-        # workspace, then upload the generated frontend as an artifact for the
-        # Registry publish job; a plain second checkout would git-clean these
-        # files.
+        # web-chunks/ and web/omnicam.js are committed (release-test, run just
+        # above via test.yml, already failed this release if a Linux build
+        # doesn't match them byte-for-byte). Rebuilding here anyway guarantees
+        # the artifact this job uploads is a fresh Linux build regardless of
+        # what's in the checkout, and keeps this job self-contained since a
+        # plain second checkout in a later job would git-clean untracked
+        # files -- these just no longer need to be untracked to be trustworthy.
         run: |
           npm ci
           npm run build
