@@ -15,16 +15,24 @@ function clone(value) {
     : JSON.parse(JSON.stringify(value));
 }
 
-function failure(id, error) {
+function currentRevision(ui) {
+  return Number.isInteger(ui.directorRevision)
+    ? Math.max(0, ui.directorRevision)
+    : 0;
+}
+
+function failure(ui, id, error) {
   return {
     ok: false,
     version: DIRECTOR_API_VERSION,
+    revision: currentRevision(ui),
     id: id ?? null,
     applied: 0,
     error: {
       code: error.code || "INTERNAL",
       operationIndex: error.operationIndex ?? null,
       message: error.message,
+      ...(error.details ? { details: error.details } : {}),
     },
   };
 }
@@ -73,8 +81,29 @@ export function executeDirectorTransaction(ui, input) {
   try {
     tx = validateDirectorTransaction(ui, input);
   } catch (error) {
-    if (error instanceof DirectorApiError) return failure(input?.id, error);
+    if (error instanceof DirectorApiError) return failure(ui, input?.id, error);
     throw error;
+  }
+
+  const beforeRevision = currentRevision(ui);
+
+  if (
+    tx.baseRevision !== undefined
+    && tx.baseRevision !== beforeRevision
+  ) {
+    return failure(
+      ui,
+      tx.id,
+      new DirectorApiError(
+        "STALE_REVISION",
+        "Scene changed since the caller read it",
+        null,
+        {
+          expected: beforeRevision,
+          received: tx.baseRevision,
+        },
+      ),
+    );
   }
 
   const draft = clone(ui.state);
@@ -93,7 +122,7 @@ export function executeDirectorTransaction(ui, input) {
         if (error.operationIndex === null || error.operationIndex === undefined) {
           error.operationIndex = index;
         }
-        return failure(tx.id, error);
+        return failure(ui, tx.id, error);
       }
       throw error;
     }
@@ -103,6 +132,7 @@ export function executeDirectorTransaction(ui, input) {
     return {
       ok: true,
       version: DIRECTOR_API_VERSION,
+      revision: beforeRevision,
       id: tx.id,
       applied: tx.operations.length,
       warnings,
@@ -126,6 +156,8 @@ export function executeDirectorTransaction(ui, input) {
   return {
     ok: true,
     version: DIRECTOR_API_VERSION,
+    baseRevision: beforeRevision,
+    revision: currentRevision(ui),
     id: tx.id,
     applied: tx.operations.length,
     warnings,

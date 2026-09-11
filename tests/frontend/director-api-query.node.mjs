@@ -89,3 +89,18 @@ test("an unknown query type throws", () => {
   const ui = makeUi();
   assert.throws(() => executeDirectorQuery(ui, { type: "scene.destroy" }), /Unsupported query/);
 });
+
+test("every query response carries the current directorRevision", () => {
+  const ui = makeUi();
+  ui.directorRevision = 12;
+  const scene = executeDirectorQuery(ui, { type: DIRECTOR_QUERIES.SCENE_GET });
+  assert.equal(scene.revision, 12);
+  const selection = executeDirectorQuery(ui, { type: DIRECTOR_QUERIES.SELECTION_GET });
+  assert.equal(selection.revision, 12);
+});
+
+test("an unset directorRevision reports 0, never undefined or negative", () => {
+  const ui = makeUi();
+  const result = executeDirectorQuery(ui, { type: DIRECTOR_QUERIES.SCENE_GET });
+  assert.equal(result.revision, 0);
+});

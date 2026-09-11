@@ -3,10 +3,11 @@
 // transaction (null for whole-transaction or query failures).
 
 export class DirectorApiError extends Error {
-  constructor(code, message, operationIndex = null) {
+  constructor(code, message, operationIndex = null, details = null) {
     super(message);
     this.name = "DirectorApiError";
     this.code = code;
     this.operationIndex = operationIndex;
+    this.details = details;
   }
 }

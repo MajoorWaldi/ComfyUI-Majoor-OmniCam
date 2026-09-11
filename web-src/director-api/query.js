@@ -12,11 +12,24 @@ function clone(value) {
     : JSON.parse(JSON.stringify(value));
 }
 
+function revision(ui) {
+  return Number.isInteger(ui.directorRevision)
+    ? Math.max(0, ui.directorRevision)
+    : 0;
+}
+
+function result(ui, payload) {
+  return {
+    ...payload,
+    revision: revision(ui),
+  };
+}
+
 export function executeDirectorQuery(ui, request) {
   const state = ui.state || {};
   switch (request?.type) {
     case DIRECTOR_QUERIES.SCENE_GET:
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         scene: clone({
@@ -31,17 +44,17 @@ export function executeDirectorQuery(ui, request) {
           motion_layers: state.motion_layers || [],
           metadata: state.metadata || {},
         }),
-      };
+      });
 
     case DIRECTOR_QUERIES.CAMERA_GET: {
       const id = request.cameraId || state.active_camera_id;
       const camera = (state.cameras || []).find((item) => item.id === id);
       if (!camera) throw new DirectorApiError("UNKNOWN_CAMERA", `Unknown camera: ${id}`);
-      return { version: 1, type: request.type, camera: clone(camera) };
+      return result(ui, { version: 1, type: request.type, camera: clone(camera) });
     }
 
     case DIRECTOR_QUERIES.TIMELINE_GET:
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         timeline: clone({
@@ -50,10 +63,10 @@ export function executeDirectorQuery(ui, request) {
           fps: state.fps,
           playback_range: Array.isArray(state.playback_range) ? state.playback_range : null,
         }),
-      };
+      });
 
     case DIRECTOR_QUERIES.SELECTION_GET:
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         selection: {
@@ -62,14 +75,14 @@ export function executeDirectorQuery(ui, request) {
           objectIds: [...(ui.selectedObjectIds || [])],
           keyFrame: ui.selectedKeyFrame ?? null,
         },
-      };
+      });
 
     case DIRECTOR_QUERIES.HEALTH_GET:
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         frames: normalizeSolveHealth(state.metadata, state.duration_frames),
-      };
+      });
 
     case DIRECTOR_QUERIES.ASSET_LIST: {
       // Every catalog-linked object currently in the scene. Pure state -- the
@@ -88,13 +101,13 @@ export function executeDirectorQuery(ui, request) {
           is_character: object.asset_kind === "character",
           has_motion: Boolean(object.character?.motion),
         }));
-      return { version: 1, type: request.type, items: clone(items), total: items.length };
+      return result(ui, { version: 1, type: request.type, items: clone(items), total: items.length });
     }
 
     case DIRECTOR_QUERIES.ASSET_GET: {
       const object = (state.objects || []).find((item) => item.id === request.objectId);
       if (!object) throw new DirectorApiError("UNKNOWN_OBJECT", `Unknown object: ${request.objectId}`);
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         asset: clone({
@@ -111,14 +124,14 @@ export function executeDirectorQuery(ui, request) {
           rotation: object.rotation || [0, 0, 0],
           size: object.size || [1, 1, 1],
         }),
-      };
+      });
     }
 
     case DIRECTOR_QUERIES.CHARACTER_GET_RIG: {
       const object = (state.objects || []).find((item) => item.id === request.objectId);
       if (!object) throw new DirectorApiError("UNKNOWN_OBJECT", `Unknown object: ${request.objectId}`);
       const character = object.character || null;
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         rig: clone({
@@ -130,14 +143,14 @@ export function executeDirectorQuery(ui, request) {
           pose_preset: character?.pose?.preset_id || null,
           has_motion: Boolean(character?.motion),
         }),
-      };
+      });
     }
 
     case DIRECTOR_QUERIES.CHARACTER_GET_POSE: {
       const object = (state.objects || []).find((item) => item.id === request.objectId);
       if (!object) throw new DirectorApiError("UNKNOWN_OBJECT", `Unknown object: ${request.objectId}`);
       const pose = object.character?.pose || {};
-      return {
+      return result(ui, {
         version: 1,
         type: request.type,
         pose: clone({
@@ -147,7 +160,7 @@ export function executeDirectorQuery(ui, request) {
           joints: pose.joints || {},
           has_motion: Boolean(object.character?.motion),
         }),
-      };
+      });
     }
 
     default:

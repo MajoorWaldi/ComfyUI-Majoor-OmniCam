@@ -249,6 +249,15 @@ export function validateDirectorTransaction(ui, input) {
   if (typeof input.description !== "string" || input.description.trim().length === 0) {
     throw new DirectorApiError("EMPTY_DESCRIPTION", "transaction description must not be empty");
   }
+  if (
+    input.baseRevision !== undefined
+    && (!Number.isInteger(input.baseRevision) || input.baseRevision < 0)
+  ) {
+    throw new DirectorApiError(
+      "BAD_REVISION",
+      "baseRevision must be a non-negative integer",
+    );
+  }
   if (!Array.isArray(input.operations)) {
     throw new DirectorApiError("BAD_OPERATIONS", "operations must be an array");
   }
@@ -267,6 +276,7 @@ export function validateDirectorTransaction(ui, input) {
   return {
     version: DIRECTOR_API_VERSION,
     id: input.id,
+    baseRevision: input.baseRevision,
     description: input.description.trim(),
     operations: input.operations,
     validateOnly: input.validateOnly === true,
