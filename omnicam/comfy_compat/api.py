@@ -1,14 +1,16 @@
 """The ComfyUI V3 API surface OmniCam builds on, resolved defensively.
 
-``comfy_api.latest`` is not a stable import target. The ComfyUI docs describe it
-as the newest *in-development* numbered API; the version directly below it is the
-one treated as stable, and it can still change without warning. A naive pin to
-either one rots: ``latest`` may drop or rename a symbol between releases, while
-the stable module does not re-export every symbol the same way (``v0_0_2``
-exposes ``VideoComponents`` only through ``Types``, never at top level).
+``comfy_api.latest`` is the moving in-development surface. OmniCam prefers the
+explicit numbered ``comfy_api.v0_0_2`` module when it exposes a symbol and
+falls back to ``latest`` per symbol. Upstream still marks v0_0_2
+``STABLE = False``, so this is a compatibility boundary, not an ABI guarantee.
+A naive pin to either one rots: ``latest`` may drop or rename a symbol between
+releases, while the versioned module does not re-export every symbol the same
+way (``v0_0_2`` exposes ``VideoComponents`` only through ``Types``, never at
+top level).
 
 So this module is the shock absorber. Each name is resolved on its own, from the
-stable numbered API first and ``comfy_api.latest`` only as a fallback, so a
+versioned API first and ``comfy_api.latest`` only as a fallback, so a
 symbol that is missing or relocated in one place is still found in the other.
 """
 
@@ -37,9 +39,9 @@ def _load_api_modules() -> list[Any]:
     """
     modules: list[Any] = []
     try:
-        import comfy_api.v0_0_2 as stable_api
+        import comfy_api.v0_0_2 as versioned_api
 
-        modules.append(stable_api)
+        modules.append(versioned_api)
     except ImportError:
         pass
     try:
@@ -70,7 +72,7 @@ def _resolve(name: str) -> Any:
 
 def _resolve_video_components() -> Any:
     """``VideoComponents`` sits at top level in ``latest`` but under ``Types`` in
-    the stable module; accept either spelling from either place."""
+    the versioned module; accept either spelling from either place."""
     for module in _API_MODULES:
         for holder in (module, getattr(module, "Types", None)):
             found = getattr(holder, "VideoComponents", None)
