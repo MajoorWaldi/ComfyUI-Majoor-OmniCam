@@ -205,38 +205,38 @@ index) is left exactly as it was — the semantic routes are additive.
   bounded payload. No operation accepts code, a raw JSON patch, a shell string,
   a filesystem path or a DOM / three.js object.
 
-## Interactive solve jobs
+## Extractor queue execution and browser inspection
 
-An interactive solve runs outside the prompt queue, so its input arrives from
-the browser rather than from an executed graph. That makes the source resolver
-(`omnicam/extractor/source_resolver.py`) a trust boundary rather than a
-convenience.
+Camera tracking and Scene Reconstruct execute through ComfyUI's prompt queue as
+partial executions ending at `MajoorOmniCamExtractor`. The retired
+`/majoor/omnicam/extractor/jobs/*` and `/majoor/omnicam/reconstruction/jobs/*`
+schedulers are not execution surfaces. ComfyUI owns prompt admission, ordering,
+cancellation, execution progress and cache semantics.
 
-It accepts a *reference*, never a path, and resolves it through ComfyUI's own
-annotated-input mechanism. It refuses absolute paths, `..` traversal, UNC and
-network shares, remote URLs, symlinks escaping the approved roots, extensions
-outside the video whitelist, files whose container does not decode as video,
-empty files, and anything above the size ceiling. Managed picker sources must
-additionally live under `input/omnicam/extractor_sources/`.
+The browser still needs bounded helper routes that do **not** run a solver:
+
+- `POST /majoor/omnicam/extractor/source` resolves and measures a managed source;
+- `POST /majoor/omnicam/extractor/frame` decodes one bounded preview frame;
+- `POST /majoor/omnicam/extractor/refine` rebuilds a cleaned track from the
+  queued Extractor's immutable `raw_solve` payload; it performs no source decode,
+  camera solve, GPU inference, background task or job scheduling.
+
+`source_resolver.py` remains a trust boundary for browser source inspection. It
+accepts a *reference*, never an arbitrary path, and resolves it only through
+ComfyUI-managed input/output/temp roots. It rejects absolute paths, traversal,
+network shares, remote URLs, root-escaping links, unsupported containers, empty
+files and sources above the configured size ceiling. Managed picker sources
+must remain below `input/omnicam/extractor_sources/`.
 
 Uploads for the picker go through the same `_save_multipart_file` path as every
 other OmniCam asset: extension whitelist, magic-byte check, quota reservation,
 free-space check and post-write metadata validation. There is no second upload
 implementation.
 
-Every job route validates: the job id, the session that owns the job, the
-source reference, the solve-method enum, every numeric setting against a
-documented range, and the request body size (256 KiB). A job belongs to the
-client that started it; another session gets 403 rather than the ability to
-stop someone else's solve. Only one GPU-exclusive solve runs at a time, refused
-with 409 rather than queued into an unbounded backlog. For `auto`, the slot is
-reserved only when the backend that availability resolution would actually pick
-is GPU-exclusive: a CPU pycolmap/OpenCV fallback is not blocked by unrelated
-ComfyUI GPU execution. Terminal jobs are swept after 30 minutes, releasing pose
-arrays, quality samples and solver buffers -- never the user's source video.
-
-Interactive routes never queue a prompt, never execute a shell command, never
-install a package, and never accept a remote URL to solve.
+Source/frame JSON bodies are bounded to 256 KiB. Live refine bodies are bounded
+to 4 MiB. Runtime `VIDEO`/`IMAGE` values used by queued execution are
+materialized by backend code into OmniCam-managed storage; a frontend-supplied
+filesystem path never becomes a solver input.
 
 Media sockets accept a `VIDEO` or an `IMAGE` batch. An `IMAGE` batch is encoded
 through the same managed path as a runtime `VIDEO`: it carries no filename of
