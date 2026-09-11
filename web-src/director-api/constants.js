@@ -11,10 +11,20 @@ export const MAX_OPERATIONS_PER_TRANSACTION = 50;
 
 export const DIRECTOR_OPS = Object.freeze({
   ASSET_INSTANTIATE: "asset.instantiate",
+  CAMERA_CREATE: "camera.create",
+  CAMERA_DUPLICATE: "camera.duplicate",
+  CAMERA_DELETE: "camera.delete",
+  CAMERA_RENAME: "camera.rename",
   CAMERA_SET_ACTIVE: "camera.set_active",
   CAMERA_SET_LOCKED: "camera.set_locked",
+  CAMERA_SET_PLAYBLAST: "camera.set_playblast",
   CAMERA_TRANSFORM: "camera.transform",
   CAMERA_LOOK_AT: "camera.look_at",
+  OBJECT_CREATE: "object.create",
+  OBJECT_DUPLICATE: "object.duplicate",
+  OBJECT_DELETE: "object.delete",
+  OBJECT_RENAME: "object.rename",
+  OBJECT_SET_PARENT: "object.set_parent",
   OBJECT_TRANSFORM: "object.transform",
   OBJECT_SET_ENABLED: "object.set_enabled",
   OBJECT_SET_LOCKED: "object.set_locked",
@@ -29,6 +39,9 @@ export const DIRECTOR_OPS = Object.freeze({
   KEYFRAME_SET_INTERPOLATION: "keyframe.set_interpolation",
   TIMELINE_SET_RANGE: "timeline.set_range",
   TIMELINE_SET_DURATION: "timeline.set_duration",
+  CUT_UPSERT: "cut.upsert",
+  CUT_REMOVE: "cut.remove",
+  CUT_SET_CAMERA: "cut.set_camera",
 });
 
 export const DIRECTOR_OP_VALUES = Object.freeze(Object.values(DIRECTOR_OPS));

@@ -11,6 +11,21 @@ import { sanitizeMotion } from "../assets/character/motion-state.js";
 import { compileInstance } from "../assets/instantiate.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
+import {
+  createCamera,
+  createObject,
+  deleteCamera,
+  deleteObject,
+  duplicateCamera,
+  duplicateObject,
+  removeCut,
+  renameCamera,
+  renameObject,
+  setCutCamera,
+  setObjectParent,
+  setPlayblastCamera,
+  upsertCut,
+} from "./entity-ops.js";
 
 function findCamera(state, cameraId) {
   const id = cameraId || state.active_camera_id;
@@ -89,6 +104,31 @@ const HANDLERS = {
     return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport };
   },
 
+  [DIRECTOR_OPS.CAMERA_CREATE](state, op) {
+    const outcome = createCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_DUPLICATE](state, op) {
+    const outcome = duplicateCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_DELETE](state, op) {
+    const outcome = deleteCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_RENAME](state, op) {
+    const outcome = renameCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_SET_PLAYBLAST](state, op) {
+    const outcome = setPlayblastCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.status, outcome };
+  },
+
   [DIRECTOR_OPS.CAMERA_TRANSFORM](state, op) {
     const track = requireUnlockedCamera(state, op.cameraId);
     const camera = ensureBaseCamera(track);
@@ -124,6 +164,31 @@ const HANDLERS = {
       }
     }
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector | UI_DIRTY.timeline };
+  },
+
+  [DIRECTOR_OPS.OBJECT_CREATE](state, op) {
+    const outcome = createObject(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_DUPLICATE](state, op) {
+    const outcome = duplicateObject(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_DELETE](state, op) {
+    const outcome = deleteObject(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_RENAME](state, op) {
+    const outcome = renameObject(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_SET_PARENT](state, op) {
+    const outcome = setObjectParent(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
   },
 
   [DIRECTOR_OPS.OBJECT_TRANSFORM](state, op) {
@@ -272,6 +337,21 @@ const HANDLERS = {
       ];
     }
     return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status };
+  },
+
+  [DIRECTOR_OPS.CUT_UPSERT](state, op) {
+    const outcome = upsertCut(state, op);
+    return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
+  },
+
+  [DIRECTOR_OPS.CUT_REMOVE](state, op) {
+    const outcome = removeCut(state, op);
+    return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
+  },
+
+  [DIRECTOR_OPS.CUT_SET_CAMERA](state, op) {
+    const outcome = setCutCamera(state, op);
+    return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
   },
 };
 

@@ -13,6 +13,7 @@ import {
   DIRECTOR_OP_VALUES,
   MAX_OPERATIONS_PER_TRANSACTION,
 } from "./constants.js";
+import { AGENT_OBJECT_TYPES } from "./entity-ops.js";
 import { DirectorApiError } from "./errors.js";
 
 const isFiniteNumber = (value) => typeof value === "number" && Number.isFinite(value);
@@ -82,6 +83,70 @@ function validateOperationShape(operation, index) {
       assertString(operation.cameraId, "cameraId", index);
       if (typeof operation.value !== "boolean") {
         throw new DirectorApiError("BAD_VALUE", "camera.set_locked needs a boolean value", index);
+      }
+      break;
+
+    case DIRECTOR_OPS.CAMERA_CREATE:
+      if (operation.id !== undefined) assertString(operation.id, "id", index);
+      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      if (operation.camera !== undefined && (typeof operation.camera !== "object" || Array.isArray(operation.camera))) {
+        throw new DirectorApiError("BAD_VALUE", "camera.create camera must be an object", index);
+      }
+      if (operation.interpolation !== undefined && !INTERPOLATION_MODES.includes(operation.interpolation)) {
+        throw new DirectorApiError("BAD_INTERPOLATION", `Unsupported interpolation: ${operation.interpolation}`, index);
+      }
+      break;
+
+    case DIRECTOR_OPS.CAMERA_DUPLICATE:
+      assertString(operation.cameraId, "cameraId", index);
+      if (operation.id !== undefined) assertString(operation.id, "id", index);
+      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      break;
+
+    case DIRECTOR_OPS.CAMERA_DELETE:
+    case DIRECTOR_OPS.CAMERA_SET_PLAYBLAST:
+      assertString(operation.cameraId, "cameraId", index);
+      break;
+
+    case DIRECTOR_OPS.CAMERA_RENAME:
+      assertString(operation.cameraId, "cameraId", index);
+      assertString(operation.name, "name", index);
+      break;
+
+    case DIRECTOR_OPS.OBJECT_CREATE:
+      assertString(operation.objectType, "objectType", index);
+      if (!AGENT_OBJECT_TYPES.has(operation.objectType)) {
+        throw new DirectorApiError("UNSUPPORTED_OBJECT_TYPE", `object.create does not support type: ${operation.objectType}`, index);
+      }
+      if (operation.asset !== undefined || operation.url !== undefined || operation.path !== undefined) {
+        throw new DirectorApiError("BAD_VALUE", "object.create does not accept asset/url/path -- use asset.instantiate", index);
+      }
+      if (operation.id !== undefined) assertString(operation.id, "id", index);
+      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      if (operation.position !== undefined) assertVec3(operation.position, "position", index);
+      if (operation.rotation !== undefined) assertVec3(operation.rotation, "rotation", index);
+      break;
+
+    case DIRECTOR_OPS.OBJECT_DUPLICATE:
+      assertString(operation.objectId, "objectId", index);
+      if (operation.id !== undefined) assertString(operation.id, "id", index);
+      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      if (operation.offset !== undefined) assertVec3(operation.offset, "offset", index);
+      break;
+
+    case DIRECTOR_OPS.OBJECT_DELETE:
+      assertString(operation.objectId, "objectId", index);
+      break;
+
+    case DIRECTOR_OPS.OBJECT_RENAME:
+      assertString(operation.objectId, "objectId", index);
+      assertString(operation.name, "name", index);
+      break;
+
+    case DIRECTOR_OPS.OBJECT_SET_PARENT:
+      assertString(operation.objectId, "objectId", index);
+      if (operation.parentId !== null && operation.parentId !== undefined) {
+        assertString(operation.parentId, "parentId", index);
       }
       break;
 
@@ -232,6 +297,20 @@ function validateOperationShape(operation, index) {
       if (!Number.isInteger(operation.frames) || operation.frames < 1) {
         throw new DirectorApiError("BAD_VALUE", "timeline.set_duration needs frames >= 1", index);
       }
+      break;
+
+    case DIRECTOR_OPS.CUT_UPSERT:
+      assertFrame(operation.start, "start", index);
+      assertString(operation.cameraId, "cameraId", index);
+      break;
+
+    case DIRECTOR_OPS.CUT_REMOVE:
+      assertFrame(operation.start, "start", index);
+      break;
+
+    case DIRECTOR_OPS.CUT_SET_CAMERA:
+      assertFrame(operation.start, "start", index);
+      assertString(operation.cameraId, "cameraId", index);
       break;
 
     default:
