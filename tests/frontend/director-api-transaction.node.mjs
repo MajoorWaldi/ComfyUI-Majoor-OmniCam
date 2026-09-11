@@ -147,6 +147,89 @@ test("keyframe.set_interpolation rejects an unsupported mode and edits a real ke
   assert.equal(activeTrack.keyframes.find((k) => k.frame === 0).interpolation, "linear");
 });
 
+test("rejects stale baseRevision atomically", () => {
+  const ui = makeUi();
+  ui.directorRevision = 7;
+
+  const before = JSON.stringify(ui.state);
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 6,
+    operations: [{
+      type: "object.set_enabled",
+      objectId: "subject",
+      value: false,
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "STALE_REVISION");
+  assert.equal(result.revision, 7);
+  assert.deepEqual(result.error.details, {
+    expected: 7,
+    received: 6,
+  });
+  assert.equal(JSON.stringify(ui.state), before);
+  assert.equal(ui.checkpoints.length, 0);
+});
+
+test("validateOnly checks revision but does not advance it", () => {
+  const ui = makeUi();
+  ui.directorRevision = 4;
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 4,
+    validateOnly: true,
+    operations: [{
+      type: "object.set_enabled",
+      objectId: "subject",
+      value: false,
+    }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.revision, 4);
+  assert.equal(ui.directorRevision, 4);
+});
+
+test("a matching baseRevision commits and the response carries before/after revisions", () => {
+  const ui = makeUi();
+  ui.directorRevision = 2;
+  ui.serialize = function () {
+    this.serializeCount += 1;
+    this.directorRevision += 1;
+  };
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 2,
+    operations: [{ type: "object.set_enabled", objectId: "subject", value: false }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.baseRevision, 2);
+  assert.equal(result.revision, 3);
+  assert.equal(ui.directorRevision, 3);
+});
+
+test("an omitted baseRevision skips the concurrency check entirely", () => {
+  const ui = makeUi();
+  ui.directorRevision = 9;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_enabled", objectId: "subject", value: false }],
+  }));
+  assert.equal(result.ok, true);
+});
+
+test("a failure response always reports the current revision", () => {
+  const ui = makeUi();
+  ui.directorRevision = 5;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.set_active", cameraId: "camera_404" }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.revision, 5);
+});
+
 test("camera.look_at at a point retargets every key and clears object tracking", () => {
   const ui = makeUi();
   const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "camera.look_at", point: [1, 2, 3] }] }));

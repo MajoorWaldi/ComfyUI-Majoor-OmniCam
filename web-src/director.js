@@ -176,6 +176,7 @@ class OmniCamDirectorUI {
     this.app = app, this.api = api, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.dom = buildDirectorDomCache(this.root), this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
     this.disposed = false;
     this.renderRevision = 0;
+    this.directorRevision = 0;
     // three.js and mediabunny total ~1.4 MB and nothing outside the viewport
     // needs them, so they load on demand here rather than at module scope --
     // ComfyUI would otherwise parse them at startup for every user, including
