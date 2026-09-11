@@ -50,3 +50,85 @@ test("a validateOnly transaction leaves the workflow JSON byte-identical", async
   expect(result.validateOnly).toBe(true);
   expect(result.changed).toBe(false);
 });
+
+// Regression: a committed camera.transform used to be overwritten by
+// syncActiveCameraTrack() inside serializeEditorState(), because that helper
+// copies the (stale) viewport ui.camera back onto the active track *after*
+// the transaction had already written the fresh values into it.
+test("camera.transform survives live Director serialization into state_json", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(
+    () => document.querySelector("#status")?.textContent === "ready",
+    null,
+    { timeout: 15000 },
+  );
+
+  const result = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const cameraId = ui.state.active_camera_id;
+
+    const tx = ui.directorApi.execute({
+      version: 1,
+      id: "tx_camera_serialize_regression",
+      description: "Move active camera",
+      operations: [{
+        type: "camera.transform",
+        cameraId,
+        position: [7, 3, -2],
+        target: [0, 1, 0],
+      }],
+    });
+
+    const serialized = JSON.parse(
+      ui.node.widgets.find((w) => w.name === "state_json").value,
+    );
+    const camera = serialized.cameras.find((item) => item.id === cameraId);
+
+    return {
+      tx,
+      position: camera.camera.position,
+      target: camera.camera.target,
+    };
+  });
+
+  expect(result.tx.ok).toBe(true);
+  expect(result.position).toEqual([7, 3, -2]);
+  expect(result.target).toEqual([0, 1, 0]);
+});
+
+test("camera.transform at a frame survives live Director serialization", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(
+    () => document.querySelector("#status")?.textContent === "ready",
+    null,
+    { timeout: 15000 },
+  );
+
+  const result = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const cameraId = ui.state.active_camera_id;
+
+    const tx = ui.directorApi.execute({
+      version: 1,
+      id: "tx_camera_serialize_frame_regression",
+      description: "Move active camera at frame 0",
+      operations: [{
+        type: "camera.transform",
+        cameraId,
+        frame: 0,
+        position: [2, 2, 2],
+      }],
+    });
+
+    const serialized = JSON.parse(
+      ui.node.widgets.find((w) => w.name === "state_json").value,
+    );
+    const camera = serialized.cameras.find((item) => item.id === cameraId);
+    const key = camera.keyframes.find((k) => k.frame === 0);
+
+    return { tx, position: key.camera.position };
+  });
+
+  expect(result.tx.ok).toBe(true);
+  expect(result.position).toEqual([2, 2, 2]);
+});
