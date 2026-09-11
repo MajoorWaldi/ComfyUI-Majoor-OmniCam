@@ -80,30 +80,26 @@ checkout path only for development or when intentionally following `main`.
 
 ### Manual - source checkout (`git clone`)
 
-A raw Git checkout contains the frontend **source**, not the generated Vite
-bundle. Build it once after cloning:
-
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
-cd ComfyUI-Majoor-OmniCam
+```
 
+Then restart ComfyUI. The generated frontend bundle (`web/omnicam.js`,
+`web-chunks/`) is committed to the repository, so a plain clone is enough --
+no Node.js or local build step required.
+
+Rebuild it only if you are changing frontend source under `web-src/`:
+
+```bash
+cd ComfyUI-Majoor-OmniCam
 npm ci
 npm run build
 ```
 
-Then restart ComfyUI.
-
-The generated runtime files are:
-
-```text
-web/omnicam.js
-web-chunks/
-```
-
-They are intentionally not committed to Git. ComfyUI Manager / Registry
-installations already receive these generated files inside the published
-package and therefore do **not** need Node.js or a local frontend build.
+CI fails the `frontend` job if a fresh Linux build of `web-src/` doesn't
+byte-for-byte match what's committed, so a source change without a rebuild
+never merges silently.
 
 There are no mandatory Python packages beyond OmniCam's declared ComfyUI
 frontend compatibility dependency. Extractor solver backends and advanced

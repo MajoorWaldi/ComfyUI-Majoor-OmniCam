@@ -155,25 +155,20 @@ For normal use, install Majoor OmniCam through **ComfyUI Manager -> Custom Nodes
 Manager** (search for *Majoor OmniCam*). Manager / Registry installs ship with
 the generated frontend bundle, so they do not require Node.js or a local build.
 
-A raw Git source checkout contains `web-src/`, not the generated runtime bundle.
-Use this path for development or when intentionally following `main`:
+A raw Git source checkout works as-is; the generated runtime bundle
+(`web/omnicam.js`, `web-chunks/`) is committed alongside `web-src/`:
 
 ```bash
 cd ComfyUI/custom_nodes
 git clone https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam.git
-cd ComfyUI-Majoor-OmniCam
-
-npm ci
-npm run build
 ```
 
-Restart ComfyUI after installing or rebuilding. The generated runtime files are
-`web/omnicam.js` and `web-chunks/`; they are intentionally not committed to Git.
-There are no required Python packages beyond OmniCam's declared ComfyUI
-frontend compatibility dependency.
+Restart ComfyUI after installing. There are no required Python packages beyond
+OmniCam's declared ComfyUI frontend compatibility dependency.
 
 Contributors editing `web-src/` need Node.js 22 and should rerun
-`npm ci && npm run build` to regenerate the local bundle.
+`npm ci && npm run build` to regenerate the committed bundle -- CI fails the
+`frontend` job if a fresh Linux build doesn't match what's committed.
 
 All three Extractor backends are optional. DPVO requires a compatible local
 installation and its checkpoint at:

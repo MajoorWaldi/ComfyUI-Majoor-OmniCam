@@ -1,0 +1,7 @@
+# Generated Vite bundle: force LF regardless of a committer's autocrlf
+# setting, so the CI byte-diff guard (test.yml, `git diff --exit-code -- web/
+# web-chunks/`) never false-positives on line-ending noise instead of a real
+# web-src/ change. Marked generated and diff-suppressed since nobody reviews
+# minified/vendored output by eye.
+/web/omnicam.js linguist-generated=true -diff eol=lf
+/web-chunks/** linguist-generated=true -diff eol=lf

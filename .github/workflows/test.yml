@@ -199,6 +199,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # web/omnicam.js and web-chunks/ are committed so `git clone` works without
+      # a build step. A fresh Linux build must reproduce them byte-for-byte
+      # (verified 2026-09-11 against a Windows build: zero graph delta); a diff
+      # here means web-src/ changed without rebuilding and recommitting.
+      - run: git diff --exit-code -- web/ web-chunks/
       - run: python scripts/verify_package.py
       - name: Pack and audit the exact Registry archive
         run: |
