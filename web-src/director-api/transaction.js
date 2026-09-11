@@ -3,7 +3,7 @@
 // repaint the dirty domains. Any DirectorApiError aborts before the swap, so
 // the live state is never left half-mutated.
 
-import { sanitizeState } from "../director/core.js";
+import { cloneCamera, sampleCamera, sanitizeState } from "../director/core.js";
 import { DIRECTOR_API_VERSION } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 import { validateDirectorTransaction } from "./validate.js";
@@ -27,6 +27,32 @@ function failure(id, error) {
       message: error.message,
     },
   };
+}
+
+function prepareCommittedActiveCamera(ui) {
+  const active = (ui.state.cameras || []).find(
+    (item) => item.id === ui.state.active_camera_id,
+  ) || ui.state.cameras?.[0] || null;
+
+  if (!active) return null;
+
+  // serializeEditorState() calls syncActiveCameraTrack(), which copies
+  // ui.camera back into active.camera. Protect the semantic transaction's
+  // freshly committed camera before that synchronization occurs.
+  ui.state.keyframes = active.keyframes;
+  ui.state.camera = cloneCamera(active.camera);
+  ui.camera = cloneCamera(active.camera);
+
+  return active;
+}
+
+function restoreViewportCamera(ui, active) {
+  if (!active) return;
+  ui.camera = sampleCamera(
+    active,
+    ui.frame ?? 0,
+    ui.state.objects || [],
+  );
 }
 
 function repaint(ui, dirtyMask, reason) {
@@ -88,8 +114,13 @@ export function executeDirectorTransaction(ui, input) {
 
   ui.checkpoint?.(tx.description);
   ui.state = sanitizeState(draft);
+
+  const active = prepareCommittedActiveCamera(ui);
+
   (ui._directorApiTxIds ||= new Set()).add(tx.id);
   ui.serialize?.();
+
+  restoreViewportCamera(ui, active);
   repaint(ui, dirtyMask, `director-api:${tx.id}`);
 
   return {
