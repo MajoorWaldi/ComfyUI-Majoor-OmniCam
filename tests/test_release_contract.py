@@ -30,35 +30,49 @@ def test_registry_force_includes_generated_frontend() -> None:
     assert '"web-chunks"' in pyproject or "'web-chunks'" in pyproject
 
 
-def test_generated_frontend_is_gitignored_not_committed() -> None:
-    """web-chunks/ and web/omnicam.js must never be tracked in Git.
+def test_generated_frontend_is_committed_not_gitignored() -> None:
+    """web-chunks/ and web/omnicam.js must be tracked in Git.
 
-    A Windows checkout and Linux CI resolve a genuinely different Vite module
-    graph for the same web-src/ (268 vs 260 modules measured 2026-09-06; 266
-    vs 258 previously) -- not just different Rollup chunk-hash filenames.
-    Committing whichever platform happened to build last has already been
-    tried twice (515c835, dbdcc22) and reverted once for exactly this reason
-    (8ec2bba); this regression test exists because it was tried a third time
-    in between. Only building fresh, in the same job that packages/publishes,
-    guarantees the shipped bytes are the ones actually exercised by tests.
+    This was gitignored twice before (515c835, dbdcc22) and reverted (8ec2bba)
+    because a Windows-built bundle and Linux CI's fresh build resolved a
+    genuinely different Vite module graph for the same web-src/ (268 vs 260
+    modules measured 2026-09-06; 266 vs 258 previously) -- a filename
+    normalization bug in vite.config.mjs, not an inherent cross-platform
+    limit. That bug is fixed: a WSL/Ubuntu build and a Windows build now
+    produce byte-identical output (verified 2026-09-11 with
+    `compare_vite_graphs.mjs --strict`, zero delta). The frontend CI job's
+    `git diff --exit-code -- web/ web-chunks/` step (test.yml) now catches any
+    regression before merge, so a plain `git clone` can ship a working bundle
+    without a build step.
     """
     gitignore = _text(".gitignore")
-    assert "web-chunks" in gitignore
-    assert "web/omnicam.js" in gitignore
+    assert "/web-chunks/" not in gitignore
+    assert "/web/omnicam.js" not in gitignore
     result = subprocess.run(
         ["git", "ls-files", "web-chunks", "web/omnicam.js"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     )
-    assert result.stdout.strip() == ""
+    tracked = set(result.stdout.strip().splitlines())
+    assert "web/omnicam.js" in tracked
+    assert any(path.startswith("web-chunks/") for path in tracked)
+
+
+def test_ci_fails_if_a_fresh_linux_build_diverges_from_the_committed_bundle() -> None:
+    workflow = _text(".github/workflows/test.yml")
+    frontend_job = workflow.index("  frontend:")
+    build = workflow.index("npm run build", frontend_job)
+    diff_guard = workflow.index("git diff --exit-code -- web/ web-chunks/", frontend_job)
+    assert build < diff_guard
 
 
 def test_publish_workflow_preserves_generated_frontend_for_registry_publish() -> None:
     """The publish workflow must preserve web-chunks/ and web/omnicam.js.
 
-    The release build job creates the generated frontend and uploads it as an
+    The release build job creates a fresh Linux build and uploads it as an
     artifact. The Registry job may do its own checkout, but it must download
-    that artifact before `comfy node publish`; otherwise checkout/git-clean
-    removes the gitignored bundle the Registry archive needs.
+    that artifact before `comfy node publish`, so the archive always ships the
+    bundle built for this exact release run rather than whatever happens to be
+    committed at that ref.
     """
     workflow = _text(".github/workflows/publish_action.yml")
     build_command = "          npm run build"
@@ -164,6 +178,8 @@ def test_release_tooling_pins_comfy_cli_everywhere() -> None:
 
 
 def test_source_install_docs_include_frontend_build_step() -> None:
+    """The rebuild step must stay documented for contributors changing web-src/,
+    even though a plain clone no longer needs it to run OmniCam."""
     for path in ("README.md", "docs/USER_GUIDE.md"):
         guide = _text(path)
         install = guide[guide.index("## Install"):]
@@ -171,15 +187,12 @@ def test_source_install_docs_include_frontend_build_step() -> None:
         assert "npm run build" in install, path
 
 
-def test_source_install_docs_do_not_claim_generated_bundle_is_committed() -> None:
-    readme = _text("README.md")
-    forbidden = (
-        "built frontend bundle (`web/`, `web-chunks/`) is committed",
-        "plain clone runs as-is",
-        "no `npm install` or build step",
-    )
-    for text in forbidden:
-        assert text not in readme
+def test_source_install_docs_confirm_generated_bundle_is_committed() -> None:
+    for path in ("README.md", "docs/USER_GUIDE.md"):
+        guide = _text(path)
+        install = guide[guide.index("## Install"):]
+        assert "committed" in install, path
+        assert "not committed" not in install, path
 
 
 def test_requirements_explains_source_frontend_build() -> None:
