@@ -17,7 +17,7 @@ export function syncMirroredControl(root, role, source, property = "value") {
   }
 }
 
-export function bind(ui) {
+export function bindEditorEvents(ui) {
   ui.abortController = new AbortController();
   const signal = ui.abortController.signal;
   const q = (selector) => ui.root.querySelector(selector);

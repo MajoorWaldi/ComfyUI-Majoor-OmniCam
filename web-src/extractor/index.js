@@ -164,7 +164,7 @@ export class ExtractorUI {
       });
     }
 
-    this.bind();
+    this.bindControls();
     this.loadMotionLimits();
     this.refreshSource();
     this.restoreCachedResult();
@@ -197,7 +197,7 @@ export class ExtractorUI {
     }
   }
 
-  bind() {
+  bindControls() {
     // Wheel over a scrollable panel scrolls it instead of zooming the graph.
     this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
     for (const tab of this.root.querySelectorAll("[data-tab]")) {
