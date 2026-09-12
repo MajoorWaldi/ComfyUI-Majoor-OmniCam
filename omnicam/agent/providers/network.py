@@ -9,7 +9,7 @@ from __future__ import annotations
 import ipaddress
 import os
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 ALLOWED_SCHEMES = {"http", "https"}
 CONNECT_TIMEOUT_SECONDS = 10.0
@@ -36,6 +36,30 @@ def _is_loopback_host(host: str) -> bool:
 
 def allow_remote_custom_providers() -> bool:
     return os.environ.get("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS") == "1"
+
+
+def _canonical_base_url(value: str) -> str:
+    parsed = urlsplit(value.strip())
+    return urlunsplit((
+        parsed.scheme.lower(),
+        parsed.netloc.lower(),
+        parsed.path.rstrip("/"),
+        "",
+        "",
+    ))
+
+
+def endpoint_is_custom(configured_base_url: str | None, official_base_url: str) -> bool:
+    """True when ``configured_base_url`` is a caller-supplied override that
+    differs from the provider's own hardcoded ``official_base_url`` -- an
+    empty/unset value always means "use the official default" and is never
+    custom. Query strings and fragments are ignored so they can't be used to
+    disguise a genuinely different host as official, nor falsely flag the
+    official URL itself as custom."""
+    value = (configured_base_url or "").strip()
+    if not value:
+        return False
+    return _canonical_base_url(value) != _canonical_base_url(official_base_url)
 
 
 def validate_provider_url(url: str, *, is_custom_endpoint: bool) -> str:

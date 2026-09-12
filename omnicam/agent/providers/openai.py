@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from .models import ProviderConfig, ProviderResponse
-from .network import NetworkPolicyError, guarded_request
+from .network import NetworkPolicyError, endpoint_is_custom, guarded_request
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
@@ -42,9 +42,10 @@ class OpenAIProvider:
         import aiohttp
 
         url = f"{_base_url(config)}/models"
+        is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
         async with aiohttp.ClientSession() as session:
             response = await guarded_request(
-                session, "GET", url, is_custom_endpoint=False, headers=_headers(credential),
+                session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
             )
         if response.status >= 400:
@@ -63,9 +64,10 @@ class OpenAIProvider:
             "input": [{"role": "user", "content": request}],
             "max_output_tokens": config.max_output_tokens,
         }
+        is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
         async with aiohttp.ClientSession() as session:
             response = await guarded_request(
-                session, "POST", url, is_custom_endpoint=False, headers=_headers(credential),
+                session, "POST", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 json_body=body, timeout_seconds=config.timeout_seconds,
             )
         if response.status >= 400:

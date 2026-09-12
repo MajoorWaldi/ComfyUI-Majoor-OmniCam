@@ -37,8 +37,10 @@ def _config(provider_id, base_url=""):
     return ProviderConfig(provider_id=provider_id, model="test-model", base_url=base_url)
 
 
-def _patch_guarded_request(monkeypatch, module, status, body: bytes):
+def _patch_guarded_request(monkeypatch, module, status, body: bytes, *, calls: list | None = None):
     async def fake(*args, **kwargs):
+        if calls is not None:
+            calls.append(kwargs)
         return GuardedResponse(status=status, body=body)
 
     monkeypatch.setattr(module, "guarded_request", fake)
@@ -89,6 +91,100 @@ async def test_anthropic_complete_extracts_text_blocks(monkeypatch):
     result = await get_provider("anthropic").complete("hi", _config("anthropic"), "sk-ant")
     assert result.text == "hello from anthropic"
     assert result.usage == {"input_tokens": 2, "output_tokens": 4}
+
+
+@pytest.mark.asyncio
+async def test_openai_official_base_url_is_never_flagged_custom(monkeypatch):
+    # Regression: native adapters used to hardcode is_custom_endpoint=False
+    # unconditionally, which happened to be correct here but for the wrong
+    # reason -- assert it explicitly for the empty/default base_url case.
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai as openai_module
+
+    calls: list = []
+    _patch_guarded_request(monkeypatch, openai_module, 200, b'{"output_text":"hi"}', calls=calls)
+    await get_provider("openai").complete("hi", _config("openai", base_url=""), "sk-x")
+    assert calls[0]["is_custom_endpoint"] is False
+
+
+@pytest.mark.asyncio
+async def test_openai_custom_base_url_is_flagged_custom_for_complete_and_list_models(monkeypatch):
+    # A user-supplied base_url (e.g. a self-hosted proxy) must be subjected
+    # to the custom-endpoint network policy, not silently treated as the
+    # official OpenAI endpoint (design spec section 12 / Task 1).
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai as openai_module
+
+    calls: list = []
+    config = _config("openai", base_url="https://my-openai-proxy.example.com/v1")
+    _patch_guarded_request(monkeypatch, openai_module, 200, b'{"output_text":"hi"}', calls=calls)
+    await get_provider("openai").complete("hi", config, "sk-x")
+    assert calls[0]["is_custom_endpoint"] is True
+
+    calls.clear()
+    _patch_guarded_request(monkeypatch, openai_module, 200, b'{"data":[]}', calls=calls)
+    await get_provider("openai").list_models(config, "sk-x")
+    assert calls[0]["is_custom_endpoint"] is True
+
+
+@pytest.mark.asyncio
+async def test_openai_remote_custom_endpoint_makes_zero_http_calls_without_opt_in(monkeypatch):
+    # End-to-end through the *real* guarded_request/validate_provider_url --
+    # a blocked remote custom endpoint must never reach session.request().
+    pytest.importorskip("aiohttp")
+    monkeypatch.delenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", raising=False)
+    import aiohttp
+
+    from omnicam.agent.providers.network import NetworkPolicyError
+
+    class _NeverCalledSession:
+        def __init__(self, *a, **kw):
+            self.calls = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        def request(self, *a, **kw):
+            self.calls.append((a, kw))
+            raise AssertionError("session.request() must never be called for a blocked endpoint")
+
+    monkeypatch.setattr(aiohttp, "ClientSession", _NeverCalledSession)
+
+    config = _config("openai", base_url="https://my-openai-proxy.example.com/v1")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        await get_provider("openai").complete("hi", config, "sk-x")
+    assert excinfo.value.code == "REMOTE_CUSTOM_PROVIDER_BLOCKED"
+
+
+@pytest.mark.asyncio
+async def test_anthropic_custom_base_url_is_flagged_custom(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import anthropic as anthropic_module
+
+    calls: list = []
+    config = _config("anthropic", base_url="https://claude-proxy.example.com")
+    _patch_guarded_request(monkeypatch, anthropic_module, 200, b'{"content":[]}', calls=calls)
+    await get_provider("anthropic").complete("hi", config, "sk-ant")
+    assert calls[0]["is_custom_endpoint"] is True
+
+    calls.clear()
+    _patch_guarded_request(monkeypatch, anthropic_module, 200, b'{"data":[]}', calls=calls)
+    await get_provider("anthropic").list_models(config, "sk-ant")
+    assert calls[0]["is_custom_endpoint"] is True
+
+
+@pytest.mark.asyncio
+async def test_anthropic_official_base_url_is_never_flagged_custom(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import anthropic as anthropic_module
+
+    calls: list = []
+    _patch_guarded_request(monkeypatch, anthropic_module, 200, b'{"content":[]}', calls=calls)
+    await get_provider("anthropic").complete("hi", _config("anthropic", base_url=""), "sk-ant")
+    assert calls[0]["is_custom_endpoint"] is False
 
 
 @pytest.mark.asyncio
