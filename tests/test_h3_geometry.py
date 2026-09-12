@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from omnicam.adapters.h3_geometry import analyze_h3_geometry
+from omnicam.adapters.h3_representability import evaluate_h3_scene_coverage
 from omnicam.core.camera_tools import apply_camera_preset
 
 from h3_track_fixtures import (
@@ -68,3 +69,40 @@ def test_mild_drift_orbit_stays_within_warning_band():
     assert 0.01 < analysis.max_target_drift_ratio <= 0.05
     assert 1.0 < analysis.max_roll_delta_degrees <= 5.0
     assert 1.0 < analysis.max_fov_delta_degrees <= 10.0
+
+
+def test_pan_in_place_is_blocked_for_scene_coverage():
+    track = pan_in_place_track()
+    result = evaluate_h3_scene_coverage(track, analyze_h3_geometry(track), is_multi_shot=False)
+    assert result.state == "BLOCKED"
+    assert any("reference-video" in item for item in result.recommendations)
+
+
+def test_small_target_and_lens_drift_warns_not_blocks():
+    track = mild_drift_orbit_track()
+    result = evaluate_h3_scene_coverage(track, analyze_h3_geometry(track), is_multi_shot=False)
+    assert result.state == "WARNING"
+
+
+def test_multi_shot_is_blocked():
+    track = orbit_track(degrees=90.0, frames=124)
+    result = evaluate_h3_scene_coverage(track, analyze_h3_geometry(track), is_multi_shot=True)
+    assert result.state == "BLOCKED"
+
+
+def test_more_than_one_turn_is_blocked():
+    track = orbit_track(degrees=720.0, frames=243)
+    result = evaluate_h3_scene_coverage(track, analyze_h3_geometry(track), is_multi_shot=False)
+    assert result.state == "BLOCKED"
+
+
+def test_clean_orbit_passes():
+    track = orbit_track(degrees=180.0, frames=124)
+    result = evaluate_h3_scene_coverage(track, analyze_h3_geometry(track), is_multi_shot=False)
+    assert result.state == "PASS"
+
+
+def test_static_camera_passes_as_a_hold():
+    track = base_track()
+    result = evaluate_h3_scene_coverage(track, analyze_h3_geometry(track), is_multi_shot=False)
+    assert result.state == "PASS"
