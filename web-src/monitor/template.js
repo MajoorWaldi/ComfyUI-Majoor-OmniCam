@@ -5,6 +5,7 @@ export const PROFILE_OPTIONS = [
   ["external_reference_video", "External / Generic Reference Video"],
   ["h3_api", "MiniMax H3 · Comfy API"],
   ["h3_native", "MiniMax H3 · Native"],
+  ["h3_scene_coverage", "MiniMax H3 · Scene Coverage"],
   ["ltx25_motion_track", "LTX 2.5 Motion Track"],
   ["wan_camera_native", "Wan Camera Native"],
   ["wan_move_native", "Wan Move Native"],

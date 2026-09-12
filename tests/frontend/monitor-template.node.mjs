@@ -12,7 +12,7 @@ test("Monitor template mirrors the V3 Monitor profile contract", () => {
     assert.match(markup, new RegExp(`data-setting="${setting}"`));
   }
   assert.deepEqual(PROFILE_OPTIONS.map(([id]) => id), [
-    "external_reference_video", "h3_api", "h3_native", "ltx25_motion_track",
+    "external_reference_video", "h3_api", "h3_native", "h3_scene_coverage", "ltx25_motion_track",
     "wan_camera_native", "wan_move_native", "wan_track_native", "wanvideo_ati",
   ]);
   // The permissive profile leads the list, matching the backend widget default
