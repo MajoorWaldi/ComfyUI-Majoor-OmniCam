@@ -10,6 +10,7 @@ import { buildRoot } from "./omnicam-template.js";
 import { dispatchDirectorKey } from "./omnicam-commands.js";
 import { watchGraphConnections } from "./graph-connection-watch.js";
 import { attachDirectorApi } from "./director-api/index.js";
+import { createDirectorAgentBridge } from "./agent/bridge.js";
 import { createAssetBrowserPanel } from "./assets/panel.js";
 import { createLabelOverlay } from "./assets/label-overlay.js";
 import { createCharacterRuntime } from "./assets/character/rig-runtime.js";
@@ -176,6 +177,7 @@ class OmniCamDirectorUI {
     this.app = app, this.api = api, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.dom = buildDirectorDomCache(this.root), this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
     this.disposed = false;
     this.renderRevision = 0;
+    this.directorRevision = 0;
     // three.js and mediabunny total ~1.4 MB and nothing outside the viewport
     // needs them, so they load on demand here rather than at module scope --
     // ComfyUI would otherwise parse them at startup for every user, including
@@ -258,6 +260,14 @@ export function attachDirector(node) {
   recordDirectorTrace("director:constructor:complete", node);
   // Versioned, bounded transaction/query surface over canonical Director state.
   attachDirectorApi(ui);
+  // Loopback-only external Agent bridge over the same semantic API. Never
+  // required for the Director to function -- a browser without network
+  // access to the Agent broker simply never registers.
+  try {
+    ui.agentBridge = createDirectorAgentBridge(ui, node, api);
+  } catch (error) {
+    console.warn("[OmniCam] Agent bridge unavailable", error);
+  }
   // The ASSETS tab of the left panel. Constructed here (after the DOM and the
   // event bindings exist) rather than in the constructor so it stays out of the
   // core editor's method soup; it fetches nothing until the tab is first shown.

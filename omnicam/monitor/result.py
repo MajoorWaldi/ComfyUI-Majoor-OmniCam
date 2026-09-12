@@ -35,12 +35,51 @@ def _positive_finite(value: Any, name: str) -> float:
     return number
 
 
+#: Static, hand-authored recovery text keyed by a Check's optional ``code``.
+#: This is the only source of ``suggestions`` a Check may carry -- never
+#: generated per instance -- so the same code always yields the exact same
+#: guidance, and a code missing here yields none rather than inventing any.
+KNOWN_CHECK_SUGGESTIONS: dict[str, tuple[str, ...]] = {
+    "TARGET_NODE_MISSING": (
+        "Install the missing custom node pack through ComfyUI Manager.",
+        "Reload the workflow after installing so ComfyUI re-registers the node.",
+    ),
+    "PLAYBLAST_STALE": (
+        "Re-record the playblast from the Director before compiling.",
+        "Confirm the Director's motion_scene_fingerprint matches the current edit.",
+    ),
+    "PROFILE_UNAVAILABLE": (
+        "Choose a different target_profile the current build supports.",
+        "Check docs/COMPATIBILITY.md for this profile's requirements.",
+    ),
+    "CAMERA_CONDITIONING_UNAVAILABLE": (
+        "Install the adapter this profile's camera conditioning depends on.",
+        "Fall back to a reference-video profile, which does not need it.",
+    ),
+}
+
+
+def suggestions_for_code(code: str | None) -> tuple[str, ...]:
+    """The static recovery text for ``code``, or an empty tuple.
+
+    A code outside ``KNOWN_CHECK_SUGGESTIONS`` deliberately gets nothing here
+    -- there is no dynamic/generated fallback to fabricate suggestions for a
+    code nobody has reviewed and written guidance for.
+    """
+    if not code:
+        return ()
+    return KNOWN_CHECK_SUGGESTIONS.get(code, ())
+
+
 @dataclass(frozen=True, slots=True)
 class Check:
     id: str
     label: str
     state: str
     message: str = ""
+    code: str | None = None
+    recoverable: bool = False
+    suggestions: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _non_empty(self.id, "id")
@@ -49,6 +88,14 @@ class Check:
             raise ValueError(f"state must be one of {sorted(CHECK_STATES)}")
         if not isinstance(self.message, str):
             raise TypeError("message must be a string")
+        if self.code is not None and not isinstance(self.code, str):
+            raise TypeError("code must be a string or None")
+        if not isinstance(self.recoverable, bool):
+            raise TypeError("recoverable must be a bool")
+        suggestions = tuple(self.suggestions)
+        if not all(isinstance(item, str) for item in suggestions):
+            raise TypeError("suggestions must contain strings")
+        object.__setattr__(self, "suggestions", suggestions)
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,7 +179,19 @@ def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str
     """
     return {
         "preflight": [
-            {"id": check.id, "label": check.label, "state": check.state, "message": check.message}
+            {
+                "id": check.id,
+                "label": check.label,
+                "state": check.state,
+                "message": check.message,
+                # Optional recovery fields: present (and non-default) only for
+                # checks that were actually constructed with them, so an
+                # older-style Check(id, label, state, message) still
+                # serializes exactly as it always has.
+                **({"code": check.code} if getattr(check, "code", None) else {}),
+                **({"recoverable": True} if getattr(check, "recoverable", False) else {}),
+                **({"suggestions": list(check.suggestions)} if getattr(check, "suggestions", ()) else {}),
+            }
             for check in checks
         ],
         "capabilities": capabilities,

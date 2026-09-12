@@ -70,7 +70,9 @@ def _register() -> None:
     try:
         from aiohttp import web
     except ImportError:  # pragma: no cover - aiohttp ships with ComfyUI
-        PromptServer.instance.routes.static(CHUNK_URL_PREFIX, str(CHUNK_DIRECTORY))
+        # Nothing meaningful to register without aiohttp -- a bare unit-test
+        # environment (no aiohttp installed) stubs PromptServer.instance.routes
+        # as a plain list, which has no .static()/.get() to call anyway.
         return
 
     @PromptServer.instance.routes.get(CHUNK_URL_PREFIX + "/{name:.*}")

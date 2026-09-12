@@ -3,11 +3,12 @@
 // repaint the dirty domains. Any DirectorApiError aborts before the swap, so
 // the live state is never left half-mutated.
 
-import { sanitizeState } from "../director/core.js";
+import { cloneCamera, sampleCamera, sanitizeState } from "../director/core.js";
 import { DIRECTOR_API_VERSION } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 import { validateDirectorTransaction } from "./validate.js";
 import { applyDirectorOperation } from "./apply.js";
+import { computeSemanticDiff } from "./diff.js";
 
 function clone(value) {
   return typeof structuredClone === "function"
@@ -15,18 +16,52 @@ function clone(value) {
     : JSON.parse(JSON.stringify(value));
 }
 
-function failure(id, error) {
+function currentRevision(ui) {
+  return Number.isInteger(ui.directorRevision)
+    ? Math.max(0, ui.directorRevision)
+    : 0;
+}
+
+function failure(ui, id, error) {
   return {
     ok: false,
     version: DIRECTOR_API_VERSION,
+    revision: currentRevision(ui),
     id: id ?? null,
     applied: 0,
     error: {
       code: error.code || "INTERNAL",
       operationIndex: error.operationIndex ?? null,
       message: error.message,
+      ...(error.details ? { details: error.details } : {}),
     },
   };
+}
+
+function prepareCommittedActiveCamera(ui) {
+  const active = (ui.state.cameras || []).find(
+    (item) => item.id === ui.state.active_camera_id,
+  ) || ui.state.cameras?.[0] || null;
+
+  if (!active) return null;
+
+  // serializeEditorState() calls syncActiveCameraTrack(), which copies
+  // ui.camera back into active.camera. Protect the semantic transaction's
+  // freshly committed camera before that synchronization occurs.
+  ui.state.keyframes = active.keyframes;
+  ui.state.camera = cloneCamera(active.camera);
+  ui.camera = cloneCamera(active.camera);
+
+  return active;
+}
+
+function restoreViewportCamera(ui, active) {
+  if (!active) return;
+  ui.camera = sampleCamera(
+    active,
+    ui.frame ?? 0,
+    ui.state.objects || [],
+  );
 }
 
 function repaint(ui, dirtyMask, reason) {
@@ -47,8 +82,29 @@ export function executeDirectorTransaction(ui, input) {
   try {
     tx = validateDirectorTransaction(ui, input);
   } catch (error) {
-    if (error instanceof DirectorApiError) return failure(input?.id, error);
+    if (error instanceof DirectorApiError) return failure(ui, input?.id, error);
     throw error;
+  }
+
+  const beforeRevision = currentRevision(ui);
+
+  if (
+    tx.baseRevision !== undefined
+    && tx.baseRevision !== beforeRevision
+  ) {
+    return failure(
+      ui,
+      tx.id,
+      new DirectorApiError(
+        "STALE_REVISION",
+        "Scene changed since the caller read it",
+        null,
+        {
+          expected: beforeRevision,
+          received: tx.baseRevision,
+        },
+      ),
+    );
   }
 
   const draft = clone(ui.state);
@@ -67,34 +123,45 @@ export function executeDirectorTransaction(ui, input) {
         if (error.operationIndex === null || error.operationIndex === undefined) {
           error.operationIndex = index;
         }
-        return failure(tx.id, error);
+        return failure(ui, tx.id, error);
       }
       throw error;
     }
   }
 
   if (tx.validateOnly) {
+    const { changes, truncated } = computeSemanticDiff(ui.state, draft);
     return {
       ok: true,
       version: DIRECTOR_API_VERSION,
+      revision: beforeRevision,
       id: tx.id,
       applied: tx.operations.length,
       warnings,
       outcomes,
       dirtyMask,
       validateOnly: true,
+      changes,
+      ...(truncated ? { truncated: true } : {}),
     };
   }
 
   ui.checkpoint?.(tx.description);
   ui.state = sanitizeState(draft);
+
+  const active = prepareCommittedActiveCamera(ui);
+
   (ui._directorApiTxIds ||= new Set()).add(tx.id);
   ui.serialize?.();
+
+  restoreViewportCamera(ui, active);
   repaint(ui, dirtyMask, `director-api:${tx.id}`);
 
   return {
     ok: true,
     version: DIRECTOR_API_VERSION,
+    baseRevision: beforeRevision,
+    revision: currentRevision(ui),
     id: tx.id,
     applied: tx.operations.length,
     warnings,

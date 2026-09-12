@@ -237,6 +237,7 @@ export function createRenderMethods(dependencies) {
   dispose() {
     if (this.disposed) return;
     this.disposed = true;
+    this.agentBridge?.dispose?.();
     unregisterDirector(this);
     // The help popup is appended to document.body with its own capture keydown
     // listener; nothing else tears it down when the node (or the whole graph)

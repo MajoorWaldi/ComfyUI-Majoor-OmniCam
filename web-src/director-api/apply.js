@@ -11,6 +11,21 @@ import { sanitizeMotion } from "../assets/character/motion-state.js";
 import { compileInstance } from "../assets/instantiate.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
+import {
+  createCamera,
+  createObject,
+  deleteCamera,
+  deleteObject,
+  duplicateCamera,
+  duplicateObject,
+  removeCut,
+  renameCamera,
+  renameObject,
+  setCutCamera,
+  setObjectParent,
+  setPlayblastCamera,
+  upsertCut,
+} from "./entity-ops.js";
 
 function findCamera(state, cameraId) {
   const id = cameraId || state.active_camera_id;
@@ -26,9 +41,25 @@ function findObject(state, objectId) {
 }
 
 function requireCharacter(state, objectId) {
-  const object = findObject(state, objectId);
+  const object = requireUnlockedObject(state, objectId);
   if (object.asset_kind !== "character") {
     throw new DirectorApiError("NOT_A_CHARACTER", `${objectId} is not a character`);
+  }
+  return object;
+}
+
+function requireUnlockedCamera(state, cameraId) {
+  const camera = findCamera(state, cameraId);
+  if (camera.locked) {
+    throw new DirectorApiError("ENTITY_LOCKED", `${camera.id} is locked`);
+  }
+  return camera;
+}
+
+function requireUnlockedObject(state, objectId) {
+  const object = findObject(state, objectId);
+  if (object.locked) {
+    throw new DirectorApiError("ENTITY_LOCKED", `${object.id} is locked`);
   }
   return object;
 }
@@ -68,8 +99,38 @@ const HANDLERS = {
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector | UI_DIRTY.outliner | UI_DIRTY.timeline };
   },
 
+  [DIRECTOR_OPS.CAMERA_SET_LOCKED](state, op) {
+    findCamera(state, op.cameraId).locked = op.value;
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport };
+  },
+
+  [DIRECTOR_OPS.CAMERA_CREATE](state, op) {
+    const outcome = createCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_DUPLICATE](state, op) {
+    const outcome = duplicateCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_DELETE](state, op) {
+    const outcome = deleteCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_RENAME](state, op) {
+    const outcome = renameCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.CAMERA_SET_PLAYBLAST](state, op) {
+    const outcome = setPlayblastCamera(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector | UI_DIRTY.status, outcome };
+  },
+
   [DIRECTOR_OPS.CAMERA_TRANSFORM](state, op) {
-    const track = findCamera(state, op.cameraId);
+    const track = requireUnlockedCamera(state, op.cameraId);
     const camera = ensureBaseCamera(track);
     if (op.position) camera.position = [...op.position];
     if (op.target) camera.target = [...op.target];
@@ -84,7 +145,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.CAMERA_LOOK_AT](state, op) {
-    const track = findCamera(state, op.cameraId);
+    const track = requireUnlockedCamera(state, op.cameraId);
     if (op.objectId !== undefined) {
       if (op.objectId === null || op.objectId === "") {
         track.target_object_id = null;
@@ -105,8 +166,33 @@ const HANDLERS = {
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.inspector | UI_DIRTY.timeline };
   },
 
+  [DIRECTOR_OPS.OBJECT_CREATE](state, op) {
+    const outcome = createObject(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_DUPLICATE](state, op) {
+    const outcome = duplicateObject(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_DELETE](state, op) {
+    const outcome = deleteObject(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_RENAME](state, op) {
+    const outcome = renameObject(state, op);
+    return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
+  [DIRECTOR_OPS.OBJECT_SET_PARENT](state, op) {
+    const outcome = setObjectParent(state, op);
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
+  },
+
   [DIRECTOR_OPS.OBJECT_TRANSFORM](state, op) {
-    const object = findObject(state, op.objectId);
+    const object = requireUnlockedObject(state, op.objectId);
     if (op.position) object.position = [...op.position];
     if (op.rotation) object.rotation = [...op.rotation];
     if (op.scale) object.size = [...op.scale];
@@ -114,7 +200,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.OBJECT_SET_ENABLED](state, op) {
-    findObject(state, op.objectId).enabled = op.value;
+    requireUnlockedObject(state, op.objectId).enabled = op.value;
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.outliner | UI_DIRTY.inspector };
   },
 
@@ -124,7 +210,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.OBJECT_SET_TAGS](state, op) {
-    const object = findObject(state, op.objectId);
+    const object = requireUnlockedObject(state, op.objectId);
     const tags = sanitizeTags(op.tags);
     const warning = tags.length !== op.tags.length ? "some tags were dropped or normalised" : undefined;
     if (tags.length) object.tags = tags;
@@ -133,7 +219,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.OBJECT_SET_ANNOTATION](state, op) {
-    const object = findObject(state, op.objectId);
+    const object = requireUnlockedObject(state, op.objectId);
     const annotation = op.annotation === null ? null : sanitizeAnnotation(op.annotation);
     if (op.annotation && !annotation) {
       throw new DirectorApiError("BAD_ANNOTATION", "annotation failed validation (text, hex colour, anchor)");
@@ -193,7 +279,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.KEYFRAME_UPSERT](state, op) {
-    const track = findCamera(state, op.cameraId);
+    const track = requireUnlockedCamera(state, op.cameraId);
     if (op.frame >= (state.duration_frames || 0)) {
       throw new DirectorApiError("FRAME_OUT_OF_RANGE", `frame ${op.frame} is past the timeline`);
     }
@@ -211,7 +297,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.KEYFRAME_REMOVE](state, op) {
-    const track = findCamera(state, op.cameraId);
+    const track = requireUnlockedCamera(state, op.cameraId);
     const before = (track.keyframes || []).length;
     track.keyframes = (track.keyframes || []).filter((key) => key.frame !== op.frame);
     if (track.keyframes.length === before) {
@@ -222,7 +308,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.KEYFRAME_SET_INTERPOLATION](state, op) {
-    const track = findCamera(state, op.cameraId);
+    const track = requireUnlockedCamera(state, op.cameraId);
     const key = keyframeAt(track, op.frame);
     if (!key) throw new DirectorApiError("UNKNOWN_KEYFRAME", `camera has no key at frame ${op.frame}`);
     if (!INTERPOLATION_MODES.includes(op.interpolation)) {
@@ -251,6 +337,21 @@ const HANDLERS = {
       ];
     }
     return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status };
+  },
+
+  [DIRECTOR_OPS.CUT_UPSERT](state, op) {
+    const outcome = upsertCut(state, op);
+    return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
+  },
+
+  [DIRECTOR_OPS.CUT_REMOVE](state, op) {
+    const outcome = removeCut(state, op);
+    return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
+  },
+
+  [DIRECTOR_OPS.CUT_SET_CAMERA](state, op) {
+    const outcome = setCutCamera(state, op);
+    return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
   },
 };
 

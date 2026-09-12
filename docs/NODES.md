@@ -724,6 +724,15 @@ ref and commit in `omnicam/adapters/registry.py`, and
 contract depends on, verified against the installed ComfyUI by
 `tests/test_upstream_contract_fixtures.py`.
 
+## Agent control
+
+There is no Agent node and none is planned. Agent control belongs to
+Director: an external Agent process reaches the same `ui.directorApi`
+transaction/query surface an interactive edit uses, through a loopback-only
+broker described in `docs/AGENT_INTEGRATION.md`. Generic workflow discovery
+and execution -- including of these three nodes -- remains the official Comfy
+MCP's responsibility.
+
 ## Camera interchange
 
 Export to `.glb` / `.gltf`, `.usda` and `.chan`; import from `.gltf`, `.glb`,

@@ -188,6 +188,11 @@ export function createAssetBrowserPanel(ui, options = {}) {
   const fileInput = el("asset-import-file");
   const sceneTab = el("scene-tab");
   const assetsTab = el("assets-tab");
+  const agentTab = el("agent-tab");
+  // "scene" is intentionally absent: the outliner is always mounted, so a
+  // view this map does not name is only ever hidden, never shown, by the
+  // loop below -- there is no separate markup module for it to require.
+  const tabBodies = { assets: assetsTab, agent: agentTab };
 
   let selectedId = "";
   let searchTimer = null;
@@ -326,13 +331,14 @@ export function createAssetBrowserPanel(ui, options = {}) {
   }
 
   function switchView(view) {
-    const showAssets = view === "assets";
-    if (sceneTab) sceneTab.hidden = showAssets;
-    if (assetsTab) assetsTab.hidden = !showAssets;
+    if (sceneTab) sceneTab.hidden = view !== "scene";
+    for (const [key, node] of Object.entries(tabBodies)) {
+      if (node) node.hidden = key !== view;
+    }
     for (const tab of root.querySelectorAll("[data-asset-view]")) {
       tab.classList.toggle("active", tab.dataset.assetView === view);
     }
-    if (showAssets && firstOpen) {
+    if (view === "assets" && firstOpen) {
       firstOpen = false;
       store.refresh();
     }

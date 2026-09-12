@@ -6,7 +6,14 @@ from typing import Any
 import pytest
 
 from omnicam.core.motion_scene import MotionScene, motion_scene_from_camera_track
-from omnicam.monitor.result import Check, CompiledMotion, ResolvedTimeline
+from omnicam.monitor.result import (
+    KNOWN_CHECK_SUGGESTIONS,
+    Check,
+    CompiledMotion,
+    ResolvedTimeline,
+    panel_payload,
+    suggestions_for_code,
+)
 from omnicam.profiles import CompileRequest, MotionProfile, ProfileRegistry
 
 
@@ -207,3 +214,56 @@ def test_checks_reject_unknown_states_and_keep_messages_optional():
 
     with pytest.raises(ValueError, match="state"):
         Check(id="camera", label="Camera present", state="MAYBE")
+
+
+def test_check_recovery_fields_are_optional_and_default_to_absent():
+    check = Check(id="camera", label="Camera present", state="PASS")
+    assert check.code is None
+    assert check.recoverable is False
+    assert check.suggestions == ()
+
+    payload = panel_payload([check], capabilities={}, target_profile="wan_camera_native")
+    row = payload["preflight"][0]
+    assert "code" not in row
+    assert "recoverable" not in row
+    assert "suggestions" not in row
+
+
+def test_check_recovery_fields_serialize_when_present():
+    check = Check(
+        id="target_node",
+        label="Downstream node",
+        state="BLOCKED",
+        message="Node is missing",
+        code="TARGET_NODE_MISSING",
+        recoverable=True,
+        suggestions=suggestions_for_code("TARGET_NODE_MISSING"),
+    )
+    payload = panel_payload([check], capabilities={}, target_profile="wan_camera_native")
+    row = payload["preflight"][0]
+    assert row["code"] == "TARGET_NODE_MISSING"
+    assert row["recoverable"] is True
+    assert row["suggestions"] == list(KNOWN_CHECK_SUGGESTIONS["TARGET_NODE_MISSING"])
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "TARGET_NODE_MISSING",
+        "PLAYBLAST_STALE",
+        "PROFILE_UNAVAILABLE",
+        "CAMERA_CONDITIONING_UNAVAILABLE",
+    ],
+)
+def test_suggestions_for_known_codes_are_static_not_generated(code):
+    # Same code -> byte-identical suggestions every time: proof this is a
+    # fixed lookup, never something assembled per call.
+    first = suggestions_for_code(code)
+    second = suggestions_for_code(code)
+    assert first == second == KNOWN_CHECK_SUGGESTIONS[code]
+    assert all(isinstance(item, str) and item for item in first)
+
+
+def test_an_unknown_code_gets_no_suggestions_rather_than_invented_ones():
+    assert suggestions_for_code("SOMETHING_NOBODY_WROTE_GUIDANCE_FOR") == ()
+    assert suggestions_for_code(None) == ()
