@@ -10,6 +10,7 @@ import { buildRoot } from "./omnicam-template.js";
 import { dispatchDirectorKey } from "./omnicam-commands.js";
 import { watchGraphConnections } from "./graph-connection-watch.js";
 import { attachDirectorApi } from "./director-api/index.js";
+import { createDirectorAgentBridge } from "./agent/bridge.js";
 import { createAssetBrowserPanel } from "./assets/panel.js";
 import { createLabelOverlay } from "./assets/label-overlay.js";
 import { createCharacterRuntime } from "./assets/character/rig-runtime.js";
@@ -259,6 +260,14 @@ export function attachDirector(node) {
   recordDirectorTrace("director:constructor:complete", node);
   // Versioned, bounded transaction/query surface over canonical Director state.
   attachDirectorApi(ui);
+  // Loopback-only external Agent bridge over the same semantic API. Never
+  // required for the Director to function -- a browser without network
+  // access to the Agent broker simply never registers.
+  try {
+    ui.agentBridge = createDirectorAgentBridge(ui, node, api);
+  } catch (error) {
+    console.warn("[OmniCam] Agent bridge unavailable", error);
+  }
   // The ASSETS tab of the left panel. Constructed here (after the DOM and the
   // event bindings exist) rather than in the constructor so it stays out of the
   // core editor's method soup; it fetches nothing until the tab is first shown.
