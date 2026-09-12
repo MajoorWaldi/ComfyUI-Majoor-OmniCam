@@ -46,6 +46,9 @@ export const SHELL_STYLES = `
          Mirrors the fixed-height .scene-tree; the drawer layout (<=1120px)
          gives .oc-left a real height and releases this cap in responsive.js. */
       .majoor-omnicam .oc-left .oc-asset-grid{max-height:var(--oc-assets-h,340px)}
+      /* AGENT tab: same drag-to-resize treatment as the Scene outliner and the
+         Assets grid above, so every tab in this panel behaves consistently. */
+      .majoor-omnicam .oc-left .oc-agent-plan-list{max-height:var(--oc-agent-h,220px);min-height:60px;overflow-y:auto}
       .majoor-omnicam .oc-body .viewport-wrap{border-radius:var(--oc-radius);overflow:hidden;box-shadow:none;border:1px solid var(--oc-line)}
       /* Fullscreen keeps the full DCC shell: Scene | Viewport | Inspector + deck. */
       .majoor-omnicam.oc-fullscreen .oc-lower,.majoor-omnicam.oc-fullscreen .oc-graph{display:block}

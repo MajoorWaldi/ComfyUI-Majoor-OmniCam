@@ -21,8 +21,10 @@ export const RESPONSIVE_STYLES = `
           overflow:hidden;
         }
         /* the drawer is a bounded box (top:0;bottom:0 of the relative oc-body)
-           -- let the ASSETS grid flex to fill it and scroll, no arbitrary cap */
-        .majoor-omnicam .oc-left .oc-asset-grid{max-height:none}
+           -- let the ASSETS grid and AGENT plan list flex to fill it and
+           scroll, no arbitrary cap */
+        .majoor-omnicam .oc-left .oc-asset-grid,
+        .majoor-omnicam .oc-left .oc-agent-plan-list{max-height:none}
         .majoor-omnicam .oc-left .oc-asset-panel,
         .majoor-omnicam .oc-left>.oc-left-body{min-height:0}
         .majoor-omnicam .oc-left-resize{display:none}

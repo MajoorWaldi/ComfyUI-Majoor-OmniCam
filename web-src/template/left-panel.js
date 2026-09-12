@@ -57,7 +57,9 @@ function agentTabMarkup() {
         <div class="oc-asset-toolbar">
           <strong>${t("Planned changes")}</strong>
         </div>
-        <ul class="oc-asset-status hint" data-role="agent-plan" style="list-style:none;padding:0;margin:0"></ul>
+        <ul class="oc-asset-status hint oc-agent-plan-list" data-role="agent-plan" style="list-style:none;padding:0;margin:0"></ul>
+        <div class="oc-resize-v" data-role="agent-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="${t("Drag to resize the Agent panel — double-click to reset")}" aria-label="${t("Resize the Agent panel")}"></div>
         <div class="oc-asset-foot">
           <button type="button" class="oc-btn" data-agent-act="preview">${t("Preview")}</button>
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="apply" disabled>${t("Apply")}</button>
@@ -91,6 +93,8 @@ function assetsTabMarkup() {
         </div>
         <div class="oc-asset-kinds" data-role="asset-kinds"></div>
         <div class="oc-asset-grid" data-role="asset-grid"></div>
+        <div class="oc-resize-v" data-role="assets-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="${t("Drag to resize the assets grid — double-click to reset")}" aria-label="${t("Resize the assets grid")}"></div>
         <div class="oc-asset-foot">
           <button type="button" class="oc-btn" data-asset-act="asset-add">${t("Add to scene")}</button>
           <span class="oc-asset-status hint" data-role="asset-status"></span>
