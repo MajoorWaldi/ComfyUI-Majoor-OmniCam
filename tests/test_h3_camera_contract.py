@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from h3_track_fixtures import base_track, orbit_track, reverse_orbit_track
 
 from omnicam.adapters.h3_camera_contract import build_h3_scene_coverage_prompt
 from omnicam.adapters.h3_geometry import analyze_h3_geometry
@@ -9,8 +10,6 @@ from omnicam.adapters.h3_scene_coverage import (
     h3_grid,
     select_h3_scene_profile,
 )
-
-from h3_track_fixtures import base_track, orbit_track, reverse_orbit_track
 
 
 @pytest.mark.parametrize(

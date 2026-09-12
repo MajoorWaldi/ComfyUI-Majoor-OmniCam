@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .h3_geometry import H3GeometryAnalysis
 from ..core.track import OmniCamTrack
+from .h3_geometry import H3GeometryAnalysis
 
 USE_H3_NATIVE_RECOMMENDATION = "Use MiniMax H3 Native reference-video transport for this camera move."
 
@@ -85,4 +85,4 @@ def evaluate_h3_scene_coverage(
     return H3Representability(state="PASS", reasons=(), recommendations=())
 
 
-__all__ = ["H3Representability", "evaluate_h3_scene_coverage", "USE_H3_NATIVE_RECOMMENDATION"]
+__all__ = ["USE_H3_NATIVE_RECOMMENDATION", "H3Representability", "evaluate_h3_scene_coverage"]

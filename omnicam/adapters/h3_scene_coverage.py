@@ -8,11 +8,10 @@ downstream ``H3EDIT_OPTIONS`` dictionary from the geometry analysis.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
-from .h3_geometry import H3GeometryAnalysis
 from ..core.track import OmniCamTrack
+from .h3_geometry import H3GeometryAnalysis
 
 H3_SCENE_PROFILES = (
     (124, "scene coverage | 124-frame camera path"),
@@ -82,12 +81,12 @@ def build_h3edit_scene_options(
 
 
 __all__ = [
-    "H3SceneProfile",
-    "H3_SCENE_PROFILES",
     "H3_SCENE_FPS",
-    "select_h3_scene_profile",
-    "map_h3_scene_frame",
-    "h3_grid",
-    "coverage_arc",
+    "H3_SCENE_PROFILES",
+    "H3SceneProfile",
     "build_h3edit_scene_options",
+    "coverage_arc",
+    "h3_grid",
+    "map_h3_scene_frame",
+    "select_h3_scene_profile",
 ]

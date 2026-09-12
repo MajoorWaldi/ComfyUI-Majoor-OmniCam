@@ -10,9 +10,9 @@ schedule, closure (when eligible), forbidden changes and the artist prompt.
 
 from __future__ import annotations
 
+from ..core.track import OmniCamTrack
 from .h3_geometry import H3GeometryAnalysis, H3OrbitSegment
 from .h3_scene_coverage import H3_SCENE_FPS, map_h3_scene_frame
-from ..core.track import OmniCamTrack
 
 _STATIC_ORBIT_THRESHOLD_DEGREES = 5.0
 

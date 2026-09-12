@@ -44,7 +44,8 @@ def _resolve_scene_profile(requested_frames: int) -> H3SceneProfile:
 def _representation_check(analysis: H3GeometryAnalysis | None, representability: H3Representability | None, error: str) -> Check:
     if error:
         return Check(id="h3_camera_representation", label="H3 camera representation", state="BLOCKED", message=error)
-    assert analysis is not None and representability is not None
+    if analysis is None or representability is None:
+        raise TypeError("analysis and representability must be present when no error was reported")
     if representability.state == "BLOCKED":
         message = " ".join((*representability.reasons, *representability.recommendations))
         return Check(id="h3_camera_representation", label="H3 camera representation", state="BLOCKED", message=message)
@@ -149,7 +150,7 @@ class H3SceneCoverageProfile:
         return camera.track, analysis, representability, ""
 
     def preflight(self, request: CompileRequest) -> list[Check]:
-        track, analysis, representability, error = self._analyze(request)
+        _track, analysis, representability, error = self._analyze(request)
         checks = [
             multi_shot_check(request.motion_scene, display_name=DISPLAY_NAME, can_represent=False),
             _representation_check(analysis, representability, error),
@@ -169,7 +170,8 @@ class H3SceneCoverageProfile:
             raise_on_blocked(checks)
 
         track, analysis, _representability, _error = self._analyze(request)
-        assert track is not None and analysis is not None  # preflight already guaranteed this
+        if track is None or analysis is None:
+            raise TypeError("track and analysis must be present after a non-BLOCKED preflight")
 
         timeline = self.resolve_timeline(request)
         final_prompt = build_h3_scene_coverage_prompt(
@@ -189,4 +191,4 @@ class H3SceneCoverageProfile:
 
 H3_SCENE_COVERAGE_PROFILE = H3SceneCoverageProfile()
 
-__all__ = ["H3SceneCoverageProfile", "H3_SCENE_COVERAGE_PROFILE"]
+__all__ = ["H3_SCENE_COVERAGE_PROFILE", "H3SceneCoverageProfile"]

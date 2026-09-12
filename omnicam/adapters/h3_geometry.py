@@ -128,7 +128,7 @@ def analyze_h3_geometry(track: OmniCamTrack) -> H3GeometryAnalysis:
     fov_total = 0.0
 
     for index, camera in enumerate(cameras):
-        radius, raw_azimuth, elevation, radius_ratio = _spherical(camera.position, anchor, start_radius)
+        _radius, raw_azimuth, elevation, radius_ratio = _spherical(camera.position, anchor, start_radius)
         if index == 0:
             unwrapped = raw_azimuth
         else:
@@ -165,7 +165,7 @@ def analyze_h3_geometry(track: OmniCamTrack) -> H3GeometryAnalysis:
     segments: list[H3OrbitSegment] = []
     total_orbit_degrees = 0.0
     previous_delta_azimuth: float | None = None
-    for index, (start_frame, end_frame) in enumerate(pairwise(keyframe_frames)):
+    for start_frame, end_frame in pairwise(keyframe_frames):
         if end_frame == start_frame:
             continue
         start_sample = samples[start_frame]
@@ -178,7 +178,6 @@ def analyze_h3_geometry(track: OmniCamTrack) -> H3GeometryAnalysis:
         parallax = abs(delta_azimuth) / max(horizontal_fov_degrees, 1e-6)
         total_orbit_degrees += abs(delta_azimuth)
 
-        reverses_after = False
         if (
             previous_delta_azimuth is not None
             and abs(previous_delta_azimuth) >= SIGNIFICANT_ORBIT_DELTA_DEGREES
@@ -292,9 +291,9 @@ def _evaluate_loop_closure(
 
 
 __all__ = [
+    "H3GeometryAnalysis",
     "H3OrbitSample",
     "H3OrbitSegment",
-    "H3GeometryAnalysis",
     "analyze_h3_geometry",
     "horizontal_fov",
 ]

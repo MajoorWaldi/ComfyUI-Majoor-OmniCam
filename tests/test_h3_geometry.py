@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from omnicam.adapters.h3_geometry import analyze_h3_geometry
-from omnicam.adapters.h3_representability import evaluate_h3_scene_coverage
-from omnicam.core.camera_tools import apply_camera_preset
-
 from h3_track_fixtures import (
     base_track,
     mild_drift_orbit_track,
@@ -12,6 +8,10 @@ from h3_track_fixtures import (
     reverse_orbit_track,
     track_with_moving_target,
 )
+
+from omnicam.adapters.h3_geometry import analyze_h3_geometry
+from omnicam.adapters.h3_representability import evaluate_h3_scene_coverage
+from omnicam.core.camera_tools import apply_camera_preset
 
 
 def test_full_orbit_stays_unwrapped():
