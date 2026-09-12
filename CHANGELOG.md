@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- OmniCam Agent v1: a loopback-only PromptServer broker
+  (`omnicam/agent/broker.py`, `omnicam/agent/routes.py`) plus a live Director
+  browser bridge (`web-src/agent/bridge.js`) that let an external Agent
+  process reach a specific, already-open Director's Semantic Director API
+  (`ui.directorApi`) — the same bounded transaction/query surface an
+  interactive edit uses. See `docs/AGENT_INTEGRATION.md`.
+- Semantic Director API: transient `directorRevision` optimistic
+  concurrency (a transaction's optional `baseRevision` is atomically
+  rejected with `STALE_REVISION` when stale; every query and transaction
+  response now reports `revision`), binding entity locks
+  (`camera.set_locked`; every mutating camera/object/keyframe/character
+  operation now checks it), bounded semantic queries (`scene.summary`,
+  `object.list/get/search`, `camera.list`, `character.list`, `shot.list`,
+  `keyframe.list`), and structural operations (`camera.create/duplicate/
+  delete/rename/set_playblast`, `object.create/duplicate/delete/rename/
+  set_parent`, `cut.upsert/remove/set_camera`).
+
+### Fixed
+
+- A committed `camera.transform` transaction through the Semantic Director
+  API could be silently overwritten by the next `serializeEditorState()`
+  call, which copied the (stale) viewport camera back onto the active
+  camera track after the transaction had already written its fresh values.
+
 ## [0.3.1] - 2026-09-10
 
 ### Changed
