@@ -22,6 +22,24 @@ def test_parses_a_query_action():
     assert action == {"type": "query", "query": {"type": "scene.summary"}}
 
 
+def test_parses_an_action_wrapped_in_a_markdown_code_fence():
+    payload = json.dumps({"action": "query", "query": {"type": "scene.summary"}})
+    action = parse_action(f"```json\n{payload}\n```")
+    assert action == {"type": "query", "query": {"type": "scene.summary"}}
+
+
+def test_parses_an_action_wrapped_in_a_bare_code_fence():
+    payload = json.dumps({"action": "finish", "message": "done"})
+    action = parse_action(f"```\n{payload}\n```")
+    assert action == {"type": "finish", "message": "done"}
+
+
+def test_parses_an_action_with_surrounding_prose():
+    payload = json.dumps({"action": "finish", "message": "done"})
+    action = parse_action(f"Sure, here's the action:\n\n{payload}\n\nLet me know if you need anything else.")
+    assert action == {"type": "finish", "message": "done"}
+
+
 def test_parses_a_transaction_action():
     payload = {
         "action": "transaction",

@@ -10,6 +10,24 @@ actually validates a proposed transaction's operations.
 from __future__ import annotations
 
 import json
+import re
+
+# Local models (Ollama, LM Studio, ...) routinely wrap an otherwise-correct
+# JSON action in a markdown code fence, or add a sentence of chatter before
+# it, even under an explicit "no markdown" system prompt -- Ollama's own
+# format="json" only forces syntactically valid JSON, not naked-of-prose
+# output. Strip these before the strict json.loads() so a single stray fence
+# does not burn a whole planner step (and, over enough retries, the whole
+# bounded step budget) on a response that was otherwise usable.
+_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL)
+
+
+def _unwrap_action_text(text: str) -> str:
+    stripped = text.strip()
+    fenced = _CODE_FENCE_RE.match(stripped)
+    if fenced:
+        return fenced.group(1).strip()
+    return stripped
 
 # Mirrors web-src/director-api/constants.js by hand -- there is no code
 # generation between Python and JS in this repository. PLANNER_OPERATIONS
@@ -54,10 +72,24 @@ def parse_action(text: str) -> dict:
     if not isinstance(text, str) or not text.strip():
         raise PlannerProtocolError("EMPTY_ACTION", "Planner returned an empty response")
 
+    candidate = _unwrap_action_text(text)
     try:
-        data = json.loads(text)
+        data = json.loads(candidate)
     except (ValueError, TypeError) as error:
-        raise PlannerProtocolError("BAD_ACTION_JSON", f"Planner response is not valid JSON: {error}") from error
+        # Last resort: a model that prefaced/trailed the object with prose
+        # ("Sure, here's the action: {...} let me know if..."). Slicing from
+        # the first "{" to the last "}" recovers the common case without
+        # trying to be a general-purpose JSON extractor.
+        start, end = candidate.find("{"), candidate.rfind("}")
+        if start != -1 and end > start:
+            try:
+                data = json.loads(candidate[start : end + 1])
+            except (ValueError, TypeError):
+                raise PlannerProtocolError(
+                    "BAD_ACTION_JSON", f"Planner response is not valid JSON: {error}"
+                ) from error
+        else:
+            raise PlannerProtocolError("BAD_ACTION_JSON", f"Planner response is not valid JSON: {error}") from error
 
     if not isinstance(data, dict):
         raise PlannerProtocolError("BAD_ACTION_JSON", "Planner action must be a JSON object")

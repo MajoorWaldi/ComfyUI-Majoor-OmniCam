@@ -106,6 +106,26 @@ async def test_ollama_complete_reads_message_content(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_ollama_complete_forces_json_output(monkeypatch):
+    from omnicam.agent.providers import ollama as ollama_module
+
+    captured = {}
+
+    async def fake_guarded_request(session, method, url, *, json_body=None, **kwargs):
+        captured.update(json_body or {})
+        body = json.dumps({"model": "qwen3", "message": {"role": "assistant", "content": "{}"}}).encode("utf-8")
+        return GuardedResponse(status=200, body=body)
+
+    monkeypatch.setattr(ollama_module, "guarded_request", fake_guarded_request)
+
+    await get_provider("ollama").complete("hi", _config("ollama"), None)
+    # format="json" keeps the model's output syntactically parseable even
+    # when it ignores the system prompt's "no markdown fences" instruction.
+    assert captured["format"] == "json"
+    assert captured["stream"] is False
+
+
+@pytest.mark.asyncio
 async def test_ollama_list_models_reads_tags(monkeypatch):
     from omnicam.agent.providers import ollama as ollama_module
 

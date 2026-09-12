@@ -43,6 +43,10 @@ class OllamaProvider:
             "model": config.model,
             "messages": [{"role": "user", "content": request}],
             "stream": False,
+            # Constrains generation to syntactically valid JSON so the
+            # planner's strict json.loads() never trips over markdown code
+            # fences or conversational prose around the action object.
+            "format": "json",
         }
         async with aiohttp.ClientSession() as session:
             response = await guarded_request(
