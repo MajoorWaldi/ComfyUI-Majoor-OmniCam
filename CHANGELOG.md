@@ -25,6 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `keyframe.list`), and structural operations (`camera.create/duplicate/
   delete/rename/set_playblast`, `object.create/duplicate/delete/rename/
   set_parent`, `cut.upsert/remove/set_camera`).
+- A `validateOnly` transaction now returns a bounded semantic diff
+  (`changes`, capped at 100 records with `truncated` past that) of exactly
+  what it would change, so a caller can preview a transaction before
+  committing it.
+- Monitor `Check` gained optional `code` / `recoverable` / `suggestions`
+  fields (all absent by default; no profile call site changed) so an Agent
+  or the panel can show static, reviewed recovery guidance for a known
+  failure code instead of none at all.
+- An inert `AGENT` tab next to `SCENE` / `ASSETS` in the Director's left
+  panel, matching the design spec's Plan 02 mock. It is deliberately wired
+  to nothing yet -- provider wiring is a separate plan.
+- `examples/agent/`: a headless-Agent reference workflow
+  (Director -> Monitor) and a README distinguishing the headless (official
+  Comfy MCP) and live (OmniCam Agent Contract v1) Agent paths.
 
 ### Fixed
 
