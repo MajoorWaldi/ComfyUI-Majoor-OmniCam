@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDirectorAgentPanel, planChangesMarkup, resolveAgentIntent } from "../../web-src/agent/panel.js";
+import { createDirectorAgentPanel, modelSelectMarkup, planChangesMarkup, resolveAgentIntent } from "../../web-src/agent/panel.js";
+import { SETTING_AGENT_MODEL, registerOmniCamLocales } from "../../web-src/settings.js";
 
 class FakeElement {
   constructor(role) {
@@ -56,6 +57,7 @@ function makeElements() {
     "agent-hint": new FakeElement("agent-hint"),
     "agent-describe": new FakeElement("agent-describe"),
     "agent-plan": new FakeElement("agent-plan"),
+    "agent-model-select": new FakeElement("agent-model-select"),
     "agent-provider-label": new FakeElement("agent-provider-label"),
     "agent-credential-status": new FakeElement("agent-credential-status"),
     "agent-credential-form": new FakeElement("agent-credential-form"),
@@ -67,6 +69,7 @@ function makeElements() {
     "act:credential-remove": actButton("credential-remove"),
     "act:credential-test": actButton("credential-test"),
     "act:credential-save": actButton("credential-save"),
+    "act:model-refresh": actButton("model-refresh"),
   };
   elements["agent-credential-form"].hidden = true;
   return elements;
@@ -94,6 +97,10 @@ async function flush() {
   for (let i = 0; i < 10; i += 1) await Promise.resolve();
 }
 
+function ok(payload) {
+  return { ok: true, status: 200, json: async () => payload };
+}
+
 test("resolveAgentIntent finds the closest data-agent-act", () => {
   const btn = actButton("apply");
   assert.deepEqual(resolveAgentIntent(btn), { action: "apply" });
@@ -110,6 +117,82 @@ test("planChangesMarkup renders one <li> per change", () => {
   const html = planChangesMarkup([{ entity: "camera_1", field: "position" }, { entity: "camera_1", field: "target" }]);
   assert.equal((html.match(/<li>/g) || []).length, 2);
   assert.match(html, /camera_1/);
+});
+
+test("modelSelectMarkup lists live models and preselects the configured one", () => {
+  const html = modelSelectMarkup(["a", "b"], "b");
+  assert.match(html, /<option value="a">a<\/option>/);
+  assert.match(html, /<option value="b" selected>b<\/option>/);
+});
+
+test("modelSelectMarkup keeps a configured model that fell out of the live list", () => {
+  const html = modelSelectMarkup(["a"], "custom-model");
+  assert.match(html, /<option value="custom-model" selected>custom-model<\/option>/);
+  assert.match(html, /<option value="a">a<\/option>/);
+});
+
+test("modelSelectMarkup reports no models found when nothing is available or configured", () => {
+  assert.match(modelSelectMarkup([], ""), /No models found/);
+});
+
+test("mounting populates the model picker from the live provider", async () => {
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers/ollama/models": () => ok({ models: ["qwen3.8:latest", "gemma4:26b"] }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+  assert.match(elements["agent-model-select"].innerHTML, /qwen3\.8:latest/);
+  assert.match(elements["agent-model-select"].innerHTML, /gemma4:26b/);
+  panel.dispose();
+});
+
+test("picking a model persists it and updates the provider label", async () => {
+  const values = {};
+  registerOmniCamLocales({
+    extensionManager: {
+      setting: {
+        get: (id) => values[id],
+        set: (id, value) => { values[id] = value; },
+      },
+    },
+  });
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers/ollama/models": () => ok({ models: ["qwen3.8:latest", "gemma4:26b"] }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+
+  elements["agent-model-select"].value = "gemma4:26b";
+  elements["agent-model-select"].handlers.get("change")?.({});
+  assert.equal(values[SETTING_AGENT_MODEL], "gemma4:26b");
+  assert.match(elements["agent-provider-label"].textContent, /gemma4:26b/);
+
+  panel.dispose();
+  registerOmniCamLocales(null);
+});
+
+test("the model-refresh action re-fetches the live model list", async () => {
+  const elements = makeElements();
+  let call = 0;
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers/ollama/models": () => {
+      call += 1;
+      return ok({ models: [`m${call}`] });
+    },
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+  assert.match(elements["agent-model-select"].innerHTML, /m1/);
+
+  click(elements, "act:model-refresh");
+  await flush();
+  assert.match(elements["agent-model-select"].innerHTML, /m2/);
+  panel.dispose();
 });
 
 test("mounting refreshes the credential status", async () => {

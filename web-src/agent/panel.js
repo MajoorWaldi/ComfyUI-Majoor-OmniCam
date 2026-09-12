@@ -11,11 +11,12 @@
 // production chunk.
 
 import { t } from "../i18n.js";
-import { agentSettings } from "../settings.js";
+import { SETTING_AGENT_MODEL, agentSettings, writeSetting } from "../settings.js";
 import { applyPlan, requestPlan } from "./plan-client.js";
 import {
   deleteProviderCredential,
   getProviderStatus,
+  listProviderModels,
   setProviderCredential,
   testProvider,
 } from "./provider-client.js";
@@ -47,6 +48,19 @@ export function planChangesMarkup(changes) {
     .join("");
 }
 
+/** <option> list for the model picker. The currently configured model is
+ * kept even if it fell out of the live list (a provider that just went
+ * offline, a typo'd custom model) so a working selection is never silently
+ * dropped out from under the user. */
+export function modelSelectMarkup(models, currentModel) {
+  const options = Array.isArray(models) ? [...models] : [];
+  if (currentModel && !options.includes(currentModel)) options.unshift(currentModel);
+  if (!options.length) return `<option value="">${t("No models found")}</option>`;
+  return options
+    .map((model) => `<option value="${escapeHtml(model)}"${model === currentModel ? " selected" : ""}>${escapeHtml(model)}</option>`)
+    .join("");
+}
+
 export function createDirectorAgentPanel(ui, options = {}) {
   const root = ui.root;
   const api = options.api || ui.api || ui.app?.api;
@@ -56,6 +70,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
   const hint = el("agent-hint");
   const describeInput = el("agent-describe");
   const planList = el("agent-plan");
+  const modelSelect = el("agent-model-select");
   const providerLabel = el("agent-provider-label");
   const credentialStatus = el("agent-credential-status");
   const credentialForm = el("agent-credential-form");
@@ -114,6 +129,29 @@ export function createDirectorAgentPanel(ui, options = {}) {
     } catch {
       if (!disposed) credentialStatus.textContent = t("Status unavailable");
     }
+  }
+
+  async function refreshModels() {
+    if (disposed || !modelSelect) return;
+    const settings = agentSettings();
+    modelSelect.disabled = true;
+    modelSelect.innerHTML = `<option value="">${t("Loading models...")}</option>`;
+    try {
+      const models = await listProviderModels(api, settings.provider, { base_url: settings.baseUrl });
+      if (disposed) return;
+      modelSelect.innerHTML = modelSelectMarkup(models, settings.model);
+    } catch {
+      if (disposed) return;
+      modelSelect.innerHTML = modelSelectMarkup([], settings.model);
+    } finally {
+      if (!disposed) modelSelect.disabled = false;
+    }
+  }
+
+  function onModelChange() {
+    if (!modelSelect || !modelSelect.value) return;
+    writeSetting(SETTING_AGENT_MODEL, modelSelect.value);
+    render();
   }
 
   async function generatePreview() {
@@ -225,6 +263,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
     } finally {
       toggleCredentialForm(false);
       await refreshCredentialStatus();
+      await refreshModels();
     }
   }
 
@@ -236,6 +275,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       if (!disposed) setHint(error?.message || t("Could not remove the credential"));
     } finally {
       await refreshCredentialStatus();
+      await refreshModels();
     }
   }
 
@@ -265,11 +305,14 @@ export function createDirectorAgentPanel(ui, options = {}) {
     if (intent.action === "credential-remove") return void removeCredential();
     if (intent.action === "credential-test") return void testConnection();
     if (intent.action === "credential-save") return void saveCredential();
+    if (intent.action === "model-refresh") return void refreshModels();
   }
 
   panel?.addEventListener("click", onClick);
+  modelSelect?.addEventListener("change", onModelChange);
   render();
   void refreshCredentialStatus();
+  void refreshModels();
 
   return {
     get state() {
@@ -279,6 +322,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       disposed = true;
       inFlightController?.abort?.();
       panel?.removeEventListener("click", onClick);
+      modelSelect?.removeEventListener("change", onModelChange);
     },
   };
 }

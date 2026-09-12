@@ -29,6 +29,13 @@ function agentTabMarkup() {
   return `
     <div class="oc-left-body oc-assets" data-role="agent-tab" hidden>
       <div class="oc-asset-panel" data-role="agent-panel">
+        <div class="oc-asset-toolbar" data-role="agent-model-row">
+          <select class="oc-search" data-role="agent-model-select" aria-label="${t("Model")}">
+            <option value="">${t("Loading models...")}</option>
+          </select>
+          <button type="button" class="icon-button" data-agent-act="model-refresh"
+                  title="${t("Refresh model list")}"><i class="pi pi-refresh"></i></button>
+        </div>
         <div class="oc-asset-toolbar" data-role="agent-credential-row">
           <span class="oc-asset-status hint" data-role="agent-provider-label"></span>
           <span class="oc-asset-status hint" data-role="agent-credential-status"></span>

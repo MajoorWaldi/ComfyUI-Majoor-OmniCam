@@ -465,6 +465,10 @@ export const FR_EDITOR = {
   "Object": "Objet",
 
   // Director Agent tab (design spec section 32)
+  "Model": "Modèle",
+  "Loading models...": "Chargement des modèles…",
+  "No models found": "Aucun modèle trouvé",
+  "Refresh model list": "Actualiser la liste des modèles",
   "Set credential": "Définir la clé d'accès",
   "Remove credential": "Supprimer la clé d'accès",
   "Test connection": "Tester la connexion",
