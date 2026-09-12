@@ -9,6 +9,11 @@ export const DIRECTOR_API_VERSION = 1;
 
 export const MAX_OPERATIONS_PER_TRANSACTION = 50;
 
+export const MAX_ENTITY_ID_LENGTH = 120;
+export const MAX_ENTITY_NAME_LENGTH = 160;
+
+export const CAMERA_TYPES = Object.freeze(["perspective", "orthographic"]);
+
 export const DIRECTOR_OPS = Object.freeze({
   ASSET_INSTANTIATE: "asset.instantiate",
   CAMERA_CREATE: "camera.create",

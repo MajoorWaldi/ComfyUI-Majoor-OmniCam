@@ -55,6 +55,74 @@ test("camera.create honours a requested id and rejects a duplicate", () => {
   assert.equal(second.error.code, "DUPLICATE_ID");
 });
 
+test("camera.create rejects an unknown nested camera field", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.create", camera: { position: [0, 1, 2], evil: "field" } }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "BAD_VALUE");
+});
+
+test("camera.create enforces bounds on nested camera fields", () => {
+  const ui = makeUi();
+  const cases = [
+    { camera: { fov: 0 } },
+    { camera: { fov: 180 } },
+    { camera: { zoom: 0 } },
+    { camera: { near: 0 } },
+    { camera: { near: 5, far: 5 } },
+    { camera: { camera_type: "fisheye" } },
+  ];
+  for (const operation of cases) {
+    const result = executeDirectorTransaction(ui, tx({
+      operations: [{ type: "camera.create", ...operation }],
+    }));
+    assert.equal(result.ok, false, JSON.stringify(operation));
+    assert.equal(result.error.code, "BAD_VALUE", JSON.stringify(operation));
+  }
+
+  const badVector = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.create", camera: { position: [1, 2, "x"] } }],
+  }));
+  assert.equal(badVector.ok, false);
+  assert.equal(badVector.error.code, "BAD_VECTOR");
+});
+
+test("camera.create accepts all documented nested camera fields", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{
+      type: "camera.create",
+      camera: {
+        position: [1, 2, 3],
+        target: [0, 0, 0],
+        up: [0, 1, 0],
+        fov: 50,
+        roll: 0,
+        zoom: 1,
+        near: 0.1,
+        far: 100,
+        camera_type: "orthographic",
+      },
+    }],
+  }));
+  assert.equal(result.ok, true);
+});
+
+test("camera.create rejects an id/name exceeding the entity bounds", () => {
+  const ui = makeUi();
+  const overLongId = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.create", id: "x".repeat(121) }],
+  }));
+  assert.equal(overLongId.error.code, "BAD_ID");
+
+  const overLongName = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.create", name: "x".repeat(161) }],
+  }));
+  assert.equal(overLongName.error.code, "BAD_ID");
+});
+
 test("camera.duplicate clones an existing camera under a new id", () => {
   const ui = makeUi();
   const result = executeDirectorTransaction(ui, tx({
@@ -215,6 +283,37 @@ test("object.set_parent rejects an unknown parent, self-parenting and a cycle", 
 });
 
 // -- sequence cut operations --------------------------------------------------
+
+test("camera.rename refuses a locked camera", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.rename", cameraId: "camera_1", name: "New name" }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("object.rename refuses a locked object", () => {
+  const ui = makeUi();
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.set_locked", objectId: "subject", value: true }] }));
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.rename", objectId: "subject", name: "New name" }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("object.set_parent refuses a locked object", () => {
+  const ui = makeUi();
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.create", objectType: "cube", id: "parent_1" }] }));
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.set_locked", objectId: "subject", value: true }] }));
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_parent", objectId: "subject", parentId: "parent_1" }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
 
 test("cut.upsert keeps cuts sorted and replaces an existing cut at the same start", () => {
   const ui = makeUi();

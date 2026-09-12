@@ -8,13 +8,17 @@
 
 import { INTERPOLATION_MODES } from "../director/core.js";
 import {
+  CAMERA_TYPES,
   DIRECTOR_API_VERSION,
   DIRECTOR_OPS,
   DIRECTOR_OP_VALUES,
+  MAX_ENTITY_ID_LENGTH,
+  MAX_ENTITY_NAME_LENGTH,
   MAX_OPERATIONS_PER_TRANSACTION,
 } from "./constants.js";
 import { AGENT_OBJECT_TYPES } from "./entity-ops.js";
 import { DirectorApiError } from "./errors.js";
+import { hasRecentTransactionId } from "./tx-id-cache.js";
 
 const isFiniteNumber = (value) => typeof value === "number" && Number.isFinite(value);
 
@@ -30,9 +34,69 @@ function assertFrame(value, label, operationIndex) {
   }
 }
 
-function assertString(value, label, operationIndex) {
+function assertString(value, label, operationIndex, maxLength) {
   if (typeof value !== "string" || value.length === 0) {
     throw new DirectorApiError("BAD_ID", `${label} must be a non-empty string`, operationIndex);
+  }
+  if (maxLength !== undefined && value.length > maxLength) {
+    throw new DirectorApiError("BAD_ID", `${label} exceeds ${maxLength} characters`, operationIndex);
+  }
+}
+
+function assertFiniteNumber(value, label, operationIndex) {
+  if (!isFiniteNumber(value)) {
+    throw new DirectorApiError("BAD_VALUE", `${label} must be a finite number`, operationIndex);
+  }
+}
+
+const CAMERA_FIELDS = new Set([
+  "position",
+  "target",
+  "up",
+  "fov",
+  "roll",
+  "zoom",
+  "near",
+  "far",
+  "camera_type",
+]);
+
+function assertCameraPayload(camera, operationIndex) {
+  for (const key of Object.keys(camera)) {
+    if (!CAMERA_FIELDS.has(key)) {
+      throw new DirectorApiError("BAD_VALUE", `camera.create: unsupported camera field "${key}"`, operationIndex);
+    }
+  }
+  if (camera.position !== undefined) assertVec3(camera.position, "camera.position", operationIndex);
+  if (camera.target !== undefined) assertVec3(camera.target, "camera.target", operationIndex);
+  if (camera.up !== undefined) assertVec3(camera.up, "camera.up", operationIndex);
+  if (camera.fov !== undefined) {
+    assertFiniteNumber(camera.fov, "camera.fov", operationIndex);
+    if (camera.fov < 1 || camera.fov > 179) {
+      throw new DirectorApiError("BAD_VALUE", "camera.fov must be within 1..179", operationIndex);
+    }
+  }
+  if (camera.roll !== undefined) assertFiniteNumber(camera.roll, "camera.roll", operationIndex);
+  if (camera.zoom !== undefined) {
+    assertFiniteNumber(camera.zoom, "camera.zoom", operationIndex);
+    if (camera.zoom <= 0) {
+      throw new DirectorApiError("BAD_VALUE", "camera.zoom must be > 0", operationIndex);
+    }
+  }
+  if (camera.near !== undefined) {
+    assertFiniteNumber(camera.near, "camera.near", operationIndex);
+    if (camera.near <= 0) {
+      throw new DirectorApiError("BAD_VALUE", "camera.near must be > 0", operationIndex);
+    }
+  }
+  if (camera.far !== undefined) {
+    assertFiniteNumber(camera.far, "camera.far", operationIndex);
+    if (camera.near !== undefined && camera.far <= camera.near) {
+      throw new DirectorApiError("BAD_VALUE", "camera.far must be greater than camera.near", operationIndex);
+    }
+  }
+  if (camera.camera_type !== undefined && !CAMERA_TYPES.includes(camera.camera_type)) {
+    throw new DirectorApiError("BAD_VALUE", `Unsupported camera_type: ${camera.camera_type}`, operationIndex);
   }
 }
 
@@ -87,10 +151,13 @@ function validateOperationShape(operation, index) {
       break;
 
     case DIRECTOR_OPS.CAMERA_CREATE:
-      if (operation.id !== undefined) assertString(operation.id, "id", index);
-      if (operation.name !== undefined) assertString(operation.name, "name", index);
-      if (operation.camera !== undefined && (typeof operation.camera !== "object" || Array.isArray(operation.camera))) {
-        throw new DirectorApiError("BAD_VALUE", "camera.create camera must be an object", index);
+      if (operation.id !== undefined) assertString(operation.id, "id", index, MAX_ENTITY_ID_LENGTH);
+      if (operation.name !== undefined) assertString(operation.name, "name", index, MAX_ENTITY_NAME_LENGTH);
+      if (operation.camera !== undefined) {
+        if (typeof operation.camera !== "object" || Array.isArray(operation.camera) || operation.camera === null) {
+          throw new DirectorApiError("BAD_VALUE", "camera.create camera must be an object", index);
+        }
+        assertCameraPayload(operation.camera, index);
       }
       if (operation.interpolation !== undefined && !INTERPOLATION_MODES.includes(operation.interpolation)) {
         throw new DirectorApiError("BAD_INTERPOLATION", `Unsupported interpolation: ${operation.interpolation}`, index);
@@ -98,19 +165,19 @@ function validateOperationShape(operation, index) {
       break;
 
     case DIRECTOR_OPS.CAMERA_DUPLICATE:
-      assertString(operation.cameraId, "cameraId", index);
-      if (operation.id !== undefined) assertString(operation.id, "id", index);
-      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      assertString(operation.cameraId, "cameraId", index, MAX_ENTITY_ID_LENGTH);
+      if (operation.id !== undefined) assertString(operation.id, "id", index, MAX_ENTITY_ID_LENGTH);
+      if (operation.name !== undefined) assertString(operation.name, "name", index, MAX_ENTITY_NAME_LENGTH);
       break;
 
     case DIRECTOR_OPS.CAMERA_DELETE:
     case DIRECTOR_OPS.CAMERA_SET_PLAYBLAST:
-      assertString(operation.cameraId, "cameraId", index);
+      assertString(operation.cameraId, "cameraId", index, MAX_ENTITY_ID_LENGTH);
       break;
 
     case DIRECTOR_OPS.CAMERA_RENAME:
-      assertString(operation.cameraId, "cameraId", index);
-      assertString(operation.name, "name", index);
+      assertString(operation.cameraId, "cameraId", index, MAX_ENTITY_ID_LENGTH);
+      assertString(operation.name, "name", index, MAX_ENTITY_NAME_LENGTH);
       break;
 
     case DIRECTOR_OPS.OBJECT_CREATE:
@@ -121,32 +188,32 @@ function validateOperationShape(operation, index) {
       if (operation.asset !== undefined || operation.url !== undefined || operation.path !== undefined) {
         throw new DirectorApiError("BAD_VALUE", "object.create does not accept asset/url/path -- use asset.instantiate", index);
       }
-      if (operation.id !== undefined) assertString(operation.id, "id", index);
-      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      if (operation.id !== undefined) assertString(operation.id, "id", index, MAX_ENTITY_ID_LENGTH);
+      if (operation.name !== undefined) assertString(operation.name, "name", index, MAX_ENTITY_NAME_LENGTH);
       if (operation.position !== undefined) assertVec3(operation.position, "position", index);
       if (operation.rotation !== undefined) assertVec3(operation.rotation, "rotation", index);
       break;
 
     case DIRECTOR_OPS.OBJECT_DUPLICATE:
-      assertString(operation.objectId, "objectId", index);
-      if (operation.id !== undefined) assertString(operation.id, "id", index);
-      if (operation.name !== undefined) assertString(operation.name, "name", index);
+      assertString(operation.objectId, "objectId", index, MAX_ENTITY_ID_LENGTH);
+      if (operation.id !== undefined) assertString(operation.id, "id", index, MAX_ENTITY_ID_LENGTH);
+      if (operation.name !== undefined) assertString(operation.name, "name", index, MAX_ENTITY_NAME_LENGTH);
       if (operation.offset !== undefined) assertVec3(operation.offset, "offset", index);
       break;
 
     case DIRECTOR_OPS.OBJECT_DELETE:
-      assertString(operation.objectId, "objectId", index);
+      assertString(operation.objectId, "objectId", index, MAX_ENTITY_ID_LENGTH);
       break;
 
     case DIRECTOR_OPS.OBJECT_RENAME:
-      assertString(operation.objectId, "objectId", index);
-      assertString(operation.name, "name", index);
+      assertString(operation.objectId, "objectId", index, MAX_ENTITY_ID_LENGTH);
+      assertString(operation.name, "name", index, MAX_ENTITY_NAME_LENGTH);
       break;
 
     case DIRECTOR_OPS.OBJECT_SET_PARENT:
-      assertString(operation.objectId, "objectId", index);
+      assertString(operation.objectId, "objectId", index, MAX_ENTITY_ID_LENGTH);
       if (operation.parentId !== null && operation.parentId !== undefined) {
-        assertString(operation.parentId, "parentId", index);
+        assertString(operation.parentId, "parentId", index, MAX_ENTITY_ID_LENGTH);
       }
       break;
 
@@ -328,8 +395,7 @@ export function validateDirectorTransaction(ui, input) {
   if (typeof input.id !== "string" || input.id.length === 0) {
     throw new DirectorApiError("BAD_TRANSACTION_ID", "transaction id must be a non-empty string");
   }
-  const seen = (ui._directorApiTxIds ||= new Set());
-  if (seen.has(input.id)) {
+  if (hasRecentTransactionId(ui, input.id)) {
     throw new DirectorApiError("DUPLICATE_TRANSACTION_ID", `transaction id already used: ${input.id}`);
   }
   if (typeof input.description !== "string" || input.description.trim().length === 0) {

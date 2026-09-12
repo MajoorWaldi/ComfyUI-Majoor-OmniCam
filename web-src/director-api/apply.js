@@ -120,6 +120,7 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.CAMERA_RENAME](state, op) {
+    requireUnlockedCamera(state, op.cameraId);
     const outcome = renameCamera(state, op);
     return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
   },
@@ -182,11 +183,13 @@ const HANDLERS = {
   },
 
   [DIRECTOR_OPS.OBJECT_RENAME](state, op) {
+    requireUnlockedObject(state, op.objectId);
     const outcome = renameObject(state, op);
     return { dirtyMask: UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
   },
 
   [DIRECTOR_OPS.OBJECT_SET_PARENT](state, op) {
+    requireUnlockedObject(state, op.objectId);
     const outcome = setObjectParent(state, op);
     return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.outliner | UI_DIRTY.inspector, outcome };
   },
