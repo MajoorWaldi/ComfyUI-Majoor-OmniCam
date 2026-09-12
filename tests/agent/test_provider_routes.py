@@ -8,6 +8,11 @@ from __future__ import annotations
 import json
 
 import pytest
+
+# aiohttp ships with ComfyUI but is not a declared dev dependency of this
+# repo -- skip this module in a bare unit-test environment that never
+# installed it (see tests/agent/test_routes.py's identical guard).
+pytest.importorskip("aiohttp")
 from aiohttp.test_utils import make_mocked_request
 
 from omnicam.agent import provider_routes

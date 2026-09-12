@@ -11,14 +11,21 @@ import json
 from unittest.mock import Mock
 
 import pytest
-from aiohttp import web
-from aiohttp.streams import StreamReader
-from aiohttp.test_utils import make_mocked_request
 
-from omnicam.agent import routes as agent_routes
-from omnicam.agent.broker import BROKER
-from omnicam.agent.protocol import AGENT_PROTOCOL
-from omnicam.comfy_compat.server import PromptServer
+# aiohttp ships with ComfyUI but is not a declared dev dependency of this
+# repo (see requirements-dev.txt) -- skip this whole module in a bare
+# unit-test environment that never installed it. The dedicated python-agent
+# CI job (which does install aiohttp) is a required check, so this suite
+# still cannot silently disappear from CI as a whole.
+aiohttp = pytest.importorskip("aiohttp")
+web = aiohttp.web
+from aiohttp.streams import StreamReader  # noqa: E402
+from aiohttp.test_utils import make_mocked_request  # noqa: E402
+
+from omnicam.agent import routes as agent_routes  # noqa: E402
+from omnicam.agent.broker import BROKER  # noqa: E402
+from omnicam.agent.protocol import AGENT_PROTOCOL  # noqa: E402
+from omnicam.comfy_compat.server import PromptServer  # noqa: E402
 
 
 def _json_request(method, path, body, *, remote="127.0.0.1", headers=None):
