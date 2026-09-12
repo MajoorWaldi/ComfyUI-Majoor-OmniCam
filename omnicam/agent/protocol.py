@@ -6,7 +6,15 @@ from __future__ import annotations
 import ipaddress
 from dataclasses import dataclass
 
-from aiohttp import web
+try:
+    from aiohttp import web
+except ImportError:  # pragma: no cover - aiohttp ships with ComfyUI
+    # `web.Request` below is a lazily-evaluated annotation (see the
+    # __future__ import), so this module still imports cleanly in a plain
+    # unit-test environment that never has ComfyUI's own aiohttp installed;
+    # `require_local_agent` itself is only ever called from a real route
+    # handler, which never exists without aiohttp to register it.
+    web = None  # type: ignore[assignment]
 
 AGENT_PROTOCOL = "omnicam-agent/1"
 AGENT_SCHEMA_VERSION = 1

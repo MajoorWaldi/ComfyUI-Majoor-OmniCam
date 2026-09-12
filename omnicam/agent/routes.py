@@ -21,7 +21,15 @@ Registered from ``omnicam/routes.py`` after its helpers exist, like
 
 from __future__ import annotations
 
-from aiohttp import web
+try:
+    from aiohttp import web
+except ImportError:  # pragma: no cover - aiohttp ships with ComfyUI
+    # Every handler below still defines cleanly (its `web.*` annotations are
+    # lazily-evaluated strings; see the __future__ import) so this module --
+    # and anything that imports it -- stays importable in a plain unit-test
+    # environment. Only the actual route *registration* at the bottom is
+    # skipped: there is nothing meaningful to register without aiohttp.
+    web = None  # type: ignore[assignment]
 
 from ..comfy_compat.server import PromptServer
 from ..http_json import read_bounded_json_object
@@ -50,7 +58,6 @@ def _string_list(value: object, *, name: str, max_items: int, item_limit: int) -
     return tuple(bounded_string(item, name, item_limit) for item in value)
 
 
-@PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/capabilities")
 async def agent_capabilities(request: web.Request) -> web.Response:
     try:
         require_local_agent(request)
@@ -69,7 +76,6 @@ async def agent_capabilities(request: web.Request) -> web.Response:
     )
 
 
-@PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/sessions")
 async def agent_sessions(request: web.Request) -> web.Response:
     try:
         require_local_agent(request)
@@ -79,7 +85,6 @@ async def agent_sessions(request: web.Request) -> web.Response:
     return web.json_response({"sessions": BROKER.list_sessions()})
 
 
-@PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/query")
 async def agent_query(request: web.Request) -> web.Response:
     try:
         require_local_agent(request)
@@ -94,7 +99,6 @@ async def agent_query(request: web.Request) -> web.Response:
         return _error_response(error)
 
 
-@PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/transaction")
 async def agent_transaction(request: web.Request) -> web.Response:
     try:
         require_local_agent(request)
@@ -119,7 +123,6 @@ async def agent_transaction(request: web.Request) -> web.Response:
         return _error_response(error)
 
 
-@PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/register")
 async def agent_session_register(request: web.Request) -> web.Response:
     try:
         body = await read_bounded_json_object(request, max_bytes=MAX_AGENT_JSON_BYTES)
@@ -157,7 +160,6 @@ async def agent_session_register(request: web.Request) -> web.Response:
         return _error_response(error)
 
 
-@PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/heartbeat")
 async def agent_session_heartbeat(request: web.Request) -> web.Response:
     try:
         body = await read_bounded_json_object(request, max_bytes=MAX_AGENT_JSON_BYTES)
@@ -172,7 +174,6 @@ async def agent_session_heartbeat(request: web.Request) -> web.Response:
         return _error_response(error)
 
 
-@PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/close")
 async def agent_session_close(request: web.Request) -> web.Response:
     try:
         body = await read_bounded_json_object(request, max_bytes=MAX_AGENT_JSON_BYTES)
@@ -184,7 +185,6 @@ async def agent_session_close(request: web.Request) -> web.Response:
         return _error_response(error)
 
 
-@PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/reply")
 async def agent_reply(request: web.Request) -> web.Response:
     try:
         body = await read_bounded_json_object(request, max_bytes=MAX_AGENT_JSON_BYTES)
@@ -198,3 +198,17 @@ async def agent_reply(request: web.Request) -> web.Response:
         return web.json_response({"ok": True})
     except AgentProtocolError as error:
         return _error_response(error)
+
+
+# Registration is skipped (rather than crashing) when aiohttp is unavailable
+# -- see the try/except at the top of this module. In a real ComfyUI process
+# aiohttp always ships, so this only matters for a bare unit-test environment.
+if web is not None:
+    PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/capabilities")(agent_capabilities)
+    PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/sessions")(agent_sessions)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/query")(agent_query)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/transaction")(agent_transaction)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/register")(agent_session_register)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/heartbeat")(agent_session_heartbeat)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/close")(agent_session_close)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/reply")(agent_reply)
