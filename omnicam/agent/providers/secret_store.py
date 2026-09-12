@@ -50,6 +50,21 @@ def _require_known_provider(provider_id: str) -> None:
         raise SecretStoreError("UNKNOWN_PROVIDER", f"Unknown provider: {provider_id!r}")
 
 
+def env_credential(provider_id: str) -> str | None:
+    """The operator-supplied environment override for ``provider_id``, if
+    any. Each branch reads a literal env var name (never one assembled from
+    ``ENV_VAR_BY_PROVIDER``) so scripts/registry_package_audit.py's narrow,
+    by-name allowlist can verify statically that shipped code never reads an
+    arbitrary/dynamically-named environment variable."""
+    if provider_id == "openai":
+        return os.environ.get("OMNICAM_OPENAI_API_KEY")
+    if provider_id == "openai_compatible":
+        return os.environ.get("OMNICAM_OPENAI_COMPAT_API_KEY")
+    if provider_id == "anthropic":
+        return os.environ.get("OMNICAM_ANTHROPIC_API_KEY")
+    return None
+
+
 def _request_user_id(request: object) -> str:
     from server import PromptServer
 
@@ -105,8 +120,7 @@ class SecretStore:
 
     def status(self, request: object, provider_id: str) -> dict:
         _require_known_provider(provider_id)
-        env_var = ENV_VAR_BY_PROVIDER.get(provider_id)
-        if env_var and os.environ.get(env_var):
+        if env_credential(provider_id):
             return {"configured": True, "source": "environment"}
 
         secrets = _read_secrets(_store_path(request))
@@ -117,11 +131,9 @@ class SecretStore:
 
     def resolve(self, request: object, provider_id: str) -> str | None:
         _require_known_provider(provider_id)
-        env_var = ENV_VAR_BY_PROVIDER.get(provider_id)
-        if env_var:
-            env_value = os.environ.get(env_var)
-            if env_value:
-                return env_value
+        env_value = env_credential(provider_id)
+        if env_value:
+            return env_value
 
         secrets = _read_secrets(_store_path(request))
         return secrets.get(provider_id) or None

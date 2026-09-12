@@ -26,7 +26,7 @@ from ..http_json import read_bounded_json_object
 from .protocol import AgentProtocolError
 from .providers.models import PROVIDER_IDS, ProviderConfig
 from .providers.registry import get_provider, provider_capabilities
-from .providers.secret_store import ENV_VAR_BY_PROVIDER, SECRET_STORE, SecretStoreError
+from .providers.secret_store import ENV_VAR_BY_PROVIDER, SECRET_STORE, SecretStoreError, env_credential
 
 MAX_PROVIDER_JSON_BYTES = 64 * 1024
 MAX_CREDENTIAL_BYTES = 16 * 1024
@@ -42,10 +42,8 @@ def _require_provider(provider_id: str) -> None:
 
 
 def _require_env_unmanaged(provider_id: str) -> None:
-    import os
-
-    env_var = ENV_VAR_BY_PROVIDER.get(provider_id)
-    if env_var and os.environ.get(env_var):
+    if env_credential(provider_id):
+        env_var = ENV_VAR_BY_PROVIDER.get(provider_id, "an environment variable")
         raise AgentProtocolError(
             "CREDENTIAL_MANAGED_BY_ENV",
             f"{provider_id} credential is managed by the {env_var} environment variable",
