@@ -18,8 +18,10 @@ from .broker import BROKER
 from .plan_store import PLAN_STORE, PendingPlan
 from .planner_schema import (
     DIRECTOR_API_VERSION,
+    MAX_PLANNER_CONTEXT_BYTES,
     PlannerProtocolError,
     build_system_prompt,
+    encode_planner_observation,
     parse_action,
     render_conversation,
 )
@@ -58,6 +60,11 @@ async def run_planner(
 
     for _step in range(max(1, max_planner_steps)):
         prompt = render_conversation(conversation)
+        if len(prompt.encode("utf-8")) > MAX_PLANNER_CONTEXT_BYTES:
+            raise PlannerProtocolError(
+                "PLANNER_CONTEXT_TOO_LARGE",
+                "Planner context budget exceeded; retry with narrower scene queries.",
+            )
         response = await provider.complete(prompt, provider_config, credential)
 
         try:
@@ -71,9 +78,26 @@ async def run_planner(
             continue
 
         if action["type"] == "query":
+            query_type = action["query"].get("type")
+            if query_type not in queries:
+                conversation.append({"role": "assistant", "content": response.text})
+                conversation.append({
+                    "role": "user",
+                    "content": json.dumps({
+                        "ok": False,
+                        "error": {
+                            "code": "QUERY_NOT_ADVERTISED",
+                            "message": (
+                                f"Unsupported query for the built-in planner: {query_type!r}. "
+                                "Use one of the advertised query types."
+                            ),
+                        },
+                    }),
+                })
+                continue
             observation = await BROKER.dispatch(session_id, "query", action["query"])
             conversation.append({"role": "assistant", "content": response.text})
-            conversation.append({"role": "user", "content": json.dumps(observation)})
+            conversation.append({"role": "user", "content": encode_planner_observation(observation)})
             continue
 
         if action["type"] == "transaction":

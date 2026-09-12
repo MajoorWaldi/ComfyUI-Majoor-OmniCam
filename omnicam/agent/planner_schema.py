@@ -58,7 +58,12 @@ PLANNER_OPERATIONS: tuple[str, ...] = (
 )
 
 PLANNER_QUERIES: tuple[str, ...] = (
-    "scene.get", "scene.summary", "asset.list", "asset.get",
+    # scene.get deliberately excluded: it returns a large, unbounded semantic
+    # snapshot that inflates provider request size/latency/cost across a
+    # multi-step plan for no benefit the bounded queries below don't already
+    # cover. The external Semantic Director API (used by manual UI code and
+    # external Agents, not the built-in planner) may still retain scene.get.
+    "scene.summary", "asset.list", "asset.get",
     "camera.get", "camera.list", "timeline.get", "selection.get",
     "health.get", "character.get_rig", "character.get_pose",
     "character.list", "object.list", "object.get", "object.search",
@@ -67,6 +72,36 @@ PLANNER_QUERIES: tuple[str, ...] = (
     # ui.state) and returns id/name/kind/tags/animations only.
     "asset.catalog_search",
 )
+
+# Hard budgets on the built-in planner's own context (design spec Task 4).
+# Unlike a single Director query (already individually bounded server-side),
+# the *conversation* keeps growing across steps -- without a cap here a long
+# multi-step plan could inflate provider request size/latency/cost/local
+# model RAM/VRAM pressure without limit. Measured in UTF-8 bytes, not Python
+# character count, since that is what actually crosses the wire to a
+# provider.
+MAX_PLANNER_CONTEXT_BYTES = 512 * 1024
+MAX_PLANNER_OBSERVATION_BYTES = 128 * 1024
+
+
+def encode_planner_observation(observation: object) -> str:
+    """Serialize one query observation for the planner conversation, capping
+    it to MAX_PLANNER_OBSERVATION_BYTES. An oversized observation is replaced
+    with a small, explicit error the model can act on (e.g. by narrowing its
+    next query) rather than being silently truncated mid-JSON."""
+    encoded = json.dumps(observation, separators=(",", ":"), ensure_ascii=False)
+    if len(encoded.encode("utf-8")) > MAX_PLANNER_OBSERVATION_BYTES:
+        return json.dumps({
+            "ok": False,
+            "error": {
+                "code": "OBSERVATION_TOO_LARGE",
+                "message": (
+                    "The query result is too large for the planner. "
+                    "Use scene.summary, object.search, camera.list or pagination."
+                ),
+            },
+        }, separators=(",", ":"))
+    return encoded
 
 # Mirrors web-src/director-api/entity-ops.js's AGENT_OBJECT_TYPES by hand --
 # object.create rejects anything outside this exact set (UNSUPPORTED_OBJECT_TYPE),
