@@ -8,6 +8,7 @@
 import {
   DIRECTOR_API_VERSION,
   DIRECTOR_OP_VALUES,
+  DIRECTOR_OPS,
   DIRECTOR_QUERY_VALUES,
 } from "../director-api/constants.js";
 import {
@@ -19,6 +20,15 @@ import {
 } from "./protocol.js";
 
 const REGISTER_RETRY_MS = 5_000;
+
+// asset.instantiate takes a fully resolved AssetDefinition (file/source/rig/
+// animations) that only the trusted catalogue may produce -- an external
+// Agent must never be able to fabricate one, so it is never advertised and
+// any transaction that slips one in is rejected before it reaches
+// ui.directorApi.execute (design spec section 21).
+export const EXTERNAL_AGENT_OPERATIONS = Object.freeze(
+  DIRECTOR_OP_VALUES.filter((operation) => operation !== DIRECTOR_OPS.ASSET_INSTANTIATE),
+);
 
 async function postJson(api, path, payload) {
   const response = await api.fetchApi(path, {
@@ -97,7 +107,7 @@ export function createDirectorAgentBridge(ui, node, api) {
         label: `OmniCam Director ${node.id}`,
         director_api: DIRECTOR_API_VERSION,
         revision: Number(ui.directorRevision || 0),
-        operations: [...DIRECTOR_OP_VALUES],
+        operations: [...EXTERNAL_AGENT_OPERATIONS],
         queries: [...DIRECTOR_QUERY_VALUES],
       });
 
@@ -161,11 +171,20 @@ export function createDirectorAgentBridge(ui, node, api) {
         result = ui.directorApi.query(detail.payload);
       } else if (detail.kind === "transaction") {
         const tx = detail.payload;
+        const disallowed = (tx?.operations || []).find(
+          (operation) => !EXTERNAL_AGENT_OPERATIONS.includes(operation?.type),
+        );
         if (!Number.isInteger(tx?.baseRevision) || tx.baseRevision < 0) {
           result = failureResult(
             ui,
             "BASE_REVISION_REQUIRED",
             "External Agent transactions require baseRevision",
+          );
+        } else if (disallowed) {
+          result = failureResult(
+            ui,
+            "OPERATION_NOT_ADVERTISED",
+            `External Agent transactions cannot use operation: ${disallowed?.type}`,
           );
         } else {
           result = ui.directorApi.execute(tx);
@@ -190,14 +209,29 @@ export function createDirectorAgentBridge(ui, node, api) {
     }
   }
 
+  async function closeSessionBestEffort(id, token) {
+    if (!id || !token) return;
+    try {
+      await postJson(api, AGENT_ROUTES.close, {
+        session_id: id,
+        session_token: token,
+      });
+    } catch {
+      // Reconnection must continue even if the old session could not be
+      // closed cleanly server-side; it will still expire via its own TTL.
+    }
+  }
+
   function handleStatus() {
     if (disposed) return;
     const clientId = currentClientId();
     if (clientId && registeredClientId && clientId !== registeredClientId) {
       // ComfyUI does not guarantee the WebSocket client id is stable across
       // reconnects, so a change means the old session's routing is dead.
+      const oldId = sessionId;
+      const oldToken = sessionToken;
       clearSession();
-      void register();
+      void closeSessionBestEffort(oldId, oldToken).finally(() => register());
     }
   }
 

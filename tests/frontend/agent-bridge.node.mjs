@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDirectorAgentBridge } from "../../web-src/agent/bridge.js";
+import { createDirectorAgentBridge, EXTERNAL_AGENT_OPERATIONS } from "../../web-src/agent/bridge.js";
 import { AGENT_EVENT, AGENT_HEARTBEAT_INTERVAL_MS, AGENT_PROTOCOL, AGENT_ROUTES } from "../../web-src/agent/protocol.js";
-import { DIRECTOR_OP_VALUES, DIRECTOR_QUERY_VALUES } from "../../web-src/director-api/constants.js";
+import { DIRECTOR_QUERY_VALUES } from "../../web-src/director-api/constants.js";
 
 function makeApi({ onFetch } = {}) {
   const listeners = new Map();
@@ -63,7 +63,8 @@ test("register() sends the current client id and the real semantic vocabulary", 
   assert.ok(registerCall);
   assert.equal(registerCall.body.client_id, "client_1");
   assert.equal(registerCall.body.node_id, "42");
-  assert.deepEqual(registerCall.body.operations, [...DIRECTOR_OP_VALUES]);
+  assert.deepEqual(registerCall.body.operations, [...EXTERNAL_AGENT_OPERATIONS]);
+  assert.equal(registerCall.body.operations.includes("asset.instantiate"), false);
   assert.deepEqual(registerCall.body.queries, [...DIRECTOR_QUERY_VALUES]);
   assert.equal(bridge.sessionId, "s1");
   bridge.dispose();
@@ -127,7 +128,7 @@ test("a transaction request is forwarded to ui.directorApi.execute", async () =>
   const { api, bridge } = await registeredBridge();
   api.dispatch(
     AGENT_EVENT,
-    baseDetail({ kind: "transaction", payload: { baseRevision: 0, operations: [{ type: "x" }] } }),
+    baseDetail({ kind: "transaction", payload: { baseRevision: 0, operations: [{ type: "camera.set_active", cameraId: "camera_1" }] } }),
   );
   await flush();
   const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
@@ -151,6 +152,32 @@ test("a transaction missing baseRevision is rejected before reaching directorApi
   const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
   assert.equal(reply.body.result.ok, false);
   assert.equal(reply.body.result.error.code, "BASE_REVISION_REQUIRED");
+  assert.equal(executed, false);
+  bridge.dispose();
+});
+
+test("a transaction using asset.instantiate is rejected before reaching directorApi.execute", async () => {
+  let executed = false;
+  const { api, bridge } = await registeredBridge({
+    directorApi: {
+      query: () => ({}),
+      execute: () => {
+        executed = true;
+        return { ok: true };
+      },
+    },
+  });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({
+      kind: "transaction",
+      payload: { baseRevision: 0, operations: [{ type: "asset.instantiate", asset: { id: "a", kind: "mesh" } }] },
+    }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.ok, false);
+  assert.equal(reply.body.result.error.code, "OPERATION_NOT_ADVERTISED");
   assert.equal(executed, false);
   bridge.dispose();
 });
@@ -203,5 +230,41 @@ test("a client id change re-registers under the new id", async () => {
   const registrations = api.calls.filter((c) => c.url === AGENT_ROUTES.register);
   assert.equal(registrations.length, 2);
   assert.equal(registrations[1].body.client_id, "client_2");
+  bridge.dispose();
+});
+
+test("a client id change closes the old session before re-registering", async () => {
+  const { api, bridge } = await registeredBridge();
+  api.clientId = "client_2";
+  api.dispatch("status", {});
+  await flush();
+  const close = api.calls.find((c) => c.url === AGENT_ROUTES.close);
+  assert.ok(close);
+  assert.equal(close.body.session_id, "s1");
+  assert.equal(close.body.session_token, "t1");
+  const closeIndex = api.calls.indexOf(close);
+  const secondRegisterIndex = api.calls.findIndex(
+    (c, i) => c.url === AGENT_ROUTES.register && i > 0,
+  );
+  assert.ok(closeIndex < secondRegisterIndex);
+  bridge.dispose();
+});
+
+test("a failed close of the old session still allows re-registration", async () => {
+  const api = makeApi({
+    async onFetch(url) {
+      if (url === AGENT_ROUTES.register) return { ok: true, status: 200, json: async () => ({ session_id: "s1", session_token: "t1" }) };
+      if (url === AGENT_ROUTES.close) return { ok: false, status: 500, json: async () => ({ error: { code: "INTERNAL" } }) };
+      return { ok: true, status: 200, json: async () => ({}) };
+    },
+  });
+  const ui = makeUi();
+  const bridge = createDirectorAgentBridge(ui, node, api);
+  await flush();
+  api.clientId = "client_2";
+  api.dispatch("status", {});
+  await flush();
+  const registrations = api.calls.filter((c) => c.url === AGENT_ROUTES.register);
+  assert.equal(registrations.length, 2);
   bridge.dispose();
 });

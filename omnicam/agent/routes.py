@@ -146,6 +146,15 @@ async def agent_session_register(request: web.Request) -> web.Response:
         operations = _string_list(body.get("operations", []), name="operations", max_items=MAX_ADVERTISED_OPERATIONS, item_limit=100)
         queries = _string_list(body.get("queries", []), name="queries", max_items=MAX_ADVERTISED_QUERIES, item_limit=100)
 
+        # A registration must come from a browser tab ComfyUI's own WebSocket
+        # transport already knows about -- otherwise anyone who can reach this
+        # HTTP route could register a session for a client_id that was never
+        # actually connected, and the broker would happily route Agent
+        # traffic into the void (or worse, let a forged id collide with a
+        # real one later).
+        if client_id not in PromptServer.instance.sockets:
+            raise AgentProtocolError("UNKNOWN_CLIENT", "ComfyUI browser client is not connected", 409)
+
         session = BROKER.register(
             client_id=client_id,
             node_id=node_id,
