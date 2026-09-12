@@ -15,6 +15,8 @@ class FakeElement {
     this.value = "";
     this.handlers = new Map();
     this.classList = { toggle() {}, add() {}, remove() {} };
+    this.style = {};
+    this.scrollHeight = 0;
   }
 
   addEventListener(name, handler) { this.handlers.set(name, handler); }
@@ -192,6 +194,22 @@ test("the model-refresh action re-fetches the live model list", async () => {
   click(elements, "act:model-refresh");
   await flush();
   assert.match(elements["agent-model-select"].innerHTML, /m2/);
+  panel.dispose();
+});
+
+test("the describe textarea grows to fit its content on input", async () => {
+  const elements = makeElements();
+  const api = makeApi({});
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+
+  const textarea = elements["agent-describe"];
+  textarea.value = "a longer shot description that needs more room";
+  textarea.scrollHeight = 96;
+  textarea.handlers.get("input")?.({});
+  assert.equal(textarea.style.height, "96px");
+
   panel.dispose();
 });
 

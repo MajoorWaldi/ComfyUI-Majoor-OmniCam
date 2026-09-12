@@ -295,6 +295,15 @@ export function createDirectorAgentPanel(ui, options = {}) {
     }
   }
 
+  /** Grows the describe textarea to fit its content; the CSS max-height on
+   * .oc-agent-describe caps it and switches to internal scrolling beyond
+   * that, so this never has to clamp anything itself. */
+  function autoGrowDescribe() {
+    if (!describeInput) return;
+    describeInput.style.height = "auto";
+    describeInput.style.height = `${describeInput.scrollHeight}px`;
+  }
+
   function onClick(event) {
     const intent = resolveAgentIntent(event.target);
     if (!intent) return;
@@ -310,6 +319,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
 
   panel?.addEventListener("click", onClick);
   modelSelect?.addEventListener("change", onModelChange);
+  describeInput?.addEventListener("input", autoGrowDescribe);
   render();
   void refreshCredentialStatus();
   void refreshModels();
@@ -323,6 +333,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       inFlightController?.abort?.();
       panel?.removeEventListener("click", onClick);
       modelSelect?.removeEventListener("change", onModelChange);
+      describeInput?.removeEventListener("input", autoGrowDescribe);
     },
   };
 }

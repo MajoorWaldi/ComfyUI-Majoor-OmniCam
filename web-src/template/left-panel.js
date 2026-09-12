@@ -52,8 +52,8 @@ function agentTabMarkup() {
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="credential-save">${t("Save")}</button>
         </div>
         <p class="oc-asset-status hint" data-role="agent-hint"></p>
-        <input class="oc-search" data-role="agent-describe" type="text"
-               placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}">
+        <textarea class="oc-search oc-agent-describe" data-role="agent-describe" rows="2"
+                  placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}"></textarea>
         <div class="oc-asset-toolbar">
           <strong>${t("Planned changes")}</strong>
         </div>
