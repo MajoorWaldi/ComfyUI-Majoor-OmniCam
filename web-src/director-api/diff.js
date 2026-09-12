@@ -43,7 +43,9 @@ export function computeSemanticDiff(before, after) {
   };
 
   diffCameras(before, after, push);
+  diffKeyframes(before, after, push);
   diffObjects(before, after, push);
+  diffJointRotations(before, after, push);
   diffTimeline(before, after, push);
   diffCuts(before, after, push);
 
@@ -76,6 +78,50 @@ function diffCameras(before, after, push) {
     push(id, "target", priorCamera.camera?.target, camera.camera?.target);
     for (const field of CAMERA_PROPERTY_FIELDS) {
       push(id, field, priorCamera.camera?.[field], camera.camera?.[field]);
+    }
+  }
+}
+
+const KEYFRAME_CAMERA_FIELDS = ["position", "target", "fov", "roll", "zoom", "near", "far", "camera_type"];
+
+function diffKeyframes(before, after, push) {
+  const beforeCameras = byId(before?.cameras);
+  const afterCameras = byId(after?.cameras);
+
+  for (const [id, camera] of afterCameras) {
+    const priorCamera = beforeCameras.get(id);
+    const beforeKeys = new Map((priorCamera?.keyframes || []).map((key) => [key.frame, key]));
+    const afterKeys = new Map((camera.keyframes || []).map((key) => [key.frame, key]));
+    const entity = `${id}@keyframes`;
+
+    for (const [frame, key] of beforeKeys) {
+      if (!afterKeys.has(frame)) push(entity, `frame_${frame}`, key.interpolation ?? "present", null);
+    }
+    for (const [frame, key] of afterKeys) {
+      const priorKey = beforeKeys.get(frame);
+      if (!priorKey) {
+        push(entity, `frame_${frame}`, null, key.interpolation ?? "present");
+        continue;
+      }
+      for (const field of KEYFRAME_CAMERA_FIELDS) {
+        push(entity, `frame_${frame}_${field}`, priorKey.camera?.[field], key.camera?.[field]);
+      }
+      push(entity, `frame_${frame}_interpolation`, priorKey.interpolation, key.interpolation);
+    }
+  }
+}
+
+function diffJointRotations(before, after, push) {
+  const beforeObjects = byId(before?.objects);
+  const afterObjects = byId(after?.objects);
+
+  for (const [id, object] of afterObjects) {
+    const priorObject = beforeObjects.get(id);
+    const beforeJoints = priorObject?.character?.pose?.joints || {};
+    const afterJoints = object.character?.pose?.joints || {};
+    const jointNames = new Set([...Object.keys(beforeJoints), ...Object.keys(afterJoints)]);
+    for (const joint of jointNames) {
+      push(`${id}#${joint}`, "joint_rotation", beforeJoints[joint] ?? null, afterJoints[joint] ?? null);
     }
   }
 }
