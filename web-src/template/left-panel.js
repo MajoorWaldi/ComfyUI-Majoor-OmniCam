@@ -21,25 +21,38 @@ import {
   assetsIcon,
 } from "./object-icons.js";
 
-// Deliberately inert (design spec Plan 02 §53): no planner is wired to this
-// panel yet. It exists only so the Preview/Apply/Cancel shape is settled
-// before provider wiring -- a separate plan -- lands. Describe/Preview/Apply
-// stay disabled until that plan gives them something to call.
+// Markup only -- all imperative wiring (provider status, credential
+// Replace/Remove/Test, Preview/Apply/Cancel) lives in web-src/agent/panel.js,
+// lazy-loaded the first time this tab is opened (see assets/panel.js's
+// switchView(), which owns tab visibility for all three left-panel tabs).
 function agentTabMarkup() {
   return `
     <div class="oc-left-body oc-assets" data-role="agent-tab" hidden>
       <div class="oc-asset-panel" data-role="agent-panel">
-        <p class="oc-asset-status hint" data-role="agent-hint">
-          ${t("No planner is configured yet — provider wiring is a separate plan.")}
-        </p>
-        <input class="oc-search" data-role="agent-describe" type="text" disabled
+        <div class="oc-asset-toolbar" data-role="agent-credential-row">
+          <span class="oc-asset-status hint" data-role="agent-provider-label"></span>
+          <span class="oc-asset-status hint" data-role="agent-credential-status"></span>
+          <button type="button" class="icon-button" data-agent-act="credential-replace"
+                  title="${t("Set credential")}"><i class="pi pi-key"></i></button>
+          <button type="button" class="icon-button" data-agent-act="credential-remove"
+                  title="${t("Remove credential")}"><i class="pi pi-trash"></i></button>
+          <button type="button" class="icon-button" data-agent-act="credential-test"
+                  title="${t("Test connection")}"><i class="pi pi-bolt"></i></button>
+        </div>
+        <div class="oc-asset-toolbar" data-role="agent-credential-form" hidden>
+          <input class="oc-search" data-role="agent-credential-input" type="password" autocomplete="new-password"
+                 placeholder="${t("Paste API key...")}" aria-label="${t("Credential")}">
+          <button type="button" class="oc-btn oc-btn--primary" data-agent-act="credential-save">${t("Save")}</button>
+        </div>
+        <p class="oc-asset-status hint" data-role="agent-hint"></p>
+        <input class="oc-search" data-role="agent-describe" type="text"
                placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}">
         <div class="oc-asset-toolbar">
           <strong>${t("Planned changes")}</strong>
         </div>
         <ul class="oc-asset-status hint" data-role="agent-plan" style="list-style:none;padding:0;margin:0"></ul>
         <div class="oc-asset-foot">
-          <button type="button" class="oc-btn" data-agent-act="preview" disabled>${t("Preview")}</button>
+          <button type="button" class="oc-btn" data-agent-act="preview">${t("Preview")}</button>
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="apply" disabled>${t("Apply")}</button>
           <button type="button" class="oc-btn" data-agent-act="cancel" disabled>${t("Cancel")}</button>
         </div>

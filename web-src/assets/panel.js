@@ -197,6 +197,7 @@ export function createAssetBrowserPanel(ui, options = {}) {
   let selectedId = "";
   let searchTimer = null;
   let firstOpen = true;
+  let firstAgentOpen = true;
 
   // A transient message (import result, error) survives the frequent renderGrid()
   // repaints the lazy thumbnail queue triggers; the "{n} of {total}" line only
@@ -341,6 +342,10 @@ export function createAssetBrowserPanel(ui, options = {}) {
     if (view === "assets" && firstOpen) {
       firstOpen = false;
       store.refresh();
+    }
+    if (view === "agent" && firstAgentOpen) {
+      firstAgentOpen = false;
+      options.onAgentFirstOpen?.();
     }
   }
 
