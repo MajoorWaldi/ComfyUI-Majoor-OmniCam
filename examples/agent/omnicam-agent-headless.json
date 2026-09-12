@@ -1,0 +1,236 @@
+{
+  "id": "0b7a2b7e-omnicam-agent-headless-example",
+  "revision": 0,
+  "last_node_id": 3,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 3,
+      "type": "MarkdownNote",
+      "pos": [
+        100,
+        -260
+      ],
+      "size": [
+        1200,
+        300
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "title": "Note: Headless Agent example",
+      "properties": {},
+      "widgets_values": [
+        "This is the *headless* Agent path: an official Comfy-MCP-speaking Agent discovers `MajoorOmniCamDirector` and `MajoorOmniCamMonitor` through the normal ComfyUI `/object_info` schema and drives them like any other node -- it edits `state_json` / the widgets directly and queues this graph.\n\nThis is deliberately the *simplest* runnable pair (Director -> Monitor, profile `wan_camera_native`). See `examples/agent/README.md` for how this differs from the *live* Agent path (the OmniCam Agent Contract v1), which instead reaches a Director instance already open in a browser through `docs/AGENT_INTEGRATION.md`.\n\nNothing here is Agent-specific at the graph level: this workflow runs exactly like any other OmniCam Director -> Monitor pair once queued."
+      ]
+    },
+    {
+      "id": 1,
+      "type": "MajoorOmniCamDirector",
+      "pos": [
+        100,
+        100
+      ],
+      "size": [
+        1200,
+        1400
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "shape": 7,
+          "type": "VIDEO,IMAGE",
+          "link": null
+        },
+        {
+          "name": "video",
+          "shape": 7,
+          "type": "VIDEO,IMAGE",
+          "link": null
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": null
+        },
+        {
+          "name": "scene_3d",
+          "shape": 7,
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "solved_scene",
+          "shape": 7,
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "slot_index": 0,
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "playblast_video",
+          "type": "VIDEO",
+          "slot_index": 1,
+          "links": null
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "slot_index": 2,
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamDirector"
+      },
+      "widgets_values": [
+        "{\"schema_version\": 1, \"fps\": 24, \"duration_frames\": 48, \"width\": 400, \"height\": 400, \"render_mode\": \"omni_ref\", \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"keyframes\": [{\"frame\": 0, \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}, {\"frame\": 47, \"camera\": {\"position\": [-6, 3, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}], \"cameras\": [{\"id\": \"camera_1\", \"name\": \"Camera 1\", \"color\": \"#4aa3ef\", \"locked\": false, \"muted\": false, \"solo\": false, \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"keyframes\": [{\"frame\": 0, \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}, {\"frame\": 47, \"camera\": {\"position\": [-6, 3, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}]}], \"active_camera_id\": \"camera_1\", \"playblast_camera_id\": \"camera_1\", \"objects\": [{\"id\": \"subject\", \"type\": \"card\", \"name\": \"Subject Card\", \"position\": [0, 1.5, 0], \"rotation\": [0, 0, 0], \"size\": [2, 3, 0.01], \"material_mode\": \"textured\", \"color\": \"#8c929b\", \"keyframes\": [], \"enabled\": true}]}",
+        "",
+        "",
+        400,
+        400,
+        24,
+        2.0,
+        "omni_ref",
+        ""
+      ],
+      "widgets_values_named": {
+        "state_json": "{\"schema_version\": 1, \"fps\": 24, \"duration_frames\": 48, \"width\": 400, \"height\": 400, \"render_mode\": \"omni_ref\", \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"keyframes\": [{\"frame\": 0, \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}, {\"frame\": 47, \"camera\": {\"position\": [-6, 3, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}], \"cameras\": [{\"id\": \"camera_1\", \"name\": \"Camera 1\", \"color\": \"#4aa3ef\", \"locked\": false, \"muted\": false, \"solo\": false, \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"keyframes\": [{\"frame\": 0, \"camera\": {\"position\": [6, 4, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}, {\"frame\": 47, \"camera\": {\"position\": [-6, 3, 6], \"target\": [0, 1.5, 0], \"fov\": 35, \"roll\": 0, \"camera_type\": \"perspective\", \"zoom\": 1, \"near\": 0.01, \"far\": 10000}, \"interpolation\": \"ease\"}]}], \"active_camera_id\": \"camera_1\", \"playblast_camera_id\": \"camera_1\", \"objects\": [{\"id\": \"subject\", \"type\": \"card\", \"name\": \"Subject Card\", \"position\": [0, 1.5, 0], \"rotation\": [0, 0, 0], \"size\": [2, 3, 0.01], \"material_mode\": \"textured\", \"color\": \"#8c929b\", \"keyframes\": [], \"enabled\": true}]}",
+        "recording_path": "",
+        "card_asset": "",
+        "width": 400,
+        "height": 400,
+        "fps": 24,
+        "duration_seconds": 2.0,
+        "render_mode": "omni_ref",
+        "majoor_omnicam_viewport": ""
+      }
+    },
+    {
+      "id": 2,
+      "type": "MajoorOmniCamMonitor",
+      "pos": [
+        1450,
+        300
+      ],
+      "size": [
+        560,
+        900
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_scene",
+          "type": "OMNICAM_MOTION_SCENE",
+          "link": 1
+        },
+        {
+          "name": "playblast_video",
+          "shape": 7,
+          "type": "VIDEO,IMAGE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "final_prompt",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "reference_video",
+          "type": "VIDEO",
+          "links": null
+        },
+        {
+          "name": "reference_frames",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "camera_embedding",
+          "type": "WAN_CAMERA_EMBEDDING",
+          "links": null
+        },
+        {
+          "name": "native_tracks",
+          "type": "TRACKS",
+          "links": null
+        },
+        {
+          "name": "tracks_json",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "target_width",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "target_height",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "target_length",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "MajoorOmniCamMonitor"
+      },
+      "widgets_values": [
+        "wan_camera_native",
+        832,
+        480,
+        0,
+        0,
+        "",
+        ""
+      ],
+      "widgets_values_named": {
+        "target_profile": "wan_camera_native",
+        "target_width": 832,
+        "target_height": 480,
+        "duration_seconds": 0,
+        "target_fps": 0,
+        "base_prompt": "",
+        "majoor_omnicam_monitor": ""
+      },
+      "color": "#48669d",
+      "bgcolor": "#1b263b"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "OMNICAM_MOTION_SCENE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
