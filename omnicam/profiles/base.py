@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 
 
-MOTION_SEMANTICS = frozenset({"camera_embedding", "reference_video", "screen_tracks"})
+MOTION_SEMANTICS = frozenset({"camera_embedding", "reference_video", "screen_tracks", "prompt_options"})
 FRAME_POLICIES = frozenset(
     {
         "requested_length",
@@ -24,6 +24,7 @@ FRAME_POLICIES = frozenset(
         "17n_plus_5_at_24fps",
         "api_duration_seconds",
         "8n_plus_1",
+        "h3_scene_coverage_profiles",
     }
 )
 

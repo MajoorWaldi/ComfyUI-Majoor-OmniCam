@@ -24,6 +24,7 @@ runs on your machine, so does the example.
 | `05_minimax_h3_api_reference.json` | `h3_api` | `api_minimax_h3_r2v.json` | the uploaded reference video |
 | `06_image_scene_reconstruction_to_director.json` | `h3_api` | OmniCam image reconstruction starter | a manual proxy scene setup |
 | [`07_minimax_h3_native_global_example.json`](workflows/07_minimax_h3_native_global_example.json) | `h3_native` | `video_minimax_h3_r2v.json` | a global MiniMax H3 native reference setup |
+| [`08_minimax_h3_scene_coverage.json`](workflows/08_minimax_h3_scene_coverage.json) | `h3_scene_coverage` | ComfyUI-MiniMax-H3-Edit `TextEncodeH3Edit` | recording and resampling a playblast |
 
 Each carries a Note explaining what changed and how to drive it, plus the
 upstream MarkdownNotes with model download links and VRAM figures.

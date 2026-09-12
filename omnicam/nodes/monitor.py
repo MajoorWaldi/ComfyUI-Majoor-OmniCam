@@ -86,6 +86,8 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                 IO.Int.Output(display_name="target_width"),
                 IO.Int.Output(display_name="target_height"),
                 IO.Int.Output(display_name="target_length"),
+                IO.Custom("H3EDIT_OPTIONS").Output(display_name="h3edit_options"),
+                IO.Float.Output(display_name="target_fps"),
             ],
         )
 
@@ -172,5 +174,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             result.timeline.width,
             result.timeline.height,
             result.timeline.frame_count,
+            result.h3edit_options,
+            float(result.timeline.fps),
         )
         return IO.NodeOutput(*ordered, ui=ui)

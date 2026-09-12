@@ -198,6 +198,17 @@ def test_motion_profile_protocol_and_compiled_result_are_static_and_typed():
         replace(result, semantic="camera_guess")
 
 
+def test_compiled_motion_accepts_h3edit_options_without_affecting_defaults():
+    result = CompiledMotion(
+        profile_id="x",
+        semantic="prompt_options",
+        timeline=_timeline(),
+        h3edit_options={"mode": "scene coverage | canonical camera path"},
+    )
+    assert result.h3edit_options["mode"].startswith("scene coverage")
+    assert result.reference_video is None
+
+
 def test_checks_reject_unknown_states_and_keep_messages_optional():
     assert Check(id="camera", label="Camera present", state="PASS").message == ""
 

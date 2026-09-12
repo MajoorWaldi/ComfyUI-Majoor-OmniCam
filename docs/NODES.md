@@ -621,18 +621,22 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `motion_scene` | — | the canonical scene to compile |
 | `playblast_video` | optional | the shot the scene describes, `VIDEO` or `IMAGE` batch |
 | `base_prompt` | empty | user intent, kept at the head of `final_prompt` |
-| `target_profile` | `external_reference_video` | one of the eight profiles below |
+| `target_profile` | `external_reference_video` | one of the nine profiles below |
 | `target_width`, `target_height` | `832`, `480` | target frame size |
 | `duration_seconds`, `target_fps` | `0` (auto), `0` (auto) | length and frame rate of the shot being compiled; `0` inherits `timeline.duration_seconds` / `timeline.authoring_fps` from the connected MotionScene (the Director's authored shot) |
 
 **Outputs**, in schema order: `final_prompt`, `reference_video`,
 `reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,
-`target_width`, `target_height`, `target_length`.
+`target_width`, `target_height`, `target_length`, `h3edit_options`, `target_fps`.
+
+`h3edit_options` carries the `H3EDIT_OPTIONS` payload for `h3_scene_coverage`
+and is `None` for every other profile. `target_fps` is the resolved profile
+frame rate (`24.0` for both H3 profiles).
 
 Only the selected profile's outputs are computed; the rest are `None`. Which one
 carries the payload is decided by the profile's **semantic**, not by its model.
 
-### The eight profiles, by semantic
+### The nine profiles, by semantic
 
 `external_reference_video` is the only permissive one: no upstream node
 requirement, no frame grid, no fps conversion, and it never blocks on a missing
@@ -649,7 +653,30 @@ queue rather than reaching the model broken.
 | `wanvideo_ati` | `screen_tracks` | `tracks_json` | `WanVideoATITracks.tracks` (WanVideoWrapper); fixed 121 samples |
 | `ltx25_motion_track` | `screen_tracks` | `tracks_json` | `LTXVDrawTracks.tracks`, then IC-LoRA Motion Track; length 8n+1 |
 | `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos`; resampled to 24 fps, length 17n+5 |
+| `h3_scene_coverage` | `prompt_options` | `final_prompt` + `h3edit_options` | `TextEncodeH3Edit.compiled_prompt` / `.options`; no playblast required; 24 fps, length 124/243/362 |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
+
+`h3_scene_coverage` compiles the selected MotionScene camera directly into a
+complete H3 prompt (direction, completion, parallax and mapped timing
+contracts) plus `H3EDIT_OPTIONS`, without sampling a playblast. It represents
+one continuous, target-centric camera orbit/arc around a fixed subject:
+
+```text
+Use h3_scene_coverage when:
+- one continuous target-centric orbit/arc;
+- direct camera-plan compilation is preferred.
+
+Use h3_native when:
+- general 6DoF camera;
+- moving target;
+- significant roll/lens animation;
+- cuts;
+- scene-coverage preflight blocks the path.
+```
+
+A camera that drifts off-target, cuts, or moves through more than one full
+turn is `BLOCKED` at preflight with a recommendation to use `h3_native`
+instead -- the profile never silently simplifies an unrepresentable move.
 
 ### Timeline resolution
 
@@ -690,7 +717,7 @@ a panel. Four kinds of check, deliberately separate:
    Outside a running ComfyUI there are no node mappings to read, and no check is
    emitted rather than a false failure.
 
-Capability contracts are keyed by profile id — the same seven names used by the
+Capability contracts are keyed by profile id — the same nine names used by the
 backend, the routes, the frontend and the tests. Each is pinned to an upstream
 ref and commit in `omnicam/adapters/registry.py`, and
 `tests/fixtures/upstream_contracts/` records the exact source literals the

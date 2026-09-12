@@ -109,9 +109,9 @@ ADAPTER_INFO = {
         node_classes=[["MinimaxHailuo03ReferenceNode"]],
         inputs=["reference_video"],
         repository="https://github.com/Comfy-Org/ComfyUI",
-        tested_ref="v0.34.0",
-        tested_commit="12d5279438bfefc058a269eae805ceab6047777f",
-        docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.34.0/comfy_api_nodes/nodes_minimax.py",
+        tested_ref="v0.35.0",
+        tested_commit="40c4fcdf513a4523e39d54a9d391908af8df8171",
+        docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.35.0/comfy_api_nodes/nodes_minimax.py",
         connection_recipe="Use the playblast as Omni Reference and the generated prompt as camera-motion guidance.",
     ),
     "h3_native": _contract(
@@ -120,11 +120,26 @@ ADAPTER_INFO = {
         node_classes=[["MiniMaxH3ReferenceToVideo"]],
         inputs=["ref_videos"],
         repository="https://github.com/Comfy-Org/ComfyUI",
-        tested_ref="v0.34.0",
-        tested_commit="12d5279438bfefc058a269eae805ceab6047777f",
-        docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.34.0/comfy_extras/nodes_minimax_h3.py",
+        tested_ref="v0.35.0",
+        tested_commit="40c4fcdf513a4523e39d54a9d391908af8df8171",
+        docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.35.0/comfy_extras/nodes_minimax_h3.py",
         motion_limits={"length": "17n+5"},
         connection_recipe="Wire reference_frames into ref_video_1 and use the generated <Video 1> prompt.",
+    ),
+    "h3_scene_coverage": _contract(
+        display_name="MiniMax H3 — Scene Coverage",
+        target="compiled H3 prompt + H3EDIT_OPTIONS",
+        node_classes=[["TextEncodeH3Edit"]],
+        inputs=["compiled_prompt", "options"],
+        repository="https://github.com/ethanfel/ComfyUI-MiniMax-H3-Edit",
+        tested_ref="92ff5b926945e21d843fa618ba440ad2f96048e6",
+        tested_commit="92ff5b926945e21d843fa618ba440ad2f96048e6",
+        docs="https://github.com/ethanfel/ComfyUI-MiniMax-H3-Edit",
+        motion_limits={"length": "124/243/362 at 24 fps"},
+        connection_recipe=(
+            "Connect final_prompt to TextEncodeH3Edit.compiled_prompt and "
+            "h3edit_options to TextEncodeH3Edit.options."
+        ),
     ),
     "ltx25_motion_track": _contract(
         display_name="LTX 2.5 Motion Track",

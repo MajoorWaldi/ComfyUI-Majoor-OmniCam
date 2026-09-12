@@ -137,6 +137,7 @@ class CompiledMotion:
     camera_embedding: Any | None = None
     native_tracks: Any | None = None
     tracks_json: str = ""
+    h3edit_options: dict[str, object] | None = None
     checks: tuple[Check, ...] = ()
 
     def __post_init__(self) -> None:
@@ -148,6 +149,8 @@ class CompiledMotion:
             raise TypeError("final_prompt must be a string")
         if not isinstance(self.tracks_json, str):
             raise TypeError("tracks_json must be a string")
+        if self.h3edit_options is not None and not isinstance(self.h3edit_options, dict):
+            raise TypeError("h3edit_options must be a dict or None")
         checks = tuple(self.checks)
         if not all(isinstance(check, Check) for check in checks):
             raise TypeError("checks must contain Check values")

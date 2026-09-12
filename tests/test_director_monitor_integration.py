@@ -129,17 +129,21 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id, all_t
         )
     )
 
-    assert len(monitor_outputs) == 9
-    assert monitor_outputs[0].startswith("A tracked camera move.")
+    assert len(monitor_outputs) == 11
+    if profile_id == "h3_scene_coverage":
+        assert "A tracked camera move." in monitor_outputs[0]
+    else:
+        assert monitor_outputs[0].startswith("A tracked camera move.")
     assert monitor_outputs[6] == 832
     assert monitor_outputs[7] == 480
     assert monitor_outputs[8] > 0
+    assert monitor_outputs[10] > 0
 
     # Which Monitor socket each profile is required to fill. The two Wan track
     # profiles publish the ``tracks`` STRING their contracts name in
     # omnicam/adapters/registry.py (WanTrackToVideo.tracks and
     # WanVideoATITracks.tracks), not the native TRACKS tensor socket, which
-    # only Wan Move consumes.
+    # only Wan Move consumes. h3_scene_coverage fills h3edit_options instead.
     payload_index = {
         "external_reference_video": 1,
         "wan_camera_native": 3,
@@ -147,6 +151,7 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id, all_t
         "wan_track_native": 5,
         "wanvideo_ati": 5,
         "h3_native": 2,
+        "h3_scene_coverage": 9,
         "h3_api": 1,
         "ltx25_motion_track": 5,
     }[profile_id]
@@ -175,7 +180,9 @@ def test_director_monitor_motion_scene_round_trip_preserves_selected_camera(all_
     )
 
     assert monitor_outputs[3] is not None
-    assert monitor_outputs[6:] == (832, 480, 49)
+    assert monitor_outputs[6:9] == (832, 480, 49)
+    assert monitor_outputs[9] is None
+    assert monitor_outputs[10] == 24.0
 
 
 def test_monitor_rejects_obsolete_profile_ids_after_director_output():

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `h3_scene_coverage` Monitor profile: compiles the selected MotionScene
+  camera directly into a MiniMax H3 scene-coverage prompt and
+  `H3EDIT_OPTIONS`, without requiring a playblast. Covers one continuous,
+  target-centric camera orbit/arc, with automatic loop-closure detection and
+  strict representability preflight; blocks and recommends `h3_native` for
+  moving targets, cuts, or more than one full turn.
+- Monitor gained two new outputs, `h3edit_options` and `target_fps`, appended
+  after the existing nine sockets.
 - OmniCam Agent v1: a loopback-only PromptServer broker
   (`omnicam/agent/broker.py`, `omnicam/agent/routes.py`) plus a live Director
   browser bridge (`web-src/agent/bridge.js`) that let an external Agent

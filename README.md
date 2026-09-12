@@ -181,6 +181,7 @@ one exception, by design -- see below.
 | `wanvideo_ati` | `screen_tracks` | `tracks_json` | `WanVideoATITracks.tracks` |
 | `ltx25_motion_track` | `screen_tracks` | `tracks_json` | `LTXVDrawTracks.tracks` |
 | `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos` |
+| `h3_scene_coverage` | `prompt_options` | `final_prompt` + `h3edit_options` | `TextEncodeH3Edit.compiled_prompt` / `.options` |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
 
 `external_reference_video` is the Monitor default and the odd one out: it names
@@ -191,6 +192,12 @@ model's contract, and a payload that contract cannot satisfy is a bug worth
 stopping the queue for.
 
 Switching profile never changes the MotionScene. It does change which Monitor output carries the result, so connect the output this table lists for the profile you selected.
+
+`h3_scene_coverage` compiles the authored 6DoF camera directly into an H3
+scene-coverage prompt and `H3EDIT_OPTIONS`; unlike the other H3 profiles it
+needs no playblast. It is for one continuous, target-centric orbit/arc around
+a fixed subject. Moving targets, cuts, or significant roll/lens animation are
+blocked with a recommendation to use `h3_native` instead.
 
 ## Start here
 
