@@ -11,7 +11,9 @@
 import { getLocale, registerLocale, setLocale, t } from "./i18n.js";
 import { FR } from "./locales/fr.js";
 import {
-  SETTING_ADAPTIVE, SETTING_ASPECT_RATIO, SETTING_AUTO_KEY, SETTING_BG_COLOR, SETTING_BURN_IN,
+  SETTING_ADAPTIVE, SETTING_AGENT_BASE_URL, SETTING_AGENT_ENABLED, SETTING_AGENT_MAX_OUTPUT_TOKENS,
+  SETTING_AGENT_MAX_STEPS, SETTING_AGENT_MODEL, SETTING_AGENT_PREVIEW, SETTING_AGENT_PROVIDER,
+  SETTING_AGENT_TIMEOUT, SETTING_ASPECT_RATIO, SETTING_AUTO_KEY, SETTING_BG_COLOR, SETTING_BURN_IN,
   SETTING_CAMERA_VIEW_VISIBLE, SETTING_CARD_FIT, SETTING_DEFAULT_INTERP, SETTING_DOLLY_SENSITIVITY,
   SETTING_DURATION, SETTING_ENABLE_SHORTCUTS, SETTING_ENCODER, SETTING_EXTRACTOR_BACKEND,
   SETTING_FLY_SPEED, SETTING_FPS, SETTING_GIZMO_MODE, SETTING_GIZMO_SPACE, SETTING_GUIDES,
@@ -184,6 +186,24 @@ export function applyViewportQuality(quality = viewportQuality()) {
     else ui.render?.();
     ui.renderCameraView?.();
   }
+}
+
+/**
+ * Built-in Agent preferences. Unlike directorDefaults(), this is read live by
+ * the Agent panel on every Plan request -- it must never be folded into
+ * directorDefaults(), ui.state or a MotionScene (design spec section 6).
+ */
+export function agentSettings() {
+  return {
+    enabled: booleanSetting(SETTING_AGENT_ENABLED, true),
+    provider: choiceSetting(SETTING_AGENT_PROVIDER, "ollama", ["openai", "openai_compatible", "anthropic", "ollama"]),
+    model: String(readSetting(SETTING_AGENT_MODEL, "") || "").trim(),
+    baseUrl: String(readSetting(SETTING_AGENT_BASE_URL, "") || "").trim(),
+    maxOutputTokens: numericSetting(SETTING_AGENT_MAX_OUTPUT_TOKENS, 4096, 512, 32768, true),
+    maxPlannerSteps: numericSetting(SETTING_AGENT_MAX_STEPS, 6, 1, 12, true),
+    previewBeforeApply: booleanSetting(SETTING_AGENT_PREVIEW, true),
+    requestTimeoutSeconds: numericSetting(SETTING_AGENT_TIMEOUT, 120, 15, 300, true),
+  };
 }
 
 /** Preference-driven defaults for a *newly created* Director node. */

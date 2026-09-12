@@ -25,7 +25,7 @@ test("switching to ASSETS loads the catalog grid and hides the SCENE tab", async
   await expect(root.locator('.oc-asset-card', { hasText: "Human Neutral 01" }).locator(".oc-asset-badge")).toHaveText(/RIGGED/);
 });
 
-test("the AGENT tab is inert: visible, its controls disabled, and switching away hides it", async ({ page }) => {
+test("the AGENT tab mounts its panel on first open and switching away hides it", async ({ page }) => {
   await mountDirector(page);
   const root = page.locator(".majoor-omnicam");
 
@@ -33,8 +33,10 @@ test("the AGENT tab is inert: visible, its controls disabled, and switching away
   await expect(root.locator('[data-role="agent-tab"]')).toBeVisible();
   await expect(root.locator('[data-role="scene-tab"]')).toBeHidden();
   await expect(root.locator('[data-role="assets-tab"]')).toBeHidden();
-  await expect(root.locator('[data-role="agent-describe"]')).toBeDisabled();
-  await expect(root.locator('[data-agent-act="preview"]')).toBeDisabled();
+  // Describing a shot and generating a preview are always available; Apply
+  // and Cancel stay disabled until a preview exists (design spec section 32).
+  await expect(root.locator('[data-role="agent-describe"]')).toBeEnabled();
+  await expect(root.locator('[data-agent-act="preview"]')).toBeEnabled();
   await expect(root.locator('[data-agent-act="apply"]')).toBeDisabled();
   await expect(root.locator('[data-agent-act="cancel"]')).toBeDisabled();
 

@@ -21,25 +21,47 @@ import {
   assetsIcon,
 } from "./object-icons.js";
 
-// Deliberately inert (design spec Plan 02 §53): no planner is wired to this
-// panel yet. It exists only so the Preview/Apply/Cancel shape is settled
-// before provider wiring -- a separate plan -- lands. Describe/Preview/Apply
-// stay disabled until that plan gives them something to call.
+// Markup only -- all imperative wiring (provider status, credential
+// Replace/Remove/Test, Preview/Apply/Cancel) lives in web-src/agent/panel.js,
+// lazy-loaded the first time this tab is opened (see assets/panel.js's
+// switchView(), which owns tab visibility for all three left-panel tabs).
 function agentTabMarkup() {
   return `
     <div class="oc-left-body oc-assets" data-role="agent-tab" hidden>
       <div class="oc-asset-panel" data-role="agent-panel">
-        <p class="oc-asset-status hint" data-role="agent-hint">
-          ${t("No planner is configured yet — provider wiring is a separate plan.")}
-        </p>
-        <input class="oc-search" data-role="agent-describe" type="text" disabled
-               placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}">
+        <div class="oc-asset-toolbar" data-role="agent-model-row">
+          <select class="oc-search" data-role="agent-model-select" aria-label="${t("Model")}">
+            <option value="">${t("Loading models...")}</option>
+          </select>
+          <button type="button" class="icon-button" data-agent-act="model-refresh"
+                  title="${t("Refresh model list")}"><i class="pi pi-refresh"></i></button>
+        </div>
+        <div class="oc-asset-toolbar" data-role="agent-credential-row">
+          <span class="oc-asset-status hint" data-role="agent-provider-label"></span>
+          <span class="oc-asset-status hint" data-role="agent-credential-status"></span>
+          <button type="button" class="icon-button" data-agent-act="credential-replace"
+                  title="${t("Set credential")}"><i class="pi pi-key"></i></button>
+          <button type="button" class="icon-button" data-agent-act="credential-remove"
+                  title="${t("Remove credential")}"><i class="pi pi-trash"></i></button>
+          <button type="button" class="icon-button" data-agent-act="credential-test"
+                  title="${t("Test connection")}"><i class="pi pi-bolt"></i></button>
+        </div>
+        <div class="oc-asset-toolbar" data-role="agent-credential-form" hidden>
+          <input class="oc-search" data-role="agent-credential-input" type="password" autocomplete="new-password"
+                 placeholder="${t("Paste API key...")}" aria-label="${t("Credential")}">
+          <button type="button" class="oc-btn oc-btn--primary" data-agent-act="credential-save">${t("Save")}</button>
+        </div>
+        <p class="oc-asset-status hint" data-role="agent-hint"></p>
+        <textarea class="oc-search oc-agent-describe" data-role="agent-describe" rows="2"
+                  placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}"></textarea>
         <div class="oc-asset-toolbar">
           <strong>${t("Planned changes")}</strong>
         </div>
-        <ul class="oc-asset-status hint" data-role="agent-plan" style="list-style:none;padding:0;margin:0"></ul>
+        <ul class="oc-asset-status hint oc-agent-plan-list" data-role="agent-plan" style="list-style:none;padding:0;margin:0"></ul>
+        <div class="oc-resize-v" data-role="agent-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="${t("Drag to resize the Agent panel — double-click to reset")}" aria-label="${t("Resize the Agent panel")}"></div>
         <div class="oc-asset-foot">
-          <button type="button" class="oc-btn" data-agent-act="preview" disabled>${t("Preview")}</button>
+          <button type="button" class="oc-btn" data-agent-act="preview">${t("Preview")}</button>
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="apply" disabled>${t("Apply")}</button>
           <button type="button" class="oc-btn" data-agent-act="cancel" disabled>${t("Cancel")}</button>
         </div>
@@ -71,6 +93,8 @@ function assetsTabMarkup() {
         </div>
         <div class="oc-asset-kinds" data-role="asset-kinds"></div>
         <div class="oc-asset-grid" data-role="asset-grid"></div>
+        <div class="oc-resize-v" data-role="assets-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+             title="${t("Drag to resize the assets grid — double-click to reset")}" aria-label="${t("Resize the assets grid")}"></div>
         <div class="oc-asset-foot">
           <button type="button" class="oc-btn" data-asset-act="asset-add">${t("Add to scene")}</button>
           <span class="oc-asset-status hint" data-role="asset-status"></span>

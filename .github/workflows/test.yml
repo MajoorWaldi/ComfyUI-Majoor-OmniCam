@@ -25,6 +25,20 @@ jobs:
       - run: ruff check .
       - run: mypy
 
+  # Agent transport security lane: aiohttp is a hard dependency of this suite
+  # (see tests/agent/test_routes.py) -- it must never silently skip.
+  python-agent:
+    name: python-agent
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt aiohttp
+      - run: pytest -q tests/agent
+      - run: ruff check omnicam/agent tests/agent
+
   # Reconstruction lane: CPU torch + aiohttp + pillow + PyAV so the semantic
   # blockout / VGGT scan / SAM3D pipelines run end-to-end against their fake
   # providers, plus the reconstruction frontend node tests. No model weights,

@@ -336,3 +336,61 @@ test("camera.look_at at a point retargets every key and clears object tracking",
     assert.deepEqual(key.camera.target, [1, 2, 3]);
   }
 });
+
+// -- live runtime resource reconciliation (design spec section 20) ----------
+
+async function flush() {
+  for (let i = 0; i < 10; i += 1) await Promise.resolve();
+}
+
+function makeReconcilingUi() {
+  const ui = makeUi();
+  ui.removedObjectIds = [];
+  ui.restoreAssetsCallCount = 0;
+  ui.removeObjectResources = (id) => ui.removedObjectIds.push(id);
+  ui.restoreAssets = () => { ui.restoreAssetsCallCount += 1; };
+  return ui;
+}
+
+const CHAIR = { version: 2, id: "omnicam.prop.chair_01", name: "Chair 01", kind: "prop", file: "props/chair_01.glb", tags: ["chair"], source: "default" };
+
+test("asset.instantiate triggers restoreAssets after commit", async () => {
+  const ui = makeReconcilingUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.equal(ui.restoreAssetsCallCount, 1);
+});
+
+test("object.duplicate with an asset reference triggers restoreAssets after commit", async () => {
+  const ui = makeReconcilingUi();
+  ui.state.objects.find((o) => o.id === "subject").asset_id = "asset_1";
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.duplicate", objectId: "subject" }],
+  }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.equal(ui.restoreAssetsCallCount, 1);
+});
+
+test("object.delete triggers removeObjectResources for the deleted id after commit", async () => {
+  const ui = makeReconcilingUi();
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.create", objectType: "cube", id: "cube_1" }] }));
+  const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "object.delete", objectId: "cube_1" }] }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.deepEqual(ui.removedObjectIds, ["cube_1"]);
+});
+
+test("a plain transform does not trigger any resource reconciliation", async () => {
+  const ui = makeReconcilingUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.transform", objectId: "subject", position: [1, 2, 3] }],
+  }));
+  assert.equal(result.ok, true);
+  await flush();
+  assert.equal(ui.restoreAssetsCallCount, 0);
+  assert.deepEqual(ui.removedObjectIds, []);
+});

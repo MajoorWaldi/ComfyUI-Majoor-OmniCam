@@ -432,6 +432,7 @@ export function defaultState() {
     preview_layout: "auto", maximized_camera_id: null, safe_areas: false, resolution_gate: false, aspect_ratio: "auto",
     outliner_height: PANEL_LAYOUT.outlinerHeight.default, preview_width: PANEL_LAYOUT.previewWidth.default,
     side_width: PANEL_LAYOUT.sideWidth.default, left_width: PANEL_LAYOUT.leftWidth.default, graph_height: PANEL_LAYOUT.graphHeight.default,
+    assets_height: PANEL_LAYOUT.assetsHeight.default, agent_height: PANEL_LAYOUT.agentHeight.default,
     health_profile: "generic",
     motion_layers: [], selected_motion_layer_id: null, motion_tool: "select",
     sequence: defaultSequence(),
@@ -484,6 +485,11 @@ export const PANEL_LAYOUT = {
   sideWidth: { default: 280, min: 200, max: 640 },
   leftWidth: { default: 264, min: 214, max: 520 },
   graphHeight: { default: 220, min: 140, max: 720 },
+  // The ASSETS and AGENT tabs of the left panel get the same drag-to-resize
+  // treatment as the Scene outliner above, so every tab in that panel behaves
+  // consistently rather than singling the outliner out.
+  assetsHeight: { default: 340, min: 120, max: 1600 },
+  agentHeight: { default: 220, min: 90, max: 1600 },
 };
 
 /** Coerce to a finite number inside [min, max], falling back when unusable.
@@ -612,6 +618,8 @@ export function sanitizeState(raw) {
   out.side_width = Math.round(boundedNumber(out.side_width, PANEL_LAYOUT.sideWidth.default, PANEL_LAYOUT.sideWidth.min, PANEL_LAYOUT.sideWidth.max));
   out.left_width = Math.round(boundedNumber(out.left_width, PANEL_LAYOUT.leftWidth.default, PANEL_LAYOUT.leftWidth.min, PANEL_LAYOUT.leftWidth.max));
   out.graph_height = Math.round(boundedNumber(out.graph_height, PANEL_LAYOUT.graphHeight.default, PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max));
+  out.assets_height = Math.round(boundedNumber(out.assets_height, PANEL_LAYOUT.assetsHeight.default, PANEL_LAYOUT.assetsHeight.min, PANEL_LAYOUT.assetsHeight.max));
+  out.agent_height = Math.round(boundedNumber(out.agent_height, PANEL_LAYOUT.agentHeight.default, PANEL_LAYOUT.agentHeight.min, PANEL_LAYOUT.agentHeight.max));
   out.maximized_camera_id = typeof out.maximized_camera_id === "string" ? out.maximized_camera_id : null;
   out.safe_areas = Boolean(out.safe_areas); out.resolution_gate = Boolean(out.resolution_gate);
   out.aspect_ratio = ["auto", "16:9", "4:3", "1:1", "9:16", "2.39:1"].includes(out.aspect_ratio) ? out.aspect_ratio : "auto"; out.auto_key = Boolean(out.auto_key); out.playblast_grid = Boolean(out.playblast_grid); out.playblast_labels = Boolean(out.playblast_labels); out.playblast_resolution = ["viewport", "half", "output", "double"].includes(out.playblast_resolution) ? out.playblast_resolution : "output"; out.playblast_quality = ["low", "balanced", "high"].includes(out.playblast_quality) ? out.playblast_quality : "balanced"; out.reference_index = Math.max(0, Number(out.reference_index || 0)); out.view_mode = ["camera", "perspective", "iso", "front", "back", "top", "right", "left", "bottom"].includes(out.view_mode) ? out.view_mode : "perspective"; out.camera_view_visible = out.camera_view_visible !== false;

@@ -4,11 +4,12 @@
 // the live state is never left half-mutated.
 
 import { cloneCamera, sampleCamera, sanitizeState } from "../director/core.js";
-import { DIRECTOR_API_VERSION } from "./constants.js";
+import { DIRECTOR_API_VERSION, DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 import { validateDirectorTransaction } from "./validate.js";
 import { applyDirectorOperation } from "./apply.js";
 import { computeSemanticDiff } from "./diff.js";
+import { rememberTransactionId } from "./tx-id-cache.js";
 
 function clone(value) {
   return typeof structuredClone === "function"
@@ -62,6 +63,26 @@ function restoreViewportCamera(ui, active) {
     ui.frame ?? 0,
     ui.state.objects || [],
   );
+}
+
+// Semantic state changes commit synchronously, but the live three.js runtime
+// (meshes, media elements, object URLs) does not automatically follow it --
+// only restoreFromWidgets()'s full-state-swap path used to reconcile that.
+// Run the same reconciliation after a committed Director API transaction, but
+// asynchronously so executeDirectorTransaction() itself stays synchronous for
+// its many existing synchronous callers.
+async function reconcileRuntimeResources(ui, tx, outcomes) {
+  const restore = outcomes.some((item) => item.resourceRefresh === true);
+  const deleted = tx.operations
+    .filter((op) => op.type === DIRECTOR_OPS.OBJECT_DELETE)
+    .map((op) => op.objectId);
+  for (const objectId of deleted) {
+    ui.removeObjectResources?.(objectId);
+  }
+  const instantiated = tx.operations.some((op) => op.type === DIRECTOR_OPS.ASSET_INSTANTIATE);
+  if (restore || instantiated) {
+    await ui.restoreAssets?.();
+  }
 }
 
 function repaint(ui, dirtyMask, reason) {
@@ -151,11 +172,15 @@ export function executeDirectorTransaction(ui, input) {
 
   const active = prepareCommittedActiveCamera(ui);
 
-  (ui._directorApiTxIds ||= new Set()).add(tx.id);
+  rememberTransactionId(ui, tx.id);
   ui.serialize?.();
 
   restoreViewportCamera(ui, active);
   repaint(ui, dirtyMask, `director-api:${tx.id}`);
+
+  void reconcileRuntimeResources(ui, tx, outcomes).catch((error) => {
+    console.warn("OmniCam: resource reconciliation failed", error);
+  });
 
   return {
     ok: true,

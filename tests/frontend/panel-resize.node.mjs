@@ -15,32 +15,42 @@ test("defaultState seeds panel sizes at their documented defaults", () => {
   assert.equal(state.preview_width, PANEL_LAYOUT.previewWidth.default);
   assert.equal(state.side_width, PANEL_LAYOUT.sideWidth.default);
   assert.equal(state.graph_height, PANEL_LAYOUT.graphHeight.default);
+  assert.equal(state.assets_height, PANEL_LAYOUT.assetsHeight.default);
+  assert.equal(state.agent_height, PANEL_LAYOUT.agentHeight.default);
 });
 
 test("sanitizeState clamps out-of-range or unusable panel sizes", () => {
-  const low = sanitizeState({ outliner_height: 5, preview_width: 5, side_width: 10, graph_height: 10 });
+  const low = sanitizeState({ outliner_height: 5, preview_width: 5, side_width: 10, graph_height: 10, assets_height: 5, agent_height: 5 });
   assert.equal(low.outliner_height, PANEL_LAYOUT.outlinerHeight.min);
   assert.equal(low.preview_width, PANEL_LAYOUT.previewWidth.min);
   assert.equal(low.side_width, PANEL_LAYOUT.sideWidth.min);
   assert.equal(low.graph_height, PANEL_LAYOUT.graphHeight.min);
+  assert.equal(low.assets_height, PANEL_LAYOUT.assetsHeight.min);
+  assert.equal(low.agent_height, PANEL_LAYOUT.agentHeight.min);
 
-  const high = sanitizeState({ outliner_height: 99999, preview_width: 99999, side_width: 99999, graph_height: 99999 });
+  const high = sanitizeState({ outliner_height: 99999, preview_width: 99999, side_width: 99999, graph_height: 99999, assets_height: 99999, agent_height: 99999 });
   assert.equal(high.outliner_height, PANEL_LAYOUT.outlinerHeight.max);
   assert.equal(high.preview_width, PANEL_LAYOUT.previewWidth.max);
   assert.equal(high.side_width, PANEL_LAYOUT.sideWidth.max);
   assert.equal(high.graph_height, PANEL_LAYOUT.graphHeight.max);
+  assert.equal(high.assets_height, PANEL_LAYOUT.assetsHeight.max);
+  assert.equal(high.agent_height, PANEL_LAYOUT.agentHeight.max);
 
-  const nan = sanitizeState({ outliner_height: "nope", preview_width: null, side_width: undefined, graph_height: "bad" });
+  const nan = sanitizeState({ outliner_height: "nope", preview_width: null, side_width: undefined, graph_height: "bad", assets_height: "nope", agent_height: undefined });
   assert.equal(nan.outliner_height, PANEL_LAYOUT.outlinerHeight.default);
   assert.equal(nan.preview_width, PANEL_LAYOUT.previewWidth.default);
   assert.equal(nan.side_width, PANEL_LAYOUT.sideWidth.default);
   assert.equal(nan.graph_height, PANEL_LAYOUT.graphHeight.default);
+  assert.equal(nan.assets_height, PANEL_LAYOUT.assetsHeight.default);
+  assert.equal(nan.agent_height, PANEL_LAYOUT.agentHeight.default);
 
-  const kept = sanitizeState({ outliner_height: 300, preview_width: 400, side_width: 350, graph_height: 250 });
+  const kept = sanitizeState({ outliner_height: 300, preview_width: 400, side_width: 350, graph_height: 250, assets_height: 400, agent_height: 260 });
   assert.equal(kept.outliner_height, 300);
   assert.equal(kept.preview_width, 400);
   assert.equal(kept.side_width, 350);
   assert.equal(kept.graph_height, 250);
+  assert.equal(kept.assets_height, 400);
+  assert.equal(kept.agent_height, 260);
 });
 
 function makeHandle() {
@@ -59,6 +69,8 @@ function fixture(stateOverrides = {}) {
   const preview = makeHandle();
   const side = makeHandle();
   const graph = makeHandle();
+  const assets = makeHandle();
+  const agent = makeHandle();
   const previewRefits = [];
   const serializes = [];
   const ui = {
@@ -70,6 +82,8 @@ function fixture(stateOverrides = {}) {
         : sel.includes("preview-resize") ? preview
         : sel.includes("side-resize") ? side
         : sel.includes("graph-resize") ? graph
+        : sel.includes("assets-resize") ? assets
+        : sel.includes("agent-resize") ? agent
         : null
       ),
     },
@@ -78,15 +92,17 @@ function fixture(stateOverrides = {}) {
     scheduleSerialize: () => serializes.push(true),
   };
   bindPanelResize(ui, undefined);
-  return { ui, vars, outliner, preview, side, graph, previewRefits, serializes };
+  return { ui, vars, outliner, preview, side, graph, assets, agent, previewRefits, serializes };
 }
 
 test("applyPanelLayout writes the current sizes as CSS custom properties", () => {
-  const { vars } = fixture({ outliner_height: 260, preview_width: 320, side_width: 310, graph_height: 240 });
+  const { vars } = fixture({ outliner_height: 260, preview_width: 320, side_width: 310, graph_height: 240, assets_height: 380, agent_height: 260 });
   assert.equal(vars["--oc-outliner-h"], "260px");
   assert.equal(vars["--oc-preview-w"], "320px");
   assert.equal(vars["--oc-side-w"], "310px");
   assert.equal(vars["--oc-graph-h"], "240px");
+  assert.equal(vars["--oc-assets-h"], "380px");
+  assert.equal(vars["--oc-agent-h"], "260px");
 });
 
 test("dragging the outliner handle grows the list height and persists it", () => {
@@ -148,4 +164,34 @@ test("dragging the graph handle down resizes graph_height", () => {
   assert.equal(vars["--oc-graph-h"], "300px");
   graph.dispatch("pointerup", { pointerId: 4, clientX: 0, clientY: 380 });
   assert.equal(ui.state.graph_height, 300);
+});
+
+test("dragging the assets grid handle resizes assets_height, like the Scene outliner", () => {
+  const { ui, vars, assets, serializes } = fixture({ assets_height: 340 });
+  assets.dispatch("pointerdown", { button: 0, pointerId: 5, clientX: 0, clientY: 100, preventDefault() {} });
+  assets.dispatch("pointermove", { pointerId: 5, clientX: 0, clientY: 180 });
+  assert.equal(vars["--oc-assets-h"], "420px");
+  assets.dispatch("pointerup", { pointerId: 5, clientX: 0, clientY: 180 });
+  assert.equal(ui.state.assets_height, 420);
+  assert.equal(serializes.length, 1);
+});
+
+test("dragging the Agent panel handle resizes agent_height, like the Scene outliner", () => {
+  const { ui, vars, agent } = fixture({ agent_height: 220 });
+  agent.dispatch("pointerdown", { button: 0, pointerId: 6, clientX: 0, clientY: 100, preventDefault() {} });
+  agent.dispatch("pointermove", { pointerId: 6, clientX: 0, clientY: 140 });
+  assert.equal(vars["--oc-agent-h"], "260px");
+  agent.dispatch("pointerup", { pointerId: 6, clientX: 0, clientY: 140 });
+  assert.equal(ui.state.agent_height, 260);
+});
+
+test("assets and agent handles clamp to their bounds and reset on double-click", () => {
+  const { ui: uiAssets, assets } = fixture({ assets_height: 340 });
+  assets.dispatch("pointerdown", { button: 0, pointerId: 7, clientX: 0, clientY: 0, preventDefault() {} });
+  assets.dispatch("pointerup", { pointerId: 7, clientX: 0, clientY: 100000 });
+  assert.equal(uiAssets.state.assets_height, PANEL_LAYOUT.assetsHeight.max);
+
+  const { ui: uiAgent, agent } = fixture({ agent_height: 500 });
+  agent.dispatch("dblclick", { preventDefault() {} });
+  assert.equal(uiAgent.state.agent_height, PANEL_LAYOUT.agentHeight.default);
 });

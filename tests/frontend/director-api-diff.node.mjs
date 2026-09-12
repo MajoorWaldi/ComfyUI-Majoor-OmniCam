@@ -77,6 +77,44 @@ test("character pose/motion are diffed by identifier only", () => {
   assert.equal(changes.some((c) => c.field === "joints"), false);
 });
 
+test("keyframe create, remove, camera change and interpolation are diffed", () => {
+  const before = makeState();
+  before.cameras[0].keyframes = [{ frame: 0, camera: { ...before.cameras[0].camera }, interpolation: "ease" }];
+  const after = JSON.parse(JSON.stringify(before));
+  after.cameras[0].keyframes[0].camera.position = [3, 3, 3];
+  after.cameras[0].keyframes[0].interpolation = "linear";
+  after.cameras[0].keyframes.push({ frame: 10, camera: { ...after.cameras[0].camera }, interpolation: "ease" });
+
+  const { changes } = computeSemanticDiff(before, after);
+  const entity = "camera_1@keyframes";
+  assert.ok(changes.some((c) => c.entity === entity && c.field === "frame_0_position" && c.after[0] === 3));
+  assert.ok(changes.some((c) => c.entity === entity && c.field === "frame_0_interpolation" && c.after === "linear"));
+  assert.ok(changes.some((c) => c.entity === entity && c.field === "frame_10" && c.before === null));
+});
+
+test("keyframe removal is diffed", () => {
+  const before = makeState();
+  before.cameras[0].keyframes = [
+    { frame: 0, camera: { ...before.cameras[0].camera }, interpolation: "ease" },
+    { frame: 10, camera: { ...before.cameras[0].camera }, interpolation: "ease" },
+  ];
+  const after = JSON.parse(JSON.stringify(before));
+  after.cameras[0].keyframes = after.cameras[0].keyframes.filter((k) => k.frame !== 10);
+
+  const { changes } = computeSemanticDiff(before, after);
+  assert.ok(changes.some((c) => c.entity === "camera_1@keyframes" && c.field === "frame_10" && c.after === null));
+});
+
+test("a character joint rotation change is diffed per joint", () => {
+  const before = makeState();
+  const after = JSON.parse(JSON.stringify(before));
+  const subject = after.objects.find((o) => o.id === "subject");
+  subject.character = { pose: { preset_id: "neutral", joints: { left_arm: [0, 0, 0, 1] } } };
+
+  const { changes } = computeSemanticDiff(before, after);
+  assert.ok(changes.some((c) => c.entity === "subject#left_arm" && c.field === "joint_rotation" && c.before === null));
+});
+
 test("timeline duration/range and object create/delete are diffed", () => {
   const before = makeState();
   const after = JSON.parse(JSON.stringify(before));

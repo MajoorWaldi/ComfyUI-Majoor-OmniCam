@@ -272,7 +272,19 @@ export function attachDirector(node) {
   // event bindings exist) rather than in the constructor so it stays out of the
   // core editor's method soup; it fetches nothing until the tab is first shown.
   try {
-    ui.assetBrowser = createAssetBrowserPanel(ui);
+    ui.assetBrowser = createAssetBrowserPanel(ui, {
+      // Keeps the Agent module out of the eager chunk (design spec section
+      // 32): nothing under web-src/agent/panel.js loads until the AGENT tab
+      // is actually opened.
+      onAgentFirstOpen: async () => {
+        try {
+          const { createDirectorAgentPanel } = await import("./agent/panel.js");
+          ui.agentPanel = createDirectorAgentPanel(ui);
+        } catch (error) {
+          console.warn("[OmniCam] Agent panel unavailable", error);
+        }
+      },
+    });
   } catch (error) {
     console.warn("[OmniCam] Asset Browser unavailable", error);
   }
@@ -362,6 +374,7 @@ export function attachDirector(node) {
   node.onRemoved = function() {
     ui.unwatchGraphConnections?.();
     ui.assetBrowser?.dispose?.();
+    ui.agentPanel?.dispose?.();
     ui.labelOverlay?.dispose?.();
     ui.rigMapper?.dispose?.();
     ui.poseEditor?.dispose?.();

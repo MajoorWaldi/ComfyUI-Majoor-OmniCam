@@ -26,7 +26,13 @@ MAX_PENDING_REQUESTS = 128
 
 REQUEST_TIMEOUT_SECONDS = 8.0
 HEARTBEAT_SECONDS = 10.0
-SESSION_TTL_SECONDS = 45.0
+# 45s (4.5x the heartbeat interval) was comfortable for the external Agent's
+# fast query/transaction round trips, but the built-in planner can spend a
+# single step waiting tens of seconds on a local LLM (observed: 37s+ for a
+# 27B Ollama model on consumer hardware) before it ever dispatches a query or
+# transaction back through this same session. 120s (12x) gives that headroom
+# without materially delaying detection of a genuinely dead session.
+SESSION_TTL_SECONDS = 120.0
 
 MAX_ADVERTISED_OPERATIONS = 128
 MAX_ADVERTISED_QUERIES = 128

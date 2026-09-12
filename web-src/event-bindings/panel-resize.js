@@ -33,11 +33,21 @@ export function applyPanelLayout(ui) {
     Number(ui.state.graph_height) || PANEL_LAYOUT.graphHeight.default,
     PANEL_LAYOUT.graphHeight.min, PANEL_LAYOUT.graphHeight.max,
   );
+  const assetsHeight = clamp(
+    Number(ui.state.assets_height) || PANEL_LAYOUT.assetsHeight.default,
+    PANEL_LAYOUT.assetsHeight.min, PANEL_LAYOUT.assetsHeight.max,
+  );
+  const agentHeight = clamp(
+    Number(ui.state.agent_height) || PANEL_LAYOUT.agentHeight.default,
+    PANEL_LAYOUT.agentHeight.min, PANEL_LAYOUT.agentHeight.max,
+  );
   ui.root.style.setProperty("--oc-outliner-h", `${Math.round(height)}px`);
   ui.root.style.setProperty("--oc-preview-w", `${Math.round(width)}px`);
   ui.root.style.setProperty("--oc-side-w", `${Math.round(sideWidth)}px`);
   ui.root.style.setProperty("--oc-left-w", `${Math.round(leftWidth)}px`);
   ui.root.style.setProperty("--oc-graph-h", `${Math.round(graphHeight)}px`);
+  ui.root.style.setProperty("--oc-assets-h", `${Math.round(assetsHeight)}px`);
+  ui.root.style.setProperty("--oc-agent-h", `${Math.round(agentHeight)}px`);
 }
 
 const HANDLES = {
@@ -46,6 +56,8 @@ const HANDLES = {
   "side-resize": { axis: "x", direction: -1, stateKey: "side_width", bounds: PANEL_LAYOUT.sideWidth, cssVar: "--oc-side-w" },
   "left-resize": { axis: "x", direction: 1, stateKey: "left_width", bounds: PANEL_LAYOUT.leftWidth, cssVar: "--oc-left-w" },
   "graph-resize": { axis: "y", direction: 1, stateKey: "graph_height", bounds: PANEL_LAYOUT.graphHeight, cssVar: "--oc-graph-h" },
+  "assets-resize": { axis: "y", direction: 1, stateKey: "assets_height", bounds: PANEL_LAYOUT.assetsHeight, cssVar: "--oc-assets-h" },
+  "agent-resize": { axis: "y", direction: 1, stateKey: "agent_height", bounds: PANEL_LAYOUT.agentHeight, cssVar: "--oc-agent-h" },
 };
 
 export function bindPanelResize(ui, signal) {
