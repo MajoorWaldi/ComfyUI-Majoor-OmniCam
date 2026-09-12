@@ -96,6 +96,22 @@ export const SETTING_UNDO_LIMIT = "MajoorOmniCam.History.Limit";
 export const SETTING_EXTRACTOR_BACKEND = "MajoorOmniCam.Extractor.DefaultBackend";
 export const SETTING_MONITOR_PROFILE = "MajoorOmniCam.Monitor.DefaultProfile";
 
+// Director Agent (design spec: OmniCam Agent v1 provider settings). The
+// Credential control is deliberately NOT registered here -- it lives in the
+// Director's Agent tab instead (web-src/agent/panel.js), backed directly by
+// the provider HTTP routes, because a ComfyUI settings entry always persists
+// its value through the ordinary setting setter and this repo cannot rely on
+// a custom non-persisting settings-dialog renderer across every supported
+// frontend version (1.48.7 through master).
+export const SETTING_AGENT_ENABLED = "MajoorOmniCam.Agent.Enabled";
+export const SETTING_AGENT_PROVIDER = "MajoorOmniCam.Agent.Provider";
+export const SETTING_AGENT_MODEL = "MajoorOmniCam.Agent.Model";
+export const SETTING_AGENT_BASE_URL = "MajoorOmniCam.Agent.BaseUrl";
+export const SETTING_AGENT_MAX_OUTPUT_TOKENS = "MajoorOmniCam.Agent.MaxOutputTokens";
+export const SETTING_AGENT_MAX_STEPS = "MajoorOmniCam.Agent.MaxPlannerSteps";
+export const SETTING_AGENT_PREVIEW = "MajoorOmniCam.Agent.PreviewBeforeApply";
+export const SETTING_AGENT_TIMEOUT = "MajoorOmniCam.Agent.RequestTimeoutSeconds";
+
 /** Shorthand for the many on/off preferences, which are otherwise identical. */
 function toggle(id, group, name, tooltip, defaultValue) {
   return { id, category: [...CATEGORY, group, name], name, tooltip, type: "boolean", defaultValue };
@@ -107,6 +123,10 @@ function choice(id, group, name, tooltip, options, defaultValue) {
 
 function slider(id, group, name, tooltip, attrs, defaultValue) {
   return { id, category: [...CATEGORY, group, name], name, tooltip, type: "slider", attrs, defaultValue };
+}
+
+function text(id, group, name, tooltip, defaultValue = "") {
+  return { id, category: [...CATEGORY, group, name], name, tooltip, type: "text", defaultValue };
 }
 
 export function buildOmniCamSettings({
@@ -372,5 +392,25 @@ export function buildOmniCamSettings({
         { text: "LTX-Video Motion Profile", value: "ltx_motion" },
         { text: "Generic Video Reference", value: "generic_video" },
       ], "wan_camera_native"),
+
+    toggle(SETTING_AGENT_ENABLED, "Agent", "Enable built-in Agent",
+      "Enables the OmniCam Director Agent panel.", true),
+    choice(SETTING_AGENT_PROVIDER, "Agent", "Provider",
+      "Provider used by the built-in Director Agent.", [
+        { text: "Ollama / local", value: "ollama" },
+        { text: "OpenAI", value: "openai" },
+        { text: "OpenAI-compatible / local", value: "openai_compatible" },
+        { text: "Anthropic", value: "anthropic" },
+      ], "ollama"),
+    text(SETTING_AGENT_MODEL, "Agent", "Model", "Model id used by the Agent planner."),
+    text(SETTING_AGENT_BASE_URL, "Agent", "Base URL", "Optional provider endpoint override."),
+    slider(SETTING_AGENT_MAX_OUTPUT_TOKENS, "Agent", "Max output tokens",
+      "Maximum provider output budget.", { min: 512, max: 32768, step: 512 }, 4096),
+    slider(SETTING_AGENT_MAX_STEPS, "Agent", "Max planner steps",
+      "Maximum bounded Agent iterations.", { min: 1, max: 12, step: 1 }, 6),
+    toggle(SETTING_AGENT_PREVIEW, "Agent", "Preview before apply",
+      "Shows and validates the semantic diff before mutation.", true),
+    slider(SETTING_AGENT_TIMEOUT, "Agent", "Provider timeout",
+      "Maximum provider request duration.", { min: 15, max: 300, step: 5 }, 120),
   ];
 }
