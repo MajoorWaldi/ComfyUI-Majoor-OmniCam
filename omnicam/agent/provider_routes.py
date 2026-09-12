@@ -25,6 +25,7 @@ from ..comfy_compat.server import PromptServer
 from ..http_json import read_bounded_json_object
 from .protocol import AgentProtocolError
 from .providers.models import PROVIDER_IDS, ProviderConfig
+from .providers.public_errors import public_provider_error
 from .providers.registry import get_provider, provider_capabilities
 from .providers.secret_store import ENV_VAR_BY_PROVIDER, SECRET_STORE, SecretStoreError, env_credential
 
@@ -133,8 +134,9 @@ async def test_provider(request: web.Request) -> web.Response:
         return web.json_response({"ok": True})
     except AgentProtocolError as error:
         return _error_response(error)
-    except Exception as error:  # noqa: BLE001 - surfaced as a structured, safe failure
-        return web.json_response({"ok": False, "error": {"code": "PROVIDER_UNREACHABLE", "message": str(error)}})
+    except Exception as error:  # noqa: BLE001 - redacted via public_provider_error, never str(error)
+        public = public_provider_error(error)
+        return web.json_response({"ok": False, "error": {"code": public.code, "message": public.message}})
 
 
 async def list_provider_models(request: web.Request) -> web.Response:
@@ -149,8 +151,9 @@ async def list_provider_models(request: web.Request) -> web.Response:
         return web.json_response({"models": models})
     except AgentProtocolError as error:
         return _error_response(error)
-    except Exception as error:  # noqa: BLE001
-        return _error_response(AgentProtocolError("PROVIDER_UNREACHABLE", str(error), 502))
+    except Exception as error:  # noqa: BLE001 - redacted via public_provider_error, never str(error)
+        public = public_provider_error(error)
+        return _error_response(AgentProtocolError(public.code, public.message, public.status))
 
 
 if web is not None:

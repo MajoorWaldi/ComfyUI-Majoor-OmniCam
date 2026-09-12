@@ -147,6 +147,31 @@ async def test_plan_route_returns_a_preview_and_stores_a_pending_plan(monkeypatc
     assert "raw_response" not in body
 
 
+class _ExplodingProvider:
+    async def complete(self, request, config, credential):
+        raise RuntimeError("request failed sk-super-secret Authorization: Bearer secret")
+
+    async def list_models(self, config, credential):
+        return []
+
+
+@pytest.mark.asyncio
+async def test_plan_route_never_leaks_a_generic_exceptions_raw_message(monkeypatch):
+    # Task 3: an unknown exception from deep inside a provider adapter must
+    # never reach the browser verbatim via str(error) -- only the curated,
+    # generic PLANNER_FAILED message.
+    monkeypatch.setitem(PROVIDERS, "ollama", _ExplodingProvider())
+
+    session = _register_session()
+    response = await planner_routes.create_plan(_json_request("POST", "/majoor/omnicam/agent/v1/plan", _plan_body(session)))
+    raw = response.body.decode("utf-8")
+    assert "sk-super-secret" not in raw
+    assert "Bearer secret" not in raw
+    body = json.loads(raw)
+    assert body["ok"] is False
+    assert body["error"]["code"] == "PLANNER_FAILED"
+
+
 @pytest.mark.asyncio
 async def test_apply_plan_requires_the_plan_id():
     response = await planner_routes.apply_plan(_json_request("POST", "/majoor/omnicam/agent/v1/apply-plan", {}))

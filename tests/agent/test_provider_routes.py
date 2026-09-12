@@ -209,6 +209,46 @@ async def test_provider_test_route_cannot_be_fooled_by_a_degraded_list_models(mo
 
 
 @pytest.mark.asyncio
+async def test_provider_test_route_never_leaks_a_generic_exceptions_raw_message(monkeypatch):
+    # Task 3: str(error) from an arbitrary exception must never reach the
+    # browser -- only the curated, generic PROVIDER_UNREACHABLE message.
+    class _ExplodingProvider:
+        async def probe(self, config, credential):
+            raise RuntimeError("request failed sk-super-secret Authorization: Bearer secret")
+
+    monkeypatch.setitem(PROVIDERS, "ollama", _ExplodingProvider())
+
+    request = _json_request(
+        "POST", "/majoor/omnicam/agent/v1/providers/ollama/test", {}, match_info={"provider": "ollama"}
+    )
+    response = await provider_routes.test_provider(request)
+    raw = response.body.decode("utf-8")
+    assert "sk-super-secret" not in raw
+    assert "Bearer secret" not in raw
+    body = json.loads(raw)
+    assert body["ok"] is False
+    assert body["error"]["code"] == "PROVIDER_UNREACHABLE"
+
+
+@pytest.mark.asyncio
+async def test_list_provider_models_route_never_leaks_a_generic_exceptions_raw_message(monkeypatch):
+    class _ExplodingProvider:
+        async def list_models(self, config, credential):
+            raise RuntimeError("request failed sk-super-secret Authorization: Bearer secret")
+
+    monkeypatch.setitem(PROVIDERS, "ollama", _ExplodingProvider())
+
+    request = _json_request(
+        "POST", "/majoor/omnicam/agent/v1/providers/ollama/models", {}, match_info={"provider": "ollama"}
+    )
+    response = await provider_routes.list_provider_models(request)
+    raw = response.body.decode("utf-8")
+    assert "sk-super-secret" not in raw
+    assert "Bearer secret" not in raw
+    assert json.loads(raw)["error"]["code"] == "PROVIDER_UNREACHABLE"
+
+
+@pytest.mark.asyncio
 async def test_list_models_route_returns_models(monkeypatch):
     class _FakeProvider:
         async def list_models(self, config, credential):
