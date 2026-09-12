@@ -222,6 +222,17 @@ These are preflight results, not bugs:
 - **A missing or changed downstream node blocks the run**, per profile, so a
   missing LTX install never blocks a Wan Camera compile.
 
+## Agent integration
+
+- **Generic workflow automation:** the official Comfy MCP discovers and runs
+  OmniCam's three nodes like any other ComfyUI node.
+- **Live Director semantic control:** the OmniCam Agent Contract v1 lets an
+  external Agent process reach a specific, already-open Director instance
+  through a loopback-only broker (`docs/AGENT_INTEGRATION.md`).
+- **Local-only external control in v1** — see [Security](docs/SECURITY.md).
+- Agent edits use the same Semantic Director API and undo history as manual
+  edits: bounded, validated, one undo step.
+
 ## Documentation
 
 - [Node Guide](docs/NODES.md) — inputs, outputs, profiles and workflow contracts.
@@ -232,6 +243,7 @@ These are preflight results, not bugs:
 - [Characters](docs/CHARACTERS.md) — `OMNICAM_HUMANOID_V1`, Rig Mapper, FK poses, motion clips.
 - [Technical Reference](docs/TECHNICAL_REFERENCE.md) — runtime behaviour, DPVO, validation, development.
 - [Security](docs/SECURITY.md) — managed files, upload limits, request boundaries.
+- [Agent Integration](docs/AGENT_INTEGRATION.md) — headless MCP vs. live Director Agent control.
 
 ## License
 

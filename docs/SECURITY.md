@@ -11,6 +11,42 @@ OmniCam does not accept arbitrary filesystem paths. Browser uploads are stored
 below ComfyUI's managed `input/omnicam/` directory and API responses expose only
 paths relative to that managed root.
 
+## OmniCam Agent v1 (`omnicam/agent/`)
+
+See `docs/AGENT_INTEGRATION.md` for the full design. Security-relevant facts:
+
+- **Loopback-only external control.** `/majoor/omnicam/agent/v1/capabilities`,
+  `/sessions`, `/query` and `/transaction` require the caller to be
+  `127.0.0.1`/`::1` *and* send `X-OmniCam-Agent: 1`. A LAN or remote peer, or a
+  loopback caller missing the header, gets `403 Forbidden`.
+- **No remote Agent authentication is claimed.** The loopback check is a
+  direct-peer trust boundary, not an auth scheme. Do not expose the ComfyUI
+  server to an untrusted network; a reverse-proxy deployment needs its own
+  authentication in front of it.
+- **Browser callbacks use ephemeral, in-memory session tokens**, not
+  loopback. A live Director's `/session/register`, `/session/heartbeat`,
+  `/session/close` and `/reply` calls are authenticated by a per-session
+  bearer token instead (a legitimate ComfyUI browser connection can itself be
+  remote relative to the server). A wrong or stale token is rejected; nothing
+  is persisted across a server restart.
+- **Session listing never exposes the token, the WebSocket client id, or any
+  pending-request internals** -- only `session_id`, `node_id`, `label`,
+  `director_api`, `revision` and the advertised operation/query vocabulary.
+- **No second network listener.** Every route above is registered on the
+  existing `PromptServer.instance`; dispatch to the browser reuses the
+  existing WebSocket connection (`send_sync`), never a new socket.
+- **Bounded everywhere.** Every JSON body is read through
+  `read_bounded_json_object` (1 MiB cap); advertised operation/query lists,
+  session count and pending-request count are all capped
+  (`omnicam/agent/protocol.py`).
+- **An external Agent transaction must always carry `baseRevision`.** The
+  browser's own no-revision backwards-compatible mode is refused on this
+  route (`BASE_REVISION_REQUIRED`) -- an Agent outside the browser has no
+  other way to notice the scene changed under it.
+- **No arbitrary-code surface.** An Agent transaction is a bounded list of
+  named, validated operations over Director state -- never a script, a
+  workflow submission, or a proxy to an arbitrary endpoint.
+
 ## Monitor live-preflight boundary
 
 `POST /majoor/omnicam/monitor/live_preflight` evaluates the currently connected

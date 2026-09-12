@@ -147,6 +147,186 @@ test("keyframe.set_interpolation rejects an unsupported mode and edits a real ke
   assert.equal(activeTrack.keyframes.find((k) => k.frame === 0).interpolation, "linear");
 });
 
+test("rejects stale baseRevision atomically", () => {
+  const ui = makeUi();
+  ui.directorRevision = 7;
+
+  const before = JSON.stringify(ui.state);
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 6,
+    operations: [{
+      type: "object.set_enabled",
+      objectId: "subject",
+      value: false,
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "STALE_REVISION");
+  assert.equal(result.revision, 7);
+  assert.deepEqual(result.error.details, {
+    expected: 7,
+    received: 6,
+  });
+  assert.equal(JSON.stringify(ui.state), before);
+  assert.equal(ui.checkpoints.length, 0);
+});
+
+test("validateOnly checks revision but does not advance it", () => {
+  const ui = makeUi();
+  ui.directorRevision = 4;
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 4,
+    validateOnly: true,
+    operations: [{
+      type: "object.set_enabled",
+      objectId: "subject",
+      value: false,
+    }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.revision, 4);
+  assert.equal(ui.directorRevision, 4);
+});
+
+test("validateOnly returns a bounded semantic diff of what the transaction would change", () => {
+  const ui = makeUi();
+  const before = ui.state.objects.find((o) => o.id === "subject").position;
+
+  const result = executeDirectorTransaction(ui, tx({
+    validateOnly: true,
+    operations: [{ type: "object.transform", objectId: "subject", position: [5, 5, 5] }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.truncated, undefined);
+  const change = result.changes.find((c) => c.entity === "subject" && c.field === "position");
+  assert.ok(change);
+  assert.deepEqual(change.before, before);
+  assert.deepEqual(change.after, [5, 5, 5]);
+  // Still a dry run: live state is untouched.
+  assert.deepEqual(ui.state.objects.find((o) => o.id === "subject").position, before);
+});
+
+test("a matching baseRevision commits and the response carries before/after revisions", () => {
+  const ui = makeUi();
+  ui.directorRevision = 2;
+  ui.serialize = function () {
+    this.serializeCount += 1;
+    this.directorRevision += 1;
+  };
+
+  const result = executeDirectorTransaction(ui, tx({
+    baseRevision: 2,
+    operations: [{ type: "object.set_enabled", objectId: "subject", value: false }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.baseRevision, 2);
+  assert.equal(result.revision, 3);
+  assert.equal(ui.directorRevision, 3);
+});
+
+test("an omitted baseRevision skips the concurrency check entirely", () => {
+  const ui = makeUi();
+  ui.directorRevision = 9;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_enabled", objectId: "subject", value: false }],
+  }));
+  assert.equal(result.ok, true);
+});
+
+test("a failure response always reports the current revision", () => {
+  const ui = makeUi();
+  ui.directorRevision = 5;
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.set_active", cameraId: "camera_404" }],
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(result.revision, 5);
+});
+
+test("a locked object rejects object.transform with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.objects.find((o) => o.id === "subject").locked = true;
+  const before = JSON.stringify(ui.state);
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.transform", objectId: "subject", position: [1, 1, 1] }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+  assert.equal(JSON.stringify(ui.state), before);
+});
+
+test("a locked object rejects character.set_motion with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  const subject = ui.state.objects.find((o) => o.id === "subject");
+  subject.asset_kind = "character";
+  subject.locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{
+      type: "character.set_motion",
+      objectId: "subject",
+      motion: { clip_id: "walk" },
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("a locked camera rejects camera.transform with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.transform", cameraId: "camera_1", position: [1, 1, 1] }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("a locked camera rejects keyframe.upsert with ENTITY_LOCKED", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 1 }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error.code, "ENTITY_LOCKED");
+});
+
+test("camera.set_locked and object.set_locked stay usable on a locked entity, and unlocking restores edits", () => {
+  const ui = makeUi();
+  ui.state.cameras.find((c) => c.id === "camera_1").locked = true;
+  ui.state.objects.find((o) => o.id === "subject").locked = true;
+
+  const unlockCamera = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.set_locked", cameraId: "camera_1", value: false }],
+  }));
+  assert.equal(unlockCamera.ok, true);
+
+  const unlockObject = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "object.set_locked", objectId: "subject", value: false }],
+  }));
+  assert.equal(unlockObject.ok, true);
+
+  const editCamera = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "camera.transform", cameraId: "camera_1", position: [9, 9, 9] }],
+  }));
+  assert.equal(editCamera.ok, true);
+  assert.deepEqual(ui.state.cameras.find((c) => c.id === "camera_1").camera.position, [9, 9, 9]);
+});
+
 test("camera.look_at at a point retargets every key and clears object tracking", () => {
   const ui = makeUi();
   const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "camera.look_at", point: [1, 2, 3] }] }));

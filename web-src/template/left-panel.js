@@ -21,6 +21,32 @@ import {
   assetsIcon,
 } from "./object-icons.js";
 
+// Deliberately inert (design spec Plan 02 §53): no planner is wired to this
+// panel yet. It exists only so the Preview/Apply/Cancel shape is settled
+// before provider wiring -- a separate plan -- lands. Describe/Preview/Apply
+// stay disabled until that plan gives them something to call.
+function agentTabMarkup() {
+  return `
+    <div class="oc-left-body oc-assets" data-role="agent-tab" hidden>
+      <div class="oc-asset-panel" data-role="agent-panel">
+        <p class="oc-asset-status hint" data-role="agent-hint">
+          ${t("No planner is configured yet — provider wiring is a separate plan.")}
+        </p>
+        <input class="oc-search" data-role="agent-describe" type="text" disabled
+               placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}">
+        <div class="oc-asset-toolbar">
+          <strong>${t("Planned changes")}</strong>
+        </div>
+        <ul class="oc-asset-status hint" data-role="agent-plan" style="list-style:none;padding:0;margin:0"></ul>
+        <div class="oc-asset-foot">
+          <button type="button" class="oc-btn" data-agent-act="preview" disabled>${t("Preview")}</button>
+          <button type="button" class="oc-btn oc-btn--primary" data-agent-act="apply" disabled>${t("Apply")}</button>
+          <button type="button" class="oc-btn" data-agent-act="cancel" disabled>${t("Cancel")}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function assetsTabMarkup() {
   return `
     <div class="oc-left-body oc-assets" data-role="assets-tab" hidden>
@@ -60,6 +86,7 @@ export function leftPanelMarkup() {
       <div class="oc-left-tabs" data-role="left-tabs" role="tablist">
         <button type="button" class="oc-left-tab active" data-asset-view="scene" role="tab">${t("Scene")}</button>
         <button type="button" class="oc-left-tab" data-asset-view="assets" role="tab">${t("Assets")}</button>
+        <button type="button" class="oc-left-tab" data-asset-view="agent" role="tab">${t("Agent")}</button>
       </div>
       <div class="oc-left-body" data-role="scene-tab">
       <div class="oc-panel-head">
@@ -137,5 +164,6 @@ export function leftPanelMarkup() {
            title="${t("Drag to resize the outliner — double-click to reset")}" aria-label="${t("Resize the outliner")}"></div>
       </div>
       ${assetsTabMarkup()}
+      ${agentTabMarkup()}
     </aside>`;
 }

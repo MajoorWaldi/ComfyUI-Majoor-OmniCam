@@ -40,6 +40,14 @@ export function syncActiveCameraTrack(ui) {
 
 export function serializeEditorState(ui) {
   if (ui.disposed) return;
+  // Revision of the live serialized Director editor snapshot -- deliberately
+  // conservative: an Agent should never silently commit over a Director the
+  // user is actively manipulating, so a manual scrub outside playback
+  // advancing this too is acceptable. Never serialized into ui.state itself,
+  // and never used interchangeably with renderRevision.
+  ui.directorRevision = (
+    Number.isInteger(ui.directorRevision) ? Math.max(0, ui.directorRevision) : 0
+  ) + 1;
   ui.renderRevision = (ui.renderRevision || 0) + 1;
   syncActiveCameraTrack(ui);
   // In sequence mode playblastCameraTrack() answers per frame, so the recording

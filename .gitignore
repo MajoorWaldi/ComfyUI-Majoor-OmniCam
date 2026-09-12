@@ -45,6 +45,7 @@ docs/*
 !docs/BLOCKOUT_ASSET_LIBRARY.md
 !docs/ASSET_LIBRARY.md
 !docs/CHARACTERS.md
+!docs/AGENT_INTEGRATION.md
 !docs/assets/
 
 # DPVO build tree: sources upstream, toolkit CUDA portable, archives

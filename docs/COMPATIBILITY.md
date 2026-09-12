@@ -89,3 +89,16 @@ OmniCam never installs these packages at runtime.
 
 When a required checkpoint is not present, `/majoor/omnicam/reconstruction/capabilities` reports `available: false` with the target folder path and reason. Extractor displays each requirement in the UI (unsupported options stay visible with reason text, not hidden) and keeps camera tracking and the other reconstruction modes functional without runtime exceptions. If SAM3 is missing, the UI may still show Blockout but the run button explains the missing checkpoint and offers Depth Mesh; queued execution never silently changes the requested mode.
 
+## OmniCam Agent v1
+
+See `docs/AGENT_INTEGRATION.md`. The Agent transport (`omnicam/agent/` and
+`web-src/agent/`) is purely additive:
+
+- `OMNICAM_MOTION_SCENE`, the camera track schema and all three public node
+  contracts are unchanged;
+- the Semantic Director API (`web-src/director-api/`) is the same one Plan 01
+  wired to the interactive UI -- an Agent transaction is validated, bounded
+  and undo-tracked exactly like a manual edit;
+- a saved workflow with no Agent session ever registered loads and behaves
+  identically to before this feature existed.
+
