@@ -93,6 +93,7 @@ def test_monitor_v3_schema_has_stable_typed_contract():
         "final_prompt", "reference_video", "reference_frames",
         "camera_embedding", "native_tracks", "tracks_json",
         "target_width", "target_height", "target_length",
+        "h3edit_options", "target_fps",
     ]
     # An output node so a partial ComfyUI execution can target the Monitor to
     # preflight a profile without running the downstream generation.
@@ -126,7 +127,7 @@ def test_inactive_typed_outputs_are_none_not_fake_tensors(all_targets_installed)
     )
     values = output.outputs if hasattr(output, "outputs") else tuple(output)
 
-    assert len(values) == 9
+    assert len(values) == 11
 
     assert values[0] == "A test"
     assert values[1] is None
@@ -134,7 +135,9 @@ def test_inactive_typed_outputs_are_none_not_fake_tensors(all_targets_installed)
     assert values[3] is None
     assert values[4] is not None
     assert values[5] == ""
-    assert values[6:] == (832, 480, 48)
+    assert values[6:9] == (832, 480, 48)
+    assert values[9] is None
+    assert values[10] == 24.0
 
     ui = output.ui
     assert "preflight" in ui

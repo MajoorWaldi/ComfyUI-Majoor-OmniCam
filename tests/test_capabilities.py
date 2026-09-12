@@ -159,7 +159,8 @@ def test_adapter_contract_matrix_pins_upstream_and_input_fingerprints():
 
     assert set(ADAPTER_INFO) == {
         "wan_camera_native", "wan_move_native", "wan_track_native", "h3_api",
-        "h3_native", "ltx25_motion_track", "wanvideo_ati", "external_reference_video",
+        "h3_native", "h3_scene_coverage", "ltx25_motion_track", "wanvideo_ati",
+        "external_reference_video",
     }
     for adapter, info in ADAPTER_INFO.items():
         if not info["requirements"]:
@@ -290,3 +291,45 @@ def test_capability_contracts_are_keyed_by_profile_id():
     from omnicam.profiles.catalog import PROFILE_REGISTRY
 
     assert set(ADAPTER_INFO) == set(PROFILE_REGISTRY.ids)
+
+
+def test_h3_scene_coverage_capability_is_verified_against_the_downstream_contract():
+    class Input:
+        def __init__(self, name: str) -> None:
+            self.id = name
+
+    class Schema:
+        inputs = (Input("compiled_prompt"), Input("options"))
+
+    class TextEncodeH3Edit:
+        @classmethod
+        def define_schema(cls):
+            return Schema()
+
+    entry = next(
+        item
+        for item in detect_capabilities({"TextEncodeH3Edit": TextEncodeH3Edit})["capabilities"]
+        if item["adapter"] == "h3_scene_coverage"
+    )
+    assert entry["state"] == "verified"
+
+
+def test_h3_scene_coverage_capability_is_incompatible_without_the_options_socket():
+    class Input:
+        def __init__(self, name: str) -> None:
+            self.id = name
+
+    class Schema:
+        inputs = (Input("compiled_prompt"),)
+
+    class TextEncodeH3Edit:
+        @classmethod
+        def define_schema(cls):
+            return Schema()
+
+    entry = next(
+        item
+        for item in detect_capabilities({"TextEncodeH3Edit": TextEncodeH3Edit})["capabilities"]
+        if item["adapter"] == "h3_scene_coverage"
+    )
+    assert entry["state"] == "incompatible"
