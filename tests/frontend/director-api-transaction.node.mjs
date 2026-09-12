@@ -192,6 +192,25 @@ test("validateOnly checks revision but does not advance it", () => {
   assert.equal(ui.directorRevision, 4);
 });
 
+test("validateOnly returns a bounded semantic diff of what the transaction would change", () => {
+  const ui = makeUi();
+  const before = ui.state.objects.find((o) => o.id === "subject").position;
+
+  const result = executeDirectorTransaction(ui, tx({
+    validateOnly: true,
+    operations: [{ type: "object.transform", objectId: "subject", position: [5, 5, 5] }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.truncated, undefined);
+  const change = result.changes.find((c) => c.entity === "subject" && c.field === "position");
+  assert.ok(change);
+  assert.deepEqual(change.before, before);
+  assert.deepEqual(change.after, [5, 5, 5]);
+  // Still a dry run: live state is untouched.
+  assert.deepEqual(ui.state.objects.find((o) => o.id === "subject").position, before);
+});
+
 test("a matching baseRevision commits and the response carries before/after revisions", () => {
   const ui = makeUi();
   ui.directorRevision = 2;

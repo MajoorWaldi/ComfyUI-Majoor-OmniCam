@@ -8,6 +8,7 @@ import { DIRECTOR_API_VERSION } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 import { validateDirectorTransaction } from "./validate.js";
 import { applyDirectorOperation } from "./apply.js";
+import { computeSemanticDiff } from "./diff.js";
 
 function clone(value) {
   return typeof structuredClone === "function"
@@ -129,6 +130,7 @@ export function executeDirectorTransaction(ui, input) {
   }
 
   if (tx.validateOnly) {
+    const { changes, truncated } = computeSemanticDiff(ui.state, draft);
     return {
       ok: true,
       version: DIRECTOR_API_VERSION,
@@ -139,6 +141,8 @@ export function executeDirectorTransaction(ui, input) {
       outcomes,
       dirtyMask,
       validateOnly: true,
+      changes,
+      ...(truncated ? { truncated: true } : {}),
     };
   }
 
