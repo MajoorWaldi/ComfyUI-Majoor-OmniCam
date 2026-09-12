@@ -14,6 +14,7 @@ import torch
 from omnicam.core.motion_scene import MotionScene
 from omnicam.profiles import CompileRequest
 from omnicam.profiles.h3 import H3_API_PROFILE, H3_NATIVE_PROFILE
+from omnicam.profiles.h3_scene_coverage import H3_SCENE_COVERAGE_PROFILE
 from omnicam.profiles.shots import MULTI_SHOT_PROMPT
 
 
@@ -343,3 +344,135 @@ def test_h3_does_not_flag_a_fresh_playblast(profile):
     request = _request()
     object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
     assert not [c for c in profile.preflight(request) if c.id == "playblast_freshness"]
+
+
+# ---------------------------------------------------------------------------
+# h3_scene_coverage: prompt/options compilation without a playblast
+# ---------------------------------------------------------------------------
+
+def _camera_payload(keyframes: list[dict], *, enabled: bool = True) -> dict:
+    return {
+        "id": "hero_camera",
+        "label": "Hero Camera",
+        "enabled": enabled,
+        "track": {
+            "schema_version": 1,
+            "fps": 24,
+            "duration_frames": keyframes[-1]["frame"] + 1,
+            "width": 640,
+            "height": 360,
+            "render_mode": "omni_ref",
+            "keyframes": keyframes,
+            "objects": [],
+            "metadata": {},
+        },
+    }
+
+
+def _orbit_keyframes(degrees: float, frames: int = 124) -> list[dict]:
+    from h3_track_fixtures import orbit_track
+
+    track = orbit_track(degrees=degrees, frames=frames)
+    return [
+        {"frame": key.frame, "camera": {
+            "position": key.camera.position, "target": key.camera.target,
+            "fov": key.camera.fov, "roll": key.camera.roll,
+        }, "interpolation": key.interpolation}
+        for key in track.keyframes
+    ]
+
+
+def _pan_in_place_keyframes(frames: int = 124) -> list[dict]:
+    from h3_track_fixtures import pan_in_place_track
+
+    track = pan_in_place_track(frames=frames)
+    return [
+        {"frame": key.frame, "camera": {
+            "position": key.camera.position, "target": key.camera.target,
+            "fov": key.camera.fov, "roll": key.camera.roll,
+        }, "interpolation": key.interpolation}
+        for key in track.keyframes
+    ]
+
+
+def _scene_with_camera(camera_payload: dict) -> MotionScene:
+    payload = _scene().to_dict()
+    payload["cameras"] = [camera_payload]
+    payload["active_camera_id"] = camera_payload["id"]
+    payload["playblast_camera_id"] = camera_payload["id"]
+    track = camera_payload["track"]
+    payload["timeline"]["duration_seconds"] = track["duration_frames"] / track["fps"]
+    payload["timeline"]["authoring_fps"] = float(track["fps"])
+    return MotionScene.from_dict(payload)
+
+
+def _h3_scene_coverage_request(camera_payload: dict, *, duration_seconds: float | None = None, base_prompt: str = "") -> CompileRequest:
+    scene = _scene_with_camera(camera_payload)
+    if duration_seconds is None:
+        duration_seconds = scene.timeline.duration_seconds
+    return CompileRequest(
+        motion_scene=scene,
+        playblast_video=None,
+        base_prompt=base_prompt,
+        target_width=831,
+        target_height=481,
+        duration_seconds=duration_seconds,
+        target_fps=24.0,
+    )
+
+
+def test_h3_scene_coverage_resolves_supported_length_and_grid():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(180.0)), duration_seconds=6.0)
+    timeline = H3_SCENE_COVERAGE_PROFILE.resolve_timeline(request)
+    assert timeline.fps == 24.0
+    assert timeline.frame_count == 243
+    assert timeline.width == 832
+    assert timeline.height == 480
+
+
+def test_h3_scene_coverage_compiles_without_playblast():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(180.0)))
+    result = H3_SCENE_COVERAGE_PROFILE.compile(request)
+    assert result.profile_id == "h3_scene_coverage"
+    assert result.semantic == "prompt_options"
+    assert "detailed_description:" in result.final_prompt
+    assert result.h3edit_options["prompt_mode"] == "directed | frozen scene coverage"
+    assert result.reference_video is None
+    assert result.reference_frames is None
+
+
+def test_h3_scene_coverage_blocks_non_orbital_camera():
+    request = _h3_scene_coverage_request(_camera_payload(_pan_in_place_keyframes()))
+    checks = H3_SCENE_COVERAGE_PROFILE.preflight(request)
+    assert any(check.state == "BLOCKED" for check in checks)
+    with pytest.raises(ValueError):
+        H3_SCENE_COVERAGE_PROFILE.compile(request)
+
+
+def test_h3_scene_coverage_surfaces_camera_contract_check_ids():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(180.0)))
+    checks = {check.id: check for check in H3_SCENE_COVERAGE_PROFILE.preflight(request)}
+    for check_id in (
+        "h3_camera_representation", "h3_camera_direction", "h3_camera_completion",
+        "h3_camera_timing", "h3_loop_closure",
+    ):
+        assert check_id in checks
+        assert checks[check_id].state in {"PASS", "WARNING"}
+
+
+def test_h3_scene_coverage_360_orbit_enables_closure_check():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(360.0)), duration_seconds=124 / 24.0)
+    checks = {check.id: check for check in H3_SCENE_COVERAGE_PROFILE.preflight(request)}
+    assert "matches the opening camera" in checks["h3_loop_closure"].message
+
+
+def test_h3_scene_coverage_reports_a_length_remap_warning():
+    request = _h3_scene_coverage_request(_camera_payload(_orbit_keyframes(90.0, frames=137)), duration_seconds=137 / 24.0)
+    checks = {check.id: check for check in H3_SCENE_COVERAGE_PROFILE.preflight(request)}
+    assert checks["h3_camera_timing"].state == "WARNING"
+
+
+def test_h3_scene_coverage_is_registered_in_the_catalog():
+    from omnicam.profiles.catalog import PROFILE_REGISTRY
+
+    assert PROFILE_REGISTRY.require("h3_scene_coverage") is H3_SCENE_COVERAGE_PROFILE

@@ -2,6 +2,7 @@
 
 from .generic_video import EXTERNAL_REFERENCE_VIDEO_PROFILE
 from .h3 import H3_API_PROFILE, H3_NATIVE_PROFILE
+from .h3_scene_coverage import H3_SCENE_COVERAGE_PROFILE
 from .ltx_motion import LTX_MOTION_PROFILE
 from .registry import ProfileRegistry
 from .wan_camera import WAN_CAMERA_PROFILE
@@ -17,6 +18,7 @@ PROFILE_REGISTRY = ProfileRegistry(
         WAN_TRACK_PROFILE,
         WANVIDEO_ATI_PROFILE,
         H3_NATIVE_PROFILE,
+        H3_SCENE_COVERAGE_PROFILE,
         H3_API_PROFILE,
         LTX_MOTION_PROFILE,
     ]
