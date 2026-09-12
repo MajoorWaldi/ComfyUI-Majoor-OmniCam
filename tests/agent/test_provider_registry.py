@@ -46,6 +46,7 @@ def _patch_guarded_request(monkeypatch, module, status, body: bytes):
 
 @pytest.mark.asyncio
 async def test_openai_complete_extracts_output_text(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import openai as openai_module
 
     body = json.dumps({
@@ -63,6 +64,7 @@ async def test_openai_complete_extracts_output_text(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_openai_list_models(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import openai as openai_module
 
     body = json.dumps({"data": [{"id": "gpt-4o"}, {"id": "gpt-4o-mini"}]}).encode("utf-8")
@@ -74,6 +76,7 @@ async def test_openai_list_models(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_anthropic_complete_extracts_text_blocks(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import anthropic as anthropic_module
 
     body = json.dumps({
@@ -90,6 +93,7 @@ async def test_anthropic_complete_extracts_text_blocks(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ollama_complete_reads_message_content(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import ollama as ollama_module
 
     body = json.dumps({
@@ -107,6 +111,7 @@ async def test_ollama_complete_reads_message_content(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ollama_complete_forces_json_output(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import ollama as ollama_module
 
     captured = {}
@@ -127,6 +132,7 @@ async def test_ollama_complete_forces_json_output(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_ollama_list_models_reads_tags(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import ollama as ollama_module
 
     body = json.dumps({"models": [{"name": "qwen3:latest"}, {"name": "llama3:8b"}]}).encode("utf-8")
@@ -138,6 +144,7 @@ async def test_ollama_list_models_reads_tags(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_openai_compatible_complete_reads_chat_completion_choice(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import openai_compat as compat_module
 
     body = json.dumps({
@@ -156,6 +163,7 @@ async def test_openai_compatible_complete_reads_chat_completion_choice(monkeypat
 
 @pytest.mark.asyncio
 async def test_openai_compatible_list_models_degrades_to_empty_on_404(monkeypatch):
+    pytest.importorskip("aiohttp")
     from omnicam.agent.providers import openai_compat as compat_module
 
     _patch_guarded_request(monkeypatch, compat_module, 404, b"not found")

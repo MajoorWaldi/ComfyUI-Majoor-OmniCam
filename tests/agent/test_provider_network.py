@@ -99,6 +99,10 @@ class _FakeSession:
 
 @pytest.mark.asyncio
 async def test_guarded_request_returns_body_and_status():
+    # guarded_request() builds a real aiohttp.ClientTimeout even against a
+    # fake session -- aiohttp ships with ComfyUI but is not a declared dev
+    # dependency of this repo, so skip where it was never installed.
+    pytest.importorskip("aiohttp")
     session = _FakeSession(_FakeResponse(200, [b'{"ok":true}']))
     result = await guarded_request(
         session, "POST", "http://127.0.0.1:11434/api/chat", is_custom_endpoint=True
@@ -110,6 +114,7 @@ async def test_guarded_request_returns_body_and_status():
 
 @pytest.mark.asyncio
 async def test_guarded_request_rejects_a_redirect():
+    pytest.importorskip("aiohttp")
     session = _FakeSession(_FakeResponse(302, []))
     with pytest.raises(NetworkPolicyError) as excinfo:
         await guarded_request(session, "GET", "http://127.0.0.1:11434/api/tags", is_custom_endpoint=True)
@@ -118,6 +123,7 @@ async def test_guarded_request_rejects_a_redirect():
 
 @pytest.mark.asyncio
 async def test_guarded_request_rejects_an_oversized_response():
+    pytest.importorskip("aiohttp")
     session = _FakeSession(_FakeResponse(200, [b"x" * (MAX_RESPONSE_BYTES + 1)]))
     with pytest.raises(NetworkPolicyError) as excinfo:
         await guarded_request(session, "GET", "http://127.0.0.1:11434/api/tags", is_custom_endpoint=True)
@@ -126,6 +132,7 @@ async def test_guarded_request_rejects_an_oversized_response():
 
 @pytest.mark.asyncio
 async def test_guarded_request_rejects_an_oversized_content_length_header():
+    pytest.importorskip("aiohttp")
     session = _FakeSession(_FakeResponse(200, [], content_length=MAX_RESPONSE_BYTES + 1))
     with pytest.raises(NetworkPolicyError) as excinfo:
         await guarded_request(session, "GET", "http://127.0.0.1:11434/api/tags", is_custom_endpoint=True)
