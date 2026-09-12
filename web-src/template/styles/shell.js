@@ -166,7 +166,12 @@ export const SHELL_STYLES = `
       .majoor-omnicam .outliner-filter-chips{position:sticky;top:62px;z-index:9;background:var(--oc-bg);padding-bottom:3px;border-bottom:1px solid var(--oc-line-soft)}
       .majoor-omnicam .shot-key-nav{position:sticky;top:0;z-index:10;background:var(--oc-bg);padding:2px 0 4px;border-bottom:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-search{flex:1;min-width:0;padding:4px 9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border-color:var(--oc-line)}
-      .majoor-omnicam .oc-agent-describe{display:block;width:100%;min-height:52px;max-height:220px;resize:none;overflow-y:auto;font:inherit;line-height:1.4;color:var(--oc-text)}
+      /* .oc-search sets flex:1, which -- inside .oc-asset-panel's column flex
+         layout -- makes flexbox's own basis/grow distribution own this
+         element's height instead of its content, silently overriding any
+         height the auto-grow JS sets. flex:none hands sizing back to
+         content (via JS-set height, clamped by min/max-height below). */
+      .majoor-omnicam .oc-agent-describe{display:block;flex:none;width:100%;min-height:52px;max-height:220px;resize:none;overflow-y:auto;font:inherit;line-height:1.4;color:var(--oc-text)}
       .majoor-omnicam .oc-card{display:flex;flex-direction:column;gap:6px;padding:9px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius)}
       .majoor-omnicam .oc-card-title{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--oc-text)}
       .majoor-omnicam .oc-card-title input[type=color]{margin-left:auto;width:28px;height:22px;padding:0;background:transparent;cursor:pointer}

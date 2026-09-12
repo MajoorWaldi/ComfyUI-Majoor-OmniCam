@@ -182,6 +182,186 @@ test("a transaction using asset.instantiate is rejected before reaching director
   bridge.dispose();
 });
 
+function makeFakeStore(items) {
+  const state = { items, byId: new Map(items.map((item) => [item.id, item])) };
+  return {
+    state,
+    filterCalls: [],
+    get(id) { return state.byId.get(id) || null; },
+    async setFilter(filter) {
+      this.filterCalls.push(filter);
+      // The tests below only exercise ids already "loaded"; a real store
+      // would refetch here, but that path is covered by the
+      // ASSET_CATALOG_UNAVAILABLE / UNKNOWN_ASSET cases instead.
+    },
+  };
+}
+
+const CHARACTER_ROW = {
+  id: "omnicam.character.ual2_standard",
+  name: "UAL2_Standard",
+  kind: "character",
+  source: "user",
+  file: "characters/ual2_standard.glb",
+  tags: ["human", "character"],
+  rig: { profile: "omnicam_humanoid_v1", bone_map: { root: "root" } },
+  animations: [{ id: "farm-harvest", name: "Farm_Harvest", clip: "Farm_Harvest" }],
+};
+
+// catalog.default.json ships "Human Neutral/Male/Female 01" purely to
+// illustrate a fully-mapped rig row's shape (docs/CHARACTERS.md: "never
+// trusted for a downloaded file"); they have no backing GLB. source:
+// "default" is what tells them apart from a real, bootstrap-installed row
+// (which always carries source: "user").
+const ILLUSTRATIVE_ROW = {
+  id: "omnicam.character.human_neutral_01",
+  name: "Human Neutral 01",
+  kind: "character",
+  source: "default",
+  file: "characters/human_neutral_01.glb",
+  tags: ["human", "adult", "neutral"],
+  rig: { profile: "omnicam_humanoid_v1", bone_map: { root: "Hips" } },
+  animations: [{ id: "idle", name: "Idle", clip: "Idle" }],
+};
+
+test("asset.instantiate_by_id resolves the trusted catalogue row and instantiates it", async () => {
+  let executedTx = null;
+  const store = makeFakeStore([CHARACTER_ROW]);
+  const { api, bridge } = await registeredBridge({
+    assetBrowser: { store },
+    directorApi: {
+      query: () => ({}),
+      execute: (tx) => { executedTx = tx; return { ok: true, outcomes: [{ objectId: "character_man1" }] }; },
+    },
+  });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({
+      kind: "transaction",
+      payload: {
+        baseRevision: 0,
+        operations: [{ type: "asset.instantiate_by_id", assetId: "omnicam.character.ual2_standard", id: "man1", point: [0, 0, 0] }],
+      },
+    }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.ok, true);
+  // The Agent never sees the resolved asset -- it only reaches directorApi.execute.
+  assert.equal(executedTx.operations[0].type, "asset.instantiate");
+  assert.deepEqual(executedTx.operations[0].asset, CHARACTER_ROW);
+  assert.equal(executedTx.operations[0].id, "man1");
+  bridge.dispose();
+});
+
+test("asset.instantiate_by_id with an unknown assetId never reaches directorApi.execute", async () => {
+  let executed = false;
+  const store = makeFakeStore([CHARACTER_ROW]);
+  const { api, bridge } = await registeredBridge({
+    assetBrowser: { store },
+    directorApi: { query: () => ({}), execute: () => { executed = true; return { ok: true }; } },
+  });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({
+      kind: "transaction",
+      payload: { baseRevision: 0, operations: [{ type: "asset.instantiate_by_id", assetId: "not.a.real.asset" }] },
+    }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.ok, false);
+  assert.equal(reply.body.result.error.code, "UNKNOWN_ASSET");
+  assert.equal(executed, false);
+  bridge.dispose();
+});
+
+test("asset.instantiate_by_id fails cleanly when the Asset Browser never mounted", async () => {
+  const { api, bridge } = await registeredBridge({
+    directorApi: { query: () => ({}), execute: () => ({ ok: true }) },
+  });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({
+      kind: "transaction",
+      payload: { baseRevision: 0, operations: [{ type: "asset.instantiate_by_id", assetId: "omnicam.character.ual2_standard" }] },
+    }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.ok, false);
+  assert.equal(reply.body.result.error.code, "ASSET_CATALOG_UNAVAILABLE");
+  bridge.dispose();
+});
+
+test("asset.catalog_search returns a safe summary, never the raw AssetDefinition", async () => {
+  const store = makeFakeStore([CHARACTER_ROW]);
+  const { api, bridge } = await registeredBridge({ assetBrowser: { store } });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({ kind: "query", payload: { type: "asset.catalog_search", kind: "character", search: "ual2" } }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.items.length, 1);
+  const [item] = reply.body.result.items;
+  assert.equal(item.id, "omnicam.character.ual2_standard");
+  assert.deepEqual(item.animations, [{ id: "farm-harvest", name: "Farm_Harvest", clip: "Farm_Harvest" }]);
+  // Never the trusted-only fields: file path, rig bone map.
+  assert.equal("file" in item, false);
+  assert.equal("rig" in item, false);
+  assert.deepEqual(store.filterCalls[0], { kind: "character", search: "ual2" });
+  bridge.dispose();
+});
+
+test("asset.catalog_search never surfaces an illustrative, file-less default character row", async () => {
+  const store = makeFakeStore([ILLUSTRATIVE_ROW, CHARACTER_ROW]);
+  const { api, bridge } = await registeredBridge({ assetBrowser: { store } });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({ kind: "query", payload: { type: "asset.catalog_search", kind: "character", search: "" } }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.deepEqual(reply.body.result.items.map((item) => item.id), ["omnicam.character.ual2_standard"]);
+  bridge.dispose();
+});
+
+test("asset.instantiate_by_id refuses an illustrative, file-less default character row", async () => {
+  let executed = false;
+  const store = makeFakeStore([ILLUSTRATIVE_ROW]);
+  const { api, bridge } = await registeredBridge({
+    assetBrowser: { store },
+    directorApi: { query: () => ({}), execute: () => { executed = true; return { ok: true }; } },
+  });
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({
+      kind: "transaction",
+      payload: {
+        baseRevision: 0,
+        operations: [{ type: "asset.instantiate_by_id", assetId: "omnicam.character.human_neutral_01", id: "man1" }],
+      },
+    }),
+  );
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.ok, false);
+  assert.equal(reply.body.result.error.code, "UNKNOWN_ASSET");
+  assert.equal(executed, false);
+  bridge.dispose();
+});
+
+test("asset.catalog_search fails cleanly when the Asset Browser never mounted", async () => {
+  const { api, bridge } = await registeredBridge();
+  api.dispatch(AGENT_EVENT, baseDetail({ kind: "query", payload: { type: "asset.catalog_search" } }));
+  await flush();
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.equal(reply.body.result.ok, false);
+  assert.equal(reply.body.result.error.code, "ASSET_CATALOG_UNAVAILABLE");
+  bridge.dispose();
+});
+
 test("the reply carries the session token", async () => {
   const { api, bridge } = await registeredBridge();
   api.dispatch(AGENT_EVENT, baseDetail());

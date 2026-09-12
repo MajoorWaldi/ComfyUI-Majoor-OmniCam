@@ -49,6 +49,12 @@ PLANNER_OPERATIONS: tuple[str, ...] = (
     "keyframe.upsert", "keyframe.remove", "keyframe.set_interpolation",
     "timeline.set_range", "timeline.set_duration",
     "cut.upsert", "cut.remove", "cut.set_camera",
+    # Not a real Director API operation -- web-src/agent/bridge.js intercepts
+    # it, resolves assetId against the trusted, already-loaded catalogue, and
+    # rewrites it into a real asset.instantiate before the transaction ever
+    # reaches ui.directorApi.execute. The planner never sees or constructs a
+    # file path, rig, or animation list itself (design spec section 21).
+    "asset.instantiate_by_id",
 )
 
 PLANNER_QUERIES: tuple[str, ...] = (
@@ -57,6 +63,20 @@ PLANNER_QUERIES: tuple[str, ...] = (
     "health.get", "character.get_rig", "character.get_pose",
     "character.list", "object.list", "object.get", "object.search",
     "shot.list", "keyframe.list",
+    # Also bridge.js-intercepted: searches the Asset Browser catalogue (not
+    # ui.state) and returns id/name/kind/tags/animations only.
+    "asset.catalog_search",
+)
+
+# Mirrors web-src/director-api/entity-ops.js's AGENT_OBJECT_TYPES by hand --
+# object.create rejects anything outside this exact set (UNSUPPORTED_OBJECT_TYPE),
+# and the model has no other way to learn it (there is no "list valid object
+# types" query). Without this in the prompt, an open-ended instruction like
+# "add a building" reliably burns the whole step budget hallucinating
+# objectType values ("building", "man", ...) that never validate.
+PLANNER_OBJECT_TYPES: tuple[str, ...] = (
+    "cube", "sphere", "cylinder", "torus", "pyramid", "ground", "human",
+    "card", "null", "sun_light", "point_light", "spot_light",
 )
 
 
@@ -135,19 +155,58 @@ prose, no markdown fences, no commentary:
 {{"action": "transaction", "transaction": {{"description": "...", "operations": [{{"type": "<one of: {operations}>", ...}}]}}}}
 {{"action": "finish", "message": "..."}}
 
-Use Director queries to resolve IDs. Never invent camera IDs, object IDs,
-asset IDs, joints, or animation clips. Respect entity locks. Prefer the
-smallest transaction that satisfies the user's intent.
+A transaction's "operations" array may hold more than one operation --
+build a whole scene as one transaction with several object.create entries
+rather than proposing one object per step.
+
+Key operation parameters (ids/coordinates below are examples, not literal
+values to reuse):
+- object.create: {{"type": "object.create", "objectType": "<one of: {object_types}>", "id": "lowercase_snake_case", "name": "Display Name", "position": [x, y, z], "rotation": [x, y, z]}}
+  objectType MUST be exactly one of the values listed above -- there is no
+  "building", "man", "woman", "tree", or any other free-form type. Represent
+  a building with one or more "cube" objects sized/placed via
+  object.transform. Any other value is rejected outright.
+- object.transform: {{"type": "object.transform", "objectId": "<id from object.create/asset.instantiate_by_id or a query>", "position": [x, y, z], "rotation": [x, y, z], "scale": [x, y, z]}}
+- camera.transform: {{"type": "camera.transform", "cameraId": "<existing id, omit for the active camera>", "position": [x, y, z], "target": [x, y, z]}}
+- camera.look_at: {{"type": "camera.look_at", "objectId": "<existing id>"}} (or "point": [x, y, z] instead of objectId)
+
+People: never build a person out of primitives and never use object.create's
+"human" type unless catalog_search below genuinely finds nothing usable --
+that type is a placeholder box, not a character. Whenever the instruction
+asks for a person (man, woman, worker, character, ...), first issue
+{{"action": "query", "query": {{"type": "asset.catalog_search", "kind": "character", "search": "<a word from the instruction, or empty for all characters>"}}}}.
+It returns items shaped {{"id", "name", "kind", "tags", "animations": [{{"id", "name", "clip"}}, ...]}}
+-- never a file path or rig. Pick the best-matching item's "id" as assetId:
+{{"type": "asset.instantiate_by_id", "assetId": "<id from catalog_search>", "id": "lowercase_snake_case", "point": [x, y, z]}}
+The resulting objectId is always "character_<the id you gave>" (e.g. "man1"
+becomes "character_man1") -- use that exact value for any object.transform
+or character.set_motion on the same character, even within the very same
+transaction.
+If the instruction names a specific action (working, walking, idle, ...),
+look for a matching entry in that item's "animations" and add, in the same
+transaction:
+{{"type": "character.set_motion", "objectId": "character_<your id>", "motion": {{"clip_id": "<that animation's \"clip\" value -- NOT its "id">", "speed": 1, "loop": true}}}}
+Do not guess a clip name that catalog_search never returned.
+
+Use Director queries to resolve existing IDs. Never invent camera IDs,
+object IDs, asset IDs, joints, or animation clips -- object.create and
+asset.instantiate_by_id are the only operations that mint a new object id
+(either the "id" you supply, or an auto-generated one if you omit it).
+Respect entity locks. Prefer the smallest transaction that satisfies the
+user's intent.
 
 Do not output filesystem operations, shell commands, Python, JavaScript, or
 arbitrary URLs. A transaction is a proposal: OmniCam validates it separately
 before anything changes."""
 
 
-def build_system_prompt(*, operations: list[str], queries: list[str]) -> str:
+def build_system_prompt(
+    *, operations: list[str], queries: list[str], object_types: list[str] | None = None
+) -> str:
     return PLANNER_SYSTEM_PROMPT_TEMPLATE.format(
         queries=", ".join(sorted(queries)),
         operations=", ".join(sorted(operations)),
+        object_types=", ".join(sorted(object_types or PLANNER_OBJECT_TYPES)),
     )
 
 

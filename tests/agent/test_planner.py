@@ -8,6 +8,9 @@ import pytest
 
 from omnicam.agent import planner as planner_module
 from omnicam.agent.planner_schema import (
+    PLANNER_OBJECT_TYPES,
+    PLANNER_OPERATIONS,
+    PLANNER_QUERIES,
     PlannerProtocolError,
     build_system_prompt,
     parse_action,
@@ -96,6 +99,31 @@ def test_system_prompt_lists_the_actual_supported_operations_and_queries():
     assert "object.delete" in prompt
     assert "scene.summary" in prompt
     assert "Do not output filesystem operations, shell commands, Python, JavaScript" in prompt
+
+
+def test_system_prompt_teaches_the_object_create_type_vocabulary():
+    # Without this, "add a building" reliably hallucinates an objectType
+    # (e.g. "building") that object.create always rejects.
+    prompt = build_system_prompt(operations=list(PLANNER_OPERATIONS), queries=list(PLANNER_QUERIES))
+    for object_type in PLANNER_OBJECT_TYPES:
+        assert object_type in prompt
+    assert "building" not in prompt.lower().split("there is no")[0]
+    assert '"objectType"' in prompt
+    assert "object.transform" in prompt
+    assert "camera.look_at" in prompt
+
+
+def test_system_prompt_teaches_the_catalog_character_workflow():
+    # Without this, "add a man working" reliably hallucinates a primitive
+    # objectType ("man"/"human" box) instead of using the real rigged
+    # character catalogue and never sets up its animation.
+    prompt = build_system_prompt(operations=list(PLANNER_OPERATIONS), queries=list(PLANNER_QUERIES))
+    assert "asset.catalog_search" in prompt
+    assert "asset.instantiate_by_id" in prompt
+    assert '"kind": "character"' in prompt
+    assert "character_" in prompt
+    assert "character.set_motion" in prompt
+    assert '"clip"' in prompt
 
 
 def test_render_conversation_flattens_role_labeled_turns():

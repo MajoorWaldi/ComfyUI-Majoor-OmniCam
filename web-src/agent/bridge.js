@@ -26,9 +26,103 @@ const REGISTER_RETRY_MS = 5_000;
 // Agent must never be able to fabricate one, so it is never advertised and
 // any transaction that slips one in is rejected before it reaches
 // ui.directorApi.execute (design spec section 21).
-export const EXTERNAL_AGENT_OPERATIONS = Object.freeze(
-  DIRECTOR_OP_VALUES.filter((operation) => operation !== DIRECTOR_OPS.ASSET_INSTANTIATE),
-);
+//
+// asset.instantiate_by_id is the safe alternative design spec section 21
+// itself calls out for later: the Agent supplies only a catalogue id, this
+// module resolves it against the *already-loaded, trusted* Asset Browser
+// catalogue (ui.assetBrowser.store -- the same store the Asset Browser panel
+// itself reads), and rewrites the operation into a real asset.instantiate
+// carrying that trusted AssetDefinition before the transaction ever reaches
+// ui.directorApi.execute. The Agent never sees or constructs a file path,
+// rig, or animation list itself.
+const ASSET_INSTANTIATE_BY_ID = "asset.instantiate_by_id";
+const ASSET_CATALOG_SEARCH = "asset.catalog_search";
+
+export const EXTERNAL_AGENT_OPERATIONS = Object.freeze([
+  ...DIRECTOR_OP_VALUES.filter((operation) => operation !== DIRECTOR_OPS.ASSET_INSTANTIATE),
+  ASSET_INSTANTIATE_BY_ID,
+]);
+
+/** The three "Human Neutral/Male/Female 01" rows shipped in
+ * catalog.default.json (and any future row like them) exist only to
+ * illustrate a fully-mapped rig row's shape -- they carry no real file
+ * (docs/CHARACTERS.md: "The illustrative rig maps in catalog.default.json
+ * are never trusted for a downloaded file"). A real character always comes
+ * from bootstrap/import and therefore has source "user". Picking one of
+ * these for the Agent would silently degrade to a placeholder box instead
+ * of a real character, so both catalog_search and instantiate_by_id must
+ * treat them as if they were not in the catalogue at all. */
+function isUntrustedIllustrativeCharacter(definition) {
+  return definition?.kind === "character" && definition?.source === "default";
+}
+
+/** The catalogue row for `assetId`, loading/searching for it first if the
+ * Asset Browser has not already fetched it. Null if it truly does not exist
+ * or is an untrusted illustrative row (see isUntrustedIllustrativeCharacter). */
+async function resolveCatalogAsset(store, assetId) {
+  if (!store || !assetId || typeof assetId !== "string") return null;
+  const found = store.get(assetId);
+  if (found) return isUntrustedIllustrativeCharacter(found) ? null : found;
+  try {
+    await store.setFilter({ kind: "all", search: assetId });
+  } catch {
+    // A failed catalogue fetch just means resolution fails below too.
+  }
+  const resolved = store.get(assetId);
+  return isUntrustedIllustrativeCharacter(resolved) ? null : resolved;
+}
+
+/** Rewrites every asset.instantiate_by_id in `operations` into a real
+ * asset.instantiate carrying the resolved, trusted AssetDefinition. Any
+ * other operation passes through untouched. */
+async function resolveTrustedAssetOperations(ui, operations) {
+  const store = ui.assetBrowser?.store;
+  const resolved = [];
+  for (const operation of operations || []) {
+    if (operation?.type !== ASSET_INSTANTIATE_BY_ID) {
+      resolved.push(operation);
+      continue;
+    }
+    if (!store) {
+      return { ok: false, code: "ASSET_CATALOG_UNAVAILABLE", message: "The asset catalogue is not available in this Director session" };
+    }
+    const definition = await resolveCatalogAsset(store, operation.assetId);
+    if (!definition) {
+      return { ok: false, code: "UNKNOWN_ASSET", message: `Unknown catalogue asset: ${operation.assetId}` };
+    }
+    resolved.push({ type: "asset.instantiate", asset: definition, id: operation.id, point: operation.point });
+  }
+  return { ok: true, operations: resolved };
+}
+
+/** A safe, credential/file-path-free summary of matching catalogue rows, for
+ * the planner to pick an assetId (and, for a character, an animation clip)
+ * from -- never the raw AssetDefinition. */
+async function resolveCatalogSearchQuery(ui, query) {
+  const store = ui.assetBrowser?.store;
+  if (!store) {
+    const error = new Error("The asset catalogue is not available in this Director session");
+    error.code = "ASSET_CATALOG_UNAVAILABLE";
+    throw error;
+  }
+  await store.setFilter({ kind: query?.kind || "all", search: String(query?.search || "") });
+  const items = (store.state?.items || [])
+    .filter((item) => !isUntrustedIllustrativeCharacter(item))
+    .slice(0, 20)
+    .map((item) => ({
+      id: item.id,
+      name: item.name,
+      kind: item.kind,
+      tags: [...(item.tags || [])],
+      animations: (item.animations || []).map((clip) => ({ id: clip.id, name: clip.name, clip: clip.clip })),
+    }));
+  return {
+    version: DIRECTOR_API_VERSION,
+    type: ASSET_CATALOG_SEARCH,
+    items,
+    revision: Number(ui.directorRevision || 0),
+  };
+}
 
 async function postJson(api, path, payload) {
   const response = await api.fetchApi(path, {
@@ -168,7 +262,9 @@ export function createDirectorAgentBridge(ui, node, api) {
     let result;
     try {
       if (detail.kind === "query") {
-        result = ui.directorApi.query(detail.payload);
+        result = detail.payload?.type === ASSET_CATALOG_SEARCH
+          ? await resolveCatalogSearchQuery(ui, detail.payload)
+          : ui.directorApi.query(detail.payload);
       } else if (detail.kind === "transaction") {
         const tx = detail.payload;
         const disallowed = (tx?.operations || []).find(
@@ -187,7 +283,14 @@ export function createDirectorAgentBridge(ui, node, api) {
             `External Agent transactions cannot use operation: ${disallowed?.type}`,
           );
         } else {
-          result = ui.directorApi.execute(tx);
+          // Resolved *after* the disallow-list check above (which still runs
+          // against the original asset.instantiate_by_id markers, not the
+          // asset.instantiate they become -- that real op stays off the
+          // advertised list on purpose).
+          const resolved = await resolveTrustedAssetOperations(ui, tx.operations);
+          result = resolved.ok
+            ? ui.directorApi.execute({ ...tx, operations: resolved.operations })
+            : failureResult(ui, resolved.code, resolved.message);
         }
       } else {
         result = failureResult(ui, "UNKNOWN_AGENT_REQUEST", `Unsupported Agent request kind: ${detail.kind}`);
