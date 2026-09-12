@@ -125,11 +125,11 @@ async def test_provider(request: web.Request) -> web.Response:
         config = _config_from_body(provider_id, body)
         credential = SECRET_STORE.resolve(request, provider_id)
         provider = get_provider(provider_id)
-        # A test call never sends scene data -- it only proves connectivity by
-        # listing models (or, if the server doesn't support that, a cheap
-        # zero-length completion would leak too much; list_models is the only
-        # scene-free probe every adapter implements).
-        await provider.list_models(config, credential)
+        # A test call never sends scene data and never issues a paid
+        # completion -- probe() answers only "did we reach the endpoint
+        # under the current network policy?", and unlike list_models() it
+        # never degrades a genuine connectivity failure into a false "ok".
+        await provider.probe(config, credential)
         return web.json_response({"ok": True})
     except AgentProtocolError as error:
         return _error_response(error)

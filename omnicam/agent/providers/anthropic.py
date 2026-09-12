@@ -43,6 +43,19 @@ class AnthropicProvider:
         payload = json.loads(response.body.decode("utf-8"))
         return [item["id"] for item in payload.get("data", []) if isinstance(item.get("id"), str)]
 
+    async def probe(self, config: ProviderConfig, credential: str | None) -> None:
+        import aiohttp
+
+        url = f"{_base_url(config)}/v1/models"
+        is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
+        async with aiohttp.ClientSession() as session:
+            response = await guarded_request(
+                session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
+                timeout_seconds=config.timeout_seconds,
+            )
+        if response.status >= 400:
+            raise NetworkPolicyError("PROVIDER_ERROR", f"Anthropic /v1/models returned {response.status}")
+
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:

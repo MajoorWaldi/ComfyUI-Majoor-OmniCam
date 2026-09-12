@@ -33,6 +33,17 @@ class OllamaProvider:
         payload = json.loads(response.body.decode("utf-8"))
         return [item["name"] for item in payload.get("models", []) if isinstance(item.get("name"), str)]
 
+    async def probe(self, config: ProviderConfig, credential: str | None) -> None:
+        import aiohttp
+
+        url = f"{_base_url(config)}/api/tags"
+        async with aiohttp.ClientSession() as session:
+            response = await guarded_request(
+                session, "GET", url, is_custom_endpoint=True, timeout_seconds=config.timeout_seconds,
+            )
+        if response.status >= 400:
+            raise NetworkPolicyError("PROVIDER_ERROR", f"Ollama /api/tags returned {response.status}")
+
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:

@@ -9,7 +9,7 @@ import json
 import pytest
 
 from omnicam.agent.providers.models import ProviderConfig
-from omnicam.agent.providers.network import GuardedResponse
+from omnicam.agent.providers.network import GuardedResponse, NetworkPolicyError
 from omnicam.agent.providers.registry import PROVIDERS, get_provider, provider_capabilities
 
 
@@ -268,6 +268,124 @@ async def test_openai_compatible_list_models_degrades_to_empty_on_404(monkeypatc
         _config("openai_compatible", "http://127.0.0.1:1234/v1"), None
     )
     assert models == []
+
+
+@pytest.mark.asyncio
+async def test_ollama_probe_succeeds_on_2xx(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import ollama as ollama_module
+
+    _patch_guarded_request(monkeypatch, ollama_module, 200, json.dumps({"models": []}).encode("utf-8"))
+    await get_provider("ollama").probe(_config("ollama"), None)  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_ollama_probe_raises_on_error_status(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import ollama as ollama_module
+
+    _patch_guarded_request(monkeypatch, ollama_module, 500, b"boom")
+    with pytest.raises(NetworkPolicyError):
+        await get_provider("ollama").probe(_config("ollama"), None)
+
+
+@pytest.mark.asyncio
+async def test_openai_probe_succeeds_on_2xx(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai as openai_module
+
+    _patch_guarded_request(monkeypatch, openai_module, 200, json.dumps({"data": []}).encode("utf-8"))
+    await get_provider("openai").probe(_config("openai"), "sk-x")  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_openai_probe_raises_on_bad_credential(monkeypatch):
+    # Reachable server, invalid credential: a real config/credential error,
+    # never a silent ok:true.
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai as openai_module
+
+    _patch_guarded_request(monkeypatch, openai_module, 401, b'{"error":"invalid_api_key"}')
+    with pytest.raises(NetworkPolicyError):
+        await get_provider("openai").probe(_config("openai"), "sk-bad")
+
+
+@pytest.mark.asyncio
+async def test_openai_probe_uses_custom_endpoint_policy(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai as openai_module
+
+    calls: list = []
+    _patch_guarded_request(monkeypatch, openai_module, 200, b'{"data":[]}', calls=calls)
+    config = _config("openai", "https://my-openai-proxy.example.com/v1")
+    await get_provider("openai").probe(config, "sk-x")
+    assert calls[0]["is_custom_endpoint"] is True
+
+
+@pytest.mark.asyncio
+async def test_anthropic_probe_succeeds_on_2xx(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import anthropic as anthropic_module
+
+    _patch_guarded_request(monkeypatch, anthropic_module, 200, json.dumps({"data": []}).encode("utf-8"))
+    await get_provider("anthropic").probe(_config("anthropic"), "sk-ant")  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_anthropic_probe_raises_on_bad_credential(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import anthropic as anthropic_module
+
+    _patch_guarded_request(monkeypatch, anthropic_module, 401, b'{"error":"authentication_error"}')
+    with pytest.raises(NetworkPolicyError):
+        await get_provider("anthropic").probe(_config("anthropic"), "sk-bad")
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_probe_succeeds_when_discovery_unsupported(monkeypatch):
+    # A compatible server that doesn't implement /models at all is still a
+    # genuinely reachable server -- Test must report ok:true for it.
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai_compat as compat_module
+
+    _patch_guarded_request(monkeypatch, compat_module, 404, b"not found")
+    await get_provider("openai_compatible").probe(
+        _config("openai_compatible", "http://127.0.0.1:1234/v1"), None
+    )  # must not raise
+
+    _patch_guarded_request(monkeypatch, compat_module, 405, b"method not allowed")
+    await get_provider("openai_compatible").probe(
+        _config("openai_compatible", "http://127.0.0.1:1234/v1"), None
+    )  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_probe_raises_on_network_policy_error(monkeypatch):
+    # This is the exact "dead LM Studio endpoint" case: unlike list_models(),
+    # probe() must never swallow a genuine connectivity/policy failure.
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai_compat as compat_module
+
+    async def fake_guarded_request(*args, **kwargs):
+        raise NetworkPolicyError("REMOTE_CUSTOM_PROVIDER_BLOCKED", "blocked")
+
+    monkeypatch.setattr(compat_module, "guarded_request", fake_guarded_request)
+    with pytest.raises(NetworkPolicyError):
+        await get_provider("openai_compatible").probe(
+            _config("openai_compatible", "http://10.0.0.5:1234/v1"), None
+        )
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_probe_raises_on_other_error_status(monkeypatch):
+    pytest.importorskip("aiohttp")
+    from omnicam.agent.providers import openai_compat as compat_module
+
+    _patch_guarded_request(monkeypatch, compat_module, 500, b"internal error")
+    with pytest.raises(NetworkPolicyError):
+        await get_provider("openai_compatible").probe(
+            _config("openai_compatible", "http://127.0.0.1:1234/v1"), None
+        )
 
 
 def test_every_provider_id_is_registered():
