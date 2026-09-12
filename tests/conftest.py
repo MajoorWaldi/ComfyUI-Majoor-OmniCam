@@ -18,7 +18,7 @@ if "server" not in sys.modules:
         _routes = []
     _server_stub = types.ModuleType("server")
     _server_stub.PromptServer = types.SimpleNamespace(
-        instance=types.SimpleNamespace(routes=_routes, send_sync=lambda *args, **kwargs: None)
+        instance=types.SimpleNamespace(routes=_routes, send_sync=lambda *args, **kwargs: None, sockets={})
     )
     sys.modules["server"] = _server_stub
 

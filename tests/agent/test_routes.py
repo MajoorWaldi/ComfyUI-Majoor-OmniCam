@@ -11,18 +11,14 @@ import json
 from unittest.mock import Mock
 
 import pytest
+from aiohttp import web
+from aiohttp.streams import StreamReader
+from aiohttp.test_utils import make_mocked_request
 
-# aiohttp ships with ComfyUI but is not a declared dev dependency of this
-# repo (see requirements-dev.txt) -- skip this whole module rather than fail
-# collection in a bare unit-test environment that never installed it.
-aiohttp = pytest.importorskip("aiohttp")
-web = aiohttp.web
-from aiohttp.streams import StreamReader  # noqa: E402
-from aiohttp.test_utils import make_mocked_request  # noqa: E402
-
-from omnicam.agent import routes as agent_routes  # noqa: E402
-from omnicam.agent.broker import BROKER  # noqa: E402
-from omnicam.agent.protocol import AGENT_PROTOCOL  # noqa: E402
+from omnicam.agent import routes as agent_routes
+from omnicam.agent.broker import BROKER
+from omnicam.agent.protocol import AGENT_PROTOCOL
+from omnicam.comfy_compat.server import PromptServer
 
 
 def _json_request(method, path, body, *, remote="127.0.0.1", headers=None):
@@ -47,9 +43,17 @@ def _stream_of(data: bytes) -> StreamReader:
 def _reset_broker():
     BROKER._sessions.clear()
     BROKER._pending.clear()
+    PromptServer.instance.sockets.clear()
     yield
     BROKER._sessions.clear()
     BROKER._pending.clear()
+    PromptServer.instance.sockets.clear()
+
+
+def _connect_socket(client_id="client_1"):
+    """Simulate ComfyUI's own WebSocket transport having a live browser tab
+    for this client_id -- what agent_session_register now requires."""
+    PromptServer.instance.sockets[client_id] = Mock()
 
 
 async def _call(handler, request):
@@ -136,6 +140,7 @@ async def test_sessions_list_never_leaks_the_token():
 
 @pytest.mark.asyncio
 async def test_registration_does_not_require_loopback():
+    _connect_socket("client_1")
     body = {
         "protocol": AGENT_PROTOCOL,
         "client_id": "client_1",
@@ -152,6 +157,44 @@ async def test_registration_does_not_require_loopback():
     result = json.loads(response.body)
     assert result["session_id"]
     assert result["session_token"]
+
+
+# -- registration requires a live ComfyUI browser socket ----------------------
+
+@pytest.mark.asyncio
+async def test_registration_accepted_for_a_live_socket():
+    _connect_socket("client_1")
+    body = {
+        "protocol": AGENT_PROTOCOL,
+        "client_id": "client_1",
+        "node_id": "42",
+        "label": "OmniCam Director 42",
+        "director_api": 1,
+        "revision": 0,
+        "operations": [],
+        "queries": [],
+    }
+    request = _json_request("POST", "/majoor/omnicam/agent/v1/session/register", body)
+    response = await agent_routes.agent_session_register(request)
+    assert response.status == 200
+
+
+@pytest.mark.asyncio
+async def test_registration_rejected_for_an_unknown_socket():
+    body = {
+        "protocol": AGENT_PROTOCOL,
+        "client_id": "not-actually-connected",
+        "node_id": "42",
+        "label": "OmniCam Director 42",
+        "director_api": 1,
+        "revision": 0,
+        "operations": [],
+        "queries": [],
+    }
+    request = _json_request("POST", "/majoor/omnicam/agent/v1/session/register", body)
+    response = await agent_routes.agent_session_register(request)
+    assert response.status == 409
+    assert json.loads(response.body)["error"]["code"] == "UNKNOWN_CLIENT"
 
 
 @pytest.mark.asyncio
