@@ -203,7 +203,39 @@ values to reuse):
   object.transform. Any other value is rejected outright.
 - object.transform: {{"type": "object.transform", "objectId": "<id from object.create/asset.instantiate_by_id or a query>", "position": [x, y, z], "rotation": [x, y, z], "scale": [x, y, z]}}
 - camera.transform: {{"type": "camera.transform", "cameraId": "<existing id, omit for the active camera>", "position": [x, y, z], "target": [x, y, z]}}
+  This only ever sets ONE static pose -- it never creates a keyframe (it can
+  only edit one that already exists, via the optional "frame" field) and by
+  itself it can never produce motion. Use keyframe.upsert for anything that
+  has to move.
 - camera.look_at: {{"type": "camera.look_at", "objectId": "<existing id>"}} (or "point": [x, y, z] instead of objectId)
+  With "objectId", the camera's aim is live-tracked onto that object at
+  every frame from then on -- it does not need to be repeated per keyframe.
+- keyframe.upsert: {{"type": "keyframe.upsert", "cameraId": "<existing id, omit for the active camera>", "frame": <integer frame within the timeline>, "camera": {{"position": [x, y, z], "target": [x, y, z]}}, "interpolation": "<one of: ease, linear, smooth, hold, ...>"}}
+  Creates (or edits) exactly one keyframe at "frame". A SINGLE keyframe.upsert
+  call is exactly as static as camera.transform -- there is nothing yet to
+  interpolate to or from. To make the camera actually move (an orbit, a
+  push-in, a pan, a crane move, ...) you MUST call keyframe.upsert several
+  times in the SAME transaction, once per frame, each with a different
+  "camera.position" (and/or "target") -- the frames between and after them
+  interpolate automatically. Never omit "camera" on a keyframe that is
+  meant to move the camera somewhere new: an upsert at a frame with no
+  existing key clones whatever pose is already at frame 0, so an upsert
+  with only {{"frame": N}} silently creates a key that looks identical to
+  frame 0 and therefore still produces zero motion, even though a keyframe
+  now genuinely exists there.
+  Worked example -- "orbit 360 degrees around the character": first query
+  {{"type": "timeline.get"}} for duration_frames, and object.get/object.search
+  for the character's position (or its objectId if you already have it from
+  asset.instantiate_by_id). Then, in one transaction: camera.look_at with
+  that objectId (so aim tracks it automatically), followed by one
+  keyframe.upsert per sampled angle -- e.g. 8 to 12 evenly spaced frames
+  across [0, duration_frames - 1] -- each with
+  "camera": {{"position": [center_x + radius * cos(theta), eye_height, center_z + radius * sin(theta)]}}
+  for theta stepping from 0 to a full 2*pi (360 degrees) across those
+  frames, using a radius and eye_height sized to the character (roughly
+  3-6 units away, 1.5-2 units up, unless the scene's own scale says
+  otherwise). "target" can be omitted from each of these keys since
+  camera.look_at is already tracking it live.
 
 People: never build a person out of primitives and never use object.create's
 "human" type unless catalog_search below genuinely finds nothing usable --

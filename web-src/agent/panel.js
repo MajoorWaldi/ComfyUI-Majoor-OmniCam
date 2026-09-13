@@ -161,7 +161,11 @@ export function createDirectorAgentPanel(ui, options = {}) {
     if (state === "planning") setHint(t("Planning..."));
     else if (state === "applying") setHint(t("Applying..."));
     else if (state === "stale") setHint(t("The Director changed after this preview. Generate a new preview."));
-    else if (state === "preview_ready") setHint(pendingPlan?.description || "");
+    else if (state === "preview_ready") {
+      const description = pendingPlan?.description || "";
+      const warnings = pendingPlan?.warnings || [];
+      setHint(warnings.length ? [description, ...warnings.map((warning) => `⚠ ${warning}`)].join(" ") : description);
+    }
   }
 
   function setState(next) {
@@ -290,6 +294,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
         planId: result.plan_id,
         description: result.description,
         changes: result.changes || [],
+        warnings: result.warnings || [],
         truncated: Boolean(result.truncated),
       };
       setState(pendingPlan.truncated ? "error" : "preview_ready");

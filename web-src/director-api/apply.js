@@ -288,6 +288,7 @@ const HANDLERS = {
     }
     track.keyframes ||= [];
     let key = keyframeAt(track, op.frame);
+    const isNewKey = !key;
     if (!key) {
       const base = keyframeAt(track, 0)?.camera || track.camera || {};
       key = { frame: op.frame, camera: JSON.parse(JSON.stringify(base)), interpolation: "ease" };
@@ -296,7 +297,15 @@ const HANDLERS = {
     }
     if (op.camera) key.camera = { ...key.camera, ...JSON.parse(JSON.stringify(op.camera)) };
     if (op.interpolation) key.interpolation = op.interpolation;
-    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector };
+    // A brand-new key with no "camera" payload silently clones frame 0's
+    // pose verbatim: a legitimate way to pin a "hold" at a later frame, but
+    // also the exact, symptomless shape of an Agent transaction that meant
+    // to move the camera and forgot to say where -- surface it rather than
+    // let a technically-real keyframe hide a technically-static camera.
+    const warning = isNewKey && !op.camera
+      ? `keyframe at frame ${op.frame} was created from the existing pose (no "camera" given) -- it will not move the camera unless another keyframe with a different position/target exists`
+      : undefined;
+    return { dirtyMask: UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector, warning };
   },
 
   [DIRECTOR_OPS.KEYFRAME_REMOVE](state, op) {

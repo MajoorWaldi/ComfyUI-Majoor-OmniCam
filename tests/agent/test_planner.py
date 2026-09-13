@@ -128,6 +128,21 @@ def test_system_prompt_teaches_the_catalog_character_workflow():
     assert '"clip"' in prompt
 
 
+def test_system_prompt_teaches_that_camera_motion_needs_several_keyframes():
+    # Without this, "orbit the camera around the character" reliably produces
+    # a transaction with a single keyframe.upsert (or a bare camera.transform),
+    # which is exactly as static as a single pose -- the panel reports
+    # "Applied" and a keyframe genuinely exists, but nothing ever moves,
+    # because there is nothing else yet to interpolate to or from.
+    prompt = build_system_prompt(operations=list(PLANNER_OPERATIONS), queries=list(PLANNER_QUERIES))
+    assert "keyframe.upsert" in prompt
+    assert "never creates a keyframe" in prompt
+    assert "SAME transaction" in prompt
+    assert "never omit" in prompt.lower()
+    # The worked orbit example is the concrete case the panel actually failed on.
+    assert "orbit 360 degrees around the character" in prompt.lower() or "orbit 360" in prompt.lower()
+
+
 def test_scene_get_is_not_advertised_to_the_built_in_planner():
     # scene.get returns a large, unbounded semantic snapshot -- the built-in
     # planner must use scene.summary/object.search/pagination instead
