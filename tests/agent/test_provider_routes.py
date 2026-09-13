@@ -143,9 +143,11 @@ async def test_provider_test_route_never_receives_scene_data(monkeypatch):
     calls = []
 
     class _FakeProvider:
-        async def list_models(self, config, credential):
+        async def probe(self, config, credential):
             calls.append((config, credential))
-            return ["model-a"]
+
+        async def list_models(self, config, credential):
+            raise AssertionError("test_provider must use probe(), not list_models()")
 
     monkeypatch.setitem(PROVIDERS, "ollama", _FakeProvider())
 
@@ -168,7 +170,7 @@ async def test_provider_test_route_never_receives_scene_data(monkeypatch):
 @pytest.mark.asyncio
 async def test_provider_test_route_reports_failure_without_raising(monkeypatch):
     class _FailingProvider:
-        async def list_models(self, config, credential):
+        async def probe(self, config, credential):
             raise RuntimeError("connection refused")
 
     monkeypatch.setitem(PROVIDERS, "ollama", _FailingProvider())
@@ -180,6 +182,70 @@ async def test_provider_test_route_reports_failure_without_raising(monkeypatch):
     body = json.loads(response.body)
     assert body["ok"] is False
     assert body["error"]["code"] == "PROVIDER_UNREACHABLE"
+
+
+@pytest.mark.asyncio
+async def test_provider_test_route_cannot_be_fooled_by_a_degraded_list_models(monkeypatch):
+    # Regression: openai_compatible's list_models() intentionally returns []
+    # on a discovery failure so browsing models degrades gracefully -- but
+    # that must never make Test report ok:true for a genuinely unreachable
+    # server (a dead LM Studio/OpenAI-compatible endpoint).
+    class _DeadServerProvider:
+        async def probe(self, config, credential):
+            raise RuntimeError("connection refused")
+
+        async def list_models(self, config, credential):
+            return []
+
+    monkeypatch.setitem(PROVIDERS, "openai_compatible", _DeadServerProvider())
+
+    request = _json_request(
+        "POST", "/majoor/omnicam/agent/v1/providers/openai_compatible/test", {},
+        match_info={"provider": "openai_compatible"},
+    )
+    response = await provider_routes.test_provider(request)
+    body = json.loads(response.body)
+    assert body["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_provider_test_route_never_leaks_a_generic_exceptions_raw_message(monkeypatch):
+    # Task 3: str(error) from an arbitrary exception must never reach the
+    # browser -- only the curated, generic PROVIDER_UNREACHABLE message.
+    class _ExplodingProvider:
+        async def probe(self, config, credential):
+            raise RuntimeError("request failed sk-super-secret Authorization: Bearer secret")
+
+    monkeypatch.setitem(PROVIDERS, "ollama", _ExplodingProvider())
+
+    request = _json_request(
+        "POST", "/majoor/omnicam/agent/v1/providers/ollama/test", {}, match_info={"provider": "ollama"}
+    )
+    response = await provider_routes.test_provider(request)
+    raw = response.body.decode("utf-8")
+    assert "sk-super-secret" not in raw
+    assert "Bearer secret" not in raw
+    body = json.loads(raw)
+    assert body["ok"] is False
+    assert body["error"]["code"] == "PROVIDER_UNREACHABLE"
+
+
+@pytest.mark.asyncio
+async def test_list_provider_models_route_never_leaks_a_generic_exceptions_raw_message(monkeypatch):
+    class _ExplodingProvider:
+        async def list_models(self, config, credential):
+            raise RuntimeError("request failed sk-super-secret Authorization: Bearer secret")
+
+    monkeypatch.setitem(PROVIDERS, "ollama", _ExplodingProvider())
+
+    request = _json_request(
+        "POST", "/majoor/omnicam/agent/v1/providers/ollama/models", {}, match_info={"provider": "ollama"}
+    )
+    response = await provider_routes.list_provider_models(request)
+    raw = response.body.decode("utf-8")
+    assert "sk-super-secret" not in raw
+    assert "Bearer secret" not in raw
+    assert json.loads(raw)["error"]["code"] == "PROVIDER_UNREACHABLE"
 
 
 @pytest.mark.asyncio

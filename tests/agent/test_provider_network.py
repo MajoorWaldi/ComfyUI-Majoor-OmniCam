@@ -7,6 +7,7 @@ import pytest
 from omnicam.agent.providers.network import (
     MAX_RESPONSE_BYTES,
     NetworkPolicyError,
+    endpoint_is_custom,
     guarded_request,
     validate_provider_url,
 )
@@ -59,10 +60,97 @@ def test_remote_custom_provider_allowed_by_server_policy(monkeypatch):
     assert validate_provider_url("http://192.168.1.50:1234/v1/chat/completions", is_custom_endpoint=True)
 
 
+def test_ipv4_link_local_metadata_target_is_blocked_even_with_opt_in(monkeypatch):
+    # 169.254.169.254 is the cloud-metadata IP on AWS/GCP/Azure -- never a
+    # legitimate Agent provider target, and must stay blocked regardless of
+    # OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS (design spec Task 10).
+    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        validate_provider_url("http://169.254.169.254/latest/meta-data/", is_custom_endpoint=True)
+    assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
+
+
+def test_ipv4_link_local_range_is_blocked_even_with_opt_in(monkeypatch):
+    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        validate_provider_url("http://169.254.1.1:1234/v1", is_custom_endpoint=True)
+    assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
+
+
+def test_ipv6_link_local_is_blocked_even_with_opt_in(monkeypatch):
+    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        validate_provider_url("http://[fe80::1]:1234/v1", is_custom_endpoint=True)
+    assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
+
+
+def test_unspecified_address_is_blocked_even_with_opt_in(monkeypatch):
+    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        validate_provider_url("http://[::]:1234/v1", is_custom_endpoint=True)
+    assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
+
+
+def test_multicast_address_is_blocked_even_with_opt_in(monkeypatch):
+    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        validate_provider_url("http://224.0.0.1:1234/v1", is_custom_endpoint=True)
+    assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
+
+
+def test_rfc1918_lan_target_is_still_allowed_with_opt_in():
+    # Sensitive-address blocking must not swallow the existing, intentional
+    # RFC1918 allowance once the operator opts in to remote custom providers.
+    import os
+
+    old = os.environ.get("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS")
+    os.environ["OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS"] = "1"
+    try:
+        assert validate_provider_url("http://10.0.0.5:1234/v1", is_custom_endpoint=True)
+        assert validate_provider_url("http://192.168.1.50:1234/v1", is_custom_endpoint=True)
+    finally:
+        if old is None:
+            os.environ.pop("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", None)
+        else:
+            os.environ["OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS"] = old
+
+
+def test_loopback_is_still_allowed_alongside_sensitive_address_blocking():
+    assert validate_provider_url("http://127.0.0.1:11434/api/chat", is_custom_endpoint=True)
+
+
 def test_a_hardcoded_official_endpoint_is_never_gated_as_custom():
     # openai/anthropic's own hardcoded endpoints are not "custom" even though
     # they are remote -- only a caller-supplied base_url is gated.
     assert validate_provider_url("https://api.openai.com/v1/models", is_custom_endpoint=False)
+
+
+def test_endpoint_is_custom_empty_means_official():
+    assert endpoint_is_custom("", "https://api.openai.com/v1") is False
+    assert endpoint_is_custom(None, "https://api.openai.com/v1") is False
+    assert endpoint_is_custom("   ", "https://api.openai.com/v1") is False
+
+
+def test_endpoint_is_custom_explicit_official_url_is_not_custom():
+    assert endpoint_is_custom("https://api.openai.com/v1", "https://api.openai.com/v1") is False
+    # trailing slash / case differences must not falsely flag it as custom.
+    assert endpoint_is_custom("https://API.OpenAI.com/v1/", "https://api.openai.com/v1") is False
+
+
+def test_endpoint_is_custom_different_openai_host_is_custom():
+    assert endpoint_is_custom("http://127.0.0.1:1234/v1", "https://api.openai.com/v1") is True
+    assert endpoint_is_custom("https://my-openai-proxy.example.com/v1", "https://api.openai.com/v1") is True
+
+
+def test_endpoint_is_custom_different_anthropic_host_is_custom():
+    assert endpoint_is_custom("http://127.0.0.1:1234", "https://api.anthropic.com") is True
+    assert endpoint_is_custom("https://claude-proxy.example.com", "https://api.anthropic.com") is True
+
+
+def test_endpoint_is_custom_ignores_query_string_and_fragment():
+    # A query string/fragment must never turn an otherwise-official URL into
+    # a false "custom" classification, nor mask a genuinely different host.
+    assert endpoint_is_custom("https://api.openai.com/v1?foo=bar", "https://api.openai.com/v1") is False
 
 
 class _FakeContentStream:

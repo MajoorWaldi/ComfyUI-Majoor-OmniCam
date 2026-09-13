@@ -25,6 +25,7 @@ from .planner import run_planner
 from .planner_schema import PLANNER_OPERATIONS, PLANNER_QUERIES
 from .protocol import AgentProtocolError, bounded_string
 from .providers.models import PROVIDER_IDS, ProviderConfig
+from .providers.public_errors import public_planner_error
 from .providers.secret_store import SECRET_STORE
 
 MAX_PLAN_JSON_BYTES = 64 * 1024
@@ -118,9 +119,10 @@ async def create_plan(request: web.Request) -> web.Response:
         })
     except AgentProtocolError as error:
         return _error_response(error)
-    except Exception as error:  # noqa: BLE001 - never let a provider/planner crash surface as a 500
+    except Exception as error:  # noqa: BLE001 - redacted via public_planner_error, never str(error)
+        public = public_planner_error(error)
         return web.json_response(
-            {"ok": False, "error": {"code": "PLANNER_FAILED", "message": str(error)}}, status=502
+            {"ok": False, "error": {"code": public.code, "message": public.message}}, status=public.status
         )
 
 
@@ -156,9 +158,11 @@ async def apply_plan(request: web.Request) -> web.Response:
         return web.json_response({"ok": True, "revision": result.get("revision"), "applied": result.get("applied")})
     except AgentProtocolError as error:
         return _error_response(error)
-    except Exception as error:  # noqa: BLE001
+    except Exception as error:  # noqa: BLE001 - redacted via public_planner_error, never str(error)
+        public = public_planner_error(error)
+        code = "APPLY_FAILED" if public.code == "PLANNER_FAILED" else public.code
         return web.json_response(
-            {"ok": False, "error": {"code": "APPLY_FAILED", "message": str(error)}}, status=502
+            {"ok": False, "error": {"code": code, "message": public.message}}, status=public.status
         )
 
 

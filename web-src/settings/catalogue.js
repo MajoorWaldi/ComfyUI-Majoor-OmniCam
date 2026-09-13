@@ -109,7 +109,11 @@ export const SETTING_AGENT_MODEL = "MajoorOmniCam.Agent.Model";
 export const SETTING_AGENT_BASE_URL = "MajoorOmniCam.Agent.BaseUrl";
 export const SETTING_AGENT_MAX_OUTPUT_TOKENS = "MajoorOmniCam.Agent.MaxOutputTokens";
 export const SETTING_AGENT_MAX_STEPS = "MajoorOmniCam.Agent.MaxPlannerSteps";
-export const SETTING_AGENT_PREVIEW = "MajoorOmniCam.Agent.PreviewBeforeApply";
+// MajoorOmniCam.Agent.PreviewBeforeApply was removed (design spec Task 7):
+// Preview -> Apply is a mandatory safety invariant for the built-in Agent,
+// never a preference the LLM's mutation could bypass. A user with that key
+// still persisted from an older version simply has an inert, unregistered
+// setting value sitting in their ComfyUI storage -- harmless to leave there.
 export const SETTING_AGENT_TIMEOUT = "MajoorOmniCam.Agent.RequestTimeoutSeconds";
 
 /** Shorthand for the many on/off preferences, which are otherwise identical. */
@@ -144,6 +148,7 @@ export function buildOmniCamSettings({
   onPanSensitivityChange,
   onDollySensitivityChange,
   onCameraViewVisibleChange,
+  onAgentEnabledChange,
 } = {}) {
   return [
     {
@@ -393,8 +398,11 @@ export function buildOmniCamSettings({
         { text: "Generic Video Reference", value: "generic_video" },
       ], "wan_camera_native"),
 
-    toggle(SETTING_AGENT_ENABLED, "Agent", "Enable built-in Agent",
-      "Enables the OmniCam Director Agent panel.", true),
+    {
+      ...toggle(SETTING_AGENT_ENABLED, "Agent", "Enable built-in Agent",
+        "Enables the OmniCam Director Agent panel. The external Agent Contract v1 bridge is a separate concern and stays available either way.", true),
+      onChange: () => onAgentEnabledChange?.(),
+    },
     choice(SETTING_AGENT_PROVIDER, "Agent", "Provider",
       "Provider used by the built-in Director Agent.", [
         { text: "Ollama / local", value: "ollama" },
@@ -408,8 +416,6 @@ export function buildOmniCamSettings({
       "Maximum provider output budget.", { min: 512, max: 32768, step: 512 }, 4096),
     slider(SETTING_AGENT_MAX_STEPS, "Agent", "Max planner steps",
       "Maximum bounded Agent iterations.", { min: 1, max: 12, step: 1 }, 6),
-    toggle(SETTING_AGENT_PREVIEW, "Agent", "Preview before apply",
-      "Shows and validates the semantic diff before mutation.", true),
     slider(SETTING_AGENT_TIMEOUT, "Agent", "Provider timeout",
       "Maximum provider request duration.", { min: 15, max: 300, step: 5 }, 120),
   ];

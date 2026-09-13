@@ -43,6 +43,24 @@ class OpenAICompatibleProvider:
         except (NetworkPolicyError, ValueError, OSError):
             return []
 
+    async def probe(self, config: ProviderConfig, credential: str | None) -> None:
+        """Unlike list_models(), never swallow a connectivity/policy failure
+        into a false "reachable" -- a compatible server that simply doesn't
+        implement /models (404/405) is still genuinely reachable, but a
+        connection error, timeout, or blocked policy target is not."""
+        import aiohttp
+
+        url = f"{_base_url(config)}/models"
+        async with aiohttp.ClientSession() as session:
+            response = await guarded_request(
+                session, "GET", url, is_custom_endpoint=True, headers=_headers(credential),
+                timeout_seconds=config.timeout_seconds,
+            )
+        if response.status in (404, 405):
+            return
+        if response.status >= 400:
+            raise NetworkPolicyError("PROVIDER_ERROR", f"Provider /models returned {response.status}")
+
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:

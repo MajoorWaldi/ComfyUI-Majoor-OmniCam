@@ -28,7 +28,12 @@ import {
 function agentTabMarkup() {
   return `
     <div class="oc-left-body oc-assets" data-role="agent-tab" hidden>
-      <div class="oc-asset-panel" data-role="agent-panel">
+      <div class="oc-asset-panel oc-agent-panel" data-role="agent-panel">
+        <div class="oc-asset-toolbar" data-role="agent-provider-row">
+          <select class="oc-search" data-role="agent-provider-select" aria-label="${t("Provider")}">
+            <option value="">${t("Loading providers...")}</option>
+          </select>
+        </div>
         <div class="oc-asset-toolbar" data-role="agent-model-row">
           <select class="oc-search" data-role="agent-model-select" aria-label="${t("Model")}">
             <option value="">${t("Loading models...")}</option>
@@ -51,9 +56,11 @@ function agentTabMarkup() {
                  placeholder="${t("Paste API key...")}" aria-label="${t("Credential")}">
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="credential-save">${t("Save")}</button>
         </div>
+        <p class="oc-asset-status hint oc-agent-privacy" data-role="agent-privacy-note"></p>
         <p class="oc-asset-status hint" data-role="agent-hint"></p>
         <textarea class="oc-search oc-agent-describe" data-role="agent-describe" rows="2"
-                  placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}"></textarea>
+                  placeholder="${t('Describe the shot... ex: "the camera slowly orbits the character while zooming in on the face"')}"
+                  aria-label="${t("Describe the shot")}"></textarea>
         <div class="oc-asset-toolbar">
           <strong>${t("Planned changes")}</strong>
         </div>

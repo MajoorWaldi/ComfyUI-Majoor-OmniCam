@@ -79,8 +79,60 @@ def test_env_credential_cannot_be_deleted_from_the_local_store(monkeypatch):
     store = SecretStore()
     request = object()
 
-    store.delete(request, "openai")
+    with pytest.raises(SecretStoreError) as excinfo:
+        store.delete(request, "openai")
+    assert excinfo.value.code == "CREDENTIAL_MANAGED_BY_ENV"
     assert store.resolve(request, "openai") == "env-secret"
+
+
+def test_secret_store_itself_refuses_to_set_an_env_managed_credential(monkeypatch):
+    # Task 9: correctness must not depend on the route layer's own check --
+    # the store is the lowest level and must enforce this invariant itself.
+    _as_user(monkeypatch, "user_a")
+    monkeypatch.setenv("OMNICAM_OPENAI_API_KEY", "env-secret")
+    store = SecretStore()
+    request = object()
+
+    with pytest.raises(SecretStoreError) as excinfo:
+        store.set(request, "openai", "attempted-local-secret")
+    assert excinfo.value.code == "CREDENTIAL_MANAGED_BY_ENV"
+    # The rejected write must never have touched the on-disk store.
+    assert store.status(request, "openai") == {"configured": True, "source": "environment"}
+    path = store_module._store_path(request)
+    assert not path.exists() or "attempted-local-secret" not in path.read_text(encoding="utf-8")
+
+
+def test_secret_store_refuses_to_delete_a_pre_existing_local_secret_once_env_managed(monkeypatch):
+    # A local secret set before the operator pinned an env var must survive
+    # being "deleted" while the env var is active -- delete() must reject
+    # outright rather than silently leaving it in place with no signal.
+    _as_user(monkeypatch, "user_a")
+    store = SecretStore()
+    request = object()
+    store.set(request, "openai", "pre-existing-local-secret")
+
+    monkeypatch.setenv("OMNICAM_OPENAI_API_KEY", "env-secret")
+    with pytest.raises(SecretStoreError) as excinfo:
+        store.delete(request, "openai")
+    assert excinfo.value.code == "CREDENTIAL_MANAGED_BY_ENV"
+
+    monkeypatch.delenv("OMNICAM_OPENAI_API_KEY")
+    assert store.resolve(request, "openai") == "pre-existing-local-secret"
+
+
+def test_env_value_never_appears_in_a_rejected_set_or_delete_error(monkeypatch):
+    _as_user(monkeypatch, "user_a")
+    monkeypatch.setenv("OMNICAM_OPENAI_API_KEY", "sk-super-secret-env-value")
+    store = SecretStore()
+    request = object()
+
+    with pytest.raises(SecretStoreError) as set_error:
+        store.set(request, "openai", "x")
+    assert "sk-super-secret-env-value" not in str(set_error.value)
+
+    with pytest.raises(SecretStoreError) as delete_error:
+        store.delete(request, "openai")
+    assert "sk-super-secret-env-value" not in str(delete_error.value)
 
 
 def test_oversized_credential_is_rejected(monkeypatch):

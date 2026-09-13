@@ -11,12 +11,13 @@
 // production chunk.
 
 import { t } from "../i18n.js";
-import { SETTING_AGENT_MODEL, agentSettings, writeSetting } from "../settings.js";
+import { SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER, agentSettings, writeSetting } from "../settings.js";
 import { applyPlan, requestPlan } from "./plan-client.js";
 import {
   deleteProviderCredential,
   getProviderStatus,
   listProviderModels,
+  listProviders,
   setProviderCredential,
   testProvider,
 } from "./provider-client.js";
@@ -48,6 +49,55 @@ export function planChangesMarkup(changes) {
     .join("");
 }
 
+/** True for a loopback host (127.0.0.1/localhost/::1) or an empty override
+ * (which means "use the provider's own local default" for ollama and
+ * openai_compatible). Conservative on an unparsable URL: treated as remote
+ * rather than silently assumed local (design spec Task 5). */
+export function isLoopbackBaseUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return true;
+  let hostname;
+  try {
+    hostname = new URL(value).hostname;
+  } catch {
+    return false;
+  }
+  return (
+    hostname === "127.0.0.1" || hostname === "localhost" ||
+    hostname === "::1" || hostname === "[::1]" || hostname === "0.0.0.0"
+  );
+}
+
+/** What the Director Agent panel discloses about the outbound data boundary
+ * for the currently configured provider, before the user presses Preview
+ * (design spec Task 5). OpenAI/Anthropic are always outbound: even a custom
+ * base_url still ships the instruction and query observations to whatever
+ * that URL is. Ollama and OpenAI-compatible are local-first providers, so
+ * only an actual remote override makes them outbound. */
+export function providerPrivacyText(settings) {
+  const outbound = t(
+    "Your instruction and the semantic scene information requested by the planner are sent to the configured model provider. Media files are not sent by Agent v1."
+  );
+  if (settings.provider === "ollama") {
+    return isLoopbackBaseUrl(settings.baseUrl) ? t("Planning stays on the configured local Ollama endpoint.") : outbound;
+  }
+  if (settings.provider === "openai_compatible") {
+    return isLoopbackBaseUrl(settings.baseUrl) ? t("Planning stays on the configured local endpoint.") : outbound;
+  }
+  return outbound;
+}
+
+/** <option> list for the provider picker, straight from listProviders()'s
+ * safe, credential-free capability rows -- never invents a label locally, so
+ * a provider added server-side shows up without a client-side edit. */
+export function providerSelectMarkup(providers, currentProviderId) {
+  const options = Array.isArray(providers) ? providers : [];
+  if (!options.length) return `<option value="">${t("No providers found")}</option>`;
+  return options
+    .map((provider) => `<option value="${escapeHtml(provider.id)}"${provider.id === currentProviderId ? " selected" : ""}>${escapeHtml(provider.label)}</option>`)
+    .join("");
+}
+
 /** <option> list for the model picker. The currently configured model is
  * kept even if it fell out of the live list (a provider that just went
  * offline, a typo'd custom model) so a working selection is never silently
@@ -68,8 +118,10 @@ export function createDirectorAgentPanel(ui, options = {}) {
 
   const panel = el("agent-panel");
   const hint = el("agent-hint");
+  const privacyNote = el("agent-privacy-note");
   const describeInput = el("agent-describe");
   const planList = el("agent-plan");
+  const providerSelect = el("agent-provider-select");
   const modelSelect = el("agent-model-select");
   const providerLabel = el("agent-provider-label");
   const credentialStatus = el("agent-credential-status");
@@ -94,6 +146,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       const label = PROVIDER_LABELS[settings.provider] || settings.provider;
       providerLabel.textContent = `${label} · ${settings.model || t("(no model set)")}`;
     }
+    if (privacyNote) privacyNote.textContent = providerPrivacyText(settings);
 
     const busy = state === "planning" || state === "applying";
     if (previewBtn) previewBtn.disabled = busy;
@@ -131,6 +184,22 @@ export function createDirectorAgentPanel(ui, options = {}) {
     }
   }
 
+  async function refreshProviders() {
+    if (disposed || !providerSelect) return;
+    const settings = agentSettings();
+    providerSelect.disabled = true;
+    try {
+      const providers = await listProviders(api);
+      if (disposed) return;
+      providerSelect.innerHTML = providerSelectMarkup(providers, settings.provider);
+    } catch {
+      if (disposed) return;
+      providerSelect.innerHTML = providerSelectMarkup([], settings.provider);
+    } finally {
+      if (!disposed) providerSelect.disabled = false;
+    }
+  }
+
   async function refreshModels() {
     if (disposed || !modelSelect) return;
     const settings = agentSettings();
@@ -152,6 +221,14 @@ export function createDirectorAgentPanel(ui, options = {}) {
     if (!modelSelect || !modelSelect.value) return;
     writeSetting(SETTING_AGENT_MODEL, modelSelect.value);
     render();
+  }
+
+  function onProviderChange() {
+    if (!providerSelect || !providerSelect.value) return;
+    writeSetting(SETTING_AGENT_PROVIDER, providerSelect.value);
+    render();
+    void refreshCredentialStatus();
+    void refreshModels();
   }
 
   async function generatePreview() {
@@ -318,9 +395,11 @@ export function createDirectorAgentPanel(ui, options = {}) {
   }
 
   panel?.addEventListener("click", onClick);
+  providerSelect?.addEventListener("change", onProviderChange);
   modelSelect?.addEventListener("change", onModelChange);
   describeInput?.addEventListener("input", autoGrowDescribe);
   render();
+  void refreshProviders();
   void refreshCredentialStatus();
   void refreshModels();
 
@@ -332,6 +411,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       disposed = true;
       inFlightController?.abort?.();
       panel?.removeEventListener("click", onClick);
+      providerSelect?.removeEventListener("change", onProviderChange);
       modelSelect?.removeEventListener("change", onModelChange);
       describeInput?.removeEventListener("input", autoGrowDescribe);
     },

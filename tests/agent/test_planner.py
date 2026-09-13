@@ -8,11 +8,13 @@ import pytest
 
 from omnicam.agent import planner as planner_module
 from omnicam.agent.planner_schema import (
+    MAX_PLANNER_OBSERVATION_BYTES,
     PLANNER_OBJECT_TYPES,
     PLANNER_OPERATIONS,
     PLANNER_QUERIES,
     PlannerProtocolError,
     build_system_prompt,
+    encode_planner_observation,
     parse_action,
     render_conversation,
 )
@@ -124,6 +126,30 @@ def test_system_prompt_teaches_the_catalog_character_workflow():
     assert "character_" in prompt
     assert "character.set_motion" in prompt
     assert '"clip"' in prompt
+
+
+def test_scene_get_is_not_advertised_to_the_built_in_planner():
+    # scene.get returns a large, unbounded semantic snapshot -- the built-in
+    # planner must use scene.summary/object.search/pagination instead
+    # (design spec Task 4). The external Semantic Director API may still
+    # retain scene.get for its own, separate JS-side query vocabulary.
+    assert "scene.get" not in PLANNER_QUERIES
+    assert "scene.summary" in PLANNER_QUERIES
+
+
+def test_encode_planner_observation_passes_through_a_small_observation():
+    encoded = encode_planner_observation({"ok": True, "revision": 3})
+    assert json.loads(encoded) == {"ok": True, "revision": 3}
+
+
+def test_encode_planner_observation_caps_an_oversized_observation():
+    huge = {"ok": True, "items": ["x" * 1000] * 200}
+    assert len(json.dumps(huge).encode("utf-8")) > MAX_PLANNER_OBSERVATION_BYTES
+    encoded = encode_planner_observation(huge)
+    assert len(encoded.encode("utf-8")) <= MAX_PLANNER_OBSERVATION_BYTES
+    decoded = json.loads(encoded)
+    assert decoded["ok"] is False
+    assert decoded["error"]["code"] == "OBSERVATION_TOO_LARGE"
 
 
 def test_render_conversation_flattens_role_labeled_turns():
@@ -352,3 +378,70 @@ async def test_planner_never_lets_the_model_supply_baserevision_or_validateonly(
     assert captured["baseRevision"] == 42
     assert captured["validateOnly"] is True
     assert result.plan.base_revision == 42
+
+
+@pytest.mark.asyncio
+async def test_planner_rejects_a_query_type_it_never_advertised(monkeypatch):
+    # Enforcement, not just prompt vocabulary: even if a model hallucinates
+    # or is coaxed into requesting scene.get, the built-in planner must never
+    # forward it to the live Director session.
+    dispatched = []
+
+    async def fake_dispatch(session_id, kind, payload):
+        dispatched.append((kind, payload))
+        return {"ok": True, "revision": 3, "type": payload.get("type")}
+
+    monkeypatch.setattr(planner_module.BROKER, "dispatch", fake_dispatch)
+    _install_provider(monkeypatch, _ScriptedProvider([
+        json.dumps({"action": "query", "query": {"type": "scene.get"}}),
+        json.dumps({"action": "finish", "message": "done"}),
+    ]))
+
+    result = await planner_module.run_planner(
+        session_id="sess_1", owner_id="user_a", instruction="dump everything",
+        provider_config=_config(), credential=None, max_planner_steps=6,
+        operations=["camera.transform"], queries=["scene.summary"],
+    )
+    assert result.finished is True
+    assert dispatched == []  # scene.get never reached the Director session
+
+
+@pytest.mark.asyncio
+async def test_planner_feeds_back_a_bounded_observation_when_oversized(monkeypatch):
+    huge = {"ok": True, "revision": 3, "items": ["x" * 1000] * 200}
+
+    async def fake_dispatch(session_id, kind, payload):
+        return huge
+
+    monkeypatch.setattr(planner_module.BROKER, "dispatch", fake_dispatch)
+    provider = _ScriptedProvider([
+        json.dumps({"action": "query", "query": {"type": "scene.summary"}}),
+        json.dumps({"action": "finish", "message": "done"}),
+    ])
+    _install_provider(monkeypatch, provider)
+
+    result = await planner_module.run_planner(
+        session_id="sess_1", owner_id="user_a", instruction="what's in the scene?",
+        provider_config=_config(), credential=None, max_planner_steps=6,
+        operations=["camera.transform"], queries=["scene.summary"],
+    )
+    assert result.finished is True
+    # The huge payload never reached the model; only the bounded error did.
+    second_call_prompt = provider.calls[1]
+    assert "OBSERVATION_TOO_LARGE" in second_call_prompt
+    assert "x" * 1000 not in second_call_prompt
+
+
+@pytest.mark.asyncio
+async def test_planner_stops_before_the_provider_call_when_context_budget_is_exceeded(monkeypatch):
+    monkeypatch.setattr(planner_module, "MAX_PLANNER_CONTEXT_BYTES", 64)
+    provider = _ScriptedProvider([json.dumps({"action": "finish", "message": "unreachable"})])
+    _install_provider(monkeypatch, provider)
+
+    with pytest.raises(PlannerProtocolError):
+        await planner_module.run_planner(
+            session_id="sess_1", owner_id="user_a", instruction="do something",
+            provider_config=_config(), credential=None, max_planner_steps=6,
+            operations=["camera.transform"], queries=["scene.summary"],
+        )
+    assert provider.calls == []  # the provider is never called over budget

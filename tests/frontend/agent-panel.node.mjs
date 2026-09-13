@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDirectorAgentPanel, modelSelectMarkup, planChangesMarkup, resolveAgentIntent } from "../../web-src/agent/panel.js";
-import { SETTING_AGENT_MODEL, registerOmniCamLocales } from "../../web-src/settings.js";
+import {
+  createDirectorAgentPanel,
+  isLoopbackBaseUrl,
+  modelSelectMarkup,
+  planChangesMarkup,
+  providerPrivacyText,
+  providerSelectMarkup,
+  resolveAgentIntent,
+} from "../../web-src/agent/panel.js";
+import { SETTING_AGENT_BASE_URL, SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER, registerOmniCamLocales } from "../../web-src/settings.js";
 
 class FakeElement {
   constructor(role) {
@@ -57,8 +65,10 @@ function makeElements() {
   const elements = {
     "agent-panel": new FakeElement("agent-panel"),
     "agent-hint": new FakeElement("agent-hint"),
+    "agent-privacy-note": new FakeElement("agent-privacy-note"),
     "agent-describe": new FakeElement("agent-describe"),
     "agent-plan": new FakeElement("agent-plan"),
+    "agent-provider-select": new FakeElement("agent-provider-select"),
     "agent-model-select": new FakeElement("agent-model-select"),
     "agent-provider-label": new FakeElement("agent-provider-label"),
     "agent-credential-status": new FakeElement("agent-credential-status"),
@@ -110,6 +120,52 @@ test("resolveAgentIntent finds the closest data-agent-act", () => {
   assert.equal(resolveAgentIntent(null), null);
 });
 
+test("isLoopbackBaseUrl treats an empty override as the provider's own local default", () => {
+  assert.equal(isLoopbackBaseUrl(""), true);
+  assert.equal(isLoopbackBaseUrl(undefined), true);
+});
+
+test("isLoopbackBaseUrl recognizes 127.0.0.1/localhost/::1", () => {
+  assert.equal(isLoopbackBaseUrl("http://127.0.0.1:11434"), true);
+  assert.equal(isLoopbackBaseUrl("http://localhost:1234/v1"), true);
+  assert.equal(isLoopbackBaseUrl("http://[::1]:11434"), true);
+});
+
+test("isLoopbackBaseUrl rejects a remote host", () => {
+  assert.equal(isLoopbackBaseUrl("http://192.168.1.50:1234/v1"), false);
+  assert.equal(isLoopbackBaseUrl("https://my-proxy.example.com/v1"), false);
+});
+
+test("isLoopbackBaseUrl stays conservative (non-loopback) on an unparsable URL", () => {
+  assert.equal(isLoopbackBaseUrl("not a url"), false);
+});
+
+test("providerPrivacyText: OpenAI is always an outbound disclosure", () => {
+  const text = providerPrivacyText({ provider: "openai", baseUrl: "" });
+  assert.match(text, /sent to the configured model provider/);
+  assert.doesNotMatch(text, /local/i);
+});
+
+test("providerPrivacyText: Anthropic is always an outbound disclosure", () => {
+  const text = providerPrivacyText({ provider: "anthropic", baseUrl: "" });
+  assert.match(text, /sent to the configured model provider/);
+});
+
+test("providerPrivacyText: loopback Ollama is a local disclosure", () => {
+  const text = providerPrivacyText({ provider: "ollama", baseUrl: "" });
+  assert.match(text, /local/i);
+});
+
+test("providerPrivacyText: a remote OpenAI-compatible endpoint is an outbound disclosure", () => {
+  const text = providerPrivacyText({ provider: "openai_compatible", baseUrl: "https://my-proxy.example.com/v1" });
+  assert.match(text, /sent to the configured model provider/);
+});
+
+test("providerPrivacyText: a loopback OpenAI-compatible endpoint is a local disclosure", () => {
+  const text = providerPrivacyText({ provider: "openai_compatible", baseUrl: "http://127.0.0.1:1234/v1" });
+  assert.match(text, /local/i);
+});
+
 test("planChangesMarkup renders an empty-state message with no changes", () => {
   assert.match(planChangesMarkup([]), /No visible changes/);
   assert.match(planChangesMarkup(null), /No visible changes/);
@@ -119,6 +175,20 @@ test("planChangesMarkup renders one <li> per change", () => {
   const html = planChangesMarkup([{ entity: "camera_1", field: "position" }, { entity: "camera_1", field: "target" }]);
   assert.equal((html.match(/<li>/g) || []).length, 2);
   assert.match(html, /camera_1/);
+});
+
+test("providerSelectMarkup lists every provider and preselects the configured one", () => {
+  const providers = [
+    { id: "ollama", label: "Ollama / local" },
+    { id: "openai", label: "OpenAI" },
+  ];
+  const html = providerSelectMarkup(providers, "openai");
+  assert.match(html, /<option value="ollama">Ollama \/ local<\/option>/);
+  assert.match(html, /<option value="openai" selected>OpenAI<\/option>/);
+});
+
+test("providerSelectMarkup reports no providers found when the list is empty", () => {
+  assert.match(providerSelectMarkup([], "ollama"), /No providers found/);
 });
 
 test("modelSelectMarkup lists live models and preselects the configured one", () => {
@@ -197,6 +267,61 @@ test("the model-refresh action re-fetches the live model list", async () => {
   panel.dispose();
 });
 
+test("mounting populates the provider picker and preselects the configured provider", async () => {
+  const values = { [SETTING_AGENT_PROVIDER]: "openai" };
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => values[id], set: (id, v) => { values[id] = v; } } } });
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers": () => ok({
+      providers: [
+        { id: "ollama", label: "Ollama / local" },
+        { id: "openai", label: "OpenAI" },
+      ],
+    }),
+    "/majoor/omnicam/agent/v1/providers/openai/models": () => ok({ models: [] }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+  assert.match(elements["agent-provider-select"].innerHTML, /Ollama \/ local/);
+  assert.match(elements["agent-provider-select"].innerHTML, /<option value="openai" selected>OpenAI<\/option>/);
+  panel.dispose();
+  registerOmniCamLocales(null);
+});
+
+test("picking a provider persists it and refreshes credentials and models for the new provider", async () => {
+  const values = { [SETTING_AGENT_PROVIDER]: "ollama" };
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => values[id], set: (id, v) => { values[id] = v; } } } });
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers": () => ok({
+      providers: [
+        { id: "ollama", label: "Ollama / local" },
+        { id: "openai", label: "OpenAI" },
+      ],
+    }),
+    "/majoor/omnicam/agent/v1/providers/ollama/models": () => ok({ models: [] }),
+    "/majoor/omnicam/agent/v1/providers/ollama/status": () => ok({ configured: false, source: "none" }),
+    "/majoor/omnicam/agent/v1/providers/openai/models": () => ok({ models: ["gpt-4o-mini"] }),
+    "/majoor/omnicam/agent/v1/providers/openai/status": () => ok({ configured: true, source: "local_store" }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+
+  elements["agent-provider-select"].value = "openai";
+  elements["agent-provider-select"].handlers.get("change")?.({});
+  await flush();
+
+  assert.equal(values[SETTING_AGENT_PROVIDER], "openai");
+  assert.match(elements["agent-model-select"].innerHTML, /gpt-4o-mini/);
+  assert.match(elements["agent-provider-label"].textContent, /OpenAI/);
+  assert.equal(elements["agent-credential-status"].textContent, "Configured");
+
+  panel.dispose();
+  registerOmniCamLocales(null);
+});
+
 test("the describe textarea grows to fit its content on input", async () => {
   const elements = makeElements();
   const api = makeApi({});
@@ -211,6 +336,22 @@ test("the describe textarea grows to fit its content on input", async () => {
   assert.equal(textarea.style.height, "96px");
 
   panel.dispose();
+});
+
+test("mounting renders the provider privacy disclosure and never a credential", async () => {
+  const values = { [SETTING_AGENT_PROVIDER]: "openai", [SETTING_AGENT_BASE_URL]: "" };
+  registerOmniCamLocales({
+    extensionManager: { setting: { get: (id) => values[id], set: (id, value) => { values[id] = value; } } },
+  });
+  const elements = makeElements();
+  const api = makeApi({});
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+  assert.match(elements["agent-privacy-note"].textContent, /sent to the configured model provider/);
+  assert.doesNotMatch(elements["agent-privacy-note"].textContent, /sk-|api[_-]?key/i);
+  panel.dispose();
+  registerOmniCamLocales(null);
 });
 
 test("mounting refreshes the credential status", async () => {

@@ -2,7 +2,7 @@
 // created. Registration, preferences and locales live in main.js; this module
 // must stay free of startup side effects so it can stay out of the eager chunk.
 import { app, api } from "./comfy-runtime.js";
-import { configureDirectorViewports } from "./settings.js";
+import { builtInAgentEnabled, configureDirectorViewports } from "./settings.js";
 import { EditorHistory } from "./omnicam-history.js";
 import { ContextMenuController, initializeTooltips, promptText } from "./director/ui-services.js";
 import { ObjectUrlRegistry } from "./omnicam-media.js";
@@ -277,6 +277,10 @@ export function attachDirector(node) {
       // 32): nothing under web-src/agent/panel.js loads until the AGENT tab
       // is actually opened.
       onAgentFirstOpen: async () => {
+        // "Enable built-in Agent" only ever gates this lazy mount -- the
+        // external Agent bridge above is created unconditionally and never
+        // reads this setting (design spec Task 6).
+        if (!builtInAgentEnabled()) return;
         try {
           const { createDirectorAgentPanel } = await import("./agent/panel.js");
           ui.agentPanel = createDirectorAgentPanel(ui);

@@ -320,6 +320,15 @@ const COMPONENT_STYLES = `
       .majoor-omnicam .oc-left-tabs{display:flex;gap:2px;background:#141418;border:1px solid #2e2e38;border-radius:6px;padding:2px}
       .majoor-omnicam .oc-left-tab{flex:1;min-height:24px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8b8b96;background:transparent;border:1px solid transparent;border-radius:4px;cursor:pointer}
       .majoor-omnicam .oc-left-tab.active{color:#fff;background:#2b2b35;border-color:#3b3b48}
+      /* AGENT gets its own violet->magenta identity so it reads as a distinct,
+         AI-flavoured surface next to the neutral Scene/Assets tabs. */
+      .majoor-omnicam .oc-left-tab[data-asset-view="agent"]{color:#b79bf0}
+      .majoor-omnicam .oc-left-tab[data-asset-view="agent"]:hover{color:#e2d4ff}
+      /* !important: the generic button.active rule above (shared by every
+         toolbar toggle, also !important) otherwise wins regardless of this
+         selector's higher specificity -- !important vs !important then
+         falls back to specificity, where this rule is higher. */
+      .majoor-omnicam .oc-left-tab[data-asset-view="agent"].active{color:#fff !important;background:linear-gradient(135deg,#8b5cf6,#ec4899) !important;border-color:transparent !important;box-shadow:0 0 0 1px rgba(236,72,153,.35),0 2px 10px -2px rgba(139,92,246,.65) !important}
       .majoor-omnicam .oc-left-body{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-height:0}
       .majoor-omnicam .oc-asset-panel{display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0}
       .majoor-omnicam .oc-asset-toolbar{display:flex;gap:4px;align-items:center}
@@ -344,6 +353,20 @@ const COMPONENT_STYLES = `
       .majoor-omnicam .oc-asset-empty{grid-column:1/-1;color:#8b8b96;font-size:11px;text-align:center;padding:16px 4px}
       .majoor-omnicam .oc-asset-foot{display:flex;align-items:center;gap:6px}
       .majoor-omnicam .oc-asset-foot .oc-btn{font-size:11px;padding:4px 10px}
+      /* Agent panel accent: a violet->magenta top stripe plus matching
+         primary-button/select-focus colour, scoped to the Agent tab only so
+         Scene/Assets keep the neutral palette. Styled via the dedicated
+         .oc-agent-panel CSS class, deliberately not the data-role attribute
+         that DOM code uses to look this element up -- that attribute is
+         checked for uniqueness across every template and style source by
+         scripts/check_template_contract.mjs, so repeating it as a raw CSS
+         attribute selector here would misread as duplicate declarations. */
+      .majoor-omnicam .oc-agent-panel{border-top:2px solid transparent;border-image:linear-gradient(90deg,#8b5cf6,#ec4899) 1;padding-top:6px}
+      .majoor-omnicam .oc-agent-panel select.oc-search:focus-visible,
+      .majoor-omnicam .oc-agent-panel .oc-agent-describe:focus-visible{outline:none;border-color:#ec4899;box-shadow:0 0 0 2px rgba(236,72,153,.28)}
+      .majoor-omnicam .oc-agent-panel .oc-btn--primary{background:linear-gradient(135deg,#8b5cf6,#ec4899);border-color:transparent;color:#fff}
+      .majoor-omnicam .oc-agent-panel .oc-btn--primary:not(:disabled):hover{filter:brightness(1.1)}
+      .majoor-omnicam .oc-agent-panel .oc-btn--primary:disabled{background:#2a2a33;border-color:#3b3b48;color:#7a7a86}
       .majoor-omnicam .oc-asset-status{flex:1;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       /* Viewport label overlay (pooled DOM above the WebGL canvas) */
       .majoor-omnicam .oc-label-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:6}

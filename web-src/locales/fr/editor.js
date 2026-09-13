@@ -469,10 +469,17 @@ export const FR_EDITOR = {
   "Object": "Objet",
 
   // Director Agent tab (design spec section 32)
+  "Describe the shot... ex: \"the camera slowly orbits the character while zooming in on the face\"": "Décrivez le plan… ex : « la caméra tourne lentement autour du personnage en zoomant sur le visage »",
+  "Provider": "Fournisseur",
+  "Loading providers...": "Chargement des fournisseurs…",
+  "No providers found": "Aucun fournisseur trouvé",
   "Model": "Modèle",
   "Loading models...": "Chargement des modèles…",
   "No models found": "Aucun modèle trouvé",
   "Refresh model list": "Actualiser la liste des modèles",
+  "Planning stays on the configured local Ollama endpoint.": "La planification reste sur le point de terminaison Ollama local configuré.",
+  "Planning stays on the configured local endpoint.": "La planification reste sur le point de terminaison local configuré.",
+  "Your instruction and the semantic scene information requested by the planner are sent to the configured model provider. Media files are not sent by Agent v1.": "Votre instruction et les informations sémantiques de la scène demandées par le planificateur sont envoyées au fournisseur de modèle configuré. Les fichiers média ne sont pas envoyés par l'Agent v1.",
   "Set credential": "Définir la clé d'accès",
   "Remove credential": "Supprimer la clé d'accès",
   "Test connection": "Tester la connexion",

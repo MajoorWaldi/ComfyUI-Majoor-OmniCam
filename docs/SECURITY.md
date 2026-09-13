@@ -24,11 +24,20 @@ See `docs/AGENT_INTEGRATION.md` for the full design. Security-relevant facts:
   server to an untrusted network; a reverse-proxy deployment needs its own
   authentication in front of it.
 - **Browser callbacks use ephemeral, in-memory session tokens**, not
-  loopback. A live Director's `/session/register`, `/session/heartbeat`,
-  `/session/close` and `/reply` calls are authenticated by a per-session
-  bearer token instead (a legitimate ComfyUI browser connection can itself be
-  remote relative to the server). A wrong or stale token is rejected; nothing
-  is persisted across a server restart.
+  loopback (a legitimate ComfyUI browser connection can itself be remote
+  relative to the server). The actual sequence:
+  1. the browser already owns a live ComfyUI WebSocket client id, issued by
+     ComfyUI's own connection handshake;
+  2. `/session/register` is authenticated by proving that -- it is rejected
+     with `UNKNOWN_CLIENT` unless the supplied `client_id` is currently
+     present in `PromptServer.instance.sockets` (`omnicam/agent/routes.py`),
+     so nothing can register a session for a client_id that was never
+     actually connected, and there is no pre-existing token to check yet;
+  3. only on success does the broker mint a fresh, random `session_id` and
+     an ephemeral `session_token`;
+  4. every subsequent `/session/heartbeat`, `/session/close` and `/reply`
+     call for that session must then present that exact token. A wrong or
+     stale token is rejected; nothing is persisted across a server restart.
 - **Session listing never exposes the token, the WebSocket client id, or any
   pending-request internals** -- only `session_id`, `node_id`, `label`,
   `director_api`, `revision` and the advertised operation/query vocabulary.
@@ -46,6 +55,68 @@ See `docs/AGENT_INTEGRATION.md` for the full design. Security-relevant facts:
 - **No arbitrary-code surface.** An Agent transaction is a bounded list of
   named, validated operations over Director state -- never a script, a
   workflow submission, or a proxy to an arbitrary endpoint.
+
+### Built-in OmniCam Agent: providers and the planner
+
+The built-in Agent (`omnicam/agent/planner*.py`, `provider_routes.py`,
+`omnicam/agent/providers/`) is a browser/ComfyUI surface -- the Director's own
+Agent panel calling its own backend -- not a remote-Agent authentication API;
+see `docs/AGENT_INTEGRATION.md` for how it composes with the Agent Contract
+above.
+
+- **Credentials live in a private, per-user secrets backend only**
+  (`omnicam/agent/providers/secret_store.py`): never in a workflow, in
+  `comfy.settings.json`, or anywhere an HTTP-exposed userdata route could
+  serve them. Precedence is environment > local secret store > none, and an
+  `OMNICAM_*_API_KEY` environment variable always wins; `SecretStore.set()`
+  and `.delete()` themselves refuse to touch a provider an env var already
+  controls (`CREDENTIAL_MANAGED_BY_ENV`) -- this is not only a route-level
+  check, so a future direct caller cannot bypass it.
+- **Remote custom provider endpoints are disabled by default.** A
+  caller-supplied `base_url` (OpenAI-compatible, Ollama, or a native
+  OpenAI/Anthropic override) is subject to the network policy in
+  `omnicam/agent/providers/network.py`: loopback is always allowed; any other
+  host is rejected with `REMOTE_CUSTOM_PROVIDER_BLOCKED` unless the operator
+  sets `OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS=1`. **Native custom base
+  URLs are treated as custom endpoints too** -- `endpoint_is_custom()`
+  compares a supplied OpenAI/Anthropic `base_url` against that provider's own
+  hardcoded official endpoint, so a different host is never silently treated
+  as official regardless of which provider it claims to be.
+- **Even with that opt-in, sensitive infrastructure/metadata targets stay
+  blocked unconditionally**: unspecified, multicast, and link-local
+  addresses -- including `169.254.169.254`, the cloud-metadata IP on
+  AWS/GCP/Azure. This is a literal-IP-address check only; it does not resolve
+  or pin DNS names, so it is not a claim of full SSRF/DNS-rebinding
+  protection.
+- **Provider Test proves reachability, not model discovery.** `probe()` is a
+  separate capability from `list_models()` specifically because the
+  OpenAI-compatible adapter's model discovery intentionally degrades a
+  failure to an empty list (for a nicer picker UX) -- without `probe()`, that
+  same degrade would make a dead/blocked endpoint indistinguishable from
+  "reachable, doesn't support discovery."
+- **Provider/planner errors reaching the browser are redacted**
+  (`omnicam/agent/providers/public_errors.py`). A curated exception
+  (`NetworkPolicyError`, `SecretStoreError`, `AgentProtocolError`) keeps its
+  own stable code/message; any other exception becomes a fixed, generic
+  message -- never `str(error)` -- so a future exception type can never leak
+  a credential, header, or internal detail through a catch-all handler.
+- **The planner's own context is bounded.** It cannot request `scene.get`
+  (a large, unbounded semantic snapshot; enforced, not just omitted from its
+  prompt vocabulary -- a hallucinated request for it is rejected before
+  reaching the Director session), a single query observation is capped at
+  128 KiB, and the total conversation is capped at 512 KiB before every
+  provider call.
+- **Cloud/remote provider data disclosure.** Before Preview, the Agent panel
+  states what leaves the machine for the currently configured provider:
+  OpenAI/Anthropic and a non-loopback custom endpoint show an outbound
+  notice; a loopback Ollama/OpenAI-compatible endpoint shows a local-only
+  notice. Either way, only the user's instruction and the semantic Director
+  query observations the planner requested are ever sent -- **Agent v1 never
+  sends playblast video, source video, image pixels, 3D binary files, or
+  secret values.**
+- **Preview before Apply is mandatory, not a preference.** Every built-in
+  Agent transaction is proposed with `validateOnly=true` first; there is no
+  setting that lets the planner mutate the scene immediately.
 
 ## Monitor live-preflight boundary
 

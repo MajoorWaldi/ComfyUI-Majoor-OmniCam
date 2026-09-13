@@ -173,3 +173,54 @@ test("a STALE_PLAN response disables Apply and asks for a new preview", async ({
   const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.objects.find((o) => o.id === "qa_cube").position);
   expect(after).toEqual([0, 0.5, 0]);
 });
+
+// design spec Task 6: "Enable built-in Agent" only ever hides/disables the
+// built-in panel; the external Agent Contract v1 bridge (used by external
+// Agent integrations, not by this UI) must keep working regardless.
+test("disabling the built-in Agent hides its tab while the external bridge stays alive", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__omnicamPresetSettings = { "MajoorOmniCam.Agent.Enabled": false };
+  });
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent === "ready", null, { timeout: 15000 });
+
+  const root = page.locator(".majoor-omnicam");
+  await expect(root.locator('[data-asset-view="agent"]')).toBeHidden();
+
+  // The external bridge (design spec section 21) never reads this setting --
+  // it is created unconditionally in attachDirector() regardless of Agent.Enabled.
+  const bridgeExists = await page.evaluate(() => Boolean(window.omnicamNode?.__majoorOmniCam?.agentBridge));
+  expect(bridgeExists).toBe(true);
+
+  // Even a forced, bypassing-the-hidden-button switch must refuse the view
+  // and never lazily mount the built-in panel.
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.assetBrowser.switchView("agent"));
+  await expect(root.locator('[data-role="agent-tab"]')).toBeHidden();
+  await expect(root.locator('[data-role="scene-tab"]')).toBeVisible();
+  const agentPanelMounted = await page.evaluate(() => Boolean(window.omnicamNode.__majoorOmniCam.agentPanel));
+  expect(agentPanelMounted).toBe(false);
+});
+
+test("re-enabling the built-in Agent live shows its tab again without a reload", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__omnicamPresetSettings = { "MajoorOmniCam.Agent.Enabled": false };
+  });
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent === "ready", null, { timeout: 15000 });
+
+  const root = page.locator(".majoor-omnicam");
+  await expect(root.locator('[data-asset-view="agent"]')).toBeHidden();
+
+  // Simulate what ComfyUI's real Settings dialog does on a live change: set
+  // the value on the *live* app instance the mounted Director actually
+  // reads (window.__omnicamLiveApp -- see stubs/app.js's comment on why a
+  // fresh `import("/scripts/app.js")` here would be a different, disconnected
+  // module instance), then invoke the setting's own registered onChange.
+  await page.evaluate(() => {
+    window.__omnicamLiveApp.extensionManager.setting.set("MajoorOmniCam.Agent.Enabled", true);
+    const extension = window.__omnicamExtensions.find((item) => item.name === "Majoor.OmniCam.Director");
+    const entry = extension.settings.find((item) => item.id === "MajoorOmniCam.Agent.Enabled");
+    entry.onChange(true);
+  });
+  await expect(root.locator('[data-asset-view="agent"]')).toBeVisible();
+});

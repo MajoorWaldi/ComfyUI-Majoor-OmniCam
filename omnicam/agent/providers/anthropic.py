@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 from .models import ProviderConfig, ProviderResponse
-from .network import NetworkPolicyError, guarded_request
+from .network import NetworkPolicyError, endpoint_is_custom, guarded_request
 
 DEFAULT_BASE_URL = "https://api.anthropic.com"
 ANTHROPIC_VERSION = "2023-06-01"
@@ -32,15 +32,29 @@ class AnthropicProvider:
         import aiohttp
 
         url = f"{_base_url(config)}/v1/models"
+        is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
         async with aiohttp.ClientSession() as session:
             response = await guarded_request(
-                session, "GET", url, is_custom_endpoint=False, headers=_headers(credential),
+                session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
             )
         if response.status >= 400:
             raise NetworkPolicyError("PROVIDER_ERROR", f"Anthropic /v1/models returned {response.status}")
         payload = json.loads(response.body.decode("utf-8"))
         return [item["id"] for item in payload.get("data", []) if isinstance(item.get("id"), str)]
+
+    async def probe(self, config: ProviderConfig, credential: str | None) -> None:
+        import aiohttp
+
+        url = f"{_base_url(config)}/v1/models"
+        is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
+        async with aiohttp.ClientSession() as session:
+            response = await guarded_request(
+                session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
+                timeout_seconds=config.timeout_seconds,
+            )
+        if response.status >= 400:
+            raise NetworkPolicyError("PROVIDER_ERROR", f"Anthropic /v1/models returned {response.status}")
 
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
@@ -53,9 +67,10 @@ class AnthropicProvider:
             "max_tokens": config.max_output_tokens,
             "messages": [{"role": "user", "content": request}],
         }
+        is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
         async with aiohttp.ClientSession() as session:
             response = await guarded_request(
-                session, "POST", url, is_custom_endpoint=False, headers=_headers(credential),
+                session, "POST", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 json_body=body, timeout_seconds=config.timeout_seconds,
             )
         if response.status >= 400:

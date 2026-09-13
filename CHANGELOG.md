@@ -41,12 +41,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fields (all absent by default; no profile call site changed) so an Agent
   or the panel can show static, reviewed recovery guidance for a known
   failure code instead of none at all.
-- An inert `AGENT` tab next to `SCENE` / `ASSETS` in the Director's left
-  panel, matching the design spec's Plan 02 mock. It is deliberately wired
-  to nothing yet -- provider wiring is a separate plan.
+- A working `AGENT` tab next to `SCENE` / `ASSETS` in the Director's left
+  panel: describe a shot, generate a bounded Preview against a configured
+  provider (Ollama / OpenAI / OpenAI-compatible / Anthropic), review the
+  semantic diff, then explicit Apply or Cancel. See
+  `docs/AGENT_INTEGRATION.md`'s "Built-in: the OmniCam Agent panel".
 - `examples/agent/`: a headless-Agent reference workflow
   (Director -> Monitor) and a README distinguishing the headless (official
   Comfy MCP) and live (OmniCam Agent Contract v1) Agent paths.
+- Agent v1 final hardening pass: native OpenAI/Anthropic custom `base_url`
+  overrides are now subject to the same custom-endpoint network policy as
+  `openai_compatible`/Ollama (previously hardcoded as always-official,
+  letting a custom endpoint bypass the remote-provider gate); a dedicated
+  `probe()` capability makes Provider Test prove real reachability instead
+  of piggybacking on model discovery's intentional graceful-degrade; every
+  provider/planner route redacts unknown exceptions through a single
+  `public_errors.py` mapping instead of ever returning `str(error)`; the
+  built-in planner is bounded to a 512 KiB total context and 128 KiB per
+  observation and can no longer request the unbounded `scene.get`; the
+  Agent panel discloses its outbound data boundary per provider before
+  Preview; `Enable built-in Agent` now actually hides/disables the panel
+  without touching the independent external Agent bridge; the inert
+  `PreviewBeforeApply` setting (Preview -> Apply was always mandatory) was
+  removed; `SecretStore` itself (not just the HTTP route layer) refuses to
+  mutate an environment-managed credential; the provider network guard
+  blocks unspecified/multicast/link-local addresses -- including the
+  `169.254.169.254` cloud-metadata IP -- even when remote custom providers
+  are explicitly opted in; and a post-commit viewport-resource
+  reconciliation failure now surfaces as a bounded
+  `VIEWPORT_RESOURCE_RECONCILE_FAILED` warning instead of a swallowed
+  console message.
+- The Agent's character workflow: the planner prefers a real, catalog-linked
+  rigged character (`asset.catalog_search` + `asset.instantiate_by_id`) over
+  the generic `human` primitive when representing a person, and chains a
+  matching `character.set_motion` in the same transaction when the
+  instruction names a specific action. Illustrative, file-less default
+  catalog rows are excluded from this resolution so the Agent never silently
+  degrades to a placeholder.
 
 ### Fixed
 
@@ -54,6 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   API could be silently overwritten by the next `serializeEditorState()`
   call, which copied the (stale) viewport camera back onto the active
   camera track after the transaction had already written its fresh values.
+- `camera.create` now rejects a `far` that is invalid relative to the
+  *effective* near plane (the supplied `near`, or the canonical default)
+  at the API boundary, instead of relying on the state sanitizer to repair
+  it downstream.
 
 ## [0.3.1] - 2026-09-10
 

@@ -38,3 +38,12 @@ class AgentProvider(Protocol):
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse: ...
+
+    async def probe(self, config: ProviderConfig, credential: str | None) -> None:
+        """Raise on policy/connectivity/auth failure; return None on success.
+
+        Unlike ``list_models`` (which may degrade a discovery failure to an
+        empty list for a nicer model-picker UX), ``probe`` answers only one
+        question -- "did we reach the configured endpoint under the current
+        network policy?" -- and must never swallow a real failure."""
+        ...
