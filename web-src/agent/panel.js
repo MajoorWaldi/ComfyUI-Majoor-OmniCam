@@ -11,12 +11,13 @@
 // production chunk.
 
 import { t } from "../i18n.js";
-import { SETTING_AGENT_MODEL, agentSettings, writeSetting } from "../settings.js";
+import { SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER, agentSettings, writeSetting } from "../settings.js";
 import { applyPlan, requestPlan } from "./plan-client.js";
 import {
   deleteProviderCredential,
   getProviderStatus,
   listProviderModels,
+  listProviders,
   setProviderCredential,
   testProvider,
 } from "./provider-client.js";
@@ -86,6 +87,17 @@ export function providerPrivacyText(settings) {
   return outbound;
 }
 
+/** <option> list for the provider picker, straight from listProviders()'s
+ * safe, credential-free capability rows -- never invents a label locally, so
+ * a provider added server-side shows up without a client-side edit. */
+export function providerSelectMarkup(providers, currentProviderId) {
+  const options = Array.isArray(providers) ? providers : [];
+  if (!options.length) return `<option value="">${t("No providers found")}</option>`;
+  return options
+    .map((provider) => `<option value="${escapeHtml(provider.id)}"${provider.id === currentProviderId ? " selected" : ""}>${escapeHtml(provider.label)}</option>`)
+    .join("");
+}
+
 /** <option> list for the model picker. The currently configured model is
  * kept even if it fell out of the live list (a provider that just went
  * offline, a typo'd custom model) so a working selection is never silently
@@ -109,6 +121,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
   const privacyNote = el("agent-privacy-note");
   const describeInput = el("agent-describe");
   const planList = el("agent-plan");
+  const providerSelect = el("agent-provider-select");
   const modelSelect = el("agent-model-select");
   const providerLabel = el("agent-provider-label");
   const credentialStatus = el("agent-credential-status");
@@ -171,6 +184,22 @@ export function createDirectorAgentPanel(ui, options = {}) {
     }
   }
 
+  async function refreshProviders() {
+    if (disposed || !providerSelect) return;
+    const settings = agentSettings();
+    providerSelect.disabled = true;
+    try {
+      const providers = await listProviders(api);
+      if (disposed) return;
+      providerSelect.innerHTML = providerSelectMarkup(providers, settings.provider);
+    } catch {
+      if (disposed) return;
+      providerSelect.innerHTML = providerSelectMarkup([], settings.provider);
+    } finally {
+      if (!disposed) providerSelect.disabled = false;
+    }
+  }
+
   async function refreshModels() {
     if (disposed || !modelSelect) return;
     const settings = agentSettings();
@@ -192,6 +221,14 @@ export function createDirectorAgentPanel(ui, options = {}) {
     if (!modelSelect || !modelSelect.value) return;
     writeSetting(SETTING_AGENT_MODEL, modelSelect.value);
     render();
+  }
+
+  function onProviderChange() {
+    if (!providerSelect || !providerSelect.value) return;
+    writeSetting(SETTING_AGENT_PROVIDER, providerSelect.value);
+    render();
+    void refreshCredentialStatus();
+    void refreshModels();
   }
 
   async function generatePreview() {
@@ -358,9 +395,11 @@ export function createDirectorAgentPanel(ui, options = {}) {
   }
 
   panel?.addEventListener("click", onClick);
+  providerSelect?.addEventListener("change", onProviderChange);
   modelSelect?.addEventListener("change", onModelChange);
   describeInput?.addEventListener("input", autoGrowDescribe);
   render();
+  void refreshProviders();
   void refreshCredentialStatus();
   void refreshModels();
 
@@ -372,6 +411,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       disposed = true;
       inFlightController?.abort?.();
       panel?.removeEventListener("click", onClick);
+      providerSelect?.removeEventListener("change", onProviderChange);
       modelSelect?.removeEventListener("change", onModelChange);
       describeInput?.removeEventListener("input", autoGrowDescribe);
     },

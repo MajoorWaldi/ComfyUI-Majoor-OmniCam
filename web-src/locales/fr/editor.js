@@ -469,6 +469,10 @@ export const FR_EDITOR = {
   "Object": "Objet",
 
   // Director Agent tab (design spec section 32)
+  "Describe the shot... ex: \"the camera slowly orbits the character while zooming in on the face\"": "Décrivez le plan… ex : « la caméra tourne lentement autour du personnage en zoomant sur le visage »",
+  "Provider": "Fournisseur",
+  "Loading providers...": "Chargement des fournisseurs…",
+  "No providers found": "Aucun fournisseur trouvé",
   "Model": "Modèle",
   "Loading models...": "Chargement des modèles…",
   "No models found": "Aucun modèle trouvé",

@@ -7,6 +7,7 @@ import {
   modelSelectMarkup,
   planChangesMarkup,
   providerPrivacyText,
+  providerSelectMarkup,
   resolveAgentIntent,
 } from "../../web-src/agent/panel.js";
 import { SETTING_AGENT_BASE_URL, SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER, registerOmniCamLocales } from "../../web-src/settings.js";
@@ -67,6 +68,7 @@ function makeElements() {
     "agent-privacy-note": new FakeElement("agent-privacy-note"),
     "agent-describe": new FakeElement("agent-describe"),
     "agent-plan": new FakeElement("agent-plan"),
+    "agent-provider-select": new FakeElement("agent-provider-select"),
     "agent-model-select": new FakeElement("agent-model-select"),
     "agent-provider-label": new FakeElement("agent-provider-label"),
     "agent-credential-status": new FakeElement("agent-credential-status"),
@@ -175,6 +177,20 @@ test("planChangesMarkup renders one <li> per change", () => {
   assert.match(html, /camera_1/);
 });
 
+test("providerSelectMarkup lists every provider and preselects the configured one", () => {
+  const providers = [
+    { id: "ollama", label: "Ollama / local" },
+    { id: "openai", label: "OpenAI" },
+  ];
+  const html = providerSelectMarkup(providers, "openai");
+  assert.match(html, /<option value="ollama">Ollama \/ local<\/option>/);
+  assert.match(html, /<option value="openai" selected>OpenAI<\/option>/);
+});
+
+test("providerSelectMarkup reports no providers found when the list is empty", () => {
+  assert.match(providerSelectMarkup([], "ollama"), /No providers found/);
+});
+
 test("modelSelectMarkup lists live models and preselects the configured one", () => {
   const html = modelSelectMarkup(["a", "b"], "b");
   assert.match(html, /<option value="a">a<\/option>/);
@@ -249,6 +265,61 @@ test("the model-refresh action re-fetches the live model list", async () => {
   await flush();
   assert.match(elements["agent-model-select"].innerHTML, /m2/);
   panel.dispose();
+});
+
+test("mounting populates the provider picker and preselects the configured provider", async () => {
+  const values = { [SETTING_AGENT_PROVIDER]: "openai" };
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => values[id], set: (id, v) => { values[id] = v; } } } });
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers": () => ok({
+      providers: [
+        { id: "ollama", label: "Ollama / local" },
+        { id: "openai", label: "OpenAI" },
+      ],
+    }),
+    "/majoor/omnicam/agent/v1/providers/openai/models": () => ok({ models: [] }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+  assert.match(elements["agent-provider-select"].innerHTML, /Ollama \/ local/);
+  assert.match(elements["agent-provider-select"].innerHTML, /<option value="openai" selected>OpenAI<\/option>/);
+  panel.dispose();
+  registerOmniCamLocales(null);
+});
+
+test("picking a provider persists it and refreshes credentials and models for the new provider", async () => {
+  const values = { [SETTING_AGENT_PROVIDER]: "ollama" };
+  registerOmniCamLocales({ extensionManager: { setting: { get: (id) => values[id], set: (id, v) => { values[id] = v; } } } });
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers": () => ok({
+      providers: [
+        { id: "ollama", label: "Ollama / local" },
+        { id: "openai", label: "OpenAI" },
+      ],
+    }),
+    "/majoor/omnicam/agent/v1/providers/ollama/models": () => ok({ models: [] }),
+    "/majoor/omnicam/agent/v1/providers/ollama/status": () => ok({ configured: false, source: "none" }),
+    "/majoor/omnicam/agent/v1/providers/openai/models": () => ok({ models: ["gpt-4o-mini"] }),
+    "/majoor/omnicam/agent/v1/providers/openai/status": () => ok({ configured: true, source: "local_store" }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+
+  elements["agent-provider-select"].value = "openai";
+  elements["agent-provider-select"].handlers.get("change")?.({});
+  await flush();
+
+  assert.equal(values[SETTING_AGENT_PROVIDER], "openai");
+  assert.match(elements["agent-model-select"].innerHTML, /gpt-4o-mini/);
+  assert.match(elements["agent-provider-label"].textContent, /OpenAI/);
+  assert.equal(elements["agent-credential-status"].textContent, "Configured");
+
+  panel.dispose();
+  registerOmniCamLocales(null);
 });
 
 test("the describe textarea grows to fit its content on input", async () => {
