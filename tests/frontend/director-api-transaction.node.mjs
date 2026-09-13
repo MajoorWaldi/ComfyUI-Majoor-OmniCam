@@ -305,6 +305,50 @@ test("a locked camera rejects keyframe.upsert with ENTITY_LOCKED", () => {
   assert.equal(result.error.code, "ENTITY_LOCKED");
 });
 
+test("keyframe.upsert with no camera payload warns that the new key reused the existing pose", () => {
+  // The exact, symptomless shape of an Agent "orbit the camera" transaction
+  // that forgot to say where to move: a keyframe genuinely gets created,
+  // but it clones frame 0's pose verbatim and the camera never moves.
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 30 }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.warnings.length, 1);
+  assert.match(result.warnings[0], /no "camera" given/);
+  const camera = ui.state.cameras.find((c) => c.id === "camera_1");
+  const newKey = camera.keyframes.find((k) => k.frame === 30);
+  const baseKey = camera.keyframes.find((k) => k.frame === 0);
+  assert.deepEqual(newKey.camera, baseKey.camera);
+});
+
+test("keyframe.upsert with a camera payload creates a genuinely different pose and warns about nothing", () => {
+  const ui = makeUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 30, camera: { position: [9, 9, 9] } }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.warnings, []);
+  const camera = ui.state.cameras.find((c) => c.id === "camera_1");
+  const newKey = camera.keyframes.find((k) => k.frame === 30);
+  assert.deepEqual(newKey.camera.position, [9, 9, 9]);
+});
+
+test("keyframe.upsert editing an already-existing key never warns, even with no camera payload", () => {
+  const ui = makeUi();
+  const camera = ui.state.cameras.find((c) => c.id === "camera_1");
+  camera.keyframes.push({ frame: 30, camera: { ...camera.keyframes[0].camera, position: [5, 5, 5] }, interpolation: "ease" });
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "keyframe.upsert", cameraId: "camera_1", frame: 30, interpolation: "linear" }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.warnings, []);
+});
+
 test("camera.set_locked and object.set_locked stay usable on a locked entity, and unlocking restores edits", () => {
   const ui = makeUi();
   ui.state.cameras.find((c) => c.id === "camera_1").locked = true;

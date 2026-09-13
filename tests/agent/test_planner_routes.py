@@ -39,10 +39,10 @@ def _reset_state(tmp_path, monkeypatch):
     PLAN_STORE._plans.clear()
 
 
-def _register_session(client_id="client_1"):
+def _register_session(client_id="client_1", owner_id="user_a"):
     return BROKER.register(
         client_id=client_id, node_id="42", label="Director 42", director_api=1,
-        revision=0, operations=(), queries=(),
+        revision=0, operations=(), queries=(), owner_id=owner_id,
     )
 
 
@@ -100,6 +100,18 @@ async def test_plan_route_rejects_an_unknown_session():
         "session_id": "does-not-exist", "instruction": "x", "provider": {"id": "ollama"},
     })
     response = await planner_routes.create_plan(request)
+    assert response.status == 404
+    assert json.loads(response.body)["error"]["code"] == "UNKNOWN_SESSION"
+
+
+@pytest.mark.asyncio
+async def test_plan_route_rejects_a_session_owned_by_another_user():
+    # The request user is monkeypatched to "user_a" -- a session registered
+    # for a different ComfyUI user must be reported exactly like an unknown
+    # session, never a distinguishable "forbidden" (design spec section 13's
+    # owner scoping, extended from plans to the session itself).
+    session = _register_session(owner_id="someone_else")
+    response = await planner_routes.create_plan(_json_request("POST", "/majoor/omnicam/agent/v1/plan", _plan_body(session)))
     assert response.status == 404
     assert json.loads(response.body)["error"]["code"] == "UNKNOWN_SESSION"
 
@@ -229,6 +241,36 @@ async def test_apply_plan_dispatches_once_with_validate_only_false_and_consumes_
     assert len(dispatched) == 1
     assert dispatched[0]["validateOnly"] is False
     assert PLAN_STORE.get(plan.plan_id) is None  # consumed
+
+
+@pytest.mark.asyncio
+async def test_apply_plan_rejects_a_truncated_plan(monkeypatch):
+    # Preview -> Apply is a mandatory safety invariant (design spec Task 7):
+    # the panel disables Apply on a truncated preview, but that is only a UI
+    # convenience -- a direct call to this route must be refused too.
+    dispatched = []
+
+    async def fake_dispatch(session_id, kind, payload):
+        dispatched.append(payload)
+        return {"ok": True, "revision": 10, "applied": 1}
+
+    monkeypatch.setattr(BROKER, "dispatch", fake_dispatch)
+
+    session = _register_session()
+    plan = PLAN_STORE.create(
+        owner_id="user_a", session_id=session.session_id, base_revision=9,
+        transaction={"id": "tx_1", "version": 1, "description": "x", "baseRevision": 9,
+                     "operations": [], "validateOnly": True},
+        preview={"changes": [], "truncated": True},
+    )
+
+    response = await planner_routes.apply_plan(
+        _json_request("POST", "/majoor/omnicam/agent/v1/apply-plan", {"plan_id": plan.plan_id})
+    )
+    assert response.status == 422
+    assert json.loads(response.body)["error"]["code"] == "PLAN_DIFF_TRUNCATED"
+    assert dispatched == []
+    assert PLAN_STORE.get(plan.plan_id) is not None  # never consumed
 
 
 @pytest.mark.asyncio

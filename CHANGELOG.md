@@ -89,6 +89,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *effective* near plane (the supplied `near`, or the canonical default)
   at the API boundary, instead of relying on the state sanitizer to repair
   it downstream.
+- Agent panel: `Agent.Model`/`Agent.BaseUrl` were a single pair shared by
+  every provider, so switching Provider left the previous provider's model
+  id and endpoint override in place (a remote proxy Base URL could
+  silently carry over onto a different provider). They are now scoped per
+  provider, with a one-time migration of any pre-existing value into the
+  provider that was active when it was saved.
+- Agent panel: a fresh install with no model configured now auto-selects
+  and persists the first model the provider actually offers, instead of
+  sending the first Plan request with `model: ""`.
+- `POST /apply-plan` now rejects a truncated plan server-side
+  (`PLAN_DIFF_TRUNCATED`) instead of relying solely on the panel disabling
+  Apply client-side.
+- `AgentSession` is now bound to the ComfyUI user who registered it;
+  `/plan` and `/apply-plan` refuse a session or plan owned by a different
+  user, reported exactly like "unknown" so existence cannot be probed
+  across users.
+- The Agent bridge now awaits the Director API's background viewport
+  resource reconciliation before replying, so a reconciliation warning
+  (design spec Task 11) reaches the external Agent's response instead of
+  only ever landing in a same-process caller's already-returned `result`.
+- `POST /providers/{provider}/test` now returns the failure's actual HTTP
+  status instead of always answering 200 with `ok:false`.
+- Agent provider network guard: outbound provider requests now resolve
+  through a pinned DNS resolver that re-validates every resolved address
+  against the same sensitive-address policy at actual connection time,
+  closing a DNS-rebinding gap the literal-URL check alone could not.
+- Reconstruction cache deletion no longer unloads every ComfyUI-resident
+  model unconditionally: the global VRAM release is skipped while the
+  queue is executing a (possibly unrelated) workflow, and the Clear Cache
+  button now awaits its own job's cancellation before wiping the cache.
+  Cache deletion and the model release now run off the HTTP event loop.
+- Concurrent asset catalog registrations (register/patch/delete/prune, each
+  dispatched into a worker thread by their route handlers) could race each
+  other's read-modify-write and silently drop one caller's row; the whole
+  transaction is now serialized, and the atomic-replace temp file is now
+  unique per call, not just per process.
+- Monitor now wraps an IMAGE-batch playblast at the frame rate the compile
+  actually resolved to, instead of always the generic 24fps default --
+  their duration and the compiled timeline could silently disagree.
+- A disabled sequence edit (`sequence.enabled: false`) no longer leaks its
+  dormant cuts into the compiled MotionScene; `is_multi_shot` and every
+  profile gate built on it now reflect only the edit that was actually
+  recorded.
+- glTF camera import now composes every ancestor's transform (translation/
+  rotation/scale, including animated ancestors) into world space instead of
+  reading only the camera node's own local transform, and decodes a
+  `matrix`-authored node the same as an explicit TRS one.
+- glTF camera import now evaluates each animation channel's own
+  interpolation mode: STEP holds the previous key instead of interpolating,
+  CUBICSPLINE evaluates the Hermite basis through its in/out tangents
+  instead of discarding them, and LINEAR rotation slerps instead of
+  lerping raw quaternion components.
+- Reset Scene now restores the exact snapshot Save Scene last submitted to
+  the server, rather than a fresh read of the live editor state once the
+  save request resolves -- an edit made while a save was in flight no
+  longer gets silently promoted to "the last save".
+- Extractor spike-repair (`apply_spike_actions`) no longer scans backward/
+  forward per marked sample; a long contiguous marked run used to make
+  refinement quadratic in the number of poses. The refine route now also
+  runs off the HTTP event loop.
 
 ## [0.3.1] - 2026-09-10
 

@@ -114,6 +114,20 @@ def test_compile_editor_scene_preserves_multicamera_scene_and_converts_cuts():
     }
 
 
+def test_compile_editor_scene_ignores_cuts_when_the_sequence_is_disabled():
+    # A disabled edit is dormant authoring data: the recorded playblast
+    # follows a single camera, not the edit, so the compiled MotionScene
+    # must not describe a multi-shot edit that was never actually recorded.
+    state = _editor_state()
+    state["sequence"]["enabled"] = False
+    state["playblast_camera_id"] = "wide"
+
+    scene = compile_editor_scene(state)
+
+    assert scene.cuts == []
+    assert scene.is_multi_shot is False
+
+
 def test_compile_editor_scene_synthesizes_legacy_top_level_camera():
     scene = compile_editor_scene(
         {

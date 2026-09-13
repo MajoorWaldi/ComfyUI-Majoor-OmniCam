@@ -9,6 +9,7 @@ slider can be dragged and the track updates without re-running TRACK.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -85,7 +86,13 @@ def refine_from_raw(body: Any) -> dict[str, Any]:
 async def refine_route(request: web.Request) -> web.Response:
     body = await read_bounded_json_object(request, max_bytes=MAX_REFINE_BYTES, allow_empty=False)
     try:
-        return web.json_response(refine_from_raw(body))
+        # Bounded to MAX_REFINE_BYTES and now O(n) rather than the quadratic
+        # spike-repair it used to be, but a long clip's full filter/smooth/
+        # simplify pipeline is still real CPU work with no business stalling
+        # every other request/WebSocket message on the event loop for its
+        # duration -- a slider drag should not delay someone else's traffic.
+        result = await asyncio.to_thread(refine_from_raw, body)
+        return web.json_response(result)
     except RefineRequestError as exc:
         if exc.status == 413:
             raise web.HTTPRequestEntityTooLarge(

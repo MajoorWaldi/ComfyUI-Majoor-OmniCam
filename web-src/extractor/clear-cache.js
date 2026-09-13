@@ -27,8 +27,14 @@ export async function clearExtractorCache(ui) {
   if (!proceed) return false;
 
   // A queued solve (camera track or reconstruct) targets this node; cancel it
-  // before wiping the cache out from under it.
-  if (ui.queuePromptId) void ui.cancelQueuedRun();
+  // and wait for the cancel request to be accepted before wiping the cache
+  // out from under it -- firing it and moving straight on to clearCache()
+  // could reach the server before the job actually stopped. The server's
+  // own model-release guard (release_reconstruction_models) is the real
+  // safety net against *other* workflows, since even an awaited cancel here
+  // only confirms this node's own job was told to stop, not that its VRAM
+  // has been freed yet.
+  if (ui.queuePromptId) await ui.cancelQueuedRun();
 
   try {
     await ui.reconstruction.client.clearCache();

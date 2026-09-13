@@ -23,6 +23,8 @@ from __future__ import annotations
 import gc
 import logging
 
+from ..comfy_compat.execution import execution_busy
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,9 +49,24 @@ def release_reconstruction_models(*, reason: str = "") -> None:
 
     Safe to call from any thread and from any job outcome (done / failed /
     cancelled). Does nothing observable outside ComfyUI.
+
+    ``unload_all_models()`` is global -- it does not know or care that the
+    models it is about to drop belong to a workflow ComfyUI's own queue is
+    executing right now, not to this reconstruction run. Only our own
+    per-run caches (``_clear_provider_caches``) are safe to drop
+    unconditionally; the global unload is skipped while the queue reports a
+    prompt in flight, even though that leaves this run's own VRAM resident
+    a little longer -- better than evicting someone else's live workflow.
     """
     _clear_provider_caches()
     gc.collect()
+    if execution_busy():
+        logger.info(
+            "OmniCam reconstruction cache released, but the VRAM unload was skipped "
+            "because ComfyUI is currently executing a workflow%s",
+            f" ({reason})" if reason else "",
+        )
+        return
     try:
         import comfy.model_management as model_management
 

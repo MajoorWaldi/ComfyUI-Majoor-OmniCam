@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +35,17 @@ _PATCHABLE = frozenset(
     {"name", "kind", "category", "file", "format", "base_size", "fit", "tags",
      "thumbnail", "rig", "animations", "license"}
 )
+
+#: Serializes every user-catalog read-modify-write below within this process.
+# ComfyUI route handlers dispatch register/patch/delete into worker threads,
+# so two calls landing at the same moment previously raced: both read the
+# same rows, one wrote, and the other's write silently overwrote it with a
+# catalog that never saw the first caller's row. Reentrant so patch_asset()
+# can call register_asset() without deadlocking itself. This does not
+# coordinate with a separate process (e.g. the bootstrap CLI running
+# alongside the server) -- only _atomic_replace()'s os.replace() protects
+# against that, which is still safe but not last-write-wins-aware.
+_CATALOG_LOCK = threading.RLock()
 
 
 def _read_rows(path: Path) -> list[dict[str, Any]]:
@@ -70,7 +83,10 @@ def _write_rows(input_root: Path | str | None, rows: list[dict[str, Any]]) -> No
         raise AssetCatalogInvalidError(f"user catalog would exceed {MAX_CATALOG_JSON_BYTES} bytes")
     ensure_library_tree(input_root)
     path = user_catalog_path(input_root)
-    tmp = path.with_suffix(f".{os.getpid()}.json.tmp")
+    # pid alone is not unique: two threads in this same process (route
+    # handlers dispatch register/patch/delete into worker threads) would
+    # otherwise share one temp filename and race each other's write.
+    tmp = path.with_suffix(f".{os.getpid()}.{uuid.uuid4().hex}.json.tmp")
     tmp.write_bytes(payload)
     _atomic_replace(tmp, path)
 
@@ -102,10 +118,11 @@ def register_asset(
 ) -> AssetDefinition:
     """Add or replace a user-catalog row by id. Returns the validated row."""
     validated = validate_asset_definition(definition, source="user")
-    rows = read_user_catalog(input_root)
-    rows = [row for row in rows if str(row.get("id")) != validated.id]
-    rows.append(_row_without_derived(validated))
-    _write_rows(input_root, rows)
+    with _CATALOG_LOCK:
+        rows = read_user_catalog(input_root)
+        rows = [row for row in rows if str(row.get("id")) != validated.id]
+        rows.append(_row_without_derived(validated))
+        _write_rows(input_root, rows)
     return validated
 
 
@@ -117,30 +134,32 @@ def patch_asset(
     unknown = set(patch) - _PATCHABLE
     if unknown:
         raise AssetCatalogInvalidError(f"cannot patch fields: {sorted(unknown)}")
-    catalog = load_catalog(input_root)
-    current = catalog.find(asset_id)
-    if current is None:
-        raise AssetNotFoundError(f"no asset with id {asset_id!r}")
-    merged = _row_without_derived(current)
-    merged.update(patch)
-    merged["id"] = asset_id
-    return register_asset(input_root, merged)
+    with _CATALOG_LOCK:
+        catalog = load_catalog(input_root)
+        current = catalog.find(asset_id)
+        if current is None:
+            raise AssetNotFoundError(f"no asset with id {asset_id!r}")
+        merged = _row_without_derived(current)
+        merged.update(patch)
+        merged["id"] = asset_id
+        return register_asset(input_root, merged)
 
 
 def delete_asset(input_root: Path | str | None, asset_id: str) -> None:
     """Remove ``asset_id`` from the user catalog. A built-in (default/legacy)
     id that has no user row cannot be deleted."""
-    rows = read_user_catalog(input_root)
-    kept = [row for row in rows if str(row.get("id")) != asset_id]
-    if len(kept) == len(rows):
-        catalog = load_catalog(input_root)
-        if catalog.find(asset_id) is None:
-            raise AssetNotFoundError(f"no asset with id {asset_id!r}")
-        raise AssetError(
-            f"asset {asset_id!r} is a built-in and cannot be deleted; register an override instead",
-            code="ASSET_CATALOG_INVALID",
-        )
-    _write_rows(input_root, kept)
+    with _CATALOG_LOCK:
+        rows = read_user_catalog(input_root)
+        kept = [row for row in rows if str(row.get("id")) != asset_id]
+        if len(kept) == len(rows):
+            catalog = load_catalog(input_root)
+            if catalog.find(asset_id) is None:
+                raise AssetNotFoundError(f"no asset with id {asset_id!r}")
+            raise AssetError(
+                f"asset {asset_id!r} is a built-in and cannot be deleted; register an override instead",
+                code="ASSET_CATALOG_INVALID",
+            )
+        _write_rows(input_root, kept)
 
 
 def prune_missing_assets(input_root: Path | str | None) -> list[str]:
@@ -149,22 +168,23 @@ def prune_missing_assets(input_root: Path | str | None) -> list[str]:
     Returns the ids removed. Rows for a built-in kind that legitimately has no
     file (``helper``) are kept. Nothing is written when every row resolves.
     """
-    rows = read_user_catalog(input_root)
-    removed: list[str] = []
-    kept: list[dict[str, Any]] = []
-    for row in rows:
-        relative = str(row.get("file") or "")
-        if str(row.get("kind")) == "helper" and not relative:
-            kept.append(row)
-            continue
-        try:
-            present = bool(relative) and asset_file_path(relative, input_root).is_file()
-        except AssetError:
-            present = False
-        if present:
-            kept.append(row)
-        else:
-            removed.append(str(row.get("id")))
-    if removed:
-        _write_rows(input_root, kept)
-    return removed
+    with _CATALOG_LOCK:
+        rows = read_user_catalog(input_root)
+        removed: list[str] = []
+        kept: list[dict[str, Any]] = []
+        for row in rows:
+            relative = str(row.get("file") or "")
+            if str(row.get("kind")) == "helper" and not relative:
+                kept.append(row)
+                continue
+            try:
+                present = bool(relative) and asset_file_path(relative, input_root).is_file()
+            except AssetError:
+                present = False
+            if present:
+                kept.append(row)
+            else:
+                removed.append(str(row.get("id")))
+        if removed:
+            _write_rows(input_root, kept)
+        return removed

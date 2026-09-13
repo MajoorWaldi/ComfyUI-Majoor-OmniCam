@@ -2,6 +2,8 @@ import pytest
 
 pytest.importorskip("comfy_api.latest")
 
+import torch
+
 from omnicam.core.motion_scene import MotionScene
 from omnicam.monitor.events import (
     MONITOR_PREFLIGHT_EVENT,
@@ -181,6 +183,30 @@ def test_zero_duration_and_fps_inherit_the_connected_shot(all_targets_installed)
 
     assert outs(inherited)[8] == outs(explicit)[8]
     assert outs(inherited)[8] != outs(old_defaults)[8]
+
+
+def test_an_image_batch_playblast_is_wrapped_at_the_resolved_target_fps(all_targets_installed):
+    # A bare IMAGE batch carries no timing of its own -- Monitor must wrap it
+    # at the fps this compile actually resolved to (a 30-fps, two-second
+    # scene here), not as_video()'s generic 24fps default, or the reference
+    # VIDEO's reported duration silently disagrees with target_fps.
+    scene = _scene().to_dict()
+    scene["timeline"] = {"duration_seconds": 2.0, "authoring_fps": 30.0}
+    track = scene["cameras"][0]["track"]
+    track["fps"] = 30
+    track["duration_frames"] = 60
+    images = torch.zeros((60, 64, 64, 3))
+
+    output = MajoorOmniCamMonitor.execute(
+        motion_scene=scene, playblast_video=images, base_prompt="",
+        target_profile="external_reference_video", target_width=832, target_height=480,
+        duration_seconds=0.0, target_fps=0.0,
+    )
+    values = output.outputs if hasattr(output, "outputs") else tuple(output)
+    reference_video = values[1]
+    assert reference_video is not None
+    assert reference_video.get_frame_rate() == 30
+    assert reference_video.get_duration() == pytest.approx(2.0)
 
 
 def test_h3_native_monitor_decodes_all_frames_from_real_videofromfile(tmp_path, all_targets_installed):

@@ -196,8 +196,14 @@ export function executeDirectorTransaction(ui, input) {
   // or "the state changed but I do not see the mesh" is undiagnosable
   // (design spec Task 11). `warnings` is the same array `result.warnings`
   // points to, so a caller holding onto `result` sees this appended even
-  // though it resolves after the synchronous return below.
-  void reconcileRuntimeResources(ui, tx, outcomes).catch((error) => {
+  // though it resolves after the synchronous return below -- this keeps
+  // executeDirectorTransaction() itself synchronous for its many existing
+  // synchronous callers. A caller that instead serializes `result` right
+  // away (the external Agent bridge, replying over HTTP) cannot observe a
+  // later in-place mutation, so it must await the same promise before
+  // serializing: exposed here, non-enumerable so it never leaks into a
+  // JSON.stringify(result) or a shallow {...result} spread.
+  const reconciliation = reconcileRuntimeResources(ui, tx, outcomes).catch((error) => {
     console.warn("OmniCam: resource reconciliation failed", error);
     warnings.push({
       code: "VIEWPORT_RESOURCE_RECONCILE_FAILED",
@@ -205,6 +211,7 @@ export function executeDirectorTransaction(ui, input) {
     });
     ui.setStatus?.("The scene change was committed, but one or more viewport resources could not be refreshed.");
   });
+  Object.defineProperty(result, "_reconciliation", { value: reconciliation, enumerable: false });
 
   return result;
 }

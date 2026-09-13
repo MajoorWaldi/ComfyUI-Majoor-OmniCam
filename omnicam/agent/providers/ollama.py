@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 from .models import ProviderConfig, ProviderResponse
-from .network import NetworkPolicyError, guarded_request
+from .network import NetworkPolicyError, guarded_client_session, guarded_request
 
 DEFAULT_BASE_URL = "http://127.0.0.1:11434"
 
@@ -21,10 +21,8 @@ def _base_url(config: ProviderConfig) -> str:
 
 class OllamaProvider:
     async def list_models(self, config: ProviderConfig, credential: str | None) -> list[str]:
-        import aiohttp
-
         url = f"{_base_url(config)}/api/tags"
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=True, timeout_seconds=config.timeout_seconds,
             )
@@ -34,10 +32,8 @@ class OllamaProvider:
         return [item["name"] for item in payload.get("models", []) if isinstance(item.get("name"), str)]
 
     async def probe(self, config: ProviderConfig, credential: str | None) -> None:
-        import aiohttp
-
         url = f"{_base_url(config)}/api/tags"
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=True, timeout_seconds=config.timeout_seconds,
             )
@@ -47,8 +43,6 @@ class OllamaProvider:
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:
-        import aiohttp
-
         url = f"{_base_url(config)}/api/chat"
         body = {
             "model": config.model,
@@ -59,7 +53,7 @@ class OllamaProvider:
             # fences or conversational prose around the action object.
             "format": "json",
         }
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "POST", url, is_custom_endpoint=True, json_body=body,
                 timeout_seconds=config.timeout_seconds,

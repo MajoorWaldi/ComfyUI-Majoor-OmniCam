@@ -85,6 +85,24 @@ test("clearExtractorCache stops active jobs, wipes disk cache, and resets node s
   assert.deepEqual(ui.result, { raw: null, refined: null });
 });
 
+test("clearExtractorCache waits for cancelQueuedRun to resolve before clearing the server cache", async () => {
+  const ui = makeUi({ queuePromptId: "p1" });
+  let resolveCancel;
+  const cancelPromise = new Promise((resolve) => { resolveCancel = resolve; });
+  ui.cancelQueuedRun = () => { ui.calls.push(["cancelQueuedRun"]); return cancelPromise; };
+
+  const done = withConfirmDialog(true, () => clearExtractorCache(ui));
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.ok(!ui.calls.some((c) => c[0] === "clearCache"), "clearCache must not fire before cancel resolves");
+
+  resolveCancel();
+  await done;
+
+  assert.ok(ui.calls.some((c) => c[0] === "clearCache"));
+});
+
 test("clearExtractorCache skips stopping jobs that were never running", async () => {
   const ui = makeUi(); // no queued run
 

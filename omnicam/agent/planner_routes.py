@@ -85,9 +85,16 @@ async def create_plan(request: web.Request) -> web.Response:
 
         # Fail fast, before spending an LLM call, if the Director session this
         # plan would target is not actually live.
-        BROKER.require_session(session_id)
+        session = BROKER.require_session(session_id)
 
         owner_id = _request_user_id(request)
+        # A session belongs to the ComfyUI user who registered it (see
+        # agent_session_register()) -- another user's request must be
+        # reported exactly like an unknown session, not "forbidden", so a
+        # live session id cannot be probed for existence across users.
+        if session.owner_id != owner_id:
+            raise AgentProtocolError("UNKNOWN_SESSION", "No such OmniCam Agent session", 404)
+
         credential = SECRET_STORE.resolve(request, config.provider_id)
 
         result = await run_planner(
@@ -140,7 +147,18 @@ async def apply_plan(request: web.Request) -> web.Response:
         if plan is None or plan.owner_id != owner_id:
             raise AgentProtocolError("UNKNOWN_PLAN", "No such pending plan (it may have expired)", 404)
 
-        BROKER.require_session(plan.session_id)
+        session = BROKER.require_session(plan.session_id)
+        if session.owner_id != owner_id:
+            raise AgentProtocolError("UNKNOWN_PLAN", "No such pending plan (it may have expired)", 404)
+
+        if plan.preview.get("truncated"):
+            # Preview -> Apply is a mandatory safety invariant (design spec
+            # Task 7): the panel already disables Apply on a truncated
+            # preview, but that is a UI convenience, not the enforcement --
+            # a direct call to this route must be refused server-side too.
+            raise AgentProtocolError(
+                "PLAN_DIFF_TRUNCATED", "Preview contains too many changes to apply safely.", 422
+            )
 
         apply_transaction = {**plan.transaction, "validateOnly": False}
         result = await BROKER.dispatch(plan.session_id, "transaction", apply_transaction)

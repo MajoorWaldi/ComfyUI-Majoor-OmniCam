@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from .models import ProviderConfig, ProviderResponse
-from .network import NetworkPolicyError, endpoint_is_custom, guarded_request
+from .network import NetworkPolicyError, endpoint_is_custom, guarded_client_session, guarded_request
 
 DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
@@ -39,11 +39,9 @@ def _extract_text(payload: dict) -> str:
 
 class OpenAIProvider:
     async def list_models(self, config: ProviderConfig, credential: str | None) -> list[str]:
-        import aiohttp
-
         url = f"{_base_url(config)}/models"
         is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
@@ -54,11 +52,9 @@ class OpenAIProvider:
         return [item["id"] for item in payload.get("data", []) if isinstance(item.get("id"), str)]
 
     async def probe(self, config: ProviderConfig, credential: str | None) -> None:
-        import aiohttp
-
         url = f"{_base_url(config)}/models"
         is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
@@ -69,8 +65,6 @@ class OpenAIProvider:
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:
-        import aiohttp
-
         url = f"{_base_url(config)}/responses"
         body = {
             "model": config.model,
@@ -78,7 +72,7 @@ class OpenAIProvider:
             "max_output_tokens": config.max_output_tokens,
         }
         is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "POST", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 json_body=body, timeout_seconds=config.timeout_seconds,
