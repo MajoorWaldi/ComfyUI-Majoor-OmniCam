@@ -7,7 +7,7 @@ from typing import Any
 from .editor_state import EDITOR_STATE_TYPE, editor_state_to_track
 from .migrations import EDITOR_STATE_SCHEMA, migrate_payload
 from .motion_scene import MotionScene
-from .sequence import SEQUENCE_TARGET, resolve_cuts
+from .sequence import SEQUENCE_TARGET, resolve_cuts, sequence_enabled
 from .track import OmniCamTrack
 from .validation import validate_editor_state
 
@@ -42,6 +42,12 @@ def compile_editor_scene(payload: dict[str, Any]) -> MotionScene:
     )
     fps = float(state["fps"])
     duration_seconds = float(state["duration_frames"]) / fps
+    # A disabled edit (sequence.enabled: false) is dormant authoring data --
+    # the recorded playblast follows a single camera, not the edit, so the
+    # *effective*, compiled MotionScene must describe that same single shot.
+    # Emitting resolve_cuts() unconditionally here made MotionScene.is_multi_shot
+    # (and profile gates built on it) see a multi-shot edit that was never
+    # actually recorded or intended to compile.
     cuts = [
         {
             "camera_id": cut["camera_id"],
@@ -49,7 +55,7 @@ def compile_editor_scene(payload: dict[str, Any]) -> MotionScene:
             "end_time_seconds": float(cut["end"] + 1) / fps,
         }
         for cut in resolve_cuts(state)
-    ]
+    ] if sequence_enabled(state) else []
 
     scene_payload = {
         "version": 1,

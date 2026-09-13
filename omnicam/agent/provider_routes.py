@@ -136,7 +136,9 @@ async def test_provider(request: web.Request) -> web.Response:
         return _error_response(error)
     except Exception as error:  # noqa: BLE001 - redacted via public_provider_error, never str(error)
         public = public_provider_error(error)
-        return web.json_response({"ok": False, "error": {"code": public.code, "message": public.message}})
+        return web.json_response(
+            {"ok": False, "error": {"code": public.code, "message": public.message}}, status=public.status
+        )
 
 
 async def list_provider_models(request: web.Request) -> web.Response:

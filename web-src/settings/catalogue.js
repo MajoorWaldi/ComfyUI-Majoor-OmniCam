@@ -105,6 +105,16 @@ export const SETTING_MONITOR_PROFILE = "MajoorOmniCam.Monitor.DefaultProfile";
 // frontend version (1.48.7 through master).
 export const SETTING_AGENT_ENABLED = "MajoorOmniCam.Agent.Enabled";
 export const SETTING_AGENT_PROVIDER = "MajoorOmniCam.Agent.Provider";
+// MajoorOmniCam.Agent.Model / .BaseUrl were a single pair shared by every
+// provider: switching Provider left the previous provider's model id and
+// endpoint override in place, so an OpenAI proxy Base URL could silently
+// carry over onto Anthropic. Model/BaseUrl are now scoped per provider (see
+// AGENT_PROVIDERS / agentModelSettingId() / agentBaseUrlSettingId() below).
+// These two ids are kept only so settings.js can migrate a value left over
+// from before that split into the provider that was active when it was
+// saved; once migrated they are cleared and, like
+// MajoorOmniCam.Agent.PreviewBeforeApply before them, are simply inert if
+// anything is ever written back into them again.
 export const SETTING_AGENT_MODEL = "MajoorOmniCam.Agent.Model";
 export const SETTING_AGENT_BASE_URL = "MajoorOmniCam.Agent.BaseUrl";
 export const SETTING_AGENT_MAX_OUTPUT_TOKENS = "MajoorOmniCam.Agent.MaxOutputTokens";
@@ -115,6 +125,33 @@ export const SETTING_AGENT_MAX_STEPS = "MajoorOmniCam.Agent.MaxPlannerSteps";
 // still persisted from an older version simply has an inert, unregistered
 // setting value sitting in their ComfyUI storage -- harmless to leave there.
 export const SETTING_AGENT_TIMEOUT = "MajoorOmniCam.Agent.RequestTimeoutSeconds";
+
+/** Every Agent provider, and the distinct settings-category leaf segment
+ * used for its own Model/Base URL pair (the settings dialog collapses
+ * entries whose full category path -- including this last segment --
+ * matches another entry, so each provider needs its own). */
+export const AGENT_PROVIDERS = [
+  { id: "ollama", settingKey: "Ollama", label: "Ollama" },
+  { id: "openai", settingKey: "OpenAI", label: "OpenAI" },
+  { id: "openai_compatible", settingKey: "OpenAICompatible", label: "OpenAI-compatible" },
+  { id: "anthropic", settingKey: "Anthropic", label: "Anthropic" },
+];
+
+function agentProvider(providerId) {
+  return AGENT_PROVIDERS.find((provider) => provider.id === providerId) || AGENT_PROVIDERS[0];
+}
+
+/** The Model setting id scoped to one provider -- e.g.
+ * "MajoorOmniCam.Agent.Anthropic.Model" -- so switching Agent.Provider never
+ * reuses another provider's model id. */
+export function agentModelSettingId(providerId) {
+  return `MajoorOmniCam.Agent.${agentProvider(providerId).settingKey}.Model`;
+}
+
+/** The Base URL setting id scoped to one provider, for the same reason. */
+export function agentBaseUrlSettingId(providerId) {
+  return `MajoorOmniCam.Agent.${agentProvider(providerId).settingKey}.BaseUrl`;
+}
 
 /** Shorthand for the many on/off preferences, which are otherwise identical. */
 function toggle(id, group, name, tooltip, defaultValue) {
@@ -410,8 +447,12 @@ export function buildOmniCamSettings({
         { text: "OpenAI-compatible / local", value: "openai_compatible" },
         { text: "Anthropic", value: "anthropic" },
       ], "ollama"),
-    text(SETTING_AGENT_MODEL, "Agent", "Model", "Model id used by the Agent planner."),
-    text(SETTING_AGENT_BASE_URL, "Agent", "Base URL", "Optional provider endpoint override."),
+    ...AGENT_PROVIDERS.flatMap((provider) => [
+      text(agentModelSettingId(provider.id), "Agent", `${provider.label} model`,
+        `Model id used by the Agent planner when Provider is set to ${provider.label}.`),
+      text(agentBaseUrlSettingId(provider.id), "Agent", `${provider.label} base URL`,
+        `Optional endpoint override used when Provider is set to ${provider.label}.`),
+    ]),
     slider(SETTING_AGENT_MAX_OUTPUT_TOKENS, "Agent", "Max output tokens",
       "Maximum provider output budget.", { min: 512, max: 32768, step: 512 }, 4096),
     slider(SETTING_AGENT_MAX_STEPS, "Agent", "Max planner steps",

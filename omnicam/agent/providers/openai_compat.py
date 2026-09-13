@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 from .models import ProviderConfig, ProviderResponse
-from .network import NetworkPolicyError, guarded_request
+from .network import NetworkPolicyError, guarded_client_session, guarded_request
 
 DEFAULT_BASE_URL = "http://127.0.0.1:1234/v1"
 
@@ -27,11 +27,9 @@ def _headers(credential: str | None) -> dict[str, str]:
 
 class OpenAICompatibleProvider:
     async def list_models(self, config: ProviderConfig, credential: str | None) -> list[str]:
-        import aiohttp
-
         url = f"{_base_url(config)}/models"
         try:
-            async with aiohttp.ClientSession() as session:
+            async with guarded_client_session() as session:
                 response = await guarded_request(
                     session, "GET", url, is_custom_endpoint=True, headers=_headers(credential),
                     timeout_seconds=config.timeout_seconds,
@@ -48,10 +46,8 @@ class OpenAICompatibleProvider:
         into a false "reachable" -- a compatible server that simply doesn't
         implement /models (404/405) is still genuinely reachable, but a
         connection error, timeout, or blocked policy target is not."""
-        import aiohttp
-
         url = f"{_base_url(config)}/models"
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=True, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
@@ -64,15 +60,13 @@ class OpenAICompatibleProvider:
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:
-        import aiohttp
-
         url = f"{_base_url(config)}/chat/completions"
         body = {
             "model": config.model,
             "messages": [{"role": "user", "content": request}],
             "max_tokens": config.max_output_tokens,
         }
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "POST", url, is_custom_endpoint=True, headers=_headers(credential),
                 json_body=body, timeout_seconds=config.timeout_seconds,

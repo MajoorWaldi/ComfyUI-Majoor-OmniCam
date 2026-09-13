@@ -13,6 +13,7 @@ server is read-only or cache-only:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -71,9 +72,14 @@ def handle_delete_cache_entry(fingerprint: str, input_root: Any = None) -> dict[
     }
 
 
-def _respond(handler: Any, *args: Any, **kwargs: Any) -> web.Response:
+async def _respond(handler: Any, *args: Any, **kwargs: Any) -> web.Response:
+    # Both handlers walk/delete a disk subtree and may call into
+    # comfy.model_management -- real filesystem and (occasionally) CUDA work
+    # that has no business running inline on the HTTP event loop, where it
+    # would stall every other request/WebSocket message for its duration.
     try:
-        return web.json_response(handler(*args, **kwargs))
+        result = await asyncio.to_thread(handler, *args, **kwargs)
+        return web.json_response(result)
     except ReconstructionApiError as exc:
         return web.json_response(exc.to_dict(), status=exc.status)
 
@@ -87,11 +93,11 @@ def create_reconstruction_routes_table() -> web.RouteTableDef:
 
     @routes.delete(CACHE_PATH)
     async def clear_cache_route(request: web.Request) -> web.Response:
-        return _respond(handle_clear_cache)
+        return await _respond(handle_clear_cache)
 
     @routes.delete(CACHE_PATH + "/{fingerprint}")
     async def delete_cache_entry_route(request: web.Request) -> web.Response:
-        return _respond(handle_delete_cache_entry, request.match_info["fingerprint"])
+        return await _respond(handle_delete_cache_entry, request.match_info["fingerprint"])
 
     return routes
 

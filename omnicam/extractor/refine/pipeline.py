@@ -57,11 +57,29 @@ def apply_spike_actions(
         if actions.get(int(pose.source_frame)) in {"interpolate", "exclude"}
     }
 
+    # Precompute the nearest unmarked neighbour on each side in one forward
+    # and one backward pass. The previous per-index backward/forward scan
+    # was O(n) per marked sample, so a long contiguous marked run (a real
+    # spike, or a bad tracking segment) made this whole function quadratic.
+    count = len(working)
+    nearest_before: list[int | None] = [None] * count
+    last_unmarked: int | None = None
+    for i in range(count):
+        nearest_before[i] = last_unmarked
+        if i not in marked:
+            last_unmarked = i
+    nearest_after: list[int | None] = [None] * count
+    next_unmarked: int | None = None
+    for i in range(count - 1, -1, -1):
+        nearest_after[i] = next_unmarked
+        if i not in marked:
+            next_unmarked = i
+
     for index, pose in enumerate(working):
         if actions.get(int(pose.source_frame)) != "interpolate":
             continue
-        before = next((i for i in range(index - 1, -1, -1) if i not in marked), None)
-        after = next((i for i in range(index + 1, len(working)) if i not in marked), None)
+        before = nearest_before[index]
+        after = nearest_after[index]
         if before is None and after is None:
             continue
         if before is None or after is None:

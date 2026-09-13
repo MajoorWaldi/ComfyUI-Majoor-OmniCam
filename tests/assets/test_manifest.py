@@ -68,3 +68,32 @@ def test_delete_builtin_is_refused_delete_ghost_is_404(tmp_path):
 def test_write_rejects_duplicate_ids(tmp_path):
     with pytest.raises(AssetCatalogInvalidError):
         manifest._write_rows(tmp_path, [dict(_ROW), dict(_ROW)])
+
+
+def test_concurrent_registrations_of_distinct_ids_both_survive(tmp_path):
+    # Route handlers dispatch register/patch/delete into worker threads --
+    # two simultaneous registrations of distinct ids must not race each
+    # other's read-modify-write and silently drop one of them.
+    import threading
+
+    barrier = threading.Barrier(2)
+    errors = []
+
+    def register(row):
+        barrier.wait(timeout=5)
+        try:
+            manifest.register_asset(tmp_path, dict(row))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    row_a = {"id": "omnicam.prop.widget_a", "name": "A", "kind": "prop", "file": "props/a.glb"}
+    row_b = {"id": "omnicam.prop.widget_b", "name": "B", "kind": "prop", "file": "props/b.glb"}
+    threads = [threading.Thread(target=register, args=(row,)) for row in (row_a, row_b)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+
+    assert errors == []
+    ids = {row["id"] for row in manifest.read_user_catalog(tmp_path)}
+    assert ids == {"omnicam.prop.widget_a", "omnicam.prop.widget_b"}

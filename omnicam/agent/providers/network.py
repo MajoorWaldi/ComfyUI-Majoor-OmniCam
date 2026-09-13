@@ -1,7 +1,10 @@
 """SSRF-hardened HTTP guard shared by every provider adapter (design spec
 section 12): URL scheme/shape policy, a remote-custom-host allowlist gate,
 no redirects, and bounded response reading. Every adapter's HTTP call must
-go through ``guarded_request`` rather than calling aiohttp directly.
+go through ``guarded_request`` rather than calling aiohttp directly, and
+every session it calls it with must come from ``guarded_client_session()``
+rather than a bare ``aiohttp.ClientSession()`` -- that is what pins DNS
+resolution against ``_is_sensitive_address()`` at actual connection time.
 """
 
 from __future__ import annotations
@@ -43,11 +46,10 @@ def _is_sensitive_address(host: str) -> bool:
     Task 10) -- unlike the RFC1918 LAN allowance, there is no legitimate
     provider use case this would ever break.
 
-    Only literal IP addresses are checked, not DNS names: this module does
-    not resolve hostnames itself (aiohttp does, at request time), so it
-    cannot detect a hostname that only resolves to a sensitive address
-    without pinning the connection to that resolved address -- doing so
-    would be a false claim of protection this function does not provide."""
+    Only literal IP addresses are checked here, not DNS names -- a hostname
+    that merely resolves to a sensitive address (DNS rebinding) is instead
+    caught at actual connection time by _PinnedResolver, which every
+    provider adapter goes through via guarded_client_session()."""
     try:
         addr = ipaddress.ip_address(host)
     except ValueError:
@@ -128,6 +130,50 @@ def validate_provider_url(url: str, *, is_custom_endpoint: bool) -> str:
 
 def clamp_timeout_seconds(requested: int) -> float:
     return max(1.0, min(float(requested), MAX_TOTAL_TIMEOUT_SECONDS))
+
+
+class _PinnedResolver:
+    """Wraps aiohttp's normal DNS resolver and rejects any resolved address
+    ``_is_sensitive_address()`` would reject.
+
+    ``validate_provider_url()`` only ever sees the literal host from the
+    URL -- a hostname that merely *resolves* to a sensitive address (DNS
+    rebinding: a name that answers something safe at validation time and
+    169.254.169.254 a moment later) sails straight through it. This
+    resolver closes that gap by validating the exact addresses aiohttp is
+    about to connect to, at connection time, with nothing in between for a
+    rebinding attacker to race.
+    """
+
+    def __init__(self) -> None:
+        from aiohttp.resolver import DefaultResolver
+
+        self._inner = DefaultResolver()
+
+    async def resolve(self, host, port=0, family=0):
+        results = await self._inner.resolve(host, port, family=family)
+        for result in results:
+            if _is_sensitive_address(result["host"]):
+                raise NetworkPolicyError(
+                    "SENSITIVE_TARGET_BLOCKED",
+                    "This destination resolves to a blocked address",
+                )
+        return results
+
+    async def close(self) -> None:
+        await self._inner.close()
+
+
+def guarded_client_session():
+    """An ``aiohttp.ClientSession`` whose connector resolves through
+    ``_PinnedResolver`` -- use this instead of a bare
+    ``aiohttp.ClientSession()`` everywhere a provider adapter makes an
+    outbound request, so DNS rebinding is caught at the actual connection,
+    not just the literal-IP case ``validate_provider_url()`` already
+    covers."""
+    import aiohttp
+
+    return aiohttp.ClientSession(connector=aiohttp.TCPConnector(resolver=_PinnedResolver()))
 
 
 @dataclass(frozen=True, slots=True)

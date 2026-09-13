@@ -223,6 +223,37 @@ def test_spike_actions_never_touch_the_raw_list():
     assert poses[5].position == [0.5, 1.0, 2.0 - 0.5]
 
 
+def test_interpolate_bridges_a_long_contiguous_run_in_roughly_linear_time():
+    # The nearest-unmarked-neighbour lookup used to be a per-index backward/
+    # forward scan, making a long contiguous marked run quadratic. Correctness
+    # (bridged from the clean frames outside the run, not from each other)
+    # matters more here than the timing, which is a coarse smoke check that
+    # doubling the run size does not roughly quadruple the time.
+    import time
+
+    def timed_run(count):
+        poses = raw_poses(count=count + 2)
+        marked_range = range(1, count + 1)
+        actions = {index: "interpolate" for index in marked_range}
+        start = time.perf_counter()
+        fixed = apply_spike_actions(poses, actions)
+        elapsed = time.perf_counter() - start
+        # The untouched samples lie exactly on a straight line, so bridging
+        # from the two clean endpoints reproduces each original position
+        # exactly -- this is a smoke check on top of the timing, not the
+        # primary correctness test (that is test_interpolate_bridges_a_run_of_bad_frames).
+        for index in marked_range:
+            assert fixed[index].position == pytest.approx(poses[index].position, abs=1e-6)
+        return elapsed
+
+    timed_run(200)  # warm up interpreter caches before timing
+    small = timed_run(400)
+    large = timed_run(3200)  # 8x the marked run
+    # A quadratic implementation would take roughly 64x as long; a linear one
+    # roughly 8x. Generous slack keeps this robust on a loaded CI box.
+    assert large < small * 30 + 0.05
+
+
 # ---------------------------------------------------------------------------
 # Global alignment
 # ---------------------------------------------------------------------------

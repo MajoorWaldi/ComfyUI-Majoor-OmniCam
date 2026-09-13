@@ -136,6 +136,42 @@ test("a transaction request is forwarded to ui.directorApi.execute", async () =>
   bridge.dispose();
 });
 
+test("a transaction reply waits for a pending resource-reconciliation warning before posting", async () => {
+  // executeDirectorTransaction() returns synchronously while its resource
+  // reconciliation keeps running in the background (see transaction.js);
+  // the Agent bridge replies over HTTP immediately, so if it did not await
+  // that promise first, a warning pushed after the return would never make
+  // it into the JSON already sent to /reply.
+  let resolveReconciliation;
+  const reconciliation = new Promise((resolve) => { resolveReconciliation = resolve; });
+  const warnings = [];
+  const { api, bridge } = await registeredBridge({
+    directorApi: {
+      execute: (tx) => {
+        const result = { ok: true, version: 1, revision: 0, applied: tx.operations.length, warnings };
+        Object.defineProperty(result, "_reconciliation", { value: reconciliation, enumerable: false });
+        return result;
+      },
+    },
+  });
+
+  api.dispatch(
+    AGENT_EVENT,
+    baseDetail({ kind: "transaction", payload: { baseRevision: 0, operations: [{ type: "camera.set_active", cameraId: "camera_1" }] } }),
+  );
+  await flush();
+  assert.equal(api.calls.some((c) => c.url === AGENT_ROUTES.reply), false);
+
+  warnings.push({ code: "VIEWPORT_RESOURCE_RECONCILE_FAILED", message: "x" });
+  resolveReconciliation();
+  await flush();
+
+  const reply = api.calls.find((c) => c.url === AGENT_ROUTES.reply);
+  assert.ok(reply);
+  assert.deepEqual(reply.body.result.warnings, [{ code: "VIEWPORT_RESOURCE_RECONCILE_FAILED", message: "x" }]);
+  bridge.dispose();
+});
+
 test("a transaction missing baseRevision is rejected before reaching directorApi.execute", async () => {
   let executed = false;
   const { api, bridge } = await registeredBridge({

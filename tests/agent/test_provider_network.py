@@ -7,7 +7,9 @@ import pytest
 from omnicam.agent.providers.network import (
     MAX_RESPONSE_BYTES,
     NetworkPolicyError,
+    _PinnedResolver,
     endpoint_is_custom,
+    guarded_client_session,
     guarded_request,
     validate_provider_url,
 )
@@ -183,6 +185,44 @@ class _FakeSession:
     def request(self, method, url, **kwargs):
         self.calls.append((method, url, kwargs))
         return self._response
+
+
+class _FakeInnerResolver:
+    def __init__(self, results):
+        self._results = results
+
+    async def resolve(self, host, port=0, family=0):
+        return self._results
+
+    async def close(self):
+        pass
+
+
+@pytest.mark.asyncio
+async def test_pinned_resolver_blocks_a_hostname_that_resolves_to_a_sensitive_address():
+    # DNS rebinding: validate_provider_url() only ever sees the literal
+    # hostname, never what it resolves to -- this is the layer that closes
+    # that gap, at the exact moment aiohttp would otherwise connect.
+    resolver = _PinnedResolver()
+    resolver._inner = _FakeInnerResolver([{"hostname": "rebind.example.test", "host": "169.254.169.254", "port": 80}])
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        await resolver.resolve("rebind.example.test", 80)
+    assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
+
+
+@pytest.mark.asyncio
+async def test_pinned_resolver_passes_through_a_safe_address():
+    resolver = _PinnedResolver()
+    resolver._inner = _FakeInnerResolver([{"hostname": "api.example.test", "host": "93.184.216.34", "port": 443}])
+    results = await resolver.resolve("api.example.test", 443)
+    assert results[0]["host"] == "93.184.216.34"
+
+
+@pytest.mark.asyncio
+async def test_guarded_client_session_uses_a_pinned_resolver():
+    pytest.importorskip("aiohttp")
+    async with guarded_client_session() as session:
+        assert isinstance(session.connector._resolver, _PinnedResolver)
 
 
 @pytest.mark.asyncio

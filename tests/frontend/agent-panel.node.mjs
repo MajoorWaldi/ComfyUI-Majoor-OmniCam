@@ -10,7 +10,9 @@ import {
   providerSelectMarkup,
   resolveAgentIntent,
 } from "../../web-src/agent/panel.js";
-import { SETTING_AGENT_BASE_URL, SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER, registerOmniCamLocales } from "../../web-src/settings.js";
+import {
+  SETTING_AGENT_BASE_URL, SETTING_AGENT_PROVIDER, agentModelSettingId, registerOmniCamLocales,
+} from "../../web-src/settings.js";
 
 class FakeElement {
   constructor(role) {
@@ -240,8 +242,31 @@ test("picking a model persists it and updates the provider label", async () => {
 
   elements["agent-model-select"].value = "gemma4:26b";
   elements["agent-model-select"].handlers.get("change")?.({});
-  assert.equal(values[SETTING_AGENT_MODEL], "gemma4:26b");
+  assert.equal(values[agentModelSettingId("ollama")], "gemma4:26b");
   assert.match(elements["agent-provider-label"].textContent, /gemma4:26b/);
+
+  panel.dispose();
+  registerOmniCamLocales(null);
+});
+
+test("a fresh install with no model configured auto-selects and persists the first discovered model", async () => {
+  const values = {};
+  registerOmniCamLocales({
+    extensionManager: {
+      setting: { get: (id) => values[id], set: (id, value) => { values[id] = value; } },
+    },
+  });
+  const elements = makeElements();
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/providers/ollama/models": () => ok({ models: ["qwen3.8:latest", "gemma4:26b"] }),
+  });
+  const ui = { root: makeRoot(elements), api, agentBridge: { sessionId: "sess_1" } };
+  const panel = createDirectorAgentPanel(ui);
+  await flush();
+
+  assert.equal(values[agentModelSettingId("ollama")], "qwen3.8:latest");
+  assert.match(elements["agent-model-select"].innerHTML, /<option value="qwen3\.8:latest" selected>/);
+  assert.match(elements["agent-provider-label"].textContent, /qwen3\.8:latest/);
 
   panel.dispose();
   registerOmniCamLocales(null);

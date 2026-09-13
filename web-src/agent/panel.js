@@ -11,7 +11,9 @@
 // production chunk.
 
 import { t } from "../i18n.js";
-import { SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER, agentSettings, writeSetting } from "../settings.js";
+import {
+  SETTING_AGENT_PROVIDER, agentModelSettingId, agentSettings, writeSetting,
+} from "../settings.js";
 import { applyPlan, requestPlan } from "./plan-client.js";
 import {
   deleteProviderCredential,
@@ -64,7 +66,7 @@ export function isLoopbackBaseUrl(url) {
   }
   return (
     hostname === "127.0.0.1" || hostname === "localhost" ||
-    hostname === "::1" || hostname === "[::1]" || hostname === "0.0.0.0"
+    hostname === "::1" || hostname === "[::1]"
   );
 }
 
@@ -208,7 +210,17 @@ export function createDirectorAgentPanel(ui, options = {}) {
     try {
       const models = await listProviderModels(api, settings.provider, { base_url: settings.baseUrl });
       if (disposed) return;
-      modelSelect.innerHTML = modelSelectMarkup(models, settings.model);
+      // A fresh install (or a provider that has never had a model picked)
+      // has no configured model at all -- persist the first one the
+      // provider actually offers instead of leaving the request that
+      // generatePreview() would send with model: "".
+      let selected = settings.model;
+      if (!selected && models.length) {
+        selected = models[0];
+        writeSetting(agentModelSettingId(settings.provider), selected);
+      }
+      modelSelect.innerHTML = modelSelectMarkup(models, selected);
+      render();
     } catch {
       if (disposed) return;
       modelSelect.innerHTML = modelSelectMarkup([], settings.model);
@@ -219,7 +231,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
 
   function onModelChange() {
     if (!modelSelect || !modelSelect.value) return;
-    writeSetting(SETTING_AGENT_MODEL, modelSelect.value);
+    writeSetting(agentModelSettingId(agentSettings().provider), modelSelect.value);
     render();
   }
 

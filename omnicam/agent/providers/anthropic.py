@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 
 from .models import ProviderConfig, ProviderResponse
-from .network import NetworkPolicyError, endpoint_is_custom, guarded_request
+from .network import NetworkPolicyError, endpoint_is_custom, guarded_client_session, guarded_request
 
 DEFAULT_BASE_URL = "https://api.anthropic.com"
 ANTHROPIC_VERSION = "2023-06-01"
@@ -29,11 +29,9 @@ def _headers(credential: str | None) -> dict[str, str]:
 
 class AnthropicProvider:
     async def list_models(self, config: ProviderConfig, credential: str | None) -> list[str]:
-        import aiohttp
-
         url = f"{_base_url(config)}/v1/models"
         is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
@@ -44,11 +42,9 @@ class AnthropicProvider:
         return [item["id"] for item in payload.get("data", []) if isinstance(item.get("id"), str)]
 
     async def probe(self, config: ProviderConfig, credential: str | None) -> None:
-        import aiohttp
-
         url = f"{_base_url(config)}/v1/models"
         is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "GET", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 timeout_seconds=config.timeout_seconds,
@@ -59,8 +55,6 @@ class AnthropicProvider:
     async def complete(
         self, request: str, config: ProviderConfig, credential: str | None
     ) -> ProviderResponse:
-        import aiohttp
-
         url = f"{_base_url(config)}/v1/messages"
         body = {
             "model": config.model,
@@ -68,7 +62,7 @@ class AnthropicProvider:
             "messages": [{"role": "user", "content": request}],
         }
         is_custom = endpoint_is_custom(config.base_url, DEFAULT_BASE_URL)
-        async with aiohttp.ClientSession() as session:
+        async with guarded_client_session() as session:
             response = await guarded_request(
                 session, "POST", url, is_custom_endpoint=is_custom, headers=_headers(credential),
                 json_body=body, timeout_seconds=config.timeout_seconds,

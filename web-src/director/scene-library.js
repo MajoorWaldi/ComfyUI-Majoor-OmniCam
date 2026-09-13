@@ -94,19 +94,29 @@ export async function saveScene(ui) {
   } catch {
     state = ui.state;
   }
+  // Freeze the exact snapshot being submitted right now, deep-cloned so a
+  // later edit to the live, mutable ui.state cannot reach back into it. The
+  // request below is awaited, so the editor keeps running while it is in
+  // flight -- Reset Scene must restore *this* snapshot afterward, not
+  // whatever ui.state happens to look like once the response comes back
+  // (an in-flight edit was never actually persisted to disk).
+  const snapshot = JSON.parse(JSON.stringify(state));
   ui.setStatus?.(t("Saving scene…"));
   try {
     const response = await fetchApi(ui, SCENES_ROUTE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, state }),
+      body: JSON.stringify({ name, state: snapshot }),
     });
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
     ui.sceneName = data.name || name;
     if (ui.state) ui.state.metadata = { ...ui.state.metadata, scene_name: ui.sceneName };
-    ui.serialize?.();
-    ui.sceneBaseline = ui.stateWidget?.value ?? JSON.stringify(state);
+    // Only the naming metadata is allowed to catch up to the server's
+    // (possibly slugified) name; every other field stays exactly the
+    // submitted snapshot, not a fresh read of ui.state.
+    snapshot.metadata = { ...(snapshot.metadata || {}), scene_name: ui.sceneName };
+    ui.sceneBaseline = JSON.stringify(snapshot);
     ui.setStatus?.(t("Scene saved: {name}").replace("{name}", ui.sceneName));
   } catch (error) {
     console.error("[OmniCam] scene save failed", error);

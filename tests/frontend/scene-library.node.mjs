@@ -104,6 +104,42 @@ test("saveScene posts name + state and remembers the returned name as the baseli
   assert.equal(JSON.parse(ui.sceneBaseline).metadata.scene_name, "old");
 });
 
+test("saveScene's baseline is the exact submitted snapshot, not a re-read of ui.state after the request resolves", async () => {
+  // Save sends a snapshot and awaits the HTTP response; an edit made to the
+  // editor while that request is in flight was never actually persisted to
+  // disk, so it must stay dirty -- Reset Scene must not silently adopt it.
+  const { ui, calls } = makeUi();
+  ui.state.metadata = { scene_name: "old" };
+  ui.state.value = "saved";
+
+  let resolvePost;
+  const postPromise = new Promise((resolve) => { resolvePost = resolve; });
+  const originalFetch = ui.api.fetchApi;
+  ui.api.fetchApi = async (path, options = {}) => {
+    if (options.method === "POST") {
+      calls.fetch.push({ path, options });
+      const body = JSON.parse(options.body);
+      await postPromise;
+      return { ok: true, json: async () => ({ slug: "saved-slug", name: body.name, size: 10 }) };
+    }
+    return originalFetch(path, options);
+  };
+
+  const done = saveScene(ui);
+  for (let i = 0; i < 50 && !calls.fetch.some((c) => c.options.method === "POST"); i += 1) {
+    await Promise.resolve();
+  }
+  assert.ok(calls.fetch.some((c) => c.options.method === "POST"), "the POST must have been dispatched");
+
+  // Edit the editor state while the save request is still in flight.
+  ui.state.value = "unsaved edit during request";
+
+  resolvePost();
+  await done;
+
+  assert.equal(JSON.parse(ui.sceneBaseline).value, "saved");
+});
+
 test("resetScene restores the captured baseline", async () => {
   const { ui, calls } = makeUi();
   ui.sceneBaseline = JSON.stringify({ ...defaultState(), fps: 12, duration_frames: 60, metadata: { scene_name: "base" } });

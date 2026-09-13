@@ -10,7 +10,7 @@ from omnicam.core.camera_math import euler_from_quaternion, quaternion_from_eule
 from omnicam.core.track import OmniCamTrack, sample_object_world_transform
 from omnicam.exchange import EXPORT_FORMATS, export_camera, import_camera
 from omnicam.exchange.baking import bake_camera, is_static
-from omnicam.exchange.gltf_read import parse_container
+from omnicam.exchange.gltf_read import _evaluate_channel, parse_container
 
 BASE = {"camera_type": "perspective", "zoom": 1.0, "near": 0.05, "far": 5000.0}
 
@@ -252,6 +252,88 @@ def test_chan_import_rejects_non_finite_values(token):
     text = f"# hostile\n0 {token} 0 5 0 0 0 35\n"
     with pytest.raises(ValidationError, match="finite"):
         import_camera(text.encode(), ".chan")
+
+
+def test_gltf_import_composes_a_parent_nodes_world_transform():
+    """A camera parented under a translated root must import at the world
+    position, not just its own local translation relative to that parent."""
+    document = {
+        "asset": {"version": "2.0"},
+        "cameras": [{"type": "perspective", "perspective": {"yfov": 0.6}}],
+        "nodes": [
+            {"translation": [10.0, 0.0, 0.0], "children": [1]},
+            {"translation": [1.0, 2.0, 3.0], "camera": 0},
+        ],
+    }
+    restored = import_camera(json.dumps(document).encode(), ".gltf")
+    position = restored["keyframes"][0]["camera"]["position"]
+    assert position == pytest.approx([11.0, 2.0, 3.0])
+
+
+def test_gltf_import_decodes_a_matrix_only_node():
+    """A camera node authored with ``matrix`` (no explicit translation/
+    rotation/scale) must decode the same as an equivalent TRS node."""
+    # Column-major 4x4: identity rotation/scale, translation [10, 2, 3].
+    matrix = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10, 2, 3, 1]
+    document = {
+        "asset": {"version": "2.0"},
+        "cameras": [{"type": "perspective", "perspective": {"yfov": 0.6}}],
+        "nodes": [{"matrix": matrix, "camera": 0}],
+    }
+    restored = import_camera(json.dumps(document).encode(), ".gltf")
+    position = restored["keyframes"][0]["camera"]["position"]
+    assert position == pytest.approx([10.0, 2.0, 3.0])
+
+
+def test_evaluate_channel_step_interpolation_holds_the_previous_key():
+    # A valid STEP translation from x=0 at t=0s to x=10 at t=1s, sampled at
+    # 0.5s, must hold the previous key (x=0) rather than interpolate.
+    channel = {
+        "times": [0.0, 1.0],
+        "values": [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
+        "interpolation": "STEP",
+    }
+    assert _evaluate_channel(channel, 0.5, is_rotation=False) == [0.0, 0.0, 0.0]
+    assert _evaluate_channel(channel, 0.999, is_rotation=False) == [0.0, 0.0, 0.0]
+    assert _evaluate_channel(channel, 1.0, is_rotation=False) == [10.0, 0.0, 0.0]
+
+
+def test_evaluate_channel_cubicspline_uses_the_hermite_basis_not_the_midpoint():
+    # A pure translation Hermite spline: value 0 -> 10 over one second with
+    # zero tangents behaves like an ease in/out, not the discarded-tangent
+    # (LINEAR-equivalent) x=5 a naive midpoint sample would give at s=0.5.
+    channel = {
+        "times": [0.0, 1.0],
+        "values": [[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
+        "in_tangents": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+        "out_tangents": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+        "interpolation": "CUBICSPLINE",
+    }
+    midpoint = _evaluate_channel(channel, 0.5, is_rotation=False)
+    assert midpoint[0] == pytest.approx(5.0)  # zero tangents: still symmetric at the midpoint
+    quarter = _evaluate_channel(channel, 0.25, is_rotation=False)
+    # The Hermite ease curve is flatter near each key than a straight line
+    # would be -- a naive lerp at s=0.25 would give x=2.5.
+    assert quarter[0] < 2.5
+
+
+def test_evaluate_channel_linear_rotation_slerps_not_lerps():
+    # A 180-degree yaw over one second: lerping the raw xyzw components and
+    # renormalizing (nlerp) does not move at constant angular speed the way
+    # slerp does, and for a large angle the two visibly disagree partway
+    # through -- big enough here to catch a component-wise lerp regression.
+    from omnicam.core.camera_math import quaternion_from_euler
+
+    start = quaternion_from_euler([0.0, 0.0, 0.0])
+    end = quaternion_from_euler([0.0, 180.0, 0.0])
+    channel = {
+        "times": [0.0, 1.0],
+        "values": [start, end],
+        "interpolation": "LINEAR",
+    }
+    midpoint = _evaluate_channel(channel, 0.5, is_rotation=True)
+    yaw = euler_from_quaternion(midpoint)[1]
+    assert yaw == pytest.approx(90.0, abs=1.0)
 
 
 def test_gltf_sidecar_is_validated_rather_than_trusted():

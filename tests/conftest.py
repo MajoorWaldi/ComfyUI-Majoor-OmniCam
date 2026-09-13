@@ -18,7 +18,15 @@ if "server" not in sys.modules:
         _routes = []
     _server_stub = types.ModuleType("server")
     _server_stub.PromptServer = types.SimpleNamespace(
-        instance=types.SimpleNamespace(routes=_routes, send_sync=lambda *args, **kwargs: None, sockets={})
+        instance=types.SimpleNamespace(
+            routes=_routes,
+            send_sync=lambda *args, **kwargs: None,
+            sockets={},
+            # Real ComfyUI's single-user default: every request resolves to
+            # the same id. Tests that care about distinguishing users
+            # monkeypatch the call site's own _request_user_id instead.
+            user_manager=types.SimpleNamespace(get_request_user_id=lambda request: "default"),
+        )
     )
     sys.modules["server"] = _server_stub
 

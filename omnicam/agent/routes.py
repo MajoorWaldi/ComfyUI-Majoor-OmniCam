@@ -155,6 +155,8 @@ async def agent_session_register(request: web.Request) -> web.Response:
         if client_id not in PromptServer.instance.sockets:
             raise AgentProtocolError("UNKNOWN_CLIENT", "ComfyUI browser client is not connected", 409)
 
+        owner_id = PromptServer.instance.user_manager.get_request_user_id(request)
+
         session = BROKER.register(
             client_id=client_id,
             node_id=node_id,
@@ -163,6 +165,7 @@ async def agent_session_register(request: web.Request) -> web.Response:
             revision=revision,
             operations=operations,
             queries=queries,
+            owner_id=owner_id,
         )
         return web.json_response({"session_id": session.session_id, "session_token": session.token})
     except AgentProtocolError as error:

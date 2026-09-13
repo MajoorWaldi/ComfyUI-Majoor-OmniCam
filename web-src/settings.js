@@ -11,6 +11,7 @@
 import { getLocale, registerLocale, setLocale, t } from "./i18n.js";
 import { FR } from "./locales/fr.js";
 import {
+  AGENT_PROVIDERS, agentBaseUrlSettingId, agentModelSettingId,
   SETTING_ADAPTIVE, SETTING_AGENT_BASE_URL, SETTING_AGENT_ENABLED, SETTING_AGENT_MAX_OUTPUT_TOKENS,
   SETTING_AGENT_MAX_STEPS, SETTING_AGENT_MODEL, SETTING_AGENT_PROVIDER,
   SETTING_AGENT_TIMEOUT, SETTING_ASPECT_RATIO, SETTING_AUTO_KEY, SETTING_BG_COLOR, SETTING_BURN_IN,
@@ -214,11 +215,15 @@ export function applyAgentAvailability() {
  * directorDefaults(), ui.state or a MotionScene (design spec section 6).
  */
 export function agentSettings() {
+  const provider = choiceSetting(SETTING_AGENT_PROVIDER, "ollama", ["openai", "openai_compatible", "anthropic", "ollama"]);
   return {
     enabled: booleanSetting(SETTING_AGENT_ENABLED, true),
-    provider: choiceSetting(SETTING_AGENT_PROVIDER, "ollama", ["openai", "openai_compatible", "anthropic", "ollama"]),
-    model: String(readSetting(SETTING_AGENT_MODEL, "") || "").trim(),
-    baseUrl: String(readSetting(SETTING_AGENT_BASE_URL, "") || "").trim(),
+    provider,
+    // Scoped per provider (agentModelSettingId/agentBaseUrlSettingId) so
+    // switching Provider never carries over another provider's model id or
+    // endpoint override -- see catalogue.js's comment on SETTING_AGENT_MODEL.
+    model: String(readSetting(agentModelSettingId(provider), "") || "").trim(),
+    baseUrl: String(readSetting(agentBaseUrlSettingId(provider), "") || "").trim(),
     maxOutputTokens: numericSetting(SETTING_AGENT_MAX_OUTPUT_TOKENS, 4096, 512, 32768, true),
     maxPlannerSteps: numericSetting(SETTING_AGENT_MAX_STEPS, 6, 1, 12, true),
     requestTimeoutSeconds: numericSetting(SETTING_AGENT_TIMEOUT, 120, 15, 300, true),
@@ -294,10 +299,35 @@ export function directorDefaults() {
   };
 }
 
+/** Migrates the pre-provider-scoping Agent.Model/Agent.BaseUrl pair (see
+ * catalogue.js's comment on SETTING_AGENT_MODEL) into the provider-scoped
+ * setting for whichever provider was active when they were saved, then
+ * clears the legacy pair so this never re-fires and never leaks a value
+ * into a *different* provider on a later switch. A no-op once already
+ * migrated (or for a fresh install, which never had the legacy pair). */
+function migrateAgentProviderSettings() {
+  const legacyModel = String(readSetting(SETTING_AGENT_MODEL, "") || "").trim();
+  const legacyBaseUrl = String(readSetting(SETTING_AGENT_BASE_URL, "") || "").trim();
+  if (!legacyModel && !legacyBaseUrl) return;
+
+  const legacyProvider = choiceSetting(
+    SETTING_AGENT_PROVIDER, "ollama", AGENT_PROVIDERS.map((provider) => provider.id)
+  );
+  const modelId = agentModelSettingId(legacyProvider);
+  const baseUrlId = agentBaseUrlSettingId(legacyProvider);
+
+  if (legacyModel && !String(readSetting(modelId, "") || "").trim()) writeSetting(modelId, legacyModel);
+  if (legacyBaseUrl && !String(readSetting(baseUrlId, "") || "").trim()) writeSetting(baseUrlId, legacyBaseUrl);
+
+  writeSetting(SETTING_AGENT_MODEL, "");
+  writeSetting(SETTING_AGENT_BASE_URL, "");
+}
+
 export function registerOmniCamLocales(app) {
   appRef = app;
   registerLocale("fr", FR);
   applyLocale();
+  migrateAgentProviderSettings();
 }
 
 /**

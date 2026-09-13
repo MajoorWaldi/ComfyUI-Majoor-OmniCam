@@ -45,6 +45,12 @@ class AgentSession:
     operations: tuple[str, ...]
     queries: tuple[str, ...]
     touched_at: float
+    # The ComfyUI user who registered this session (routes.py's
+    # agent_session_register()). Plan/apply-plan bind to it so one user's
+    # instruction can never be planned or applied against another user's
+    # live Director session (design spec section 13's owner scoping, now
+    # extended from plans to the session itself).
+    owner_id: str = ""
 
 
 @dataclass(slots=True)
@@ -101,6 +107,7 @@ class AgentBroker:
         revision: int,
         operations: tuple[str, ...],
         queries: tuple[str, ...],
+        owner_id: str = "",
     ) -> AgentSession:
         self._prune_expired()
 
@@ -129,6 +136,7 @@ class AgentBroker:
             operations=operations,
             queries=queries,
             touched_at=time.monotonic(),
+            owner_id=owner_id,
         )
         self._sessions[session.session_id] = session
         return session

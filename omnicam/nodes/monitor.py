@@ -110,7 +110,11 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
         if not target_fps or target_fps <= 0:
             target_fps = scene.timeline.authoring_fps
 
-        playblast_video = as_video(playblast_video)
+        # An IMAGE batch carries no timing of its own -- wrap it at the
+        # frame rate this compile actually resolved to (the widget, or the
+        # shot's authoring fps), not as_video()'s generic 24fps default, or
+        # the reference VIDEO's duration silently disagrees with target_fps.
+        playblast_video = as_video(playblast_video, fps=target_fps)
         profile = PROFILE_REGISTRY.require(target_profile)
 
         request = CompileRequest(

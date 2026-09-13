@@ -288,9 +288,17 @@ export function createDirectorAgentBridge(ui, node, api) {
           // asset.instantiate they become -- that real op stays off the
           // advertised list on purpose).
           const resolved = await resolveTrustedAssetOperations(ui, tx.operations);
-          result = resolved.ok
-            ? ui.directorApi.execute({ ...tx, operations: resolved.operations })
-            : failureResult(ui, resolved.code, resolved.message);
+          if (resolved.ok) {
+            result = ui.directorApi.execute({ ...tx, operations: resolved.operations });
+            // Unlike the Director UI's own synchronous callers, this reply is
+            // serialized and posted back immediately -- await the same
+            // resource-reconciliation promise executeDirectorTransaction()
+            // otherwise leaves running in the background, so a warning it
+            // pushes is never missed just because this path answers first.
+            await result?._reconciliation;
+          } else {
+            result = failureResult(ui, resolved.code, resolved.message);
+          }
         }
       } else {
         result = failureResult(ui, "UNKNOWN_AGENT_REQUEST", `Unsupported Agent request kind: ${detail.kind}`);
