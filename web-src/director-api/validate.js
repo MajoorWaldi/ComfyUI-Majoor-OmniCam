@@ -6,7 +6,7 @@
 // or wrong-sized operation list, unknown op types, non-finite numbers,
 // malformed vectors and unsupported interpolation.
 
-import { INTERPOLATION_MODES } from "../director/core.js";
+import { DEFAULT_CAMERA_NEAR, INTERPOLATION_MODES } from "../director/core.js";
 import {
   CAMERA_TYPES,
   DIRECTOR_API_VERSION,
@@ -91,7 +91,13 @@ function assertCameraPayload(camera, operationIndex) {
   }
   if (camera.far !== undefined) {
     assertFiniteNumber(camera.far, "camera.far", operationIndex);
-    if (camera.near !== undefined && camera.far <= camera.near) {
+    // Effective near is whatever near plane this camera will actually use --
+    // the supplied one, or the canonical default -- so a far that is only
+    // invalid relative to the default (e.g. far: 0.005 with no near) is
+    // rejected here rather than silently repaired downstream by the state
+    // sanitizer (design spec Task 8).
+    const effectiveNear = camera.near === undefined ? DEFAULT_CAMERA_NEAR : camera.near;
+    if (camera.far <= effectiveNear) {
       throw new DirectorApiError("BAD_VALUE", "camera.far must be greater than camera.near", operationIndex);
     }
   }

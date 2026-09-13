@@ -230,8 +230,19 @@ export function sampleChannel(keys, frame, channelId, channelGetter, isAngle = f
   return y0 + (y1 - y0) * t;
 }
 
+// Canonical camera clipping-plane defaults. Exported so the Director API
+// boundary validator (web-src/director-api/validate.js) rejects an invalid
+// far/near combination at the API boundary using the exact same numbers
+// this default camera uses, rather than maintaining two drifting literals
+// (design spec Task 8).
+export const DEFAULT_CAMERA_NEAR = 0.01;
+export const DEFAULT_CAMERA_FAR = 10000;
+
 export function defaultCamera() {
-  return { position: [6, 4, 6], target: [0, 1.5, 0], fov: 35, roll: 0, camera_type: "perspective", zoom: 1, near: 0.01, far: 10000 };
+  return {
+    position: [6, 4, 6], target: [0, 1.5, 0], fov: 35, roll: 0, camera_type: "perspective", zoom: 1,
+    near: DEFAULT_CAMERA_NEAR, far: DEFAULT_CAMERA_FAR,
+  };
 }
 
 export function defaultEditorViews() {
