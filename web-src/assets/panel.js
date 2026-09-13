@@ -10,6 +10,7 @@
 
 import { t } from "../i18n.js";
 import { annotatedAssetUrl } from "../shared/managed-assets.js";
+import { builtInAgentEnabled } from "../settings.js";
 import { createAssetLibraryApi } from "./api.js";
 import { createCatalogStore } from "./catalog-store.js";
 import { KIND_TABS } from "./filters.js";
@@ -189,6 +190,7 @@ export function createAssetBrowserPanel(ui, options = {}) {
   const sceneTab = el("scene-tab");
   const assetsTab = el("assets-tab");
   const agentTab = el("agent-tab");
+  const agentTabButton = root.querySelector('[data-asset-view="agent"]');
   // "scene" is intentionally absent: the outliner is always mounted, so a
   // view this map does not name is only ever hidden, never shown, by the
   // loop below -- there is no separate markup module for it to require.
@@ -198,6 +200,7 @@ export function createAssetBrowserPanel(ui, options = {}) {
   let searchTimer = null;
   let firstOpen = true;
   let firstAgentOpen = true;
+  let currentView = "scene";
 
   // A transient message (import result, error) survives the frequent renderGrid()
   // repaints the lazy thumbnail queue triggers; the "{n} of {total}" line only
@@ -332,6 +335,10 @@ export function createAssetBrowserPanel(ui, options = {}) {
   }
 
   function switchView(view) {
+    // Disabled built-in Agent: refuse/redirect rather than switch into a tab
+    // that is hidden and has no working panel behind it (design spec Task 6).
+    if (view === "agent" && !builtInAgentEnabled()) view = "scene";
+    currentView = view;
     if (sceneTab) sceneTab.hidden = view !== "scene";
     for (const [key, node] of Object.entries(tabBodies)) {
       if (node) node.hidden = key !== view;
@@ -347,6 +354,15 @@ export function createAssetBrowserPanel(ui, options = {}) {
       firstAgentOpen = false;
       options.onAgentFirstOpen?.();
     }
+  }
+
+  /** Reflects the current Agent.Enabled setting onto the tab button/body --
+   * called once at mount and again whenever the setting changes live
+   * (web-src/settings.js's applyAgentAvailability, design spec Task 6). */
+  function syncAgentAvailability() {
+    const enabled = builtInAgentEnabled();
+    if (agentTabButton) agentTabButton.hidden = !enabled;
+    if (!enabled && currentView === "agent") switchView("scene");
   }
 
   function onClick(event) {
@@ -391,10 +407,12 @@ export function createAssetBrowserPanel(ui, options = {}) {
   search?.addEventListener("input", onSearchInput);
   fileInput?.addEventListener("change", onFileChange);
   renderGrid();
+  syncAgentAvailability();
 
   return {
     store,
     switchView,
+    syncAgentAvailability,
     refresh: () => store.refresh(),
     dispose() {
       unsubscribe();

@@ -38,6 +38,7 @@ export const OMNICAM_SETTINGS = buildOmniCamSettings({
   onLocaleChange: () => applyLocale(),
   onQualityChange: (value) => applyViewportQuality(value),
   onAdaptiveChange: () => applyViewportQuality(),
+  onAgentEnabledChange: () => applyAgentAvailability(),
 });
 
 let appRef = null;
@@ -185,6 +186,25 @@ export function applyViewportQuality(quality = viewportQuality()) {
     if (ui.requestRender) ui.requestRender("quality");
     else ui.render?.();
     ui.renderCameraView?.();
+  }
+}
+
+/** Whether the built-in Agent panel/tab should be available. Scoped
+ * narrowly: it only ever hides/disables the built-in UI. The external Agent
+ * Contract v1 bridge (web-src/agent/bridge.js) and the Semantic Director API
+ * are a separate concern and remain available regardless of this setting
+ * (design spec Task 6). */
+export function builtInAgentEnabled() {
+  return agentSettings().enabled;
+}
+
+/** Reapplies the current Agent.Enabled setting to every mounted Director's
+ * left-panel tab immediately, the same live-apply pattern as
+ * applyViewportQuality() -- otherwise the tab only updates on next reload. */
+export function applyAgentAvailability() {
+  for (const ui of liveDirectors) {
+    if (ui.disposed) continue;
+    ui.assetBrowser?.syncAgentAvailability?.();
   }
 }
 

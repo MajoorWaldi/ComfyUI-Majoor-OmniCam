@@ -144,6 +144,7 @@ export function buildOmniCamSettings({
   onPanSensitivityChange,
   onDollySensitivityChange,
   onCameraViewVisibleChange,
+  onAgentEnabledChange,
 } = {}) {
   return [
     {
@@ -393,8 +394,11 @@ export function buildOmniCamSettings({
         { text: "Generic Video Reference", value: "generic_video" },
       ], "wan_camera_native"),
 
-    toggle(SETTING_AGENT_ENABLED, "Agent", "Enable built-in Agent",
-      "Enables the OmniCam Director Agent panel.", true),
+    {
+      ...toggle(SETTING_AGENT_ENABLED, "Agent", "Enable built-in Agent",
+        "Enables the OmniCam Director Agent panel. The external Agent Contract v1 bridge is a separate concern and stays available either way.", true),
+      onChange: () => onAgentEnabledChange?.(),
+    },
     choice(SETTING_AGENT_PROVIDER, "Agent", "Provider",
       "Provider used by the built-in Director Agent.", [
         { text: "Ollama / local", value: "ollama" },
