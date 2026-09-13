@@ -25,6 +25,33 @@ def test_release_is_safe_without_comfy_and_clears_provider_caches():
     assert comfy_sam3._SHARED_MODEL_CACHE.peek_token() is None
 
 
+def _stub_comfy_model_management(monkeypatch, calls):
+    """Make ``import comfy.model_management`` resolve to a fake module.
+
+    Pre-seeding only ``sys.modules["comfy.model_management"]`` is not
+    enough: ``import comfy.model_management`` first has Python import the
+    parent package ``comfy`` itself, and in the pure test suite (no real
+    ComfyUI checkout on the path) that package does not exist at all, so
+    the import raises before the cached submodule is ever consulted --
+    silently swallowed by release_reconstruction_models()'s own
+    "ComfyUI not available" handling, making the test a false negative.
+    Stubbing the parent package too closes that gap regardless of
+    environment.
+    """
+    import sys
+    import types
+
+    fake_model_management = type(
+        "M", (), {
+            "unload_all_models": staticmethod(lambda: calls.append("unload")),
+            "soft_empty_cache": staticmethod(lambda force=False: calls.append("empty_cache")),
+        },
+    )
+    if "comfy" not in sys.modules:
+        monkeypatch.setitem(sys.modules, "comfy", types.ModuleType("comfy"))
+    monkeypatch.setitem(sys.modules, "comfy.model_management", fake_model_management)
+
+
 def test_release_skips_the_global_vram_unload_while_comfyui_is_executing(monkeypatch):
     # unload_all_models() is global -- calling it while ComfyUI's own queue
     # is running a *different* workflow would evict that workflow's models
@@ -37,15 +64,7 @@ def test_release_skips_the_global_vram_unload_while_comfyui_is_executing(monkeyp
     monkeypatch.setattr(model_release, "execution_busy", lambda: True)
 
     calls = []
-    fake_model_management = type(
-        "M", (), {
-            "unload_all_models": staticmethod(lambda: calls.append("unload")),
-            "soft_empty_cache": staticmethod(lambda force=False: calls.append("empty_cache")),
-        },
-    )
-    import sys
-
-    monkeypatch.setitem(sys.modules, "comfy.model_management", fake_model_management)
+    _stub_comfy_model_management(monkeypatch, calls)
 
     release_reconstruction_models(reason="unit test")
 
@@ -57,15 +76,7 @@ def test_release_unloads_when_comfyui_is_idle(monkeypatch):
     monkeypatch.setattr(model_release, "execution_busy", lambda: False)
 
     calls = []
-    fake_model_management = type(
-        "M", (), {
-            "unload_all_models": staticmethod(lambda: calls.append("unload")),
-            "soft_empty_cache": staticmethod(lambda force=False: calls.append("empty_cache")),
-        },
-    )
-    import sys
-
-    monkeypatch.setitem(sys.modules, "comfy.model_management", fake_model_management)
+    _stub_comfy_model_management(monkeypatch, calls)
 
     release_reconstruction_models(reason="unit test")
 

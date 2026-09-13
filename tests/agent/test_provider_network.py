@@ -203,6 +203,7 @@ async def test_pinned_resolver_blocks_a_hostname_that_resolves_to_a_sensitive_ad
     # DNS rebinding: validate_provider_url() only ever sees the literal
     # hostname, never what it resolves to -- this is the layer that closes
     # that gap, at the exact moment aiohttp would otherwise connect.
+    pytest.importorskip("aiohttp")
     resolver = _PinnedResolver()
     resolver._inner = _FakeInnerResolver([{"hostname": "rebind.example.test", "host": "169.254.169.254", "port": 80}])
     with pytest.raises(NetworkPolicyError) as excinfo:
@@ -212,6 +213,7 @@ async def test_pinned_resolver_blocks_a_hostname_that_resolves_to_a_sensitive_ad
 
 @pytest.mark.asyncio
 async def test_pinned_resolver_passes_through_a_safe_address():
+    pytest.importorskip("aiohttp")
     resolver = _PinnedResolver()
     resolver._inner = _FakeInnerResolver([{"hostname": "api.example.test", "host": "93.184.216.34", "port": 443}])
     results = await resolver.resolve("api.example.test", 443)
