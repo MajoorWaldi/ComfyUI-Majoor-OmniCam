@@ -236,6 +236,12 @@ These are preflight results, not bugs:
 - **Live Director semantic control:** the OmniCam Agent Contract v1 lets an
   external Agent process reach a specific, already-open Director instance
   through a loopback-only broker (`docs/AGENT_INTEGRATION.md`).
+- **Built-in Director Agent (v1, GO for Ollama; GO for
+  OpenAI/Anthropic/custom endpoints after the final hardening pass):** the
+  Director's own AGENT tab — describe a shot, a bounded planner proposes a
+  Preview through the same Semantic Director API, then explicit Apply.
+  Provider network policy, credential storage, and error redaction are
+  covered in [Security](docs/SECURITY.md).
 - **Local-only external control in v1** — see [Security](docs/SECURITY.md).
 - Agent edits use the same Semantic Director API and undo history as manual
   edits: bounded, validated, one undo step.

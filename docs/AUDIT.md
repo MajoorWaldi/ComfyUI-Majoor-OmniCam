@@ -1,3 +1,66 @@
+# OmniCam Release Audit — Agent v1 final hardening
+
+**Audited SHA:** `7223b03eef9d4a27acdddf28d6a80dbb66061bdd` (branch
+`fix/agent-v1-final-security-audit`, based on `main` @ `eac318354d167e17f05a0a8223ed32799d2749fa`)
+**Date:** 2026-09-13
+**Python floor:** >= 3.10 (`pyproject.toml`) — verified locally on 3.14
+**ComfyUI / frontend / Comfy MCP exact stable releases:** not independently
+re-verified in this local pass (no network access to check current
+upstream releases); the compatibility lanes in
+`.github/workflows/test.yml` remain the source of truth for those and were
+not re-run here. `requires-comfyui = ">=0.31.0"` per `pyproject.toml`.
+
+Scope: implementation of the 2026-09-12 "OmniCam Agent v1 Final Hardening &
+MCP Readiness" plan (11 of 15 tasks: Groups A–C in full; Group D docs +
+local verification only — the live GitHub ruleset sync (plan Task 13) was
+explicitly deferred to the maintainer, since it mutates real branch
+protection and needs admin credentials this session does not have).
+
+## Local verification (this pass)
+
+| Check | Result |
+|---|---|
+| `pytest -q` (full suite) | 1760 passed, 18 skipped, **2 failed** — both `AssertionError: Torch not compiled with CUDA enabled` in `tests/test_director_monitor_integration.py`, unrelated to any file this plan touched; a pre-existing CPU-only-environment failure (this machine's torch has no CUDA build), not a regression from this pass |
+| `ruff check .` | pass (0 findings) |
+| `mypy` | pass, 0 issues, 45 source files |
+| `npm run build` then `git diff --exit-code -- web/ web-chunks/` | pass — committed bundle is byte-identical to a fresh build |
+| `npm run check` (lines/encoding/three-surface/locales/template-contract/licenses/bundle syntax) | pass (fr.js sits at pre-existing 91.3% coverage — informational, not a hard-fail gate, and no new untranslated strings were left behind by this plan's own additions) |
+| `npm run test:unit` (Node test runner) | 1156 passed |
+| `npm run test:browser` (Playwright, full non-live suite) | 117 passed |
+| `comfy node pack` + `python scripts/registry_package_audit.py node.zip` | **Registry package audit: OK** (0 violations; the Agent provider env-var allowlist added earlier this cycle still holds) |
+| `python scripts/verify_package.py` | OK |
+| ComfyUI compatibility lanes (`v0.31.0`/`v0.34.0`/`v0.35.0`, pinned/stable/minimum frontend) | not run locally — CI-only, unchanged by this plan |
+| Live GitHub ruleset sync (plan Task 13) | **not performed** — requires `gh api --method PUT` with ruleset-admin rights; left for the maintainer to run and verify per the plan's own instructions |
+
+## Agent v1 security regressions added this pass
+
+| Contract | Result | Commit |
+|---|---|---|
+| native OpenAI/Anthropic custom `base_url` uses the custom-endpoint network policy | PASS | `fix(agent): enforce network policy on native provider overrides` |
+| Provider Test proves real reachability (`probe()`), not model-discovery's graceful degrade | PASS | `fix(agent): separate provider connectivity probe from model discovery` |
+| provider/planner routes never return `str(error)` from a generic exception | PASS | `fix(agent): redact provider and planner errors` |
+| built-in planner cannot request `scene.get`; 512 KiB context / 128 KiB observation caps | PASS | `fix(agent): bound planner context and prefer targeted scene queries` |
+| Agent panel discloses the outbound data boundary before Preview | PASS | `feat(agent): disclose planner provider data boundary` |
+| `Enable built-in Agent` hides/disables only the built-in UI; external bridge unaffected | PASS | `fix(agent): wire the built-in Agent enable setting` |
+| `PreviewBeforeApply` (a bypass that never did anything) removed; Preview → Apply mandatory | PASS | `fix(agent): make Preview and Apply a mandatory safety flow` |
+| `camera.create` rejects `far` invalid relative to the effective `near` at the boundary | PASS | `fix(director-api): validate camera clipping planes at the boundary` |
+| `SecretStore` itself (not just the route layer) refuses to mutate an env-managed credential | PASS | `fix(agent): enforce env credential ownership in SecretStore` |
+| unspecified/multicast/link-local (incl. `169.254.169.254`) blocked even with the remote-provider opt-in | PASS | `fix(agent): block sensitive link-local provider targets` |
+| a failed post-commit viewport-resource reconciliation surfaces as a bounded warning | PASS | `fix(agent): report viewport resource reconciliation warnings` |
+
+Every row above shipped with a failing-test-first regression covering exactly
+that contract (see the commit's own test diff); none are house-of-cards
+assertions written after the fact.
+
+## Release verdict
+
+🟢 **GO** for the scope audited above (Groups A–C, the security-relevant
+Agent v1 hardening). Governance items outside this session's authority
+remain open: the live GitHub ruleset (Task 13) and the multi-version
+ComfyUI/frontend compatibility matrix (CI-only, not re-run locally).
+
+---
+
 # OmniCam deep audit — 31 August 2026
 
 > **Historical.** This audit describes the repository as it stood on
