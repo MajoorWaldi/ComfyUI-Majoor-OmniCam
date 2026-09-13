@@ -87,6 +87,7 @@ function makeUi(overrides = {}) {
     renderCalls: 0,
     render() { this.renderCalls += 1; },
     refreshInspector() {},
+    refreshKeys() {},
     updateKeyVisualState() {},
     drawCurveEditor() {},
     editingKeyFrame: null,
@@ -293,6 +294,117 @@ test("isPointerOverHandle reflects the underlying controls' hovered axis", () =>
   assert.equal(wiring.isPointerOverHandle(), false);
   controls.axis = "X";
   assert.equal(wiring.isPointerOverHandle(), true);
+});
+
+// -- camera_path / path_point / path_group (plan Task 6) ---------------------
+
+function pathKey(frame, position, target) {
+  return { frame, interpolation: "smooth", camera: { position: [...position], target: [...target], fov: 35, roll: 0, camera_type: "perspective" } };
+}
+
+function makePathUi(overrides = {}) {
+  const track = overrides.track || {
+    id: "camera_1",
+    locked: false,
+    keyframes: [
+      pathKey(0, [0, 0, 0], [0, 0, -5]),
+      pathKey(10, [2, 0, 0], [2, 0, -5]),
+      pathKey(20, [4, 0, 0], [4, 0, -5]),
+    ],
+  };
+  const harness = makeUi({
+    activeCameraTrack: () => track,
+    ...overrides,
+  });
+  harness.ui.state.cameras = [track];
+  harness.ui.state.active_camera_id = track.id;
+  harness.ui.selectedEntity = "camera_path";
+  return { ...harness, track };
+}
+
+test("sync attaches the whole path when there is no path selection", () => {
+  const { ui, wiring, getControls, track } = makePathUi();
+  wiring.sync();
+  const controls = getControls();
+  assert.ok(controls, "adapter was created");
+  assert.equal(controls.visible, true);
+  assert.equal(controls.attached.position.x, 2, "anchored at the path centroid");
+  void track;
+  void ui;
+});
+
+test("camera_path translate drag re-derives every key from the frozen base, no compounding", () => {
+  const { wiring, getControls, track } = makePathUi();
+  wiring.sync();
+  const controls = getControls();
+
+  controls.emit("mouseDown");
+  controls.attached.position.set(3, 0, 0); // +1 on X from the centroid anchor
+  controls.emit("objectChange");
+  assert.deepEqual(track.keyframes.map((k) => k.camera.position), [[1, 0, 0], [3, 0, 0], [5, 0, 0]]);
+
+  controls.attached.position.set(5, 0, 0); // +3 on X, from the frozen base -- not +2 from the last move
+  controls.emit("objectChange");
+  assert.deepEqual(track.keyframes.map((k) => k.camera.position), [[3, 0, 0], [5, 0, 0], [7, 0, 0]]);
+});
+
+test("path_point translate drag moves only the selected key", () => {
+  const { ui, wiring, getControls, track } = makePathUi();
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set([10]), primaryFrame: 10, component: "position" };
+  wiring.sync();
+  const controls = getControls();
+  assert.equal(controls.attached.position.x, 2, "anchored at the selected key's own position");
+
+  controls.emit("mouseDown");
+  assert.deepEqual(ui.checkpoints, ["Transform path point"]);
+  controls.attached.position.set(2, 5, 0);
+  controls.emit("objectChange");
+
+  assert.deepEqual(track.keyframes.map((k) => k.camera.position), [[0, 0, 0], [2, 5, 0], [4, 0, 0]]);
+});
+
+test("path_group rotate drag rotates only the selected keys about their own centroid", () => {
+  const { ui, wiring, getControls, track } = makePathUi();
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set([0, 10]), primaryFrame: 10, component: "position" };
+  ui.state.gizmo_mode = "rotate";
+  wiring.sync();
+  const controls = getControls();
+  assert.equal(controls.attached.position.x, 1, "anchored at the selection centroid, not the whole path's");
+
+  controls.emit("mouseDown");
+  assert.deepEqual(ui.checkpoints, ["Transform path selection"]);
+  controls.attached.rotation.set(0, Math.PI / 2, 0); // +90 deg yaw
+  controls.emit("objectChange");
+
+  // Selection centroid is (1,0,0); frame 20 (unselected) never moves.
+  assert.deepEqual(track.keyframes[2].camera.position, [4, 0, 0]);
+  assert.ok(Math.abs(track.keyframes[0].camera.position[0] - 1) < 1e-6);
+  assert.ok(Math.abs(track.keyframes[1].camera.position[0] - 1) < 1e-6);
+  assert.ok(Math.abs(track.keyframes[0].camera.position[2]) > 1e-6, "frame 0 swung out along Z");
+});
+
+test("a locked camera track never attaches a gizmo for its path", () => {
+  const { wiring, getControls } = makePathUi({
+    track: { id: "camera_1", locked: true, keyframes: [pathKey(0, [0, 0, 0], [0, 0, -5])] },
+  });
+  wiring.sync();
+  assert.equal(getControls(), undefined);
+});
+
+test("cancelling a path_point drag restores the frozen base and calls undo once", () => {
+  const { ui, wiring, getControls, track } = makePathUi();
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set([10]), primaryFrame: 10, component: "position" };
+  wiring.sync();
+  const controls = getControls();
+
+  controls.emit("mouseDown");
+  controls.attached.position.set(2, 9, 9);
+  controls.emit("objectChange");
+  assert.deepEqual(track.keyframes[1].camera.position, [2, 9, 9]);
+
+  wiring.cancelDrag();
+  assert.deepEqual(track.keyframes[1].camera.position, [2, 0, 0], "cancel re-applies the zero delta against the frozen base");
+  assert.equal(ui.undoCalls, 1);
 });
 
 test("dispose tears down the adapter", () => {

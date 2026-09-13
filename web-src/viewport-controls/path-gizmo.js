@@ -1,6 +1,21 @@
 // Wiring between the viewport gizmo drag and the pure camera-path transform.
 // Kept out of interactions.js so that file stays under the source-line cap and
 // the transform maths in camera-path-transform.js stays DOM-free.
+//
+// beginPathGizmoDrag/applyPathGizmoDrag below are the legacy canvas-drawn
+// whole-path gizmo (pixel-delta driven, invoked from
+// viewport-controls/interactions.js's onPointerDown/onPointerMove). As of
+// plan Task 6 the live app instead resolves "camera_path" through
+// viewport-controls/transform-target.js and drives it with the real Three.js
+// TransformControls via viewport/transform-controls-wiring.js -- see
+// LIVE_TRANSFORM_CONTROLS_TYPES in ../viewport-controls.js, which makes
+// gizmoGeometry() (and so pickGizmo()) return null for "camera_path" whenever
+// that wiring is installed, so these two functions are never reached from a
+// live pointer event any more. They stay: their pure maths still backs the
+// baseline regression tests (transform-gizmo.node.mjs) that drive a bare `ui`
+// fixture with no wiring installed, and camera-path-transform.js's
+// transformPathKeys() they call remains the canonical whole-path helper the
+// new wiring also calls.
 
 import { add, cameraBasis, cloneCamera, length, mul, sampleCamera, sub } from "../director/core.js";
 import { t } from "../i18n.js";

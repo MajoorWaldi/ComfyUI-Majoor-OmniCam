@@ -1,11 +1,15 @@
 // Wires the generic TransformControls adapter (transform-controls-adapter.js)
-// into OmniCam's canonical object / camera / camera-target state.
+// into OmniCam's canonical object / camera / camera-target / camera-path
+// state.
 //
-// Scope (plan Task 4, docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md
-// section 26): only the "ordinary" transform targets -- object, camera,
-// camera_target. Camera path targets (path_point / path_group / camera_path)
-// stay on the legacy canvas-drawn gizmo in viewport-controls.js until Task 6
-// gives them the same adapter.
+// Scope (plan Task 4 + Task 6, docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md
+// section 26): Task 4 covered the "ordinary" transform targets -- object,
+// camera, camera_target. Task 6 adds the camera-path targets -- path_point,
+// path_group, camera_path (whole path) -- onto the same adapter, retiring the
+// legacy canvas-drawn path gizmo (viewport-controls/path-gizmo.js's
+// beginPathGizmoDrag/applyPathGizmoDrag) from live interactive use; those
+// functions and camera-path-transform.js's pure maths stay as-is and are
+// still exercised directly by their own unit tests.
 //
 // Canonical mutation rule (section 18.3): the adapter only ever moves a
 // disconnected proxy anchor and reports a delta relative to a frozen
@@ -27,12 +31,26 @@
 import * as THREE from "../three-runtime.js";
 import { createTransformControlsAdapter } from "./transform-controls-adapter.js";
 import { resolveTransformTarget } from "../viewport-controls/transform-target.js";
-import { add, cloneTransform, rotateEuler, sub } from "../director/core.js";
+import { add, cloneCamera, cloneTransform, rotateEuler, sampleCamera, sub } from "../director/core.js";
+import { pathCentroid, transformPathKeys, transformSelectedPathKeys } from "../director/camera-path-transform.js";
 import { applyTrackingOffset } from "../viewport-controls/drag-helpers.js";
 import { selectedTransformObjects } from "../viewport-controls/modal-transform.js";
 
-// Path-related target types stay on the legacy canvas gizmo for now (Task 6).
-const LIVE_TYPES = new Set(["object", "camera", "camera_target"]);
+const LIVE_TYPES = new Set(["object", "camera", "camera_target", "path_point", "path_group", "camera_path"]);
+
+// Mirrors sampleCamera's own "is this track's look-at an active, explicit
+// constraint" test (director/core/camera.js) -- the closest thing this
+// codebase has to a per-key "orientation mode" (plan section 8): while it is
+// active, sampleCamera ignores every key's stored `camera.target` and drives
+// it live from the constrained object instead, so a transform must move that
+// stored target rigidly with the position (there is no path tangent to speak
+// of); otherwise a key is Follow Path and its target is free to be
+// recomputed from the (possibly reshaped) path after the transform.
+function trackHasActiveLookAt(track) {
+  const lookAt = track?.constraints?.look_at;
+  const constraintActive = lookAt?.status === undefined || lookAt?.status === "active";
+  return Boolean(constraintActive && (lookAt?.object_id || track?.target_object_id));
+}
 
 export function createTransformControlsWiring(ui, { controlsFactory, anchorFactory } = {}) {
   let adapter = null;
@@ -88,7 +106,65 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
         tracking,
         base: tracking ? [...(track.target_offset || [0, 0, 0])] : [...ui.camera.target],
       };
+      return;
     }
+    if (targetSpec.type === "camera_path") {
+      const track = targetSpec.track;
+      if (!track || track.locked || !(track.keyframes?.length >= 1)) return;
+      ui.checkpoint("Transform camera path");
+      dragBase = {
+        type: "camera_path",
+        trackId: track.id,
+        origin: pathCentroid(track.keyframes),
+        baseKeys: track.keyframes.map((key) => ({ ...key, camera: cloneCamera(key.camera) })),
+      };
+      return;
+    }
+    if (targetSpec.type === "path_point" || targetSpec.type === "path_group") {
+      const track = targetSpec.track;
+      if (!track || track.locked) return;
+      const frames = targetSpec.type === "path_point" ? [targetSpec.frame] : targetSpec.frames;
+      ui.checkpoint(targetSpec.type === "path_point" ? "Transform path point" : "Transform path selection");
+      dragBase = {
+        type: targetSpec.type,
+        trackId: track.id,
+        origin: targetSpec.position,
+        selectedFrames: new Set(frames),
+        baseKeys: track.keyframes.map((key) => ({ ...key, camera: cloneCamera(key.camera) })),
+        lookAtActive: trackHasActiveLookAt(track),
+      };
+    }
+  }
+
+  /** Delta -> transformPathKeys/transformSelectedPathKeys options for the
+   * current gizmo mode -- shared by the whole-path and selection drag paths. */
+  function pathTransformOptions(delta) {
+    const mode = ui.state.gizmo_mode;
+    if (mode === "translate") return { mode, delta: delta.position };
+    if (mode === "scale") return { mode, origin: dragBase.origin, factors: delta.scaleFactors };
+    return { mode, origin: dragBase.origin, rotationDeg: delta.rotationDeg };
+  }
+
+  function syncTrackAfterPathEdit(track) {
+    if (track.id === ui.state.active_camera_id) ui.state.keyframes = track.keyframes;
+    ui.camera = sampleCamera(track, ui.frame, ui.state.objects);
+    track.camera = cloneCamera(ui.camera);
+    ui.refreshKeys();
+  }
+
+  function applyCameraPathDelta(delta) {
+    const track = ui.state.cameras.find((camera) => camera.id === dragBase.trackId);
+    if (!track) return;
+    track.keyframes = transformPathKeys(dragBase.baseKeys, pathTransformOptions(delta));
+    syncTrackAfterPathEdit(track);
+  }
+
+  function applyPathSelectionDelta(delta) {
+    const track = ui.state.cameras.find((camera) => camera.id === dragBase.trackId);
+    if (!track) return;
+    const options = { ...pathTransformOptions(delta), lookAtActive: dragBase.lookAtActive };
+    track.keyframes = transformSelectedPathKeys(dragBase.baseKeys, dragBase.selectedFrames, options);
+    syncTrackAfterPathEdit(track);
   }
 
   function handleTransform({ delta }) {
@@ -99,6 +175,10 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
       applyCameraDelta(delta);
     } else if (dragBase.type === "camera_target") {
       applyCameraTargetDelta(delta);
+    } else if (dragBase.type === "camera_path") {
+      applyCameraPathDelta(delta);
+    } else if (dragBase.type === "path_point" || dragBase.type === "path_group") {
+      applyPathSelectionDelta(delta);
     }
     ui.render();
   }

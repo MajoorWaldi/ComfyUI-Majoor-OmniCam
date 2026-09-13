@@ -107,3 +107,55 @@ test("object selection still resolves while looking through the camera view", ()
   const ui = baseUi({ selectedEntity: "object", viewMode: "camera" });
   assert.ok(resolveTransformTarget(ui));
 });
+
+// -- path_point / path_group (plan Task 6) -----------------------------------
+
+test("one selected path key resolves to path_point at its exact position, translate only", () => {
+  const ui = baseUi({ selectedEntity: "camera_path" });
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set([10]), primaryFrame: 10, component: "position" };
+  const target = resolveTransformTarget(ui);
+  assert.equal(target.type, "path_point");
+  assert.equal(target.id, "path_point:camera_1:10");
+  assert.deepEqual(target.position, [4, 0, 0]);
+  assert.deepEqual(target.allowedModes, ["translate"]);
+  assert.equal(target.frame, 10);
+  assert.equal(target.track.id, "camera_1");
+});
+
+test("multiple selected path keys resolve to path_group centered on their centroid, all modes allowed", () => {
+  const ui = baseUi({ selectedEntity: "camera_path" });
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set([0, 10]), primaryFrame: 10, component: "position" };
+  const target = resolveTransformTarget(ui);
+  assert.equal(target.type, "path_group");
+  assert.equal(target.id, "path_group:camera_1");
+  assert.deepEqual(target.position, [2, 0, 0]);
+  assert.deepEqual(target.allowedModes, ["translate", "rotate", "scale"]);
+  assert.deepEqual(target.frames, [0, 10]);
+});
+
+test("an empty path selection falls back to the whole path (unchanged Task 3/4 behavior)", () => {
+  const ui = baseUi({ selectedEntity: "camera_path" });
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set(), primaryFrame: null, component: "position" };
+  const target = resolveTransformTarget(ui);
+  assert.equal(target.type, "camera_path");
+});
+
+test("a path selection belonging to a different camera is ignored, falling back to the whole path", () => {
+  const ui = baseUi({ selectedEntity: "camera_path" });
+  ui.pathSelection = { cameraId: "some_other_camera", frames: new Set([0]), primaryFrame: 0, component: "position" };
+  const target = resolveTransformTarget(ui);
+  assert.equal(target.type, "camera_path");
+});
+
+test("no ui.pathSelection at all (legacy-gizmo fixtures) still resolves the whole path", () => {
+  const ui = baseUi({ selectedEntity: "camera_path" });
+  delete ui.pathSelection;
+  const target = resolveTransformTarget(ui);
+  assert.equal(target.type, "camera_path");
+});
+
+test("a locked camera track resolves to null for path_point/path_group too", () => {
+  const ui = baseUi({ selectedEntity: "camera_path", track: baseTrack({ locked: true }) });
+  ui.pathSelection = { cameraId: "camera_1", frames: new Set([0]), primaryFrame: 0, component: "position" };
+  assert.equal(resolveTransformTarget(ui), null);
+});

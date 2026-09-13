@@ -11,16 +11,22 @@
 // sections 18.2 and 19.
 
 import { pathCentroid } from "../director/camera-path-transform.js";
+import { selectedPathKeys } from "../director/camera-path-selection.js";
 import { sampleCamera, sampleObjectTransform } from "../director/core.js";
 
 // Which TransformControls modes a given target type may use. Cameras have no
 // size to scale; a camera target is a bare look-at point with neither a
 // meaningful rotation nor a size. Objects and whole paths support all three.
+// A single selected path point has no extent of its own to rotate or scale
+// about (both are no-ops on a lone point), so -- like a camera target -- it
+// only offers translate; a multi-point selection behaves like the whole path.
 const ALLOWED_MODES = {
   object: ["translate", "rotate", "scale"],
   camera: ["translate", "rotate"],
   camera_target: ["translate"],
   camera_path: ["translate", "rotate", "scale"],
+  path_point: ["translate"],
+  path_group: ["translate", "rotate", "scale"],
 };
 
 /**
@@ -82,6 +88,37 @@ export function resolveTransformTarget(ui) {
     }
 
     if (ui.selectedEntity === "camera_path" && (activeCam?.keyframes?.length || 0) >= 1) {
+      // A path-point (multi-)selection takes priority over the whole path
+      // while it is non-empty: it is a more specific target than "the whole
+      // path", the way selecting a face beats selecting its whole mesh.
+      // ui.pathSelection is transient editor state (plan section 7) that a
+      // legacy-gizmo fixture `ui` may not define at all, so this reads it
+      // defensively rather than assuming its shape.
+      const selectedKeys = selectedPathKeys(ui.pathSelection, activeCam);
+      if (selectedKeys.length === 1) {
+        return {
+          id: `path_point:${activeCam.id}:${selectedKeys[0].frame}`,
+          type: "path_point",
+          position: [...selectedKeys[0].camera.position],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          allowedModes: ALLOWED_MODES.path_point,
+          track: activeCam,
+          frame: selectedKeys[0].frame,
+        };
+      }
+      if (selectedKeys.length > 1) {
+        return {
+          id: `path_group:${activeCam.id}`,
+          type: "path_group",
+          position: pathCentroid(selectedKeys),
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          allowedModes: ALLOWED_MODES.path_group,
+          track: activeCam,
+          frames: selectedKeys.map((key) => key.frame),
+        };
+      }
       return {
         id: `camera_path:${activeCam.id}`,
         type: "camera_path",

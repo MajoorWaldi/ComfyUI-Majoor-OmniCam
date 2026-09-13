@@ -245,3 +245,78 @@ test("a plain click on a path key replaces a multi-selection", async ({ page }) 
   frames = await page.evaluate(() => [...window.omnicamNode.__majoorOmniCam.pathSelection.frames]);
   expect(frames).toEqual([60]);
 });
+
+// Task 6 of the plan: TransformControls for path points, groups and the
+// whole path. Frame 0's marker doubles as the real TransformControls free-
+// translate handle once it is the sole selection -- same technique as the
+// object/camera gizmo tests above (screenPoint via project()). Frame 30 is
+// deliberately avoided here: setUpThreeKeyPath's three keys are symmetric
+// about the path centroid, so frame 30 sits exactly where the *whole path*'s
+// own (still-live, just unselected) gizmo anchors -- a plain click there
+// would hit that gizmo's handle first, same class of hazard as a camera's
+// own gizmo legitimately winning the pointer over a path marker at the
+// current playhead frame.
+
+test("selecting one path key attaches the gizmo there; dragging moves only that key, one undo step", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+
+  const p0 = await pathKeyScreenPoint(page, 0);
+  await page.mouse.click(p0.x, p0.y);
+
+  const before = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return ui.activeCameraTrack().keyframes.map((k) => [...k.camera.position]);
+  });
+  const point = await screenPoint(page, before[0]); // frame 0 is the selected key
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 40, point.y - 20, { steps: 4 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return ui.activeCameraTrack().keyframes.map((k) => [...k.camera.position]);
+  });
+  expect(after[1]).toEqual(before[1]);
+  expect(after[2]).toEqual(before[2]);
+  expect(after[0]).not.toEqual(before[0]);
+
+  const undone = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.undo();
+    return ui.activeCameraTrack().keyframes.map((k) => [...k.camera.position]);
+  });
+  expect(undone).toEqual(before);
+});
+
+test("selecting two path keys attaches the gizmo at their centroid; dragging moves both, the third stays put", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+
+  const p0 = await pathKeyScreenPoint(page, 0);
+  const p30 = await pathKeyScreenPoint(page, 30);
+  await page.mouse.click(p0.x, p0.y);
+  await shiftClick(page, p30.x, p30.y);
+
+  const before = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return ui.activeCameraTrack().keyframes.map((k) => [...k.camera.position]);
+  });
+  const centroid = before[0].map((v, i) => (v + before[1][i]) / 2);
+  const point = await screenPoint(page, centroid);
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 40, point.y - 20, { steps: 4 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return ui.activeCameraTrack().keyframes.map((k) => [...k.camera.position]);
+  });
+  expect(after[0]).not.toEqual(before[0]);
+  expect(after[1]).not.toEqual(before[1]);
+  expect(after[2]).toEqual(before[2]);
+});
