@@ -148,3 +148,100 @@ test("Escape restores the pre-drag transform", async ({ page }) => {
   const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.objects.find((o) => o.id === "qa_cube").position);
   expect(after).toEqual(before);
 });
+
+// Task 5 of the plan: path-point selection and multi-selection.
+
+/** Screen point (CSS pixels) for the marker of the camera_1 keyframe at `frame`. */
+async function pathKeyScreenPoint(page, frame) {
+  return page.evaluate(async (frame) => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const marker = ui.webgl.path.children.find((c) => c.userData?.omnicamPathKey?.frame === frame);
+    if (!marker) return null;
+    const projected = marker.position.clone().project(ui.webgl.activeCamera);
+    const rect = ui.interactionElement.getBoundingClientRect();
+    return {
+      x: rect.left + ((projected.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - projected.y) / 2) * rect.height,
+    };
+  }, frame);
+}
+
+// page.mouse.click has no `modifiers` option (that's locator.click-only);
+// hold the key with the keyboard API around a raw mouse click instead.
+async function shiftClick(page, x, y) {
+  await page.keyboard.down("Shift");
+  await page.mouse.click(x, y);
+  await page.keyboard.up("Shift");
+}
+
+async function setUpThreeKeyPath(page) {
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const track = ui.activeCameraTrack();
+    track.keyframes = [
+      { frame: 0, interpolation: "smooth", camera: { position: [-2, 1, 0], target: [-2, 1, -5], fov: 35, camera_type: "perspective" } },
+      { frame: 30, interpolation: "smooth", camera: { position: [0, 1, 0], target: [0, 1, -5], fov: 35, camera_type: "perspective" } },
+      { frame: 60, interpolation: "smooth", camera: { position: [2, 1, 0], target: [2, 1, -5], fov: 35, camera_type: "perspective" } },
+    ];
+    ui.state.keyframes = track.keyframes;
+    ui.state.duration_frames = 90;
+    ui.selectedKeyFrame = null;
+    ui.selectedKeyFrames = new Set();
+    // The active camera's own TransformControls gizmo (Task 4) claims the
+    // pointer over its own on-screen footprint, same as a real camera body --
+    // step out of "camera" selection first so a path-key click is not racing
+    // its own live camera's translate handles for the same pointer.
+    ui.selectedEntity = "camera_path";
+    ui.serialize(); // bumps renderRevision so rebuildPath's cache key changes
+    ui.render();
+  });
+}
+
+test("clicking a path key selects only it; Shift+click adds a second key to the selection", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+
+  const p0 = await pathKeyScreenPoint(page, 0);
+  const p30 = await pathKeyScreenPoint(page, 30);
+  expect(p0).not.toBeNull();
+  expect(p30).not.toBeNull();
+
+  await page.mouse.click(p0.x, p0.y);
+  let selection = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { frames: [...ui.pathSelection.frames], primary: ui.pathSelection.primaryFrame };
+  });
+  expect(selection.frames).toEqual([0]);
+  expect(selection.primary).toBe(0);
+
+  await shiftClick(page, p30.x, p30.y);
+  selection = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { frames: [...ui.pathSelection.frames].sort((a, b) => a - b), primary: ui.pathSelection.primaryFrame };
+  });
+  expect(selection.frames).toEqual([0, 30]);
+  expect(selection.primary).toBe(30);
+
+  // Shift-clicking the same key again toggles it back out.
+  await shiftClick(page, p30.x, p30.y);
+  selection = await page.evaluate(() => [...window.omnicamNode.__majoorOmniCam.pathSelection.frames]);
+  expect(selection).toEqual([0]);
+});
+
+test("a plain click on a path key replaces a multi-selection", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+
+  const p0 = await pathKeyScreenPoint(page, 0);
+  const p30 = await pathKeyScreenPoint(page, 30);
+  const p60 = await pathKeyScreenPoint(page, 60);
+
+  await page.mouse.click(p0.x, p0.y);
+  await shiftClick(page, p30.x, p30.y);
+  let frames = await page.evaluate(() => [...window.omnicamNode.__majoorOmniCam.pathSelection.frames].sort((a, b) => a - b));
+  expect(frames).toEqual([0, 30]);
+
+  await page.mouse.click(p60.x, p60.y);
+  frames = await page.evaluate(() => [...window.omnicamNode.__majoorOmniCam.pathSelection.frames]);
+  expect(frames).toEqual([60]);
+});

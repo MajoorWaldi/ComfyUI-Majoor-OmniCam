@@ -1,7 +1,7 @@
 // Pointer, drag and wheel interaction handlers.
 
 import { add, cameraBasis, clamp, cloneCamera, cloneTransform, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
-import { interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
+import { handlePathKeyPointerDown, interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
 import { applyPathGizmoDrag, beginPathGizmoDrag, selectCameraPath } from "./path-gizmo.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
@@ -79,20 +79,9 @@ export function onPointerDown(ui, e) {
   }
 
   // A camera-path handle behaves like a gizmo: an unmodified primary drag on it
-  // reshapes the move instead of orbiting the view.
-  if (canEditGizmo && ui.webgl?.pickPathKey) {
-    const handle = ui.webgl.pickPathKey([pointerX, pointerY]);
-    if (handle) {
-      const track = (ui.state.cameras || []).find((camera) => camera.id === handle.cameraId);
-      const key = (track?.keyframes || []).find((item) => item.frame === handle.frame);
-      if (key) {
-        ui.pathDrag = { cameraId: handle.cameraId, frame: handle.frame, anchor: [...key.camera.position], startX: pointerX, startY: pointerY, moved: false, historyCheckpointed: false };
-        if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
-        ui.selectKeyframe?.(key);
-        return;
-      }
-    }
-  }
+  // reshapes the move instead of orbiting the view. Shift+click multi-selects
+  // the key instead of arming a drag (plan section 7/26 Task 5).
+  if (canPick && handlePathKeyPointerDown(ui, { pointerX, pointerY, shiftKey: e.shiftKey, altKey: e.altKey })) return;
 
   const picked = canEditGizmo ? pickGizmo(ui, [pointerX, pointerY]) : null;
   if (picked) {

@@ -98,8 +98,8 @@ function pathKeyFixture() {
   const ui = fixture();
   const key = { frame: 5, interpolation: "linear", camera: { position: [1, 1, 1], target: [0, 0, 0] } };
   ui.state.cameras = [{ id: "cam_1", keyframes: [key] }];
-  ui.selectedKeyframeCalls = [];
-  ui.selectKeyframe = (k) => ui.selectedKeyframeCalls.push(k);
+  ui.state.active_camera_id = "cam_1";
+  ui.activateCamera = () => {};
   ui.setFrame = () => {};
   ui.webgl = { pickPathKey: () => ({ cameraId: "cam_1", frame: 5 }) };
   return { ui, key };
@@ -113,7 +113,8 @@ test("clicking a path key without dragging leaves it untouched and costs no undo
   const { ui, key } = pathKeyFixture();
   onPointerDown(ui, event());
   assert.ok(ui.pathDrag, "must start a path drag");
-  assert.equal(ui.selectedKeyframeCalls.length, 1, "clicking still selects the key");
+  assert.equal(ui.selectedKeyFrame, 5, "clicking still selects the key");
+  assert.deepEqual([...ui.pathSelection.frames], [5], "and enters the spatial path selection");
   onPointerMove(ui, event({ clientX: 21, clientY: 20 })); // 1px jitter
   onPointerUp(ui, event());
   assert.deepEqual(key.camera.position, [1, 1, 1], "position must be untouched");

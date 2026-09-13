@@ -10,6 +10,7 @@
 // so a key never jumps toward or away from the viewer while being slid.
 
 import { cameraBasis } from "../director/core.js";
+import { selectPathKey } from "../director/camera-path-selection.js";
 
 function dot(a, b) {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -77,4 +78,60 @@ export function curveHandleFromHit(hit) {
     if (object.userData?.omnicamCurveHandle) return object.userData.omnicamCurveHandle;
   }
   return null;
+}
+
+/**
+ * Apply a click (or Shift+click) on a path-key marker to the Director's
+ * spatial path selection (plan section 7), mirroring the result into the
+ * pre-existing `selectedKeyFrame(s)` fields so the Inspector and timeline --
+ * which already read those -- pick it up with no further wiring.
+ *
+ * A plain click also scrubs the playhead to the newly primary key, matching
+ * every other single-keyframe click path in the viewport (activateCamera +
+ * setFrame + selectKeyframe). An additive Shift+click only moves the
+ * playhead when the toggle leaves a (possibly different) primary key behind,
+ * never when the whole selection empties out.
+ */
+export function selectPathKeyFromClick(ui, { cameraId, frame, additive = false }) {
+  ui.pathSelection = selectPathKey(ui.pathSelection, { cameraId, frame, additive });
+  ui.selectedKeyFrames = new Set(ui.pathSelection.frames);
+  ui.selectedKeyFrame = ui.pathSelection.primaryFrame;
+  ui.editingKeyFrame = null;
+  if (ui.pathSelection.primaryFrame != null) ui.setFrame(ui.pathSelection.primaryFrame);
+  ui.refreshKeys();
+  ui.refreshInspector();
+}
+
+/**
+ * The whole `pointerdown`-on-a-path-marker branch: pick, (re)activate the
+ * marker's own camera, then either toggle it into the selection (Shift) or
+ * select it and arm a drag (plain click). Kept out of interactions.js, which
+ * is already at the source-line cap.
+ *
+ * Returns `true` once handled (the caller should stop processing the event),
+ * `false` when the pointer did not land on a path-key marker.
+ */
+export function handlePathKeyPointerDown(ui, { pointerX, pointerY, shiftKey, altKey }) {
+  if (altKey || !ui.webgl?.pickPathKey) return false;
+  const handle = ui.webgl.pickPathKey([pointerX, pointerY]);
+  if (!handle) return false;
+  const track = (ui.state.cameras || []).find((camera) => camera.id === handle.cameraId);
+  const key = (track?.keyframes || []).find((item) => item.frame === handle.frame);
+  if (!key) return false;
+
+  // A marker on a different camera's path becomes the active track, same as
+  // clicking its body/target/whole-path elsewhere in this file.
+  if (track.id !== ui.state.active_camera_id) ui.activateCamera(track.id);
+
+  if (shiftKey) {
+    selectPathKeyFromClick(ui, { cameraId: track.id, frame: key.frame, additive: true });
+    ui.render();
+    return true;
+  }
+
+  ui.pathDrag = { cameraId: handle.cameraId, frame: handle.frame, anchor: [...key.camera.position], startX: pointerX, startY: pointerY, moved: false, historyCheckpointed: false };
+  if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
+  selectPathKeyFromClick(ui, { cameraId: track.id, frame: key.frame, additive: false });
+  ui.render();
+  return true;
 }

@@ -87,7 +87,7 @@ export function createRenderMethods(dependencies) {
         const scale = factor > 1 ? Math.min(factor, 4096 / Math.max(1, w, h)) : 1;
         const rw = scale > 1 ? Math.round(w * scale) : w;
         const rh = scale > 1 ? Math.round(h * scale) : h;
-        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null);
+        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null, this.selectedKeyFrames ? [...this.selectedKeyFrames] : null);
         c.imageSmoothingEnabled = true;
         c.imageSmoothingQuality = "high";
         if (rw !== w || rh !== h) c.drawImage(this.webgl.canvas, 0, 0, rw, rh, 0, 0, w, h);

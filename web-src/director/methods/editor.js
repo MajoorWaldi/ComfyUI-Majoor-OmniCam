@@ -2,6 +2,7 @@
 
 import { applyAimConstraint } from "../../aim-constraint.js";
 import { SPATIAL_HANDLE_MODES, spatialHandleMode } from "../../camera-path-curve.js";
+import { normalizePathSelection } from "../camera-path-selection.js";
 import { t } from "../../i18n.js";
 import { toggleObjectLock } from "../../scene/object-lock.js";
 
@@ -124,6 +125,11 @@ export function createEditorMethods(dependencies) {
     this.selectedKeyFrame = this.selectedKeyFrames.has(value.selectedKeyFrame)
       ? value.selectedKeyFrame
       : [...this.selectedKeyFrames].at(-1) ?? null;
+    // Path selection is transient UI state (plan section 7) and is never part
+    // of the serialized history snapshot, so it must be re-derived here
+    // rather than restored -- otherwise an undo/redo could leave it pointing
+    // at frames/cameras that no longer exist in the restored state.
+    this.pathSelection = normalizePathSelection(this.pathSelection, this.activeCameraTrack());
     this.subSelection = value.subSelection || null;
     this.camera = sampleCamera(this.state, this.frame);
     // sampleCamera alone cannot resolve a bone-level aim (bones only exist in
