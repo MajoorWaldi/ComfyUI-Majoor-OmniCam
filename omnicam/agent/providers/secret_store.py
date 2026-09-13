@@ -50,6 +50,19 @@ def _require_known_provider(provider_id: str) -> None:
         raise SecretStoreError("UNKNOWN_PROVIDER", f"Unknown provider: {provider_id!r}")
 
 
+def _ensure_local_secret_mutable(provider_id: str) -> None:
+    """Refuses a local set()/delete() for a provider an env var already
+    controls. The route layer (provider_routes.py) has its own copy of this
+    check for a friendlier HTTP error, but correctness must not depend on
+    that -- the store itself is the lowest level and owns this invariant
+    (design spec Task 9)."""
+    if env_credential(provider_id):
+        raise SecretStoreError(
+            "CREDENTIAL_MANAGED_BY_ENV",
+            f"{provider_id} credential is managed by the server environment",
+        )
+
+
 def env_credential(provider_id: str) -> str | None:
     """The operator-supplied environment override for ``provider_id``, if
     any. Each branch reads a literal env var name (never one assembled from
@@ -140,6 +153,7 @@ class SecretStore:
 
     def set(self, request: object, provider_id: str, secret: str) -> None:
         _require_known_provider(provider_id)
+        _ensure_local_secret_mutable(provider_id)
         if not isinstance(secret, str) or not secret.strip():
             raise SecretStoreError("BAD_REQUEST", "secret must be a non-empty string")
         if len(secret.encode("utf-8")) > MAX_SECRET_BYTES:
@@ -152,6 +166,7 @@ class SecretStore:
 
     def delete(self, request: object, provider_id: str) -> None:
         _require_known_provider(provider_id)
+        _ensure_local_secret_mutable(provider_id)
         path = _store_path(request)
         secrets = _read_secrets(path)
         if provider_id not in secrets:
