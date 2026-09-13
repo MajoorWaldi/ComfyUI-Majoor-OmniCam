@@ -178,11 +178,7 @@ export function executeDirectorTransaction(ui, input) {
   restoreViewportCamera(ui, active);
   repaint(ui, dirtyMask, `director-api:${tx.id}`);
 
-  void reconcileRuntimeResources(ui, tx, outcomes).catch((error) => {
-    console.warn("OmniCam: resource reconciliation failed", error);
-  });
-
-  return {
+  const result = {
     ok: true,
     version: DIRECTOR_API_VERSION,
     baseRevision: beforeRevision,
@@ -193,4 +189,22 @@ export function executeDirectorTransaction(ui, input) {
     outcomes,
     dirtyMask,
   };
+
+  // The canonical mutation above already committed successfully -- a failure
+  // here must never look like a failed transaction (no rollback is possible
+  // or attempted), but it must not vanish into a console-only warning either,
+  // or "the state changed but I do not see the mesh" is undiagnosable
+  // (design spec Task 11). `warnings` is the same array `result.warnings`
+  // points to, so a caller holding onto `result` sees this appended even
+  // though it resolves after the synchronous return below.
+  void reconcileRuntimeResources(ui, tx, outcomes).catch((error) => {
+    console.warn("OmniCam: resource reconciliation failed", error);
+    warnings.push({
+      code: "VIEWPORT_RESOURCE_RECONCILE_FAILED",
+      message: "The scene change was committed, but one or more viewport resources could not be refreshed.",
+    });
+    ui.setStatus?.("The scene change was committed, but one or more viewport resources could not be refreshed.");
+  });
+
+  return result;
 }

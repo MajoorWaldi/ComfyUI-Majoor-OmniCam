@@ -394,3 +394,63 @@ test("a plain transform does not trigger any resource reconciliation", async () 
   assert.equal(ui.restoreAssetsCallCount, 0);
   assert.deepEqual(ui.removedObjectIds, []);
 });
+
+// design spec Task 11: a failure in the post-commit runtime reconciliation
+// must never look like an Agent failure -- the semantic mutation already
+// committed successfully, so it stays ok:true, but the caller needs some
+// observable signal instead of a swallowed console.warn (otherwise "the
+// state changed but I do not see the mesh" is undiagnosable).
+
+test("restoreAssets() rejecting after commit still leaves the transaction ok:true, with the state committed", async () => {
+  const ui = makeReconcilingUi();
+  ui.restoreAssets = () => Promise.reject(new Error("network error loading GLB"));
+  const revisionBefore = ui.checkpoints.length;
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(ui.state.objects.some((o) => o.asset_id === CHAIR.id), true);
+  assert.equal(ui.checkpoints.length, revisionBefore + 1); // committed once, no rollback
+  await flush();
+});
+
+test("restoreAssets() rejecting after commit appends a bounded, stack-trace-free warning", async () => {
+  const ui = makeReconcilingUi();
+  ui.restoreAssets = () => Promise.reject(new Error("network error loading GLB"));
+
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+  await flush();
+
+  assert.equal(result.warnings.length, 1);
+  assert.equal(result.warnings[0].code, "VIEWPORT_RESOURCE_RECONCILE_FAILED");
+  assert.match(result.warnings[0].message, /viewport resources could not be refreshed/);
+  assert.equal("stack" in result.warnings[0], false);
+  assert.equal(JSON.stringify(result.warnings[0]).includes("network error loading GLB"), false);
+});
+
+test("removeObjectResources() throwing after commit also appends the warning, without a rollback", async () => {
+  const ui = makeReconcilingUi();
+  ui.removeObjectResources = () => { throw new Error("three.js dispose failed"); };
+  executeDirectorTransaction(ui, tx({ operations: [{ type: "object.create", objectType: "cube", id: "cube_1" }] }));
+
+  const result = executeDirectorTransaction(ui, tx({ operations: [{ type: "object.delete", objectId: "cube_1" }] }));
+  assert.equal(result.ok, true);
+  assert.equal(ui.state.objects.some((o) => o.id === "cube_1"), false); // canonical delete still committed
+  await flush();
+
+  assert.equal(result.warnings.length, 1);
+  assert.equal(result.warnings[0].code, "VIEWPORT_RESOURCE_RECONCILE_FAILED");
+});
+
+test("a successful reconciliation adds no warning", async () => {
+  const ui = makeReconcilingUi();
+  const result = executeDirectorTransaction(ui, tx({
+    operations: [{ type: "asset.instantiate", asset: CHAIR, point: [0, 0, 0], id: "seed1" }],
+  }));
+  await flush();
+  assert.deepEqual(result.warnings, []);
+});
