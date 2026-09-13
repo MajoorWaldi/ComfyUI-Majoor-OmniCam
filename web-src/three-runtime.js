@@ -42,6 +42,7 @@ export {
   MeshBasicMaterial,
   MeshStandardMaterial,
   NoToneMapping,
+  Object3D,
   OrthographicCamera,
   PCFSoftShadowMap,
   PMREMGenerator,
