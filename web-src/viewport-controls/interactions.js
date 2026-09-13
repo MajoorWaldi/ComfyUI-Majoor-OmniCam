@@ -416,9 +416,14 @@ export function onPointerMove(ui, e) {
         [pointerX, pointerY], viewportCamera(ui), ui.curveHandleDrag.anchor, ui.canvas.width, ui.canvas.height);
       // Routed through the Director facade so this eagerly-loaded interaction
       // module keeps no static import of the (Director-only) curve maths.
+      // Alt held mid-drag temporarily breaks the "aligned" mirroring so the
+      // artist can push one side off-axis without disturbing the other; the
+      // stored handle mode is untouched (see writeSpatialHandle), so letting
+      // go of Alt (or ending the drag) resumes normal coupling next move.
       ui.dragCurveHandle?.(key, ui.curveHandleDrag.side, world, {
         prevKey: ui.curveHandleDrag.prevKey,
         nextKey: ui.curveHandleDrag.nextKey,
+        breakCoupling: e.altKey,
       });
       if (ui.webgl) ui.webgl.pathKey = "";
       ui.setFrame(ui.frame, false, false);

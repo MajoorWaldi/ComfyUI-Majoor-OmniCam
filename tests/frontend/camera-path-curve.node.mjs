@@ -137,3 +137,46 @@ test("a stored handle actually bends the sampled camera path off the straight li
 test("SPATIAL_HANDLE_MODES is the menu order", () => {
   assert.deepEqual(SPATIAL_HANDLE_MODES, ["auto", "aligned", "free", "corner"]);
 });
+
+test("auto mode promotes to aligned on the first drag", () => {
+  const a = key(0, [0, 0, 0]);
+  const b = key(20, [4, 0, 0]);
+  const c = key(40, [8, 0, 0]);
+  assert.equal(spatialHandleMode(b), "auto");
+  writeSpatialHandle(b, "out", [6, 3, 0], { prevKey: a, nextKey: c });
+  assert.equal(spatialHandleMode(b), "aligned");
+});
+
+test("Alt-break (breakCoupling) leaves the opposite handle untouched while dragging", () => {
+  const a = key(0, [0, 0, 0]);
+  const b = key(20, [4, 0, 0]);
+  const c = key(40, [8, 0, 0]);
+  setSpatialHandleMode(b, "aligned", { prevKey: a, nextKey: c });
+  const beforeIn = spatialHandlePoints(b, a, c).in;
+
+  writeSpatialHandle(b, "out", [4 + 2, 2, 0], { prevKey: a, nextKey: c, breakCoupling: true });
+  const points = spatialHandlePoints(b, a, c);
+
+  assert.deepEqual(points.in, beforeIn, "opposite handle must not move while coupling is broken");
+  assert.deepEqual(points.out.map((v) => Math.round(v * 1e6) / 1e6), [6, 2, 0]);
+  assert.equal(b.tangents.spatial_mode, "aligned", "breaking coupling for one drag must not change the stored mode");
+});
+
+test("releasing Alt after a broken-coupling drag resumes normal aligned mirroring", () => {
+  const a = key(0, [0, 0, 0]);
+  const b = key(20, [4, 0, 0]);
+  const c = key(40, [8, 0, 0]);
+  setSpatialHandleMode(b, "aligned", { prevKey: a, nextKey: c });
+
+  // Drag with Alt held: opposite handle stays put.
+  writeSpatialHandle(b, "out", [6, 2, 0], { prevKey: a, nextKey: c, breakCoupling: true });
+  // Alt released, drag continues (or a fresh drag begins): mirroring resumes.
+  writeSpatialHandle(b, "out", [4 + 3, 4, 0], { prevKey: a, nextKey: c, breakCoupling: false });
+
+  const points = spatialHandlePoints(b, a, c);
+  const outVector = points.out.map((v, i) => v - b.camera.position[i]);
+  const inVector = points.in.map((v, i) => v - b.camera.position[i]);
+  const dot = normalize(inVector).reduce((sum, value, axis) => sum + value * normalize(outVector)[axis], 0);
+  assert.ok(dot < -0.999, `in/out must be colinear-opposite again once coupling resumes, dot=${dot}`);
+  assert.equal(spatialHandleMode(b), "aligned");
+});
