@@ -8,14 +8,7 @@ import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject
 import { t } from "../i18n.js";
 import { cancelModalTransform, confirmModalTransform, selectedTransformObjects, updateModalTransform } from "./modal-transform.js";
 import { isNavigationGesture, navigationGesture, navigationProfile, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
-import {
-  applyTrackingOffset,
-  checkpointDrag,
-  checkpointWheelGesture,
-  projectedObjectScreenBounds,
-  snapValue,
-  spatiallySnap,
-} from "./drag-helpers.js";
+import { applyTrackingOffset, checkpointDrag, checkpointWheelGesture, projectedObjectScreenBounds, snapValue, spatiallySnap } from "./drag-helpers.js";
 
 export function onPointerDown(ui, e) {
   if (ui.modalTransform) {
@@ -55,6 +48,8 @@ export function onPointerDown(ui, e) {
   // A visible gizmo handle owns an unmodified primary drag, as in standard 3D
   // editors. Navigation still starts normally everywhere outside the handles.
   const canEditGizmo = canPick && !e.altKey && !e.shiftKey;
+  // TransformControls owns its own handles; it does not stop propagation.
+  if (canEditGizmo && ui.transformControlsWiring?.isPointerOverHandle?.()) return;
   // A spatial-curve tangent handle wins over its own control point and over
   // orbiting: an unmodified primary drag on a knob reshapes the Bézier.
   if (canEditGizmo && ui.webgl?.pickCurveHandle) {
@@ -387,6 +382,8 @@ export function onPointerDown(ui, e) {
 
 export function onPointerMove(ui, e) {
   ui.lastPointerEvent = e;
+  // A live TransformControls drag owns the whole gesture (section 5.5).
+  if (ui.transformControlsDragging) return;
   if (ui.modalTransform) {
     updateModalTransform(ui, e);
     return;
@@ -645,6 +642,11 @@ export function onPointerMove(ui, e) {
 }
 
 export function cancelViewportInteraction(ui) {
+  // A live TransformControls drag cancels through the adapter (restores the frozen drag-start anchor).
+  if (ui.transformControlsDragging) {
+    ui.transformControlsWiring?.cancelDrag();
+    return true;
+  }
   if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag && !ui.keyDrag && !ui.curveDrag && !ui.timelineDrag && !ui.timelinePanDrag && !ui.boxSelect && !ui.curvePanDrag && !ui.curveScrub && !ui.curveBoxSelect) return false;
   const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag, ui.keyDrag, ui.curveDrag].some((drag) => drag?.historyCheckpointed);
   ui.keyDrag?.badge?.remove?.();

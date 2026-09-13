@@ -159,11 +159,16 @@ test("cancelDrag restores the drag-start snapshot and reports cancelled without 
   assert.equal(calls.onDragEnd.length, 1);
 });
 
-test("dispose removes every listener and the helper from the scene", () => {
+test("the anchor is added to the scene graph -- TransformControls silently refuses to drag a parentless object", () => {
+  const { fakeScene } = makeAdapter();
+  assert.ok(fakeScene.children.some((child) => child instanceof FakeAnchor), "anchor must be part of the scene graph");
+});
+
+test("dispose removes every listener, the helper and the anchor from the scene", () => {
   const { adapter, fakeControls, fakeScene } = makeAdapter();
-  assert.equal(fakeScene.children.length, 1, "helper was added to the scene on construction");
+  assert.equal(fakeScene.children.length, 2, "helper and anchor were added to the scene on construction");
   adapter.dispose();
-  assert.equal(fakeScene.children.length, 0, "helper removed from the scene");
+  assert.equal(fakeScene.children.length, 0, "helper and anchor removed from the scene");
   assert.equal(fakeControls.disposed, true);
   for (const handlers of fakeControls.listeners.values()) {
     assert.equal(handlers.size, 0, "all handlers removed");
@@ -177,4 +182,13 @@ test("isDragging reflects the dragging-changed events", () => {
   assert.equal(adapter.isDragging(), true);
   fakeControls.emit("dragging-changed", { value: false });
   assert.equal(adapter.isDragging(), false);
+});
+
+test("isHoveringHandle reflects the underlying controls.axis", () => {
+  const { adapter, fakeControls } = makeAdapter();
+  assert.equal(adapter.isHoveringHandle(), false);
+  fakeControls.axis = "X";
+  assert.equal(adapter.isHoveringHandle(), true);
+  fakeControls.axis = null;
+  assert.equal(adapter.isHoveringHandle(), false);
 });

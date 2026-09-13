@@ -62,6 +62,11 @@ export function createTransformControlsAdapter({
   if (scene?.add) {
     helper = typeof controls.getHelper === "function" ? controls.getHelper() : controls;
     scene.add(helper);
+    // The anchor itself must also be part of the scene graph: TransformControls
+    // reads `object.parent` (for updateMatrixWorld()) on every pointerDown, and
+    // silently refuses to start a drag (only a console.error, no exception) when
+    // the attached object has no parent.
+    scene.add(anchor);
   }
 
   let currentTargetSpec = null;
@@ -209,6 +214,7 @@ export function createTransformControlsAdapter({
     controls.removeEventListener?.("mouseUp", handleMouseUp);
     controls.removeEventListener?.("dragging-changed", handleDraggingChanged);
     if (scene?.remove && helper) scene.remove(helper);
+    if (scene?.remove) scene.remove(anchor);
     controls.dispose?.();
     currentTargetSpec = null;
     dragStart = null;
@@ -226,5 +232,11 @@ export function createTransformControlsAdapter({
     cancelDrag,
     dispose,
     isDragging: () => dragging,
+    // True whenever the pointer currently hovers (or is dragging) a visible
+    // handle -- `controls.axis` is kept live by TransformControls' own
+    // continuous pointermove hover listener, independent of whether a drag
+    // has actually started. Callers use this to detect "the next pointerdown
+    // belongs to this gizmo" before TransformControls' own listener runs.
+    isHoveringHandle: () => Boolean(controls.axis),
   };
 }

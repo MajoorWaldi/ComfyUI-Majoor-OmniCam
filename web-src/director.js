@@ -18,6 +18,7 @@ import { createRigMapper } from "./assets/character/rig-mapper.js";
 import { createPoseEditor } from "./assets/character/pose-editor.js";
 import { createMotionEditor } from "./assets/character/motion-editor.js";
 import { buildDirectorDomCache } from "./director/dom-cache.js";
+import { createTransformControlsWiring } from "./viewport/transform-controls-wiring.js";
 import {
   activeCameraTrack,
   bindWidgetCallbacks,
@@ -188,6 +189,9 @@ class OmniCamDirectorUI {
     this.webgl = null;
     this.cameraWebgl = null;
     this.webglReady = this.loadWebGLViewports();
+    // Real Three.js TransformControls for object/camera/camera_target
+    // (plan Task 4); synced once per renderViewportOnly() tick.
+    this.transformControlsWiring = createTransformControlsWiring(this);
     this.stateWidget = node.widgets?.find((w) => w.name === "state_json"), this.recordingWidget = node.widgets?.find((w) => w.name === "recording_path"), this.cardWidget = node.widgets?.find((w) => w.name === "card_asset"), this.widthWidget = node.widgets?.find((w) => w.name === "width"), this.heightWidget = node.widgets?.find((w) => w.name === "height"), this.fpsWidget = node.widgets?.find((w) => w.name === "fps"), this.durationWidget = node.widgets?.find((w) => w.name === "duration_seconds"), this.modeWidget = node.widgets?.find((w) => w.name === "render_mode");
     let parsed = null;
     try {

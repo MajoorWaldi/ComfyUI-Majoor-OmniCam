@@ -117,9 +117,18 @@ export function activeGizmoEntity(ui) {
   return resolveTransformTarget(ui);
 }
 
+// Target types now owned end-to-end by the real Three.js TransformControls
+// (see viewport/transform-controls-wiring.js, plan Task 4) whenever a Director
+// actually has that wiring installed (i.e. the live app, never the bare `ui`
+// fixtures the legacy-gizmo regression tests build). Path targets (path_point
+// / path_group / camera_path) still use the legacy canvas-drawn gizmo below
+// until Task 6 gives them the same adapter.
+const LIVE_TRANSFORM_CONTROLS_TYPES = new Set(["object", "camera", "camera_target"]);
+
 export function gizmoGeometry(ui) {
   const entity = activeGizmoEntity(ui);
   if (!entity) return null;
+  if (ui.transformControlsWiring && LIVE_TRANSFORM_CONTROLS_TYPES.has(entity.type)) return null;
   const camera = viewportCamera(ui);
   const origin = entity.position;
   if (!origin || !Number.isFinite(origin[0]) || !Number.isFinite(origin[1]) || !Number.isFinite(origin[2])) return null;

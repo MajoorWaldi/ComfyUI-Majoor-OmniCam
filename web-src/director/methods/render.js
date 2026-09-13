@@ -96,6 +96,12 @@ export function createRenderMethods(dependencies) {
       } catch (err) {
         console.error("[OmniCam WebGL Render Error]", err);
       }
+      // Attach/detach/update the real TransformControls for the current
+      // selection now that this.webgl.activeCamera reflects this frame's
+      // configureCamera() (plan Task 4). One-frame lag on the gizmo mesh
+      // itself is invisible in practice: selection/mode changes always
+      // trigger another render() shortly after.
+      this.transformControlsWiring?.sync();
     }
     if (!webglRendered) {
       (!this.recording && ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(mode) || this.recording && this.state.playblast_grid) && this.drawGrid();
@@ -238,6 +244,7 @@ export function createRenderMethods(dependencies) {
     if (this.disposed) return;
     this.disposed = true;
     this.agentBridge?.dispose?.();
+    this.transformControlsWiring?.dispose();
     unregisterDirector(this);
     // The help popup is appended to document.body with its own capture keydown
     // listener; nothing else tears it down when the node (or the whole graph)
