@@ -48,6 +48,44 @@ export function planChangesMarkup(changes) {
     .join("");
 }
 
+/** True for a loopback host (127.0.0.1/localhost/::1) or an empty override
+ * (which means "use the provider's own local default" for ollama and
+ * openai_compatible). Conservative on an unparsable URL: treated as remote
+ * rather than silently assumed local (design spec Task 5). */
+export function isLoopbackBaseUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) return true;
+  let hostname;
+  try {
+    hostname = new URL(value).hostname;
+  } catch {
+    return false;
+  }
+  return (
+    hostname === "127.0.0.1" || hostname === "localhost" ||
+    hostname === "::1" || hostname === "[::1]" || hostname === "0.0.0.0"
+  );
+}
+
+/** What the Director Agent panel discloses about the outbound data boundary
+ * for the currently configured provider, before the user presses Preview
+ * (design spec Task 5). OpenAI/Anthropic are always outbound: even a custom
+ * base_url still ships the instruction and query observations to whatever
+ * that URL is. Ollama and OpenAI-compatible are local-first providers, so
+ * only an actual remote override makes them outbound. */
+export function providerPrivacyText(settings) {
+  const outbound = t(
+    "Your instruction and the semantic scene information requested by the planner are sent to the configured model provider. Media files are not sent by Agent v1."
+  );
+  if (settings.provider === "ollama") {
+    return isLoopbackBaseUrl(settings.baseUrl) ? t("Planning stays on the configured local Ollama endpoint.") : outbound;
+  }
+  if (settings.provider === "openai_compatible") {
+    return isLoopbackBaseUrl(settings.baseUrl) ? t("Planning stays on the configured local endpoint.") : outbound;
+  }
+  return outbound;
+}
+
 /** <option> list for the model picker. The currently configured model is
  * kept even if it fell out of the live list (a provider that just went
  * offline, a typo'd custom model) so a working selection is never silently
@@ -68,6 +106,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
 
   const panel = el("agent-panel");
   const hint = el("agent-hint");
+  const privacyNote = el("agent-privacy-note");
   const describeInput = el("agent-describe");
   const planList = el("agent-plan");
   const modelSelect = el("agent-model-select");
@@ -94,6 +133,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       const label = PROVIDER_LABELS[settings.provider] || settings.provider;
       providerLabel.textContent = `${label} · ${settings.model || t("(no model set)")}`;
     }
+    if (privacyNote) privacyNote.textContent = providerPrivacyText(settings);
 
     const busy = state === "planning" || state === "applying";
     if (previewBtn) previewBtn.disabled = busy;

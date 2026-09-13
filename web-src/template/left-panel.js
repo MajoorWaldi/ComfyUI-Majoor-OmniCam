@@ -51,6 +51,7 @@ function agentTabMarkup() {
                  placeholder="${t("Paste API key...")}" aria-label="${t("Credential")}">
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="credential-save">${t("Save")}</button>
         </div>
+        <p class="oc-asset-status hint oc-agent-privacy" data-role="agent-privacy-note"></p>
         <p class="oc-asset-status hint" data-role="agent-hint"></p>
         <textarea class="oc-search oc-agent-describe" data-role="agent-describe" rows="2"
                   placeholder="${t("Describe the shot...")}" aria-label="${t("Describe the shot")}"></textarea>
