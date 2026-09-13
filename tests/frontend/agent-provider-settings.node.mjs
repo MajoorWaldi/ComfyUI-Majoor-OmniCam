@@ -8,7 +8,6 @@ import {
   SETTING_AGENT_MAX_OUTPUT_TOKENS,
   SETTING_AGENT_MAX_STEPS,
   SETTING_AGENT_MODEL,
-  SETTING_AGENT_PREVIEW,
   SETTING_AGENT_PROVIDER,
   SETTING_AGENT_TIMEOUT,
   agentSettings,
@@ -24,13 +23,18 @@ test("the Agent group is registered in the settings catalogue", () => {
     SETTING_AGENT_BASE_URL,
     SETTING_AGENT_MAX_OUTPUT_TOKENS,
     SETTING_AGENT_MAX_STEPS,
-    SETTING_AGENT_PREVIEW,
     SETTING_AGENT_TIMEOUT,
   ]) {
     assert.ok(ids.includes(id), `missing ${id}`);
   }
   const provider = OMNICAM_SETTINGS.find((entry) => entry.id === SETTING_AGENT_PROVIDER);
   assert.deepEqual(provider.category, ["OmniCam", "Agent", "Provider"]);
+});
+
+test("no PreviewBeforeApply setting exists -- Preview then Apply is a mandatory safety flow, not a preference (design spec Task 7)", () => {
+  const ids = OMNICAM_SETTINGS.map((entry) => String(entry.id));
+  assert.equal(ids.some((id) => id.includes("PreviewBeforeApply")), false);
+  assert.equal("previewBeforeApply" in agentSettings(), false);
 });
 
 test("no credential setting is ever registered in the ComfyUI settings catalogue", () => {
@@ -47,7 +51,6 @@ test("agentSettings() returns sane defaults with no app registered", () => {
     baseUrl: "",
     maxOutputTokens: 4096,
     maxPlannerSteps: 6,
-    previewBeforeApply: true,
     requestTimeoutSeconds: 120,
   });
 });
@@ -71,7 +74,6 @@ test("agentSettings() reads overridden values and clamps out-of-range numbers", 
     [SETTING_AGENT_BASE_URL]: " https://example.test ",
     [SETTING_AGENT_MAX_OUTPUT_TOKENS]: 999999,
     [SETTING_AGENT_MAX_STEPS]: 0,
-    [SETTING_AGENT_PREVIEW]: false,
     [SETTING_AGENT_TIMEOUT]: 15,
   };
   registerOmniCamLocales(fakeApp(values));
@@ -83,7 +85,6 @@ test("agentSettings() reads overridden values and clamps out-of-range numbers", 
   assert.equal(settings.baseUrl, "https://example.test");
   assert.equal(settings.maxOutputTokens, 32768);
   assert.equal(settings.maxPlannerSteps, 1);
-  assert.equal(settings.previewBeforeApply, false);
   assert.equal(settings.requestTimeoutSeconds, 15);
 
   registerOmniCamLocales(null);
