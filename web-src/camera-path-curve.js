@@ -231,6 +231,27 @@ export function writeSpatialHandle(key, side, worldPoint, { prevKey = null, next
 }
 
 /**
+ * Force one tangent handle of `key` to an exact absolute world point,
+ * bypassing all mode coupling (no aligned mirroring, no auto/corner
+ * recompute). The caller owns `key.tangents.spatial_mode` -- this only
+ * writes the raw per-axis delta -- so it composes cleanly with a caller that
+ * has already frozen the key into "free"/"aligned" mode (or is about to).
+ * Used by camera-path-insert.js to give a freshly split Bézier segment
+ * exact continuity with the curve it replaced.
+ */
+export function setHandleWorldPoint(key, side, worldPoint) {
+  if (!key || (side !== "in" && side !== "out")) return key;
+  const here = position(key);
+  promoteToBezier(key);
+  writeDelta(key, side, subtract([
+    finiteNumber(worldPoint?.[0]),
+    finiteNumber(worldPoint?.[1]),
+    finiteNumber(worldPoint?.[2]),
+  ], here));
+  return key;
+}
+
+/**
  * Set the user-facing handle mode of `key`.
  *  - auto   : drop the stored spatial handles so the resolver recomputes live
  *  - corner : freeze vector-style handles (near-linear either side)

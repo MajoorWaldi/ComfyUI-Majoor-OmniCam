@@ -73,6 +73,50 @@ export function createCameraPickingMethods(dependencies) {
       }
       return best ? { ...best.handle, position: best.position } : null;
     },
+
+    /**
+     * The active camera-path segment (two neighbouring real keyframes, plus
+     * a `t` 0..1 between them) nearest the pointer, for double-click-to-
+     * insert (Task 8). `null` when the pointer isn't over the path tube.
+     */
+    pickPathSegment(pointer) {
+      if (!this.path.visible || !this.activeCamera) return null;
+      const { w: logicalW, h: logicalH } = logicalSize(this);
+      this.pointer.set((pointer[0] / logicalW) * 2 - 1, -(pointer[1] / logicalH) * 2 + 1);
+      this.raycaster.setFromCamera(this.pointer, this.activeCamera);
+      const hit = this.raycaster.intersectObjects(this.path.children, true)
+        .find((entry) => entry.object.userData?.omnicamPathSegments);
+      if (!hit) return null;
+
+      const { cameraId, firstFrame, lastFrame, frames, points } = hit.object.userData.omnicamPathSegments;
+      if (!points?.length || frames.length < 2) return null;
+
+      // Nearest sampled point on the tube's centreline -> its frame.
+      let nearestIndex = 0;
+      let nearestDistSq = Infinity;
+      for (let index = 0; index < points.length; index += 1) {
+        const [px, py, pz] = points[index];
+        const dx = px - hit.point.x, dy = py - hit.point.y, dz = pz - hit.point.z;
+        const distSq = dx * dx + dy * dy + dz * dz;
+        if (distSq < nearestDistSq) { nearestDistSq = distSq; nearestIndex = index; }
+      }
+      const hitFrame = firstFrame + ((lastFrame - firstFrame) * nearestIndex) / Math.max(1, points.length - 1);
+
+      // Enclosing pair of *real* keyframes (not sample points).
+      let leftFrame = frames[0];
+      let rightFrame = frames[frames.length - 1];
+      for (let i = 0; i < frames.length - 1; i += 1) {
+        if (frames[i] <= hitFrame && hitFrame <= frames[i + 1]) {
+          leftFrame = frames[i];
+          rightFrame = frames[i + 1];
+          break;
+        }
+      }
+      if (leftFrame === rightFrame) return null;
+      const t = Math.min(1, Math.max(0, (hitFrame - leftFrame) / (rightFrame - leftFrame)));
+      return { cameraId, leftFrame, rightFrame, t };
+    },
+
   configureCamera(cameraState, aspect) {
     const cam = cameraState || defaultCamera();
     const safeNear = Math.max(0.0005, Number(cam.near) || 0.01);

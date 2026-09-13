@@ -276,6 +276,18 @@ export function createResourceMethods(dependencies) {
         const pathMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(48, samples), radius, 8, false), material);
         pathMesh.renderOrder = 900;
         pathMesh.userData.omnicamWidget = "path";
+        // Lets pickPathSegment() (double-click-to-insert, Task 8) map a raycast
+        // hit on the rendered tube back to the two real keyframes either side
+        // of it and a t (0..1) between them, without a second curve walk.
+        if (isActive && !camera.locked) {
+          pathMesh.userData.omnicamPathSegments = {
+            cameraId: camera.id,
+            firstFrame,
+            lastFrame,
+            frames: keys.map((key) => key.frame),
+            points: points.map((p) => [p.x, p.y, p.z]),
+          };
+        }
         this.path.add(pathMesh);
         if (isActive) {
           const glow = new THREE.Mesh(

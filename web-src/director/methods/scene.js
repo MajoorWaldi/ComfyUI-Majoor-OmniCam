@@ -6,6 +6,8 @@ import { formatFocalLength } from "../../lens.js";
 import { updatePlayhead } from "../../timeline/playhead.js";
 import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
+import { insertCameraPathKey } from "../camera-path-insert.js";
+import { selectPathKeyFromClick } from "../../viewport/path-editing.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
 import { buildDirectorDomCache } from "../dom-cache.js";
 import { syncInspectorSelection, setInspectorMode } from "../../inspector/context.js";
@@ -187,6 +189,45 @@ export function createSceneMethods(dependencies) {
   // that eagerly-loaded module needs no static import of the curve maths.
   dragCurveHandle(key, side, worldPoint, options) {
     writeSpatialHandle(key, side, worldPoint, options || {});
+  },
+  // Double-click on the rendered path between two keys inserts a new camera
+  // key there (plan section 26 Task 8). Returns false (and does nothing) when
+  // the cursor isn't over a path segment, so the caller can fall back to its
+  // other double-click behaviour (setTargetAtCursor).
+  insertPathKeyAtCursor(event) {
+    if (!event || !this.webgl?.pickPathSegment) return false;
+    const rect = this.interactionElement.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) * this.canvas.width) / Math.max(1, rect.width);
+    const y = ((event.clientY - rect.top) * this.canvas.height) / Math.max(1, rect.height);
+    const hit = this.webgl.pickPathSegment([x, y]);
+    if (!hit) return false;
+    const track = (this.state.cameras || []).find((camera) => camera.id === hit.cameraId);
+    if (!track || track.locked) return false;
+
+    const result = insertCameraPathKey(track.keyframes || [], {
+      leftFrame: hit.leftFrame, rightFrame: hit.rightFrame, t: hit.t,
+    });
+    if (!result.ok) {
+      this.setStatus(result.reason === "no_free_frame"
+        ? t("No free frame here to insert a key")
+        : t("Could not insert a key here"));
+      return true;
+    }
+
+    this.checkpoint(t("Insert camera path key"));
+    if (track.id !== this.state.active_camera_id) this.activateCamera(track.id);
+    track.keyframes = result.keys;
+    this.state.keyframes = result.keys;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    selectPathKeyFromClick(this, { cameraId: track.id, frame: result.frame, additive: false });
+    this.serialize();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("Camera path key inserted at frame {frame}").replace("{frame}", String(result.frame)));
+    return true;
   },
   // Select the active camera's whole path as one transform target. The gizmo
   // only draws in an editor view, so a shot-camera view drops to perspective.

@@ -351,7 +351,13 @@ export function bindEditorAndGlobal(ui, q, signal) {
     handleMinimapPointerUp(ui, event);
     ui.onPointerUp(event);
   }, { signal });
-  ui.interactionElement?.addEventListener("dblclick", (event) => ui.setTargetAtCursor(event), { signal });
+  // A double-click on the active camera's rendered path inserts a new key
+  // there (Task 8); anywhere else it keeps its long-standing meaning of
+  // setting the camera's Look-At target under the cursor.
+  ui.interactionElement?.addEventListener("dblclick", (event) => {
+    if (ui.insertPathKeyAtCursor?.(event)) return;
+    ui.setTargetAtCursor(event);
+  }, { signal });
   ui.interactionElement?.addEventListener("wheel", (event) => {
     const rect = ui.interactionElement.getBoundingClientRect();
     const px = ((event.clientX - rect.left) * ui.canvas.width) / Math.max(1, rect.width);
