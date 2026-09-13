@@ -34,6 +34,27 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
+def _is_sensitive_address(host: str) -> bool:
+    """True for a literal IP that is categorically unsafe as an Agent
+    provider target -- unspecified (0.0.0.0/::), multicast, link-local
+    (including the 169.254.169.254 cloud-metadata address every major
+    provider uses), or otherwise IANA-reserved. Blocked unconditionally,
+    even when OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS=1 (design spec
+    Task 10) -- unlike the RFC1918 LAN allowance, there is no legitimate
+    provider use case this would ever break.
+
+    Only literal IP addresses are checked, not DNS names: this module does
+    not resolve hostnames itself (aiohttp does, at request time), so it
+    cannot detect a hostname that only resolves to a sensitive address
+    without pinning the connection to that resolved address -- doing so
+    would be a false claim of protection this function does not provide."""
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return addr.is_unspecified or addr.is_multicast or addr.is_link_local or addr.is_reserved
+
+
 def allow_remote_custom_providers() -> bool:
     return os.environ.get("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS") == "1"
 
@@ -88,6 +109,12 @@ def validate_provider_url(url: str, *, is_custom_endpoint: bool) -> str:
     host = parts.hostname
     if not host:
         raise NetworkPolicyError("BAD_URL", "URL is missing a host")
+
+    if _is_sensitive_address(host):
+        raise NetworkPolicyError(
+            "SENSITIVE_TARGET_BLOCKED",
+            "This destination is blocked regardless of remote-provider policy",
+        )
 
     if is_custom_endpoint and not _is_loopback_host(host) and not allow_remote_custom_providers():
         raise NetworkPolicyError(
