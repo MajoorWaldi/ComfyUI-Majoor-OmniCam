@@ -3,7 +3,7 @@
 import { add, cameraBasis, clamp, cloneCamera, cross, distanceToSegment, length, mul, norm, project, rotateEuler, sampleCamera, sampleObjectTransform, sub } from "./director/core.js";
 import { t } from "./i18n.js";
 import { frameObjects } from "./viewport-controls/framing.js";
-import { pathCentroid } from "./director/camera-path-transform.js";
+import { resolveTransformTarget } from "./viewport-controls/transform-target.js";
 
 export function viewportCamera(ui) {
   return ui.recording
@@ -108,58 +108,13 @@ export function gizmoAxes(ui, object, entity, { forceLocal = false } = {}) {
   return forceLocal || ui.state.gizmo_space === "local" ? axes.map((axis) => rotateEuler(axis, rot)) : axes;
 }
 
+// Compatibility facade: the transform gizmo call sites in this file (and
+// elsewhere) were written against this entity shape long before TargetSpec
+// existed. The resolution logic itself now lives in
+// viewport-controls/transform-target.js as resolveTransformTarget(), which
+// returns a superset of this shape (adds `id`, `scale`, `allowedModes`).
 export function activeGizmoEntity(ui) {
-  if (ui.selectedEntity === "object") {
-    const object = ui.selectedObject();
-    if (!object || object.locked) return null;
-    const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
-    const origin = transform.position || [0, 0, 0];
-    // The transform gizmo always sits at the object's own origin, exactly
-    // like Maya's pivot or Blender's origin point: a fixed, authored point,
-    // never a live geometric/bone average. A bone-average centre (as this
-    // used to draw for model/glb entities) visibly drifts with the current
-    // pose during animation, which no 3D package's gizmo does -- that live
-    // centre stays a legitimate aim/look-at target elsewhere (framing,
-    // aimAtSelectedObject), just not a transform pivot.
-    return {
-      type: "object",
-      object,
-      position: origin,
-      origin,
-      rotation: transform.rotation || [0, 0, 0],
-      size: transform.size || [1, 1, 1],
-    };
-  }
-  if (ui.state.view_mode !== "camera") {
-    const activeCam = ui.activeCameraTrack();
-    // Same guard as the object branch above: a locked camera's gizmo must not
-    // even appear, exactly like a locked object's. Every gizmoDrag creation
-    // site calls beginCameraEdit(), which already refuses to write a
-    // keyframe for a locked track -- but nothing there stopped the drag
-    // itself, so the camera still visibly moved on screen and only the
-    // (silent) failure to persist gave away that it was locked at all.
-    if (activeCam?.locked) return null;
-    if (ui.selectedEntity === "camera_target") {
-      const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
-      return { type: "camera_target", position: camData.target || ui.camera.target || [0, 1.5, 0], rotation: [0, 0, 0] };
-    }
-    if (ui.selectedEntity === "camera") {
-      const camData = sampleCamera(activeCam, ui.frame, ui.state.objects);
-      return { type: "camera", position: camData.position || ui.camera.position || [6, 4, 6], rotation: [0, 0, 0] };
-    }
-    // The whole path as one transform target: the gizmo sits at the centroid of
-    // every keyframe and a drag moves / scales / rotates them all together.
-    if (ui.selectedEntity === "camera_path" && (activeCam?.keyframes?.length || 0) >= 1) {
-      return {
-        type: "camera_path",
-        position: pathCentroid(activeCam.keyframes),
-        rotation: [0, 0, 0],
-        size: [1, 1, 1],
-        track: activeCam,
-      };
-    }
-  }
-  return null;
+  return resolveTransformTarget(ui);
 }
 
 export function gizmoGeometry(ui) {
