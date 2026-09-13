@@ -7,6 +7,23 @@
 
 import { add, mul, sub, rotateEuler, length } from "./core.js";
 
+// Mirrors sampleCamera's own "is this track's look-at an active, explicit
+// constraint" test (director/core/camera.js) -- the closest thing this
+// codebase has to a per-key "orientation mode" (plan section 8/12.2): while
+// it is active, sampleCamera ignores every key's stored `camera.target` and
+// drives it live from the constrained object instead, so:
+//  - a position transform must move a key's stored target rigidly with it
+//    (there is no path tangent to speak of);
+//  - a *target*-component transform must refuse outright -- dragging a
+//    target marker would silently write a value the constraint immediately
+//    overrides on the next resample, corrupting the key with no visible
+//    effect, so target-path editing goes read-only instead.
+export function trackHasActiveLookAt(track) {
+  const lookAt = track?.constraints?.look_at;
+  const constraintActive = lookAt?.status === undefined || lookAt?.status === "active";
+  return Boolean(constraintActive && (lookAt?.object_id || track?.target_object_id));
+}
+
 /** Mean of the keyframe positions (the path's transform pivot). */
 export function pathCentroid(keys) {
   const list = Array.isArray(keys) ? keys.filter((k) => k?.camera?.position) : [];
@@ -131,5 +148,28 @@ export function transformSelectedPathKeys(baseKeys, frames, options) {
       }
     }
     return { ...key, camera };
+  });
+}
+
+/**
+ * Move only the `camera.target` of the selected keys by `delta`, leaving
+ * `camera.position` untouched. Translate-only, matching the `path_point`
+ * target component's allowed modes (plan section 12.1): a single target
+ * point has no extent to rotate or scale about. The caller is responsible
+ * for refusing this outright when {@link trackHasActiveLookAt} is true --
+ * this function does not check the constraint itself, so it stays a pure,
+ * unconditional data transform other callers (tests, future whole-target-
+ * path editing) can also use directly.
+ *
+ * @param {object[]} baseKeys frozen keyframes with `camera.target`
+ * @param {Set<number>|number[]} frames the `frame` values to move
+ * @param {object} options `{ delta: [x,y,z] }`
+ */
+export function transformSelectedPathTargets(baseKeys, frames, { delta = [0, 0, 0] } = {}) {
+  const list = Array.isArray(baseKeys) ? baseKeys : [];
+  const selected = frames instanceof Set ? frames : new Set(frames || []);
+  return list.map((key) => {
+    if (!selected.has(key.frame) || !Array.isArray(key?.camera?.target)) return key;
+    return { ...key, camera: { ...key.camera, target: add(key.camera.target, delta) } };
   });
 }

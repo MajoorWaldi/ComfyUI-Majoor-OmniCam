@@ -50,6 +50,17 @@ export function selectPathKey(selection, { cameraId, frame, additive = false } =
   return { ...current, cameraId, frames, primaryFrame: frame };
 }
 
+/**
+ * Switch the selection's edited component between the path's position keys
+ * and their look-at targets (plan section 12). Returns a new selection
+ * object; an unrecognized `component` is a no-op.
+ */
+export function setPathSelectionComponent(selection, component) {
+  const current = selection || createPathSelection();
+  if (component !== "position" && component !== "target") return current;
+  return { ...current, component };
+}
+
 /** A fresh, empty selection (the current selection's component is not preserved). */
 export function clearPathSelection(_selection) {
   return createPathSelection();

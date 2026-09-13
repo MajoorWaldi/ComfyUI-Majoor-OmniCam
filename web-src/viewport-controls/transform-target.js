@@ -10,7 +10,7 @@
 // See docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md
 // sections 18.2 and 19.
 
-import { pathCentroid } from "../director/camera-path-transform.js";
+import { pathCentroid, trackHasActiveLookAt } from "../director/camera-path-transform.js";
 import { selectedPathKeys } from "../director/camera-path-selection.js";
 import { sampleCamera, sampleObjectTransform } from "../director/core.js";
 
@@ -27,6 +27,10 @@ const ALLOWED_MODES = {
   camera_path: ["translate", "rotate", "scale"],
   path_point: ["translate"],
   path_group: ["translate", "rotate", "scale"],
+  // A single key's look-at target (plan section 12): also a bare point, also
+  // translate-only. Multi-point/whole-target-path editing is an explicit
+  // Phase 2 (plan section 12.3), so there is no "target_group" here yet.
+  path_point_target: ["translate"],
 };
 
 /**
@@ -96,6 +100,28 @@ export function resolveTransformTarget(ui) {
       // defensively rather than assuming its shape.
       const selectedKeys = selectedPathKeys(ui.pathSelection, activeCam);
       if (selectedKeys.length === 1) {
+        // Position/Target component toggle (plan section 12.1): a single
+        // selected key can edit either its own position or the look-at
+        // point it's aimed at, from `ui.pathSelection.component`. A target
+        // driven by an active Look-At constraint is reported read-only
+        // (`readOnly: true`) instead of silently letting a drag write a
+        // value the constraint immediately overrides on the next resample
+        // (plan section 12.2) -- transform-controls-wiring.js's sync() must
+        // not attach a live gizmo while this is set.
+        if (ui.pathSelection?.component === "target") {
+          const key = selectedKeys[0];
+          return {
+            id: `path_point_target:${activeCam.id}:${key.frame}`,
+            type: "path_point_target",
+            position: [...(key.camera.target || [0, 0, 0])],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            allowedModes: ALLOWED_MODES.path_point_target,
+            track: activeCam,
+            frame: key.frame,
+            readOnly: trackHasActiveLookAt(activeCam),
+          };
+        }
         return {
           id: `path_point:${activeCam.id}:${selectedKeys[0].frame}`,
           type: "path_point",

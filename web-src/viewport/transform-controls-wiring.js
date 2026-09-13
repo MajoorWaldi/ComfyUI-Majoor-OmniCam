@@ -32,25 +32,19 @@ import * as THREE from "../three-runtime.js";
 import { createTransformControlsAdapter } from "./transform-controls-adapter.js";
 import { resolveTransformTarget } from "../viewport-controls/transform-target.js";
 import { add, cloneCamera, cloneTransform, rotateEuler, sampleCamera, sub } from "../director/core.js";
-import { pathCentroid, transformPathKeys, transformSelectedPathKeys } from "../director/camera-path-transform.js";
+import {
+  pathCentroid,
+  trackHasActiveLookAt,
+  transformPathKeys,
+  transformSelectedPathKeys,
+  transformSelectedPathTargets,
+} from "../director/camera-path-transform.js";
 import { applyTrackingOffset } from "../viewport-controls/drag-helpers.js";
 import { selectedTransformObjects } from "../viewport-controls/modal-transform.js";
 
-const LIVE_TYPES = new Set(["object", "camera", "camera_target", "path_point", "path_group", "camera_path"]);
-
-// Mirrors sampleCamera's own "is this track's look-at an active, explicit
-// constraint" test (director/core/camera.js) -- the closest thing this
-// codebase has to a per-key "orientation mode" (plan section 8): while it is
-// active, sampleCamera ignores every key's stored `camera.target` and drives
-// it live from the constrained object instead, so a transform must move that
-// stored target rigidly with the position (there is no path tangent to speak
-// of); otherwise a key is Follow Path and its target is free to be
-// recomputed from the (possibly reshaped) path after the transform.
-function trackHasActiveLookAt(track) {
-  const lookAt = track?.constraints?.look_at;
-  const constraintActive = lookAt?.status === undefined || lookAt?.status === "active";
-  return Boolean(constraintActive && (lookAt?.object_id || track?.target_object_id));
-}
+const LIVE_TYPES = new Set([
+  "object", "camera", "camera_target", "path_point", "path_group", "camera_path", "path_point_target",
+]);
 
 export function createTransformControlsWiring(ui, { controlsFactory, anchorFactory } = {}) {
   let adapter = null;
@@ -133,6 +127,21 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
         baseKeys: track.keyframes.map((key) => ({ ...key, camera: cloneCamera(key.camera) })),
         lookAtActive: trackHasActiveLookAt(track),
       };
+      return;
+    }
+    if (targetSpec.type === "path_point_target") {
+      // sync() already refuses to attach a live gizmo when targetSpec.readOnly
+      // is set (an active Look-At constraint), but guard here too in case a
+      // stale drag start ever raced a constraint toggle.
+      const track = targetSpec.track;
+      if (!track || track.locked || targetSpec.readOnly) return;
+      ui.checkpoint("Move camera path target");
+      dragBase = {
+        type: "path_point_target",
+        trackId: track.id,
+        frame: targetSpec.frame,
+        baseKeys: track.keyframes.map((key) => ({ ...key, camera: cloneCamera(key.camera) })),
+      };
     }
   }
 
@@ -167,6 +176,17 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
     syncTrackAfterPathEdit(track);
   }
 
+  // Translate-only: moves a single key's camera.target, its position and
+  // every other key untouched. Never reached while the track's Look-At is an
+  // active constraint -- both sync() and handleDragStart() refuse before
+  // this point, per plan section 12.2 ("do not silently break a constraint").
+  function applyPathTargetDelta(delta) {
+    const track = ui.state.cameras.find((camera) => camera.id === dragBase.trackId);
+    if (!track) return;
+    track.keyframes = transformSelectedPathTargets(dragBase.baseKeys, [dragBase.frame], { delta: delta.position });
+    syncTrackAfterPathEdit(track);
+  }
+
   function handleTransform({ delta }) {
     if (!dragBase) return;
     if (dragBase.type === "object") {
@@ -179,6 +199,8 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
       applyCameraPathDelta(delta);
     } else if (dragBase.type === "path_point" || dragBase.type === "path_group") {
       applyPathSelectionDelta(delta);
+    } else if (dragBase.type === "path_point_target") {
+      applyPathTargetDelta(delta);
     }
     ui.render();
   }
@@ -247,7 +269,11 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
     // an editor affordance, not scene content (plan Definition of Done).
     const spec = ui.recording ? null : resolveTransformTarget(ui);
     const mode = ui.state.gizmo_mode || "translate";
-    const live = Boolean(spec) && LIVE_TYPES.has(spec.type) && spec.allowedModes.includes(mode);
+    // A read-only target (a look-at target driven by an active Look-At
+    // constraint, plan section 12.2) never gets a live gizmo: there is
+    // nothing safe to write, so no handle is offered instead of one that
+    // silently does nothing.
+    const live = Boolean(spec) && !spec.readOnly && LIVE_TYPES.has(spec.type) && spec.allowedModes.includes(mode);
     if (!live) {
       adapter?.detach();
       return;

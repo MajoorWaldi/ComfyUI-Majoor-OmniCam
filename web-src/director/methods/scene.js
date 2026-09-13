@@ -8,6 +8,7 @@ import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
 import { insertCameraPathKey } from "../camera-path-insert.js";
 import { selectPathKeyFromClick } from "../../viewport/path-editing.js";
+import { setPathSelectionComponent as applyPathSelectionComponent } from "../camera-path-selection.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
 import { buildDirectorDomCache } from "../dom-cache.js";
 import { syncInspectorSelection, setInspectorMode } from "../../inspector/context.js";
@@ -189,6 +190,15 @@ export function createSceneMethods(dependencies) {
   // that eagerly-loaded module needs no static import of the curve maths.
   dragCurveHandle(key, side, worldPoint, options) {
     writeSpatialHandle(key, side, worldPoint, options || {});
+  },
+  // Position/Target component toggle for the primary selected path key (plan
+  // section 12.1). Only ever changes which point a translate gizmo attaches
+  // to (see transform-target.js's path_point_target); it never mutates a
+  // keyframe, so no checkpoint/undo entry is needed here.
+  setPathSelectionComponent(component) {
+    this.pathSelection = applyPathSelectionComponent(this.pathSelection, component);
+    this.refreshInspector();
+    this.render();
   },
   // Double-click on the rendered path between two keys inserts a new camera
   // key there (plan section 26 Task 8). Returns false (and does nothing) when
