@@ -6,6 +6,13 @@ import { formatFocalLength } from "../../lens.js";
 import { updatePlayhead } from "../../timeline/playhead.js";
 import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
+import { insertCameraPathKey } from "../camera-path-insert.js";
+import { redistributeCameraPathTiming } from "../camera-path-timing.js";
+import { CAMERA_PATH_PRESET_LABELS, CAMERA_PATH_PRESET_TYPES, createCameraPathPreset } from "../camera-path-presets.js";
+import { normalizedPlaybackRange } from "../camera-path-draw.js";
+import { omnicamListModal } from "../ui-services.js";
+import { selectPathKeyFromClick } from "../../viewport/path-editing.js";
+import { setPathSelectionComponent as applyPathSelectionComponent } from "../camera-path-selection.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
 import { buildDirectorDomCache } from "../dom-cache.js";
 import { syncInspectorSelection, setInspectorMode } from "../../inspector/context.js";
@@ -188,6 +195,54 @@ export function createSceneMethods(dependencies) {
   dragCurveHandle(key, side, worldPoint, options) {
     writeSpatialHandle(key, side, worldPoint, options || {});
   },
+  // Position/Target component toggle for the primary selected path key (plan
+  // section 12.1). Only ever changes which point a translate gizmo attaches
+  // to (see transform-target.js's path_point_target); it never mutates a
+  // keyframe, so no checkpoint/undo entry is needed here.
+  setPathSelectionComponent(component) {
+    this.pathSelection = applyPathSelectionComponent(this.pathSelection, component);
+    this.refreshInspector();
+    this.render();
+  },
+  // Double-click on the rendered path between two keys inserts a new camera
+  // key there (plan section 26 Task 8). Returns false (and does nothing) when
+  // the cursor isn't over a path segment, so the caller can fall back to its
+  // other double-click behaviour (setTargetAtCursor).
+  insertPathKeyAtCursor(event) {
+    if (!event || !this.webgl?.pickPathSegment) return false;
+    const rect = this.interactionElement.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) * this.canvas.width) / Math.max(1, rect.width);
+    const y = ((event.clientY - rect.top) * this.canvas.height) / Math.max(1, rect.height);
+    const hit = this.webgl.pickPathSegment([x, y]);
+    if (!hit) return false;
+    const track = (this.state.cameras || []).find((camera) => camera.id === hit.cameraId);
+    if (!track || track.locked) return false;
+
+    const result = insertCameraPathKey(track.keyframes || [], {
+      leftFrame: hit.leftFrame, rightFrame: hit.rightFrame, t: hit.t,
+    });
+    if (!result.ok) {
+      this.setStatus(result.reason === "no_free_frame"
+        ? t("No free frame here to insert a key")
+        : t("Could not insert a key here"));
+      return true;
+    }
+
+    this.checkpoint(t("Insert camera path key"));
+    if (track.id !== this.state.active_camera_id) this.activateCamera(track.id);
+    track.keyframes = result.keys;
+    this.state.keyframes = result.keys;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    selectPathKeyFromClick(this, { cameraId: track.id, frame: result.frame, additive: false });
+    this.serialize();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("Camera path key inserted at frame {frame}").replace("{frame}", String(result.frame)));
+    return true;
+  },
   // Select the active camera's whole path as one transform target. The gizmo
   // only draws in an editor view, so a shot-camera view drops to perspective.
   selectCameraPath() {
@@ -214,6 +269,82 @@ export function createSceneMethods(dependencies) {
     this.camera = sampleCamera(track, this.frame, this.state.objects);
     track.camera = cloneCamera(this.camera);
     this.serialize(), this.refreshKeys(), this.refreshInspector(), this.render(), this.renderCameraView?.();
+    return true;
+  },
+  // "Redistribute Timing" (plan section 26 Task 10 / spec section 14.3):
+  // reflows the active camera's own existing key range using each key's
+  // authoring Timing Weight, never touching any other camera or object.
+  redistributeActiveCameraTiming() {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked || !(track.keyframes?.length >= 2)) {
+      if (track?.keyframes?.length < 2) this.setStatus(t("Need at least two keys to redistribute timing"));
+      return false;
+    }
+    const sorted = [...track.keyframes].sort((a, b) => a.frame - b.frame);
+    const result = redistributeCameraPathTiming(sorted, {
+      startFrame: sorted[0].frame,
+      endFrame: sorted[sorted.length - 1].frame,
+    });
+    if (!result.ok) {
+      this.setStatus(result.reason === "insufficient_frame_slots"
+        ? t("Not enough frame slots to redistribute this many keys")
+        : t("Could not redistribute timing"));
+      return false;
+    }
+    this.checkpoint(t("Redistribute camera path timing"));
+    track.keyframes = result.keys;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = result.keys;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize();
+    this.refreshKeys();
+    this.refreshKeyEditor();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("Camera path timing redistributed"));
+    return true;
+  },
+  // Camera Path Presets (plan section 26 Task 11 / spec section 17): a
+  // single compact picker over every preset type instead of one toolbar
+  // button per preset. Generated keys are ordinary camera keyframes -- fully
+  // editable afterward by the regular point/curve/timing tools -- covering
+  // the active camera's current playback range by default.
+  async openCameraPathPresetPicker() {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked) {
+      this.setStatus(t("{name} is locked").replace("{name}", track?.name || t("Camera")));
+      return false;
+    }
+    const items = CAMERA_PATH_PRESET_TYPES.map((type) => ({ id: type, label: t(CAMERA_PATH_PRESET_LABELS[type] || type) }));
+    const type = await omnicamListModal({ title: t("Camera Path Preset"), items, owner: this });
+    if (!type) return false;
+    return this.applyCameraPathPreset(type);
+  },
+  applyCameraPathPreset(type, params = {}) {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked) {
+      this.setStatus(t("{name} is locked").replace("{name}", track?.name || t("Camera")));
+      return false;
+    }
+    const [startFrame, endFrame] = normalizedPlaybackRange(this.state);
+    const result = createCameraPathPreset({ type, camera: this.camera, startFrame, endFrame, params });
+    if (!result.ok) {
+      this.setStatus(result.reason === "insufficient_frame_slots"
+        ? t("Not enough frames in the playback range for this preset")
+        : t("Could not generate that camera path preset"));
+      return false;
+    }
+    this.checkpoint(t("Apply camera path preset"));
+    track.keyframes = result.keyframes;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = result.keyframes;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("{preset} camera path generated").replace("{preset}", t(CAMERA_PATH_PRESET_LABELS[type] || type)));
     return true;
   },
   toggleCurveHandles() {

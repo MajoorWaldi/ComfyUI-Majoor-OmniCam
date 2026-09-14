@@ -60,7 +60,17 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
   });
   expect(clipping).toEqual({ near: 0.001, far: 5000, webglNear: 0.001, webglFar: 5000 });
   await page.locator('.majoor-omnicam .scene-item', { hasText: "Subject" }).click();
-  expect(await page.evaluate(() => window.omnicamLiveNode.__majoorOmniCam.gizmoGeometry()?.handles.length)).toBe(3);
+  // The real Three.js TransformControls (plan Task 4) owns object manipulation
+  // in the live app; gizmoGeometry()/pickGizmo() (viewport-controls.js) are the
+  // legacy canvas-drawn gizmo, kept only as the Task 1 baseline regression
+  // test's pure-math backing (tests/frontend/transform-gizmo.node.mjs) and
+  // return null here once ui.transformControlsWiring is installed.
+  expect(await page.evaluate(() => {
+    const ui = window.omnicamLiveNode.__majoorOmniCam;
+    ui.setTransformMode("translate");
+    ui.render();
+    return ui.webgl.scene.children.some((child) => child.isTransformControlsRoot && child.visible);
+  })).toBe(true);
 
   const pointerStart = await page.evaluate(() => {
     const node = window.omnicamLiveNode, ui = node.__majoorOmniCam, rect = ui.interactionElement.getBoundingClientRect();
@@ -164,20 +174,33 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
     const select = ui.root.querySelector('[data-role="reference-select"]'); select.value = "1"; select.dispatchEvent(new Event("change"));
   });
   await page.locator('.majoor-omnicam .scene-item', { hasText: "Subject" }).click();
+  await page.evaluate(() => window.omnicamLiveNode.__majoorOmniCam.setTransformMode("translate"));
+  // Drive the real on-screen TransformControls handle with actual browser
+  // mouse events (as tests/frontend/spatial-camera-editor.spec.js does for the
+  // same adapter) instead of the legacy canvas gizmo's onPointerDown/Move,
+  // which no longer attaches for object targets in the live app (see above).
+  const gizmoPoint = await page.evaluate(async () => {
+    const { Vector3 } = await import("/web-src/three-runtime.js");
+    const ui = window.omnicamLiveNode.__majoorOmniCam, object = ui.selectedObject(), rect = ui.interactionElement.getBoundingClientRect();
+    const v = new Vector3(...object.position).project(ui.webgl.activeCamera);
+    return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
+  });
+  await page.mouse.move(gizmoPoint.x, gizmoPoint.y);
+  await page.mouse.down();
+  await page.mouse.move(gizmoPoint.x + 45, gizmoPoint.y - 30, { steps: 4 });
+  await page.mouse.up();
   const interaction = await page.evaluate(() => {
-    const node = window.omnicamLiveNode, ui = node.__majoorOmniCam, handle = ui.gizmoGeometry(ui.selectedObject()).handles[0], [center, end] = handle.points, rect = ui.interactionElement.getBoundingClientRect();
-    const scaleX = rect.width / ui.canvas.width, scaleY = rect.height / ui.canvas.height, dx = end[0] - center[0], dy = end[1] - center[1], magnitude = Math.hypot(dx, dy);
-    ui.interactionElement.setPointerCapture = () => {};
-    ui.onPointerDown({ clientX: rect.left + end[0] * scaleX, clientY: rect.top + end[1] * scaleY, pointerId: 1, button: 0, shiftKey: false, altKey: false });
-    ui.onPointerMove({ clientX: rect.left + (end[0] + dx / magnitude * 45) * scaleX, clientY: rect.top + (end[1] + dy / magnitude * 45) * scaleY }); ui.onPointerUp();
-    const dragMode = (mode, handleIndex) => {
-      ui.state.gizmo_mode = mode; const points = ui.gizmoGeometry(ui.selectedObject()).handles[handleIndex].points;
-      const index = mode === "rotate" ? Math.floor(points.length / 4) : points.length - 1, start = points[index], previous = points[Math.max(0, index - 1)];
-      const vx = start[0] - previous[0], vy = start[1] - previous[1], distance = Math.max(1, Math.hypot(vx, vy));
-      ui.onPointerDown({ clientX: rect.left + start[0] * scaleX, clientY: rect.top + start[1] * scaleY, pointerId: 2, button: 0, shiftKey: false, altKey: false });
-      ui.onPointerMove({ clientX: rect.left + (start[0] + vx / distance * 35) * scaleX, clientY: rect.top + (start[1] + vy / distance * 35) * scaleY }); ui.onPointerUp();
-    };
-    dragMode("scale", 1); dragMode("rotate", 2);
+    const node = window.omnicamLiveNode, ui = node.__majoorOmniCam, object = ui.selectedObject();
+    // Scale/rotate *through* a live TransformControls handle drag is already
+    // exercised end-to-end by transform-controls-wiring.node.mjs and
+    // spatial-camera-editor.spec.js; this test only needs some non-default
+    // scale/rotation on the object to prove the save/reload round trip below
+    // preserves it, so set it directly through the same begin/commit lifecycle
+    // a real drag uses.
+    ui.beginObjectEdit(object);
+    object.size = [2.6, 3.4, 3.2];
+    object.rotation = [0, 32, 0];
+    ui.commitObjectEdit(object);
     const state = JSON.parse(ui.stateWidget.value);
     const serialized = node.serialize();
     const restored = window.LiteGraph.createNode("MajoorOmniCamDirector"); restored.pos = [900, 0]; node.graph.add(restored); restored.configure(serialized);

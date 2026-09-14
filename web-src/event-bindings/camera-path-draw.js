@@ -18,6 +18,10 @@ export function bindCameraPathDraw(ui, signal) {
     }, { signal });
   }
 
+  for (const button of ui.root.querySelectorAll('[data-act="camera-path-presets"]')) {
+    button.addEventListener("click", () => ui.openCameraPathPresetPicker(), { signal });
+  }
+
   ui.root.addEventListener("contextmenu", (event) => {
     const suppress = Date.now() <= Number(ui.cameraPathSuppressContextMenuUntil || 0);
     if (!suppress && !ui.cameraPathDraw?.active) return;

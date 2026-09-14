@@ -7,7 +7,7 @@ import { motionClipTime } from "../assets/character/motion-state.js";
 export function createRenderMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh, SelectionOutlineRenderer } = dependencies;
   return {
-  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null, selectedFrame = null) {
+  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null, selectedFrame = null, selectedFrames = null) {
     // The studio look stays on while editing. During a capture it survives only
     // for the explicit "beauty" mode; every other proxy mode records flat.
     const wantStudio = !cleanCapture || (state.render_mode || "") === "beauty";
@@ -152,12 +152,13 @@ export function createRenderMethods(dependencies) {
     // clutter drawn over the shot -- the look-at target still shows so it can
     // be aimed (updateLiveCameras keeps that). Every other camera is untouched.
     const viewMode = state.view_mode || "camera";
-    const pathKey = `${viewMode}:${selectedEntity}:${selectedFrame ?? ""}:${state.__omnicamRevision ?? JSON.stringify([
+    const selectedFramesKey = Array.isArray(selectedFrames) ? [...selectedFrames].sort((a, b) => a - b).join(",") : "";
+    const pathKey = `${viewMode}:${selectedEntity}:${selectedFrame ?? ""}:${selectedFramesKey}:${state.__omnicamRevision ?? JSON.stringify([
       state.active_camera_id,
       (state.cameras || []).map((c) => [c.id, c.keyframes?.length, c.keyframes?.map((k) => [k.frame, k.camera?.position, k.camera?.target, k.interpolation, k.tangents])]),
       (state.objects || []).map((o) => [o.id, o.keyframes?.length, o.keyframes?.map((k) => [k.frame, k.transform?.position])]),
     ])}`;
-    if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state, selectedEntity, selectedFrame, viewMode); }
+    if (pathKey !== this.pathKey) { this.pathKey = pathKey; this.rebuildPath(state, selectedEntity, selectedFrame, viewMode, selectedFrames); }
 
     this.updateLiveCameras(state, frame, cleanCapture, viewMode, selectedEntity, selectedFrame);
     this.liveCameras.visible = !cleanCapture;

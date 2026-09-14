@@ -31,4 +31,10 @@ export const SHARED_STYLES = `
   .majoor-omnicam .oc-section{color:var(--oc-text-faint);font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
   .majoor-omnicam .oc-field-row{display:flex;align-items:center;gap:6px}
   .majoor-omnicam .oc-empty{padding:12px;border:1px dashed var(--oc-line);border-radius:var(--oc-radius-sm);color:var(--oc-text-dim);text-align:center}
+  .majoor-omnicam .oc-path-diagnostics{display:flex;flex-direction:column;gap:3px;margin:2px 0 6px;font-size:11px;line-height:1.35}
+  .majoor-omnicam .oc-diagnostic{color:var(--oc-text-dim)}
+  .majoor-omnicam .oc-diagnostic-warning{color:var(--oc-warn-text)}
+  .majoor-omnicam .oc-diagnostic-notice{color:var(--oc-text-dim)}
+  .majoor-omnicam .oc-diagnostic-info{color:var(--oc-text-faint)}
+  .majoor-omnicam .oc-diagnostic-ok{color:var(--oc-text-faint)}
 `;

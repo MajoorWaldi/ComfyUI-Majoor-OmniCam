@@ -228,7 +228,8 @@ export function createResourceMethods(dependencies) {
     }
   },
 
-  rebuildPath(state, selectedEntity = "camera", selectedFrame = null, viewMode = "") {
+  rebuildPath(state, selectedEntity = "camera", selectedFrame = null, viewMode = "", selectedFrames = null) {
+    const selectedFrameSet = Array.isArray(selectedFrames) ? new Set(selectedFrames) : null;
     disposeObject(this.path); this.path.clear();
     // Through the active camera's own lens its trajectory and keyframe frustums
     // are drawn straight across the shot. Skip them there; the live look-at
@@ -275,6 +276,18 @@ export function createResourceMethods(dependencies) {
         const pathMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(48, samples), radius, 8, false), material);
         pathMesh.renderOrder = 900;
         pathMesh.userData.omnicamWidget = "path";
+        // Lets pickPathSegment() (double-click-to-insert, Task 8) map a raycast
+        // hit on the rendered tube back to the two real keyframes either side
+        // of it and a t (0..1) between them, without a second curve walk.
+        if (isActive && !camera.locked) {
+          pathMesh.userData.omnicamPathSegments = {
+            cameraId: camera.id,
+            firstFrame,
+            lastFrame,
+            frames: keys.map((key) => key.frame),
+            points: points.map((p) => [p.x, p.y, p.z]),
+          };
+        }
         this.path.add(pathMesh);
         if (isActive) {
           const glow = new THREE.Mesh(
@@ -336,6 +349,11 @@ export function createResourceMethods(dependencies) {
         const position = new THREE.Vector3().fromArray(key.camera.position);
         const target = new THREE.Vector3().fromArray(key.camera.target || [0, 0, 0]);
         const selectedKeyHere = isActive && selectedFrame != null && key.frame === selectedFrame;
+        // A key can be part of a multi-selection (plan section 7) without being
+        // the *primary* one: it still gets a highlight ring, just a visually
+        // distinct one from the primary beacon below -- no frustum/camera body,
+        // those stay reserved for the single primary key.
+        const secondarySelectedHere = isActive && !selectedKeyHere && selectedFrameSet?.has(key.frame);
 
         // Radiant beacon halo on the selected keyframe control point
         if (selectedKeyHere) {
@@ -348,6 +366,16 @@ export function createResourceMethods(dependencies) {
           beacon.userData.omnicamBillboard = true;
           beacon.userData.omnicamWidget = "path";
           this.path.add(beacon);
+        } else if (secondarySelectedHere) {
+          const secondaryRing = new THREE.Mesh(
+            new THREE.RingGeometry(CURVE_POINT_RADIUS * 1.9, CURVE_POINT_RADIUS * 2.2, 24),
+            new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthTest: false })
+          );
+          secondaryRing.position.fromArray(key.camera.position);
+          secondaryRing.renderOrder = 911;
+          secondaryRing.userData.omnicamBillboard = true;
+          secondaryRing.userData.omnicamWidget = "path";
+          this.path.add(secondaryRing);
         }
 
         // Every other keyframe is just its path point above: the frustum and

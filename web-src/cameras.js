@@ -1,6 +1,7 @@
 // Camera manager and camera-preview strip for the OmniCam Director.
 
 import { cloneCamera, sampleCamera } from "./director/core.js";
+import { normalizePathSelection } from "./director/camera-path-selection.js";
 import { SEQUENCE_TARGET, sequenceCuts } from "./director/sequence.js";
 import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
@@ -309,8 +310,11 @@ export async function deleteCamera(ui, id) {
     ui.selectedObjectId = null;
     ui.selectedObjectIds = new Set();
     ui.selectedKeyFrame = next.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
+    ui.selectedKeyFrames = ui.selectedKeyFrame != null ? new Set([ui.selectedKeyFrame]) : new Set();
     ui.editingKeyFrame = null;
   }
+  // The deleted camera can no longer own a spatial path selection.
+  ui.pathSelection = normalizePathSelection(ui.pathSelection, ui.activeCameraTrack());
   ui.serialize();
   ui.refreshCameraSelectors();
   ui.refreshObjects();
@@ -333,6 +337,11 @@ export function activateCamera(ui, id) {
   ui.selectedObjectId = null;
   ui.selectedObjectIds = new Set();
   ui.selectedKeyFrame = camera.keyframes.find((key) => key.frame === ui.frame)?.frame ?? null;
+  ui.selectedKeyFrames = ui.selectedKeyFrame != null ? new Set([ui.selectedKeyFrame]) : new Set();
+  // Spatial path selection is scoped to one camera track (plan section 7):
+  // switching the active camera clears any selection that belonged to the
+  // previous one rather than letting it dangle on a track no longer active.
+  ui.pathSelection = normalizePathSelection(ui.pathSelection, camera);
   ui.editingKeyFrame = null;
   ui.serialize();
   ui.refreshCameraSelectors();

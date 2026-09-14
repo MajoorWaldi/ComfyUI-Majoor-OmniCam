@@ -182,9 +182,17 @@ function seedBothHandles(key, previousKey, nextKey) {
  *  - aligned : the opposite side is kept colinear-opposite, its length preserved
  *  - auto    : first drag promotes the key to "aligned"
  *  - corner  : handles are slaved to the neighbours; a drag is ignored
+ *
+ * `breakCoupling` (Alt held) temporarily suspends the "aligned" mirroring for
+ * this call only: the dragged side moves independently while the opposite
+ * handle is left exactly where it was. The stored `spatial_mode` is not
+ * touched by this flag -- releasing Alt (or ending the drag) resumes normal
+ * aligned mirroring on the next call, so a momentary break never corrupts the
+ * key's persisted handle mode.
+ *
  * Mutates `key` in place and returns it.
  */
-export function writeSpatialHandle(key, side, worldPoint, { prevKey = null, nextKey = null } = {}) {
+export function writeSpatialHandle(key, side, worldPoint, { prevKey = null, nextKey = null, breakCoupling = false } = {}) {
   if (!key || (side !== "in" && side !== "out")) return key;
   let mode = spatialHandleMode(key);
   if (mode === "corner") return key;
@@ -206,7 +214,7 @@ export function writeSpatialHandle(key, side, worldPoint, { prevKey = null, next
   promoteToBezier(key);
   writeDelta(key, side, dragged);
 
-  if (mode === "aligned") {
+  if (mode === "aligned" && !breakCoupling) {
     const oppositeSide = side === "out" ? "in" : "out";
     const opposite = readStoredDelta(key, oppositeSide) || (oppositeSide === "out"
       ? autoTangent(key, prevKey, nextKey).out
@@ -219,6 +227,27 @@ export function writeSpatialHandle(key, side, worldPoint, { prevKey = null, next
     writeDelta(key, oppositeSide, mirrored);
   }
 
+  return key;
+}
+
+/**
+ * Force one tangent handle of `key` to an exact absolute world point,
+ * bypassing all mode coupling (no aligned mirroring, no auto/corner
+ * recompute). The caller owns `key.tangents.spatial_mode` -- this only
+ * writes the raw per-axis delta -- so it composes cleanly with a caller that
+ * has already frozen the key into "free"/"aligned" mode (or is about to).
+ * Used by camera-path-insert.js to give a freshly split Bézier segment
+ * exact continuity with the curve it replaced.
+ */
+export function setHandleWorldPoint(key, side, worldPoint) {
+  if (!key || (side !== "in" && side !== "out")) return key;
+  const here = position(key);
+  promoteToBezier(key);
+  writeDelta(key, side, subtract([
+    finiteNumber(worldPoint?.[0]),
+    finiteNumber(worldPoint?.[1]),
+    finiteNumber(worldPoint?.[2]),
+  ], here));
   return key;
 }
 

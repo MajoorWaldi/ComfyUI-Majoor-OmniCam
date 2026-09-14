@@ -159,6 +159,19 @@ to that same track — no new camera. The join is continuous, and the timeline's
 `duration_frames` / Playback Range end are pushed out if the new segment needs
 the room.
 
+#### Selecting and multi-selecting keys
+
+Click a keyframe's control dot to select only it. `Shift`+click a second key
+to add it to the selection (click it again with `Shift` held to remove it); a
+plain click on any key replaces the whole selection with just that one. The
+gizmo attaches wherever the selection currently is:
+
+- **One key** – the gizmo sits on that key and offers **Move** only (a lone
+  point has no extent to rotate or scale).
+- **Two or more keys** – the gizmo sits at the selection's centroid and
+  offers **Move / Scale / Rotate**, exactly like the whole-path gizmo below
+  but scoped to the selected keys; every other key on the path stays put.
+
 #### Transforming the whole path
 
 Select a camera's entire path as one transform target — from its right-click
@@ -175,7 +188,23 @@ path centroid:
 
 With a path selected, `T` / `R` / `S` pick the gizmo mode and the arrow keys
 (`PageUp` / `PageDown` for height) nudge the whole path by one grid step. A
-drag is one undo step.
+drag is one undo step (one point, several points, or the whole path).
+
+The single-point, multi-point, whole-path and target-editing gizmos above are
+all the same real Three.js `TransformControls` handle that moves/rotates/
+scales objects and cameras elsewhere in the viewport — dragging one axis, the
+World/Local space toggle, and holding `Ctrl`/`Cmd` to snap all behave exactly
+the same way regardless of what is currently attached.
+
+#### Inserting and deleting keys
+
+Double-click anywhere on a camera's path **line** to insert a new keyframe
+there, sampled from the curve at that point — the path's on-screen shape does
+not visibly jump when a Bézier segment gains a point this way. To remove
+keys, select one or more (see above) and press `Delete` / `Backspace`, or use
+**Delete key** / **Delete N keys** from the keyframe's right-click menu. Both
+insert and delete are a single undo step; a camera track is never left with
+zero keyframes.
 
 #### Reshaping the curve after drawing
 
@@ -194,6 +223,63 @@ one and two cyan tangent handles appear:
   - **Corner** – short handles pointed straight at the neighbours: a sharp turn.
 
 Handle edits round-trip through save and undo like any other keyframe change.
+
+#### Position and Target editing
+
+A single selected key can edit either its own position or the look-at point
+it aims at. Right-click the key → **Path Component** → **Position** (default)
+or **Target** to switch what the gizmo moves; the same submenu shows which
+one is currently active. Target editing moves that key's `camera.target` only
+— every other key, and that key's own position, are untouched.
+
+If the active camera has **Look At** pointed at a scene object, its targets
+are computed from that constraint on every frame and are not stored per key,
+so **Target** is disabled in the submenu (with an explanation) and no gizmo
+attaches to a look-at-driven target: there is nothing safe to drag, since the
+constraint would recompute over it on the very next frame. Clear Look At
+first to hand-key targets again.
+
+#### Timing Weight and Redistribute Timing
+
+Selecting a camera path key shows its usual FOV/Roll/Position/Target fields in
+the **Shot** Inspector tab, plus a **Timing Weight** field (`0.1`–`10`,
+default `1.0`). Timing Weight is an authoring preference, not a playback
+speed — actual timing always comes from each key's `frame`.
+
+**Redistribute Timing** reflows the active camera's own keys across their
+current first/last frame: each segment's share of the range is its spatial
+distance times the average of its two keys' Timing Weights, so a heavier
+weight around a key slows the segments on either side of it. First and last
+frame never move; the action refuses cleanly (with a status message) if the
+range has fewer integer frame slots than keys. One redistribute is one undo
+step, and an untouched key keeps no `timing` data in the saved workflow.
+
+#### Camera Path Diagnostics
+
+The Shot Inspector tab shows a compact, read-only diagnostics list under the
+Timing controls whenever the active camera has 2+ keys: `⚠ Speed spike
+F48–F52`, `Camera barely moves from F0 to F48`, `Sharp direction change at
+F60 (142°)`, keys placed only one frame apart, an orbit that almost but does
+not close, and a key passing near an object's proxy radius. Diagnostics are
+purely derived from the current path (`analyzeCameraPath()` in
+`web-src/director/camera-path-diagnostics.js`) and are recomputed on every
+Inspector refresh — nothing here ever mutates a keyframe automatically. The
+existing per-camera **Speed Heatmap** viewport overlay (color-codes each path
+segment by the same derived speed) is a separate, pre-existing toggle and is
+unaffected by this list.
+
+#### Camera Path Presets
+
+The compass button in the viewport tool rail (beside Draw/Continue Camera
+Path) opens a compact **Camera Path Preset** picker — one dialog listing
+every preset, not a button per preset: `Static`, `Dolly In/Out`, `Truck
+Left/Right`, `Pedestal Up/Down`, `Crane Up/Down`, `Arc Left/Right`, `Orbit`,
+and `Spiral`. Picking one generates an ordinary camera path across the active
+camera's current Playback Range, replacing its existing keys in one undo
+step. The result is plain camera keyframes — reshape it afterward with the
+same point/curve/Timing Weight tools as a hand-drawn path. Presets are
+model-independent: they never encode MiniMax H3, Wan, or LTX-specific
+motion — that compilation stays in Monitor profiles.
 
 ### 3D Scene Primitives
 
@@ -230,6 +316,7 @@ The lower deck houses an animation curve editor and dope sheet for fine-grained 
 
 - **Camera HUD & OSD**: Live lens focal length (`35mm`), FOV (`54.4°`), distance to subject, and a **Camera Lock toggle (`🔒`)** that prevents accidental navigation moves when framing in Camera View.
 - **Coordinate Space & Snapping**: Direct 1-click **World / Local (`W`/`L`)** toggle and **Snapping (`OFF`/`GRID`)** toggle on the vertical tool rail.
+- **Transform gizmo**: `T` (Select/Translate) / `R` (Rotate) / `S` (Scale) drive a real Three.js `TransformControls` handle for whatever is currently selected — an object, the active camera, its look-at target, or a camera-path key/selection/whole path (see Draw Camera Path above). Each target type only offers the modes that make sense for it: a camera cannot be scaled, and a bare look-at point or lone path key cannot rotate or scale either.
 - **Quick Overlays Cluster & Shading Select**: Instant toggles for Grid, Gizmos, Guides, Safe Areas, Radar, and Shading Mode (`Omni Ref`, `Graybox`, `Wireframe`, `Grid`, `Beauty`) in the viewport header corner.
 - **Fullscreen Floating Transport**: Minimalist playback, timecode, and keyframe controls during fullscreen presentation mode.
 - **Outliner Isolate**: Alt-click an object's eye icon to isolate it in the viewport.
@@ -610,6 +697,16 @@ The model compiler, and the single exit point from OmniCam into the rest of the
 graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
 selected profile requires, compiles the scene into that model's representation,
 and reports what survived.
+
+Every profile is a **conditioning compiler, not a path-execution engine**: it
+turns the authored (or extracted, or preset-generated) camera path into the
+signal a specific downstream model actually accepts — a reference video, a
+frame batch, a camera embedding, or a prompt. No profile, including either H3
+profile, guarantees the generative model will reproduce the authored 3D
+trajectory exactly; how closely the result tracks the path is a property of
+the downstream model itself, not of OmniCam. This holds regardless of how the
+path was authored — hand-drawn, edited point-by-point, generated from a
+preset, or recovered by Extractor.
 
 The watcher follows the **sockets**, not the upstream node class: any source of
 `OMNICAM_MOTION_SCENE` is accepted — Director, Extractor or a third-party node.

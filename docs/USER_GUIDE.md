@@ -42,6 +42,35 @@ Right-click or `Escape` cancels an uncommitted stroke. Middle-mouse and Maya
 `Alt` navigation stay available while the tool is armed. The freehand stroke is
 editor-only -- it is never saved into the workflow or burned into a playblast.
 
+### Edit a Camera Path in 3D
+
+Once a path exists (drawn, presetted, or Extractor-recovered), every keyframe
+is a directly editable spatial control point:
+
+- Click a key to select it; `Shift`+click adds or removes another. One key
+  moves alone; two or more move, scale or rotate together about their
+  centroid; the whole path (via its right-click menu or by clicking its line)
+  does the same about the path centroid. The same `T`/`R`/`S` gizmo -- a real
+  Three.js `TransformControls` handle, the same one that moves objects and
+  cameras -- drives all four scopes.
+- Double-click the path line to insert a new key there without changing the
+  curve's visible shape; select key(s) and press `Delete`/`Backspace` to
+  remove them.
+- A selected key's right-click menu can switch the gizmo between its
+  **Position** and its look-at **Target** -- disabled while an active **Look
+  At** constraint drives that camera, so a drag can never fight the
+  constraint.
+- Pick one of thirteen editable **Camera Path Presets** (Dolly, Truck,
+  Pedestal, Crane, Arc, Orbit, Spiral, …) from the compass button beside
+  Draw/Continue, or give a key a **Timing Weight** and use **Redistribute
+  Timing** to reflow the path's speed without moving its first/last frame or
+  changing its shape.
+
+Every one of these stays an ordinary, model-independent MotionScene camera
+keyframe -- no MiniMax H3, Wan or LTX-specific behavior is ever encoded into
+the path itself; that compilation only happens downstream, in Monitor. See
+the [Node Guide](NODES.md) → Draw Camera Path for the full reference.
+
 ## Recover Motion from Video
 
 1. Add **OmniCam Extractor**.

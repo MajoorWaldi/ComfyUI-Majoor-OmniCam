@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Spatial Camera Editor v2: the Director viewport's object, camera, camera
+  target and camera-path transforms are now driven by a real Three.js
+  `TransformControls` gizmo (World/Local space, live Ctrl/Cmd grid+angle
+  snapping, Escape-to-cancel mid-drag), replacing the previous canvas-drawn
+  handles end to end while keeping every existing shortcut (`T`/`R`/`S`),
+  undo step and lock behaviour unchanged.
+  - Camera path keyframes can now be multi-selected (click to select one,
+    `Shift`+click to add/remove another) and transformed as a group or as
+    the whole path, in addition to the existing single-key drag.
+  - New spatial editing operations on a path: insert a keyframe by
+    double-clicking the path line (preserves the existing Bézier shape),
+    and delete one or more selected keyframes with `Delete`/`Backspace`.
+  - A selected keyframe can now edit either its own **Position** or its
+    look-at **Target**, switchable from its right-click menu; target
+    editing is disabled while an active **Look At** constraint drives that
+    camera, so a hand-drag can never silently fight the constraint.
+  - A compact **Camera Path Presets** dialog (Static, Dolly, Truck,
+    Pedestal, Crane, Arc, Orbit, Spiral) generates an ordinary, fully
+    editable camera path over the active Playback Range.
+  - New per-key **Timing Weight** and a **Redistribute Timing** action
+    reflow a path's keys across its existing first/last frame by their
+    relative weights, without changing its shape.
+  - New read-only **Camera Path Diagnostics** (speed spikes, near-static
+    holds, sharp direction changes, near-collision with a scene object)
+    surface under the Shot Inspector's timing controls.
+  - New `camera.path.insert_key`, `camera.path.delete_keys`,
+    `camera.path.transform_keys`, `camera.path.redistribute_timing` and
+    `camera.path.apply_preset` Semantic Director API operations give the
+    Agent parity with the manual UI's path editing — both go through the
+    same pure path math.
+  - All of the above stay ordinary, model-independent `OMNICAM_MOTION_SCENE`
+    camera keyframes: no MiniMax H3, Wan or LTX-specific behavior is
+    encoded into a path by drawing, editing, multi-selecting or presetting
+    it. Monitor profiles remain conditioning compilers, not path-execution
+    engines — no profile, including either H3 profile, guarantees a
+    downstream model reproduces an authored 3D path exactly.
 - `h3_scene_coverage` Monitor profile: compiles the selected MotionScene
   camera directly into a MiniMax H3 scene-coverage prompt and
   `H3EDIT_OPTIONS`, without requiring a playblast. Covers one continuous,
