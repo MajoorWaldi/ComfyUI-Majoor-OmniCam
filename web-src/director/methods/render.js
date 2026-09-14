@@ -87,7 +87,15 @@ export function createRenderMethods(dependencies) {
         const scale = factor > 1 ? Math.min(factor, 4096 / Math.max(1, w, h)) : 1;
         const rw = scale > 1 ? Math.round(w * scale) : w;
         const rh = scale > 1 ? Math.round(h * scale) : h;
-        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null);
+        // Update the gizmo's mode/attachment *before* this frame draws too,
+        // using whichever camera the previous frame already configured (unset
+        // only on the very first-ever render, before that exists). Without
+        // this, a selection/mode change made no visible difference until a
+        // second, unrelated render happened to follow -- sync() below still
+        // runs after the draw so next frame's gizmo position tracks this
+        // frame's just-configured camera exactly (see its own comment).
+        if (this.webgl.activeCamera) this.transformControlsWiring?.sync();
+        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null, this.selectedKeyFrames ? [...this.selectedKeyFrames] : null);
         c.imageSmoothingEnabled = true;
         c.imageSmoothingQuality = "high";
         if (rw !== w || rh !== h) c.drawImage(this.webgl.canvas, 0, 0, rw, rh, 0, 0, w, h);
@@ -96,6 +104,12 @@ export function createRenderMethods(dependencies) {
       } catch (err) {
         console.error("[OmniCam WebGL Render Error]", err);
       }
+      // Attach/detach/update the real TransformControls for the current
+      // selection now that this.webgl.activeCamera reflects this frame's
+      // configureCamera() (plan Task 4). One-frame lag on the gizmo mesh
+      // itself is invisible in practice: selection/mode changes always
+      // trigger another render() shortly after.
+      this.transformControlsWiring?.sync();
     }
     if (!webglRendered) {
       (!this.recording && ["omni_ref", "card_grid", "graybox", "grid", "wireframe"].includes(mode) || this.recording && this.state.playblast_grid) && this.drawGrid();
@@ -238,6 +252,7 @@ export function createRenderMethods(dependencies) {
     if (this.disposed) return;
     this.disposed = true;
     this.agentBridge?.dispose?.();
+    this.transformControlsWiring?.dispose();
     unregisterDirector(this);
     // The help popup is appended to document.body with its own capture keydown
     // listener; nothing else tears it down when the node (or the whole graph)

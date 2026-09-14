@@ -149,7 +149,11 @@ test("selecting the whole path transforms every key together and undoes cleanly"
     const shape = (ps) => JSON.stringify(ps.map((p) => p.map((v, i) => +(v - ps[0][i]).toFixed(3))));
 
     const okSel = ui.selectCameraPath();
-    const hasGizmo = Boolean(ui.gizmoGeometry?.());
+    // Plan Task 6: the whole path is now driven by the real Three.js
+    // TransformControls (viewport/transform-controls-wiring.js), not the
+    // legacy canvas-drawn gizmo -- the same on-scene marker
+    // spatial-camera-editor.spec.js checks for object/camera/camera_target.
+    const hasGizmo = ui.webgl.scene.children.some((child) => child.isTransformControlsRoot && child.visible);
     const base = keys();
 
     ui.transformCameraPath({ mode: "translate", delta: [3, 1, -2] });

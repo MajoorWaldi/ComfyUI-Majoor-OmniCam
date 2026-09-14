@@ -1,21 +1,14 @@
 // Pointer, drag and wheel interaction handlers.
 
 import { add, cameraBasis, clamp, cloneCamera, cloneTransform, cross, defaultEditorViews, length, mul, norm, rotateEuler, sampleCamera, sampleObjectTransform, sub, project } from "../director/core.js";
-import { interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
+import { handleCurveHandlePointerDown, handlePathKeyPointerDown, interpolationAfterDrag, screenToPlane } from "../viewport/path-editing.js";
 import { applyPathGizmoDrag, beginPathGizmoDrag, selectCameraPath } from "./path-gizmo.js";
 import { onKeyDragMove } from "../timeline.js";
 import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject, viewportCamera } from "../viewport-controls.js";
 import { t } from "../i18n.js";
 import { cancelModalTransform, confirmModalTransform, selectedTransformObjects, updateModalTransform } from "./modal-transform.js";
 import { isNavigationGesture, navigationGesture, navigationProfile, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
-import {
-  applyTrackingOffset,
-  checkpointDrag,
-  checkpointWheelGesture,
-  projectedObjectScreenBounds,
-  snapValue,
-  spatiallySnap,
-} from "./drag-helpers.js";
+import { applyTrackingOffset, checkpointDrag, checkpointWheelGesture, projectedObjectScreenBounds, snapValue, spatiallySnap } from "./drag-helpers.js";
 
 export function onPointerDown(ui, e) {
   if (ui.modalTransform) {
@@ -55,49 +48,33 @@ export function onPointerDown(ui, e) {
   // A visible gizmo handle owns an unmodified primary drag, as in standard 3D
   // editors. Navigation still starts normally everywhere outside the handles.
   const canEditGizmo = canPick && !e.altKey && !e.shiftKey;
-  // A spatial-curve tangent handle wins over its own control point and over
-  // orbiting: an unmodified primary drag on a knob reshapes the Bézier.
-  if (canEditGizmo && ui.webgl?.pickCurveHandle) {
-    const knob = ui.webgl.pickCurveHandle([pointerX, pointerY]);
-    if (knob) {
-      const track = (ui.state.cameras || []).find((camera) => camera.id === knob.cameraId);
-      const keyIndex = (track?.keyframes || []).findIndex((item) => item.frame === knob.frame);
-      const key = keyIndex >= 0 ? track.keyframes[keyIndex] : null;
-      if (key) {
-        ui.curveHandleDrag = {
-          cameraId: knob.cameraId,
-          frame: knob.frame,
-          side: knob.side,
-          anchor: [...key.camera.position],
-          prevKey: track.keyframes[keyIndex - 1] || null,
-          nextKey: track.keyframes[keyIndex + 1] || null,
-          startX: pointerX,
-          startY: pointerY,
-          moved: false,
-          historyCheckpointed: false,
-        };
-        if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
-        ui.selectKeyframe?.(key);
-        return;
-      }
-    }
-  }
+  // TransformControls' own listener here ignores our branching and would still
+  // start a competing drag over a hovered handle (stopPropagation() doesn't
+  // stop a sibling listener) -- stop it whenever we claim the gesture instead.
+  const overHandle = ui.transformControlsWiring?.isPointerOverHandle?.();
+  if (!canEditGizmo && overHandle) e.stopImmediatePropagation?.();
+  // A curve tangent knob may outrank an overlapping single-key gizmo -- its
+  // own key's "path_point" handle, or the plain "camera" gizmo when the
+  // playhead happens to be scrubbed onto that exact keyframe (selecting a
+  // path key does not itself change ui.selectedEntity away from "camera",
+  // so this is the live type there too) -- but never a multi-key group/
+  // whole-path/object/camera_target/target gizmo: unlike a lone key, a
+  // group's centroid (or an unrelated entity's origin) can coincidentally
+  // land near a *different* key's own (real, non-degenerate) tangent, which
+  // must not steal that drag just because pickCurveHandle's fallback radius
+  // happened to reach it. handleCurveHandlePointerDown's own visual-
+  // distinctness check (looksDegenerate) is the finer-grained filter for a
+  // knob that merely *looks* coincident with its own key at this zoom level.
+  const liveType = ui.transformControlsWiring?.currentLiveType?.();
+  const curveMayOutrank = !overHandle || liveType === "path_point" || liveType === "camera";
+  if (canEditGizmo && curveMayOutrank && handleCurveHandlePointerDown(ui, { pointerX, pointerY, overHandle, viewCamera, e })) return;
+  // No closer target claimed it above: TransformControls owns this handle.
+  if (canEditGizmo && overHandle) return;
 
   // A camera-path handle behaves like a gizmo: an unmodified primary drag on it
-  // reshapes the move instead of orbiting the view.
-  if (canEditGizmo && ui.webgl?.pickPathKey) {
-    const handle = ui.webgl.pickPathKey([pointerX, pointerY]);
-    if (handle) {
-      const track = (ui.state.cameras || []).find((camera) => camera.id === handle.cameraId);
-      const key = (track?.keyframes || []).find((item) => item.frame === handle.frame);
-      if (key) {
-        ui.pathDrag = { cameraId: handle.cameraId, frame: handle.frame, anchor: [...key.camera.position], startX: pointerX, startY: pointerY, moved: false, historyCheckpointed: false };
-        if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
-        ui.selectKeyframe?.(key);
-        return;
-      }
-    }
-  }
+  // reshapes the move instead of orbiting the view. Shift+click multi-selects
+  // the key instead of arming a drag (plan section 7/26 Task 5).
+  if (canPick && handlePathKeyPointerDown(ui, { pointerX, pointerY, shiftKey: e.shiftKey, altKey: e.altKey })) return;
 
   const picked = canEditGizmo ? pickGizmo(ui, [pointerX, pointerY]) : null;
   if (picked) {
@@ -387,6 +364,8 @@ export function onPointerDown(ui, e) {
 
 export function onPointerMove(ui, e) {
   ui.lastPointerEvent = e;
+  // A live TransformControls drag owns the whole gesture (section 5.5).
+  if (ui.transformControlsDragging) return;
   if (ui.modalTransform) {
     updateModalTransform(ui, e);
     return;
@@ -430,9 +409,14 @@ export function onPointerMove(ui, e) {
         [pointerX, pointerY], viewportCamera(ui), ui.curveHandleDrag.anchor, ui.canvas.width, ui.canvas.height);
       // Routed through the Director facade so this eagerly-loaded interaction
       // module keeps no static import of the (Director-only) curve maths.
+      // Alt held mid-drag temporarily breaks the "aligned" mirroring so the
+      // artist can push one side off-axis without disturbing the other; the
+      // stored handle mode is untouched (see writeSpatialHandle), so letting
+      // go of Alt (or ending the drag) resumes normal coupling next move.
       ui.dragCurveHandle?.(key, ui.curveHandleDrag.side, world, {
         prevKey: ui.curveHandleDrag.prevKey,
         nextKey: ui.curveHandleDrag.nextKey,
+        breakCoupling: e.altKey,
       });
       if (ui.webgl) ui.webgl.pathKey = "";
       ui.setFrame(ui.frame, false, false);
@@ -645,6 +629,11 @@ export function onPointerMove(ui, e) {
 }
 
 export function cancelViewportInteraction(ui) {
+  // A live TransformControls drag cancels through the adapter (restores the frozen drag-start anchor).
+  if (ui.transformControlsDragging) {
+    ui.transformControlsWiring?.cancelDrag();
+    return true;
+  }
   if (!ui.drag && !ui.gizmoDrag && !ui.targetFreeDrag && !ui.boxSelection && !ui.pathDrag && !ui.keyDrag && !ui.curveDrag && !ui.timelineDrag && !ui.timelinePanDrag && !ui.boxSelect && !ui.curvePanDrag && !ui.curveScrub && !ui.curveBoxSelect) return false;
   const checkpointed = [ui.drag, ui.gizmoDrag, ui.targetFreeDrag, ui.pathDrag, ui.keyDrag, ui.curveDrag].some((drag) => drag?.historyCheckpointed);
   ui.keyDrag?.badge?.remove?.();

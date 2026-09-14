@@ -48,7 +48,7 @@ function pathLength(points) {
   return total;
 }
 
-function normalizedPlaybackRange(state) {
+export function normalizedPlaybackRange(state) {
   const lastFrame = Math.max(0, Math.round(Number(state?.duration_frames) || 1) - 1);
   const raw = Array.isArray(state?.playback_range) ? state.playback_range : [0, lastFrame];
   const a = clamp(Math.round(Number(raw[0]) || 0), 0, lastFrame);

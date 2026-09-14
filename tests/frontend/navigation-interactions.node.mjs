@@ -38,6 +38,23 @@ test("Alt navigation never picks or deselects an object, even without movement",
   assert.equal(ui.selectedObjectId, "keep");
 });
 
+test("Alt-orbit over a hovered gizmo handle stops the native event so TransformControls can't also start a drag (regression)", () => {
+  // Regression: an Alt-drag arms this app's own navigation `ui.drag` (Alt
+  // means "navigate, not edit", per canEditGizmo below), but three.js's
+  // TransformControls has its own native "pointerdown" listener on the same
+  // element that doesn't know about Alt/Shift -- if the pointer happened to
+  // be over a selected object's gizmo handle, it silently started its own
+  // drag too and set `ui.transformControlsDragging = true`, which made
+  // onPointerMove's very first line bail out before ever updating the
+  // orbit -- the camera view simply never moved.
+  const ui = fixture();
+  ui.transformControlsWiring = { isPointerOverHandle: () => true };
+  let immediateStops = 0;
+  onPointerDown(ui, event({ altKey: true, stopImmediatePropagation: () => { immediateStops += 1; } }));
+  assert.ok(ui.drag, "navigation must still be armed");
+  assert.equal(immediateStops, 1, "must stop the native event from also reaching TransformControls' own listener");
+});
+
 function trackingFixture() {
   const ui = fixture("maya", "camera");
   const trackedObject = { id: "hero", position: [5, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [] };
@@ -98,8 +115,8 @@ function pathKeyFixture() {
   const ui = fixture();
   const key = { frame: 5, interpolation: "linear", camera: { position: [1, 1, 1], target: [0, 0, 0] } };
   ui.state.cameras = [{ id: "cam_1", keyframes: [key] }];
-  ui.selectedKeyframeCalls = [];
-  ui.selectKeyframe = (k) => ui.selectedKeyframeCalls.push(k);
+  ui.state.active_camera_id = "cam_1";
+  ui.activateCamera = () => {};
   ui.setFrame = () => {};
   ui.webgl = { pickPathKey: () => ({ cameraId: "cam_1", frame: 5 }) };
   return { ui, key };
@@ -113,7 +130,8 @@ test("clicking a path key without dragging leaves it untouched and costs no undo
   const { ui, key } = pathKeyFixture();
   onPointerDown(ui, event());
   assert.ok(ui.pathDrag, "must start a path drag");
-  assert.equal(ui.selectedKeyframeCalls.length, 1, "clicking still selects the key");
+  assert.equal(ui.selectedKeyFrame, 5, "clicking still selects the key");
+  assert.deepEqual([...ui.pathSelection.frames], [5], "and enters the spatial path selection");
   onPointerMove(ui, event({ clientX: 21, clientY: 20 })); // 1px jitter
   onPointerUp(ui, event());
   assert.deepEqual(key.camera.position, [1, 1, 1], "position must be untouched");
@@ -475,4 +493,133 @@ test("dragging the camera target in an orthographic view follows the zoom (regre
     Math.abs(travel[0] / travel[1] - 5) < 1e-6,
     `a 5x zoom must move the target 5x less, got ${travel[0]} then ${travel[1]}`,
   );
+});
+
+test("a spatial-curve tangent handle wins over an overlapping live gizmo and stops the native event from also reaching it (regression)", () => {
+  // Regression: a selected single path key attaches a live "path_point"
+  // TransformControls gizmo right at its position (plan Task 6). Whenever
+  // that gizmo's own hoverable handle area happens to overlap a nearby
+  // tangent knob on screen, isPointerOverHandle() used to be checked (and
+  // bail out) *before* pickCurveHandle() got a chance -- silently swallowing
+  // every tangent drag under an overlapping gizmo. Reordering the checks
+  // fixed the app-level branch, but three.js's TransformControls also
+  // listens for "pointerdown" natively on the very same element, completely
+  // independently of this handler's own branching -- only
+  // stopImmediatePropagation() (not the plain stopPropagation() already
+  // called earlier) keeps that sibling listener from also starting its own
+  // drag and later stomping this one's result with its own commit.
+  const ui = fixture();
+  // A real, non-degenerate tangent offset -- meaningfully away from the key's
+  // own [0,0,0] position (see the sibling regression test below for the
+  // degenerate/coincident case, which must NOT win).
+  const knob = { cameraId: "cam_1", frame: 24, side: "out", position: [1, 0.5, 0] };
+  const key = { frame: 24, camera: { position: [0, 0, 0], target: [0, 0, -5] } };
+  ui.state.cameras = [{ id: "cam_1", keyframes: [key] }];
+  ui.selectKeyframe = (k) => { ui.selectedKeyFrame = k; };
+  ui.webgl = { pickCurveHandle: () => knob };
+  // Simulate the exact scenario that broke: the pointer is also over this
+  // same key's own live "path_point" gizmo right now.
+  ui.transformControlsWiring = { isPointerOverHandle: () => true, currentLiveType: () => "path_point" };
+
+  let immediateStops = 0;
+  onPointerDown(ui, event({ stopImmediatePropagation: () => { immediateStops += 1; } }));
+
+  assert.ok(ui.curveHandleDrag, "the tangent drag must be armed despite the overlapping live gizmo");
+  assert.equal(ui.curveHandleDrag.frame, 24);
+  assert.equal(immediateStops, 1, "must stop the native event from also reaching TransformControls' own listener");
+});
+
+test("a real tangent handle also wins over the 'camera' gizmo when the playhead is scrubbed onto that exact keyframe (regression)", () => {
+  // Same fix as the test above, but for the actual real-world shape of the
+  // original flake: selecting a camera path key (ui.selectKeyframe) scrubs
+  // the playhead onto it but does NOT change ui.selectedEntity away from
+  // "camera" -- so the live gizmo type here is "camera", not "path_point",
+  // even though it is, in effect, sitting exactly on this one keyframe.
+  const ui = fixture();
+  const knob = { cameraId: "cam_1", frame: 30, side: "out", position: [1, 1, 0] };
+  const key = { frame: 30, camera: { position: [0, 1, 0], target: [0, 1, -5] } };
+  ui.state.cameras = [{ id: "cam_1", keyframes: [key] }];
+  ui.selectKeyframe = (k) => { ui.selectedKeyFrame = k; };
+  ui.webgl = { pickCurveHandle: () => knob };
+  ui.transformControlsWiring = { isPointerOverHandle: () => true, currentLiveType: () => "camera" };
+
+  onPointerDown(ui, event());
+
+  assert.ok(ui.curveHandleDrag, "a real tangent handle must win even when the overlapping gizmo reports type \"camera\"");
+  assert.equal(ui.curveHandleDrag.frame, 30);
+});
+
+test("a degenerate tangent handle (no real offset from its own key) never wins a click, even under a hovered gizmo (regression)", () => {
+  // Regression: a handle with no adjacent key on that side (a track's first/
+  // last key, or a single-key track) has no real tangent direction --
+  // spatialHandlePoints()/autoTangent() (camera-path-curve.js) then collapse
+  // it exactly onto its own key's position. pickCurveHandle()'s fixed-pixel
+  // fallback still finds and returns it, entirely independent of what else is
+  // actually selected -- so on a single-key camera track, its degenerate "in"
+  // handle sits exactly on top of the camera's own icon, and used to silently
+  // hijack an ordinary "select camera, translate the gizmo" drag into a bogus
+  // tangent-handle edit instead -- the camera never actually moved.
+  const ui = fixture();
+  const knob = { cameraId: "cam_1", frame: 0, side: "in", position: [6, 4, 6] };
+  ui.state.cameras = [{ id: "cam_1", keyframes: [{ frame: 0, camera: { position: [6, 4, 6], target: [0, 1, 0] } }] }];
+  ui.webgl = { pickCurveHandle: () => knob };
+  // "camera" (not "path_point") is deliberately exercised here: selecting a
+  // path key does not itself change ui.selectedEntity away from "camera", so
+  // this is the live type a camera's own gizmo actually reports -- the
+  // degenerate-position check (not a type-based exclusion) is what must
+  // reject this specific knob.
+  ui.transformControlsWiring = { isPointerOverHandle: () => true, currentLiveType: () => "camera" };
+
+  onPointerDown(ui, event());
+
+  assert.equal(ui.curveHandleDrag, undefined, "a knob with no real offset from its key must not win over the camera's own gizmo");
+});
+
+test("a multi-key path_group gizmo always wins outright, even over a real (non-degenerate) tangent handle nearby (regression)", () => {
+  // Regression: unlike a single selected key, a path_group's gizmo anchors at
+  // the *centroid* of the selected keys -- which can coincidentally land near
+  // a perfectly real, non-degenerate tangent handle belonging to a *different*
+  // key that's also part of the selection (its own primary-key tangent
+  // rendering isn't tied to the group's centroid at all). Letting any
+  // non-degenerate knob outrank *any* hovered gizmo let that coincidence
+  // hijack a two-key group drag into an unrelated single-tangent edit.
+  const ui = fixture();
+  const knob = { cameraId: "cam_1", frame: 30, side: "in", position: [-0.667, 1, 0] };
+  ui.state.cameras = [{
+    id: "cam_1",
+    keyframes: [
+      { frame: 0, camera: { position: [-2, 1, 0], target: [-2, 1, -5] } },
+      { frame: 30, camera: { position: [0, 1, 0], target: [0, 1, -5] } },
+    ],
+  }];
+  ui.webgl = { pickCurveHandle: () => knob };
+  ui.transformControlsWiring = { isPointerOverHandle: () => true, currentLiveType: () => "path_group" };
+
+  onPointerDown(ui, event());
+
+  assert.equal(ui.curveHandleDrag, undefined, "a real but unrelated tangent handle must not win over a path_group gizmo");
+});
+
+test("a camera explicitly selected as itself never has its own path marker hijack the click (regression)", () => {
+  // Regression: with the coincidental curve-handle claim correctly rejected
+  // (the test above), the click fell through to handlePathKeyPointerDown --
+  // which grabs *any* visible path-key marker under the pointer with no
+  // regard for what's actually selected. A single-key camera's own marker
+  // sits exactly at its own icon, so selecting "camera" (e.g. in Scale mode,
+  // where no gizmo attaches at all) and clicking/dragging there used to
+  // silently move the *key's* position via the marker-drag path instead of
+  // correctly doing nothing.
+  const ui = fixture();
+  const handle = { cameraId: "cam_1", frame: 0 };
+  const track = { id: "cam_1", keyframes: [{ frame: 0, camera: { position: [6, 4, 6], target: [0, 1, 0] } }] };
+  ui.state.cameras = [track];
+  ui.state.active_camera_id = "cam_1";
+  ui.activateCamera = () => assert.fail("must not reactivate/claim the already-selected camera's own marker");
+  ui.activeCameraTrack = () => track;
+  ui.selectedEntity = "camera";
+  ui.webgl = { pickPathKey: () => handle };
+
+  onPointerDown(ui, event());
+
+  assert.equal(ui.pathDrag, undefined, "the camera's own marker must not arm a path-key drag while it is selected as itself");
 });

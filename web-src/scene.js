@@ -1,6 +1,9 @@
 // Scene outliner, inspector, object commands and key editing.
 
 import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./director/core.js";
+import { cameraPathTimingWeight, setCameraPathTimingWeight } from "./director/camera-path-timing.js";
+import { analyzeCameraPath } from "./director/camera-path-diagnostics.js";
+import { selectPathKey } from "./director/camera-path-selection.js";
 import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
 import { playblastCameraTrack } from "./state-sync.js";
@@ -61,7 +64,12 @@ export function setKeyInterpolation(ui, interpolation) {
   key.interpolation = interpolation;
   const interpSelect = ui.root.querySelector('[data-role="key-interp"]');
   if (interpSelect) interpSelect.value = interpolation;
-  for (const btn of ui.root.querySelectorAll("[data-interp]")) {
+  // Scoped to the Shot panel's own interpolation buttons: a timeline
+  // keyframe marker also carries `data-interp` (template/styles.js keys off
+  // it to draw a different marker shape per interpolation mode), so an
+  // unscoped "[data-interp]" query here would also toggle/disable every
+  // marker on the timeline.
+  for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
     btn.classList.toggle("active", btn.dataset.interp === interpolation);
   }
   ui.serialize();
@@ -141,6 +149,15 @@ export function selectKeyframe(ui, key) {
   ui.selectedKeyFrame = key.frame;
   ui.selectedKeyFrames = new Set([key.frame]);
   ui.editingKeyFrame = null;
+  // Keep the transient spatial path selection (plan section 7/21) in
+  // lock-step with a camera key selected from the timeline/curve/dope-sheet,
+  // so the viewport gizmo actually attaches to the key the timeline just
+  // highlighted -- not just a visual echo of it (see camera-path-selection.js
+  // and viewport-controls/transform-target.js, which reads ui.pathSelection,
+  // not ui.selectedKeyFrame, to resolve a path_point/path_group target).
+  if (!timelineObject(ui)) {
+    ui.pathSelection = selectPathKey(ui.pathSelection, { cameraId: ui.state.active_camera_id, frame: key.frame, additive: false });
+  }
   ui.setFrame(key.frame);
 }
 
@@ -320,6 +337,36 @@ export function setKeyTangentMode(ui, mode) {
   ui.setStatus(t("Key @ {frame} tangent mode set to {mode}").replace("{frame}", String(key.frame)).replace("{mode}", mode));
 }
 
+// Pure, read-only camera path diagnostics (plan section 26 Task 12): never
+// mutates the path, just lists what analyzeCameraPath() finds for the
+// active camera's own keys. Built with textContent (not innerHTML) since an
+// object/camera name is user-authored text that must never execute as HTML.
+function renderPathDiagnostics(ui) {
+  const el = ui.root.querySelector('[data-role="path-diagnostics-list"]');
+  if (!el) return;
+  el.innerHTML = "";
+  const keys = ui.activeCameraTrack?.()?.keyframes || [];
+  if (keys.length < 2) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  const issues = analyzeCameraPath({ keys, fps: ui.state?.fps || 24, objects: ui.state?.objects || [] });
+  if (!issues.length) {
+    const ok = document.createElement("div");
+    ok.className = "oc-diagnostic-ok";
+    ok.textContent = t("No path issues detected");
+    el.appendChild(ok);
+    return;
+  }
+  for (const issue of issues.slice(0, 8)) {
+    const row = document.createElement("div");
+    row.className = `oc-diagnostic oc-diagnostic-${issue.severity}`;
+    row.textContent = `⚠ ${issue.message}`;
+    el.appendChild(row);
+  }
+}
+
 export function refreshKeyEditor(ui) {
   const object = timelineObject(ui);
   const key = selectedKeyframe(ui);
@@ -331,7 +378,7 @@ export function refreshKeyEditor(ui) {
       ? t(`${object?.name || "Camera"} Key @ ${key.frame}`)
       : t(`No ${object ? "object" : "camera"} key selected`);
   }
-  const roles = ["key-frame", "key-interp", "key-tangent-mode", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"];
+  const roles = ["key-frame", "key-interp", "key-tangent-mode", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type", "key-timing-weight"];
   for (const role of roles) {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
     if (el) el.disabled = !key || Boolean(object && !["key-frame", "key-interp", "key-tangent-mode"].includes(role));
@@ -340,7 +387,13 @@ export function refreshKeyEditor(ui) {
   if (updateKeyBtn) updateKeyBtn.disabled = !key || Boolean(object);
   const viewKeyBtn = ui.root.querySelector('[data-act="view-key"]');
   if (viewKeyBtn) viewKeyBtn.disabled = !key || Boolean(object);
-  for (const btn of ui.root.querySelectorAll("[data-interp]")) {
+  const redistributeBtn = ui.root.querySelector('[data-act="redistribute-key-timing"]');
+  if (redistributeBtn) redistributeBtn.disabled = Boolean(object) || (ui.activeCameraTrack?.()?.keyframes?.length || 0) < 2;
+  // Scoped for the same reason as setKeyInterpolation() above: an unscoped
+  // "[data-interp]" query also matches every timeline keyframe marker (which
+  // reuses the attribute for its own marker-shape styling), disabling every
+  // marker on the timeline whenever no key happens to be selected.
+  for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
     btn.classList.toggle("active", Boolean(key && btn.dataset.interp === key.interpolation));
     btn.disabled = !key;
   }
@@ -369,6 +422,7 @@ export function refreshKeyEditor(ui) {
     timecodeEl.textContent = `${hours}:${mins}:${secs}:${framesStr} (${f}f)`;
   }
 
+  renderPathDiagnostics(ui);
   if (!key) return;
   if (object) {
     const frameInput = ui.root.querySelector('[data-role="key-frame"]');
@@ -393,6 +447,7 @@ export function refreshKeyEditor(ui) {
     "key-near": key.camera.near,
     "key-far": key.camera.far,
     "key-camera-type": key.camera.camera_type,
+    "key-timing-weight": cameraPathTimingWeight(key),
   };
   for (const [role, value] of Object.entries(values)) {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
@@ -460,6 +515,12 @@ export function updateSelectedKey(ui) {
   key.camera.near = Math.max(1e-4, read("key-near", key.camera.near));
   key.camera.far = Math.max(key.camera.near + 1e-4, read("key-far", key.camera.far));
   key.camera.camera_type = ui.root.querySelector('[data-role="key-camera-type"]').value;
+  const timingInput = ui.root.querySelector('[data-role="key-timing-weight"]');
+  if (timingInput) {
+    const updated = setCameraPathTimingWeight(key, read("key-timing-weight", cameraPathTimingWeight(key)));
+    if (updated.timing) key.timing = updated.timing;
+    else delete key.timing;
+  }
   ui.camera = cloneCamera(key.camera);
   ui.frame = key.frame;
   ui.serialize();

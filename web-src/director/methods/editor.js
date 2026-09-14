@@ -2,6 +2,8 @@
 
 import { applyAimConstraint } from "../../aim-constraint.js";
 import { SPATIAL_HANDLE_MODES, spatialHandleMode } from "../../camera-path-curve.js";
+import { normalizePathSelection } from "../camera-path-selection.js";
+import { trackHasActiveLookAt } from "../camera-path-transform.js";
 import { t } from "../../i18n.js";
 import { toggleObjectLock } from "../../scene/object-lock.js";
 
@@ -124,6 +126,11 @@ export function createEditorMethods(dependencies) {
     this.selectedKeyFrame = this.selectedKeyFrames.has(value.selectedKeyFrame)
       ? value.selectedKeyFrame
       : [...this.selectedKeyFrames].at(-1) ?? null;
+    // Path selection is transient UI state (plan section 7) and is never part
+    // of the serialized history snapshot, so it must be re-derived here
+    // rather than restored -- otherwise an undo/redo could leave it pointing
+    // at frames/cameras that no longer exist in the restored state.
+    this.pathSelection = normalizePathSelection(this.pathSelection, this.activeCameraTrack());
     this.subSelection = value.subSelection || null;
     this.camera = sampleCamera(this.state, this.frame);
     // sampleCamera alone cannot resolve a bone-level aim (bones only exist in
@@ -522,10 +529,27 @@ export function createEditorMethods(dependencies) {
     this.render();
     const current = key ? spatialHandleMode(key) : "auto";
     const n = this.selectedKeyFrames?.size || 0;
+    const editingTarget = this.pathSelection?.component === "target";
+    const lookAtLocked = trackHasActiveLookAt(camera, this.state.objects);
     this.showContextMenu(event, `Path key F${frame}`, [
       { label: t("Set key at playhead"), icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
       { label: t("Frame subject"), icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },
       null,
+      {
+        label: t("Path Component"),
+        icon: "pi-bullseye",
+        help: lookAtLocked ? t("Driven by Look At -- target editing is disabled") : undefined,
+        items: [
+          { label: t("Position"), checked: !editingTarget, run: () => this.setPathSelectionComponent("position") },
+          {
+            label: t("Target"),
+            checked: editingTarget,
+            disabled: lookAtLocked,
+            help: lookAtLocked ? t("Driven by Look At -- target editing is disabled") : undefined,
+            run: () => this.setPathSelectionComponent("target"),
+          },
+        ],
+      },
       {
         label: t("Handle Type"),
         icon: "pi-share-alt",

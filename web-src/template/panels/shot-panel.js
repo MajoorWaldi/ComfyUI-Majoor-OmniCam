@@ -80,6 +80,15 @@ export function shotPanel() {
         <div class="oc-field-row"><span class="oc-field-label">${t("FOV")}</span><input data-role="key-fov" type="number" min="5" max="150" step="0.1"></div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Roll")}</span><input data-role="key-roll" type="number" min="-180" max="180" step="0.1"></div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Zoom")}</span><input data-role="key-zoom" type="number" min="0.01" step="0.05"></div>
+        <div class="oc-field-row" data-role="key-timing-weight-row" title="${t("Authoring preference used by Redistribute Timing; does not change playback speed by itself")}">
+          <span class="oc-field-label">${t("Timing Weight")}</span><input data-role="key-timing-weight" type="number" min="0.1" max="10" step="0.1">
+        </div>
+        <div class="oc-card-actions">
+          <button type="button" class="icon-button" data-act="redistribute-key-timing" title="${t("Redistribute this camera's key timing across its current frame range using each key's Timing Weight")}">
+            <i class="pi pi-sliders-h"></i> ${t("Redistribute Timing")}
+          </button>
+        </div>
+        <div class="oc-path-diagnostics" data-role="path-diagnostics-list" hidden></div>
         <details class="oc-more" data-density-min="advanced"><summary>${t("Projection & Clipping")}</summary>
           <div class="oc-field-row"><span class="oc-field-label">${t("Camera")}</span>
             <select data-role="key-camera-type"><option value="perspective">${t("Perspective")}</option><option value="orthographic">${t("Orthographic")}</option></select>
