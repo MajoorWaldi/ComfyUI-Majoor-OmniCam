@@ -50,7 +50,10 @@
         };
         await extension.nodeCreated(node);
         window.omnicamNode = node;
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        // loadWebGLViewports() never rejects, but three.js/mediabunny load on
+        // demand and can outlast a fixed timeout under parallel load; await
+        // the viewport's own readiness promise instead of guessing a delay.
+        await node.__majoorOmniCam?.webglReady;
         const root = document.querySelector(".majoor-omnicam");
         const canvas = root?.querySelector(".viewport-wrap > canvas");
         window.omnicamMount = {

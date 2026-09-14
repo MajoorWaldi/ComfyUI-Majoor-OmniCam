@@ -284,7 +284,10 @@ async def _save_multipart_file(request: web.Request, subfolder: str, allowed_ext
             raise web.HTTPBadRequest(text=f"File signature does not match {dest.suffix.lower()}")
         if dest.suffix.lower() in _CARD_EXTENSIONS | _PLAYBLAST_EXTENSIONS | _SOURCE_EXTENSIONS:
             await asyncio.to_thread(_validate_media_metadata, dest)
-    except Exception:
+    except BaseException:
+        # BaseException, not Exception: asyncio.CancelledError (a task
+        # cancellation mid-upload) must also release the partial file and
+        # the reserved quota, not just ordinary Exception failures.
         dest.unlink(missing_ok=True)
         await _finish_quota_reservation(reserved)
         raise

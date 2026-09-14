@@ -14,8 +14,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
+import threading
 import time
+import uuid
 from pathlib import Path
 
 import folder_paths
@@ -38,6 +41,12 @@ _SLUG_UNSAFE = re.compile(r"[^a-z0-9._-]+")
 #: refused. This is a runaway guard, not a product limit -- a working library of
 #: a few hundred documents stays well under it.
 MAX_SCENES = 1000
+
+# save_scene() runs its body in a worker thread (asyncio.to_thread), so two
+# concurrent saves -- even to different slugs -- previously raced on the
+# same directory-wide quota scan and could interleave writes/replaces on a
+# shared temp file. Serialize the whole read-check-write-replace sequence.
+_SCENES_LOCK = threading.Lock()
 
 
 def _scenes_root() -> Path:
@@ -156,19 +165,27 @@ async def save_scene(request: web.Request):
     ).encode("utf-8")
 
     def _write() -> int:
-        existing = {p.name for p in root.glob(f"*{_SCENE_SUFFIX}") if p.is_file()}
-        if path.name not in existing and len(existing) >= MAX_SCENES:
-            raise web.HTTPInsufficientStorage(text=f"Scene library is full ({MAX_SCENES} scenes)")
-        usage = _folder_size(root) if root.exists() else 0
-        if usage + len(document) > MAX_EXPORT_FOLDER_BYTES:
-            raise web.HTTPInsufficientStorage(
-                text=f"OmniCam output quota exceeded ({MAX_EXPORT_FOLDER_BYTES} bytes)"
-            )
-        _check_free_space(root, len(document))
-        tmp = path.with_suffix(".json.tmp")
-        tmp.write_bytes(document)
-        tmp.replace(path)
-        return len(document)
+        with _SCENES_LOCK:
+            existing = {p.name for p in root.glob(f"*{_SCENE_SUFFIX}") if p.is_file()}
+            if path.name not in existing and len(existing) >= MAX_SCENES:
+                raise web.HTTPInsufficientStorage(text=f"Scene library is full ({MAX_SCENES} scenes)")
+            usage = _folder_size(root) if root.exists() else 0
+            # A replace must not count the version it is about to overwrite:
+            # otherwise saving a same-size scene again looks like it grew the
+            # folder by another full copy and can be refused near the quota.
+            if path.name in existing:
+                usage -= path.stat().st_size
+            if usage + len(document) > MAX_EXPORT_FOLDER_BYTES:
+                raise web.HTTPInsufficientStorage(
+                    text=f"OmniCam output quota exceeded ({MAX_EXPORT_FOLDER_BYTES} bytes)"
+                )
+            _check_free_space(root, len(document))
+            # pid alone is not unique: two threads in this same process could
+            # still share one temp filename and race each other's write.
+            tmp = path.with_suffix(f".{os.getpid()}.{uuid.uuid4().hex}.json.tmp")
+            tmp.write_bytes(document)
+            tmp.replace(path)
+            return len(document)
 
     try:
         size = await asyncio.to_thread(_write)
