@@ -9,6 +9,10 @@ import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
 import { normalizeQuaternion, sanitizePose, withJointRotation } from "../assets/character/pose-state.js";
 import { sanitizeMotion } from "../assets/character/motion-state.js";
 import { compileInstance } from "../assets/instantiate.js";
+import { pathCentroid, trackHasActiveLookAt, transformSelectedPathKeys } from "../director/camera-path-transform.js";
+import { insertCameraPathKey, deleteCameraPathKeys } from "../director/camera-path-insert.js";
+import { redistributeCameraPathTiming } from "../director/camera-path-timing.js";
+import { createCameraPathPreset } from "../director/camera-path-presets.js";
 import { DIRECTOR_OPS } from "./constants.js";
 import { DirectorApiError } from "./errors.js";
 import {
@@ -71,6 +75,26 @@ function ensureBaseCamera(track) {
 
 function keyframeAt(track, frame) {
   return (track.keyframes || []).find((key) => key.frame === frame) || null;
+}
+
+// Every camera.path.* handler below ends by writing back a new keyframe
+// array; state.keyframes is the active camera's own array by convention
+// (director/core.js's sanitizeState keeps them aliased), so both must be
+// updated together or a path op on the active camera would go invisible
+// until the next unrelated state change resynced them.
+function applyTrackKeyframes(state, track, keyframes) {
+  track.keyframes = keyframes;
+  if (track.id === state.active_camera_id) state.keyframes = keyframes;
+}
+
+const PATH_DIRTY = UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.timeline | UI_DIRTY.inspector;
+
+function assertKeyframesExist(track, frames, operationLabel) {
+  const existing = new Set((track.keyframes || []).map((key) => key.frame));
+  const missing = frames.find((frame) => !existing.has(frame));
+  if (missing !== undefined) {
+    throw new DirectorApiError("UNKNOWN_KEYFRAME", `${operationLabel}: camera has no key at frame ${missing}`);
+  }
 }
 
 const HANDLERS = {
@@ -364,6 +388,90 @@ const HANDLERS = {
   [DIRECTOR_OPS.CUT_SET_CAMERA](state, op) {
     const outcome = setCutCamera(state, op);
     return { dirtyMask: UI_DIRTY.timeline | UI_DIRTY.viewport | UI_DIRTY.previews | UI_DIRTY.status, outcome };
+  },
+
+  // Semantic Director API path operations (plan section 22): the same pure
+  // maths the manual UI's TransformControls wiring / toolbar actions use
+  // (viewport/transform-controls-wiring.js, director/methods/scene.js),
+  // reached atomically and with the exact same lock/existence checks. No
+  // raw Three.js object ever crosses this boundary -- every input/output
+  // here is plain JSON (frames, vectors, strings).
+  [DIRECTOR_OPS.CAMERA_PATH_TRANSFORM_KEYS](state, op) {
+    const track = requireUnlockedCamera(state, op.cameraId);
+    assertKeyframesExist(track, op.frames, "camera.path.transform_keys");
+    const selected = (track.keyframes || []).filter((key) => op.frames.includes(key.frame));
+    const origin = Array.isArray(op.transform.origin) ? op.transform.origin : pathCentroid(selected);
+    const nextKeys = transformSelectedPathKeys(track.keyframes || [], op.frames, {
+      mode: op.transform.mode,
+      origin,
+      delta: op.transform.delta,
+      factors: op.transform.factors,
+      rotationDeg: op.transform.rotationDeg,
+      lookAtActive: trackHasActiveLookAt(track),
+    });
+    applyTrackKeyframes(state, track, nextKeys);
+    return { dirtyMask: PATH_DIRTY };
+  },
+
+  [DIRECTOR_OPS.CAMERA_PATH_INSERT_KEY](state, op) {
+    const track = requireUnlockedCamera(state, op.cameraId);
+    const result = insertCameraPathKey(track.keyframes || [], {
+      leftFrame: op.leftFrame,
+      rightFrame: op.rightFrame,
+      t: op.t,
+    });
+    if (!result.ok) {
+      throw new DirectorApiError(
+        result.reason === "no_free_frame" ? "NO_FREE_FRAME" : "SEGMENT_NOT_FOUND",
+        `camera.path.insert_key: could not insert a key between frame ${op.leftFrame} and ${op.rightFrame}`,
+      );
+    }
+    applyTrackKeyframes(state, track, result.keys);
+    return { dirtyMask: PATH_DIRTY, outcome: { frame: result.frame } };
+  },
+
+  [DIRECTOR_OPS.CAMERA_PATH_DELETE_KEYS](state, op) {
+    const track = requireUnlockedCamera(state, op.cameraId);
+    assertKeyframesExist(track, op.frames, "camera.path.delete_keys");
+    const result = deleteCameraPathKeys(track.keyframes || [], op.frames);
+    if (!result.ok) {
+      throw new DirectorApiError("CANNOT_DELETE", "camera.path.delete_keys: a camera track needs at least one key");
+    }
+    applyTrackKeyframes(state, track, result.keys);
+    return { dirtyMask: PATH_DIRTY, outcome: { removed: result.removed } };
+  },
+
+  [DIRECTOR_OPS.CAMERA_PATH_REDISTRIBUTE_TIMING](state, op) {
+    const track = requireUnlockedCamera(state, op.cameraId);
+    const sorted = [...(track.keyframes || [])].sort((a, b) => a.frame - b.frame);
+    const startFrame = Number.isInteger(op.startFrame) ? op.startFrame : sorted[0]?.frame;
+    const endFrame = Number.isInteger(op.endFrame) ? op.endFrame : sorted[sorted.length - 1]?.frame;
+    const result = redistributeCameraPathTiming(sorted, { startFrame, endFrame });
+    if (!result.ok) {
+      const codes = { not_enough_keys: "NOT_ENOUGH_KEYS", invalid_range: "BAD_RANGE", insufficient_frame_slots: "INSUFFICIENT_FRAME_SLOTS" };
+      throw new DirectorApiError(codes[result.reason] || "BAD_RANGE", `camera.path.redistribute_timing: ${result.reason}`);
+    }
+    applyTrackKeyframes(state, track, result.keys);
+    return { dirtyMask: PATH_DIRTY };
+  },
+
+  [DIRECTOR_OPS.CAMERA_PATH_APPLY_PRESET](state, op) {
+    const track = requireUnlockedCamera(state, op.cameraId);
+    const camera = ensureBaseCamera(track);
+    const result = createCameraPathPreset({
+      type: op.presetType,
+      camera,
+      target: op.target,
+      startFrame: op.startFrame,
+      endFrame: op.endFrame,
+      params: op.params || {},
+    });
+    if (!result.ok) {
+      const codes = { unknown_preset: "UNKNOWN_PRESET", invalid_camera: "BAD_VALUE", invalid_range: "BAD_RANGE", insufficient_frame_slots: "INSUFFICIENT_FRAME_SLOTS" };
+      throw new DirectorApiError(codes[result.reason] || "BAD_VALUE", `camera.path.apply_preset: ${result.reason}`);
+    }
+    applyTrackKeyframes(state, track, result.keyframes);
+    return { dirtyMask: PATH_DIRTY };
   },
 };
 

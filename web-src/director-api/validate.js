@@ -17,6 +17,7 @@ import {
   MAX_OPERATIONS_PER_TRANSACTION,
 } from "./constants.js";
 import { AGENT_OBJECT_TYPES } from "./entity-ops.js";
+import { CAMERA_PATH_PRESET_TYPES } from "../director/camera-path-presets.js";
 import { DirectorApiError } from "./errors.js";
 import { hasRecentTransactionId } from "./tx-id-cache.js";
 
@@ -48,6 +49,14 @@ function assertFiniteNumber(value, label, operationIndex) {
     throw new DirectorApiError("BAD_VALUE", `${label} must be a finite number`, operationIndex);
   }
 }
+
+function assertFrameArray(value, label, operationIndex) {
+  if (!Array.isArray(value) || value.length === 0 || !value.every((frame) => Number.isInteger(frame) && frame >= 0)) {
+    throw new DirectorApiError("BAD_VALUE", `${label} must be a non-empty array of non-negative integer frames`, operationIndex);
+  }
+}
+
+const PATH_TRANSFORM_MODES = new Set(["translate", "rotate", "scale"]);
 
 const CAMERA_FIELDS = new Set([
   "position",
@@ -384,6 +393,57 @@ function validateOperationShape(operation, index) {
     case DIRECTOR_OPS.CUT_SET_CAMERA:
       assertFrame(operation.start, "start", index);
       assertString(operation.cameraId, "cameraId", index);
+      break;
+
+    case DIRECTOR_OPS.CAMERA_PATH_TRANSFORM_KEYS: {
+      if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
+      assertFrameArray(operation.frames, "frames", index);
+      const transform = operation.transform;
+      if (!transform || typeof transform !== "object" || Array.isArray(transform)) {
+        throw new DirectorApiError("BAD_VALUE", "camera.path.transform_keys needs a transform object", index);
+      }
+      if (!PATH_TRANSFORM_MODES.has(transform.mode)) {
+        throw new DirectorApiError("BAD_VALUE", "transform.mode must be translate, rotate or scale", index);
+      }
+      if (transform.mode === "translate") assertVec3(transform.delta, "transform.delta", index);
+      else if (transform.mode === "scale") assertVec3(transform.factors, "transform.factors", index);
+      else assertVec3(transform.rotationDeg, "transform.rotationDeg", index);
+      if (transform.origin !== undefined) assertVec3(transform.origin, "transform.origin", index);
+      break;
+    }
+
+    case DIRECTOR_OPS.CAMERA_PATH_INSERT_KEY:
+      if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
+      assertFrame(operation.leftFrame, "leftFrame", index);
+      assertFrame(operation.rightFrame, "rightFrame", index);
+      if (operation.t !== undefined) assertFiniteNumber(operation.t, "t", index);
+      break;
+
+    case DIRECTOR_OPS.CAMERA_PATH_DELETE_KEYS:
+      if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
+      assertFrameArray(operation.frames, "frames", index);
+      break;
+
+    case DIRECTOR_OPS.CAMERA_PATH_REDISTRIBUTE_TIMING:
+      if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
+      if (operation.startFrame !== undefined) assertFrame(operation.startFrame, "startFrame", index);
+      if (operation.endFrame !== undefined) assertFrame(operation.endFrame, "endFrame", index);
+      break;
+
+    case DIRECTOR_OPS.CAMERA_PATH_APPLY_PRESET:
+      if (operation.cameraId !== undefined) assertString(operation.cameraId, "cameraId", index);
+      if (!CAMERA_PATH_PRESET_TYPES.includes(operation.presetType)) {
+        throw new DirectorApiError("BAD_VALUE", `presetType must be one of: ${CAMERA_PATH_PRESET_TYPES.join(", ")}`, index);
+      }
+      assertFrame(operation.startFrame, "startFrame", index);
+      assertFrame(operation.endFrame, "endFrame", index);
+      if (operation.endFrame <= operation.startFrame) {
+        throw new DirectorApiError("BAD_RANGE", "camera.path.apply_preset endFrame must be after startFrame", index);
+      }
+      if (operation.target !== undefined) assertVec3(operation.target, "target", index);
+      if (operation.params !== undefined && (typeof operation.params !== "object" || Array.isArray(operation.params))) {
+        throw new DirectorApiError("BAD_VALUE", "camera.path.apply_preset params must be an object", index);
+      }
       break;
 
     default:
