@@ -320,3 +320,64 @@ test("selecting two path keys attaches the gizmo at their centroid; dragging mov
   expect(after[1]).not.toEqual(before[1]);
   expect(after[2]).toEqual(before[2]);
 });
+
+// Task 10 of docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md:
+// the point Inspector's Timing Weight field and Redistribute Timing action.
+// These bind through the pre-existing shot-panel key editor (the same one
+// FOV/Roll already use), which selectPathKeyFromClick already wires up to a
+// clicked path key via ui.selectedKeyFrame -- see web-src/scene.js.
+
+test("selecting a path key shows its default Timing Weight; editing it persists on the canonical key", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+
+  // Frame 0, not 30: setUpThreeKeyPath's three keys are symmetric about the
+  // path centroid, so frame 30 sits exactly where the whole path's own gizmo
+  // anchors and would win a plain click there (see the comment above the
+  // Task 6 single-point-selection test in this file).
+  const p0 = await pathKeyScreenPoint(page, 0);
+  await page.mouse.click(p0.x, p0.y);
+
+  const weightInput = page.locator('.majoor-omnicam [data-role="key-timing-weight"]');
+  await expect(weightInput).toHaveValue("1");
+
+  await weightInput.evaluate((input) => { input.value = "3"; input.dispatchEvent(new Event("change", { bubbles: true })); });
+
+  const stored = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.find((k) => k.frame === 0).timing);
+  expect(stored).toEqual({ weight: 3 });
+
+  // One undo step removes the edit, and an untouched key keeps no `timing`.
+  await page.keyboard.press("Control+z");
+  const undone = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.find((k) => k.frame === 0).timing);
+  expect(undone).toBeUndefined();
+});
+
+test("Redistribute Timing reflows keys by their Timing Weight, preserving first/last frame, in one undo step", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+
+  const p0 = await pathKeyScreenPoint(page, 0);
+  await page.mouse.click(p0.x, p0.y);
+  // The Shot tab's panel starts hidden; switch to it (directly, so the click
+  // itself cannot land on/behind an overlapping viewport element) so its
+  // Redistribute Timing button is a real, clickable element.
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setInspectorMode("shot"));
+  const weightInput = page.locator('.majoor-omnicam [data-role="key-timing-weight"]');
+  // A heavier weight on the first key's own segment slows it down relative to
+  // the untouched second segment, pulling the redistributed midpoint later.
+  await weightInput.evaluate((input) => { input.value = "5"; input.dispatchEvent(new Event("change", { bubbles: true })); });
+
+  const before = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => k.frame));
+  expect(before).toEqual([0, 30, 60]);
+
+  await page.locator('.majoor-omnicam [data-act="redistribute-key-timing"]').click();
+
+  const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => k.frame));
+  expect(after[0]).toBe(0);
+  expect(after[after.length - 1]).toBe(60);
+  expect(after[1]).toBeGreaterThan(before[1]);
+
+  await page.keyboard.press("Control+z");
+  const undone = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => k.frame));
+  expect(undone).toEqual(before);
+});

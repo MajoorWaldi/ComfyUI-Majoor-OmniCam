@@ -1,6 +1,7 @@
 // Scene outliner, inspector, object commands and key editing.
 
 import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./director/core.js";
+import { cameraPathTimingWeight, setCameraPathTimingWeight } from "./director/camera-path-timing.js";
 import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
 import { playblastCameraTrack } from "./state-sync.js";
@@ -331,7 +332,7 @@ export function refreshKeyEditor(ui) {
       ? t(`${object?.name || "Camera"} Key @ ${key.frame}`)
       : t(`No ${object ? "object" : "camera"} key selected`);
   }
-  const roles = ["key-frame", "key-interp", "key-tangent-mode", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"];
+  const roles = ["key-frame", "key-interp", "key-tangent-mode", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type", "key-timing-weight"];
   for (const role of roles) {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
     if (el) el.disabled = !key || Boolean(object && !["key-frame", "key-interp", "key-tangent-mode"].includes(role));
@@ -340,6 +341,8 @@ export function refreshKeyEditor(ui) {
   if (updateKeyBtn) updateKeyBtn.disabled = !key || Boolean(object);
   const viewKeyBtn = ui.root.querySelector('[data-act="view-key"]');
   if (viewKeyBtn) viewKeyBtn.disabled = !key || Boolean(object);
+  const redistributeBtn = ui.root.querySelector('[data-act="redistribute-key-timing"]');
+  if (redistributeBtn) redistributeBtn.disabled = Boolean(object) || (ui.activeCameraTrack?.()?.keyframes?.length || 0) < 2;
   for (const btn of ui.root.querySelectorAll("[data-interp]")) {
     btn.classList.toggle("active", Boolean(key && btn.dataset.interp === key.interpolation));
     btn.disabled = !key;
@@ -393,6 +396,7 @@ export function refreshKeyEditor(ui) {
     "key-near": key.camera.near,
     "key-far": key.camera.far,
     "key-camera-type": key.camera.camera_type,
+    "key-timing-weight": cameraPathTimingWeight(key),
   };
   for (const [role, value] of Object.entries(values)) {
     const el = ui.root.querySelector(`[data-role="${role}"]`);
@@ -460,6 +464,12 @@ export function updateSelectedKey(ui) {
   key.camera.near = Math.max(1e-4, read("key-near", key.camera.near));
   key.camera.far = Math.max(key.camera.near + 1e-4, read("key-far", key.camera.far));
   key.camera.camera_type = ui.root.querySelector('[data-role="key-camera-type"]').value;
+  const timingInput = ui.root.querySelector('[data-role="key-timing-weight"]');
+  if (timingInput) {
+    const updated = setCameraPathTimingWeight(key, read("key-timing-weight", cameraPathTimingWeight(key)));
+    if (updated.timing) key.timing = updated.timing;
+    else delete key.timing;
+  }
   ui.camera = cloneCamera(key.camera);
   ui.frame = key.frame;
   ui.serialize();

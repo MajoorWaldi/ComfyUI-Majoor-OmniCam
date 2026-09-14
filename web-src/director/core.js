@@ -2,6 +2,16 @@ import { SEQUENCE_TARGET, defaultSequence, sanitizeSequence } from "./sequence.j
 import { sanitizeMotionState } from "../motion-tracks/state.js";
 import { sanitizeAnnotation, sanitizeTags } from "../assets/labels.js";
 import { sanitizeCharacterBlock } from "../assets/character/pose-state.js";
+import { DEFAULT_TIMING_WEIGHT, MAX_TIMING_WEIGHT, MIN_TIMING_WEIGHT } from "./camera-path-timing.js";
+
+// A key's optional `timing.weight` (plan section 14.2) is dropped entirely
+// when it is absent, invalid, or at the implicit default so an untouched key
+// keeps serializing byte-identical -- mirrors the `tangents` field below.
+function sanitizeTimingField(key) {
+  const value = Number(key?.timing?.weight);
+  if (!Number.isFinite(value) || value < MIN_TIMING_WEIGHT || value > MAX_TIMING_WEIGHT || value === DEFAULT_TIMING_WEIGHT) return {};
+  return { timing: { weight: value } };
+}
 
 export const clamp = (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value));
 
@@ -535,6 +545,7 @@ export function sanitizeState(raw) {
     interpolation: INTERPOLATION_MODES.includes(key.interpolation) ? key.interpolation : "ease",
     ...(key.tangents && typeof key.tangents === "object" ? { tangents: { ...key.tangents } } : {}),
     ...(Array.isArray(key.references) ? { references: key.references.map((r) => ({ ...r })) } : {}),
+    ...sanitizeTimingField(key),
   }));
   const legacyCamera = cloneCamera(out.camera || base.camera);
   let legacyKeys = sanitizeKeyframes(out.keyframes, legacyCamera); legacyKeys = [...new Map(legacyKeys.map((key) => [key.frame, key])).values()].sort((a, b) => a.frame - b.frame);

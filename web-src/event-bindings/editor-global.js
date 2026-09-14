@@ -121,9 +121,10 @@ export function bindEditorAndGlobal(ui, q, signal) {
   q('[data-act="curve-zoom-out"]')?.addEventListener("click", () => ui.zoomCurve(0.8), { signal });
   q('[data-act="curve-fit"]')?.addEventListener("click", () => ui.resetCurveZoom(), { signal });
   q('[data-role="key-frame"]')?.addEventListener("change", (event) => ui.retimeSelectedKey(Number(event.target.value)), { signal });
-  for (const role of ["key-interp", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type"]) {
+  for (const role of ["key-interp", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type", "key-timing-weight"]) {
     q(`[data-role="${role}"]`)?.addEventListener("change", () => ui.updateSelectedKey(), { signal });
   }
+  q('[data-act="redistribute-key-timing"]')?.addEventListener("click", () => ui.redistributeActiveCameraTiming(), { signal });
   for (const el of ui.root.querySelectorAll('[data-role="ui-density"]')) {
     el.addEventListener("change", (e) => ui.setDensity(e.target.value), { signal });
   }

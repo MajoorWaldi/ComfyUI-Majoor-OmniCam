@@ -7,6 +7,7 @@ import { updatePlayhead } from "../../timeline/playhead.js";
 import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
 import { insertCameraPathKey } from "../camera-path-insert.js";
+import { redistributeCameraPathTiming } from "../camera-path-timing.js";
 import { selectPathKeyFromClick } from "../../viewport/path-editing.js";
 import { setPathSelectionComponent as applyPathSelectionComponent } from "../camera-path-selection.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
@@ -265,6 +266,39 @@ export function createSceneMethods(dependencies) {
     this.camera = sampleCamera(track, this.frame, this.state.objects);
     track.camera = cloneCamera(this.camera);
     this.serialize(), this.refreshKeys(), this.refreshInspector(), this.render(), this.renderCameraView?.();
+    return true;
+  },
+  // "Redistribute Timing" (plan section 26 Task 10 / spec section 14.3):
+  // reflows the active camera's own existing key range using each key's
+  // authoring Timing Weight, never touching any other camera or object.
+  redistributeActiveCameraTiming() {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked || !(track.keyframes?.length >= 2)) {
+      if (track?.keyframes?.length < 2) this.setStatus(t("Need at least two keys to redistribute timing"));
+      return false;
+    }
+    const sorted = [...track.keyframes].sort((a, b) => a.frame - b.frame);
+    const result = redistributeCameraPathTiming(sorted, {
+      startFrame: sorted[0].frame,
+      endFrame: sorted[sorted.length - 1].frame,
+    });
+    if (!result.ok) {
+      this.setStatus(result.reason === "insufficient_frame_slots"
+        ? t("Not enough frame slots to redistribute this many keys")
+        : t("Could not redistribute timing"));
+      return false;
+    }
+    this.checkpoint(t("Redistribute camera path timing"));
+    track.keyframes = result.keys;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = result.keys;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize();
+    this.refreshKeys();
+    this.refreshKeyEditor();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("Camera path timing redistributed"));
     return true;
   },
   toggleCurveHandles() {
