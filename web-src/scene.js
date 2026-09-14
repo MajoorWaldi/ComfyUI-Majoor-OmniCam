@@ -2,6 +2,7 @@
 
 import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./director/core.js";
 import { cameraPathTimingWeight, setCameraPathTimingWeight } from "./director/camera-path-timing.js";
+import { analyzeCameraPath } from "./director/camera-path-diagnostics.js";
 import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
 import { playblastCameraTrack } from "./state-sync.js";
@@ -321,6 +322,36 @@ export function setKeyTangentMode(ui, mode) {
   ui.setStatus(t("Key @ {frame} tangent mode set to {mode}").replace("{frame}", String(key.frame)).replace("{mode}", mode));
 }
 
+// Pure, read-only camera path diagnostics (plan section 26 Task 12): never
+// mutates the path, just lists what analyzeCameraPath() finds for the
+// active camera's own keys. Built with textContent (not innerHTML) since an
+// object/camera name is user-authored text that must never execute as HTML.
+function renderPathDiagnostics(ui) {
+  const el = ui.root.querySelector('[data-role="path-diagnostics-list"]');
+  if (!el) return;
+  el.innerHTML = "";
+  const keys = ui.activeCameraTrack?.()?.keyframes || [];
+  if (keys.length < 2) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  const issues = analyzeCameraPath({ keys, fps: ui.state?.fps || 24, objects: ui.state?.objects || [] });
+  if (!issues.length) {
+    const ok = document.createElement("div");
+    ok.className = "oc-diagnostic-ok";
+    ok.textContent = t("No path issues detected");
+    el.appendChild(ok);
+    return;
+  }
+  for (const issue of issues.slice(0, 8)) {
+    const row = document.createElement("div");
+    row.className = `oc-diagnostic oc-diagnostic-${issue.severity}`;
+    row.textContent = `⚠ ${issue.message}`;
+    el.appendChild(row);
+  }
+}
+
 export function refreshKeyEditor(ui) {
   const object = timelineObject(ui);
   const key = selectedKeyframe(ui);
@@ -372,6 +403,7 @@ export function refreshKeyEditor(ui) {
     timecodeEl.textContent = `${hours}:${mins}:${secs}:${framesStr} (${f}f)`;
   }
 
+  renderPathDiagnostics(ui);
   if (!key) return;
   if (object) {
     const frameInput = ui.root.querySelector('[data-role="key-frame"]');

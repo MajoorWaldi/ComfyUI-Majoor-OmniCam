@@ -88,6 +88,7 @@ export function shotPanel() {
             <i class="pi pi-sliders-h"></i> ${t("Redistribute Timing")}
           </button>
         </div>
+        <div class="oc-path-diagnostics" data-role="path-diagnostics-list" hidden></div>
         <details class="oc-more" data-density-min="advanced"><summary>${t("Projection & Clipping")}</summary>
           <div class="oc-field-row"><span class="oc-field-label">${t("Camera")}</span>
             <select data-role="key-camera-type"><option value="perspective">${t("Perspective")}</option><option value="orthographic">${t("Orthographic")}</option></select>

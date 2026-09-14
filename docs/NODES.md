@@ -210,6 +210,20 @@ frame never move; the action refuses cleanly (with a status message) if the
 range has fewer integer frame slots than keys. One redistribute is one undo
 step, and an untouched key keeps no `timing` data in the saved workflow.
 
+#### Camera Path Diagnostics
+
+The Shot Inspector tab shows a compact, read-only diagnostics list under the
+Timing controls whenever the active camera has 2+ keys: `⚠ Speed spike
+F48–F52`, `Camera barely moves from F0 to F48`, `Sharp direction change at
+F60 (142°)`, keys placed only one frame apart, an orbit that almost but does
+not close, and a key passing near an object's proxy radius. Diagnostics are
+purely derived from the current path (`analyzeCameraPath()` in
+`web-src/director/camera-path-diagnostics.js`) and are recomputed on every
+Inspector refresh — nothing here ever mutates a keyframe automatically. The
+existing per-camera **Speed Heatmap** viewport overlay (color-codes each path
+segment by the same derived speed) is a separate, pre-existing toggle and is
+unaffected by this list.
+
 #### Camera Path Presets
 
 The compass button in the viewport tool rail (beside Draw/Continue Camera

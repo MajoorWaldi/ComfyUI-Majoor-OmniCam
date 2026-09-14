@@ -412,3 +412,36 @@ test("Camera Path Presets: picking Orbit from the compact dialog generates an ed
   const undone = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.length);
   expect(undone).toBe(before);
 });
+
+// Task 12 of docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md:
+// the read-only diagnostics list in the Shot Inspector (analyzeCameraPath()
+// never mutates the path -- see web-src/director/camera-path-diagnostics.js).
+
+test("Camera Path Diagnostics: a static hold is reported and never mutates the path", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+  const p0 = await pathKeyScreenPoint(page, 0);
+  await page.mouse.click(p0.x, p0.y);
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setInspectorMode("shot"));
+
+  const list = page.locator('.majoor-omnicam [data-role="path-diagnostics-list"]');
+  await expect(list).not.toContainText("barely moves");
+
+  const before = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const track = ui.activeCameraTrack();
+    // Collapse the first segment into a long static hold (Task 12's
+    // STATIC_SEGMENT check) purely by editing state -- diagnostics must
+    // never be the thing that mutates a path, only report on it.
+    track.keyframes[1].camera.position = [...track.keyframes[0].camera.position];
+    ui.state.keyframes = track.keyframes;
+    ui.serialize();
+    ui.refreshKeyEditor();
+    return track.keyframes.map((k) => [...k.camera.position]);
+  });
+
+  await expect(list).toContainText("barely moves");
+
+  const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => [...k.camera.position]));
+  expect(after).toEqual(before);
+});
