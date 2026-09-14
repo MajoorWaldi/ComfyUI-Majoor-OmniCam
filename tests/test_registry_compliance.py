@@ -80,6 +80,77 @@ def test_pip_install_subprocess_fails(tmp_path):
     assert any("pip install subprocess" in v for v in result.violations)
 
 
+def test_registry_audit_rejects_asset_bootstrap_runtime_tree(tmp_path):
+    result = _audit(
+        {
+            **MINIMAL,
+            "omnicam/assets/bootstrap/download.py": b"from urllib.request import urlopen\n",
+        },
+        tmp_path,
+    )
+    assert any("developer bootstrap shipped" in item for item in result.violations)
+
+
+def test_registry_audit_rejects_asset_bootstrap_registry_data(tmp_path):
+    result = _audit({**MINIMAL, "omnicam/assets/bootstrap_sources.json": b"{}\n"}, tmp_path)
+    assert any("developer bootstrap shipped" in item for item in result.violations)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        b"import subprocess\nsubprocess.run(['python', 'tool.py'])\n",
+        b"import os\nos.system('command')\n",
+        b"import os\nos.popen('command')\n",
+        b"import asyncio\nasyncio.create_subprocess_exec('tool')\n",
+        b"import asyncio\nasyncio.create_subprocess_shell('tool')\n",
+        b"import subprocess\nsubprocess.run(['tool'], shell=True)\n",
+    ],
+)
+def test_process_execution_primitives_fail(tmp_path, source):
+    result = _audit({**MINIMAL, "omnicam/bad.py": source}, tmp_path)
+    assert any("process execution" in item for item in result.violations)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        b"from urllib.request import urlopen\nurlopen('https://example.com')\n",
+        b"from urllib.request import Request\nRequest('https://example.com')\n",
+        b"import requests\nrequests.get('https://example.com')\n",
+        b"import httpx\nhttpx.get('https://example.com')\n",
+        b"import aiohttp\naiohttp.ClientSession()\n",
+    ],
+)
+def test_unreviewed_network_clients_fail(tmp_path, source):
+    result = _audit({**MINIMAL, "omnicam/network.py": source}, tmp_path)
+    assert any("outbound network client" in item for item in result.violations)
+
+
+def test_reviewed_agent_network_prefix_is_reported_not_rejected(tmp_path):
+    source = b"from urllib.request import urlopen\nurlopen('https://example.com')\n"
+    result = _audit({**MINIMAL, "omnicam/agent/providers/client.py": source}, tmp_path)
+    assert result.ok, result.violations
+    assert any("allowed-network: omnicam/agent/providers/client.py" in item for item in result.notes)
+
+
+def test_route_derived_host_path_fails(tmp_path):
+    source = (
+        b"from pathlib import Path\n"
+        b"async def route(request):\n"
+        b"    body = await request.json()\n"
+        b"    folder = body['folder']\n"
+        b"    return Path(folder).expanduser().is_dir()\n"
+    )
+    result = _audit({**MINIMAL, "omnicam/routes_bad.py": source}, tmp_path)
+    assert any("request-derived host path" in item for item in result.violations)
+
+
+def test_archive_literal_pip_install_is_rejected(tmp_path):
+    result = _audit({**MINIMAL, "README.md": b"pip install pycolmap\n"}, tmp_path)
+    assert any("pip install" in item for item in result.violations)
+
+
 def test_os_environ_read_fails_but_a_write_does_not(tmp_path):
     read = b"import os\nLIMIT = int(os.environ.get('X', 1))\n"
     assert not _audit({**MINIMAL, "omnicam/r.py": read}, tmp_path).ok

@@ -30,6 +30,8 @@ whether it landed on our code or on upstream library code we bundle.
 from __future__ import annotations
 
 import ast
+import hashlib
+import json
 import sys
 import zipfile
 from dataclasses import dataclass, field
@@ -37,6 +39,7 @@ from dataclasses import dataclass, field
 FORBIDDEN_TOP_DIRS = ("tests", "scripts", "web-src", ".github", "node_modules", ".venv")
 REQUIRED_FILES = ("web/omnicam.js", "pyproject.toml")
 REQUIRED_PREFIXES = ("omnicam/",)
+ALLOWED_NETWORK_PREFIXES = ("omnicam/agent/providers/",)
 
 # Removed on purpose and never to return: the DPVO child talks over a one-way
 # ``multiprocessing.Queue`` plus a ``multiprocessing.Event``, so nothing in
@@ -70,6 +73,10 @@ ALLOWED_ENV_VAR_READS = (
 class AuditResult:
     violations: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    files: int = 0
+    sha256: str = ""
+    network_exemptions: list[str] = field(default_factory=list)
+    javascript_provenance: dict[str, dict[str, dict[str, int]]] = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -191,17 +198,103 @@ def _is_pip_install_subprocess(node: ast.AST) -> bool:
     return "pip" in joined and "install" in joined
 
 
+def _is_process_execution(node: ast.AST) -> bool:
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        names = [alias.name for alias in node.names]
+        if (isinstance(node, ast.Import) and any(name == "subprocess" for name in names)) or (
+            isinstance(node, ast.ImportFrom) and node.module == "subprocess"
+        ):
+            return True
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Attribute):
+        if isinstance(func.value, ast.Name) and func.value.id == "subprocess":
+            return True
+        if (
+            isinstance(func.value, ast.Name)
+            and func.value.id == "os"
+            and func.attr in {"system", "popen"}
+        ):
+            return True
+        if (
+            isinstance(func.value, ast.Name)
+            and func.value.id == "asyncio"
+            and func.attr in {"create_subprocess_exec", "create_subprocess_shell"}
+        ):
+            return True
+    return False
+
+
+def _is_network_client(node: ast.AST) -> bool:
+    if isinstance(node, ast.Import):
+        return any(alias.name.split(".", 1)[0] in {"requests", "httpx", "aiohttp"} for alias in node.names)
+    if isinstance(node, ast.ImportFrom):
+        return node.module in {"urllib.request", "requests", "httpx"} or (
+            node.module == "aiohttp" and any(alias.name == "ClientSession" for alias in node.names)
+        )
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return False
+    func = node.func
+    if isinstance(func.value, ast.Name) and func.value.id in {"requests", "httpx"}:
+        return True
+    if isinstance(func.value, ast.Attribute) and func.value.attr == "request":
+        return func.attr in {"urlopen", "Request"}
+    return isinstance(func.value, ast.Name) and func.value.id == "aiohttp" and func.attr == "ClientSession"
+
+
+def _request_derived_names(tree: ast.AST) -> set[str]:
+    derived: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        value = node.value
+        if not (
+            isinstance(value, ast.Subscript)
+            and isinstance(value.value, ast.Name)
+            and value.value.id in {"body", "data", "payload"}
+        ):
+            continue
+        if not any(isinstance(parent, ast.Name) and parent.id == "request" for parent in ast.walk(tree)):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                derived.add(target.id)
+    return derived
+
+
+def _is_request_derived_host_path(node: ast.AST, derived: set[str]) -> bool:
+    if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+        return False
+    if node.func.attr not in {"expanduser", "resolve", "is_dir", "rglob"}:
+        return False
+    parent = node.func.value
+    if not isinstance(parent, ast.Call) or not isinstance(parent.func, ast.Name) or parent.func.id != "Path":
+        return False
+    return any(isinstance(arg, ast.Name) and arg.id in derived for arg in parent.args)
+
+
 def _scan_python(name: str, source: str, result: AuditResult) -> None:
     try:
         tree = ast.parse(source, filename=name)
     except SyntaxError as exc:  # a shipped .py that will not import
         result.violations.append(f"shipped Python does not parse: {name} ({exc})")
         return
+    derived_names = _request_derived_names(tree)
+    allowed_network = name.startswith(ALLOWED_NETWORK_PREFIXES)
+    network_reported = False
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"eval", "exec"}:
             result.violations.append(f"{name}:{node.lineno}: direct {node.func.id}() in shipped code")
+        if _is_process_execution(node):
+            result.violations.append(f"{name}:{getattr(node, 'lineno', '?')}: process execution primitive in shipped code")
         if _is_pip_install_subprocess(node):
             result.violations.append(f"{name}:{node.lineno}: pip install subprocess in shipped code")
+        if _is_network_client(node):
+            if allowed_network:
+                network_reported = True
+            else:
+                result.violations.append(f"{name}:{getattr(node, 'lineno', '?')}: outbound network client outside reviewed provider layer")
         if _is_os_environ_read(node) and not _allowed_env_var_name(node):
             result.violations.append(
                 f"{name}:{getattr(node, 'lineno', '?')}: os.environ / os.getenv read returned "
@@ -212,6 +305,11 @@ def _scan_python(name: str, source: str, result: AuditResult) -> None:
                 f"{name}:{node.lineno}: importlib.import_module(\"comfy_extras.nodes_moge\") returned "
                 "(use a normal lazy import)"
             )
+        if _is_request_derived_host_path(node, derived_names):
+            result.violations.append(f"{name}:{getattr(node, 'lineno', '?')}: request-derived host path operation in shipped code")
+    if allowed_network and network_reported:
+        result.notes.append(f"allowed-network: {name} — reviewed provider transport")
+        result.network_exemptions.append(f"{name} — reviewed provider transport")
 
 
 def audit(zip_path: str) -> AuditResult:
@@ -219,8 +317,15 @@ def audit(zip_path: str) -> AuditResult:
     with zipfile.ZipFile(zip_path) as archive:
         raw_names = _members(archive)
         names = _strip_wrapper_dir(raw_names)
+        result.files = len(names)
+        with open(zip_path, "rb") as archive_file:
+            result.sha256 = hashlib.sha256(archive_file.read()).hexdigest()
         raw_by_logical = dict(zip(names, raw_names, strict=True))
         _check_paths(names, result)
+
+        for logical in names:
+            if logical.startswith("omnicam/assets/bootstrap/") or logical == "omnicam/assets/bootstrap_sources.json":
+                result.violations.append(f"developer bootstrap shipped: {logical}")
 
         own_js: dict[str, dict[str, int]] = {}
         vendor_js: dict[str, dict[str, int]] = {}
@@ -241,7 +346,11 @@ def audit(zip_path: str) -> AuditResult:
                     continue
                 bucket = vendor_js if _is_vendor_chunk(logical) else own_js
                 bucket[logical] = counts
+            data = archive.read(raw).lower()
+            if b"pip install" in data:
+                result.violations.append(f"{logical}: literal 'pip install' is not allowed in the Registry archive")
 
+    result.javascript_provenance = {"omnicam": own_js, "third_party": vendor_js}
     result.notes.extend(_provenance_report(own_js, vendor_js))
     return result
 
@@ -277,10 +386,28 @@ def _provenance_report(
 
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
-    if len(args) != 1:
-        print("usage: python scripts/registry_package_audit.py node.zip", file=sys.stderr)
+    if not args or args[0].startswith("-"):
+        print("usage: python scripts/registry_package_audit.py node.zip [--json-out report.json]", file=sys.stderr)
         return 2
-    result = audit(args[0])
+    archive_path = args[0]
+    json_out = None
+    if len(args) == 3 and args[1] == "--json-out":
+        json_out = args[2]
+    elif len(args) != 1:
+        print("usage: python scripts/registry_package_audit.py node.zip [--json-out report.json]", file=sys.stderr)
+        return 2
+    result = audit(archive_path)
+    if json_out:
+        with open(json_out, "w", encoding="utf-8") as handle:
+            json.dump({
+                "ok": result.ok,
+                "violations": result.violations,
+                "notes": result.notes,
+                "files": result.files,
+                "sha256": result.sha256,
+                "network_exemptions": result.network_exemptions,
+                "javascript_provenance": result.javascript_provenance,
+            }, handle, indent=2, sort_keys=True)
     for note in result.notes:
         print(f"note: {note}")
     for violation in result.violations:

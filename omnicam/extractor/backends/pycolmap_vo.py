@@ -4,8 +4,8 @@ pycolmap (https://github.com/colmap/pycolmap, BSD-3-Clause) is COLMAP's
 Python binding. It is *optional*, exactly like DPVO: nothing here imports
 ``pycolmap`` at module scope, and no code path installs it. Unlike DPVO it
 ships prebuilt wheels for Windows with no compiled CUDA extension to match
-against ComfyUI's own PyTorch build -- ``pip install pycolmap`` is the whole
-installation.
+against ComfyUI's own PyTorch build. See the optional extractor backend
+installation documentation for setup.
 
 Where this differs from DPVO and OpenCV/SIFT is the algorithm, not just the
 implementation: both of those are sequential visual odometry, integrating one
@@ -64,11 +64,10 @@ from .base import (
 )
 
 INSTALL_HINT = (
-    "Expected the pycolmap package to be installed.\n"
-    "Run `python_embeded\\python.exe -m pip install pycolmap` (no compiler, no\n"
-    "CUDA toolkit -- it ships prebuilt Windows wheels). Use method=opencv_sift\n"
-    "if you would rather not install anything. OmniCam did not modify your\n"
-    "Python environment."
+    "Expected the pycolmap package to be installed. See the OmniCam optional\n"
+    "extractor backend installation documentation. It ships prebuilt wheels;\n"
+    "use method=opencv_sift if you would rather not install anything. OmniCam\n"
+    "did not modify your Python environment."
 )
 
 

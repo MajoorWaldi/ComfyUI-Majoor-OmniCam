@@ -157,6 +157,17 @@ def test_ci_builds_and_audits_the_real_comfy_registry_archive() -> None:
         assert "scripts/registry_package_audit.py node.zip" in workflow
 
 
+def test_publish_workflow_preserves_registry_security_evidence() -> None:
+    workflow = _text(".github/workflows/publish_action.yml")
+    assert "--json-out registry-audit.json" in workflow
+    assert "sha256sum node.zip > registry-node.sha256" in workflow
+    assert "registry-audit.json" in workflow
+    assert "registry-node.sha256" in workflow
+    assert "--status-out registry-status.json" in workflow
+    assert "if: always()" in workflow
+    assert "registry-status.json" in workflow
+
+
 def test_registry_package_audit_flags_avoidable_scanner_triggers() -> None:
     audit = _text("scripts/registry_package_audit.py")
     assert "os.environ" in audit  # it must know to look for env reads

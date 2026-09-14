@@ -86,7 +86,9 @@ jobs:
       - name: Audit the exact Registry archive
         # Blocking: the bytes that ship must contain no dev paths, no missing
         # runtime files, and none of the scanner triggers 0.3.1 removed.
-        run: python scripts/registry_package_audit.py node.zip
+        run: python scripts/registry_package_audit.py node.zip --json-out registry-audit.json
+      - name: Fingerprint exact Registry archive
+        run: sha256sum node.zip > registry-node.sha256
       - name: Resolve release version
         id: release
         shell: bash
@@ -105,6 +107,15 @@ jobs:
         with:
           name: majoor-omnicam-${{ steps.release.outputs.version }}
           path: ${{ steps.release.outputs.asset }}
+          retention-days: 90
+      - uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-registry-evidence-${{ steps.release.outputs.version }}
+          path: |
+            node.zip
+            registry-node.sha256
+            registry-audit.json
+          retention-days: 90
       - uses: actions/upload-artifact@v5
         with:
           name: majoor-omnicam-frontend-${{ steps.release.outputs.version }}
@@ -183,7 +194,16 @@ jobs:
           python scripts/check_registry_status.py \
             --node majoor-omnicam \
             --version "${{ needs.release-build.outputs.version }}" \
-            --timeout 900 --interval 15
+            --timeout 900 --interval 15 \
+            --status-out registry-status.json
+      - name: Preserve Registry status evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: majoor-omnicam-registry-status-${{ needs.release-build.outputs.version }}
+          path: registry-status.json
+          retention-days: 90
+          if-no-files-found: warn
 
   release-github:
     name: Finalize GitHub Release

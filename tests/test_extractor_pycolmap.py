@@ -193,7 +193,9 @@ def test_raises_when_unavailable(monkeypatch):
 def test_unavailable_message_names_the_install_step():
     message = PycolmapBackend.unavailable_message("the pycolmap package is not installed")
     assert "pycolmap" in message
-    assert "pip install pycolmap" in message
+    assert "pycolmap" in message
+    assert "installation documentation" in message.lower()
+    assert "pip install" not in message.lower()
     assert "did not modify your" in message and "Python environment" in message
 
 

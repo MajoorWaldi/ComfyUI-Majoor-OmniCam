@@ -55,7 +55,7 @@ registerNodeHelp("MajoorOmniCamExtractor", {
       heading: "Key inputs (queued execution)",
       defs: [
         ["video", "One continuous shot to solve."],
-        ["method", "`dpvo` is the default and does not fall back -- it errors if DPVO is not installed. `auto` tries DPVO, then `pycolmap`, then `opencv_sift`, taking the first one actually installed. `pycolmap` runs Structure-from-Motion (bundle adjustment over the whole shot) rather than frame-to-frame odometry: slower, but it does not zero out translation on a low-parallax or rotation-only segment the way `opencv_sift` does. Installing it is one `pip install pycolmap` -- no compiler, unlike DPVO."],
+        ["method", "`dpvo` is the default and does not fall back -- it errors if DPVO is not installed. `auto` tries DPVO, then `pycolmap`, then `opencv_sift`, taking the first one actually installed. `pycolmap` runs Structure-from-Motion (bundle adjustment over the whole shot) rather than frame-to-frame odometry: slower, but it does not zero out translation on a low-parallax or rotation-only segment the way `opencv_sift` does. See the optional extractor backend installation documentation for setup."],
         ["lens_mode", "How the lens is described: `auto`, an explicit field of view, or a focal length + sensor width."],
         ["motion_scale", "Monocular solves have no metric scale; this rescales the recovered translation to fit your scene."],
         ["simplify_keys", "Reduces the solved path to a sparser, easier-to-edit set of keyframes within the given tolerances."],
