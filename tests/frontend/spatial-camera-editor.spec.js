@@ -61,6 +61,40 @@ test("select object, translate, drag the gizmo, release: one history step", asyn
   expect(undone).toEqual(before.position);
 });
 
+test("select camera, translate the gizmo, release: one history step", async ({ page }) => {
+  await mount(page);
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.selectedEntity = "camera";
+    ui.selectedObjectId = null;
+    ui.setTransformMode("translate");
+    ui.render();
+  });
+  const attached = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return ui.webgl.scene.children.some((child) => child.isTransformControlsRoot && child.visible);
+  });
+  expect(attached).toBe(true);
+
+  const before = await page.evaluate(() => ({ ...window.omnicamNode.__majoorOmniCam.camera }));
+  const point = await screenPoint(page, before.position);
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 40, point.y - 20, { steps: 4 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => ({ ...window.omnicamNode.__majoorOmniCam.camera }));
+  expect(after.position).not.toEqual(before.position);
+
+  const undone = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.undo();
+    return ui.camera.position;
+  });
+  expect(undone).toEqual(before.position);
+});
+
 test("camera cannot be scaled: no gizmo attaches, and dragging its former handle does nothing", async ({ page }) => {
   await mount(page);
   await page.evaluate(() => {
