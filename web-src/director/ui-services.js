@@ -501,11 +501,21 @@ export function omnicamListModal({ title, items = [], onDelete = null, owner = n
           width: "34px", borderRadius: "6px", cursor: "pointer",
           border: "1px solid var(--oc-line, #34363f)", background: "transparent", color: "inherit",
         });
-        del.addEventListener("click", (event) => {
+        del.addEventListener("click", async (event) => {
           event.stopPropagation();
-          row.remove();
-          if (!list.children.length) finish(null);
-          try { onDelete(item.id); } catch { /* optimistic: row already gone */ }
+          // Not optimistic: wait for the delete to actually succeed before
+          // removing the row, so a 403/500 leaves it visible with an error
+          // instead of silently reappearing on the next Open Scene.
+          del.disabled = true;
+          try {
+            await onDelete(item.id);
+            row.remove();
+            if (!list.children.length) finish(null);
+          } catch (error) {
+            del.disabled = false;
+            console.warn("[OmniCam] delete failed", error);
+            owner?.setStatus?.(String(error?.message || error).slice(0, 120));
+          }
         });
         row.appendChild(del);
       }

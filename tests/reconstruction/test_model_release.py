@@ -50,6 +50,13 @@ def _stub_comfy_model_management(monkeypatch, calls):
     if "comfy" not in sys.modules:
         monkeypatch.setitem(sys.modules, "comfy", types.ModuleType("comfy"))
     monkeypatch.setitem(sys.modules, "comfy.model_management", fake_model_management)
+    # `import comfy.model_management as model_management` binds through the
+    # parent module's *attribute*, not through sys.modules directly. When a
+    # real ComfyUI checkout is on the path and some earlier import already
+    # cached the real submodule as `comfy.model_management`, patching only
+    # sys.modules leaves that stale attribute in place and the call under
+    # test silently uses the real (unfaked) module instead of ours.
+    monkeypatch.setattr(sys.modules["comfy"], "model_management", fake_model_management, raising=False)
 
 
 def test_release_skips_the_global_vram_unload_while_comfyui_is_executing(monkeypatch):

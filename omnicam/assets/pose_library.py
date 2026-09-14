@@ -14,7 +14,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -143,7 +145,9 @@ def save_pose(input_root: Path | str | None, raw: Any) -> dict[str, Any]:
                          code="POSE_PROFILE_MISMATCH")
     ensure_library_tree(input_root)
     path = resolve_within(_poses_dir(input_root), f"{pose['id']}.json")
-    tmp = path.with_suffix(".json.tmp")
+    # A fixed temp name lets two concurrent saves of the same pose id share
+    # (and corrupt) one temp file; make it unique per writer.
+    tmp = path.with_suffix(f".{os.getpid()}.{uuid.uuid4().hex}.json.tmp")
     tmp.write_text(json.dumps(pose, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
     return pose

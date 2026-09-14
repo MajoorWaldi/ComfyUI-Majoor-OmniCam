@@ -200,6 +200,7 @@ jobs:
       - name: Publish synchronized GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-build.outputs.tag }}
           ASSET: ${{ needs.release-build.outputs.asset }}
         run: |

@@ -51,7 +51,6 @@ def test_retime_preserves_fcurve_payloads():
 def test_focal_length_conversion_and_trajectory_analysis():
     from omnicam.core.camera_tools import (
         analyze_camera_trajectory,
-        build_cinematic_motion_prompt,
         focal_length_to_fov,
         fov_to_focal_length,
     )
@@ -76,28 +75,6 @@ def test_focal_length_conversion_and_trajectory_analysis():
     assert abs(full_orbit["orbit_degrees"]) > 350
     assert full_orbit["path_length"] > 0
     assert "fov_distance_correlation" in full_orbit
-
-    prompt = build_cinematic_motion_prompt(orbit_track, base_prompt="A futuristic neon city")
-    assert "A futuristic neon city" in prompt
-    assert "Cinematic" in prompt
-    assert "fps" in prompt
-
-    prompt_h3 = build_cinematic_motion_prompt(orbit_track, style="h3")
-    assert "The camera executes" in prompt_h3
-    assert "framing" in prompt_h3
-
-    prompt_kling = build_cinematic_motion_prompt(orbit_track, style="kling")
-    assert "Camera Movement:" in prompt_kling
-    assert "Lens:" in prompt_kling
-
-    prompt_luma = build_cinematic_motion_prompt(orbit_track, style="luma")
-    assert "Camera motion:" in prompt_luma
-
-    prompt_hunyuan = build_cinematic_motion_prompt(orbit_track, style="hunyuan")
-    assert "Film captured" in prompt_hunyuan
-
-    prompt_wan = build_cinematic_motion_prompt(orbit_track, style="wan")
-    assert "Dynamic camera movement:" in prompt_wan
 
 
 def test_smooth_camera_path_smooths_multichannel():

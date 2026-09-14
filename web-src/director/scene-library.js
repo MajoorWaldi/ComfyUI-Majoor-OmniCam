@@ -147,8 +147,10 @@ export async function openSceneDialog(ui) {
       label: scene.name || scene.slug,
       sublabel: formatWhen(scene.modified),
     })),
-    onDelete: (id) => fetchApi(ui, `${SCENES_ROUTE}/${encodeURIComponent(id)}`, { method: "DELETE" })
-      .catch((error) => console.warn("[OmniCam] scene delete failed", error)),
+    onDelete: async (id) => {
+      const response = await fetchApi(ui, `${SCENES_ROUTE}/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await response.text());
+    },
   });
   if (!slug) return;
   const ok = await confirmAction(ui, t("Open Scene"), t("Open this scene? Unsaved changes will be lost."));
