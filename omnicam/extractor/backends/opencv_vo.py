@@ -48,8 +48,8 @@ MIN_PARALLAX_PIXELS = 0.75
 
 INSTALL_HINT = (
     "Install OpenCV in the ComfyUI Python environment (for example "
-    "`opencv-python-headless`), or use method=dpvo or method=pycolmap "
-    "(pip install pycolmap, no compiler) instead. OmniCam did not modify your "
+    "`opencv-python-headless`), or use method=dpvo or method=pycolmap instead. "
+    "See the OmniCam optional extractor backend installation documentation. "
     "Python environment."
 )
 

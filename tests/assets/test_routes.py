@@ -9,6 +9,7 @@ import struct
 import sys
 import types
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 
@@ -19,6 +20,7 @@ from aiohttp import web
 from PIL import Image
 
 _INPUT_DIR: list[str] = ["unused"]
+ROOT = Path(__file__).resolve().parents[2]
 
 _fp = types.ModuleType("folder_paths")
 _fp.get_input_directory = lambda: _INPUT_DIR[0]
@@ -191,38 +193,10 @@ def test_import_model_registers_a_catalog_row(input_dir):
     assert (input_dir / payload["file"]["relative"]).is_file()
 
 
-def test_import_local_route_dry_run_then_install(input_dir, tmp_path):
-    from .fbx_fixture import build_humanoid_fbx
-    from .glb_fixture import build_static_glb
-
-    pack = tmp_path / "ual_pack"
-    pack.mkdir()
-    (pack / "Hero.fbx").write_bytes(build_humanoid_fbx(animation_stacks=("Idle",)))
-    (pack / "Crate.glb").write_bytes(build_static_glb())  # not a rig -> skipped
-
-    dry = _body(_run(ar.library_import_local(FakeRequest(
-        json_body={"folder": str(pack), "dry_run": True}))))
-    assert dry["dry_run"] is True
-    assert [c["id"] for c in dry["candidates"]] == ["omnicam.character.hero"]
-    assert dry["skipped"]
-
-    done = _body(_run(ar.library_import_local(FakeRequest(
-        json_body={"folder": str(pack), "license_note": "Quaternius QAL v1.0"}))))
-    assert [r["id"] for r in done["installed"]] == ["omnicam.character.hero"]
-    assert done["installed"][0]["status"] == "installed"
-
-    row = _body(_run(ar.library_get(FakeRequest(match_info={"asset_id": "omnicam.character.hero"}))))
-    assert row["asset"]["format"] == "fbx"
-    assert row["asset"]["kind"] == "character"
-    assert row["asset"]["license"]["source"] == "Quaternius QAL v1.0"
-    assert (input_dir / "omnicam" / "library" / row["asset"]["file"]).is_file()
-
-
-def test_import_local_route_rejects_a_missing_folder(input_dir):
-    with pytest.raises(web.HTTPBadRequest):
-        _run(ar.library_import_local(FakeRequest(json_body={"folder": "/no/such/folder/x9"})))
-    with pytest.raises(web.HTTPBadRequest):
-        _run(ar.library_import_local(FakeRequest(json_body={})))
+def test_asset_routes_do_not_expose_host_path_import():
+    source = (ROOT / "omnicam/assets/routes.py").read_text(encoding="utf-8")
+    assert "/majoor/omnicam/library/import-local" not in source
+    assert "library_import_local" not in source
 
 
 def test_thumbnail_upload_updates_the_row(input_dir):

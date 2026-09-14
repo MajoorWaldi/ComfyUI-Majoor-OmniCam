@@ -56,8 +56,8 @@ MODEL_SUBDIRECTORY = os.path.join("omnicam", "dpvo")
 INSTALL_HINT = (
     "Expected the DPVO Python/CUDA extension and its checkpoint at\n"
     "    ComfyUI/models/omnicam/dpvo/dpvo.pth\n"
-    "Use method=pycolmap (pip install pycolmap, no compiler) or method=opencv_sift "
-    "if either is available, or install DPVO following docs/NODES.md. OmniCam did "
+    "Use method=pycolmap or method=opencv_sift if either is available, or see the "
+    "OmniCam optional extractor backend installation documentation. OmniCam did "
     "not modify your Python environment."
 )
 

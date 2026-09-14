@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-14
+
+### Security
+
+- Removed the host-filesystem folder import route and its Director UI/API; user
+  models continue to enter through bounded multipart upload into Comfy-managed
+  directories.
+- Kept developer asset bootstrap tooling in the repository while excluding it,
+  its source registry, documentation and other development paths from the
+  Registry runtime package.
+- Removed installer command signatures from shipped runtime messages and help.
+- Expanded the exact `node.zip` audit for process execution, unreviewed network
+  clients, request-derived host paths, archive literals and JavaScript provenance.
+- Preserved the exact archive, SHA256, audit JSON and Registry status response in
+  the publish workflow; GitHub Release finalization remains gated on Active.
+
 ## [0.3.2] - 2026-09-14
 
 ### Added

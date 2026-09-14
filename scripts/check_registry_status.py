@@ -68,6 +68,7 @@ def check_registry_status(
     sleep=time.sleep,
     now=time.monotonic,
     log=print,
+    status_out: str | None = None,
 ) -> int:
     url = f"{base_url.rstrip('/')}/nodes/{node}/versions/{version}"
     deadline = now() + timeout
@@ -75,6 +76,9 @@ def check_registry_status(
     while True:
         attempt += 1
         code, payload = fetch(url)
+        if status_out:
+            with open(status_out, "w", encoding="utf-8") as handle:
+                json.dump({"http_status": code, "payload": payload}, handle, indent=2, sort_keys=True)
         status = str(payload.get("status") or "")
 
         if code == 200 and status == STATUS_ACTIVE:
@@ -114,6 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=900.0, help="seconds to wait (default 900)")
     parser.add_argument("--interval", type=float, default=15.0, help="seconds between polls (default 15)")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
+    parser.add_argument("--status-out", help="write the latest Registry response to this JSON file")
     args = parser.parse_args(argv)
     return check_registry_status(
         args.node,
@@ -121,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         timeout=args.timeout,
         interval=args.interval,
         base_url=args.base_url,
+        status_out=args.status_out,
     )
 
 
