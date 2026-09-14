@@ -9,7 +9,7 @@
 // surprise depth change. The component along the view direction is preserved,
 // so a key never jumps toward or away from the viewer while being slid.
 
-import { cameraBasis } from "../director/core.js";
+import { cameraBasis, project } from "../director/core.js";
 import { selectPathKey } from "../director/camera-path-selection.js";
 
 function dot(a, b) {
@@ -115,6 +115,11 @@ export function handlePathKeyPointerDown(ui, { pointerX, pointerY, shiftKey, alt
   if (altKey || !ui.webgl?.pickPathKey) return false;
   const handle = ui.webgl.pickPathKey([pointerX, pointerY]);
   if (!handle) return false;
+  // The active camera is explicitly selected as itself, not as a path, right
+  // now (e.g. "cannot scale a camera" -- no gizmo attaches, and this marker
+  // shouldn't quietly take over the click instead): its own marker only
+  // behaves like a path handle once the user is actually editing the path.
+  if (ui.selectedEntity === "camera" && handle.cameraId === ui.state.active_camera_id) return false;
   const track = (ui.state.cameras || []).find((camera) => camera.id === handle.cameraId);
   const key = (track?.keyframes || []).find((item) => item.frame === handle.frame);
   if (!key) return false;
@@ -133,5 +138,63 @@ export function handlePathKeyPointerDown(ui, { pointerX, pointerY, shiftKey, alt
   if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
   selectPathKeyFromClick(ui, { cameraId: track.id, frame: key.frame, additive: false });
   ui.render();
+  return true;
+}
+
+// A handle whose tip projects within a few screen pixels of its own key's
+// marker -- whether from a genuinely zero tangent (a single-key track, no
+// neighbour on either side) or merely a small one that happens to look
+// coincident at the current camera distance/zoom (an edge key's one-sided
+// auto tangent, see autoTangent() in camera-path-curve.js) -- is not visually
+// distinguishable from the key itself right now, so a click can't really
+// mean "grab the handle, not the key/gizmo" here. World-space distance would
+// get this wrong in both directions (perspective can make a large 3D offset
+// invisible, or a tiny one loom large up close), so this compares projected
+// screen pixels instead, the same space pickCurveHandle's own hit-test uses.
+const SCREEN_DEGENERATE_PIXELS = 3;
+function looksDegenerate(knobPosition, keyPosition, viewCamera, width, height) {
+  const knobScreen = project(knobPosition, viewCamera, width, height);
+  const keyScreen = project(keyPosition, viewCamera, width, height);
+  // Off-screen/behind-camera: can't judge visual separation, so don't guess.
+  if (!knobScreen || !keyScreen) return false;
+  return Math.hypot(knobScreen[0] - keyScreen[0], knobScreen[1] - keyScreen[1]) < SCREEN_DEGENERATE_PIXELS;
+}
+
+/**
+ * The whole curve-tangent-knob `pointerdown` branch. Kept out of
+ * interactions.js, which is already at the source-line cap.
+ *
+ * `overHandle` (already known by the caller) tells whether the pointer is
+ * also over a live TransformControls handle right now -- if so, that sibling
+ * native listener gets stopImmediatePropagation()'d so it can't also start
+ * its own competing drag on the same event once this knob wins instead.
+ *
+ * Returns `true` once handled (the caller should stop processing the event),
+ * `false` when the pointer did not land on a visually distinct knob.
+ */
+export function handleCurveHandlePointerDown(ui, { pointerX, pointerY, overHandle, viewCamera, e }) {
+  if (!ui.webgl?.pickCurveHandle) return false;
+  const knob = ui.webgl.pickCurveHandle([pointerX, pointerY]);
+  if (!knob) return false;
+  const track = (ui.state.cameras || []).find((camera) => camera.id === knob.cameraId);
+  const keyIndex = (track?.keyframes || []).findIndex((item) => item.frame === knob.frame);
+  const key = keyIndex >= 0 ? track.keyframes[keyIndex] : null;
+  if (!key) return false;
+  if (looksDegenerate(knob.position, key.camera.position, viewCamera, ui.canvas.width, ui.canvas.height)) return false;
+  if (overHandle) e.stopImmediatePropagation?.();
+  ui.curveHandleDrag = {
+    cameraId: knob.cameraId,
+    frame: knob.frame,
+    side: knob.side,
+    anchor: [...key.camera.position],
+    prevKey: track.keyframes[keyIndex - 1] || null,
+    nextKey: track.keyframes[keyIndex + 1] || null,
+    startX: pointerX,
+    startY: pointerY,
+    moved: false,
+    historyCheckpointed: false,
+  };
+  if (ui.interactionElement.style) ui.interactionElement.style.cursor = "grabbing";
+  ui.selectKeyframe?.(key);
   return true;
 }
