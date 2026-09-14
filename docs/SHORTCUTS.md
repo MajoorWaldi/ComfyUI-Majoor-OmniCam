@@ -128,12 +128,17 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 | Continue Camera Path + LMB drag | Append a new segment from the active camera's last key |
 | Draw / Continue Camera Path + RMB | Cancel the uncommitted path |
 | Escape while drawing | Cancel the uncommitted path without using Undo history |
+| LMB a keyframe control dot | Select only that keyframe |
+| `Shift` + LMB a keyframe control dot | Add / remove that keyframe from the selection |
 | LMB drag a keyframe control dot | Move that waypoint in 3D (view-facing plane) |
 | LMB drag a cyan handle knob | Bend the path through the selected keyframe |
+| Double-click the path line | Insert a new keyframe there, sampled from the curve |
+| `Delete` / `Backspace` with keyframe(s) selected | Delete the selected keyframe(s), one undo step |
 | RMB a keyframe dot → Handle Type | Auto Smooth / Aligned / Free / Corner |
+| RMB a keyframe dot → Path Component | Switch the gizmo between the key's Position and its Target (look-at point) |
 | RMB a camera → Select whole path | Select every keyframe as one transform target |
 | LMB a camera's path line (editor view) | Same — select the whole path |
-| `T` / `R` / `S` with a path selected | Pick move / rotate / scale gizmo mode for the path |
+| `T` / `R` / `S` with a path selection | Pick move / rotate / scale gizmo mode for one key, a multi-key selection, or the whole path |
 | Arrows / `PageUp` `PageDown` with a path selected | Nudge the whole path one grid step (XZ / Y) |
 
 While Draw / Continue Camera Path is armed, MMB / Maya `Alt` navigation is never
