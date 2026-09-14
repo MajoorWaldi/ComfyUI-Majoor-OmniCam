@@ -61,6 +61,39 @@ test("select object, translate, drag the gizmo, release: one history step", asyn
   expect(undone).toEqual(before.position);
 });
 
+test("a transform-mode switch (translate/rotate/scale) is visible on the very next frame, not a frame late (regression)", async ({ page }) => {
+  // Regression: transformControlsWiring.sync() -- which applies the new
+  // mode/attachment to the live TransformControls gizmo -- ran *after*
+  // this.webgl.render()'s actual WebGL draw call within the same render()
+  // invocation (director/methods/render.js). Clicking a Translate/Rotate/
+  // Scale toolbar button calls setTransformMode() -> render() once: the
+  // frame that call drew still showed the *previous* mode's gizmo, and
+  // nothing else was queued to trigger a second render -- so the visible
+  // gizmo only caught up once some *other* action (a second click, a
+  // hover, etc.) happened to repaint. sync() now also runs once before
+  // the draw (using the previous frame's already-configured camera, which
+  // is exactly correct for a mode-only change with no camera movement).
+  await mount(page);
+  await page.locator('[data-object-id="qa_cube"]').click();
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setTransformMode("translate"));
+
+  const captureModeAtNextDraw = (mode) => page.evaluate((mode) => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const helper = ui.webgl.scene.children.find((c) => c.isTransformControlsRoot);
+    const gizmo = helper.children.find((c) => c.mode !== undefined);
+    const original = ui.webgl.render.bind(ui.webgl);
+    let modeAtDrawTime = null;
+    ui.webgl.render = (...args) => { modeAtDrawTime = gizmo.mode; return original(...args); };
+    ui.setTransformMode(mode);
+    ui.webgl.render = original;
+    return modeAtDrawTime;
+  }, mode);
+
+  expect(await captureModeAtNextDraw("rotate")).toBe("rotate");
+  expect(await captureModeAtNextDraw("scale")).toBe("scale");
+  expect(await captureModeAtNextDraw("translate")).toBe("translate");
+});
+
 test("select camera, translate the gizmo, release: one history step", async ({ page }) => {
   await mount(page);
   await page.evaluate(() => {

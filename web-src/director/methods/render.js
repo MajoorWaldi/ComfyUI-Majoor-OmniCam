@@ -87,6 +87,14 @@ export function createRenderMethods(dependencies) {
         const scale = factor > 1 ? Math.min(factor, 4096 / Math.max(1, w, h)) : 1;
         const rw = scale > 1 ? Math.round(w * scale) : w;
         const rh = scale > 1 ? Math.round(h * scale) : h;
+        // Update the gizmo's mode/attachment *before* this frame draws too,
+        // using whichever camera the previous frame already configured (unset
+        // only on the very first-ever render, before that exists). Without
+        // this, a selection/mode change made no visible difference until a
+        // second, unrelated render happened to follow -- sync() below still
+        // runs after the draw so next frame's gizmo position tracks this
+        // frame's just-configured camera exactly (see its own comment).
+        if (this.webgl.activeCamera) this.transformControlsWiring?.sync();
         this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null, this.selectedKeyFrames ? [...this.selectedKeyFrames] : null);
         c.imageSmoothingEnabled = true;
         c.imageSmoothingQuality = "high";
