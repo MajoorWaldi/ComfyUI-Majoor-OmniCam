@@ -45,7 +45,12 @@ export function bindTransportAndMedia(ui, q, signal) {
   for (const btn of ui.root.querySelectorAll('[data-act="fit-timeline"]')) {
     btn.addEventListener("click", () => ui.resetTimelineZoom(), { signal });
   }
-  for (const btn of ui.root.querySelectorAll("[data-interp]")) {
+  // Scoped to the Shot panel's own interpolation buttons: a timeline
+  // keyframe marker also carries `data-interp` for its own marker-shape
+  // styling (see scene.js's setKeyInterpolation/refreshKeyEditor), so an
+  // unscoped query here would also bind this click handler onto whichever
+  // markers happen to exist in the DOM at bind time.
+  for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
     btn.addEventListener("click", () => ui.setKeyInterpolation(btn.dataset.interp), { signal });
   }
   for (const btn of ui.root.querySelectorAll('[data-act="reset-camera"]')) {

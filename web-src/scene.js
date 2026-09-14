@@ -3,6 +3,7 @@
 import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./director/core.js";
 import { cameraPathTimingWeight, setCameraPathTimingWeight } from "./director/camera-path-timing.js";
 import { analyzeCameraPath } from "./director/camera-path-diagnostics.js";
+import { selectPathKey } from "./director/camera-path-selection.js";
 import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
 import { playblastCameraTrack } from "./state-sync.js";
@@ -63,7 +64,12 @@ export function setKeyInterpolation(ui, interpolation) {
   key.interpolation = interpolation;
   const interpSelect = ui.root.querySelector('[data-role="key-interp"]');
   if (interpSelect) interpSelect.value = interpolation;
-  for (const btn of ui.root.querySelectorAll("[data-interp]")) {
+  // Scoped to the Shot panel's own interpolation buttons: a timeline
+  // keyframe marker also carries `data-interp` (template/styles.js keys off
+  // it to draw a different marker shape per interpolation mode), so an
+  // unscoped "[data-interp]" query here would also toggle/disable every
+  // marker on the timeline.
+  for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
     btn.classList.toggle("active", btn.dataset.interp === interpolation);
   }
   ui.serialize();
@@ -143,6 +149,15 @@ export function selectKeyframe(ui, key) {
   ui.selectedKeyFrame = key.frame;
   ui.selectedKeyFrames = new Set([key.frame]);
   ui.editingKeyFrame = null;
+  // Keep the transient spatial path selection (plan section 7/21) in
+  // lock-step with a camera key selected from the timeline/curve/dope-sheet,
+  // so the viewport gizmo actually attaches to the key the timeline just
+  // highlighted -- not just a visual echo of it (see camera-path-selection.js
+  // and viewport-controls/transform-target.js, which reads ui.pathSelection,
+  // not ui.selectedKeyFrame, to resolve a path_point/path_group target).
+  if (!timelineObject(ui)) {
+    ui.pathSelection = selectPathKey(ui.pathSelection, { cameraId: ui.state.active_camera_id, frame: key.frame, additive: false });
+  }
   ui.setFrame(key.frame);
 }
 
@@ -374,7 +389,11 @@ export function refreshKeyEditor(ui) {
   if (viewKeyBtn) viewKeyBtn.disabled = !key || Boolean(object);
   const redistributeBtn = ui.root.querySelector('[data-act="redistribute-key-timing"]');
   if (redistributeBtn) redistributeBtn.disabled = Boolean(object) || (ui.activeCameraTrack?.()?.keyframes?.length || 0) < 2;
-  for (const btn of ui.root.querySelectorAll("[data-interp]")) {
+  // Scoped for the same reason as setKeyInterpolation() above: an unscoped
+  // "[data-interp]" query also matches every timeline keyframe marker (which
+  // reuses the attribute for its own marker-shape styling), disabling every
+  // marker on the timeline whenever no key happens to be selected.
+  for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
     btn.classList.toggle("active", Boolean(key && btn.dataset.interp === key.interpolation));
     btn.disabled = !key;
   }

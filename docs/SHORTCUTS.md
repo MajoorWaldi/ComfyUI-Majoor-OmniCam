@@ -158,7 +158,9 @@ to the one whose handle was grabbed.
 objects stay selectable but are not transformed. The toolbar's **Spatial Snap**
 menu is independent of the timeline's temporal snapping: **Grid** snaps to the
 configured step, **Vertex** snaps the selection pivot to a visible vertex, and
-holding `Ctrl`/`Cmd` engages the grid temporarily.
+holding `Ctrl`/`Cmd` engages the grid temporarily — including partway through
+an in-progress drag: pressing or releasing `Ctrl`/`Cmd` mid-gesture snaps or
+unsnaps immediately, without needing to restart the drag.
 
 ## Animation and editing
 

@@ -49,6 +49,46 @@ const LIVE_TYPES = new Set([
 export function createTransformControlsWiring(ui, { controlsFactory, anchorFactory } = {}) {
   let adapter = null;
   let dragBase = null; // { type, ...frozen snapshot captured at mouseDown }
+  let snapKeyListenersBound = false;
+  // Tracked independently of dragging state: Ctrl/Cmd may already be held
+  // *before* the drag starts (three.js's TransformControls onDragStart
+  // callback carries no keyboard-modifier info of its own), so handleDragStart
+  // needs an up-to-date value to seed the very first snap application.
+  let ctrlActive = false;
+
+  // Ctrl/Cmd snapping (plan section 5.2/5.4): held while dragging, or the
+  // persistent Grid Snap toggle, snaps translation to the spatial grid size
+  // and rotation to 15deg -- same condition the legacy canvas gizmo already
+  // used (viewport-controls/interactions.js). three.js's TransformControls
+  // reads its snap value live on every pointer move, so updating it mid-drag
+  // (not just at drag start) makes holding/releasing Ctrl take effect
+  // immediately, without restarting the gesture.
+  function applyLiveSnap(ctrl) {
+    if (!adapter) return;
+    const gridActive = ctrl || ui.state.spatial_snap_mode === "grid";
+    adapter.setTranslationSnap(gridActive ? Math.max(0.01, Number(ui.state.spatial_grid_size) || 0.5) : null);
+    adapter.setRotationSnap(gridActive ? Math.PI / 12 : null);
+  }
+
+  function onSnapKeyChange(event) {
+    ctrlActive = Boolean(event.ctrlKey || event.metaKey);
+    if (!adapter?.isDragging?.()) return;
+    applyLiveSnap(ctrlActive);
+  }
+
+  function bindSnapKeyListeners() {
+    if (snapKeyListenersBound || typeof window === "undefined") return;
+    snapKeyListenersBound = true;
+    window.addEventListener("keydown", onSnapKeyChange, true);
+    window.addEventListener("keyup", onSnapKeyChange, true);
+  }
+
+  function unbindSnapKeyListeners() {
+    if (!snapKeyListenersBound) return;
+    snapKeyListenersBound = false;
+    window.removeEventListener("keydown", onSnapKeyChange, true);
+    window.removeEventListener("keyup", onSnapKeyChange, true);
+  }
 
   function ensureAdapter() {
     if (adapter) return adapter;
@@ -65,11 +105,15 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
       onDragEnd: handleDragEnd,
       onDraggingChanged: (dragging) => { ui.transformControlsDragging = dragging; },
     });
+    bindSnapKeyListeners();
     return adapter;
   }
 
   function handleDragStart({ targetSpec }) {
     if (!targetSpec) return;
+    // Baseline snap for the fresh drag; a live Ctrl press/release during the
+    // drag itself is picked up by onSnapKeyChange above.
+    applyLiveSnap(ctrlActive);
     if (targetSpec.type === "object") {
       ui.checkpoint("Transform object");
       const selected = selectedTransformObjects(ui);
@@ -298,6 +342,7 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
   }
 
   function dispose() {
+    unbindSnapKeyListeners();
     adapter?.dispose();
     adapter = null;
     dragBase = null;

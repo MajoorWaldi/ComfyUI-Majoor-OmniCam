@@ -445,3 +445,91 @@ test("Camera Path Diagnostics: a static hold is reported and never mutates the p
   const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => [...k.camera.position]));
   expect(after).toEqual(before);
 });
+
+// Task 13 of docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md:
+// viewport <-> timeline selection sync and shortcut scoping. Note: this
+// repo's shipped keybinding convention is T/R/S for translate/rotate/scale
+// (docs/SHORTCUTS.md), not the plan's suggested Q/W/E/R -- these tests cover
+// the actual scheme; see the final report for that deliberate deviation.
+
+test("clicking a timeline key selects the same key as a spatial gizmo target, not just a visual echo", async ({ page }) => {
+  await mount(page);
+  await setUpThreeKeyPath(page);
+  // setUpThreeKeyPath leaves selectedEntity as "camera_path" for its own
+  // gizmo tests; a plain camera selection is the normal state a user would
+  // be in while clicking a timeline key.
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.selectedEntity = "camera";
+    ui.refreshKeys();
+  });
+
+  // Selecting via the TIMELINE (not a viewport marker click) used to update
+  // ui.selectedKeyFrame (which drives the marker's highlight colour) without
+  // updating ui.pathSelection (which viewport-controls/transform-target.js
+  // actually reads to attach a path_point gizmo) -- so the marker looked
+  // selected but the gizmo silently stayed on the old selection.
+  await page.locator('.majoor-omnicam [data-key-frame="30"]').click();
+
+  const selection = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { frames: [...ui.pathSelection.frames], primary: ui.pathSelection.primaryFrame };
+  });
+  expect(selection.frames).toEqual([30]);
+  expect(selection.primary).toBe(30);
+
+  const before = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => [...k.camera.position]));
+  const point = await screenPoint(page, before[1]); // frame 30 is index 1
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 40, point.y - 20, { steps: 4 });
+  await page.mouse.up();
+
+  const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => [...k.camera.position]));
+  expect(after[0]).toEqual(before[0]);
+  expect(after[2]).toEqual(before[2]);
+  expect(after[1]).not.toEqual(before[1]);
+});
+
+test("T/R/S transform-mode shortcuts are scoped to the viewport and suppressed while typing in an input", async ({ page }) => {
+  await mount(page);
+  await page.locator('[data-object-id="qa_cube"]').click();
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setTransformMode("translate"));
+
+  // Typing "r" into an ordinary text input must not switch the gizmo mode.
+  const input = page.locator('.majoor-omnicam [data-role="object-x"]').first();
+  await input.click();
+  await input.press("r");
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.gizmo_mode)).toBe("translate");
+
+  // The same key, with focus back on the viewport, does switch it.
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.interactionElement.focus());
+  await page.keyboard.press("r");
+  expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.gizmo_mode)).toBe("rotate");
+});
+
+test("Ctrl held during a translate drag snaps the result to the spatial grid", async ({ page }) => {
+  await mount(page);
+  await page.evaluate(() => { window.omnicamNode.__majoorOmniCam.state.spatial_grid_size = 0.5; });
+  await page.locator('[data-object-id="qa_cube"]').click();
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCam.setTransformMode("translate"));
+
+  const before = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.objects.find((o) => o.id === "qa_cube").position);
+  const point = await screenPoint(page, before);
+
+  await page.keyboard.down("Control");
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.mouse.move(point.x + 47, point.y - 31, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up("Control");
+
+  const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.objects.find((o) => o.id === "qa_cube").position);
+  expect(after).not.toEqual(before);
+  // At least one moved axis should land on a 0.5 grid multiple (within float
+  // tolerance) -- proof the live Ctrl snap actually reached TransformControls
+  // mid-drag, not just at drag start.
+  const onGrid = after.some((value, index) => Math.abs(value - before[index]) > 1e-6 && Math.abs((value / 0.5) - Math.round(value / 0.5)) < 1e-4);
+  expect(onGrid).toBe(true);
+});
