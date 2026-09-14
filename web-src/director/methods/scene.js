@@ -8,6 +8,9 @@ import { t } from "../../i18n.js";
 import { SPATIAL_HANDLE_MODES, setSpatialHandleMode as applySpatialHandleMode, writeSpatialHandle } from "../../camera-path-curve.js";
 import { insertCameraPathKey } from "../camera-path-insert.js";
 import { redistributeCameraPathTiming } from "../camera-path-timing.js";
+import { CAMERA_PATH_PRESET_LABELS, CAMERA_PATH_PRESET_TYPES, createCameraPathPreset } from "../camera-path-presets.js";
+import { normalizedPlaybackRange } from "../camera-path-draw.js";
+import { omnicamListModal } from "../ui-services.js";
 import { selectPathKeyFromClick } from "../../viewport/path-editing.js";
 import { setPathSelectionComponent as applyPathSelectionComponent } from "../camera-path-selection.js";
 import { pathCentroid, transformPathKeys } from "../camera-path-transform.js";
@@ -299,6 +302,49 @@ export function createSceneMethods(dependencies) {
     this.refreshInspector();
     this.render();
     this.setStatus(t("Camera path timing redistributed"));
+    return true;
+  },
+  // Camera Path Presets (plan section 26 Task 11 / spec section 17): a
+  // single compact picker over every preset type instead of one toolbar
+  // button per preset. Generated keys are ordinary camera keyframes -- fully
+  // editable afterward by the regular point/curve/timing tools -- covering
+  // the active camera's current playback range by default.
+  async openCameraPathPresetPicker() {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked) {
+      this.setStatus(t("{name} is locked").replace("{name}", track?.name || t("Camera")));
+      return false;
+    }
+    const items = CAMERA_PATH_PRESET_TYPES.map((type) => ({ id: type, label: t(CAMERA_PATH_PRESET_LABELS[type] || type) }));
+    const type = await omnicamListModal({ title: t("Camera Path Preset"), items, owner: this });
+    if (!type) return false;
+    return this.applyCameraPathPreset(type);
+  },
+  applyCameraPathPreset(type, params = {}) {
+    const track = this.activeCameraTrack();
+    if (!track || track.locked) {
+      this.setStatus(t("{name} is locked").replace("{name}", track?.name || t("Camera")));
+      return false;
+    }
+    const [startFrame, endFrame] = normalizedPlaybackRange(this.state);
+    const result = createCameraPathPreset({ type, camera: this.camera, startFrame, endFrame, params });
+    if (!result.ok) {
+      this.setStatus(result.reason === "insufficient_frame_slots"
+        ? t("Not enough frames in the playback range for this preset")
+        : t("Could not generate that camera path preset"));
+      return false;
+    }
+    this.checkpoint(t("Apply camera path preset"));
+    track.keyframes = result.keyframes;
+    if (track.id === this.state.active_camera_id) this.state.keyframes = result.keyframes;
+    this.camera = sampleCamera(track, this.frame, this.state.objects);
+    track.camera = cloneCamera(this.camera);
+    this.serialize();
+    this.refreshObjects();
+    this.refreshKeys();
+    this.refreshInspector();
+    this.render();
+    this.setStatus(t("{preset} camera path generated").replace("{preset}", t(CAMERA_PATH_PRESET_LABELS[type] || type)));
     return true;
   },
   toggleCurveHandles() {

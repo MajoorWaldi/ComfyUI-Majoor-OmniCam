@@ -20,6 +20,10 @@ function toolRail() {
               title="${t("Continue Camera Path — draw a new segment from the active camera's last key")}" aria-label="${t("Continue Camera Path")}">
         <i class="pi pi-arrow-right"></i>
       </button>
+      <button class="vp-tool" data-act="camera-path-presets"
+              title="${t("Camera Path Presets — generate an editable path (Orbit, Dolly, Arc, ...)")}" aria-label="${t("Camera Path Presets")}">
+        <i class="pi pi-compass"></i>
+      </button>
       <button class="vp-tool" data-act="toggle-gizmo-space" data-role="gizmo-space-toggle"
               title="${t("Toggle Transform Space (World / Local)")}">
         <span class="vp-space-badge" data-role="gizmo-space-badge">W</span>

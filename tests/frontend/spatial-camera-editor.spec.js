@@ -381,3 +381,34 @@ test("Redistribute Timing reflows keys by their Timing Weight, preserving first/
   const undone = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => k.frame));
   expect(undone).toEqual(before);
 });
+
+// Task 11 of docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md:
+// a single compact dialog lists every camera path preset (never one toolbar
+// button per preset); picking one generates an ordinary, fully editable
+// camera path across the active camera's current playback range.
+
+test("Camera Path Presets: picking Orbit from the compact dialog generates an editable path over the playback range, one undo step", async ({ page }) => {
+  await mount(page);
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.state.duration_frames = 90;
+    ui.state.playback_range = [0, 60];
+    ui.serialize();
+  });
+  const before = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.length);
+
+  await page.locator('.majoor-omnicam [data-act="camera-path-presets"]').click();
+  await page.getByRole("button", { name: "Orbit", exact: true }).click();
+
+  const after = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    return { frames: ui.activeCameraTrack().keyframes.map((k) => k.frame), count: ui.activeCameraTrack().keyframes.length };
+  });
+  expect(after.count).toBeGreaterThan(1);
+  expect(after.frames[0]).toBe(0);
+  expect(after.frames[after.frames.length - 1]).toBe(60);
+
+  await page.keyboard.press("Control+z");
+  const undone = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.length);
+  expect(undone).toBe(before);
+});

@@ -195,6 +195,34 @@ one and two cyan tangent handles appear:
 
 Handle edits round-trip through save and undo like any other keyframe change.
 
+#### Timing Weight and Redistribute Timing
+
+Selecting a camera path key shows its usual FOV/Roll/Position/Target fields in
+the **Shot** Inspector tab, plus a **Timing Weight** field (`0.1`–`10`,
+default `1.0`). Timing Weight is an authoring preference, not a playback
+speed — actual timing always comes from each key's `frame`.
+
+**Redistribute Timing** reflows the active camera's own keys across their
+current first/last frame: each segment's share of the range is its spatial
+distance times the average of its two keys' Timing Weights, so a heavier
+weight around a key slows the segments on either side of it. First and last
+frame never move; the action refuses cleanly (with a status message) if the
+range has fewer integer frame slots than keys. One redistribute is one undo
+step, and an untouched key keeps no `timing` data in the saved workflow.
+
+#### Camera Path Presets
+
+The compass button in the viewport tool rail (beside Draw/Continue Camera
+Path) opens a compact **Camera Path Preset** picker — one dialog listing
+every preset, not a button per preset: `Static`, `Dolly In/Out`, `Truck
+Left/Right`, `Pedestal Up/Down`, `Crane Up/Down`, `Arc Left/Right`, `Orbit`,
+and `Spiral`. Picking one generates an ordinary camera path across the active
+camera's current Playback Range, replacing its existing keys in one undo
+step. The result is plain camera keyframes — reshape it afterward with the
+same point/curve/Timing Weight tools as a hand-drawn path. Presets are
+model-independent: they never encode MiniMax H3, Wan, or LTX-specific
+motion — that compilation stays in Monitor profiles.
+
 ### 3D Scene Primitives
 
 The Director provides instant staging primitives via the Outliner quick-bar, toolbar, and viewport context menus:
