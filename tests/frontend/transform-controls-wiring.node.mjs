@@ -28,6 +28,9 @@ class FakeControls {
     this.visible = false;
     this.attached = null;
     this.axis = null;
+    this.translationSnap = null;
+    this.rotationSnap = null;
+    this.scaleSnap = null;
   }
   addEventListener(type, handler) {
     if (!this.listeners.has(type)) this.listeners.set(type, new Set());
@@ -36,9 +39,9 @@ class FakeControls {
   removeEventListener(type, handler) { this.listeners.get(type)?.delete(handler); }
   emit(type, event) { for (const handler of this.listeners.get(type) || []) handler(event); }
   setMode(mode) { this.mode = mode; }
-  setTranslationSnap() {}
-  setRotationSnap() {}
-  setScaleSnap() {}
+  setTranslationSnap(value) { this.translationSnap = value; }
+  setRotationSnap(value) { this.rotationSnap = value; }
+  setScaleSnap(value) { this.scaleSnap = value; }
   attach(object) { this.attached = object; }
   detach() { this.attached = null; }
   getHelper() { return { isHelper: true }; }
@@ -199,6 +202,32 @@ test("object scale drag scales size and position relative to the pivot", () => {
   // A single selected object's pivot is its own position, so scaling never
   // moves it -- only multi-selection scaling repositions members.
   assert.equal(object.position[0], 2);
+});
+
+test("Grid Snap applies a scale snap to the gizmo, matching the legacy canvas gizmo's 0.1 scale snap", () => {
+  // Regression: applyLiveSnap() forwarded translation and rotation snap to the
+  // adapter but never scale snap, so scale-mode drags through the live
+  // TransformControls gizmo never snapped even with Grid Snap enabled -- a
+  // silent regression from the old canvas gizmo, which snapped scale to 0.1.
+  const { ui, wiring, getControls } = makeUi();
+  ui.selectedEntity = "object";
+  ui.state.gizmo_mode = "scale";
+  ui.state.spatial_snap_mode = "grid";
+  ui.state.objects.push({ id: "cube_1", position: [2, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1] });
+  ui.selectedObjectId = "cube_1";
+  wiring.sync();
+  const controls = getControls();
+
+  controls.emit("mouseDown");
+  assert.equal(controls.scaleSnap, 0.1, "scale snap applied at drag start while Grid Snap is enabled");
+  assert.ok(controls.translationSnap > 0, "translation snap also applied");
+  assert.ok(controls.rotationSnap > 0, "rotation snap also applied");
+
+  ui.state.spatial_snap_mode = "off";
+  controls.emit("mouseUp");
+  wiring.sync();
+  controls.emit("mouseDown");
+  assert.equal(controls.scaleSnap, null, "scale snap cleared once Grid Snap is off");
 });
 
 test("camera translate drag moves position only, leaving target fixed", () => {

@@ -119,7 +119,7 @@ export function resolveTransformTarget(ui) {
             allowedModes: ALLOWED_MODES.path_point_target,
             track: activeCam,
             frame: key.frame,
-            readOnly: trackHasActiveLookAt(activeCam),
+            readOnly: trackHasActiveLookAt(activeCam, ui.state.objects),
           };
         }
         return {

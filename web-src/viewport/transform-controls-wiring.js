@@ -50,6 +50,13 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
   let adapter = null;
   let dragBase = null; // { type, ...frozen snapshot captured at mouseDown }
   let snapKeyListenersBound = false;
+  // The type of the last target sync() resolved as live-wired (or null). Cached
+  // so gizmoGeometry() (viewport-controls.js) can skip its own, otherwise
+  // fully redundant, resolveTransformTarget() call for the common case where
+  // the current selection is already live-wired -- sync() always runs once per
+  // render tick, before drawOverlays()/drawTransformGizmo() in the same tick
+  // (see director/methods/render.js), so this is fresh by the time it's read.
+  let lastLiveType = null;
   // Tracked independently of dragging state: Ctrl/Cmd may already be held
   // *before* the drag starts (three.js's TransformControls onDragStart
   // callback carries no keyboard-modifier info of its own), so handleDragStart
@@ -68,6 +75,11 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
     const gridActive = ctrl || ui.state.spatial_snap_mode === "grid";
     adapter.setTranslationSnap(gridActive ? Math.max(0.01, Number(ui.state.spatial_grid_size) || 0.5) : null);
     adapter.setRotationSnap(gridActive ? Math.PI / 12 : null);
+    // Matches the legacy canvas gizmo's `snapValue(next, 0.1)` for scale
+    // (viewport-controls/interactions.js) -- without this, scale drags through
+    // the live TransformControls gizmo never snap even with Ctrl held/Grid
+    // Snap enabled, a silent regression from the old gizmo's behavior.
+    adapter.setScaleSnap(gridActive ? 0.1 : null);
   }
 
   function onSnapKeyChange(event) {
@@ -169,7 +181,7 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
         origin: targetSpec.position,
         selectedFrames: new Set(frames),
         baseKeys: track.keyframes.map((key) => ({ ...key, camera: cloneCamera(key.camera) })),
-        lookAtActive: trackHasActiveLookAt(track),
+        lookAtActive: trackHasActiveLookAt(track, ui.state.objects),
       };
       return;
     }
@@ -318,6 +330,7 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
     // nothing safe to write, so no handle is offered instead of one that
     // silently does nothing.
     const live = Boolean(spec) && !spec.readOnly && LIVE_TYPES.has(spec.type) && spec.allowedModes.includes(mode);
+    lastLiveType = live ? spec.type : null;
     if (!live) {
       adapter?.detach();
       return;
@@ -341,12 +354,19 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
     adapter?.cancelDrag();
   }
 
+  /** The TargetSpec type sync() most recently attached a live gizmo for, or
+   * null if the current selection isn't live-wired. See `lastLiveType` above. */
+  function currentLiveType() {
+    return lastLiveType;
+  }
+
   function dispose() {
     unbindSnapKeyListeners();
     adapter?.dispose();
     adapter = null;
     dragBase = null;
+    lastLiveType = null;
   }
 
-  return { sync, isPointerOverHandle, cancelDrag, dispose };
+  return { sync, isPointerOverHandle, cancelDrag, currentLiveType, dispose };
 }

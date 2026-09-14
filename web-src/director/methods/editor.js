@@ -530,7 +530,7 @@ export function createEditorMethods(dependencies) {
     const current = key ? spatialHandleMode(key) : "auto";
     const n = this.selectedKeyFrames?.size || 0;
     const editingTarget = this.pathSelection?.component === "target";
-    const lookAtLocked = trackHasActiveLookAt(camera);
+    const lookAtLocked = trackHasActiveLookAt(camera, this.state.objects);
     this.showContextMenu(event, `Path key F${frame}`, [
       { label: t("Set key at playhead"), icon: "pi-key", shortcut: "I", run: () => this.insertKeyframe() },
       { label: t("Frame subject"), icon: "pi-search", shortcut: "F", run: () => this.frameTarget() },

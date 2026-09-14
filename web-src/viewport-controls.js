@@ -123,12 +123,21 @@ export function activeGizmoEntity(ui) {
 // bare `ui` fixtures the legacy-gizmo regression tests build, which never set
 // `ui.transformControlsWiring` and so keep exercising this canvas-drawn gizmo
 // unchanged). Task 6 moved the camera-path targets (path_point / path_group /
-// camera_path) onto the same adapter as everything else.
+// camera_path) onto the same adapter as everything else, and Task 9 added
+// path_point_target (a selected path key's Look-At target, when editable).
 const LIVE_TRANSFORM_CONTROLS_TYPES = new Set([
-  "object", "camera", "camera_target", "path_point", "path_group", "camera_path",
+  "object", "camera", "camera_target", "path_point", "path_group", "camera_path", "path_point_target",
 ]);
 
 export function gizmoGeometry(ui) {
+  // Fast path: sync() (transform-controls-wiring.js) already resolved the
+  // current target this render tick and reports here whether it attached a
+  // live gizmo for it -- skip a second, otherwise fully redundant
+  // resolveTransformTarget() call for the common case. Falls through to a
+  // full recompute whenever that isn't true (no wiring installed, nothing
+  // live-wired right now, or a pointer-driven pickGizmo() call that may race
+  // ahead of the next sync()) so behavior for those paths is unchanged.
+  if (ui.transformControlsWiring?.currentLiveType?.()) return null;
   const entity = activeGizmoEntity(ui);
   if (!entity) return null;
   if (ui.transformControlsWiring && LIVE_TRANSFORM_CONTROLS_TYPES.has(entity.type)) return null;

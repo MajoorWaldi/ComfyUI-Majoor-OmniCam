@@ -18,10 +18,22 @@ import { add, mul, sub, rotateEuler, length } from "./core.js";
 //    target marker would silently write a value the constraint immediately
 //    overrides on the next resample, corrupting the key with no visible
 //    effect, so target-path editing goes read-only instead.
-export function trackHasActiveLookAt(track) {
+// `objects` is optional (and omitted by most call sites' unit tests): when
+// given, this also mirrors sampleCamera's other precondition -- the
+// constrained object must actually exist and not be disabled, or sampleCamera
+// silently falls back to the keyframed target and the constraint is not
+// really "active" at all. Without an object list there is no way to check
+// that, so a bare object_id is still treated as active (the previous,
+// permissive behavior) -- callers that have `state.objects` on hand should
+// pass it for an accurate answer.
+export function trackHasActiveLookAt(track, objects) {
   const lookAt = track?.constraints?.look_at;
   const constraintActive = lookAt?.status === undefined || lookAt?.status === "active";
-  return Boolean(constraintActive && (lookAt?.object_id || track?.target_object_id));
+  const targetObjId = constraintActive ? (lookAt?.object_id || track?.target_object_id) : null;
+  if (!targetObjId) return false;
+  if (!Array.isArray(objects)) return true;
+  const targetObj = objects.find((o) => o.id === targetObjId);
+  return Boolean(targetObj && targetObj.enabled !== false);
 }
 
 /** Mean of the keyframe positions (the path's transform pivot). */

@@ -407,7 +407,7 @@ const HANDLERS = {
       delta: op.transform.delta,
       factors: op.transform.factors,
       rotationDeg: op.transform.rotationDeg,
-      lookAtActive: trackHasActiveLookAt(track),
+      lookAtActive: trackHasActiveLookAt(track, state.objects),
     });
     applyTrackKeyframes(state, track, nextKeys);
     return { dirtyMask: PATH_DIRTY };

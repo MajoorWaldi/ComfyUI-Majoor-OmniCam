@@ -72,6 +72,16 @@ export function createTransformControlsAdapter({
   let currentTargetSpec = null;
   let dragStart = null; // { position: number[], rotationDeg: number[], scale: number[] }
   let dragging = false;
+  // Rotation is tracked as a running sum of small, individually-wrapped steps
+  // rather than a single (now - dragStart) subtraction: a three.js Euler
+  // component wraps into (-180, 180], so a drag that carries a component past
+  // that boundary would otherwise make a single raw subtraction jump by ~360
+  // degrees for a mouse movement of only a few degrees. Each step between two
+  // consecutive events is always small, so wrapping each step individually
+  // (instead of the cumulative total) stays correct for drags that rotate
+  // further than 180 degrees in one continuous gesture.
+  let previousRotationDeg = null;
+  let rotationAccumDeg = [0, 0, 0];
 
   function snapshotAnchor() {
     return {
@@ -91,17 +101,30 @@ export function createTransformControlsAdapter({
     anchor.scale.set(...snapshot.scale);
   }
 
+  /** Wrap a raw angle difference into (-180, 180]. */
+  function wrapAngleDeg(diff) {
+    return ((diff + 180) % 360 + 360) % 360 - 180;
+  }
+
   function computeDelta(now) {
     if (!dragStart) return { position: [0, 0, 0], rotationDeg: [0, 0, 0], scaleFactors: [1, 1, 1] };
+    const rotationDeg = now.rotationDeg.map((value, index) => {
+      const previous = previousRotationDeg ? previousRotationDeg[index] : dragStart.rotationDeg[index];
+      rotationAccumDeg[index] += wrapAngleDeg(value - previous);
+      return rotationAccumDeg[index];
+    });
+    previousRotationDeg = now.rotationDeg;
     return {
       position: now.position.map((value, index) => value - dragStart.position[index]),
-      rotationDeg: now.rotationDeg.map((value, index) => value - dragStart.rotationDeg[index]),
+      rotationDeg,
       scaleFactors: now.scale.map((value, index) => (dragStart.scale[index] === 0 ? 1 : value / dragStart.scale[index])),
     };
   }
 
   function handleMouseDown() {
     dragStart = snapshotAnchor();
+    previousRotationDeg = null;
+    rotationAccumDeg = [0, 0, 0];
     onDragStart?.({ targetSpec: currentTargetSpec });
   }
 
@@ -189,6 +212,13 @@ export function createTransformControlsAdapter({
   function cancelDrag() {
     if (!dragStart) return;
     const snapshot = dragStart;
+    // Clear our own drag state (and thus arm handleMouseUp/handleObjectChange's
+    // `if (!dragStart) return` guards) *before* forcing three.js's pointerUp
+    // below, so that call's own "mouseUp" event -- if it fires one -- is a
+    // no-op here rather than a second, spurious onDragEnd.
+    dragStart = null;
+    previousRotationDeg = null;
+    rotationAccumDeg = [0, 0, 0];
     applySnapshotToAnchor(snapshot);
     onTransform?.({
       targetSpec: currentTargetSpec,
@@ -205,7 +235,18 @@ export function createTransformControlsAdapter({
       delta: { position: [0, 0, 0], rotationDeg: [0, 0, 0], scaleFactors: [1, 1, 1] },
       cancelled: true,
     });
-    dragStart = null;
+    // Without this, three.js's TransformControls stays internally "dragging"
+    // (its `dragging`/`axis` state, and the native pointermove listener it
+    // added on the real pointerdown) until the user's mouse button actually
+    // comes back up -- so the gizmo mesh keeps visually following the pointer,
+    // divorced from the state just reverted above, and `dragging-changed`
+    // never fires false, leaving navigation/other pointer handling locked out
+    // (see viewport-controls/interactions.js's onPointerMove). Passing `null`
+    // (not a real pointer event) skips TransformControls' own button-code
+    // check and unconditionally resets `dragging`/`axis`, which both stops any
+    // further pointerMove() from mutating the anchor and fires the real
+    // `dragging-changed`(false) event synchronously.
+    controls.pointerUp?.(null);
   }
 
   function dispose() {
