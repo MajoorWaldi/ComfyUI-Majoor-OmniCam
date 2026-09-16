@@ -4,6 +4,11 @@
 
 # OmniCam keyboard shortcuts and controls
 
+Director and Extractor nodes show a compact status card with an **OPEN
+DIRECTOR** / **OPEN EXTRACTOR** button; every shortcut below only exists once
+that editor is open, since the closed node has no editor DOM to claim keys
+from. Only one Director or Extractor editor is ever open at once.
+
 Shortcuts are live only while the OmniCam viewport or timeline has focus. They
 never capture the keyboard while you are typing into a field, and OmniCam
 claims a key from ComfyUI only when it actually handles it
@@ -15,6 +20,9 @@ Keys are scoped to the zone the event came from: the **viewport** owns the
 spatial keys, the **timeline / graph editor** own the temporal keys, and the
 **sequence editor** owns its own. Only a small transport set (undo/redo,
 copy/paste, duplicate, `Ctrl`/`Cmd`+`,` preferences, `Space`, `Escape`) fires from any zone.
+`Escape` cancels an active drag, transform or context menu first; with nothing
+to cancel, it closes the open editor window instead (refused while a
+playblast recording is in its non-interruptible finalization window).
 
 ## Viewport navigation
 
