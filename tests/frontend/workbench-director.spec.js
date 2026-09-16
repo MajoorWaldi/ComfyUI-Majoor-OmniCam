@@ -54,6 +54,34 @@ test("closing is refused while a playblast is recording, but node removal still 
 // import (same cross-module-graph issue documented in
 // workbench-extractor.spec.js), so this is proven end-to-end rather than by
 // reaching into that module directly.
+test("the embedded editor reflows for a narrow workbench window instead of clipping or scrolling horizontally (migration plan Task 18)", async ({ page }) => {
+  // Below the .oc-workbench-window min-width (960px) plus a little margin so
+  // the container-query breakpoints (driven by .majoor-omnicam's own inline
+  // size, not the viewport -- web-src/template/styles/responsive.js) have
+  // room to collapse the side panels into drawers.
+  await page.setViewportSize({ width: 980, height: 900 });
+  await mount(page);
+
+  await page.locator("#host-a .oc-node-shell-open").click();
+  await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCamDirectorRuntime?.workbench));
+
+  const layout = await page.evaluate(() => {
+    const root = document.querySelector(".majoor-omnicam");
+    const drawerToggle = root.querySelector('[data-act="toggle-scene-panel"]');
+    return {
+      drawerToggleVisible: drawerToggle && getComputedStyle(drawerToggle).display !== "none",
+      windowScrollWidth: document.documentElement.scrollWidth,
+      windowClientWidth: document.documentElement.clientWidth,
+    };
+  });
+  // The left Scene panel collapses to a drawer once the container is
+  // narrower than 1120px (here it is: the window floors at 960px CSS px).
+  expect(layout.drawerToggleVisible).toBe(true);
+  // No horizontal scrollbar on the page itself -- the workbench must never
+  // force the whole page wider than the viewport.
+  expect(layout.windowScrollWidth).toBeLessThanOrEqual(layout.windowClientWidth + 1);
+});
+
 test("open, edit, close, reopen: the edit survives with no workbench mounted in between", async ({ page }) => {
   await mount(page);
 
