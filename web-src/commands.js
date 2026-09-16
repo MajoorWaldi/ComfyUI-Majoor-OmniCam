@@ -156,6 +156,12 @@ function sceneKeymap(ui, event) {
     return true;
   }
   if (event.key === "Escape") {
+    // Only claim Escape when there is an actual selection to clear -- an
+    // unconditional claim here left Escape unable to reach the workbench's
+    // own close handler (migration plan section 4.4) whenever focus
+    // happened to be in the outliner with nothing selected.
+    const hadSelection = Boolean(ui.selectedObjectIds?.size || ui.selectedObjectId);
+    if (!hadSelection) return false;
     ui.selectedObjectIds?.clear?.();
     ui.selectedObjectId = null;
     ui.selectedEntity = "camera";

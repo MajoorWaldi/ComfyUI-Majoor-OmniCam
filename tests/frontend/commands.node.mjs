@@ -279,3 +279,29 @@ test("Numpad 9 flips to the opposite orthographic view", () => {
   press(ui, ["viewport-wrap"], { key: "9", code: "Numpad9" });
   assert.deepEqual(modes, ["back"]);
 });
+
+// Migration plan section 4.4: "Otherwise Escape closes the workbench only
+// when closing is safe." An Escape the outliner zone unconditionally claimed
+// (even with nothing selected) never reached the workbench's own
+// close-on-Escape handler, since dispatchDirectorKey() consuming a key stops
+// propagation before that window-capture listener runs.
+test("Escape in the outliner only clears an actual selection, otherwise it is released for the workbench to close on", () => {
+  const withSelection = baseUi({
+    selectedObjectId: "obj_1",
+    selectedObjectIds: new Set(["obj_1"]),
+    refreshObjects() {}, refreshInspector() {}, render() {},
+  });
+  const consumedWithSelection = withMockElement(() => dispatchDirectorKey(withSelection, {
+    key: "Escape", code: "Escape", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, repeat: false,
+    target: el([], null, { "data-tab-panel": "scene" }), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  }));
+  assert.equal(consumedWithSelection, true, "Escape must still clear a real selection");
+  assert.equal(withSelection.selectedObjectId, null);
+
+  const withoutSelection = baseUi({ selectedObjectId: null, selectedObjectIds: new Set() });
+  const consumedWithoutSelection = withMockElement(() => dispatchDirectorKey(withoutSelection, {
+    key: "Escape", code: "Escape", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, repeat: false,
+    target: el([], null, { "data-tab-panel": "scene" }), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  }));
+  assert.equal(consumedWithoutSelection, false, "an idle Escape must fall through to the workbench close handler");
+});

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><title>OmniCam Director workbench lifecycle test</title>
+    <style>body { background: #111; }</style>
+    <script type="importmap">
+      { "imports": { "/scripts/app.js": "/tests/frontend/stubs/app.js", "/scripts/api.js": "/tests/frontend/stubs/api.js" } }
+    </script>
+  </head>
+  <body>
+    <div id="status">loading</div>
+    <div id="host-a"></div>
+    <div id="host-b"></div>
+    <script type="module">
+      window.addEventListener("error", (event) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamMountError = String(event.error?.stack || event.message);
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamMountError = String(event.reason?.stack || event.reason);
+      });
+      try {
+        await import("/tests/frontend/stubs/app.js");
+        await import("/web/omnicam.js");
+        const extension = (window.__omnicamExtensions || []).find((item) => item.name === "Majoor.OmniCam.Director");
+        if (!extension) throw new Error("Director extension did not register");
+
+        function makeNode(id, hostId) {
+          return {
+            id,
+            comfyClass: "MajoorOmniCamDirector",
+            widgets: [
+              { name: "state_json", value: JSON.stringify({
+                cameras: [{ id: "camera_1", name: `Camera ${id}`, keyframes: [] }],
+                active_camera_id: "camera_1", playblast_camera_id: "camera_1", objects: [],
+              }) },
+              { name: "recording_path", value: "" },
+              { name: "card_asset", value: "" },
+              { name: "width", value: 1280 },
+              { name: "height", value: 720 },
+              { name: "fps", value: 24 },
+              { name: "duration_seconds", value: 5 },
+              { name: "render_mode", value: "omni_ref" },
+            ],
+            size: [800, 800],
+            pos: [0, 0],
+            graph: { setDirtyCanvas() {} },
+            addDOMWidget(name, type, element) {
+              document.querySelector(hostId).appendChild(element);
+              return { element, options: {} };
+            },
+            setSize() {},
+            connect() { return true; },
+          };
+        }
+
+        const nodeA = makeNode(1, "#host-a");
+        const nodeB = makeNode(2, "#host-b");
+        await extension.nodeCreated(nodeA);
+        await extension.nodeCreated(nodeB);
+        window.omnicamNodeA = nodeA;
+        window.omnicamNodeB = nodeB;
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamMountError = String(error?.stack || error);
+      }
+    </script>
+  </body>
+</html>
