@@ -30,6 +30,8 @@ test("WorkbenchHost mount/focus/escape/maximize/dispose contract", async ({ page
 
   expect(result.refusedCloseKeepsMounted).toBe(true);
 
+  expect(result.backdropClickDoesNotClose).toBe(true);
+
   expect(result.escapeReason).toBe("escape");
   expect(result.disposedAfterEscape).toBe(true);
   expect(result.backdropRemovedFromDom).toBe(true);

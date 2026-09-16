@@ -68,6 +68,14 @@
         result.refusedCloseKeepsMounted = stillOpen === false && host2.mounted === true;
         host2.dispose();
 
+        // --- clicking the backdrop itself must never close the workbench:
+        // an accidental click outside a 3D editor must not destroy the
+        // session (plan section 6). ---
+        const closeCallsBeforeBackdropClick = closeCalls.length;
+        document.querySelector(".oc-workbench-backdrop")
+          .dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+        result.backdropClickDoesNotClose = host.mounted === true && closeCalls.length === closeCallsBeforeBackdropClick;
+
         // --- Escape key routes through onRequestClose and disposes ---
         result.escapeReason = null;
         document.querySelector(".oc-workbench-window")
