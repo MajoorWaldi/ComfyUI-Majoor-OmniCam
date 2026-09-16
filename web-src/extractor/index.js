@@ -679,6 +679,12 @@ export function openExtractorWorkbench(runtime) {
     runtime.pendingSourceResync = false;
     ui.refreshSource();
   }
+  // A Scene Reconstruct result that finished while no panel was open is held
+  // headlessly on the runtime (ExtractorRuntime.acceptReconstructionResult);
+  // replay it into the reconstruction controller now that one exists again.
+  if (runtime.reconstructionResult) {
+    ui.reconstruction?.acceptQueuedResult(runtime.reconstructionResult);
+  }
   return ui;
 }
 

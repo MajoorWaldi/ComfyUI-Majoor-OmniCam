@@ -65,9 +65,6 @@ async function openDirectorWorkbenchSession(runtime, opener) {
         kind: "director",
         nodeId: runtime.node.id,
         title: runtime.getSnapshot().sceneName || t("OmniCam Director"),
-        // No non-interruptible capture guard in this pass: closing always
-        // succeeds. A future pass can refuse here while a realtime capture is
-        // in its finalization window (plan section 15).
         onRequestClose: (reason) => workbenchSessions.close(key, reason),
         onResize: () => ui.scheduleResizeAndRender?.(),
       });
@@ -78,6 +75,16 @@ async function openDirectorWorkbenchSession(runtime, opener) {
         nodeId: runtime.node.id,
         host,
         close: async () => {
+          // A playblast recording (deterministic encode or the realtime
+          // fallback, web-src/record.js's makePlayblast) is a
+          // non-interruptible finalization window: closing here would abort
+          // an in-flight encode/upload with no way to resume it (plan
+          // section 15 / non-negotiable behavior 8). Node removal still
+          // tears the workbench down regardless -- see dispose() below.
+          if (ui.recording) {
+            ui.setStatus?.(t("Cannot close Director while a playblast is recording"));
+            return false;
+          }
           ui.serialize?.();
           closeDirectorWorkbench(ui);
           host.dispose();

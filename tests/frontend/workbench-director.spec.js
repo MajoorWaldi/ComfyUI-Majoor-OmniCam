@@ -13,6 +13,36 @@ async function mount(page) {
   expect(error, error).toBeUndefined();
 }
 
+test("closing is refused while a playblast is recording, but node removal still tears the workbench down", async ({ page }) => {
+  await mount(page);
+
+  await page.locator("#host-a .oc-node-shell-open").click();
+  await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCamDirectorRuntime?.workbench));
+
+  await page.evaluate(() => { window.omnicamNodeA.__majoorOmniCam.recording = true; });
+
+  // The close button click resolves to a refused close: the backdrop stays.
+  await page.locator('.oc-workbench-backdrop[data-kind="director"] [data-workbench-act="close"]').click();
+  await expect(page.locator('.oc-workbench-backdrop[data-kind="director"]')).toHaveCount(1);
+  expect(await page.evaluate(() => window.omnicamNodeA.__majoorOmniCam.disposed)).toBe(false);
+
+  // Finish the "recording" and close succeeds normally.
+  await page.evaluate(() => { window.omnicamNodeA.__majoorOmniCam.recording = false; });
+  await page.locator('.oc-workbench-backdrop[data-kind="director"] [data-workbench-act="close"]').click();
+  await expect(page.locator('.oc-workbench-backdrop[data-kind="director"]')).toHaveCount(0);
+
+  // Node removal mid-recording still disposes -- it is allowed to cancel.
+  await page.locator("#host-a .oc-node-shell-open").click();
+  await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCamDirectorRuntime?.workbench));
+  await page.evaluate(() => {
+    window.omnicamNodeA.__majoorOmniCam.recording = true;
+    window.__omnicamCapturedUi = window.omnicamNodeA.__majoorOmniCam;
+    window.omnicamNodeA.onRemoved();
+  });
+  await expect(page.locator('.oc-workbench-backdrop[data-kind="director"]')).toHaveCount(0);
+  expect(await page.evaluate(() => window.__omnicamCapturedUi.disposed)).toBe(true);
+});
+
 test("open, edit, close, reopen: the edit survives with no workbench mounted in between", async ({ page }) => {
   await mount(page);
 

@@ -82,6 +82,18 @@ function executedMessage(fingerprint = "fp-1") {
   };
 }
 
+function reconstructMessage(fingerprint = "recon-fp-1") {
+  return {
+    text: [JSON.stringify({
+      kind: "omnicam_extractor_result_v2",
+      mode: "scene_reconstruct",
+      fingerprint,
+      motion_scene: MOTION_SCENE(fingerprint),
+      reconstruction: { provider: "fake_provider", warnings: ["Low texture contrast"] },
+    })],
+  };
+}
+
 test("restores a cached result from widgets with no visible root", () => {
   const node = fakeNode();
   node.widgets.find((w) => w.name === "omnicam_extracted_motion_scene_json").value = JSON.stringify(MOTION_SCENE("cached-fp"));
@@ -105,6 +117,39 @@ test("a native 'executed' event is adopted headlessly with no workbench attached
   assert.equal(runtime.result.refined.metadata.extractor_fingerprint, "solved-fp");
   const cached = node.widgets.find((w) => w.name === "omnicam_extracted_track_fingerprint").value;
   assert.equal(cached, "solved-fp", "the result must reach the node's cache widgets with no panel open");
+  runtime.dispose();
+});
+
+test("a Scene Reconstruct result is captured headlessly and reaches a terminal COMPLETED status with no workbench open", () => {
+  const node = fakeNode("scene_reconstruct");
+  const api = fakeApi();
+  const runtime = new ExtractorRuntime(node, { api });
+  runtime.queuePromptId = "prompt-recon";
+
+  api.emit("executed", { node: "1", prompt_id: "prompt-recon", output: reconstructMessage("recon-fp-1") });
+
+  assert.equal(runtime.state.solveState, "COMPLETED",
+    "the shared solve-state machine must reach a terminal state, not sit on FINALIZING forever");
+  assert.ok(runtime.reconstructionResult, "the result must be held on the runtime so a later open can replay it");
+  assert.equal(runtime.reconstructionResult.fingerprint, "recon-fp-1");
+  runtime.dispose();
+});
+
+test("a Scene Reconstruct result is replayed into the reconstruction controller once a workbench attaches", () => {
+  const node = fakeNode("scene_reconstruct");
+  const api = fakeApi();
+  const runtime = new ExtractorRuntime(node, { api });
+
+  api.emit("executed", { node: "1", prompt_id: "", output: reconstructMessage("recon-fp-2") });
+  assert.ok(runtime.reconstructionResult);
+
+  const accepted = [];
+  runtime.attachWorkbench({ render() {}, reconstruction: { acceptQueuedResult: (result) => accepted.push(result) } });
+  // Attaching alone does not replay (that is openExtractorWorkbench()'s job,
+  // simulated here); a fresh executed() while attached forwards directly.
+  api.emit("executed", { node: "1", prompt_id: "", output: reconstructMessage("recon-fp-3") });
+  assert.equal(accepted.length, 1);
+  assert.equal(accepted[0].fingerprint, "recon-fp-3");
   runtime.dispose();
 });
 

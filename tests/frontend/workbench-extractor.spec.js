@@ -79,6 +79,50 @@ test("reopening restores the runtime's solve result and extract mode with no re-
   expect(state.solveState).toBe("COMPLETED");
 });
 
+test("a Scene Reconstruct result that finishes while the workbench is closed is not lost, and shows on reopen", async ({ page }) => {
+  await mount(page);
+  await openExtractor(page);
+  await page.evaluate(() => window.omnicamNode.__majoorOmniCamExtractorRuntime.setExtractMode("scene_reconstruct"));
+  await page.locator('.oc-workbench-backdrop[data-kind="extractor"] [data-workbench-act="close"]').click();
+  await expect(page.locator('.oc-workbench-backdrop[data-kind="extractor"]')).toHaveCount(0);
+
+  // Simulate the solve finishing while closed: call the same runtime method
+  // the native "executed" ComfyUI event drives (queue/events.js), rather than
+  // re-testing that event wiring here.
+  await page.evaluate(() => {
+    const runtime = window.omnicamNode.__majoorOmniCamExtractorRuntime;
+    runtime.executed({
+      text: [JSON.stringify({
+        kind: "omnicam_extractor_result_v2",
+        mode: "scene_reconstruct",
+        fingerprint: "closed-recon-fp",
+        motion_scene: {
+          version: 1,
+          timeline: { duration_seconds: 2, authoring_fps: 24 },
+          canvas: { width: 640, height: 360 },
+          cameras: [{ id: "camera_1", name: "Camera 1", keyframes: [] }],
+          active_camera_id: "camera_1", playblast_camera_id: "camera_1",
+          objects: [{ id: "recon_obj", type: "cube", position: [0, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1], keyframes: [], enabled: true }],
+        },
+        reconstruction: { provider: "fake_provider" },
+      })],
+    });
+  });
+
+  const headless = await page.evaluate(() => {
+    const runtime = window.omnicamNode.__majoorOmniCamExtractorRuntime;
+    return { solveState: runtime.state.solveState, hasResult: Boolean(runtime.reconstructionResult) };
+  });
+  expect(headless.solveState).toBe("COMPLETED");
+  expect(headless.hasResult).toBe(true);
+
+  await openExtractor(page);
+  const restoredFingerprint = await page.evaluate(
+    () => window.omnicamNode.__majoorOmniCamExtractor.reconstruction.state.fingerprint,
+  );
+  expect(restoredFingerprint).toBe("closed-recon-fp");
+});
+
 test("opening and closing repeatedly leaves no growth in DOM nodes (migration plan Task 20)", async ({ page }) => {
   await mount(page);
 

@@ -57,6 +57,11 @@ export class ExtractorRuntime extends EventTarget {
     // Set when the upstream source changes while no workbench is open to run
     // the DOM-aware resync; consumed by the shell/workbench on next open.
     this.pendingSourceResync = false;
+    // The last scene_reconstruct envelope accepted while headless (no
+    // workbench open) or while one was; replayed into the reconstruction
+    // controller on the next open (openExtractorWorkbench) so a solve that
+    // finished while closed is not silently lost.
+    this.reconstructionResult = null;
 
     const cached = readCachedResult(node);
     if (cached) {
@@ -140,22 +145,34 @@ export class ExtractorRuntime extends EventTarget {
     return true;
   }
 
-  /**
-   * Adopt an `onExecuted` envelope. Camera-track results are fully headless
-   * (see acceptSolvedResult); a Scene Reconstruct result's visual/job-state
-   * bookkeeping currently still lives on ReconstructionPanelController, so it
-   * is only processed while the workbench is open -- a closed Extractor
-   * running Scene Reconstruct will show the finished result on next open via
-   * ComfyUI's own execution history, not live.
-   */
+  /** Adopt an `onExecuted` envelope, whichever mode it came from. */
   executed(message) {
     const result = parseExtractorMessage(message);
     if (!result) return;
     if (result.mode === "scene_reconstruct") {
-      this.workbench?.reconstruction?.acceptQueuedResult(result);
+      this.acceptReconstructionResult(result);
       return;
     }
     this.acceptSolvedResult(result);
+  }
+
+  /**
+   * Adopt a Scene Reconstruct result headlessly: held on the runtime so a
+   * solve that finishes while the workbench is closed is not lost (replayed
+   * into ReconstructionPanelController on the next open -- see
+   * web-src/extractor/index.js's openExtractorWorkbench()), and reflected in
+   * the shared solve-state machine so the compact shell's status/progress
+   * reaches a terminal COMPLETED instead of sitting on FINALIZING forever.
+   * The panel's own richer job-state/visual bookkeeping still lives on
+   * ReconstructionPanelController and only runs while attached.
+   */
+  acceptReconstructionResult(result) {
+    this.reconstructionResult = result;
+    this.dispatch({
+      type: "STATUS",
+      status: { state: "COMPLETED", anomalies: result?.reconstruction?.warnings || [] },
+    });
+    this.workbench?.reconstruction?.acceptQueuedResult(result);
   }
 
   /**
