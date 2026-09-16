@@ -118,3 +118,25 @@ test("the session manager still switches workbenches when opened programmaticall
   expect(state.aWorkbenchAttached).toBe(false);
   expect(state.bNodeId).toBe("2");
 });
+
+test("opening and closing repeatedly leaves no growth in DOM nodes or WebGL viewport instances (migration plan Task 20)", async ({ page }) => {
+  await mount(page);
+
+  const idleCount = await page.evaluate(() => document.querySelectorAll("*").length);
+
+  for (let i = 0; i < 5; i++) {
+    await page.locator("#host-a .oc-node-shell-open").click();
+    await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCam?.webgl));
+    await page.locator('.oc-workbench-backdrop[data-kind="director"] [data-workbench-act="close"]').click();
+    await expect(page.locator('.oc-workbench-backdrop[data-kind="director"]')).toHaveCount(0);
+  }
+
+  const settledCount = await page.evaluate(() => document.querySelectorAll("*").length);
+  // Exact equality would be brittle against unrelated DOM churn; this only
+  // guards against the failure mode that matters -- a workbench (or its
+  // canvas/media elements) never getting removed and piling up over repeated
+  // open/close cycles.
+  expect(settledCount).toBeLessThanOrEqual(idleCount + 5);
+  expect(await page.locator("canvas").count()).toBe(0);
+  expect(await page.locator(".oc-workbench-backdrop").count()).toBe(0);
+});

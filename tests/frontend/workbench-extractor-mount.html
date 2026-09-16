@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><title>OmniCam Extractor workbench lifecycle test</title>
+    <style>body { background: #111; }</style>
+    <script type="importmap">
+      { "imports": { "/scripts/app.js": "/tests/frontend/stubs/app.js", "/scripts/api.js": "/tests/frontend/stubs/api.js" } }
+    </script>
+  </head>
+  <body>
+    <div id="status">loading</div>
+    <div id="host-a"></div>
+    <script type="module">
+      window.addEventListener("error", (event) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamMountError = String(event.error?.stack || event.message);
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamMountError = String(event.reason?.stack || event.reason);
+      });
+      try {
+        await import("/tests/frontend/stubs/app.js");
+        await import("/web/omnicam.js");
+        const extension = (window.__omnicamExtensions || []).find((item) => item.name === "Majoor.OmniCam.Extractor");
+        if (!extension) throw new Error("Extractor extension did not register");
+
+        const node = {
+          id: 1,
+          comfyClass: "MajoorOmniCamExtractor",
+          graph: { setDirtyCanvas() {} },
+          widgets: [
+            { name: "extract_mode", value: "camera_track" },
+            { name: "source_ref", value: "" },
+            { name: "scene_json", value: "" },
+            { name: "fingerprint", value: "" },
+          ],
+          size: [800, 800],
+          pos: [0, 0],
+          addDOMWidget(name, type, element) {
+            document.querySelector("#host-a").appendChild(element);
+            return { element, options: {} };
+          },
+          setSize() {},
+        };
+
+        await extension.nodeCreated(node);
+        window.omnicamNode = node;
+        document.querySelector("#status").textContent = "ready";
+      } catch (error) {
+        document.querySelector("#status").textContent = "failed";
+        window.omnicamMountError = String(error?.stack || error);
+      }
+    </script>
+  </body>
+</html>
