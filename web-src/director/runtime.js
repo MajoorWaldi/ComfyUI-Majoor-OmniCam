@@ -29,6 +29,13 @@ export class DirectorRuntime extends EventTarget {
     this.pendingUiDirtyMask = 0;
     this.serializeScheduled = false;
     this.serializeFrame = null;
+    // Attached by director.js's attachDirector(): the bounded semantic
+    // transaction layer (web-src/director-api/*) and the external Agent
+    // bridge (web-src/agent/bridge.js). Both target this runtime rather than
+    // the transient workbench so they keep working while the editor is
+    // closed (migration plan Tasks 7-8).
+    this.directorApi = null;
+    this.agentBridge = null;
 
     this.stateWidget = findWidget(node, "state_json");
     this.recordingWidget = findWidget(node, "recording_path");
@@ -77,6 +84,11 @@ export class DirectorRuntime extends EventTarget {
       this.serializeScheduled = false;
     }
     serializeEditorState(this);
+  }
+
+  /** Synchronous immediate flush -- what director-api's `ui.serialize?.()` call expects after a committed transaction. */
+  serialize() {
+    this.flushToWidgets({ immediate: true });
   }
 
   /** RAF-batched flush; ports the throttling OmniCamDirectorUI already relied on. */

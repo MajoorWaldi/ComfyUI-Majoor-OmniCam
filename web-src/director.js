@@ -246,6 +246,7 @@ const RUNTIME_ALIASED_FIELDS = [
   "sceneBaseline", "sceneName",
   "stateWidget", "recordingWidget", "cardWidget",
   "widthWidget", "heightWidget", "fpsWidget", "durationWidget", "modeWidget",
+  "directorApi", "agentBridge", "assetBrowser",
 ];
 for (const field of RUNTIME_ALIASED_FIELDS) {
   Object.defineProperty(OmniCamDirectorUI.prototype, field, {
@@ -276,12 +277,17 @@ export function attachDirector(node) {
   const ui = new OmniCamDirectorUI(node);
   recordDirectorTrace("director:constructor:complete", node);
   // Versioned, bounded transaction/query surface over canonical Director state.
-  attachDirectorApi(ui);
+  // Target the persistent runtime, not this transient UI instance: a future
+  // workbench close must not take the semantic API or the external Agent
+  // bridge down with it (migration plan Tasks 7-8). `ui.directorApi` /
+  // `ui.agentBridge` keep working unchanged -- they alias the same fields on
+  // ui.runtime (see RUNTIME_ALIASED_FIELDS above).
+  attachDirectorApi(ui.runtime);
   // Loopback-only external Agent bridge over the same semantic API. Never
   // required for the Director to function -- a browser without network
   // access to the Agent broker simply never registers.
   try {
-    ui.agentBridge = createDirectorAgentBridge(ui, node, api);
+    ui.runtime.agentBridge = createDirectorAgentBridge(ui.runtime, node, api);
   } catch (error) {
     console.warn("[OmniCam] Agent bridge unavailable", error);
   }
