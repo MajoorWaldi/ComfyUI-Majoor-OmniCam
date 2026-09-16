@@ -15,7 +15,12 @@ export const WORKBENCH_STYLES = `
   .oc-workbench-actions{display:flex;align-items:center;gap:4px;flex:none}
   .oc-workbench-actions button{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;color:#9494a8;background:#23232c;border:1px solid #3c3c4a;border-radius:6px;cursor:pointer}
   .oc-workbench-actions button:hover{background:#31313e;border-color:#58586c;color:#fff}
-  .oc-workbench-content{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
+  /* auto, not hidden: the embedded editor's natural content height (built for
+     a graph node that grows to fit it) can exceed a modest 92vh window on a
+     short viewport. Clipping it with overflow:hidden would silently strand
+     bottom controls (e.g. the sequence lane) outside the hit-testable area
+     instead of just requiring a scroll to reach them. */
+  .oc-workbench-content{position:relative;flex:1 1 auto;min-height:0;overflow:auto}
   .oc-workbench-content>*{width:100%;height:100%}
 
   .oc-node-shell{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:8px 10px;box-sizing:border-box;font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#ddd;background:#161618;border-radius:8px}

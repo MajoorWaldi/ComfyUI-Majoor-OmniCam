@@ -56,7 +56,7 @@
         await new Promise((resolve) => setTimeout(resolve, 400));
 
         window.omnicamRemoved = {
-          attached: Boolean(node.__majoorOmniCam),
+          attached: Boolean(node.__majoorOmniCamDirectorRuntime),
           widgetAdded,
           hostChildren: document.querySelector("#host").children.length,
         };

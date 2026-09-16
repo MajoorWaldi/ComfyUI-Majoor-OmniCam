@@ -72,10 +72,14 @@
         await created;
         await new Promise((resolve) => setTimeout(resolve, 400));
 
-        const ui = node.__majoorOmniCam;
+        // The compact shell restores canonical state headlessly on configure
+        // (migration plan Task 6) -- this workflow-load race is proven
+        // against the persistent runtime now, without ever opening the
+        // workbench, which is the whole point of the migration.
+        const runtime = node.__majoorOmniCamDirectorRuntime;
         window.omnicamLoad = {
-          attached: Boolean(ui),
-          cameraIds: (ui?.state?.cameras || []).map((item) => item.id),
+          attached: Boolean(runtime),
+          cameraIds: (runtime?.state?.cameras || []).map((item) => item.id),
           width: widthWidget.value,
           height: heightWidget.value,
           fps: fpsWidget.value,

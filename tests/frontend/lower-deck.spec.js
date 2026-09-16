@@ -277,6 +277,12 @@ test("the empty edit offers auto-split instead of a blank strip", async ({ page 
 test("dragging a shot boundary trims the cut", async ({ page }) => {
   await openEditTab(page);
   const handle = page.locator(".oc-sequence-shot").nth(1).locator(".oc-sequence-handle");
+  // The editor's natural content height (built for a graph node that grows to
+  // fit it) can exceed the workbench window at this viewport, leaving the
+  // sequence lane below the fold -- .oc-workbench-content scrolls (migration
+  // plan Task 18) rather than clipping it away entirely, so scroll there
+  // first, exactly as a real drag would need to.
+  await handle.scrollIntoViewIfNeeded();
   const box = await handle.boundingBox();
   const lane = await page.locator('[data-role="sequence-lane"]').boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -319,6 +325,7 @@ test("the playblast selector offers the edit as a target", async ({ page }) => {
 test("a finished trim does not keep following the pointer", async ({ page }) => {
   await openEditTab(page);
   const handle = page.locator(".oc-sequence-shot").nth(1).locator(".oc-sequence-handle");
+  await handle.scrollIntoViewIfNeeded();
   const box = await handle.boundingBox();
   const lane = await page.locator('[data-role="sequence-lane"]').boundingBox();
 

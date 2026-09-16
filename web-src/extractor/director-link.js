@@ -163,7 +163,10 @@ export function notifyDownstreamDirectors(extractorNode) {
       if (!link || targetId == null || seen.has(targetId)) continue;
       seen.add(targetId);
       const target = graph.getNodeById?.(targetId);
-      const ui = target?.__majoorOmniCam;
+      // Prefer the persistent runtime so this reaches a closed Director too
+      // (migration plan Task 16); it falls back to the open workbench, which
+      // is the same object pre-migration callers already expected.
+      const ui = target?.__majoorOmniCamDirectorRuntime?.workbench ?? target?.__majoorOmniCam;
       // Never re-queue the graph: the Director just re-reads the cache.
       if (ui?.syncUpstreamInputs) {
         ui.syncUpstreamInputs();
@@ -190,7 +193,13 @@ export function adoptReconstructionIntoDownstreamDirectors(extractorNode, result
       if (!link || targetId == null || seen.has(targetId)) continue;
       seen.add(targetId);
       const target = graph.getNodeById?.(targetId);
-      const ui = target?.__majoorOmniCam;
+      // adoptReconstructedScene() only ever touches ui.state/ui.camera/ui.frame
+      // plus a handful of optional-chained visual refreshes, so it already
+      // works headlessly against a runtime with no workbench attached
+      // (migration plan Task 16) -- prefer the persistent runtime and fall
+      // back to the bare pre-migration UI object for a node whose shell has
+      // not attached yet.
+      const ui = target?.__majoorOmniCamDirectorRuntime ?? target?.__majoorOmniCam;
       if (ui) {
         adoptReconstructedScene(ui, result);
         adopted += 1;

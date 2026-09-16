@@ -36,6 +36,11 @@ export class DirectorRuntime extends EventTarget {
     // closed (migration plan Tasks 7-8).
     this.directorApi = null;
     this.agentBridge = null;
+    // Owned by director/shell.js: guards the lazy workbench import against a
+    // rapid open/close race (migration plan section 29), and defers a media/
+    // widget resync that arrives while no workbench is open to attach.
+    this.workbenchGeneration = 0;
+    this.pendingUpstreamResync = false;
 
     this.stateWidget = findWidget(node, "state_json");
     this.recordingWidget = findWidget(node, "recording_path");
@@ -102,6 +107,27 @@ export class DirectorRuntime extends EventTarget {
     });
   }
 
+  /**
+   * The state-only half of state-sync.js's restoreFromWidgets(): re-parses
+   * state_json and re-samples the camera, without any of the DOM/asset/
+   * history reconciliation that function also does. Used by director/shell.js
+   * when a graph configure/reconfigure lands while no workbench is attached;
+   * the workbench runs the full DOM-aware restore instead when one is open.
+   */
+  restoreFromWidgetsHeadless() {
+    let parsed = null;
+    try {
+      parsed = JSON.parse(this.stateWidget?.value || "{}");
+    } catch {
+      // Keep the current state when the stored payload is unreadable.
+    }
+    this.state = sanitizeState(parsed);
+    this.camera = sampleCamera(this.state, Math.min(this.frame, this.state.duration_frames - 1));
+    this.sceneBaseline = this.stateWidget?.value ?? this.sceneBaseline;
+    this.sceneName = this.state.metadata?.scene_name || "";
+    this.dispatchEvent(new CustomEvent("upstreamchange", { detail: { reason: "restore" } }));
+  }
+
   /** Apply a state mutation headlessly, whether or not a workbench is open. */
   mutate(mutator, { reason = "mutation", dirty = 0 } = {}) {
     mutator(this.state);
@@ -133,9 +159,33 @@ export class DirectorRuntime extends EventTarget {
     this.workbench?.requestUiUpdate?.(mask, reason);
   }
 
+  /**
+   * Forwards to the open workbench's undo-history checkpoint when one is
+   * attached; a no-op headlessly. director-api transactions call this
+   * unconditionally (`ui.checkpoint?.()`) so a committed edit is still one
+   * undo step while the workbench is open, exactly as before this migration.
+   */
+  checkpoint(description) {
+    this.workbench?.checkpoint?.(description);
+  }
+
   setStatus(status) {
     this.status = status;
     this.dispatchEvent(new CustomEvent("statuschange", { detail: { status } }));
+    // Also write through to the workbench's own status line when open, so a
+    // director-api transaction's `ui.setStatus?.()` call (bound to this
+    // runtime) still updates the visible editor immediately.
+    this.workbench?.setStatus?.(status);
+  }
+
+  /** Forwards asset/media disposal to the open workbench; a no-op headlessly (deferred until next open). */
+  removeObjectResources(objectId) {
+    this.workbench?.removeObjectResources?.(objectId);
+  }
+
+  /** Forwards asset resource reconciliation to the open workbench; a no-op headlessly. */
+  async restoreAssets() {
+    return this.workbench?.restoreAssets?.();
   }
 
   dispose() {

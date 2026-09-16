@@ -68,6 +68,18 @@
         };
         await extension.nodeCreated(node);
         window.omnicamNode = node;
+        // Director mounts a compact shell by default (migration plan Task 10);
+        // open it the way a user would before capturing docs screenshots.
+        const openButton = document.querySelector("#host .oc-node-shell-open");
+        if (!openButton) throw new Error("Director compact shell did not mount an Open button");
+        openButton.click();
+        for (let retry = 0; retry < 200 && !node.__majoorOmniCamDirectorRuntime?.workbench; retry++) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        const workbench = node.__majoorOmniCamDirectorRuntime?.workbench;
+        if (!workbench) throw new Error("Director workbench did not open");
+        node.__majoorOmniCam = workbench;
+        await workbench.webglReady;
         await new Promise((resolve) => setTimeout(resolve, 300));
         document.querySelector("#status").textContent = "ready";
       } catch (error) {

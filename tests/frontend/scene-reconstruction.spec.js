@@ -6,6 +6,10 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
 
   const extractorHost = page.locator("#extractor-host");
   const directorHost = page.locator("#director-host");
+  // The compact shell lives in #director-host, but its editor only exists
+  // once opened, mounted body-level by WorkbenchHost (migration plan
+  // section 4.3) -- not a descendant of #director-host.
+  const directorWorkbench = page.locator('.oc-workbench-backdrop[data-kind="director"]');
 
   // 1. Check Extractor defaults to Camera Track mode
   const camModeBtn = extractorHost.locator('[data-role="extract-mode-camera"]');
@@ -114,11 +118,24 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   // Open in Director should now be enabled
   await expect(openDirectorBtn).toBeEnabled();
 
-  // 5. Click OPEN IN DIRECTOR
+  // 5. Click OPEN IN DIRECTOR -- adopted headlessly into the Director's
+  // persistent runtime, since the Director node itself has never had its
+  // workbench opened yet (migration plan Task 16).
   await openDirectorBtn.click();
 
+  // Open the Director workbench the way a user would, to verify the
+  // reconstructed scene the headless adoption above just wrote actually
+  // renders once the editor is opened -- the plan's literal acceptance
+  // criterion for this scenario.
+  await directorHost.locator(".oc-node-shell-open").click();
+  await page.waitForFunction(
+    () => Boolean(window.omnicamDirector?.__majoorOmniCamDirectorRuntime?.workbench),
+    null,
+    { timeout: 10_000 },
+  );
+
   // 6. Verify Director receives Environment Proxy and Ground, both locked
-  const directorObjects = directorHost.locator('[data-role="objects"]');
+  const directorObjects = directorWorkbench.locator('[data-role="objects"]');
   const envRow = directorObjects.locator('[data-object-id="recon_environment"]');
   const groundRow = directorObjects.locator('[data-object-id="recon_ground"]');
 
@@ -132,7 +149,7 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   // 7. Select Environment Proxy and inspect badges
   await envRow.click();
 
-  const inspector = directorHost.locator('[data-role="object-panel"]');
+  const inspector = directorWorkbench.locator('[data-role="object-panel"]');
   await expect(inspector).toBeVisible();
 
   const badge = inspector.locator('[data-role="object-recon-badge"]');
@@ -169,6 +186,12 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   });
   expect(decodeURIComponent(assetUrl)).toContain("majoor_omnicam/reconstruction/abc123");
   expect(assetUrl).toContain("environment.glb");
+
+  // The Director workbench is a body-level modal covering the whole page
+  // (migration plan section 4.3); close it before touching the Extractor
+  // panel again, exactly as a user would.
+  await directorWorkbench.locator('[data-workbench-act="close"]').click();
+  await expect(directorWorkbench).toHaveCount(0);
 
   // 10. Regression: switch back to camera_track mode
   await camModeBtn.click();

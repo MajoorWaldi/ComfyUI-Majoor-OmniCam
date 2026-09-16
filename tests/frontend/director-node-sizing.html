@@ -91,12 +91,16 @@
 
         await new Promise((resolve) => setTimeout(resolve, 400));
 
+        // Sizing is decided at shell-attach time (main.js's nodeCreated calls
+        // applyNodeLayout right after the shell attaches), well before any
+        // workbench is ever opened -- "attached" here means the compact
+        // shell/runtime, not the heavy editor.
         window.omnicamSizing = {
-          freshAttached: Boolean(freshNode.__majoorOmniCam),
+          freshAttached: Boolean(freshNode.__majoorOmniCamDirectorRuntime),
           freshSize: [...freshNode.size],
-          tinyAttached: Boolean(tinyNode.__majoorOmniCam),
+          tinyAttached: Boolean(tinyNode.__majoorOmniCamDirectorRuntime),
           tinySize: [...tinyNode.size],
-          restoredAttached: Boolean(restoredNode.__majoorOmniCam),
+          restoredAttached: Boolean(restoredNode.__majoorOmniCamDirectorRuntime),
           restoredSize: [...restoredNode.size],
         };
         document.querySelector("#status").textContent = "ready";
