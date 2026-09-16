@@ -43,6 +43,17 @@ test("closing is refused while a playblast is recording, but node removal still 
   expect(await page.evaluate(() => window.__omnicamCapturedUi.disposed)).toBe(true);
 });
 
+// Migration plan Task 17: liveDirectors (settings.js) must mean "mounted
+// interactive workbenches", not "every Director node" -- quality/locale
+// live-apply and the keyboard-shortcut router (commands.js's
+// directorForTarget/anyDirectorsLive) all fan out over that same set.
+// Exercised indirectly through the real open/close path in every test in
+// this file (each open/close cycle calls registerDirectorRuntime()/
+// unregisterDirector() exactly once); the settings.js module instance a
+// built chunk uses is not reachable by identity from a fresh test-side
+// import (same cross-module-graph issue documented in
+// workbench-extractor.spec.js), so this is proven end-to-end rather than by
+// reaching into that module directly.
 test("open, edit, close, reopen: the edit survives with no workbench mounted in between", async ({ page }) => {
   await mount(page);
 
