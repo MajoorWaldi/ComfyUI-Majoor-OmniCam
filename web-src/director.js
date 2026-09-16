@@ -20,6 +20,7 @@ import { createMotionEditor } from "./assets/character/motion-editor.js";
 import { buildDirectorDomCache } from "./director/dom-cache.js";
 import { createTransformControlsWiring } from "./viewport/transform-controls-wiring.js";
 import { createPathSelection } from "./director/camera-path-selection.js";
+import { DirectorRuntime } from "./director/runtime.js";
 import {
   activeCameraTrack,
   bindWidgetCallbacks,
@@ -176,10 +177,11 @@ configureDomMedia({ api });
 configureBackgroundManager({ api });
 class OmniCamDirectorUI {
   constructor(node) {
+    // Canonical state, widgets and serialization live on DirectorRuntime (see
+    // director/runtime.js), constructed first so the accessors defined below
+    // the class have somewhere to read/write from.
+    this.runtime = new DirectorRuntime(node, { app, api });
     this.app = app, this.api = api, this.node = node, this.root = buildRoot(), this.root.tabIndex = -1, this.dom = buildDirectorDomCache(this.root), this.canvas = this.root.querySelector(".viewport-wrap > canvas"), this.cameraPreviewCanvases = /* @__PURE__ */ new Map(), this.cameraPreviewContexts = /* @__PURE__ */ new Map(), this.cameraPreviewSignature = "", this.interactionElement = this.canvas, this.interactionElement.tabIndex = 0, this.interactionElement.dataset.captureWheel = "true", this.ctx = this.canvas.getContext("2d", { alpha: !1 });
-    this.disposed = false;
-    this.renderRevision = 0;
-    this.directorRevision = 0;
     // three.js and mediabunny total ~1.4 MB and nothing outside the viewport
     // needs them, so they load on demand here rather than at module scope --
     // ComfyUI would otherwise parse them at startup for every user, including
@@ -193,18 +195,7 @@ class OmniCamDirectorUI {
     // Real Three.js TransformControls for object/camera/camera_target
     // (plan Task 4); synced once per renderViewportOnly() tick.
     this.transformControlsWiring = createTransformControlsWiring(this);
-    this.stateWidget = node.widgets?.find((w) => w.name === "state_json"), this.recordingWidget = node.widgets?.find((w) => w.name === "recording_path"), this.cardWidget = node.widgets?.find((w) => w.name === "card_asset"), this.widthWidget = node.widgets?.find((w) => w.name === "width"), this.heightWidget = node.widgets?.find((w) => w.name === "height"), this.fpsWidget = node.widgets?.find((w) => w.name === "fps"), this.durationWidget = node.widgets?.find((w) => w.name === "duration_seconds"), this.modeWidget = node.widgets?.find((w) => w.name === "render_mode");
-    let parsed = null;
-    try {
-      parsed = JSON.parse(this.stateWidget?.value || "{}");
-    } catch {
-    }
-    this.state = sanitizeState(parsed),
-      // The scene "Reset" command reverts to whatever was last saved or opened;
-      // the state the node mounts with is that baseline until then.
-      this.sceneBaseline = this.stateWidget?.value || JSON.stringify(this.state),
-      this.sceneName = this.state.metadata?.scene_name || "",
-      this.frame = 0, this.camera = sampleCamera(this.state, 0), this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.pathSelection = createPathSelection(), this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.cardMediaAssetById = /* @__PURE__ */ new Map(), this.objectUrls = new ObjectUrlRegistry(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.uiDirtyMask = 0, this.perf = globalThis.__omnicamPerf === true ? { renderCount: 0, viewportRenderCount: 0, previewRenderCount: 0, timelineRefreshCount: 0, inspectorRefreshCount: 0, lastFrameMs: 0 } : null, this.contextMenu = new ContextMenuController(this.root), this.history = new EditorHistory({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedObjectIds: [...(this.selectedObjectIds || [])], selectedKeyFrame: this.selectedKeyFrame, selectedKeyFrames: [...(this.selectedKeyFrames || [])], subSelection: this.subSelection }), restore: (snapshot) => this.restoreHistorySnapshot(snapshot) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bindEditorEvents(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic(),
+    this.playing = !1, this.drag = null, this.cameraEditActive = !1, this.cameraEditKey = null, this.keyDrag = null, this.timelineDrag = null, this.curveDrag = null, this.selectedKeyFrame = this.state.keyframes[0]?.frame ?? null, this.pathSelection = createPathSelection(), this.editingKeyFrame = null, this.copiedKeyframe = null, this.cameraSpeed = 1, this.cardMedia = null, this.cardMediaById = /* @__PURE__ */ new Map(), this.cardMediaAssetById = /* @__PURE__ */ new Map(), this.objectUrls = new ObjectUrlRegistry(), this.cardUrlsById = this.objectUrls.urls, this.modelUrlsById = /* @__PURE__ */ new Map(), this.modelInfoById = /* @__PURE__ */ new Map(), this.executionReferences = [], this.selectedObjectId = null, this.selectedEntity = "camera", this.subSelection = null, this.cardUrl = null, this.recording = !1, this.gizmoDrag = null, this.playTimer = null, this.previewClickTimer = null, this.showCurveHandles = !0, this.uiDirtyMask = 0, this.perf = globalThis.__omnicamPerf === true ? { renderCount: 0, viewportRenderCount: 0, previewRenderCount: 0, timelineRefreshCount: 0, inspectorRefreshCount: 0, lastFrameMs: 0 } : null, this.contextMenu = new ContextMenuController(this.root), this.history = new EditorHistory({ capture: () => JSON.stringify({ state: this.state, frame: this.frame, selectedEntity: this.selectedEntity, selectedObjectId: this.selectedObjectId, selectedObjectIds: [...(this.selectedObjectIds || [])], selectedKeyFrame: this.selectedKeyFrame, selectedKeyFrames: [...(this.selectedKeyFrames || [])], subSelection: this.subSelection }), restore: (snapshot) => this.restoreHistorySnapshot(snapshot) }), this.refreshCameraPreviews(), this.initializeTooltips(), this.bindEditorEvents(), this.bindWidgetCallbacks(), this.syncFromWidgets(), this.resizeCanvas(), this.render(), this.refreshKeys(), this.refreshObjects(), this.restoreAssets(), this.syncUpstreamInputs(), this.refreshSetupDiagnostic(),
       // Seed every frame-derived readout (timecode, lens millimetres, viewport
       // zoom, dope rows) instead of waiting for the first scrub.
       this.setFrame(this.frame, false, true);
@@ -242,6 +233,27 @@ class OmniCamDirectorUI {
     configureDirectorViewports(this);
     this.resizeCanvas(), this.render(), this.renderCameraView();
   }
+}
+// Canonical state, widgets and serialization live on DirectorRuntime (see
+// director/runtime.js); the UI aliases the fields below through accessors so
+// every existing `this.state`/`this.frame`/etc. read or write in this file
+// and in web-src/director/methods/* keeps working unchanged while actually
+// storing on the runtime instance. This is what lets director-api and the
+// Agent bridge mutate/serialize Director state without an open workbench
+// (migration plan Task 5).
+const RUNTIME_ALIASED_FIELDS = [
+  "state", "frame", "camera", "directorRevision", "renderRevision", "disposed",
+  "sceneBaseline", "sceneName",
+  "stateWidget", "recordingWidget", "cardWidget",
+  "widthWidget", "heightWidget", "fpsWidget", "durationWidget", "modeWidget",
+];
+for (const field of RUNTIME_ALIASED_FIELDS) {
+  Object.defineProperty(OmniCamDirectorUI.prototype, field, {
+    configurable: true,
+    enumerable: true,
+    get() { return this.runtime[field]; },
+    set(value) { this.runtime[field] = value; },
+  });
 }
 const directorDependencies = { app, api, EditorHistory, ContextMenuController, initializeTooltips, promptText, ObjectUrlRegistry, buildRoot, dispatchDirectorKey, activeCameraTrack, bindWidgetCallbacks, playblastCameraTrack, restoreFromWidgets, serializeEditorState, syncActiveCameraTrack, syncFromWidgets, bindEditorEvents, activateCamera, addCamera, deleteCamera, drawPreviewOverlays, duplicateCamera, maximizeCameraPreview, refreshCameraPreviews, refreshCameraSelectors, renameCamera, setPlayblastCamera, toggleCameraView, captureRealtime, makePlayblast, uploadDirectorPlayblast, waitForMediaFrame, computeAudioPeaks, loadAudioFile, releaseAudio, stopPlay, togglePlay, applyCameraPreset, applyCameraShake, applyProxyPreset, clearViewportBgImage, loadViewportBgFile, loadViewportBgSequence, drawCameraPath, drawCard, drawCube, drawCylinder, drawGrid, drawHuman, drawLine3D, drawNull, drawOverlays, drawPointField, drawSpeedHeatmap, drawSphere, drawTorus, curveChannels, drawCurveEditor, fitCurveView, onCurveDoubleClick, onCurvePointerDown, onCurvePointerMove, onCurvePointerUp, onTimelinePointerDown, onTimelinePointerMove, onTimelinePointerUp, refreshKeys, resetCurveZoom, resetTimelineZoom, setChannelFilter, setCurveInterpolation, setTangentMode, timelineFrameFromEvent, toggleCurveHandles, zoomCurve, drawTransformGizmo, frameTarget, gizmoAxes, gizmoGeometry, onPointerDown, onPointerMove, onPointerUp, onWheel, pickGizmo, pickSceneObject, resetCamera, setTransformMode, setViewMode, viewportCamera, loadCardFile, loadExecutionPreview, loadMediaUrl, loadModelFile, loadSelectedReference, onModelLoaded, restoreAssets, syncUpstreamInputs, configureDomMedia, refreshSetupDiagnostic, addMediaCard, addPrimitive, applyObjectAnimationFrame, beginCameraEdit, beginObjectEdit, commitCameraEdit, commitObjectEdit, copyKeyframe, deleteKeyframe, deleteObject, deleteSelectedObjects, duplicateObject, exitKeyEdit, finishCameraEdit, goToAdjacentKey, insertKeyframe, loadSelectedKeyView, pasteKeyframe, playblastCameraAtFrame, refreshInspector, refreshKeyEditor, refreshObjects, removeObjectResources, renameObject, retimeSelectedKey, selectKeyframe, selectedKeyframe, selectedObject, selectObjectAnimation, setKeyInterpolation, setKeyTangentMode, setObjectParent, timelineKeyframes, timelineObject, toggleAutoKey, toggleObject, updateCameraFromHud, updateCameraRotationFromHud, updateEditState, updateKeyVisualState, updateSelectedKey, updateSelectedObject, clamp, cloneCamera, configureCore, defaultCamera, sampleCamera, sampleObjectTransform, sanitizeState, worldTransform };
 Object.assign(
