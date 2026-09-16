@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>OmniCam WorkbenchHost test</title></head>
+  <body>
+    <div id="status">loading</div>
+    <script type="module">
+      import { WorkbenchHost } from "/web-src/workbench/host.js";
+
+      function contentRootWithTwoButtons() {
+        const root = document.createElement("div");
+        root.innerHTML = '<button id="first">first</button><button id="last">last</button>';
+        return root;
+      }
+
+      async function run() {
+        const result = {};
+
+        // --- mount() produces the documented dialog structure ---
+        let resizeCalls = 0;
+        let closeCalls = [];
+        const host = new WorkbenchHost({
+          kind: "director",
+          nodeId: 42,
+          title: "Scene 01",
+          onRequestClose: (reason) => { closeCalls.push(reason); return true; },
+          onResize: () => { resizeCalls++; },
+        });
+        host.mount(contentRootWithTwoButtons());
+
+        const backdrop = document.querySelector(".oc-workbench-backdrop");
+        result.backdropMounted = Boolean(backdrop);
+        result.role = backdrop?.getAttribute("role");
+        result.ariaModal = backdrop?.getAttribute("aria-modal");
+        result.hasAriaLabelledby = Boolean(backdrop?.getAttribute("aria-labelledby"));
+        result.titleText = backdrop?.querySelector(".oc-workbench-title")?.textContent;
+        result.contentHasButtons = backdrop?.querySelectorAll("button#first, button#last").length === 2;
+        result.mountedGetter = host.mounted;
+
+        // rAF-deferred initial resize call
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        result.resizeCalledOnMount = resizeCalls > 0;
+
+        // --- focus trap: Tab from the last focusable element (the content's
+        // own "last" button) wraps to the first focusable element in the
+        // dialog, which is the header's maximize button, not the content
+        // root's own "first" button. ---
+        document.getElementById("last").focus();
+        document.querySelector(".oc-workbench-window")
+          .dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+        result.tabWrapsToFirst = document.activeElement?.dataset.workbenchAct === "maximize";
+
+        // --- maximize toggles class and triggers resize ---
+        resizeCalls = 0;
+        host.setMaximized(true);
+        result.maximizedClassAdded = document.querySelector(".oc-workbench-window").classList.contains("is-maximized");
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        result.resizeCalledOnMaximize = resizeCalls > 0;
+
+        // --- requestClose(reason) refusal keeps the host mounted ---
+        const host2 = new WorkbenchHost({
+          kind: "extractor",
+          nodeId: 7,
+          title: "Track",
+          onRequestClose: () => false,
+        });
+        host2.mount(contentRootWithTwoButtons());
+        const stillOpen = await host2.requestClose("escape");
+        result.refusedCloseKeepsMounted = stillOpen === false && host2.mounted === true;
+        host2.dispose();
+
+        // --- Escape key routes through onRequestClose and disposes ---
+        result.escapeReason = null;
+        document.querySelector(".oc-workbench-window")
+          .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+        // requestClose is async; wait a tick.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        result.escapeReason = closeCalls.at(-1) ?? null;
+        result.disposedAfterEscape = !host.mounted;
+        result.backdropRemovedFromDom = !document.querySelector('[data-node-id="42"]');
+
+        // --- dispose() is idempotent ---
+        let threw = false;
+        try { host.dispose(); host.dispose(); } catch { threw = true; }
+        result.disposeIdempotent = !threw;
+
+        window.omnicamWorkbenchTest = result;
+        document.querySelector("#status").textContent = "ready";
+      }
+
+      run().catch((error) => {
+        window.omnicamWorkbenchTest = { error: String(error?.stack || error) };
+        document.querySelector("#status").textContent = "failed";
+      });
+    </script>
+  </body>
+</html>
