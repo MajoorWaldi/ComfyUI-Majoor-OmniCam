@@ -120,8 +120,12 @@ app.registerExtension({
     if (nodeClassOf(node) !== EXTRACTOR_NODE_CLASS) return;
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
-    await attachWhenLoaded(node, async () => (await import("./extractor/index.js")).attachExtractor);
-    if (!node.__majoorOmniCamExtractor) return;
+    // The compact shell is the only eagerly-loaded Extractor module: it mounts
+    // a status widget with an "OPEN EXTRACTOR" button and defers the full
+    // panel (web-src/extractor/index.js) to a dynamic import triggered by
+    // that button (migration plan Task 15).
+    await attachWhenLoaded(node, async () => (await import("./extractor/shell.js")).attachExtractorShell);
+    if (!node.__majoorOmniCamExtractorRuntime) return;
     applyNodeLayout(node, EXTRACTOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });

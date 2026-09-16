@@ -6,8 +6,6 @@ import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
 import { clearExtractorCache } from "./clear-cache.js";
 
-import { bindExtractorQueueEvents } from "./queue/events.js";
-import { cancelExtractorJob } from "./queue/execution.js";
 import { postRefine } from "./refine-client.js";
 import { adoptReconstructionIntoDownstreamDirectors } from "./director-link.js";
 import { ReconstructionPanelController } from "./reconstruction/panel.js";
@@ -18,16 +16,7 @@ import {
   syncPanelToNodeWidgets,
 } from "./queue/ui-bridge.js";
 import { RefineController } from "./refine-controls.js";
-import {
-  cacheExtractorResult,
-  cacheExtractorSource,
-  ensureCacheWidgets,
-  motionSceneFromTrack,
-  parseExtractorMessage,
-  readCachedResult,
-  restoreLateWidgetValues,
-  statusLine,
-} from "./result-cache.js";
+import { cacheExtractorResult, motionSceneFromTrack } from "./result-cache.js";
 import { FrameDiagnosticsStore } from "./diagnostics-store.js";
 import { FrameCoordinator } from "./frame-coordinator.js";
 import { ResultApplyError, applyRefinedTrack } from "./result-sync.js";
@@ -38,9 +27,7 @@ import { adoptExtractorSourceLength, describeExtractorSource, refreshExtractorSo
 import {
   appliedLabel,
   controlAvailability,
-  createExtractorState,
   progressLabel,
-  reduceExtractorState,
   statusLabel,
   statusTone,
 } from "./state.js";
@@ -57,8 +44,22 @@ function widget(node, name) {
   return node?.widgets?.find((item) => item.name === name) || null;
 }
 
+// Canonical solve/cache state, the queue-event binding and the state reducer
+// live on ExtractorRuntime (see extractor/runtime.js); the workbench aliases
+// the fields below through accessors so every existing `this.state`/
+// `this.queuePromptId`/etc. read or write in this file keeps working
+// unchanged while actually storing on the runtime instance. This is what
+// lets a queued TRACK/Reconstruct survive the workbench closing (migration
+// plan Task 13) -- only node removal (runtime.dispose()) cancels it.
+const RUNTIME_ALIASED_FIELDS = [
+  "state", "extractMode", "queuePromptId", "result", "rawSolve", "landmarks", "sourceKey",
+];
+
 export class ExtractorUI {
-  constructor(node) {
+  // `runtime` is the persistent ExtractorRuntime this workbench renders.
+  constructor(runtime) {
+    this.runtime = runtime;
+    const node = runtime.node;
     this.node = node;
     // The ComfyUI app object -- passed to confirmAction/promptText so the
     // dialog manager resolves even behind the bundle (see clear-cache.js).
@@ -66,15 +67,15 @@ export class ExtractorUI {
     // The ComfyUI api object -- queued-run cancellation talks to the Jobs API.
     this.api = api;
     this.root = buildExtractorRoot();
-    this.state = createExtractorState();
+    // Own instance field, deliberately not aliased to runtime.disposed: this
+    // guards workbench-local re-entrancy across a runtime that outlives many
+    // open/close cycles.
     this.disposed = false;
     this.events = new EventScope();
     // Requests belong to this panel. When the node is removed they are
     // cancelled, so a destroyed panel never reports its own teardown as a
     // network failure.
     this.requests = new RequestLifetime();
-    this.result = { raw: null, refined: null };
-    this.landmarks = [];
     this.diagnostics = new FrameDiagnosticsStore();
     this.upstreamPreviewActive = false;
     this.motionLimits = null;
@@ -82,7 +83,6 @@ export class ExtractorUI {
     // Cleanup-desk edits accumulate on the controller. A queued run reads them
     // off the node widgets (queue/widget-sync.js); after a solve, dragging a
     // slider re-derives the track live from the raw solve (requestRefine).
-    this.rawSolve = null;
     this.refine = new RefineController({ onRefine: (settings) => this.requestRefine(settings) });
     this.fallbackViewer = new FallbackFrameViewer(this.$("fallback-preview"), { api });
     this.sourceViewer = new SourceViewer(this.$("source-video"), {
@@ -116,19 +116,6 @@ export class ExtractorUI {
     this.viewer = null;
     this.viewerLoad = null;
 
-    // The queued path follows ComfyUI's native lifecycle. queuePromptId is the
-    // id this panel's TRACK / Reconstruct was accepted under (captured from the
-    // /prompt response) -- transient, never serialized.
-    this.queuePromptId = "";
-    this.unbindQueueEvents = bindExtractorQueueEvents(this, api);
-
-    // Read back whatever the workflow saved, rather than always booting into
-    // camera_track: the widget can carry "scene_reconstruct" from a previous
-    // save while this line ran unconditionally, leaving the visible UI on
-    // Camera Track even though the backend widget (and Director, on the next
-    // execution) would use Scene Reconstruct -- three different answers to
-    // "what mode is this node in" for the same node at the same moment.
-    this.extractMode = String(widget(this.node, "extract_mode")?.value || "camera_track");
     this.reconstruction = new ReconstructionPanelController({
       root: this.root,
       node: this.node,
@@ -167,7 +154,8 @@ export class ExtractorUI {
     this.bindControls();
     this.loadMotionLimits();
     this.refreshSource();
-    this.restoreCachedResult();
+    // The runtime already restored the cached result at construction; this.result
+    // reads through to it.
     this.render();
   }
 
@@ -177,10 +165,12 @@ export class ExtractorUI {
     return this.root.querySelector(`[data-role="${role}"]`);
   }
 
+  // Delegates to the runtime so a headless observer (the compact shell's
+  // statechange listener) is notified the same way whether the mutation came
+  // from an interactive control here or from a queue event while closed.
+  // ExtractorRuntime.dispatch() calls this.render() back via workbench?.render().
   dispatch(action) {
-    this.state = reduceExtractorState(this.state, action);
-    if (!this.disposed) this.render();
-    return this.state;
+    return this.runtime.dispatch(action);
   }
 
   async loadMotionLimits() {
@@ -341,42 +331,14 @@ export class ExtractorUI {
   }
 
   /**
-   * Adopt a solved track that arrived through the Extractor's queued
-   * executed() -> parseExtractorMessage() envelope. This is the only way a
-   * camera-track result reaches the panel now.
+   * Adopt a solved track. Canonical state/cache handling lives on
+   * ExtractorRuntime now (so it survives this workbench closing); the
+   * runtime pushes the result into this workbench's 3D viewer itself when
+   * one is attached (attachWorkbench/pushTracksToViewer), so this is a plain
+   * delegation kept for existing call sites (e.g. clear-cache tests).
    */
   acceptSolvedResult(result) {
-    const raw = result?.raw_track || result?.raw || result?.track || null;
-    const refined = result?.refined_track || result?.refined || result?.track || raw;
-    if (!refined?.keyframes?.length) return false;
-    const fingerprint = String(
-      result?.fingerprint || refined?.metadata?.extractor_fingerprint || "",
-    );
-    this.result = { raw: raw || refined, refined };
-    this.landmarks = Array.isArray(result?.landmarks_3d) ? result.landmarks_3d : [];
-    // The immutable raw solve, held in session so the cleanup sliders can
-    // re-derive a track without re-running TRACK.
-    this.rawSolve = result?.rawSolve || null;
-    this.dispatch({ type: "QUEUED_RESULT" });
-    this.dispatch({
-      type: "STATUS",
-      status: {
-        anomalies: result?.anomalies || [], state: "COMPLETED",
-        backend: refined?.metadata?.backend,
-      },
-    });
-    this.dispatch({ type: "REFINED", fingerprint });
-    this.pushTracksToViewer();
-    const confidence = Number(result?.confidence ?? refined?.metadata?.confidence) || 0;
-    // The hidden SCENE widget stores the motion_scene (readCachedResult lifts
-    // the track back out of it), so a queued solve survives workflow reload.
-    const motionScene = result?.motionScene || motionSceneFromTrack(refined);
-    cacheExtractorResult(this.node, { motionScene, fingerprint });
-    if (result?.source) cacheExtractorSource(this.node, result.source);
-    this.node.__majoorOmniCamStatus = statusLine({ track: refined, fingerprint, confidence });
-    this.dispatch({ type: "APPLIED", fingerprint });
-    if (result?.source) this.refreshSource();
-    return true;
+    return this.runtime.acceptSolvedResult(result);
   }
 
   /**
@@ -627,22 +589,11 @@ export class ExtractorUI {
 
   // -- lifecycle ---------------------------------------------------------
 
-  restoreCachedResult() {
-    const cached = readCachedResult(this.node);
-    if (!cached) return;
-    this.result = { raw: cached.track, refined: cached.track };
-    this.state = reduceExtractorState(this.state, { type: "APPLIED", fingerprint: cached.fingerprint });
-    this.state = reduceExtractorState(this.state, { type: "REFINED", fingerprint: cached.fingerprint });
-  }
-
+  // The runtime already restored the cache at construction; kept as a thin
+  // delegation for any external caller (tests) still simulating an execution
+  // through the workbench directly.
   executed(message) {
-    const result = parseExtractorMessage(message);
-    if (!result) return;
-    if (result.mode === "scene_reconstruct") {
-      this.reconstruction?.acceptQueuedResult(result);
-      return;
-    }
-    this.acceptSolvedResult(result);
+    return this.runtime.executed(message);
   }
 
   setExtractMode(mode) {
@@ -681,11 +632,10 @@ export class ExtractorUI {
     }
   }
 
+  // Visual/media disposal only. A queued solve outlives this workbench --
+  // closing it must not cancel the job (migration plan Task 13); only true
+  // node removal (ExtractorRuntime.dispose()) does that.
   dispose() {
-    // A queued solve outlives this panel: cancel it so a deleted node does not
-    // leave a job running on stale footage.
-    if (this.queuePromptId) void cancelExtractorJob(this.api, this.queuePromptId).catch(() => {});
-    this.unbindQueueEvents?.();
     this.reconstruction?.dispose();
     this.disposed = true;
     closeHelpPopup(); // body-level popup + capture keydown, else orphaned on graph clear
@@ -699,9 +649,47 @@ export class ExtractorUI {
     this.viewer = null;
     this.viewerLoad = null;
     this.events.dispose();
-    this.result = { raw: null, refined: null };
+    // Deliberately does not clear this.result: it aliases runtime.result,
+    // which must survive this workbench closing (migration plan Task 13) --
+    // only ExtractorRuntime.dispose() (node removal) tears down the solve.
   }
 }
 
-export { attachExtractor } from "./lifecycle.js";
+for (const field of RUNTIME_ALIASED_FIELDS) {
+  Object.defineProperty(ExtractorUI.prototype, field, {
+    configurable: true,
+    enumerable: true,
+    get() { return this.runtime[field]; },
+    set(value) { this.runtime[field] = value; },
+  });
+}
+
+/**
+ * Constructs the heavy visible panel (DOM, media, 3D viewer) against an
+ * existing, persistent ExtractorRuntime, and returns it. Called only from
+ * web-src/extractor/shell.js's Open handler -- the runtime itself and its
+ * queue-event binding are attached once, at shell-attach time, and outlive
+ * every open/close cycle this produces.
+ */
+export function openExtractorWorkbench(runtime) {
+  const ui = new ExtractorUI(runtime);
+  runtime.attachWorkbench(ui);
+  runtime.node.__majoorOmniCamExtractor = ui;
+  if (runtime.pendingSourceResync) {
+    runtime.pendingSourceResync = false;
+    ui.refreshSource();
+  }
+  return ui;
+}
+
+/**
+ * Disposes only the visual/media side of a workbench and detaches it from
+ * its runtime. Never cancels the queued solve or touches cached results --
+ * those belong to ExtractorRuntime and outlive this call.
+ */
+export function closeExtractorWorkbench(ui) {
+  ui.dispose();
+  ui.runtime.detachWorkbench(ui);
+  if (ui.node.__majoorOmniCamExtractor === ui) delete ui.node.__majoorOmniCamExtractor;
+}
 

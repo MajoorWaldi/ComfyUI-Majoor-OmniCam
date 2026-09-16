@@ -20,7 +20,7 @@ function inputNames(source) {
 
 test("main.js nodeCreated() mounts compact shells, not the full workbench UI, for Director", () => {
   const source = readSource("web-src/main.js");
-  assert.match(source, /from ["']\.\/director\/shell\.js["']/,
+  assert.match(source, /import\(["']\.\/director\/shell\.js["']\)/,
     "Director nodeCreated() must import the compact shell module (web-src/director/shell.js)");
   assert.doesNotMatch(source, /import\(["']\.\/director\.js["']\)/,
     "Director nodeCreated() must no longer dynamically import the full editor UI directly");
@@ -28,7 +28,7 @@ test("main.js nodeCreated() mounts compact shells, not the full workbench UI, fo
 
 test("main.js nodeCreated() mounts compact shells, not the full workbench UI, for Extractor", () => {
   const source = readSource("web-src/main.js");
-  assert.match(source, /from ["']\.\/extractor\/shell\.js["']/,
+  assert.match(source, /import\(["']\.\/extractor\/shell\.js["']\)/,
     "Extractor nodeCreated() must import the compact shell module (web-src/extractor/shell.js)");
   assert.doesNotMatch(source, /import\(["']\.\/extractor\/index\.js["']\)/,
     "Extractor nodeCreated() must no longer dynamically import the full editor UI directly");
