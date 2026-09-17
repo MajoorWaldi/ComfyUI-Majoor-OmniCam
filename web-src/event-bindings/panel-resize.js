@@ -9,6 +9,8 @@
 // applyPanelLayout() on load / widget sync.
 
 import { PANEL_LAYOUT, clamp } from "../director/core.js";
+import { maxSideColumnWidth } from "../director/panel-constraints.js";
+import { t } from "../i18n.js";
 
 /** Push ui.state.outliner_height / preview_width / side_width / graph_height onto ui.root as CSS vars. */
 export function applyPanelLayout(ui) {
@@ -50,11 +52,32 @@ export function applyPanelLayout(ui) {
   ui.root.style.setProperty("--oc-agent-h", `${Math.round(agentHeight)}px`);
 }
 
+// Director modal audit Lot 4: restore every resizable panel to its
+// PANEL_LAYOUT default in one action, for when accumulated drags (or an old
+// saved workflow with sizes that no longer fit) leave the layout awkward.
+export function resetPanelLayout(ui) {
+  ui.state.outliner_height = PANEL_LAYOUT.outlinerHeight.default;
+  ui.state.preview_width = PANEL_LAYOUT.previewWidth.default;
+  ui.state.side_width = PANEL_LAYOUT.sideWidth.default;
+  ui.state.left_width = PANEL_LAYOUT.leftWidth.default;
+  ui.state.graph_height = PANEL_LAYOUT.graphHeight.default;
+  ui.state.assets_height = PANEL_LAYOUT.assetsHeight.default;
+  ui.state.agent_height = PANEL_LAYOUT.agentHeight.default;
+  applyPanelLayout(ui);
+  ui.refreshCameraPreviews?.();
+  ui.refreshGraph?.();
+  ui.drawCurveEditor?.();
+  ui.scheduleResizeAndRender?.();
+  ui.refitNode?.();
+  ui.scheduleSerialize?.();
+  ui.setStatus?.(t("Layout reset to defaults"));
+}
+
 const HANDLES = {
   "outliner-resize": { axis: "y", direction: 1, stateKey: "outliner_height", bounds: PANEL_LAYOUT.outlinerHeight, cssVar: "--oc-outliner-h" },
   "preview-resize": { axis: "x", direction: 1, stateKey: "preview_width", bounds: PANEL_LAYOUT.previewWidth, cssVar: "--oc-preview-w" },
-  "side-resize": { axis: "x", direction: -1, stateKey: "side_width", bounds: PANEL_LAYOUT.sideWidth, cssVar: "--oc-side-w" },
-  "left-resize": { axis: "x", direction: 1, stateKey: "left_width", bounds: PANEL_LAYOUT.leftWidth, cssVar: "--oc-left-w" },
+  "side-resize": { axis: "x", direction: -1, stateKey: "side_width", bounds: PANEL_LAYOUT.sideWidth, cssVar: "--oc-side-w", neighborStateKey: "left_width" },
+  "left-resize": { axis: "x", direction: 1, stateKey: "left_width", bounds: PANEL_LAYOUT.leftWidth, cssVar: "--oc-left-w", neighborStateKey: "side_width" },
   "graph-resize": { axis: "y", direction: 1, stateKey: "graph_height", bounds: PANEL_LAYOUT.graphHeight, cssVar: "--oc-graph-h" },
   "assets-resize": { axis: "y", direction: 1, stateKey: "assets_height", bounds: PANEL_LAYOUT.assetsHeight, cssVar: "--oc-assets-h" },
   "agent-resize": { axis: "y", direction: 1, stateKey: "agent_height", bounds: PANEL_LAYOUT.agentHeight, cssVar: "--oc-agent-h" },
@@ -63,25 +86,39 @@ const HANDLES = {
 export function bindPanelResize(ui, signal) {
   applyPanelLayout(ui);
 
+  for (const btn of ui.root.querySelectorAll('[data-act="reset-layout"]')) {
+    btn.addEventListener("click", () => resetPanelLayout(ui), { signal });
+  }
+
   for (const [role, config] of Object.entries(HANDLES)) {
     const handle = ui.root.querySelector(`[data-role="${role}"]`);
     if (!handle) continue;
 
     const dir = config.direction ?? 1;
-    const raf = typeof globalThis.requestAnimationFrame === "function"
-      ? (fn) => globalThis.requestAnimationFrame(fn)
-      : (fn) => fn();
-    let refitQueued = false;
+    // Director modal audit Lot 4: the left and side columns share one row
+    // with the central stage (.oc-body: left | resize | stage | resize |
+    // side), so each one's own static PANEL_LAYOUT max isn't enough on a
+    // narrow window -- both columns near their max could squeeze the stage
+    // to nothing. maxSideColumnWidth (panel-constraints.js, unit-tested)
+    // factors in the OTHER column's current width and the container's total
+    // width to keep a usable minimum for the stage regardless.
+    const resolveMax = () => {
+      if (!config.neighborStateKey) return config.bounds.max;
+      const containerWidth = ui.root.querySelector(".oc-body")?.clientWidth;
+      const otherColumnWidth = Number(ui.state[config.neighborStateKey]) || 0;
+      return Math.max(config.bounds.min, maxSideColumnWidth({ containerWidth, otherColumnWidth, staticMax: config.bounds.max }));
+    };
+    // Director modal audit Lot 4: a live drag only needs to move the CSS var
+    // -- the box reflows synchronously from that alone. Anything downstream
+    // that cares about the new size (the viewport canvas) already has its own
+    // ResizeObserver on .viewport-wrap (editor-global.js), which the browser
+    // batches to once per frame on its own; no per-handle RAF queue or
+    // refitNode call is needed just to keep the drag smooth.
     const setLive = (value) => {
-      ui.root.style.setProperty(config.cssVar, `${Math.round(clamp(value, config.bounds.min, config.bounds.max))}px`);
-      // Keep the node growing under the pointer, not only on release, so the
-      // panel never spends the drag clipped -- but at most once per frame.
-      if (refitQueued) return;
-      refitQueued = true;
-      raf(() => { refitQueued = false; ui.refitNode?.(); });
+      ui.root.style.setProperty(config.cssVar, `${Math.round(clamp(value, config.bounds.min, resolveMax()))}px`);
     };
     const commit = (value) => {
-      const next = Math.round(clamp(value, config.bounds.min, config.bounds.max));
+      const next = Math.round(clamp(value, config.bounds.min, resolveMax()));
       ui.state[config.stateKey] = next;
       setLive(next);
       // A wider/narrower preview column re-fits the WebGL preview tiles.

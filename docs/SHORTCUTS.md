@@ -192,6 +192,9 @@ unsnaps immediately, without needing to restart the drag.
 `Home` / `End` select the **first / last keyframe** in the timeline and graph
 zones. In the sequence editor they jump to frame 0 / the last frame instead.
 
+The undo/redo stack survives closing and reopening the editor within the same
+session — only removing the node or reloading the workflow clears it.
+
 Playback in / out points are set with the two range buttons in the transport
 bar (`web-src/event-bindings/transport-media.js`); there is no keyboard
 shortcut for them.
@@ -257,11 +260,15 @@ is a dimmed dot. It is an SVG overlay, not a WebGL pass, so it never appears in
 the playblast, which stays a neutral motion reference.
 
 Two panels resize by drag: the handle under the **Outliner** list grows the
-visible object list (the node grows with it), and the splitter between the
-**camera previews** and the **timeline** trades width between them. Both are
-`role="separator"` and keyboard-operable — arrow keys nudge, `Shift`+arrow
-takes a larger step, `Home` or a double-click resets. The sizes serialize with
-the workflow (`outliner_height`, `preview_width`).
+visible object list, and the splitter between the **camera previews** and the
+**timeline** trades width between them. Both are `role="separator"` and
+keyboard-operable — arrow keys nudge, `Shift`+arrow takes a larger step,
+`Home` or a double-click resets. The sizes serialize with the workflow
+(`outliner_height`, `preview_width`).
+
+A scene with more than six visible cameras shows the playblast and active
+cameras plus enough others to fill six tiles, folding the rest behind a
+"+N more" tile — mute or solo cameras to change which ones are shown.
 
 ## Mini-radar
 
@@ -363,6 +370,13 @@ The Outliner quick-bar, toolbar, and viewport right-click menu provide instant o
   - Drag the horizontal bar below the scene tree to resize the visible list.
 - **Camera Previews Width Resize (`preview-resize`)**:
   - Drag the vertical splitter between camera previews and the timeline transport.
+- **Left/Side Panel Width Resize (`left-resize`, `side-resize`)**:
+  - Each is bounded not only by its own min/max but by the other column's
+    current width, so growing both toward their maximums on a narrow window
+    can never squeeze the central viewport away entirely.
+- **Reset Layout**: *View menu → Reset Layout* restores every resizable panel
+  (Outliner, Camera Previews, Side Panel, Left Panel, Graph Editor, Assets,
+  Agent) to its default size in one action.
 - **Tab & Panel Navigation**:
   - `ArrowLeft` / `ArrowRight` inside the tab strip (`.oc-side-tabs`) cycles between Outliner, Motion, Inspector, Shot, and Health tabs.
   - `ArrowLeft` / `ArrowRight` inside graph tabs cycles between Curves, Dope Sheet, and Sequence.

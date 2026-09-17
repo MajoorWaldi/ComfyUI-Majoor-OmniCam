@@ -81,6 +81,22 @@ export function createEditorMethods(dependencies) {
   restoreFromWidgets() {
     restoreFromWidgets(this);
   },
+  // Director modal audit Lot 5: extracted from the old inline `capture`
+  // closure passed to `new EditorHistory(...)` in director.js, so the
+  // persistent runtime (which now owns the EditorHistory instance -- see
+  // DirectorRuntime.history) can call it whenever a workbench is attached.
+  captureHistorySnapshot() {
+    return JSON.stringify({
+      state: this.state,
+      frame: this.frame,
+      selectedEntity: this.selectedEntity,
+      selectedObjectId: this.selectedObjectId,
+      selectedObjectIds: [...(this.selectedObjectIds || [])],
+      selectedKeyFrame: this.selectedKeyFrame,
+      selectedKeyFrames: [...(this.selectedKeyFrames || [])],
+      subSelection: this.subSelection,
+    });
+  },
   restoreHistorySnapshot(snapshot) {
     const value = JSON.parse(snapshot);
     this.keyDrag?.badge?.remove?.();
@@ -726,16 +742,28 @@ export function createEditorMethods(dependencies) {
   // ComfyUI only re-reads that on a layout pass -- so a resizable panel that
   // just grew (the Outliner list, the camera-preview strip) needs to ask for
   // one explicitly or the node clips the taller content behind a scrollbar.
+  //
+  // Director's heavy editor only ever mounts inside the body-level
+  // WorkbenchHost modal now (Director modal audit Lot 1+); growing the
+  // underlying graph node while hosted there is a pure side effect -- the
+  // modal's own box is independent of node.size, and doing it anyway used to
+  // silently resize the saved node just from dragging an internal splitter.
+  // Skip that part there; the .viewport-wrap ResizeObserver set up in
+  // bindEditorEvents (editor-global.js) already covers the actual job
+  // (repainting the viewport/canvas at its new size) for both paths without
+  // touching node geometry (Director modal audit Lot 4).
   refitNode() {
     if (this.disposed) return;
     const node = this.node;
-    try {
-      if (node && typeof node.computeSize === "function" && typeof node.setSize === "function") {
-        const size = node.computeSize();
-        if (Array.isArray(size)) node.setSize([node.size?.[0] ?? size[0], size[1]]);
-      }
-      node?.graph?.setDirtyCanvas?.(true, true);
-    } catch (_) {}
+    if (!this.root?.closest?.(".oc-workbench-content")) {
+      try {
+        if (node && typeof node.computeSize === "function" && typeof node.setSize === "function") {
+          const size = node.computeSize();
+          if (Array.isArray(size)) node.setSize([node.size?.[0] ?? size[0], size[1]]);
+        }
+        node?.graph?.setDirtyCanvas?.(true, true);
+      } catch (_) {}
+    }
     this.scheduleResizeAndRender();
   },
   resizeCanvas() {

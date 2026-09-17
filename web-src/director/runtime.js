@@ -11,8 +11,9 @@
 // the current always-mounted UI and any future headless caller (director-api,
 // the Agent bridge, a closed compact shell).
 
-import { sampleCamera, sanitizeState } from "./core.js";
+import { clamp, sampleCamera, sanitizeState } from "./core.js";
 import { serializeEditorState } from "../state-sync.js";
+import { EditorHistory } from "./history.js";
 
 function findWidget(node, name) {
   return node.widgets?.find((widget) => widget.name === name) ?? null;
@@ -66,6 +67,25 @@ export class DirectorRuntime extends EventTarget {
     this.camera = sampleCamera(this.state, 0);
     this.directorRevision = 0;
     this.renderRevision = 0;
+    // Director modal audit Lot 5: owned here (not by the transient workbench)
+    // so the undo/redo stack survives a close+reopen within the same node
+    // session -- previously a fresh, empty EditorHistory was created every
+    // time a workbench mounted, silently dropping the whole undo stack even
+    // though the document itself (this.state) was already preserved. Capture/
+    // restore delegate to whichever workbench is currently attached (the rich
+    // path: it also needs to reconcile transient drag/WebGL state and refresh
+    // the DOM) and fall back to a state-only snapshot headlessly, matching the
+    // existing no-op-headlessly policy documented on checkpoint() below.
+    this.history = new EditorHistory({
+      capture: () => this.workbench?.captureHistorySnapshot?.() ?? JSON.stringify({ state: this.state, frame: this.frame }),
+      restore: (snapshot) => {
+        if (this.workbench) return this.workbench.restoreHistorySnapshot(snapshot);
+        const value = JSON.parse(snapshot);
+        this.state = sanitizeState(value.state);
+        this.frame = clamp(value.frame, 0, this.state.duration_frames - 1);
+        this.camera = sampleCamera(this.state, this.frame);
+      },
+    });
   }
 
   /** Small summary for the compact node shell; never a second source of truth. */

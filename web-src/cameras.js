@@ -119,6 +119,25 @@ export function visibleCameraTracks(ui) {
   return pool.length ? pool : cameras;
 }
 
+// Director modal audit Lot 3: the preview strip used to render one tile per
+// visible camera with no ceiling, relying only on the bounded dock's scroll
+// (Lot 1) to contain it -- a scene with many cameras still grew the strip's
+// own content indefinitely. Cap it to a limited grid instead, always keeping
+// the playblast and active cameras (the two a user is actually watching)
+// visible, and fold the rest behind a count so the tile grid itself never
+// grows past a fixed ceiling.
+const MAX_PREVIEW_TILES = 6;
+
+export function boundedPreviewTracks(ui) {
+  const all = visibleCameraTracks(ui);
+  if (all.length <= MAX_PREVIEW_TILES) return { tracks: all, overflow: 0 };
+  const priority = new Set([ui.state.playblast_camera_id, ui.state.active_camera_id].filter(Boolean));
+  const prioritized = all.filter((camera) => priority.has(camera.id));
+  const rest = all.filter((camera) => !priority.has(camera.id));
+  const tracks = [...prioritized, ...rest].slice(0, MAX_PREVIEW_TILES);
+  return { tracks, overflow: all.length - tracks.length };
+}
+
 export function refreshCameraPreviews(ui) {
   const strip = ui.root.querySelector('[data-role="camera-previews"]');
   if (!strip) return;
@@ -131,8 +150,8 @@ export function refreshCameraPreviews(ui) {
   if (aspectChanged) strip.style.setProperty("--shot-aspect", shotAspect);
   const row = ui.root.querySelector('[data-role="camera-view-row"]');
   if (row) row.classList.toggle("maximized", Boolean(ui.state.maximized_camera_id));
-  const visible = visibleCameraTracks(ui);
-  const signature = visible.map((camera) => `${camera.id}:${camera.name}:${camera.muted ? 1 : 0}:${camera.solo ? 1 : 0}:${camera.color || ""}`).join("|");
+  const { tracks: visible, overflow } = boundedPreviewTracks(ui);
+  const signature = `${visible.map((camera) => `${camera.id}:${camera.name}:${camera.muted ? 1 : 0}:${camera.solo ? 1 : 0}:${camera.color || ""}`).join("|")}#${overflow}`;
   let rebuilt = false;
   if (signature !== ui.cameraPreviewSignature) {
     rebuilt = true;
@@ -185,6 +204,13 @@ export function refreshCameraPreviews(ui) {
       ui.cameraPreviewCanvases.set(camera.id, canvas);
       ui.cameraPreviewContexts.set(camera.id, canvas.getContext("2d", { alpha: false }));
     });
+    if (overflow > 0) {
+      const more = document.createElement("div");
+      more.className = "camera-preview-tile camera-preview-overflow";
+      more.textContent = t("+{count} more").replace("{count}", String(overflow));
+      more.title = t("Mute or solo cameras to change which previews show here");
+      strip.appendChild(more);
+    }
   }
   for (const tile of strip.querySelectorAll(".camera-preview-tile")) {
     tile.classList.toggle("playblast", tile.dataset.cameraId === ui.state.playblast_camera_id);

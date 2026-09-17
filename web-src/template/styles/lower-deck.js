@@ -10,16 +10,19 @@ export const LOWER_DECK_STYLES = `
          overflow:auto grid track gets its row shrunk below its own computed
          height in Chromium/Edge, so consecutive tiles drew on top of each
          other and no camera framed correctly. A flex column with flex:0 0 auto
-         tiles simply stacks -- each tile keeps its full aspect height and the
-         strip grows to fit (the node grows with it), so every camera view is
-         whole. The strip is no longer capped: widening the column via the
-         splitter is meant to enlarge the previews. */
+         tiles simply stacks -- each tile keeps its full aspect height. Widening
+         the column via the splitter is meant to enlarge the previews. The tile
+         *count* is capped instead (boundedPreviewTracks in cameras.js, Director
+         modal audit Lot 3): a scene with many cameras folds the rest behind a
+         "+N more" tile rather than growing the strip's own content further --
+         the shared .oc-dock (Lot 1) still scrolls the overall column either way. */
       .majoor-omnicam .oc-preview .camera-preview-strip{display:flex;flex-direction:column;flex-wrap:nowrap;gap:6px;max-height:none;overflow:visible;padding:0;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-preview .camera-preview-strip:empty{min-height:120px}
       /* A preview whose box is not the shot's shape shows a framing the render
          will not produce. The tile takes the shot aspect; --shot-aspect is set
          from state.width/height in refreshCameraPreviews(). */
       .majoor-omnicam .oc-preview .camera-preview-tile{flex:0 0 auto;width:100%;height:auto;min-height:0;aspect-ratio:var(--shot-aspect,16/9)}
+      .majoor-omnicam .oc-preview .camera-preview-tile.camera-preview-overflow{display:grid;place-items:center;aspect-ratio:auto;min-height:32px;color:var(--oc-text-dim);font-size:11px;background:var(--oc-panel-2);border:1px dashed var(--oc-line)}
       .majoor-omnicam .oc-preview .camera-preview-head{min-height:0;padding:2px 5px;font-size:9.5px}
       /* The sidebar tile is ~120px tall; the badge repeats what the header
          already says and only collides with the tile edge at this size. */

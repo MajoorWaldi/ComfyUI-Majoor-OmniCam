@@ -124,6 +124,8 @@ function viewTab() {
       <label>${t("Point color")} <input data-role="point-color" type="color" value="#cbd5e1"></label>
       <label>${t("Card fit")} <select data-role="card-fit"><option value="contain">${t("Fit")}</option><option value="cover">${t("Fill")}</option><option value="stretch">${t("Stretch")}</option></select></label>
       <label>${t("Interface")} <select data-role="ui-density"><option value="basic">${t("Basic")}</option><option value="animation">${t("Animation")}</option><option value="advanced" selected>${t("Advanced")}</option></select></label>
+      <div class="menu-divider"></div>
+      <button data-act="reset-layout" title="${t("Restore every resizable panel to its default size")}"><i class="pi pi-table"></i> ${t("Reset Layout")}</button>
     </div></details>`;
 }
 

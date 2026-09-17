@@ -148,3 +148,74 @@ test("dispose() is idempotent and cancels any pending scheduled serialize", () =
     assert.equal(runtime.disposed, true);
   });
 });
+
+// Director modal audit Lot 5: the undo/redo stack lives on the runtime, not
+// the transient workbench, so it survives a close+reopen of the editor
+// within the same node session -- previously a fresh, empty EditorHistory was
+// created every time a workbench mounted.
+
+function fakeWorkbench(runtime) {
+  // Mimics the UI-side capture/restore contract (director/methods/editor.js):
+  // capture reads whatever the "workbench" considers its live state, restore
+  // writes it back and is the only place selection/UI-only fields round-trip.
+  const wb = {
+    selection: null,
+    captureHistorySnapshot() {
+      return JSON.stringify({ state: runtime.state, frame: runtime.frame, selection: wb.selection });
+    },
+    restoreHistorySnapshot(snapshot) {
+      const value = JSON.parse(snapshot);
+      runtime.state = value.state;
+      runtime.frame = value.frame;
+      wb.selection = value.selection;
+    },
+  };
+  return wb;
+}
+
+test("the undo stack survives detaching one workbench and attaching a new one (close/reopen)", () => {
+  const runtime = new DirectorRuntime(fakeNode(), {});
+  const historyBeforeReopen = runtime.history;
+
+  const first = fakeWorkbench(runtime);
+  runtime.attachWorkbench(first);
+  first.selection = "camera_1";
+  // checkpoint() captures the PRE-mutation state, matching real call sites
+  // (e.g. motion-presets.js: ui.checkpoint(...) always precedes the mutation).
+  runtime.history.checkpoint("Change fps to 30");
+  runtime.state = { ...runtime.state, fps: 30 };
+  first.selection = "camera_2";
+
+  runtime.detachWorkbench(first);
+  assert.equal(runtime.history, historyBeforeReopen, "same EditorHistory instance, not recreated");
+  assert.equal(runtime.history.canUndo, true, "undo stack is not cleared on detach");
+
+  // A brand new workbench instance attaches, as a real close/reopen would.
+  const second = fakeWorkbench(runtime);
+  runtime.attachWorkbench(second);
+  const label = runtime.history.undo();
+  assert.equal(label, "Change fps to 30");
+  assert.equal(runtime.state.fps, 24, "state rolled back via the NEW workbench's restoreHistorySnapshot");
+  assert.equal(second.selection, "camera_1", "the new workbench receives the restored pre-edit selection too");
+});
+
+test("checkpoint/undo still no-op headlessly (no workbench attached), matching the existing documented policy", () => {
+  const runtime = new DirectorRuntime(fakeNode(), {});
+  runtime.checkpoint("Change fps to 30");
+  runtime.state = { ...runtime.state, fps: 30 };
+  assert.equal(runtime.history.canUndo, false, "checkpoint() forwards to the workbench only; no-op with none attached");
+});
+
+test("history.capture/restore fall back to a state-only snapshot when called with no workbench attached", () => {
+  const runtime = new DirectorRuntime(fakeNode(), {});
+  // Bypass checkpoint()'s workbench-only forwarding to exercise the
+  // EditorHistory instance directly, as a headless director-api transaction
+  // could reasonably choose to in the future.
+  runtime.history.checkpoint("Change fps to 30 (headless)");
+  runtime.state = { ...runtime.state, fps: 30 };
+  runtime.history.checkpoint("Change fps to 60 (headless)");
+  runtime.state = { ...runtime.state, fps: 60 };
+  const label = runtime.history.undo();
+  assert.equal(label, "Change fps to 60 (headless)");
+  assert.equal(runtime.state.fps, 30, "restored purely from state, with no workbench to delegate to");
+});
