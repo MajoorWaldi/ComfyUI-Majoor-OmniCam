@@ -6,7 +6,6 @@ import { timelinePercentForFrame } from "./timeline-interaction.js";
 import { renderDopeRows } from "./dope-sheet-view.js";
 import { renderRuler } from "./timeline/ruler.js";
 import { renderChannelList } from "./curve-editor/channel-list.js";
-import { renderGraphDopeSheet } from "./curve-editor/dope-view.js";
 import { refreshGraphTab } from "./curve-editor/tabs.js";
 import { renderHealthZones } from "./motion-health/panel.js";
 import { renderSolveHealthStrip } from "./scene/solve-health-strip.js";
@@ -208,7 +207,6 @@ export function refreshKeys(ui) {
   renderRuler(ui);
   renderDopeRows(ui);
   renderChannelList(ui);
-  renderGraphDopeSheet(ui);
   refreshGraphTab(ui);
   ui.refreshCameraSelectors();
   ui.refreshKeyEditor();

@@ -20,12 +20,10 @@ export const SHELL_STYLES = `
       .majoor-omnicam.oc-director>.top,
       .majoor-omnicam.oc-director>.oc-footer{flex:0 0 auto}
       .majoor-omnicam.oc-director>.oc-body{flex:1 1 auto;min-height:0}
-      /* The dope sheet (.oc-lower) and curve editor (.oc-graph) are still two
-         independent stacked blocks today -- unifying them into one
-         mode-switching dock (so only one is visible at a time) is Lot 3's
-         job, not this pass's. Until then, give the pair a generous but real
-         ceiling and let the pair scroll together as one region rather than
-         letting their sum push the workbench root past its own bounds. */
+      /* .oc-dock now holds a single child, .oc-lower: the camera preview and
+         Timeline/Graph/Sequence (unified as tabs of one block, Director modal
+         audit Lot 3) share this one bounded region instead of stacking as two
+         independent blocks. */
       /* 45% left the viewport disproportionately squeezed in several 3D
          interaction tests (curve-canvas drag, orthographic raycasting) --
          the audit's own budget table targets ~26% (160-300px) for this dock;
@@ -33,8 +31,7 @@ export const SHELL_STYLES = `
          while still flooring/ceiling it in absolute px for very small/large
          windows. */
       .majoor-omnicam.oc-director>.oc-dock{flex:0 1 auto;max-height:clamp(160px,30%,320px);display:flex;flex-direction:column;min-height:0;overflow-y:auto}
-      .majoor-omnicam.oc-director>.oc-dock>.oc-lower,
-      .majoor-omnicam.oc-director>.oc-dock>.oc-graph{flex:0 0 auto}
+      .majoor-omnicam.oc-director>.oc-dock>.oc-lower{flex:0 0 auto}
 
       /* ---- header --------------------------------------------------- */
       .majoor-omnicam .oc-header-spacer,.majoor-omnicam .oc-toolbar-spacer,.majoor-omnicam .oc-transport-spacer,.majoor-omnicam .oc-footer-spacer,.majoor-omnicam .oc-graph-spacer{flex:1 1 auto;min-width:0}
@@ -97,7 +94,7 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-left .oc-agent-plan-list{max-height:var(--oc-agent-h,220px);min-height:60px;overflow-y:auto}
       .majoor-omnicam .oc-body .viewport-wrap{border-radius:var(--oc-radius);overflow:hidden;box-shadow:none;border:1px solid var(--oc-line)}
       /* Fullscreen keeps the full DCC shell: Scene | Viewport | Inspector + deck. */
-      .majoor-omnicam.oc-fullscreen .oc-lower,.majoor-omnicam.oc-fullscreen .oc-graph{display:block}
+      .majoor-omnicam.oc-fullscreen .oc-lower{display:block}
 
       /* ---- viewport chrome ------------------------------------------ */
       /* Reserve the right-hand strip for .vp-corner so the pills never slide

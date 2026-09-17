@@ -31,13 +31,17 @@ function withMockElement(fn) {
   try { return fn(); } finally { globalThis.HTMLElement = Previous; }
 }
 
-test("resolveZone maps a target to its panel, sequence winning over the graph it sits in", () => {
+test("resolveZone maps a target to its panel, sequence and the dope sheet winning over the graph they sit in", () => {
   withMockElement(() => {
     assert.equal(resolveZone(el(["viewport-wrap"])), "viewport");
     assert.equal(resolveZone(el(["oc-timeline"])), "timeline");
-    assert.equal(resolveZone(el(["oc-graph"])), "graph");
-    // The sequence stage lives inside .oc-graph; it must still resolve to sequence.
-    assert.equal(resolveZone(el(["oc-graph"], "graph-sequence")), "sequence");
+    assert.equal(resolveZone(el(["curve-editor"])), "graph");
+    // The sequence stage lives inside .curve-editor; it must still resolve to
+    // sequence (Director modal audit Lot 3: Timeline/Graph/Sequence share one
+    // block, so the more specific stages need to be checked first).
+    assert.equal(resolveZone(el(["curve-editor"], "graph-sequence")), "sequence");
+    // Likewise the dope sheet (Timeline tab) also lives inside .curve-editor.
+    assert.equal(resolveZone(el(["curve-editor"], "dope-stage")), "timeline");
     assert.equal(resolveZone(el(["oc-side"])), null);
   });
 });

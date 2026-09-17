@@ -10,7 +10,6 @@ import { onTimelineWheel } from "../timeline-interaction.js";
 import { bindRulerScrub } from "../timeline/ruler.js";
 import { bindGraphTabs } from "../curve-editor/tabs.js";
 import { renderChannelList } from "../curve-editor/channel-list.js";
-import { renderGraphDopeSheet } from "../curve-editor/dope-view.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { parseTagInput, sanitizeAnnotation } from "../assets/labels.js";
@@ -122,7 +121,6 @@ export function bindEditorAndGlobal(ui, q, signal) {
     ui.setChannelFilter("all");
     renderChannelList(ui);
     ui.drawCurveEditor();
-    renderGraphDopeSheet(ui);
   }, { signal });
   q('[data-act="curve-handles"]')?.addEventListener("click", () => ui.toggleCurveHandles(), { signal });
   for (const button of ui.root.querySelectorAll("[data-curve-mode]")) {

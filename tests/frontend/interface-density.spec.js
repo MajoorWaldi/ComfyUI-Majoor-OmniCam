@@ -98,15 +98,21 @@ test("Output menu: proxy preset settings need Animation, Clear Caches needs Adva
   });
 });
 
-test("basic hides the animation curve editor and its toggle", async ({ page }) => {
+test("basic hides the Graph/Sequence tabs and the curve toolbar, keeping only Timeline", async ({ page }) => {
   await mount(page);
   await setDensity(page, "basic");
-  await expect(page.locator(".oc-graph")).toBeHidden();
-  await expect(page.locator('[data-act="toggle-graph"]')).toBeHidden();
+  await expect(page.locator('[data-graph-tab="curves"]')).toBeHidden();
+  await expect(page.locator('[data-graph-tab="sequence"]')).toBeHidden();
+  await expect(page.locator('[data-graph-tab="dope"]')).toBeVisible();
+  await expect(page.locator(".oc-graph-toolbar")).toBeHidden();
 
   await setDensity(page, "animation");
-  await expect(page.locator(".oc-graph")).toBeVisible();
-  await expect(page.locator('[data-act="toggle-graph"]')).toBeVisible();
+  await expect(page.locator('[data-graph-tab="curves"]')).toBeVisible();
+  await expect(page.locator('[data-graph-tab="sequence"]')).toBeVisible();
+  // The toolbar only shows next to the curve canvas itself (Director modal
+  // audit Lot 3: Timeline is the default tab), so switch to it first.
+  await page.locator('[data-graph-tab="curves"]').click();
+  await expect(page.locator(".oc-graph-toolbar")).toBeVisible();
 });
 
 test("basic hides vertex/edge/face selection and the Health tab; advanced restores them", async ({ page }) => {

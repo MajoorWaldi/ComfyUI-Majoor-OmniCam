@@ -135,15 +135,13 @@ test("every non-destructive Director control changes observable state", async ({
   await root.locator('[data-act="toggle-fullscreen"]').click();
   await expect(root).not.toHaveClass(/oc-fullscreen/);
 
-  // The lower-deck curve editor is a plain <section> now, not a <details>
-  // (web-src/event-bindings/director-chrome.js) -- toggle-graph flips an
-  // "oc-graph-collapsed" class instead of the (nonexistent) `.open`
-  // property. Unrelated to the workbench migration.
-  const graph = root.locator(".curve-editor");
-  const wasCollapsed = await graph.evaluate((el) => el.classList.contains("oc-graph-collapsed"));
-  await root.locator('[data-act="toggle-graph"]').click();
-  expect(await graph.evaluate((el) => el.classList.contains("oc-graph-collapsed"))).toBe(!wasCollapsed);
-  await root.locator('[data-act="toggle-graph"]').click();
+  // Timeline/Graph/Sequence are tabs of one block with the player now
+  // (Director modal audit Lot 3), not a separate collapsible section.
+  await root.locator('[data-graph-tab="curves"]').click();
+  await expect(root.locator('[data-role="curve-canvas"]')).toBeVisible();
+  await expect(root.locator('[data-role="dope-stage"]')).toBeHidden();
+  await root.locator('[data-graph-tab="dope"]').click();
+  await expect(root.locator('[data-role="dope-stage"]')).toBeVisible();
 
   // --- dope sheet channels --------------------------------------------------
   const rowCount = () => root.locator(".oc-dope-row").count();

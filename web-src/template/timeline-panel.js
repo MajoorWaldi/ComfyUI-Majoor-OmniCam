@@ -41,7 +41,6 @@ function transportBar() {
         <button class="icon-button primary-key oc-key" data-act="key" title="${t("Insert / Update Keyframe at Playhead (I)")}" aria-label="${t("Insert or update key")}"><span class="oc-diamond"></span> ${t("Key")}</button>
         <button class="icon-button auto-key-btn" data-act="auto-key" title="${t("Auto-Key: Records moves live while scrubbing/navigating")}" aria-label="${t("Toggle Auto Key")}" aria-pressed="false"><i class="pi pi-circle-fill"></i></button>
       </div>
-      <button class="icon-button" data-act="toggle-graph" data-density-min="animation" title="${t("Open or close the animation curve editor")}"><i class="pi pi-chart-line"></i></button>
       <label class="oc-fps">${t("FPS")} <input data-role="timeline-fps" type="number" min="1" max="120" step="1" value="24"></label>
 
       <details class="toolbar-menu oc-overflow" data-menu="timeline">
@@ -88,72 +87,75 @@ function dopeSheet() {
     </div>`;
 }
 
-function graphEditor() {
+// Director modal audit Lot 3: Timeline (the dope sheet), Graph (the curve
+// editor) and Sequence used to be two separate stacked blocks (.oc-lower
+// always visible, a second .oc-graph section below it with its own internal
+// Timeline/Graph/Sequence tabs re-deriving a SECOND, click-only, per-channel
+// dope view). They're unified here into one tab strip sharing the same block
+// as the camera preview ("player"): the fully-interactive dope sheet above
+// (drag/retime/scrub/box-select, already wired in event-bindings/
+// editor-global.js) is now the ONLY dope sheet, serving as the Timeline tab's
+// content -- curve-editor/dope-view.js's parallel per-channel render is
+// retired. Transport + solve-health stay outside the tab body so they're
+// visible no matter which mode is active.
+function modeTabs() {
   return `
-    <section class="curve-editor oc-graph" data-density-min="animation">
-      <div class="oc-graph-head">
-        <span class="oc-graph-tabs" data-role="graph-tabs">
-          <button class="oc-graph-tab" data-graph-tab="dope" aria-pressed="false" title="${t("Per-channel keyframe sheet")}">${t("Timeline")}</button>
-          <button class="oc-graph-tab active" data-graph-tab="curves" aria-pressed="true" title="${t("Edit animation curves")}"><strong>${t("Graph")}</strong></button>
-          <button class="oc-graph-tab" data-graph-tab="sequence" aria-pressed="false" title="${t("Cut the timeline into shots, one camera per range")}">${t("Sequence")}</button>
-        </span>
-        <span class="hint">${t("MMB/Alt-drag: Pan · Scroll: Zoom · Box Select: Drag · Drag Point: Retime/Value · Right-click: Menu")}</span>
+    <div class="oc-graph-head">
+      <span class="oc-graph-tabs" data-role="graph-tabs">
+        <button class="oc-graph-tab active" data-graph-tab="dope" aria-pressed="true" title="${t("Per-object/camera keyframe sheet")}">${t("Timeline")}</button>
+        <button class="oc-graph-tab" data-graph-tab="curves" aria-pressed="false" data-density-min="animation" title="${t("Edit animation curves")}"><strong>${t("Graph")}</strong></button>
+        <button class="oc-graph-tab" data-graph-tab="sequence" aria-pressed="false" data-density-min="animation" title="${t("Cut the timeline into shots, one camera per range")}">${t("Sequence")}</button>
+      </span>
+      <span class="hint">${t("MMB/Alt-drag: Pan · Scroll: Zoom · Box Select: Drag · Drag Point: Retime/Value · Right-click: Menu")}</span>
+    </div>`;
+}
+
+function curveToolbar() {
+  return `
+    <div class="curve-toolbar oc-graph-toolbar" data-role="graph-toolbar" data-density-min="animation" hidden>
+      <select data-role="curve-group" title="${t("Choose the animated channels displayed in the graph")}">
+        <option value="camera">${t("Camera (Position, Focal, Roll)")}</option>
+        <option value="position">${t("Position XYZ")}</option>
+        <option value="target">${t("Target XYZ")}</option>
+        <option value="lens">${t("FOV / Roll / Zoom")}</option>
+      </select>
+      <span class="oc-graph-spacer"></span>
+      <div class="oc-graph-modes" data-role="curve-modes">
+        <button class="curve-mode" data-tangent-mode="auto" title="${t("Automatic smooth tangents")}">${t("Auto")}</button>
+        <button class="curve-mode" data-curve-mode="smooth" title="${t("Smooth interpolation after the selected key")}">${t("Smooth")}</button>
+        <button class="curve-mode" data-curve-mode="linear" title="${t("Straight interpolation after the selected key")}">${t("Linear")}</button>
       </div>
-      <div class="curve-toolbar oc-graph-toolbar">
-        <select data-role="curve-group" title="${t("Choose the animated channels displayed in the graph")}">
-          <option value="camera">${t("Camera (Position, Focal, Roll)")}</option>
-          <option value="position">${t("Position XYZ")}</option>
-          <option value="target">${t("Target XYZ")}</option>
-          <option value="lens">${t("FOV / Roll / Zoom")}</option>
-        </select>
-        <span class="oc-graph-spacer"></span>
-        <div class="oc-graph-modes" data-role="curve-modes">
-          <button class="curve-mode" data-tangent-mode="auto" title="${t("Automatic smooth tangents")}">${t("Auto")}</button>
-          <button class="curve-mode" data-curve-mode="smooth" title="${t("Smooth interpolation after the selected key")}">${t("Smooth")}</button>
-          <button class="curve-mode" data-curve-mode="linear" title="${t("Straight interpolation after the selected key")}">${t("Linear")}</button>
-        </div>
-        <button class="curve-mode" data-act="curve-zoom-in" title="${t("Zoom in curve editor (Mouse wheel)")}"><i class="pi pi-search-plus"></i></button>
-        <button class="curve-mode" data-act="curve-zoom-out" title="${t("Zoom out curve editor")}"><i class="pi pi-search-minus"></i></button>
-        <button class="curve-mode" data-act="curve-fit" title="${t("Fit curves to view")}"><i class="pi pi-arrows-alt"></i></button>
-        <button class="curve-mode active" data-act="curve-handles" title="${t("Show or hide Bézier tangent handles")}" aria-pressed="true"><i class="pi pi-share-alt"></i></button>
-        <details class="toolbar-menu oc-overflow" data-menu="curve">
-          <summary title="${t("Interpolation & tangents")}"><i class="pi pi-ellipsis-h"></i></summary>
-          <div class="menu-panel right">
-            <div class="menu-title">${t("Interpolation")}</div>
-            <div class="menu-grid">
-              <button class="curve-mode" data-curve-mode="bezier">${t("Bezier")}</button>
-              <button class="curve-mode" data-curve-mode="ease">${t("Ease In/Out")}</button>
-              <button class="curve-mode" data-curve-mode="ease_in">${t("Ease In")}</button>
-              <button class="curve-mode" data-curve-mode="ease_out">${t("Ease Out")}</button>
-              <button class="curve-mode" data-curve-mode="sine">${t("Sine")}</button>
-              <button class="curve-mode" data-curve-mode="cubic">${t("Cubic")}</button>
-              <button class="curve-mode" data-curve-mode="quintic">${t("Quintic")}</button>
-              <button class="curve-mode" data-curve-mode="expo">${t("Expo")}</button>
-              <button class="curve-mode" data-curve-mode="back">${t("Back")}</button>
-              <button class="curve-mode" data-curve-mode="hold">${t("Hold / Step")}</button>
-            </div>
-            <div class="menu-divider"></div><div class="menu-title">${t("Tangents")}</div>
-            <div class="menu-grid">
-              <button class="curve-mode" data-tangent-mode="clamped">${t("Clamped")}</button>
-              <button class="curve-mode" data-tangent-mode="vector">${t("Vector")}</button>
-              <button class="curve-mode" data-tangent-mode="free">${t("Free")}</button>
-              <button class="curve-mode" data-tangent-mode="aligned">${t("Aligned")}</button>
-              <button class="curve-mode" data-tangent-mode="flat">${t("Flat")}</button>
-            </div>
+      <button class="curve-mode" data-act="curve-zoom-in" disabled title="${t("Zoom in curve editor (Mouse wheel)")}"><i class="pi pi-search-plus"></i></button>
+      <button class="curve-mode" data-act="curve-zoom-out" disabled title="${t("Zoom out curve editor")}"><i class="pi pi-search-minus"></i></button>
+      <button class="curve-mode" data-act="curve-fit" disabled title="${t("Fit curves to view")}"><i class="pi pi-arrows-alt"></i></button>
+      <button class="curve-mode active" data-act="curve-handles" disabled aria-pressed="true" title="${t("Show or hide Bézier tangent handles")}"><i class="pi pi-share-alt"></i></button>
+      <details class="toolbar-menu oc-overflow" data-menu="curve">
+        <summary title="${t("Interpolation & tangents")}"><i class="pi pi-ellipsis-h"></i></summary>
+        <div class="menu-panel right">
+          <div class="menu-title">${t("Interpolation")}</div>
+          <div class="menu-grid">
+            <button class="curve-mode" data-curve-mode="bezier">${t("Bezier")}</button>
+            <button class="curve-mode" data-curve-mode="ease">${t("Ease In/Out")}</button>
+            <button class="curve-mode" data-curve-mode="ease_in">${t("Ease In")}</button>
+            <button class="curve-mode" data-curve-mode="ease_out">${t("Ease Out")}</button>
+            <button class="curve-mode" data-curve-mode="sine">${t("Sine")}</button>
+            <button class="curve-mode" data-curve-mode="cubic">${t("Cubic")}</button>
+            <button class="curve-mode" data-curve-mode="quintic">${t("Quintic")}</button>
+            <button class="curve-mode" data-curve-mode="expo">${t("Expo")}</button>
+            <button class="curve-mode" data-curve-mode="back">${t("Back")}</button>
+            <button class="curve-mode" data-curve-mode="hold">${t("Hold / Step")}</button>
           </div>
-        </details>
-      </div>
-      <div class="oc-graph-body">
-        <div class="oc-graph-legend" data-role="curve-legend"></div>
-        <div class="oc-graph-stage">
-          <canvas class="curve-canvas" data-role="curve-canvas" tabindex="-1" title="${t("Drag a key point vertically or drag tangent handles on either side. Scroll to zoom. Right-click for curve actions.")}"></canvas>
-          <div class="oc-gdope" data-role="graph-dope" hidden></div>
-          <div class="oc-gsequence" data-role="graph-sequence" tabindex="0" hidden></div>
+          <div class="menu-divider"></div><div class="menu-title">${t("Tangents")}</div>
+          <div class="menu-grid">
+            <button class="curve-mode" data-tangent-mode="clamped">${t("Clamped")}</button>
+            <button class="curve-mode" data-tangent-mode="vector">${t("Vector")}</button>
+            <button class="curve-mode" data-tangent-mode="free">${t("Free")}</button>
+            <button class="curve-mode" data-tangent-mode="aligned">${t("Aligned")}</button>
+            <button class="curve-mode" data-tangent-mode="flat">${t("Flat")}</button>
+          </div>
         </div>
-      </div>
-      <div class="oc-resize-v oc-graph-resize" data-role="graph-resize" role="separator" aria-orientation="horizontal" tabindex="0"
-           title="${t("Drag to resize graph editor — double-click to reset")}" aria-label="${t("Resize graph editor")}"></div>
-    </section>`;
+      </details>
+    </div>`;
 }
 
 export function timelinePanelMarkup() {
@@ -165,9 +167,23 @@ export function timelinePanelMarkup() {
       <div class="timeline oc-timeline">
         ${transportBar()}
         ${solveHealthStripMarkup()}
-        ${dopeSheet()}
-        <div class="motion-timeline" data-role="motion-timeline" aria-label="${t("Motion track timeline")}"></div>
+        <div class="curve-editor">
+          ${modeTabs()}
+          ${curveToolbar()}
+          <div class="oc-graph-body">
+            <div class="oc-graph-legend" data-role="curve-legend" hidden></div>
+            <div class="oc-graph-stage">
+              <div class="oc-dope-stage" data-role="dope-stage">
+                ${dopeSheet()}
+                <div class="motion-timeline" data-role="motion-timeline" aria-label="${t("Motion track timeline")}"></div>
+              </div>
+              <canvas class="curve-canvas" data-role="curve-canvas" tabindex="-1" hidden title="${t("Drag a key point vertically or drag tangent handles on either side. Scroll to zoom. Right-click for curve actions.")}"></canvas>
+              <div class="oc-gsequence" data-role="graph-sequence" tabindex="0" hidden></div>
+            </div>
+          </div>
+          <div class="oc-resize-v oc-graph-resize" data-role="graph-resize" role="separator" aria-orientation="horizontal" tabindex="0"
+               title="${t("Drag to resize the Timeline/Graph/Sequence area — double-click to reset")}" aria-label="${t("Resize the Timeline/Graph/Sequence area")}"></div>
+        </div>
       </div>
-    </div>
-    ${graphEditor()}`;
+    </div>`;
 }

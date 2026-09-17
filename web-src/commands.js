@@ -27,11 +27,15 @@ import {
 
 const TRANSFORM_KEYS = { t: "translate", r: "rotate", s: "scale" };
 
-// First match wins; sequence is inside .oc-graph, so it must be checked first.
+// First match wins; sequence AND the dope sheet both live inside .curve-editor
+// now (Director modal audit Lot 3: Timeline/Graph/Sequence share one block
+// with the player), so both need a more specific selector checked before the
+// broad "graph" one, exactly like sequence already needed before this change.
 const ZONE_SELECTORS = [
   ["viewport", ".viewport-wrap"],
   ["sequence", '[data-role="graph-sequence"]'],
-  ["graph", ".oc-graph"],
+  ["timeline", '[data-role="dope-stage"]'],
+  ["graph", ".curve-editor"],
   ["timeline", ".oc-timeline"],
   // The outliner / scene panel: without its own zone a Delete pressed with a
   // scene row focused fell through to whatever zone was last touched (usually

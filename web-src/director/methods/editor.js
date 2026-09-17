@@ -260,6 +260,10 @@ export function createEditorMethods(dependencies) {
     }
     if (target.closest?.('[data-role="keys"]'))
       return this.setFrame(this.timelineFrameFromEvent(event, target.closest('[data-role="keys"]'))), this.openTimelineContext(event, !1);
+    // The dope sheet now lives inside .curve-editor (Lot 3), so it needs its
+    // own check before the broad one below, or a right-click on a derived row
+    // would wrongly open the Curve editor's menu instead of the timeline's.
+    if (target.closest?.('[data-role="dope-stage"]')) return this.openTimelineContext(event, !1);
     if (target.closest?.(".curve-editor")) return this.openCurveContext(event);
     if (target.closest?.(".viewport-wrap")) {
       const rect = this.interactionElement.getBoundingClientRect();
@@ -743,15 +747,11 @@ export function createEditorMethods(dependencies) {
   // just grew (the Outliner list, the camera-preview strip) needs to ask for
   // one explicitly or the node clips the taller content behind a scrollbar.
   //
-  // Director's heavy editor only ever mounts inside the body-level
-  // WorkbenchHost modal now (Director modal audit Lot 1+); growing the
-  // underlying graph node while hosted there is a pure side effect -- the
-  // modal's own box is independent of node.size, and doing it anyway used to
-  // silently resize the saved node just from dragging an internal splitter.
-  // Skip that part there; the .viewport-wrap ResizeObserver set up in
-  // bindEditorEvents (editor-global.js) already covers the actual job
-  // (repainting the viewport/canvas at its new size) for both paths without
-  // touching node geometry (Director modal audit Lot 4).
+  // Hosted in the WorkbenchHost modal, growing the underlying graph node is a
+  // pure side effect (the modal's box is independent of node.size) that used
+  // to silently resize the saved node from dragging an internal splitter.
+  // Skip that part there; the .viewport-wrap ResizeObserver (editor-global.js)
+  // already repaints the viewport/canvas for both paths (Lot 4).
   refitNode() {
     if (this.disposed) return;
     const node = this.node;
