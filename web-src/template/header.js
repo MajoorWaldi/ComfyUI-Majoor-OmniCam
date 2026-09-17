@@ -2,8 +2,9 @@
 //
 // The header carries identity (node name), the live status pill, and an
 // overflow menu for everything that is neither a viewport tool nor a per-shot
-// setting: playblast output routing, the H3 helper, adapter diagnostics and
-// cache maintenance.
+// setting: playblast output routing, the viewport proxy preset, adapter
+// diagnostics and cache maintenance. (H3 Setup guidance lives on the Monitor
+// node now, since it is about wiring things into Monitor, not Director state.)
 
 import { t } from "../i18n.js";
 import { brandMarkup } from "./brand.js";
@@ -19,17 +20,15 @@ export function headerMarkup() {
           <div class="menu-title">${t("Output")}</div>
           <label>${t("Playblast camera")} <select data-role="playblast-camera"></select></label>
           <div class="menu-section" data-density-min="animation">
-            <label>${t("H3 preset")} <select data-role="proxy-preset">
-              <option value="balanced">${t("Balanced")}</option>
-              <option value="parallax">${t("Parallax")}</option>
-              <option value="subject">${t("Subject")}</option>
-              <option value="debug">${t("Debug")}</option>
+            <label>${t("Proxy preset")} <select data-role="proxy-preset">
+              <option value="clean_proxy">${t("Clean proxy")}</option>
+              <option value="debug_motion">${t("Debug motion")}</option>
+              <option value="cinematic_view">${t("Cinematic view")}</option>
             </select></label>
             <label>${t("Encoder")} <select data-role="encoder">
               <option value="auto">${t("WebCodecs")}</option>
               <option value="realtime">${t("Realtime fallback")}</option>
             </select></label>
-            <button data-act="h3-setup" class="primary" title="${t("Create the H3 reference nodes")}"><i class="pi pi-bolt"></i> ${t("H3 Setup")}</button>
           </div>
           <div class="menu-section" data-density-min="advanced">
             <div class="menu-divider"></div>

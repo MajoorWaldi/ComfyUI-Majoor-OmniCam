@@ -50,6 +50,7 @@ export function applyProxyPreset(ui, preset) {
   if (!cfg) return;
   ui.checkpoint(`Apply proxy preset: ${preset}`);
   Object.assign(ui.state, cfg);
+  ui.state.proxy_preset = preset;
   ui.serialize();
   ui.render();
   ui.setStatus(`Proxy preset applied: ${preset}`);

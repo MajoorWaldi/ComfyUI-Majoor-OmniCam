@@ -56,14 +56,13 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
   expect(await page.locator('.majoor-omnicam .timeline-toolbar .icon-button').count()).toBe(11);
   await expect(page.locator('.majoor-omnicam [data-role="curve-canvas"]')).toBeVisible();
   await expect(page.locator('.majoor-omnicam .viewport-inspector')).toBeVisible();
-  // Unrelated to the workbench migration: the record/H3-setup buttons moved
-  // out of a .viewport-actions wrapper at some point; this test had not been
-  // kept in sync (pre-existing drift, not a migration regression).
+  // Unrelated to the workbench migration: the record button moved out of a
+  // .viewport-actions wrapper at some point; this test had not been kept in
+  // sync (pre-existing drift, not a migration regression).
   await expect(page.locator('.majoor-omnicam [data-act="record"]').first()).toBeVisible();
-  // H3 Setup is feature-gated (only shows without an existing downstream H3
-  // node); this fixture has none connected, so only assert it is mounted --
-  // unrelated to the workbench migration either way.
-  await expect(page.locator('.majoor-omnicam [data-act="h3-setup"]').first()).toBeAttached();
+  // The proxy-preset select is feature-gated to the "animation" UI density;
+  // this fixture starts at "basic", so only assert it is mounted.
+  await expect(page.locator('.majoor-omnicam [data-role="proxy-preset"]').first()).toBeAttached();
   // The default "simple" navigation profile binds right-drag to panning and
   // deliberately swallows the viewport's own context menu (see
   // onContextMenu in director/methods/editor.js) -- unrelated to the

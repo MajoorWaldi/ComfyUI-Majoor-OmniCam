@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 //
 // Deliberately NOT exercised, because they touch the user's install or graph:
 //   clear-caches (deletes managed files), record (captures + uploads a playblast),
-//   h3-setup (adds nodes to the open workflow), load-*/upload-* (native file dialogs).
+//   load-*/upload-* (native file dialogs).
 // Everything else is driven on a scratch node this test creates itself.
 
 async function mountScratchDirector(page) {

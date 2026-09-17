@@ -22,6 +22,33 @@ import {
 } from "../viewport/minimap.js";
 import { t } from "../i18n.js";
 
+// Anchors a toolbar-menu's .menu-panel with position:fixed, computed from the
+// <details> element's own rect, so it renders above the bounded Director
+// shell instead of being clipped by an overflow:hidden/auto ancestor (see the
+// "toggle" listener in bindEditorAndGlobal for why this is needed). Mirrors
+// the CSS default's right-alignment via .menu-panel.right and clamps to the
+// viewport so a menu near an edge never runs off-screen.
+function positionMenuPanel(menu) {
+  const panel = menu.querySelector(":scope > .menu-panel");
+  if (!panel) return;
+  const anchor = menu.getBoundingClientRect();
+  const width = panel.offsetWidth || 240;
+  const alignRight = panel.classList.contains("right");
+  let left = alignRight ? anchor.right - width : anchor.left;
+  left = Math.min(Math.max(left, 4), window.innerWidth - width - 4);
+  const top = Math.min(anchor.bottom + 5, window.innerHeight - 4);
+  Object.assign(panel.style, { position: "fixed", top: `${top}px`, left: `${left}px`, right: "auto" });
+}
+
+function unpositionMenuPanel(menu) {
+  const panel = menu.querySelector(":scope > .menu-panel");
+  if (!panel) return;
+  panel.style.position = "";
+  panel.style.top = "";
+  panel.style.left = "";
+  panel.style.right = "";
+}
+
 export function bindEditorAndGlobal(ui, q, signal) {
   for (const role of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz", "object-intensity", "object-cone-angle", "object-penumbra", "object-cast-shadow"]) {
     for (const input of ui.root.querySelectorAll(`[data-role="${role}"]`)) {
@@ -243,9 +270,27 @@ export function bindEditorAndGlobal(ui, q, signal) {
   }
   for (const menu of ui.root.querySelectorAll(".toolbar-menu")) {
     menu.addEventListener("toggle", () => {
-      if (menu.open) ui.closeMenus(menu);
+      if (menu.open) {
+        ui.closeMenus(menu);
+        positionMenuPanel(menu);
+      } else {
+        unpositionMenuPanel(menu);
+      }
     }, { signal });
   }
+  // The bounded Director shell (oc-director: overflow:hidden; oc-dock:
+  // overflow-y:auto, since the Lot 1 modal-geometry pass) means a
+  // position:absolute .menu-panel can now be clipped by an ancestor instead
+  // of just growing the page. Anchoring it with position:fixed while open
+  // (positionMenuPanel/unpositionMenuPanel above) escapes any ancestor's
+  // overflow, but a fixed panel no longer tracks its anchor if an ancestor
+  // scrolls -- re-anchor instead of closing (closing on scroll is fragile:
+  // opening a menu whose summary isn't fully visible in a scrollable
+  // ancestor can itself trigger a native focus scroll-into-view, which would
+  // otherwise self-close the very menu just opened).
+  document.addEventListener("scroll", () => {
+    for (const menu of ui.root.querySelectorAll(".toolbar-menu[open]")) positionMenuPanel(menu);
+  }, { capture: true, signal });
   const selectOutlinerItem = (target, event) => {
     const sceneItem = target instanceof HTMLElement ? target.closest(".scene-item") : null;
     if (!sceneItem || event.button === 2 || target.closest(".scene-action-btn")) return;

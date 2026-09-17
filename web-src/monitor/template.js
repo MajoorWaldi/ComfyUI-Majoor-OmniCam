@@ -34,6 +34,7 @@ export function monitorMarkup() {
       <aside class="oc-column">
         <div class="oc-card"><div class="oc-section">Compilation target</div><div class="oc-adapter-controls">
           <label class="wide">Profile<select data-role="profile-select">${profileOptions()}</select></label>
+          <div class="oc-hint" data-role="h3-setup-hint" hidden>Connect a Motion Scene and Playblast Video output to this Monitor node to compile with an H3 profile.</div>
           <label class="wide">Base prompt<textarea data-setting="base_prompt" rows="3"></textarea></label>
           <label>Width<input data-setting="target_width" type="number" min="64" max="4096" step="8"></label>
           <label>Height<input data-setting="target_height" type="number" min="64" max="4096" step="8"></label>

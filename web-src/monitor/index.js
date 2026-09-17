@@ -13,7 +13,7 @@ import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { buildMonitorRoot } from "./template.js";
-import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
+import { isH3Profile, MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
 
 //: How often a connected Director's widgets are re-read for a live preflight.
 //: Independent of MonitorSourceWatcher's own poll, which only fires on a
@@ -87,6 +87,7 @@ class MonitorUI {
     this.events.on(this.root.querySelector('[data-role="proxy-mute"]'), "change", (event) => this.player.setMuted(event.target.checked));
     this.events.on(this.root.querySelector('[data-role="profile-select"]'), "change", (event) => {
       writeMonitorWidget(this.node, "target_profile", event.target.value);
+      this.updateH3SetupHint(event.target.value);
       this.settingsChanged();
     });
     for (const control of this.root.querySelectorAll("[data-setting]")) {
@@ -113,10 +114,16 @@ class MonitorUI {
     }
   }
 
+  updateH3SetupHint(profile) {
+    const hint = this.root.querySelector('[data-role="h3-setup-hint"]');
+    if (hint) hint.hidden = !isH3Profile(profile);
+  }
+
   syncControlsFromWidgets() {
     const values = monitorWidgetValues(this.node);
     const select = this.root.querySelector('[data-role="profile-select"]');
     if (values.target_profile != null) select.value = String(values.target_profile);
+    this.updateH3SetupHint(select.value);
     for (const name of MONITOR_WIDGETS) {
       if (name === "target_profile") continue;
       const control = this.root.querySelector(`[data-setting="${name}"]`);

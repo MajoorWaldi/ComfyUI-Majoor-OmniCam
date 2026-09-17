@@ -81,16 +81,16 @@ test("Display menu: the radar and diagnostic overlays need Advanced, the resolut
   });
 });
 
-test("Output menu: H3 delivery settings need Animation, Clear Caches needs Advanced", async ({ page }) => {
+test("Output menu: proxy preset settings need Animation, Clear Caches needs Advanced", async ({ page }) => {
   await mount(page);
   await withMenuOpen(page, "output", async () => {
     await setDensity(page, "basic");
-    await expect(page.locator('[data-act="h3-setup"]')).toBeHidden();
+    await expect(page.locator('[data-role="proxy-preset"]')).toBeHidden();
     await expect(page.locator('[data-act="clear-caches"]')).toBeHidden();
     await expect(page.locator('[data-role="playblast-camera"]')).toBeVisible();
 
     await setDensity(page, "animation");
-    await expect(page.locator('[data-act="h3-setup"]')).toBeVisible();
+    await expect(page.locator('[data-role="proxy-preset"]')).toBeVisible();
     await expect(page.locator('[data-act="clear-caches"]')).toBeHidden();
 
     await setDensity(page, "advanced");

@@ -27,3 +27,9 @@ export function writeMonitorWidget(node, name, value) {
   item.callback?.(item.value);
   return true;
 }
+
+// The H3-Setup guidance (moved here from Director's header menu, Director
+// modal audit Lot 2) only makes sense for the h3_* profile family.
+export function isH3Profile(profile) {
+  return String(profile || "").startsWith("h3_");
+}

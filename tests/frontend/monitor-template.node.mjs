@@ -5,9 +5,12 @@ import { monitorMarkup, PROFILE_OPTIONS } from "../../web-src/monitor/template.j
 test("Monitor template mirrors the V3 Monitor profile contract", () => {
   const markup = monitorMarkup();
   assert.match(markup, /class="majoor-omnicam oc-monitor"/);
-  for (const role of ["monitor-status", "source-status", "proxy-player", "profile-preflight", "profile-capabilities", "profile-select", "output-status"]) {
+  for (const role of ["monitor-status", "source-status", "proxy-player", "profile-preflight", "profile-capabilities", "profile-select", "output-status", "h3-setup-hint"]) {
     assert.match(markup, new RegExp(`data-role="${role}"`));
   }
+  // The H3-Setup guidance moved here from Director's header menu (Director
+  // modal audit Lot 2); it must start hidden, only shown for an h3_* profile.
+  assert.match(markup, /data-role="h3-setup-hint" hidden/);
   for (const setting of ["base_prompt", "target_width", "target_height", "duration_seconds", "target_fps"]) {
     assert.match(markup, new RegExp(`data-setting="${setting}"`));
   }

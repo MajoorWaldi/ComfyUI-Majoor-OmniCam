@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "../../web-src/monitor/widget-contract.js";
+import { isH3Profile, MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "../../web-src/monitor/widget-contract.js";
 
 function fakeNode() {
   return {
@@ -26,4 +26,14 @@ test("Monitor numeric controls persist as numbers", () => {
   writeMonitorWidget(node, "target_fps", "30");
   assert.equal(monitorWidgetValues(node).target_width, 832);
   assert.equal(monitorWidgetValues(node).target_fps, 30);
+});
+
+test("isH3Profile recognizes only the h3_* profile family (Director modal audit Lot 2)", () => {
+  assert.equal(isH3Profile("h3_api"), true);
+  assert.equal(isH3Profile("h3_native"), true);
+  assert.equal(isH3Profile("h3_scene_coverage"), true);
+  assert.equal(isH3Profile("wan_camera_native"), false);
+  assert.equal(isH3Profile("external_reference_video"), false);
+  assert.equal(isH3Profile(""), false);
+  assert.equal(isH3Profile(undefined), false);
 });

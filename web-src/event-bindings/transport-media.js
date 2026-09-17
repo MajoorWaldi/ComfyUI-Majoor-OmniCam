@@ -93,9 +93,6 @@ export function bindTransportAndMedia(ui, q, signal) {
   for (const recBtn of ui.root.querySelectorAll('[data-act="record"]')) {
     recBtn.addEventListener("click", () => ui.makePlayblast(), { signal });
   }
-  for (const btn of ui.root.querySelectorAll('[data-act="h3-setup"]')) {
-    btn.addEventListener("click", () => ui.createH3Setup(), { signal });
-  }
   for (const btn of ui.root.querySelectorAll('[data-act="sync-inputs"]')) {
     btn.addEventListener("click", () => {
       ui.syncUpstreamInputs();

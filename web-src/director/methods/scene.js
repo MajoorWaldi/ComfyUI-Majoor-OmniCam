@@ -522,13 +522,6 @@ export function createSceneMethods(dependencies) {
   setObjectParent(parentId) {
     setObjectParent(this, parentId);
   },
-  applyProxyPreset(preset) {
-    const presets = { balanced: { mode: "omni_ref", burn: !1 }, parallax: { mode: "point_field", burn: !1 }, subject: { mode: "card_grid", burn: !1 }, debug: { mode: "omni_ref", burn: !0 } }, value = presets[preset] || presets.balanced;
-    this.state.render_mode = value.mode, this.state.burn_in = value.burn, this.root.querySelector('[data-role="mode"]').value = value.mode, this.root.querySelector('[data-role="burn-in"]').checked = value.burn, this.modeWidget && (this.modeWidget.value = value.mode), this.serialize(), this.render(), this.setStatus(`Proxy preset: ${preset}`);
-  },
-  createH3Setup() {
-    this.setStatus("Connect Motion Scene and Playblast Video to OmniCam Monitor");
-  },
   refreshObjects() {
     refreshObjects(this);
   },
