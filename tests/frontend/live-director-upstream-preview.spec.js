@@ -25,6 +25,11 @@ test("Director's Sync Upstream Inputs reads a connected LoadImage with nothing e
     loader.connect(0, director, videoInput);
     window.omnicamDirector = director;
   }, IMAGE);
+  // The Director mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // editor's __majoorOmniCam marker, which no longer exists until then.
+  await page.waitForFunction(() => Boolean(window.omnicamDirector?.__majoorOmniCamDirectorRuntime?.shell?.openButton), null, { timeout: 30000 });
+  await page.evaluate(() => window.omnicamDirector.__majoorOmniCamDirectorRuntime.shell.openButton.click());
   await page.waitForFunction(() => window.omnicamDirector?.__majoorOmniCam?.root?.isConnected, null, { timeout: 30000 });
   await page.evaluate(async () => {
     const ui = window.omnicamDirector.__majoorOmniCam;

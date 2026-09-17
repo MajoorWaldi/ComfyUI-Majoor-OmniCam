@@ -61,14 +61,21 @@ test("director - node screenshot", async ({ page }) => {
     if (widget("state_json")) widget("state_json").value = JSON.stringify(state);
     window.omnicamDirector = node;
   });
+  // Director mounts a compact shell by default now (workbench migration plan
+  // Task 10); its editor's __majoorOmniCam root (and domWidget, which no
+  // longer exists at all -- the workbench lives in a body-level
+  // .oc-workbench-content, not a graph DOMWidget) only exist once the shell's
+  // Open button is clicked. Unrelated to the screenshot content itself.
+  await page.waitForFunction(() => Boolean(window.omnicamDirector?.__majoorOmniCamDirectorRuntime?.shell?.openButton), null, { timeout: 30_000 });
+  await page.evaluate(() => window.omnicamDirector.__majoorOmniCamDirectorRuntime.shell.openButton.click());
   await page.waitForFunction(
-    () => window.omnicamDirector?.__majoorOmniCam?.domWidget?.element?.isConnected,
+    () => window.omnicamDirector?.__majoorOmniCam?.root?.isConnected,
     null, { timeout: 15_000 },
   );
   await page.evaluate(() => window.omnicamDirector.__majoorOmniCam.restoreFromWidgets());
   await page.waitForTimeout(600);
   const box = await page.evaluate(() => {
-    const el = window.omnicamDirector.__majoorOmniCam.domWidget.element;
+    const el = window.omnicamDirector.__majoorOmniCam.root;
     const rect = el.getBoundingClientRect();
     return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
@@ -89,6 +96,11 @@ test("extractor - node screenshot", async ({ page }) => {
     loader.connect(0, node, 0);
     window.omnicamExtractor = node;
   }, SOURCE);
+  // Extractor mounts a compact shell by default now (workbench migration plan
+  // Task 10); its editor's __majoorOmniCamExtractor root only exists once the
+  // shell's Open button is clicked. Unrelated to the screenshot itself.
+  await page.waitForFunction(() => Boolean(window.omnicamExtractor?.__majoorOmniCamExtractorRuntime?.shell?.openButton), null, { timeout: 30_000 });
+  await page.evaluate(() => window.omnicamExtractor.__majoorOmniCamExtractorRuntime.shell.openButton.click());
   await page.waitForFunction(
     () => window.omnicamExtractor?.__majoorOmniCamExtractor?.root?.isConnected,
     null, { timeout: 30_000 },
@@ -161,6 +173,13 @@ test("monitor - node screenshot with a real live preflight", async ({ page }) =>
     () => window.omnicamMonitor?.__majoorOmniCamMonitor?.root?.isConnected,
     null, { timeout: 15_000 },
   );
+  // Director mounts a compact shell by default now (workbench migration plan
+  // Task 10); makePlayblast() lives on its editor's __majoorOmniCam, which
+  // only exists once the shell's Open button is clicked. Monitor was not part
+  // of that migration, so it needed no such change above.
+  await page.waitForFunction(() => Boolean(window.omnicamDirector2?.__majoorOmniCamDirectorRuntime?.shell?.openButton), null, { timeout: 30_000 });
+  await page.evaluate(() => window.omnicamDirector2.__majoorOmniCamDirectorRuntime.shell.openButton.click());
+  await page.waitForFunction(() => window.omnicamDirector2?.__majoorOmniCam?.root?.isConnected, null, { timeout: 15_000 });
   // A real recorded playblast, so the panel shows the actual fix from this
   // session: the Director's own file, not its live edit viewport.
   await page.evaluate(() => window.omnicamDirector2.__majoorOmniCam.makePlayblast());
@@ -168,6 +187,11 @@ test("monitor - node screenshot with a real live preflight", async ({ page }) =>
     () => !window.omnicamDirector2.__majoorOmniCam.recording,
     null, { timeout: 20_000 },
   );
+  // The Director's workbench (opened above only so makePlayblast() had
+  // something to call it on) is a body-level modal that visually covers the
+  // whole viewport, including wherever the Monitor node happens to sit --
+  // close it before screenshotting the Monitor panel underneath.
+  await page.keyboard.press("Escape");
   // A named, strict profile -- the generic default has nothing to check.
   await page.evaluate(() => {
     const select = window.omnicamMonitor.__majoorOmniCamMonitor.root.querySelector('[data-role="profile-select"]');

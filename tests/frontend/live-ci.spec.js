@@ -69,8 +69,30 @@ function captureBrowserDiagnostics(page, testInfo) {
 }
 
 
+// Director/Extractor mount a compact shell by default (migration plan
+// Task 10/15); the workbench marker this helper waits for only exists once
+// that shell's OPEN button has been clicked. Click it as soon as the
+// persistent runtime attaches, exactly as a user would, before waiting for
+// the workbench itself to mount.
+function runtimeMarkerFor(typeName) {
+  return typeName === "MajoorOmniCamExtractor" ? "__majoorOmniCamExtractorRuntime" : "__majoorOmniCamDirectorRuntime";
+}
+
+async function openWorkbenchShell(page, globalNodeVar, runtimeMarker) {
+  await page.waitForFunction(
+    (args) => Boolean(window[args.globalNodeVar]?.[args.runtimeMarker]?.shell?.openButton),
+    { globalNodeVar, runtimeMarker },
+    { timeout: 30000 },
+  );
+  await page.evaluate(
+    (args) => window[args.globalNodeVar][args.runtimeMarker].shell.openButton.click(),
+    { globalNodeVar, runtimeMarker },
+  );
+}
+
 async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker) {
   try {
+    await openWorkbenchShell(page, globalNodeVar, runtimeMarkerFor(typeName));
     await page.waitForFunction(
       (args) => {
         const { globalNodeVar, expectedUIMarker } = args;
@@ -82,8 +104,9 @@ async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker
   } catch (error) {
     if (error.name === 'TimeoutError') {
       const diag = await page.evaluate((args) => {
-        const { typeName, globalNodeVar, expectedUIMarker } = args;
+        const { typeName, globalNodeVar, expectedUIMarker, runtimeMarker } = args;
         const node = window[globalNodeVar];
+        const runtime = node?.[runtimeMarker];
         const isGraphReady = window.comfyAPI?.app?.app?.isGraphReady;
         const hasMarker = node ? !!node[expectedUIMarker] : false;
         const chunks = Array.from(document.querySelectorAll('script')).map(s => s.src).filter(s => s.includes('omnicam'));
@@ -97,11 +120,18 @@ async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker
           widgetNames: node?.widgets?.map((widget) => widget.name) || [],
           isGraphReady,
           hasMarker,
+          hasRuntime: Boolean(runtime),
+          runtimeDisposed: runtime?.disposed,
+          runtimeWorkbenchGeneration: runtime?.workbenchGeneration,
+          hasWorkbenchOnRuntime: Boolean(runtime?.workbench),
+          hasShell: Boolean(runtime?.shell),
+          hasOpenButton: Boolean(runtime?.shell?.openButton),
+          openButtonConnected: Boolean(runtime?.shell?.openButton?.isConnected),
           chunks,
           trace: window.__majoorOmniCamCiTrace || [],
           browserDiagnostics: window.__majoorOmniCamCiBrowserDiagnostics || null,
         };
-      }, { typeName, globalNodeVar, expectedUIMarker });
+      }, { typeName, globalNodeVar, expectedUIMarker, runtimeMarker: runtimeMarkerFor(typeName) });
       throw new Error('Attach timeout diagnostic: ' + JSON.stringify(diag, null, 2));
     }
     throw error;

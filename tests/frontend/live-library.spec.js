@@ -29,6 +29,15 @@ async function mountDirector(page) {
     app.graph.add(node);
     window.omnicamLiveNode = node;
   });
+  // The Director mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // editor's __majoorOmniCam marker, which no longer exists until then.
+  await page.waitForFunction(
+    () => Boolean(window.omnicamLiveNode?.__majoorOmniCamDirectorRuntime?.shell?.openButton),
+    null,
+    { timeout: 45_000 },
+  );
+  await page.evaluate(() => window.omnicamLiveNode.__majoorOmniCamDirectorRuntime.shell.openButton.click());
   await page.waitForFunction(
     () => window.omnicamLiveNode?.__majoorOmniCam?.root?.isConnected
       && window.omnicamLiveNode.__majoorOmniCam.assetBrowser,
@@ -69,7 +78,13 @@ test("every starter-library asset loads in the viewport and gets a thumbnail", a
     };
   });
   expect(layout.scrollH, "node grew when ASSETS opened").toBeLessThanOrEqual(heightBefore + 8);
-  expect(layout.scrollH).toBeLessThanOrEqual(layout.clientH + 8);
+  // The editor root itself may legitimately exceed its container's
+  // clientHeight now: the workbench window wraps it in a scrolling
+  // ".oc-workbench-content" (web-src/workbench/styles.js) as a fallback for
+  // viewports smaller than the editor's natural content height, instead of
+  // the pre-migration DOMWidget whose owning node was always sized to fit
+  // exactly. Only the asset grid's own internal scroll (checked below)
+  // remains a real regression guard.
   expect(layout.gridClientH).toBeLessThan(700);
   expect(layout.gridScrolls, "asset grid should scroll internally").toBe(true);
 

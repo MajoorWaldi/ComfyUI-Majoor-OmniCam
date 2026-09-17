@@ -44,6 +44,15 @@ test("TRACK pressed while a prompt runs is QUEUED, not rejected", async ({ page 
     window.omniExtractor = extractor;
   }, SOURCE);
 
+  // The Extractor mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // panel's __majoorOmniCamExtractor marker, which no longer exists until
+  // then. Unrelated to the queue-ordering behavior this test checks.
+  await page.waitForFunction(
+    () => Boolean(window.omniExtractor?.__majoorOmniCamExtractorRuntime?.shell?.openButton),
+    null, { timeout: 30_000 },
+  );
+  await page.evaluate(() => window.omniExtractor.__majoorOmniCamExtractorRuntime.shell.openButton.click());
   await page.waitForFunction(
     () => window.omniExtractor?.__majoorOmniCamExtractor?.state.source.available,
     null, { timeout: 30_000 },
