@@ -49,7 +49,18 @@ export function attachWhenLoaded(node, load) {
     restore();
     // Building a UI for a deleted node grafts a DOM widget onto a dead node
     // and, for the Director, opens a WebGL context nothing will dispose.
-    if (removed) return;
+    //
+    // `removed` alone is not a reliable "this node is actually gone" signal:
+    // some legacy-workflow upgrade paths (ComfyUI reconstructing an old-schema
+    // node in place) call onRemoved() and immediately re-add the very same
+    // node object to the graph, without a second nodeCreated. A lighter,
+    // faster-loading shell chunk (this migration's whole point) makes that
+    // narrow window more likely to be hit than the previous, heavier
+    // always-mounted editor chunk was -- confirmed live against a real
+    // ComfyUI loading an ancient workflow. `node.graph` is the definitive
+    // signal LiteGraph itself clears on a real removal, so trust that over
+    // the one-shot flag when they disagree.
+    if (removed && !node.graph) return;
     attach(node);
   }).catch((error) => {
     restore();

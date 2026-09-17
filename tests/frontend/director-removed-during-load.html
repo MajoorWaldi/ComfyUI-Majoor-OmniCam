@@ -49,7 +49,13 @@
 
         // Not awaited, exactly as ComfyUI does it.
         const created = extension.nodeCreated(node);
-        // The user deletes the node before the chunk lands.
+        // The user deletes the node before the chunk lands. Real LiteGraph
+        // clears node.graph on an actual removal (lazy-node-ui.js's
+        // attachWhenLoaded trusts that over the one-shot onRemoved flag, since
+        // some legacy-workflow upgrade paths call onRemoved and immediately
+        // re-add the same node without clearing it) -- mirror that here so
+        // this fixture exercises the genuine-deletion case it is named for.
+        node.graph = null;
         node.onRemoved?.();
 
         await created;

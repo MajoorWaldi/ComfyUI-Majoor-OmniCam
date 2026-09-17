@@ -126,6 +126,11 @@ export function pasteKeyframe(ui) {
   else keys.push(pasted);
   keys.sort((a, b) => a.frame - b.frame);
   ui.selectedKeyFrame = pasted.frame;
+  // Keep the Set in sync with the scalar: resolveSelectedFrames() (used by
+  // Delete/nudge) prefers a non-empty selectedKeyFrames over selectedKeyFrame
+  // when they disagree, so a stale Set from an earlier multi-select/nudge
+  // would otherwise make the next Delete remove the wrong key.
+  ui.selectedKeyFrames = new Set([pasted.frame]);
   ui.editingKeyFrame = null;
   if (object) {
     object.position = [...pasted.transform.position];
