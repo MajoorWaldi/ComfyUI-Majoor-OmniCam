@@ -217,6 +217,16 @@ export const SHELL_STYLES = `
       .majoor-omnicam .outliner-filter-chips{position:sticky;top:62px;z-index:9;background:var(--oc-bg);padding-bottom:3px;border-bottom:1px solid var(--oc-line-soft)}
       .majoor-omnicam .shot-key-nav{position:sticky;top:0;z-index:10;background:var(--oc-bg);padding:2px 0 4px;border-bottom:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-search{flex:1;min-width:0;padding:4px 9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border-color:var(--oc-line)}
+      /* .oc-search's flex:1 above is meant for a ROW toolbar (.oc-asset-toolbar,
+         .oc-agent-provider-row: the search/select fills leftover WIDTH next to
+         an icon button). The Outliner's search input, uniquely, is a direct
+         child of .oc-left-body -- a COLUMN flex -- so the same flex:1 instead
+         grows it to fill leftover COLUMN HEIGHT, ballooning it into a tall
+         empty box (worse the less the Outliner list itself takes up, so it
+         looked tied to resizing the list, but the list was never the cause).
+         flex:0 0 auto hands its height back to its own content, like every
+         other fixed-size row in that column. */
+      .majoor-omnicam .oc-left-body>input.oc-search{flex:0 0 auto}
       /* .oc-search sets flex:1, which -- inside .oc-asset-panel's column flex
          layout -- makes flexbox's own basis/grow distribution own this
          element's height instead of its content, silently overriding any

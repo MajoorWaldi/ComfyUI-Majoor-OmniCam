@@ -70,3 +70,57 @@ test("double-clicking a handle resets it to the default", async ({ page }) => {
   await page.waitForTimeout(50);
   expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.preview_width)).toBe(236);
 });
+
+// A real bug report: dragging the Outliner (or Assets/Agent) handle bigger,
+// with no ceiling tied to the .oc-left-body it scrolls in, could push the
+// handle itself out of the scrolled-to area -- its own laid-out position then
+// overlapped the dock below, so a click "at" the handle actually landed on
+// the camera preview instead (reported as a broken/blank area in the panel).
+test("the outliner handle stays reachable and .oc-left-body never overflows, even after repeated large drags", async ({ page }) => {
+  // A shorter window than the other tests here, so .oc-left-body genuinely
+  // doesn't have room for the old unbounded growth -- this is what exposed
+  // the bug in the first place.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 30000 });
+  await page.waitForTimeout(400);
+
+  for (let i = 0; i < 5; i++) {
+    await dragHandle(page, '[data-role="outliner-resize"]', 0, 300);
+  }
+
+  const info = await page.evaluate(() => {
+    const body = document.querySelector(".oc-left-body[data-role='scene-tab']");
+    const handleEl = document.querySelector('[data-role="outliner-resize"]');
+    const r = handleEl.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return {
+      bodyScrollHeight: body.scrollHeight,
+      bodyClientHeight: body.clientHeight,
+      handleReachable: hit === handleEl || handleEl.contains(hit),
+    };
+  });
+  expect(info.handleReachable).toBe(true);
+  expect(info.bodyScrollHeight).toBeLessThanOrEqual(info.bodyClientHeight + 1);
+});
+
+// The actual root cause behind the report above: .oc-search's flex:1 (shell.js)
+// is meant for a ROW toolbar (the search input filling leftover WIDTH next to
+// an icon button, e.g. the Assets/Agent tabs' own toolbars) -- but the
+// Outliner's search input is a direct child of .oc-left-body, a COLUMN flex,
+// where the same flex:1 instead grows it to fill leftover column HEIGHT. In a
+// tall window with a modest Outliner list, that turned the search box into a
+// tall, mostly-empty rectangle -- looking like a broken/blank area, worse the
+// smaller the Outliner list itself was (so it read as "linked to resizing").
+test("the outliner search input never grows past a normal single-line height, regardless of available room", async ({ page }) => {
+  // Tall window, small default Outliner list: maximum leftover column height
+  // for a wrongly flex:1 search input to have grown into.
+  await page.setViewportSize({ width: 1180, height: 1600 });
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 30000 });
+  await page.waitForTimeout(400);
+
+  const searchHeight = await page.evaluate(() =>
+    Math.round(document.querySelector('.oc-left-body input.oc-search[data-role="outliner-search"]').getBoundingClientRect().height));
+  expect(searchHeight).toBeLessThan(40);
+});
