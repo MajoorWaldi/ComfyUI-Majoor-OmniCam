@@ -22,6 +22,12 @@ export const WORKBENCH_STYLES = `
      instead of just requiring a scroll to reach them. */
   .oc-workbench-content{position:relative;flex:1 1 auto;min-height:0;overflow:auto}
   .oc-workbench-content>*{width:100%;height:100%}
+  /* Director's own root (.majoor-omnicam.oc-director, template.js/shell.js)
+     is now a bounded flex column that fits this box on its own -- .oc-dock
+     scrolls internally instead. Scoped by the host's own data-kind attribute
+     (host.js) so Extractor/Monitor keep the overflow:auto fallback above,
+     since their content still grows to fit the old always-mounted-node way. */
+  .oc-workbench-backdrop[data-kind="director"] .oc-workbench-content{overflow:hidden}
 
   .oc-node-shell{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:8px 10px;box-sizing:border-box;font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#ddd;background:#161618;border-radius:8px}
   .oc-node-shell-title{font-weight:700;color:#e2e2e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

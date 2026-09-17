@@ -24,6 +24,18 @@ test("director UI mounts with viewport, timeline, curve editor and previews", as
 
   const objectRow = page.locator('[data-object-id="qa_cube"]');
   await expect(objectRow).toBeVisible();
+  // The outliner (.oc-left-body) now scrolls internally instead of letting
+  // the node grow to fit every row (Director modal audit, bounded layout);
+  // toBeVisible() doesn't check whether a scrollable ancestor has actually
+  // scrolled a row into its own viewport, so this row can still be clipped
+  // away at its natural boundingBox() until scrolled into view.
+  // qa_cube sits inside two nested scroll containers now (.scene-tree's own
+  // fixed-height list, itself inside .oc-left-body's new outer scroll);
+  // scrollIntoViewIfNeeded() settles both on its own -- a manual scrollTop
+  // nudge on the outer one first just raced it depending on how much room
+  // .oc-dock left the outliner, landing the row at a different, unreliable
+  // offset each time.
+  await objectRow.scrollIntoViewIfNeeded();
   const rowBox = await objectRow.boundingBox();
   expect(await page.evaluate(({ x, y }) => {
     const hit = document.elementFromPoint(x, y);

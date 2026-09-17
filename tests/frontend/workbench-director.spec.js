@@ -82,6 +82,38 @@ test("the embedded editor reflows for a narrow workbench window instead of clipp
   expect(layout.windowScrollWidth).toBeLessThanOrEqual(layout.windowClientWidth + 1);
 });
 
+// Director modal audit (docs/AUDIT_DIRECTOR_MODAL_DCC_2026-09-17.md), Lot 1:
+// the root and the workbench window that hosts it must both fit their own
+// box with no internal scroll needed at the top level -- every panel scrolls
+// its own content instead (the .oc-side-body / .oc-left-body / .oc-dock
+// regions). This is the height-side counterpart of the width-only check
+// above, which the audit itself flagged as a gap (P1 finding).
+for (const size of [{ width: 1366, height: 768 }, { width: 980, height: 900 }]) {
+  test(`no top-level scroll at ${size.width}x${size.height}, even with several cameras (Director modal audit Lot 1)`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await mount(page);
+
+    await page.locator("#host-a .oc-node-shell-open").click();
+    await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCamDirectorRuntime?.workbench));
+
+    // A handful of cameras used to grow .oc-preview's camera-preview-strip
+    // (and with it the whole node) without bound -- exercise that path.
+    await page.evaluate(() => {
+      const ui = window.omnicamNodeA.__majoorOmniCam;
+      for (let i = 0; i < 4; i += 1) ui.addCamera();
+    });
+
+    const geometry = await page.evaluate(() => {
+      const root = document.querySelector(".majoor-omnicam");
+      const content = document.querySelector('.oc-workbench-backdrop[data-kind="director"] .oc-workbench-content');
+      const fits = (el) => el && el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
+      return { rootFits: fits(root), contentFits: fits(content) };
+    });
+    expect(geometry.rootFits).toBe(true);
+    expect(geometry.contentFits).toBe(true);
+  });
+}
+
 test("open, edit, close, reopen: the edit survives with no workbench mounted in between", async ({ page }) => {
   await mount(page);
 

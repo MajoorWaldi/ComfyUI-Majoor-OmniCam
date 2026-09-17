@@ -183,6 +183,13 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
   await page.locator('.majoor-omnicam [data-menu="curve"] summary').click();
   await page.locator('.majoor-omnicam [data-curve-mode="bezier"]').click();
   expect(await page.evaluate(() => window.omnicamLiveNode.__majoorOmniCam.state.keyframes.find((key) => key.frame === 12).interpolation)).toBe("bezier");
+  // .oc-lower (the dope sheet, just interacted with above) and .oc-graph
+  // (this curve canvas) now share one scrollable .oc-dock region (Director
+  // modal audit, Lot 1) instead of both simply being tall enough to show
+  // fully -- the dope-sheet clicks above can leave the curve canvas scrolled
+  // out of view, which getBoundingClientRect() would still report relative
+  // to the page rather than as "not visible".
+  await page.locator('.majoor-omnicam [data-role="curve-canvas"]').scrollIntoViewIfNeeded();
   const curvePoint = await page.evaluate(() => {
     const ui = window.omnicamLiveNode.__majoorOmniCam, canvas = ui.root.querySelector('[data-role="curve-canvas"]'), rect = canvas.getBoundingClientRect();
     ui.drawCurveEditor(); const point = ui.curveHitPoints.find((item) => item.key.frame === 12 && item.channel.name === "Position X");
@@ -361,7 +368,19 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
     // scene tree, menus) from dollying the viewport -- unrelated to the
     // workbench migration, this test predates that guard.
     ui.onWheel({ preventDefault() {}, stopPropagation() {}, deltaY: 120, target: ui.interactionElement }); const editorAfter = [...ui.viewportCamera().position];
-    ui.setViewMode("top"); ui.render();
+    // The gizmo drags and keyframes earlier in this test compute their
+    // world-space result from screen-space deltas, so the object's exact
+    // resting position at this frame depends on the exact canvas size at the
+    // time of those earlier steps -- pin it back to a known point (clearing
+    // its keyframes so the plain position actually takes effect, matching
+    // applyObjectAnimationFrame's own fallback) so this check's math is
+    // reproducible regardless of that history.
+    const subject = ui.state.objects.find((object) => object.id === "subject");
+    subject.keyframes = [];
+    // Away from [0,1.5,0], the default camera look-at target -- picking at
+    // the origin-ish point hit the target marker instead of this object.
+    subject.position = [4, 1, 4];
+    ui.setViewMode("top"); ui.resizeCanvas(); ui.render();
     // "proxy_cube" is a stale id from before the default scene's primitive was
     // renamed to "subject" (director/core.js's defaultState) -- unrelated to
     // the workbench migration.

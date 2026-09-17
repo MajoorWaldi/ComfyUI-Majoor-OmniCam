@@ -1,12 +1,6 @@
 // Lower deck: camera preview, transport bar, dope sheet, graph editor.
 
 export const LOWER_DECK_STYLES = `
-      /* The Outliner tab escapes the shared 520px side-panel scroll box: its
-         list has an explicit, drag-controlled height (see .scene-tree) and the
-         node grows to fit, so a nested max-height here would just re-introduce
-         the cramped inner scrollbar the resize handle exists to avoid. The
-         other tabs (Inspector, Shot, Health) keep the shared cap. */
-      .majoor-omnicam .oc-side-body[data-tab-panel="scene"]{max-height:none;overflow:visible}
       .majoor-omnicam .oc-lower{display:grid;grid-template-columns:var(--oc-preview-w,236px) 9px minmax(0,1fr);gap:8px;padding:0 8px 8px}
       .majoor-omnicam .oc-preview{display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);position:static;width:auto}
       .majoor-omnicam .oc-preview-head{display:flex;align-items:center;gap:6px;color:var(--oc-text-dim);font-size:11px}
@@ -200,7 +194,6 @@ export const LOWER_DECK_STYLES = `
         .majoor-omnicam .oc-side{width:100%}
         .majoor-omnicam .oc-lower{grid-template-columns:minmax(0,1fr)}
         .majoor-omnicam .oc-lower>.oc-resize-h{display:none}
-        .majoor-omnicam .oc-side-body{max-height:380px}
         .majoor-omnicam .vp-hint{display:none}
       }
       @container (max-width:560px){

@@ -180,6 +180,10 @@ test("a refresh between pointerdown and pointerup does not swallow the click", a
   // pointer was replaced mid-gesture, so the click event never fired and the
   // chips and diamonds were dead whenever anything was refreshing.
   const chip = page.locator('[data-role="curve-legend"] [data-channel-filter="2"]');
+  // .oc-lower and .oc-graph now share one bounded, scrollable .oc-dock
+  // (Director modal audit, Lot 1) instead of both always being fully
+  // visible -- this legend chip can be scrolled out of it.
+  await chip.scrollIntoViewIfNeeded();
   const box = await chip.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
@@ -188,6 +192,7 @@ test("a refresh between pointerdown and pointerup does not swallow the click", a
   expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.curveChannelFilter)).toBe("2");
 
   const diamond = page.locator('.oc-dope-row[data-channel="roll"] .oc-dope-key').nth(2);
+  await diamond.scrollIntoViewIfNeeded();
   const diamondBox = await diamond.boundingBox();
   await page.mouse.move(diamondBox.x + diamondBox.width / 2, diamondBox.y + diamondBox.height / 2);
   await page.mouse.down();

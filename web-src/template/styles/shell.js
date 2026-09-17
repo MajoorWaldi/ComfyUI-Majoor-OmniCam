@@ -5,6 +5,37 @@
 // declared here, so retheming means editing this block only.
 
 export const SHELL_STYLES = `
+      /* ---- bounded modal shell (Director only) ----------------------- */
+      /* .majoor-omnicam alone is shared with Extractor/Monitor's own
+         templates, so the bounded-height layout is scoped to the extra
+         "oc-director" class template.js stamps on the root. Everything below
+         becomes a fixed-height row except .oc-body (the grid) and .oc-dock
+         (the lower deck), which share the remaining height 1fr/flex:0 0 auto. */
+      /* box-sizing:border-box: COMPONENT_STYLES' ".majoor-omnicam *" reset
+         doesn't reach the root itself, so its own 1px border (COMPONENT_STYLES)
+         would otherwise add 2px on top of a height:100% that already exactly
+         matches .oc-workbench-content -- a small but real overflow. */
+      .majoor-omnicam.oc-director{box-sizing:border-box;display:flex;flex-direction:column;height:100%;overflow:hidden}
+      .majoor-omnicam.oc-director>.oc-header,
+      .majoor-omnicam.oc-director>.top,
+      .majoor-omnicam.oc-director>.oc-footer{flex:0 0 auto}
+      .majoor-omnicam.oc-director>.oc-body{flex:1 1 auto;min-height:0}
+      /* The dope sheet (.oc-lower) and curve editor (.oc-graph) are still two
+         independent stacked blocks today -- unifying them into one
+         mode-switching dock (so only one is visible at a time) is Lot 3's
+         job, not this pass's. Until then, give the pair a generous but real
+         ceiling and let the pair scroll together as one region rather than
+         letting their sum push the workbench root past its own bounds. */
+      /* 45% left the viewport disproportionately squeezed in several 3D
+         interaction tests (curve-canvas drag, orthographic raycasting) --
+         the audit's own budget table targets ~26% (160-300px) for this dock;
+         clamp() gives it that as a percentage-of-available-height default
+         while still flooring/ceiling it in absolute px for very small/large
+         windows. */
+      .majoor-omnicam.oc-director>.oc-dock{flex:0 1 auto;max-height:clamp(160px,30%,320px);display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+      .majoor-omnicam.oc-director>.oc-dock>.oc-lower,
+      .majoor-omnicam.oc-director>.oc-dock>.oc-graph{flex:0 0 auto}
+
       /* ---- header --------------------------------------------------- */
       .majoor-omnicam .oc-header-spacer,.majoor-omnicam .oc-toolbar-spacer,.majoor-omnicam .oc-transport-spacer,.majoor-omnicam .oc-footer-spacer,.majoor-omnicam .oc-graph-spacer{flex:1 1 auto;min-width:0}
       .majoor-omnicam .oc-status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;background:#16281d;border:1px solid #2f6b45;color:#7ee2a8;font-size:11px;font-weight:600;white-space:nowrap}
@@ -33,18 +64,33 @@ export const SHELL_STYLES = `
 
       /* ---- body grid ------------------------------------------------ */
       .majoor-omnicam .oc-body{display:grid;grid-template-columns:var(--oc-left-w,264px) 7px minmax(0,1fr) 9px var(--oc-side-w,280px);gap:8px;padding:8px;background:var(--oc-bg);align-items:start}
-      .majoor-omnicam .oc-stage{min-width:0;align-self:stretch}
-      .majoor-omnicam .oc-side{align-self:stretch}
-      .majoor-omnicam .oc-left{min-width:0;align-self:start;display:flex;flex-direction:column;gap:7px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);padding:8px}
+      .majoor-omnicam .oc-stage{min-width:0;min-height:0;align-self:stretch}
+      /* min-height:0 on every .oc-body grid item, not just on .oc-body
+         itself: a grid item's default min-height:auto resolves to its own
+         content size and blocks align-self:stretch from ever shrinking it
+         below that -- so once .oc-director's flex column constrains .oc-body
+         to less than its natural content height, each item needs this too or
+         the tallest one (usually .oc-left) keeps rendering past the row and
+         gets painted over by .oc-dock underneath. */
+      .majoor-omnicam .oc-side{align-self:stretch;min-height:0}
+      /* align-self:stretch (not the old content-height "start"): once
+         .oc-body's own row is bounded (Director bounded-layout block above),
+         .oc-left needs the same full-row-height + internal-scroll treatment
+         as .oc-side, or its content (the fixed-height .scene-tree plus its
+         search/add-object/filter chrome) can overflow past the row and get
+         painted over by .oc-dock below it, stealing its clicks. */
+      .majoor-omnicam .oc-left{min-width:0;min-height:0;align-self:stretch;display:flex;flex-direction:column;gap:7px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);padding:8px}
       .majoor-omnicam .oc-panel-head{display:flex;align-items:center;gap:6px}
       .majoor-omnicam .oc-panel-head>strong{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--oc-text-dim)}
       .majoor-omnicam .oc-panel-spacer{flex:1 1 auto}
+      /* .oc-left-body (styles.js) is already flex:1 1 auto;min-height:0 --
+         it only needed a real row height (above) and this overflow to become
+         the scrolling region a bounded .oc-left now needs. */
+      .majoor-omnicam .oc-left-body{overflow-y:auto}
       .majoor-omnicam .oc-left .scene-tree{height:var(--oc-outliner-h,220px);min-height:80px}
-      /* ASSETS tab: .oc-left is align-self:start (content height) with no
-         independent track height, so the card grid MUST carry its own bound or
-         its content drives root.scrollHeight and stretches the whole node.
-         Mirrors the fixed-height .scene-tree; the drawer layout (<=1120px)
-         gives .oc-left a real height and releases this cap in responsive.js. */
+      /* ASSETS tab: kept as an extra safety cap alongside the new
+         .oc-left-body scroll region above -- harmless belt-and-braces, not
+         load-bearing for containment anymore. */
       .majoor-omnicam .oc-left .oc-asset-grid{max-height:var(--oc-assets-h,340px)}
       /* AGENT tab: same drag-to-resize treatment as the Scene outliner and the
          Assets grid above, so every tab in this panel behaves consistently. */
@@ -147,7 +193,12 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-side-tabs .inspector-tab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:5px 4px;border-radius:var(--oc-radius-sm);background:transparent;border:1px solid transparent;color:var(--oc-text-dim);font-size:11.5px;font-weight:550;cursor:pointer;transition:all .15s ease}
       .majoor-omnicam .oc-side-tabs .inspector-tab:hover{color:var(--oc-text);background:rgba(255,255,255,0.05)}
       .majoor-omnicam .oc-side-tabs .inspector-tab.active{background:var(--oc-panel-2) !important;border-color:var(--oc-line) !important;color:var(--oc-text) !important;box-shadow:none !important}
-      .majoor-omnicam .oc-side-body{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-height:0;max-height:calc(100vh - 360px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-right:4px;scroll-behavior:smooth}
+      /* .oc-side already carries height:100% (below) inside a now-bounded
+         .oc-body row, so this flex child's own min-height:0 is what clamps
+         it -- no need for a max-height formula (the previous
+         "calc(100vh - 360px)" measured the real browser window, which is
+         wrong inside the workbench's 92vh modal). */
+      .majoor-omnicam .oc-side-body{display:flex;flex-direction:column;gap:7px;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding-right:4px;scroll-behavior:smooth}
       .majoor-omnicam .oc-outliner-add-bar{position:sticky;top:32px;z-index:9;background:var(--oc-bg);padding:2px 0}
       .majoor-omnicam .oc-add-menu{width:100%}
       .majoor-omnicam .oc-add-summary-btn{display:flex;align-items:center;gap:6px;width:100%;height:27px;padding:3px 8px;border-radius:var(--oc-radius-sm);background:var(--oc-panel-2);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s ease}
