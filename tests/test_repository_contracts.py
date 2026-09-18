@@ -34,7 +34,7 @@ def test_comfy_compat_does_not_call_v002_stable():
 
 def test_ci_covers_minimum_previous_stable_and_master():
     workflow = text(".github/workflows/test.yml")
-    for ref in ("v0.31.0", "v0.34.0", "v0.35.0"):
+    for ref in ("v0.31.0", "v0.34.0", "v0.36.0"):
         assert ref in workflow
     assert "comfy-ref: master" in workflow
     assert "label: stable" in workflow

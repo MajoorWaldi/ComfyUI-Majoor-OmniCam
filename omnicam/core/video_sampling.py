@@ -145,6 +145,12 @@ def resample_video_frames(
     for r_start, r_stop in ranges:
         count = r_stop - r_start
         batch = _decode_trim(video, r_start, count, metadata.frame_rate)
+        if batch.shape[0] != count:
+            raise ValueError(
+                f"Incomplete video decode at source frame {r_start}: "
+                f"expected {count} frames, decoded {batch.shape[0]}. "
+                "Re-encode or replace the source video."
+            )
         for i in range(batch.shape[0]):
             src_idx = r_start + i
             if src_idx in frame_to_out:
@@ -152,4 +158,3 @@ def resample_video_frames(
                     out[out_idx].copy_(batch[i])
 
     return out
-

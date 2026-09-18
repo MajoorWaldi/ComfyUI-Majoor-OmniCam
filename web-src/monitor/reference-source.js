@@ -18,6 +18,7 @@
 // rendered pixels.
 
 import { annotatedAssetUrl } from "../shared/managed-assets.js";
+import { t } from "../i18n.js";
 import { motionFingerprintFromJson } from "../shared/motion-fingerprint.js";
 
 const DIRECTOR_CLASS = "MajoorOmniCamDirector";
@@ -94,15 +95,15 @@ export function isUnrecordedDirector(originNode) {
 /** One line for the "REFERENCE SOURCE" label, or "" when there is nothing to say. */
 export function describeReferenceSource(source, originNode) {
   if (source) {
-    const parts = [source.outdated ? "⚠ Playblast outdated (re-record before compiling)" : "● Director playblast"];
+    const parts = [source.outdated ? t("⚠ Playblast outdated (re-record before compiling)") : t("● Director playblast")];
     if (source.width && source.height) parts.push(`${source.width}x${source.height}`);
     if (source.fps) parts.push(`${source.fps}fps`);
-    if (source.frameCount) parts.push(`${source.frameCount} frames`);
+    if (source.frameCount) parts.push(t("{count} frames", {count: source.frameCount}));
     if (source.durationSeconds) parts.push(`${source.durationSeconds.toFixed(2)}s`);
     return parts.join(" · ");
   }
   if (isUnrecordedDirector(originNode)) {
-    return "⚠ Director connected, no playblast recorded yet — showing the live viewport.";
+    return t("⚠ Director connected, no playblast recorded yet — showing the live viewport.");
   }
   return "";
 }

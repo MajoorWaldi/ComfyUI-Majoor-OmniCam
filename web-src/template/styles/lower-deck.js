@@ -108,7 +108,10 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-sequence-shot{position:absolute;top:3px;bottom:3px;display:flex;align-items:center;overflow:hidden;border-radius:3px;border:1px solid var(--shot-color);background:color-mix(in srgb,var(--shot-color) 30%,transparent);cursor:context-menu}
       .majoor-omnicam .oc-sequence-shot.no-proxy{border-style:dashed;opacity:.55}
       .majoor-omnicam .oc-sequence-name{padding:0 12px;font-size:11px;line-height:1;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none}
-      .majoor-omnicam .oc-sequence-handle{position:absolute;left:-6px;top:0;bottom:0;width:13px;cursor:ew-resize;background:var(--shot-color);border-radius:2px;opacity:.85;touch-action:none}
+      /* Cut boundaries use the dedicated Cuts/Shot-marker color (spec 04),
+         distinct from the shot block's own camera-identity color, so a
+         cut point reads as its own semantic type at a glance. */
+      .majoor-omnicam .oc-sequence-handle{position:absolute;left:-6px;top:0;bottom:0;width:13px;cursor:ew-resize;background:var(--oc-type-cuts);border-radius:2px;opacity:.85;touch-action:none}
       .majoor-omnicam .oc-sequence-handle::after{content:"";position:absolute;left:5px;top:35%;bottom:35%;width:3px;background:#fff;opacity:.7;border-radius:2px}
       .majoor-omnicam .oc-sequence-handle:hover{opacity:1}
       .majoor-omnicam .oc-sequence-playhead{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--oc-accent);opacity:.9;pointer-events:none}

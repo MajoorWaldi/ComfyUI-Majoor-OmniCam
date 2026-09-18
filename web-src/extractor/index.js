@@ -501,6 +501,25 @@ export class ExtractorUI {
     applied.dataset.state = appliedState;
     applied.textContent = appliedState;
 
+    const stepSource = this.root.querySelector('[data-step="source"]');
+    const stepTrack = this.root.querySelector('[data-step="track"]');
+    const stepSolve = this.root.querySelector('[data-step="solve"]');
+    const stepRefine = this.root.querySelector('[data-step="refine"]');
+    const stepOutput = this.root.querySelector('[data-step="output"]');
+    if (stepSource && stepTrack && stepSolve && stepRefine && stepOutput) {
+      const sourceOk = Boolean(this.state.source?.available);
+      stepSource.dataset.state = sourceOk ? "completed" : "active";
+      const isTracking = this.state.solveState === "TRACKING";
+      const isSolving = this.state.solveState === "SOLVING";
+      const isFailed = this.state.solveState === "FAILED";
+      const isCompleted = this.state.solveState === "COMPLETED";
+      stepTrack.dataset.state = isTracking ? "active" : (isCompleted || isSolving || this.rawSolve) ? "completed" : (isFailed && !this.rawSolve) ? "error" : "pending";
+      stepSolve.dataset.state = isSolving ? "active" : isCompleted ? "completed" : (isFailed && this.rawSolve) ? "error" : "pending";
+      const isApplied = appliedState === "APPLIED";
+      stepRefine.dataset.state = isApplied ? "completed" : isCompleted ? "active" : "pending";
+      stepOutput.dataset.state = isApplied ? "completed" : "pending";
+    }
+
     for (const tab of this.root.querySelectorAll("[data-tab]")) {
       tab.setAttribute("aria-selected", String(tab.dataset.tab === this.state.viewerMode));
     }

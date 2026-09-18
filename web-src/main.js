@@ -136,8 +136,8 @@ app.registerExtension({
     if (nodeClassOf(node) !== MONITOR_NODE_CLASS) return;
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
-    await attachWhenLoaded(node, async () => (await import("./monitor/index.js")).attachMonitor);
-    if (!node.__majoorOmniCamMonitor) return;
+    await attachWhenLoaded(node, async () => (await import("./monitor/shell.js")).attachMonitorShell);
+    if (!node.__majoorOmniCamMonitorShell && !node.__majoorOmniCamMonitor) return;
     applyNodeLayout(node, MONITOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });

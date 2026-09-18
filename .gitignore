@@ -2,6 +2,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_*/
+.pytest-tmp/
+.pytest-tmp-run/
+.audit-pytest-temp/
 .tmp-pytest/
 .superpowers/sdd/2026-09-01-extractor-ui-parity/task-1-report.md
 .codex-pytest-temp/
@@ -14,9 +17,11 @@ node_modules/
 test-results/
 dist/
 *.log
+/.audit-20260914/
 
 # `comfy node pack` / registry_package_audit.py output.
 node.zip
+registry-audit.json
 
 # Vite build output IS committed (web-chunks/, web/omnicam.js) so a plain
 # `git clone` runs without a build step. This was gitignored twice before

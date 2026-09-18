@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { queueProductGraph, waitForComfyCanvas } from "./live-helpers.js";
 
 function captureBrowserDiagnostics(page, testInfo) {
   const diagnostics = {
@@ -75,8 +76,56 @@ function captureBrowserDiagnostics(page, testInfo) {
 // persistent runtime attaches, exactly as a user would, before waiting for
 // the workbench itself to mount.
 function runtimeMarkerFor(typeName) {
+  if (typeName === "MajoorOmniCamMonitor") return "__majoorOmniCamMonitorRuntime";
   return typeName === "MajoorOmniCamExtractor" ? "__majoorOmniCamExtractorRuntime" : "__majoorOmniCamDirectorRuntime";
 }
+
+test("Monitor receives real execution while closed and reopens on a small screen", async ({page}) => {
+  await openComfyReady(page);
+  await page.evaluate(async () => {
+    const {app} = await import("/scripts/app.js");
+    app.graph.clear();
+    const monitor = window.LiteGraph.createNode("MajoorOmniCamMonitor");
+    app.graph.add(monitor);
+    window.liveClosedMonitor = monitor;
+  });
+  await page.waitForFunction(() => Boolean(window.liveClosedMonitor?.__majoorOmniCamMonitorRuntime));
+  await queueProductGraph(page, "liveClosedMonitor", {repeat: true});
+  await page.waitForFunction(() => Boolean(window.liveClosedMonitor.__majoorOmniCamMonitorRuntime.result));
+  await page.setViewportSize({width: 850, height: 600});
+  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitorWorkbench");
+  await expect(page.locator('[data-role="profile-preflight"] .oc-row').first()).toBeVisible();
+  const box = await page.locator(".oc-workbench-window").boundingBox();
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(850);
+  expect(box.y + box.height).toBeLessThanOrEqual(600);
+  await page.locator('[data-workbench-act="close"]').click();
+  await expect(page.locator(".oc-workbench-backdrop")).toHaveCount(0);
+  expect(await page.evaluate(() => {
+    const widget = window.liveClosedMonitor.widgets.find(w => w.name === "majoor_omnicam_monitor_shell");
+    return Boolean(widget.hidden || widget.options?.hideInVueNodes);
+  })).toBe(false);
+  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitorWorkbench");
+  await expect(page.locator('[data-role="profile-preflight"] .oc-row').first()).toBeVisible();
+  await page.locator('[data-workbench-act="close"]').click();
+  await expect(page.locator(".oc-workbench-backdrop")).toHaveCount(0);
+  const blockedRequest = await page.evaluate(async () => {
+    const {app} = await import("/scripts/app.js");
+    const {api} = await import("/scripts/api.js");
+    window.liveClosedMonitor.widgets.find(w => w.name === "target_profile").value = "h3_native";
+    return {prompt: (await app.graphToPrompt()).output, client_id: api.clientId};
+  });
+  // No playblast: H3 must publish its blocked preflight before failing the run.
+  const blockedResponse = await page.request.post("/prompt", {data: blockedRequest});
+  expect(blockedResponse.ok()).toBe(true);
+  await page.waitForFunction(() => {
+    const runtime = window.liveClosedMonitor.__majoorOmniCamMonitorRuntime;
+    return runtime.result && !runtime.executed && runtime.result.preflight.some(c => c.state === "BLOCKED");
+  });
+  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitorWorkbench");
+  await expect(page.locator('[data-role="profile-preflight"]')).toContainText("BLOCKED");
+});
 
 async function openWorkbenchShell(page, globalNodeVar, runtimeMarker) {
   await page.waitForFunction(
@@ -140,6 +189,7 @@ async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker
 
 async function openComfyReady(page) {
   await page.goto("/");
+  await waitForComfyCanvas(page);
   await page.evaluate(() => {
     window.__majoorOmniCamCiTrace = [];
     window.__majoorOmniCamCiBrowserDiagnostics = null;
@@ -206,12 +256,7 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
   await assertAttachReady(page, "MajoorOmniCamDirector", "omnicamCiDirector", "__majoorOmniCam");
   expect(await page.evaluate(() => window.omnicamCiDirector.widgets.find((widget) => widget.name === "fps").value)).toBe(30);
 
-  const queued = page.waitForResponse((response) => response.url().endsWith("/prompt"));
-  await page.evaluate(async () => {
-    const { app } = await import("/scripts/app.js");
-    await app.queuePrompt(0, 1);
-  });
-  expect((await queued).status()).toBeLessThan(500);
+  await queueProductGraph(page, "omnicamCiDirector", {repeat: true});
 
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");

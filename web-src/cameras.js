@@ -165,7 +165,7 @@ export function refreshCameraPreviews(ui) {
       tile.dataset.cameraId = camera.id;
       const camColor = camera.color || CAMERA_PALETTE[index % CAMERA_PALETTE.length];
       tile.style.setProperty("--camera-color", camColor);
-      tile.title = t(`Click: set ${camera.name} as primary · Double-click: edit · Right-click: preview actions`);
+      tile.title = t("Click: set {value1} as primary · Double-click: edit · Right-click: preview actions", { value1: camera.name });
       const header = document.createElement("div");
       header.className = "camera-preview-head";
       const icon = document.createElement("i");
@@ -261,7 +261,7 @@ export function addCamera(ui) {
   });
   ui.cameraPreviewSignature = "";
   ui.activateCamera(id);
-  ui.setStatus(t(`${name} added`));
+  ui.setStatus(t("{value1} added", { value1: name }));
 }
 
 export async function renameCamera(ui, id) {
@@ -275,7 +275,7 @@ export async function renameCamera(ui, id) {
   ui.serialize();
   ui.refreshObjects();
   ui.refreshKeys();
-  ui.setStatus(t(`Camera renamed: ${camera.name}`));
+  ui.setStatus(t("Camera renamed: {value1}", { value1: camera.name }));
 }
 
 export function duplicateCamera(ui, id) {
@@ -313,13 +313,13 @@ export function duplicateCamera(ui, id) {
   ui.state.cameras.push(copy);
   ui.cameraPreviewSignature = "";
   ui.activateCamera(copy.id);
-  ui.setStatus(t(`${copy.name} added`));
+  ui.setStatus(t("{value1} added", { value1: copy.name }));
 }
 
 export async function deleteCamera(ui, id) {
   if (ui.state.cameras.length <= 1) return ui.setStatus(t("At least one camera is required"));
   const camera = ui.state.cameras.find((item) => item.id === id);
-  if (!camera || !(await confirmAction(ui.app, t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
+  if (!camera || !(await confirmAction(ui.app, t("Delete camera"), t("Delete {value1} and its {value2} keyframe(s)?", { value1: camera.name, value2: camera.keyframes.length })))) return;
   ui.checkpoint("Delete camera");
   ui.finishCameraEdit();
   const wasActive = id === ui.state.active_camera_id;
@@ -347,7 +347,7 @@ export async function deleteCamera(ui, id) {
   ui.refreshKeys();
   ui.refreshInspector();
   ui.render();
-  ui.setStatus(t(`${camera.name} deleted`));
+  ui.setStatus(t("{value1} deleted", { value1: camera.name }));
 }
 
 export function activateCamera(ui, id) {
@@ -375,7 +375,7 @@ export function activateCamera(ui, id) {
   ui.refreshKeys();
   ui.refreshInspector();
   ui.render();
-  ui.setStatus(t(`Camera: ${camera.name}`));
+  ui.setStatus(t("Camera: {value1}", { value1: camera.name }));
 }
 
 export function setPlayblastCamera(ui, id) {
@@ -390,7 +390,7 @@ export function setPlayblastCamera(ui, id) {
   ui.renderCameraView();
   ui.setStatus(toSequence
     ? t("Playblast: sequence ({count} shots)").replace("{count}", String(cuts.length))
-    : t(`Playblast: ${camera.name}`));
+    : t("Playblast: {value1}", { value1: camera.name }));
 }
 
 export function toggleCameraView(ui) {
@@ -406,7 +406,7 @@ export function toggleCameraView(ui) {
       ui.resizeCanvas();
       ui.renderCameraView();
     });
-  ui.setStatus(t(`Camera previews ${ui.state.camera_view_visible ? "shown" : "hidden"}`));
+  ui.setStatus(t("Camera previews {value1}", { value1: ui.state.camera_view_visible ? "shown" : "hidden" }));
 }
 
 export function maximizeCameraPreview(ui, id) {

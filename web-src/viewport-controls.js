@@ -24,7 +24,7 @@ export function setViewMode(ui, mode) {
   }
   ui.serialize();
   ui.render();
-  ui.setStatus(t(`View: ${mode[0].toUpperCase()}${mode.slice(1)}`));
+  ui.setStatus(t("View: {value1}{value2}", { value1: mode[0].toUpperCase(), value2: mode.slice(1) }));
 }
 
 export function setTransformMode(ui, mode) {
@@ -37,7 +37,7 @@ export function setTransformMode(ui, mode) {
   }
   ui.serialize();
   ui.render();
-  ui.setStatus(t(`${mode[0].toUpperCase()}${mode.slice(1)} · ${mode === "translate" ? "W" : mode === "rotate" ? "E" : "R"}`));
+  ui.setStatus(t("{value1}{value2} · {value3}", { value1: mode[0].toUpperCase(), value2: mode.slice(1), value3: mode === "translate" ? "W" : mode === "rotate" ? "E" : "R" }));
 }
 
 export function resetCamera(ui, defaultCameraFn) {
@@ -78,7 +78,7 @@ export function frameTarget(ui, options = {}) {
       ui.finishCameraEdit();
     }
     const modeLabel = ui.subSelection.mode === "vertex" ? "Vertex" : (ui.subSelection.mode === "edge" ? "Edge" : "Face");
-    ui.setStatus(t(`Focused on ${modeLabel} at [${pt.map((v) => Math.round(v * 100) / 100).join(", ")}]`));
+    ui.setStatus(t("Focused on {value1} at [{value2}]", { value1: modeLabel, value2: pt.map((v) => Math.round(v * 100) / 100).join(", ") }));
     return;
   }
 

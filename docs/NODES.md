@@ -713,6 +713,24 @@ graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
 selected profile requires, compiles the scene into that model's representation,
 and reports what survived.
 
+Like Director and Extractor, the node on the ComfyUI canvas renders a compact
+status card (target profile and readiness) with an **OPEN MONITOR** button;
+the full workbench (reference viewer, target capabilities matrix, preflight
+checklist, and prompt blocks) opens on demand in its own window.
+
+Closing the workbench keeps its node card and OPEN MONITOR button available.
+The node retains the latest execution result or blocked preflight while closed
+and restores it when reopened. Removing the node disposes both the runtime and
+any pending workbench opening. Only one OmniCam workbench opens at a time.
+On small screens, the window stays within the viewport and the Monitor content
+scrolls so the target settings remain accessible.
+
+Monitor execution UI fields follow ComfyUI V3's list transport:
+`target_profile` is a one-item string list and `capabilities` is a one-item
+object list. The live HTTP preflight and blocked-preflight event retain their
+document-shaped fields; clients normalize both forms. Truncated video decodes
+are rejected before profile compilation can use an incomplete frame batch.
+
 Every profile is a **conditioning compiler, not a path-execution engine**: it
 turns the authored (or extracted, or preset-generated) camera path into the
 signal a specific downstream model actually accepts — a reference video, a

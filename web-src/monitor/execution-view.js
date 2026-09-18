@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 import { diagnosticState, escapeHtml } from "./html.js";
 
 function unwrap(value) {
@@ -36,14 +37,14 @@ function checkMarkup(check) {
  * successful compile.
  *
  * `live` distinguishes a preview computed without queuing anything from an
- * actual completed execution: "OUTPUT GENERATED" is a claim about a real run,
+ * actual completed execution: t("OUTPUT GENERATED") is a claim about a real run,
  * and a live snapshot has not run one. Defaults to `false` so every existing
  * two-argument call keeps its exact current wording.
  */
 export function outputStatusText(blocked, targetProfile, live = false) {
   const status = live
-    ? (blocked ? "LIVE — WOULD BLOCK" : "LIVE PREVIEW")
-    : (blocked ? "NO OUTPUT" : "OUTPUT GENERATED");
+    ? (blocked ? t("LIVE — WOULD BLOCK") : t("LIVE PREVIEW"))
+    : (blocked ? t("NO OUTPUT") : t("OUTPUT GENERATED"));
   return targetProfile ? `${status} · ${targetProfile}` : status;
 }
 
@@ -52,7 +53,7 @@ export function renderMonitorExecution(root, message, { live = false } = {}) {
   const preflight = root.querySelector('[data-role="profile-preflight"]');
   preflight.innerHTML = result.preflight.length
     ? result.preflight.map(checkMarkup).join("")
-    : '<div class="oc-empty">No preflight checks returned.</div>';
+    : `<div class="oc-empty">${escapeHtml(t("No preflight checks returned."))}</div>`;
 
   const entries = Array.isArray(result.capabilities.capabilities)
     ? result.capabilities.capabilities
@@ -60,12 +61,12 @@ export function renderMonitorExecution(root, message, { live = false } = {}) {
   const capabilities = root.querySelector('[data-role="profile-capabilities"]');
   capabilities.innerHTML = entries.length
     ? entries.map((entry) => `<div class="oc-row"><span>${escapeHtml(entry.display || entry.adapter)}</span><span class="oc-state" data-state="${diagnosticState(entry.state)}">${escapeHtml(entry.state)}</span></div>`).join("")
-    : '<div class="oc-empty">No optional downstream capability detected.</div>';
+    : `<div class="oc-empty">${escapeHtml(t("No optional downstream capability detected."))}</div>`;
 
-  const blocked = result.preflight.some((check) => String(check.state).toUpperCase() === "BLOCKED");
+  const blocked = result.preflight.some((check) => String(check.state).toUpperCase() === t("BLOCKED"));
   const badge = root.querySelector('[data-role="monitor-status"]');
-  badge.dataset.state = blocked ? "BLOCKED" : "READY";
-  badge.lastChild.textContent = blocked ? " BLOCKED" : " READY";
+  badge.dataset.state = blocked ? t("BLOCKED") : t("READY");
+  badge.lastChild.textContent = blocked ? " " + t("BLOCKED") : " " + t("READY");
   root.querySelector('[data-role="output-status"]').textContent =
     outputStatusText(blocked, result.targetProfile, live);
   return result;

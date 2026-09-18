@@ -20,6 +20,7 @@ import {
   handleMinimapWheel,
 } from "../viewport/minimap.js";
 import { t } from "../i18n.js";
+import { initAllDragScrubs } from "../inspector/drag-scrub.js";
 
 // Anchors a toolbar-menu's .menu-panel with position:fixed, computed from the
 // <details> element's own rect, so it renders above the bounded Director
@@ -262,7 +263,7 @@ export function bindEditorAndGlobal(ui, q, signal) {
         ui.refreshKeys();
         ui.refreshInspector();
         ui.render();
-        ui.setStatus(t(`Editing: ${ui.activeCameraTrack().name}`));
+        ui.setStatus(t("Editing: {value1}", { value1: ui.activeCameraTrack().name }));
       }
     }, { signal });
   }
@@ -337,7 +338,7 @@ export function bindEditorAndGlobal(ui, q, signal) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      ui.setStatus(t(`Selected: ${object.name || object.type}`));
+      ui.setStatus(t("Selected: {value1}", { value1: object.name || object.type }));
     } else if (sceneItem.dataset.cameraId) {
       ui.activateCamera(sceneItem.dataset.cameraId);
     }
@@ -454,5 +455,11 @@ export function bindEditorAndGlobal(ui, q, signal) {
   const wrapEl = ui.root.querySelector(".viewport-wrap");
   if (wrapEl) ro.observe(wrapEl);
   ui.resizeObserver = ro;
+  const scrubDisposers = initAllDragScrubs(ui.root);
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      for (const dispose of scrubDisposers) dispose();
+    });
+  }
   ui.updateEditState();
 }

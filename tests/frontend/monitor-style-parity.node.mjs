@@ -6,18 +6,19 @@ import { SHARED_STYLES } from "../../web-src/template/styles/shared.js";
 test("Director and Monitor share the canonical OmniCam visual language", () => {
   const compact = SHARED_STYLES.replace(/\s+/g, "");
   for (const token of [
-    "--oc-bg:#111214",
-    "--oc-panel:#18191c",
-    "--oc-panel-2:#202126",
-    "--oc-sunken:#0d0e10",
-    "--oc-accent:#8d7ee8",
-    "--oc-radius:8px",
-    "--oc-radius-sm:6px",
-    "--oc-ok:#58a56a",
-    "--oc-warn:#d6a04d",
-    "--oc-danger:#d85b61",
+    "--oc-bg-app:#0B1018",
+    "--oc-bg-panel:#111827",
+    "--oc-bg-control:#151D2A",
+    "--oc-bg-sunken:#080C14",
+    "--oc-accent:#5B7CFF",
+    "--oc-radius:6px",
+    "--oc-radius-sm:4px",
+    "--oc-success:#42D7A1",
+    "--oc-warning:#F3B34C",
+    "--oc-error:#ED6B73",
   ]) assert.match(compact, new RegExp(token));
 });
+
 
 test("shared controls retain visible focus and text status semantics", () => {
   assert.match(SHARED_STYLES, /:focus-visible/);

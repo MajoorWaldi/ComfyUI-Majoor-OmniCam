@@ -89,6 +89,11 @@ Then restart ComfyUI. The generated frontend bundle (`web/omnicam.js`,
 `web-chunks/`) is committed to the repository, so a plain clone is enough --
 no Node.js or local build step required.
 
+The stable CI target is ComfyUI **0.36.0**, with live coverage for both classic
+and Vue nodes. The three workbenches adapt to the browser window and use ComfyUI
+theme colors. French labels and parameterized status messages are included;
+the locale check rejects missing translations and dynamic translation keys.
+
 Rebuild it only if you are changing frontend source under `web-src/`:
 
 ```bash

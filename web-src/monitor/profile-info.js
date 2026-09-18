@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 import { escapeHtml } from "./html.js";
 
 export async function loadMonitorProfileInfo(api) {
@@ -28,5 +29,5 @@ export function renderMonitorProfileInfo(root, payload) {
         const state = capability?.state || "missing";
         return `<div class="oc-row"><span><strong>${escapeHtml(profile.display_name)}</strong><br><small>${escapeHtml(profile.semantic)} · ${escapeHtml(profile.frame_policy)}</small></span><span class="oc-state" data-state="${escapeHtml(state)}">${escapeHtml(state)}</span></div>`;
       }).join("")
-    : '<div class="oc-empty">No Monitor profile is available.</div>';
+    : `<div class="oc-empty">${escapeHtml(t("No Monitor profile is available."))}</div>`;
 }

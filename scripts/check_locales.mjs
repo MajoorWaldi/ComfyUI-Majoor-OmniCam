@@ -4,8 +4,9 @@
 // and reports how many source strings are still untranslated.
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SOURCE_DIR = join(ROOT, "web-src");
 const LOCALE_DIR = join(SOURCE_DIR, "locales");
 
@@ -30,7 +31,7 @@ for (const file of await jsFiles(SOURCE_DIR)) {
 // A template literal can never match a catalogue key, so every t(`...`) call is
 // a permanently untranslatable string. The count is ratcheted: it may fall, but
 // a change that adds one fails, so the debt can only shrink.
-const DYNAMIC_KEY_BUDGET = 76;
+const DYNAMIC_KEY_BUDGET = 0;
 const DYNAMIC_KEY = /\bt\(\s*`/g;
 
 let dynamic = 0;
@@ -70,6 +71,7 @@ for (const entry of await readdir(LOCALE_DIR)) {
   const coverage = (((catalogue.length - stale.length) / sourceStrings.size) * 100).toFixed(1);
   console.log(`${entry}: ${coverage}% coverage (${missing.length} untranslated of ${sourceStrings.size})`);
   if (missing.length) {
+    failed = true;
     console.log("  untranslated:");
     for (const key of missing.slice(0, 20)) console.log(`    ${JSON.stringify(key)}`);
     if (missing.length > 20) console.log(`    ... and ${missing.length - 20} more`);

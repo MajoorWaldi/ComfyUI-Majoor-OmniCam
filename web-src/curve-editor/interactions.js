@@ -360,7 +360,7 @@ export function setCurveInterpolation(ui, mode) {
   ui.refreshKeyEditor();
   ui.render();
   ui.drawCurveEditor();
-  ui.setStatus(t(`${mode.replace("_", " ")} interpolation @ ${key.frame}`));
+  ui.setStatus(t("{value1} interpolation @ {value2}", { value1: mode.replace("_", " "), value2: key.frame }));
 }
 
 export function setChannelFilter(ui, filter) {
@@ -371,7 +371,7 @@ export function setChannelFilter(ui, filter) {
     btn.setAttribute("aria-pressed", String(isFilter));
   }
   ui.drawCurveEditor();
-  ui.setStatus(filter === "all" ? t("Showing all channels") : t(`Solo channel ${filter}`));
+  ui.setStatus(filter === "all" ? t("Showing all channels") : t("Solo channel {value1}", { value1: filter }));
 }
 
 export function setTangentMode(ui, mode) {
@@ -397,7 +397,7 @@ export function setTangentMode(ui, mode) {
   ui.refreshKeys();
   ui.render();
   ui.drawCurveEditor();
-  ui.setStatus(t(`Tangent mode: ${mode} @ ${key.frame}`));
+  ui.setStatus(t("Tangent mode: {value1} @ {value2}", { value1: mode, value2: key.frame }));
 }
 
 export function toggleCurveHandles(ui) {
@@ -405,10 +405,10 @@ export function toggleCurveHandles(ui) {
   for (const button of ui.root.querySelectorAll('[data-act="curve-handles"]')) {
     button.classList.toggle("active", ui.showCurveHandles);
     button.setAttribute("aria-pressed", String(ui.showCurveHandles));
-    button.title = t(`${ui.showCurveHandles ? "Hide" : "Show"} Bézier tangent handles`);
+    button.title = t("{value1} Bézier tangent handles", { value1: ui.showCurveHandles ? "Hide" : "Show" });
   }
   ui.drawCurveEditor();
-  ui.setStatus(t(`Bézier handles ${ui.showCurveHandles ? "shown" : "hidden"}`));
+  ui.setStatus(t("Bézier handles {value1}", { value1: ui.showCurveHandles ? "shown" : "hidden" }));
 }
 
 export function onCurveWheel(ui, event) {
@@ -427,14 +427,14 @@ export function onCurveWheel(ui, event) {
     ui.curveZoomX = clamp((Number(ui.curveZoomX) || 1.0) * factor, 0.2, 30.0);
   }
   ui.drawCurveEditor();
-  ui.setStatus(t(`Curve zoom: ${(ui.curveZoom * 100).toFixed(0)}%`));
+  ui.setStatus(t("Curve zoom: {value1}%", { value1: (ui.curveZoom * 100).toFixed(0) }));
 }
 
 export function zoomCurve(ui, factor) {
   ui.curveZoom = clamp((Number(ui.curveZoom) || 1.0) * factor, 0.2, 30.0);
   ui.curveZoomX = clamp((Number(ui.curveZoomX) || 1.0) * factor, 0.2, 30.0);
   ui.drawCurveEditor();
-  ui.setStatus(t(`Curve zoom: ${(ui.curveZoom * 100).toFixed(0)}%`));
+  ui.setStatus(t("Curve zoom: {value1}%", { value1: (ui.curveZoom * 100).toFixed(0) }));
 }
 
 export function onCurveDoubleClick(ui, event) {

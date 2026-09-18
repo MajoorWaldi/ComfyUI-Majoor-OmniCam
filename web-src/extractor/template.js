@@ -33,6 +33,18 @@ export function extractorMarkup() {
       <span class="oc-source-label" data-role="source-label">Connect a VIDEO input to track.</span>
     </div>
 
+    <div class="oc-stepper" aria-label="Workflow progress">
+      <div class="oc-step" data-step="source"><span class="oc-step-num">1</span> <span class="oc-step-label">${t("Source")}</span></div>
+      <span class="oc-step-divider">→</span>
+      <div class="oc-step" data-step="track"><span class="oc-step-num">2</span> <span class="oc-step-label">${t("Track")}</span></div>
+      <span class="oc-step-divider">→</span>
+      <div class="oc-step" data-step="solve"><span class="oc-step-num">3</span> <span class="oc-step-label">${t("Solve")}</span></div>
+      <span class="oc-step-divider">→</span>
+      <div class="oc-step" data-step="refine"><span class="oc-step-num">4</span> <span class="oc-step-label">${t("Refine")}</span></div>
+      <span class="oc-step-divider">→</span>
+      <div class="oc-step" data-step="output"><span class="oc-step-num">5</span> <span class="oc-step-label">${t("Output")}</span></div>
+    </div>
+
     <div class="oc-card oc-reconstruction-panel" data-role="reconstruction-panel" hidden>
       <div class="oc-section">${t("Scene Reconstruction")}</div>
       <div class="oc-rows">

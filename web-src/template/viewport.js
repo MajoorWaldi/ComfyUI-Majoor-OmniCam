@@ -48,11 +48,11 @@ function viewPills() {
   return `
     <div class="vp-pills" role="group" aria-label="${t("Quick viewport views")}">
       <div class="vp-quick-views">
-        <button type="button" class="vp-view active" data-view="camera" aria-pressed="true" title="${t("Camera View")}">${t("Camera")}</button>
         <button type="button" class="vp-view" data-view="perspective" aria-pressed="false" title="${t("Perspective View")}">${t("Perspective")}</button>
+        <button type="button" class="vp-view" data-view="top" aria-pressed="false" title="${t("Top View")}">${t("Top")}</button>
         <button type="button" class="vp-view" data-view="front" aria-pressed="false" title="${t("Front View")}">${t("Front")}</button>
         <button type="button" class="vp-view" data-view="right" aria-pressed="false" title="${t("Right View")}">${t("Right")}</button>
-        <button type="button" class="vp-view" data-view="top" aria-pressed="false" title="${t("Top View")}">${t("Top")}</button>
+        <button type="button" class="vp-view active" data-view="camera" aria-pressed="true" title="${t("Camera View")}">${t("Camera")}</button>
         <button type="button" class="vp-view" data-view="iso" aria-pressed="false" title="${t("Isometric View")}">${t("ISO")}</button>
       </div>
       <select class="vp-pill vp-pill-select" data-role="view-mode" aria-label="${t("More viewport views")}" title="${t("View mode: Camera (Numpad 0), Front/Back (1), Top/Bottom (7), Right/Left (3)")}">

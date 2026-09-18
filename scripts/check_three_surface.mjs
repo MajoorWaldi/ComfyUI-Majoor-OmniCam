@@ -4,8 +4,9 @@
 // a build error.
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SOURCE_DIR = join(ROOT, "web-src");
 const BARREL = join(SOURCE_DIR, "three-runtime.js");
 

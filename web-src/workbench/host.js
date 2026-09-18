@@ -1,3 +1,5 @@
+import { t } from "../i18n.js";
+import { escapeHtml } from "../monitor/html.js";
 // Body-level modal host for a heavy OmniCam editor (Director or Extractor).
 //
 // WorkbenchHost owns only host-level concerns: the backdrop/window DOM,
@@ -45,8 +47,8 @@ export class WorkbenchHost {
         <header class="oc-workbench-header">
           <div id="${titleId}" class="oc-workbench-title"></div>
           <div class="oc-workbench-actions">
-            <button type="button" data-workbench-act="maximize" aria-label="Maximize workbench">[ ]</button>
-            <button type="button" data-workbench-act="close" aria-label="Close workbench">x</button>
+            <button type="button" data-workbench-act="maximize" aria-label="${escapeHtml(t("Maximize workbench"))}">[ ]</button>
+            <button type="button" data-workbench-act="close" aria-label="${escapeHtml(t("Close workbench"))}">x</button>
           </div>
         </header>
         <div class="oc-workbench-content"></div>

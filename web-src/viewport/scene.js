@@ -1,6 +1,7 @@
 // WebGL viewport methods extracted from the public facade.
 
 import { worldOverlay } from "./mesh-overlays.js";
+import { TOKENS } from "../shared/tokens.js";
 
 export function createSceneMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh } = dependencies;
@@ -190,7 +191,7 @@ export function createSceneMethods(dependencies) {
         if ((isTargetSelected || isSelected) && viewMode !== "camera") {
           const tgtRingGeo = new THREE.RingGeometry(0.14, 0.18, 24);
           tgtRingGeo.rotateX(Math.PI / 2);
-          const tgtRingMat = new THREE.MeshBasicMaterial({ color: 0x8B5CF6, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+          const tgtRingMat = new THREE.MeshBasicMaterial({ color: TOKENS.typeLookAt, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
           const tgtRingMesh = new THREE.Mesh(tgtRingGeo, tgtRingMat);
           tgtRingMesh.position.copy(tgt);
           tgtRingMesh.userData.omnicamWidget = "lookat";
@@ -202,7 +203,7 @@ export function createSceneMethods(dependencies) {
       if (isActive && viewMode !== "camera" && selectedEntity === "camera") {
         const ringGeo = new THREE.RingGeometry(0.19, 0.24, 32);
         ringGeo.rotateX(Math.PI / 2);
-        const ringMat = new THREE.MeshBasicMaterial({ color: 0xf2d06b, side: THREE.DoubleSide, transparent: true, opacity: 1 });
+        const ringMat = new THREE.MeshBasicMaterial({ color: TOKENS.accent, side: THREE.DoubleSide, transparent: true, opacity: 1 });
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
         ringMesh.position.copy(pos);
         ringMesh.userData.omnicamWidget = "gizmo";
@@ -210,7 +211,7 @@ export function createSceneMethods(dependencies) {
         // A fainter outer halo so the selected camera reads at a distance.
         const haloGeo = new THREE.RingGeometry(0.28, 0.31, 32);
         haloGeo.rotateX(Math.PI / 2);
-        const haloMesh = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: 0xf2d06b, side: THREE.DoubleSide, transparent: true, opacity: 0.35 }));
+        const haloMesh = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: TOKENS.accent, side: THREE.DoubleSide, transparent: true, opacity: 0.35 }));
         haloMesh.position.copy(pos);
         haloMesh.userData.omnicamWidget = "gizmo";
         this.liveCameras.add(haloMesh);

@@ -36,6 +36,7 @@ function sessionKeyFor(node) {
 async function openExtractorWorkbenchSession(runtime, opener) {
   return workbenchSessions.open({
     key: sessionKeyFor(runtime.node),
+    nodeId: runtime.node.id,
     opener,
     createSession: async () => {
       const generation = ++runtime.workbenchGeneration;

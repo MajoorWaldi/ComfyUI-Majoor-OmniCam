@@ -95,3 +95,64 @@ test("a failed session creation leaves no ghost active session", async () => {
   assert.equal(result, null);
   assert.equal(manager.activeKey, null, "old session already closed; failed creation must not resurrect it or leave a stale key");
 });
+
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+test("concurrent opens wait for the previous factory and close its session", async () => {
+  const manager = new WorkbenchSessionManager();
+  const gate = deferred();
+  const a = fakeSession("a");
+  const b = fakeSession("b");
+  let secondCreated = false;
+  const first = manager.open({key: "a", createSession: () => gate.promise});
+  const second = manager.open({key: "b", createSession: () => {
+    secondCreated = true;
+    return b.session;
+  }});
+  await Promise.resolve();
+  assert.equal(secondCreated, false);
+  gate.resolve(a.session);
+  await Promise.all([first, second]);
+  assert.deepEqual(a.calls.closeReasons, ["switch"]);
+  assert.equal(manager.activeKey, "b");
+});
+
+test("a double open during import constructs only one session", async () => {
+  const manager = new WorkbenchSessionManager();
+  const gate = deferred();
+  let creations = 0;
+  const open = () => manager.open({key: "monitor:1", createSession: () => {
+    creations++;
+    return gate.promise;
+  }});
+  const first = open();
+  const second = open();
+  const {session} = fakeSession("monitor:1");
+  gate.resolve(session);
+  assert.deepEqual(await Promise.all([first, second]), [session, session]);
+  assert.equal(creations, 1);
+});
+
+test("node removal cancels an in-flight factory and disposes its eventual result", async () => {
+  const manager = new WorkbenchSessionManager();
+  const gate = deferred();
+  const {session, calls} = fakeSession("monitor:1");
+  const pending = manager.open({key: "monitor:1", nodeId: 1, createSession: () => gate.promise});
+  await Promise.resolve();
+  manager.disposeForNode(1);
+  gate.resolve(session);
+  assert.equal(await pending, null);
+  assert.equal(calls.disposed, 1);
+  assert.equal(manager.activeKey, null);
+});
+
+test("a rejected factory does not poison subsequent openings", async () => {
+  const manager = new WorkbenchSessionManager();
+  await assert.rejects(manager.open({key: "bad", createSession: () => {throw new Error("import failed");}}));
+  const {session} = fakeSession("good");
+  assert.equal(await manager.open({key: "good", createSession: () => session}), session);
+});

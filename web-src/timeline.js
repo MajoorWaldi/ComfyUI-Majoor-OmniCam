@@ -8,7 +8,7 @@ import { renderRuler } from "./timeline/ruler.js";
 import { renderChannelList } from "./curve-editor/channel-list.js";
 import { refreshGraphTab } from "./curve-editor/tabs.js";
 import { renderHealthZones } from "./motion-health/panel.js";
-import { renderSolveHealthStrip } from "./scene/solve-health-strip.js";
+import { TOKENS } from "./shared/tokens.js";
 
 export * from "./timeline-interaction.js";
 export * from "./curve-editor.js";
@@ -36,7 +36,7 @@ export function refreshKeys(ui) {
     const w = canvas.width;
     const h = canvas.height;
     const mid = h / 2;
-    ctx.fillStyle = "#f2d06b";
+    ctx.fillStyle = TOKENS.warning;
     for (let i = 0; i < peaks.length; i++) {
       const peakFrame = (i / (peaks.length - 1)) * lastFrame;
       const x = ((peakFrame - timeMin) / Math.max(1e-6, timeSpan)) * w;
@@ -81,7 +81,7 @@ export function refreshKeys(ui) {
     rail.className = "oc-dope-rail";
     rail.style.left = `${Math.min(first, last)}%`;
     rail.style.width = `${Math.abs(last - first)}%`;
-    rail.style.setProperty("--channel-color", "#a78bfa");
+    rail.style.setProperty("--channel-color", TOKENS.typeCamera);
     box.appendChild(rail);
   }
 
@@ -94,8 +94,8 @@ export function refreshKeys(ui) {
     element.className = `key${key.frame === ui.frame ? " at-playhead" : ""}${selected.has(key.frame) ? " selected" : ""}${key.frame === ui.editingKeyFrame ? " editing" : ""}`;
     element.dataset.keyFrame = String(key.frame);
     element.dataset.interp = key.interpolation || "ease";
-    element.setAttribute("aria-label", t(`${object?.name || "Camera"} keyframe at frame ${key.frame}`));
-    element.title = t(`Frame ${key.frame} · ${key.interpolation} · Drag: Retime · Alt+Drag: Duplicate`);
+    element.setAttribute("aria-label", t("{value1} keyframe at frame {value2}", { value1: object?.name || "Camera", value2: key.frame }));
+    element.title = t("Frame {value1} · {value2} · Drag: Retime · Alt+Drag: Duplicate", { value1: key.frame, value2: key.interpolation });
     element.style.left = `${pct}%`;
     const label = document.createElement("span");
     label.className = "key-label";
@@ -118,7 +118,7 @@ export function refreshKeys(ui) {
         ui.selectedKeyFrames = new Set([cloned.frame]);
         ui.keyDrag = { key: cloned, box, isDuplicate: true, historyCheckpointed: true, moving: [{ key: cloned, startFrame: cloned.frame }], startPointerFrame: key.frame, startClientX: event.clientX, startClientY: event.clientY };
         ui.setFrame(cloned.frame, false, false);
-        ui.setStatus(t(`Duplicating key from ${key.frame}...`));
+        ui.setStatus(t("Duplicating key from {value1}...", { value1: key.frame }));
         return;
       }
       if (event.shiftKey) {
@@ -152,13 +152,13 @@ export function refreshKeys(ui) {
     const subject = document.createElement("span");
     subject.style.fontWeight = "700";
     if (ui.selectedEntity === "object" && object) {
-      subject.style.color = "#38bdf8";
+      subject.style.color = TOKENS.typeReferenceCard;
       subject.textContent = `📦 ${object.name || object.type}`;
-      summaryEl.title = t(`Currently animating object: ${object.name || object.type}`);
+      summaryEl.title = t("Currently animating object: {value1}", { value1: object.name || object.type });
     } else {
-      subject.style.color = "#f59e0b";
+      subject.style.color = TOKENS.typeCamera;
       subject.textContent = `🎥 ${activeCamera.name}`;
-      summaryEl.title = t(`Currently animating camera: ${activeCamera.name}`);
+      summaryEl.title = t("Currently animating camera: {value1}", { value1: activeCamera.name });
     }
     summaryEl.append(subject, document.createTextNode(` · ${keys.length} key${keys.length === 1 ? "" : "s"}`));
     const selectedCount = ui.selectedKeyFrames?.size || 0;
@@ -213,5 +213,4 @@ export function refreshKeys(ui) {
   ui.updateEditState();
   ui.drawCurveEditor();
   if (ui.perf) ui.perf.timelineRefreshCount = (ui.perf.timelineRefreshCount || 0) + 1;
-  renderSolveHealthStrip(ui);
 }

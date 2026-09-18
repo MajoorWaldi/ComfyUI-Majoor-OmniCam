@@ -46,6 +46,7 @@ function sessionKeyFor(node) {
 async function openDirectorWorkbenchSession(runtime, opener) {
   return workbenchSessions.open({
     key: sessionKeyFor(runtime.node),
+    nodeId: runtime.node.id,
     opener,
     createSession: async () => {
       const generation = ++runtime.workbenchGeneration;

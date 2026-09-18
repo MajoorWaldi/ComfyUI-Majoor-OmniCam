@@ -4,17 +4,22 @@
 // backdrop/window chrome that lives outside it, plus the tiny always-mounted
 // shell shown on a closed node.
 
+import { TOKENS } from "../shared/tokens.js";
+import { HOST_THEME_VARS } from "../shared/host-theme.js";
+
 const WORKBENCH_STYLE_ID = "majoor-omnicam-workbench-styles";
 
 export const WORKBENCH_STYLES = `
-  .oc-workbench-backdrop{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(8,8,11,0.72);backdrop-filter:blur(2px)}
-  .oc-workbench-window{display:flex;flex-direction:column;width:min(96vw,1920px);height:92vh;min-width:960px;min-height:640px;background:#161618;border:1px solid #383842;border-radius:10px;box-shadow:0 24px 64px rgba(0,0,0,0.6);overflow:hidden;outline:none}
+  .oc-workbench-backdrop,.oc-node-shell{${HOST_THEME_VARS}}
+  .oc-workbench-backdrop{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(5,7,12,0.82);backdrop-filter:blur(3px)}
+  .oc-workbench-window{display:flex;flex-direction:column;width:min(96vw,1920px);height:92dvh;min-width:0;min-height:0;max-width:100vw;max-height:100dvh;background:var(--oc-bg-app);border:1px solid var(--oc-border-default);border-radius:8px;box-shadow:0 24px 64px rgba(0,0,0,0.7);overflow:hidden;outline:none}
   .oc-workbench-window.is-maximized{width:100vw;height:100vh;min-width:0;min-height:0;border-radius:0;border:none}
-  .oc-workbench-header{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 10px;background:#1e1e24;border-bottom:1px solid #32323c;flex:none}
-  .oc-workbench-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e2e8;font:600 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  .oc-workbench-actions{display:flex;align-items:center;gap:4px;flex:none}
-  .oc-workbench-actions button{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;color:#9494a8;background:#23232c;border:1px solid #3c3c4a;border-radius:6px;cursor:pointer}
-  .oc-workbench-actions button:hover{background:#31313e;border-color:#58586c;color:#fff}
+  .oc-workbench-header{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 12px;background:var(--oc-bg-panel);border-bottom:1px solid var(--oc-border-default);flex:none}
+  .oc-workbench-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--oc-text-primary);font:600 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .oc-workbench-actions{display:flex;align-items:center;gap:6px;flex:none}
+  .oc-workbench-actions button{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;color:var(--oc-text-secondary);background:var(--oc-bg-control);border:1px solid var(--oc-border-default);border-radius:6px;cursor:pointer;transition:all .15s ease}
+  .oc-workbench-actions button:hover{background:var(--oc-bg-control);border-color:${TOKENS.accent};color:var(--oc-text-primary)}
+  .oc-workbench-actions button:focus-visible{outline:2px solid ${TOKENS.accent};outline-offset:2px}
   /* auto, not hidden: the embedded editor's natural content height (built for
      a graph node that grows to fit it) can exceed a modest 92vh window on a
      short viewport. Clipping it with overflow:hidden would silently strand
@@ -28,16 +33,19 @@ export const WORKBENCH_STYLES = `
      (host.js) so Extractor/Monitor keep the overflow:auto fallback above,
      since their content still grows to fit the old always-mounted-node way. */
   .oc-workbench-backdrop[data-kind="director"] .oc-workbench-content{overflow:hidden}
+  .oc-workbench-backdrop[data-kind="extractor"] .oc-workbench-content{overflow:hidden}
+  .oc-workbench-backdrop[data-kind="monitor"] .oc-workbench-content{overflow:auto}
 
-  .oc-node-shell{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:8px 10px;box-sizing:border-box;font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#ddd;background:#161618;border-radius:8px}
-  .oc-node-shell-title{font-weight:700;color:#e2e2e8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .oc-node-shell-meta{color:#9494a8;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .oc-node-shell-status{color:#c7ccd4;font-size:11px}
-  .oc-node-shell-progress{position:relative;height:5px;border-radius:3px;background:#23232c;overflow:hidden;display:none}
+  .oc-node-shell{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:8px 10px;box-sizing:border-box;font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--oc-text-secondary);background:var(--oc-bg-panel);border:1px solid var(--oc-border-default);border-radius:8px}
+  .oc-node-shell-title{font-weight:700;color:var(--oc-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oc-node-shell-meta{color:var(--oc-text-secondary);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oc-node-shell-status{color:var(--oc-text-secondary);font-size:11px}
+  .oc-node-shell-progress{position:relative;height:5px;border-radius:3px;background:var(--oc-bg-control);border:1px solid var(--oc-border-default);overflow:hidden;display:none}
   .oc-node-shell-progress[data-active="true"]{display:block}
-  .oc-node-shell-progress>span{display:block;height:100%;background:var(--oc-accent,#7c8bf0);width:0%;transition:width .15s ease}
-  .oc-node-shell-open{margin-top:auto;padding:6px 10px;border-radius:6px;background:var(--oc-accent,#7c8bf0);border:1px solid var(--oc-accent,#7c8bf0);color:#0b0d1a;font-weight:600;cursor:pointer}
-  .oc-node-shell-open:hover{filter:brightness(1.08)}
+  .oc-node-shell-progress>span{display:block;height:100%;background:${TOKENS.accent};width:0%;transition:width .15s ease}
+  .oc-node-shell-open{margin-top:auto;padding:6px 10px;border-radius:6px;background:${TOKENS.accent};border:1px solid ${TOKENS.accent};color:#fff;font-weight:600;cursor:pointer;transition:filter .15s ease}
+  .oc-node-shell-open:hover{filter:brightness(1.12)}
+  .oc-node-shell-open:focus-visible{outline:2px solid ${TOKENS.accent};outline-offset:2px}
 `;
 
 export function injectWorkbenchStyles(doc = document) {

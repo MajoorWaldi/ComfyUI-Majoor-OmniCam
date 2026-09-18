@@ -7,11 +7,13 @@
 //
 // Frames the backend never reported stay grey. Unknown is a real answer.
 
+import { TOKENS } from "../shared/tokens.js";
+
 export const QUALITY_COLORS = {
-  good: "#46a758",
-  weak: "#e5a23c",
-  bad: "#e5484d",
-  unknown: "#3a3a48",
+  good: TOKENS.success,
+  weak: TOKENS.warning,
+  bad: TOKENS.error,
+  unknown: TOKENS.borderDefault,
 };
 
 export const QUALITY_STATES = Object.keys(QUALITY_COLORS);

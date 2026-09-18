@@ -1,15 +1,17 @@
 import { expect, test } from "@playwright/test";
+import { queueProductGraph, waitForComfyCanvas } from "./live-helpers.js";
 
 const CASES = [
   ["MajoorOmniCamDirector", "__majoorOmniCam"],
   ["MajoorOmniCamExtractor", "__majoorOmniCamExtractor"],
-  ["MajoorOmniCamMonitor", "__majoorOmniCamMonitor"],
+  ["MajoorOmniCamMonitor", "__majoorOmniCamMonitorWorkbench"],
 ];
 
 const MARKERS = CASES.map(([, marker]) => marker);
 
 async function openReady(page) {
   await page.goto("/");
+  await waitForComfyCanvas(page);
   await page.waitForFunction(
     () =>
       window.comfyAPI?.app?.app?.isGraphReady
@@ -27,6 +29,7 @@ async function enableVueNodes(page) {
     await app.extensionManager.setting.set("Comfy.VueNodes.Enabled", true);
     app.graph.clear();
   });
+  await waitForComfyCanvas(page);
 }
 
 /** Resolve whichever OmniCam marker a node carries, and its live root element. */
@@ -55,11 +58,11 @@ async function rootState(page, handle) {
 // Director/Extractor mount a compact, always-mounted shell by default now
 // (workbench migration plan Task 10): their editor's __majoorOmniCam* root
 // no longer exists until a user (or this test) opens the workbench via the
-// shell's Open button. Monitor was not part of that migration -- it still
-// mounts its editor directly -- so it has no runtime/shell to open.
+// shell's Open button. Monitor follows the same persistent-shell contract.
 const SHELL_RUNTIME_MARKER = {
   MajoorOmniCamDirector: "__majoorOmniCamDirectorRuntime",
   MajoorOmniCamExtractor: "__majoorOmniCamExtractorRuntime",
+  MajoorOmniCamMonitor: "__majoorOmniCamMonitorRuntime",
 };
 
 async function openWorkbenchIfShell(page, handle, nodeType) {
@@ -138,7 +141,7 @@ for (const [nodeType, marker] of CASES) {
       window.__omnicamDisposedRoot =
         node.__majoorOmniCam?.root
         || node.__majoorOmniCamExtractor?.root
-        || node.__majoorOmniCamMonitor?.root;
+        || node.__majoorOmniCamMonitorWorkbench?.root;
       app.graph.remove(node);
     });
 
@@ -302,18 +305,13 @@ for (const [nodeType] of CASES) {
     }
 
     // --- queue the graph with Vue nodes enabled -------------------------
-    const queued = page.waitForResponse((response) => response.url().endsWith("/prompt"));
-    await page.evaluate(async () => {
-      const { app } = await import("/scripts/app.js");
-      await app.queuePrompt(0, 1);
-    });
-    expect((await queued).status()).toBeLessThan(500);
+    await queueProductGraph(page, "__omniPrimary");
 
     // --- remove everything: every root disposes ------------------------
     await page.evaluate(async () => {
       const { app } = await import("/scripts/app.js");
       window.__omniDisposedRoots = [window.__omniPrimary, window.__omniClone].map((node) => {
-        const marker = ["__majoorOmniCam", "__majoorOmniCamExtractor", "__majoorOmniCamMonitor"].find((name) => node?.[name]);
+        const marker = ["__majoorOmniCam", "__majoorOmniCamExtractor", "__majoorOmniCamMonitorWorkbench"].find((name) => node?.[name]);
         return marker ? node[marker].root : null;
       });
       app.graph.remove(window.__omniClone);

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><title>Monitor shell lifecycle regression</title>
+  <script type="importmap">{"imports":{"/scripts/app.js":"/tests/frontend/stubs/app.js","/scripts/api.js":"/tests/frontend/stubs/api.js"}}</script>
+</head>
+<body>
+  <div id="status">loading</div><div id="host"></div>
+  <script type="module">
+    await import("/web/omnicam.js");
+    const extension = window.__omnicamExtensions.find(e => e.name === "Majoor.OmniCam.Monitor");
+    const node = {
+      id: 41, comfyClass: "MajoorOmniCamMonitor", inputs: [], size: [400, 250], pos: [0, 0],
+      widgets: Object.entries({target_profile: "external_reference_video", base_prompt: "", target_width: 1280,
+        target_height: 720, duration_seconds: 0, target_fps: 0}).map(([name, value]) => ({name, value})),
+      graph: {setDirtyCanvas() {}}, setSize() {},
+      addDOMWidget(name, type, element, options) {
+        document.querySelector("#host").append(element);
+        const widget = {name, type, element, options};
+        // ComfyUI includes DOM widgets in node.widgets and respects hidden.
+        Object.defineProperty(widget, "hidden", {get: () => element.hidden, set: value => {element.hidden = value;}});
+        this.widgets.push(widget);
+        return widget;
+      },
+    };
+    window.monitorNode = node;
+    await extension.nodeCreated(node);
+    document.querySelector("#status").textContent = "ready";
+  </script>
+</body>
+</html>

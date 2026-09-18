@@ -15,7 +15,22 @@ export const SHELL_STYLES = `
          doesn't reach the root itself, so its own 1px border (COMPONENT_STYLES)
          would otherwise add 2px on top of a height:100% that already exactly
          matches .oc-workbench-content -- a small but real overflow. */
-      .majoor-omnicam.oc-director{box-sizing:border-box;display:flex;flex-direction:column;height:100%;overflow:hidden}
+      .majoor-omnicam.oc-director{
+        --oc-bg-app: var(--bg-color, #121214);
+        --oc-bg-panel: var(--comfy-menu-bg, #18181b);
+        --oc-bg-control: var(--comfy-input-bg, #222226);
+        --oc-bg-sunken: var(--comfy-input-bg, #0d0d0f);
+        --oc-border-default: var(--border-color, #2e2e34);
+        --oc-border-subtle: var(--border-color, #232328);
+        --oc-text-primary: var(--input-text, #f4f4f6);
+        --oc-text-secondary: var(--input-text, #a1a1aa);
+        --oc-text-muted: var(--input-text, #a1a1aa);
+        --oc-accent: #2563eb;
+        --oc-accent-hover: #3b82f6;
+        --oc-radius: 4px;
+        --oc-radius-sm: 3px;
+        box-sizing:border-box;display:flex;flex-direction:column;height:100%;overflow:hidden
+      }
       .majoor-omnicam.oc-director>.oc-header,
       .majoor-omnicam.oc-director>.top,
       .majoor-omnicam.oc-director>.oc-footer{flex:0 0 auto}
@@ -24,24 +39,19 @@ export const SHELL_STYLES = `
          Timeline/Graph/Sequence (unified as tabs of one block, Director modal
          audit Lot 3) share this one bounded region instead of stacking as two
          independent blocks. */
-      /* 45% left the viewport disproportionately squeezed in several 3D
-         interaction tests (curve-canvas drag, orthographic raycasting) --
-         the audit's own budget table targets ~26% (160-300px) for this dock;
-         clamp() gives it that as a percentage-of-available-height default
-         while still flooring/ceiling it in absolute px for very small/large
-         windows. */
       .majoor-omnicam.oc-director>.oc-dock{flex:0 1 auto;max-height:clamp(160px,30%,320px);display:flex;flex-direction:column;min-height:0;overflow-y:auto}
       .majoor-omnicam.oc-director>.oc-dock>.oc-lower{flex:0 0 auto}
 
       /* ---- header --------------------------------------------------- */
       .majoor-omnicam .oc-header-spacer,.majoor-omnicam .oc-toolbar-spacer,.majoor-omnicam .oc-transport-spacer,.majoor-omnicam .oc-footer-spacer,.majoor-omnicam .oc-graph-spacer{flex:1 1 auto;min-width:0}
-      .majoor-omnicam .oc-status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border-radius:999px;background:#16281d;border:1px solid #2f6b45;color:#7ee2a8;font-size:11px;font-weight:600;white-space:nowrap}
+      .majoor-omnicam .oc-status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--oc-radius-sm);background:var(--oc-ok-bg);border:1px solid var(--oc-ok-line);color:var(--oc-ok-text);font-size:11px;font-weight:600;white-space:nowrap}
       .majoor-omnicam .oc-status-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
       .majoor-omnicam .oc-overflow>summary{width:28px;height:28px;justify-content:center;padding:0;color:var(--oc-text-dim)}
 
-      /* ---- toolbar -------------------------------------------------- */
-      .majoor-omnicam .top{gap:4px;padding:6px 10px;background:var(--oc-panel);border-bottom:1px solid var(--oc-line);min-height:42px}
-      .majoor-omnicam .toolbar-menu>summary{gap:7px;padding:5px 11px;border-radius:var(--oc-radius-sm);color:var(--oc-text-dim);font-weight:550}
+      /* ---- toolbar & DCC menubar ------------------------------------ */
+      .majoor-omnicam .top{gap:4px;padding:4px 8px;background:var(--oc-panel);border-bottom:1px solid var(--oc-line);min-height:36px}
+      .majoor-omnicam .oc-dcc-menubar{display:flex;align-items:center;gap:2px}
+      .majoor-omnicam .toolbar-menu>summary{gap:6px;padding:4px 9px;border-radius:var(--oc-radius-sm);color:var(--oc-text-dim);font-weight:550;font-size:12px}
       .majoor-omnicam .toolbar-menu[open]>summary,.majoor-omnicam .toolbar-menu>summary:hover{background:var(--oc-panel-2);border-color:var(--oc-line);color:var(--oc-text)}
       .majoor-omnicam .menu-panel{width:260px;background:var(--oc-panel-2);border-color:var(--oc-line);border-radius:var(--oc-radius);box-shadow:0 16px 34px rgba(0,0,0,.62)}
       .majoor-omnicam .menu-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
@@ -50,14 +60,30 @@ export const SHELL_STYLES = `
       .majoor-omnicam .menu-row>button{flex:1}
       .majoor-omnicam .menu-row>.icon-button{flex:none}
       .majoor-omnicam .menu-panel input[type=color]{width:46px;height:24px;padding:0;background:transparent;cursor:pointer}
-      /* Beats the legacy '.menu-panel label>input[type=checkbox]{width:auto}',
-         which left these toggles at a 12px hit target. */
       .majoor-omnicam .menu-panel label>input[type=checkbox]{width:16px;height:16px;padding:0;cursor:pointer}
       .majoor-omnicam .menu-panel label{min-height:24px;cursor:pointer}
-      .majoor-omnicam .oc-render-mode{min-width:132px;background:var(--oc-panel-2)}
-      .majoor-omnicam .oc-playblast{gap:7px;padding:5px 14px;border-radius:999px;background:var(--oc-accent);border-color:var(--oc-accent);color:var(--oc-accent-ink);font-weight:600}
-      .majoor-omnicam .oc-playblast:hover{background:#9a8ae4;border-color:#9a8ae4;color:#fff}
+      .majoor-omnicam .oc-shelf-modes{display:flex;align-items:center;gap:4px;margin-right:4px}
+      .majoor-omnicam .oc-render-mode{min-width:120px;background:var(--oc-panel-2);border-radius:var(--oc-radius-sm)}
+      .majoor-omnicam .oc-playblast{gap:6px;padding:4px 12px;border-radius:var(--oc-radius-sm);background:var(--oc-accent);border-color:var(--oc-accent);color:var(--oc-accent-ink);font-weight:600;font-size:12px}
+      .majoor-omnicam .oc-playblast:hover{background:var(--oc-accent-hover);border-color:var(--oc-accent-hover);color:#fff}
       .majoor-omnicam .oc-playblast-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+
+      /* ---- Channel Box, Axis & Key Indicators ----------------------- */
+      .majoor-omnicam .oc-channel-key{display:inline-flex;align-items:center;justify-content:center;width:12px;font-size:9px;color:var(--oc-key-none,#52525b);cursor:pointer;user-select:none;margin-right:2px}
+      .majoor-omnicam .oc-channel-key:hover{color:var(--oc-key-active,#eab308)}
+      .majoor-omnicam .oc-axis.x .oc-axis-tag{color:#ef4444;font-weight:700}
+      .majoor-omnicam .oc-axis.y .oc-axis-tag{color:#22c55e;font-weight:700}
+      .majoor-omnicam .oc-axis.z .oc-axis-tag{color:#3b82f6;font-weight:700}
+      .majoor-omnicam .oc-axis:hover{border-color:var(--oc-accent);cursor:ew-resize}
+      .majoor-omnicam .oc-axis input{cursor:ew-resize}
+
+      /* ---- DCC Studio Status Bar ------------------------------------ */
+      .majoor-omnicam .oc-footer{display:flex;align-items:center;gap:8px;padding:4px 10px;background:var(--oc-panel);border-top:1px solid var(--oc-line);min-height:26px;font-size:11px}
+      .majoor-omnicam .oc-status-badge{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--oc-ok);letter-spacing:.05em}
+      .majoor-omnicam .oc-footer-sep{color:var(--oc-line);font-weight:300}
+      .majoor-omnicam .oc-footer-hints{color:var(--oc-text-dim);font-family:inherit}
+      .majoor-omnicam .oc-key-hint{display:inline-block;padding:1px 4px;border:1px solid var(--oc-line);border-radius:2px;background:var(--oc-panel-2);color:var(--oc-text);font-family:monospace;font-size:10px}
+
 
       /* ---- body grid ------------------------------------------------ */
       .majoor-omnicam .oc-body{display:grid;grid-template-columns:var(--oc-left-w,264px) 7px minmax(0,1fr) 9px var(--oc-side-w,280px);gap:8px;padding:8px;background:var(--oc-bg);align-items:start}
@@ -109,12 +135,12 @@ export const SHELL_STYLES = `
       .majoor-omnicam .vp-quick-views{display:flex;flex:0 1 auto;flex-wrap:nowrap;gap:4px;max-width:100%;overflow-x:auto;scrollbar-width:none}
       .majoor-omnicam .vp-quick-views::-webkit-scrollbar{display:none}
       .majoor-omnicam .vp-pills .vp-pill-select{flex:0 1 auto;min-width:88px}
-      .majoor-omnicam .vp-pill{padding:4px 11px;border-radius:999px;background:rgba(26,26,33,.86);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px;backdrop-filter:blur(7px)}
+      .majoor-omnicam .vp-pill{padding:4px 11px;border-radius:999px;background:rgba(17,24,39,.94);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px}
       .majoor-omnicam .vp-pill-select{appearance:none;padding-right:20px;cursor:pointer}
       .majoor-omnicam .vp-pills .vp-pill:first-child{background:var(--oc-accent-soft);border-color:var(--oc-accent);color:#fff}
       .majoor-omnicam .vp-corner{position:absolute;top:9px;right:9px;z-index:6;display:flex;align-items:center;gap:5px}
-      .majoor-omnicam .vp-zoom{padding:4px 9px;border-radius:var(--oc-radius-sm);background:rgba(26,26,33,.86);border:1px solid var(--oc-line);color:var(--oc-text-dim);font:11px ui-monospace,SFMono-Regular,Menlo,monospace;backdrop-filter:blur(7px)}
-      .majoor-omnicam .vp-rail{position:absolute;top:52px;left:9px;z-index:6;display:flex;flex-direction:column;gap:3px;padding:4px;border-radius:var(--oc-radius);background:rgba(26,26,33,.86);border:1px solid var(--oc-line);backdrop-filter:blur(7px)}
+      .majoor-omnicam .vp-zoom{padding:4px 9px;border-radius:var(--oc-radius-sm);background:rgba(17,24,39,.94);border:1px solid var(--oc-line);color:var(--oc-text-dim);font:11px ui-monospace,SFMono-Regular,Menlo,monospace}
+      .majoor-omnicam .vp-rail{position:absolute;top:52px;left:9px;z-index:6;display:flex;flex-direction:column;gap:3px;padding:4px;border-radius:var(--oc-radius);background:rgba(17,24,39,.94);border:1px solid var(--oc-line)}
       .majoor-omnicam .vp-tool{display:grid;place-items:center;width:26px;height:26px;padding:0;border-radius:6px;background:transparent;border:1px solid transparent;color:var(--oc-text-dim)}
       .majoor-omnicam .vp-tool:hover{background:var(--oc-panel-2);border-color:var(--oc-line);color:var(--oc-text)}
       .majoor-omnicam .vp-tool.active,.majoor-omnicam .vp-tool[aria-pressed="true"]{background:var(--oc-accent-soft) !important;border-color:var(--oc-accent) !important;color:#fff !important;box-shadow:none !important}
@@ -135,7 +161,7 @@ export const SHELL_STYLES = `
       .majoor-omnicam .transform-tools [data-transform-mode].active{
         background:color-mix(in srgb, var(--tool-color) 30%, transparent) !important;
         border-color:var(--tool-color) !important;color:#fff !important}
-      .majoor-omnicam .vp-axis{position:absolute;top:44px;right:9px;z-index:6;pointer-events:none;overflow:visible;border-radius:50%;background:rgba(20,23,32,.72);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.45);filter:drop-shadow(0 1px 3px rgba(0,0,0,.65))}
+      .majoor-omnicam .vp-axis{position:absolute;top:44px;right:9px;z-index:6;pointer-events:none;overflow:visible;border-radius:50%;background:rgba(11,16,24,.85);border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 14px rgba(0,0,0,.45);filter:drop-shadow(0 1px 3px rgba(0,0,0,.65))}
       .majoor-omnicam .vp-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:5;color:var(--oc-text-faint);font-size:10.5px;white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px rgba(0,0,0,.9)}
       .majoor-omnicam .vp-state{position:absolute;bottom:8px;left:9px;z-index:5;color:var(--oc-text-dim);font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace;pointer-events:none}
       .majoor-omnicam .vp-state:empty{display:none}
@@ -149,27 +175,27 @@ export const SHELL_STYLES = `
       .majoor-omnicam .vp-tool.active .vp-space-badge{color:#fff}
 
       /* Camera HUD & OSD */
-      .majoor-omnicam .vp-camera-hud{position:absolute;top:9px;left:50%;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:7px;padding:3px 12px;border-radius:999px;background:rgba(20,20,26,.88);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.45);pointer-events:auto}
+      .majoor-omnicam .vp-camera-hud{position:absolute;top:9px;left:50%;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:7px;padding:3px 12px;border-radius:999px;background:rgba(17,24,39,.96);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.45);pointer-events:auto}
       .majoor-omnicam .vp-camera-hud .hud-cam-lock{background:none;border:none;padding:0 2px;color:var(--oc-text-dim);cursor:pointer;display:inline-flex;align-items:center}
       .majoor-omnicam .vp-camera-hud .hud-cam-lock:hover{color:var(--oc-text)}
-      .majoor-omnicam .vp-camera-hud .hud-cam-lock.locked{color:#ef4444}
+      .majoor-omnicam .vp-camera-hud .hud-cam-lock.locked{color:var(--oc-danger)}
       .majoor-omnicam .vp-camera-hud .hud-cam-name{font-weight:600;color:var(--oc-text)}
-      .majoor-omnicam .vp-camera-hud .hud-cam-lens{font-weight:600;color:#60a5fa}
+      .majoor-omnicam .vp-camera-hud .hud-cam-lens{font-weight:600;color:var(--oc-accent-hover)}
       .majoor-omnicam .vp-camera-hud .hud-cam-fov{color:var(--oc-text-dim)}
       .majoor-omnicam .vp-camera-hud .hud-cam-dist{color:var(--oc-text-dim);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
       .majoor-omnicam .vp-camera-hud .hud-divider{color:var(--oc-text-faint);opacity:.5}
-      .majoor-omnicam .vp-camera-hud .hud-roll-reset{background:rgba(239,68,68,.15);border:1px solid #7f1d1d;border-radius:999px;padding:1px 6px;color:#f87171;font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
-      .majoor-omnicam .vp-camera-hud .hud-roll-reset:hover{background:rgba(239,68,68,.3)}
+      .majoor-omnicam .vp-camera-hud .hud-roll-reset{background:var(--oc-danger-bg);border:1px solid var(--oc-danger-line);border-radius:999px;padding:1px 6px;color:var(--oc-danger-text);font-size:10px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}
+      .majoor-omnicam .vp-camera-hud .hud-roll-reset:hover{background:rgba(237,107,115,.3)}
 
       /* Viewport Corner Overlays & Shading */
-      .majoor-omnicam .vp-overlay-group{display:flex;align-items:center;gap:1px;padding:2px;border-radius:var(--oc-radius-sm);background:rgba(26,26,33,.86);border:1px solid var(--oc-line);backdrop-filter:blur(7px)}
+      .majoor-omnicam .vp-overlay-group{display:flex;align-items:center;gap:1px;padding:2px;border-radius:var(--oc-radius-sm);background:rgba(17,24,39,.94);border:1px solid var(--oc-line)}
       .majoor-omnicam .vp-overlay-btn{width:22px;height:22px;display:grid;place-items:center;border-radius:4px;border:none;background:transparent;color:var(--oc-text-dim);padding:0;cursor:pointer}
       .majoor-omnicam .vp-overlay-btn:hover{color:var(--oc-text);background:rgba(255,255,255,0.06)}
       .majoor-omnicam .vp-overlay-btn.active{color:var(--oc-accent);background:var(--oc-accent-soft)}
-      .majoor-omnicam .vp-shading-select{font-size:11px;padding:3px 8px;border-radius:var(--oc-radius-sm);background:rgba(26,26,33,.86);border:1px solid var(--oc-line);color:var(--oc-text);cursor:pointer;backdrop-filter:blur(7px)}
+      .majoor-omnicam .vp-shading-select{font-size:11px;padding:3px 8px;border-radius:var(--oc-radius-sm);background:rgba(17,24,39,.94);border:1px solid var(--oc-line);color:var(--oc-text);cursor:pointer}
 
       /* Floating Mini-Transport in Fullscreen */
-      .majoor-omnicam .vp-floating-transport{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:rgba(18,18,24,.92);border:1px solid var(--oc-line);backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.65)}
+      .majoor-omnicam .vp-floating-transport{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);z-index:7;display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:rgba(11,16,24,.97);border:1px solid var(--oc-line);box-shadow:0 8px 24px rgba(0,0,0,.65)}
       .majoor-omnicam .vp-floating-transport .ft-btn{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:transparent;border:1px solid transparent;color:var(--oc-text-dim);cursor:pointer;padding:0}
       .majoor-omnicam .vp-floating-transport .ft-btn:hover{background:rgba(255,255,255,0.08);color:var(--oc-text)}
       .majoor-omnicam .vp-floating-transport .ft-play{background:var(--oc-accent-soft);border-color:var(--oc-accent);color:#fff}
@@ -199,16 +225,16 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-outliner-add-bar{position:sticky;top:32px;z-index:9;background:var(--oc-bg);padding:2px 0}
       .majoor-omnicam .oc-add-menu{width:100%}
       .majoor-omnicam .oc-add-summary-btn{display:flex;align-items:center;gap:6px;width:100%;height:27px;padding:3px 8px;border-radius:var(--oc-radius-sm);background:var(--oc-panel-2);border:1px solid var(--oc-line);color:var(--oc-text);font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s ease}
-      .majoor-omnicam .oc-add-summary-btn:hover,.majoor-omnicam .oc-add-menu[open] .oc-add-summary-btn{background:#2a2c36;border-color:#4a5568}
-      .majoor-omnicam .oc-add-menu-panel{width:210px;padding:5px 0;background:#18191c;border:1px solid #2e3038;border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,0.65);display:flex;flex-direction:column;gap:1px}
-      .majoor-omnicam .oc-add-header{color:#7e8290;font-size:11px;font-weight:600;padding:4px 12px 4px;user-select:none}
-      .majoor-omnicam .oc-add-menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:6px 12px;border:none;background:transparent;color:#f1f5f9;font-size:12.5px;font-weight:600;cursor:pointer;text-align:left;transition:background .12s ease;position:relative}
+      .majoor-omnicam .oc-add-summary-btn:hover,.majoor-omnicam .oc-add-menu[open] .oc-add-summary-btn{background:var(--oc-panel-2);border-color:var(--oc-line)}
+      .majoor-omnicam .oc-add-menu-panel{width:210px;padding:5px 0;background:var(--oc-panel-2);border:1px solid var(--oc-line);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,0.65);display:flex;flex-direction:column;gap:1px}
+      .majoor-omnicam .oc-add-header{color:var(--oc-text-dim);font-size:11px;font-weight:600;padding:4px 12px 4px;user-select:none}
+      .majoor-omnicam .oc-add-menu-item{display:flex;align-items:center;gap:10px;width:100%;padding:6px 12px;border:none;background:transparent;color:var(--oc-text);font-size:12.5px;font-weight:600;cursor:pointer;text-align:left;transition:background .12s ease;position:relative}
       .majoor-omnicam .oc-add-menu-item:hover{background:rgba(255,255,255,0.08);color:#ffffff}
-      .majoor-omnicam .oc-add-svg{width:16px;height:16px;flex-shrink:0;color:#94a3b8}
+      .majoor-omnicam .oc-add-svg{width:16px;height:16px;flex-shrink:0;color:var(--oc-text-dim)}
       .majoor-omnicam .oc-add-menu-item:hover .oc-add-svg{color:#ffffff}
-      .majoor-omnicam .oc-submenu-arrow{margin-left:auto;font-size:9px;color:#7e8290}
+      .majoor-omnicam .oc-submenu-arrow{margin-left:auto;font-size:9px;color:var(--oc-text-dim)}
       .majoor-omnicam .oc-has-submenu{user-select:none}
-      .majoor-omnicam .oc-add-submenu{position:absolute;left:calc(100% - 2px);top:-4px;min-width:165px;background:#18191c;border:1px solid #2e3038;border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,0.7);display:none;flex-direction:column;gap:1px;padding:4px 0;z-index:70}
+      .majoor-omnicam .oc-add-submenu{position:absolute;left:calc(100% - 2px);top:-4px;min-width:165px;background:var(--oc-panel-2);border:1px solid var(--oc-line);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,0.7);display:none;flex-direction:column;gap:1px;padding:4px 0;z-index:70}
       .majoor-omnicam .oc-has-submenu:hover .oc-add-submenu,.majoor-omnicam .oc-has-submenu:focus-within .oc-add-submenu{display:flex}
       .majoor-omnicam .outliner-quick-bar{display:none}
       .majoor-omnicam .outliner-filter-chips{position:sticky;top:62px;z-index:9;background:var(--oc-bg);padding-bottom:3px;border-bottom:1px solid var(--oc-line-soft)}
@@ -261,11 +287,11 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-chip-group{display:flex;gap:3px;flex:1}
       .majoor-omnicam .oc-chip-group .oc-chip-btn{flex:1;padding:2px 4px;font-size:10px;border-radius:4px;border:1px solid var(--oc-line);background:var(--oc-sunken);color:var(--oc-text-dim);cursor:pointer;text-align:center}
       .majoor-omnicam .oc-chip-group .oc-chip-btn:hover{color:var(--oc-text);border-color:var(--oc-accent)}
-      .majoor-omnicam .oc-batch-toolbar{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;margin:3px 6px;background:rgba(139,92,246,0.14);border:1px solid rgba(139,92,246,0.3);border-radius:6px;gap:6px}
-      .majoor-omnicam .oc-batch-badge{font-size:10px;font-weight:600;color:#c4b5fd;background:rgba(139,92,246,0.25);padding:2px 6px;border-radius:4px}
+      .majoor-omnicam .oc-batch-toolbar{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;margin:3px 6px;background:var(--oc-accent-soft);border:1px solid color-mix(in srgb,var(--oc-accent) 40%,transparent);border-radius:6px;gap:6px}
+      .majoor-omnicam .oc-batch-badge{font-size:10px;font-weight:600;color:var(--oc-text);background:color-mix(in srgb,var(--oc-accent) 35%,transparent);padding:2px 6px;border-radius:4px}
       .majoor-omnicam .oc-batch-actions{display:flex;align-items:center;gap:3px}
       .majoor-omnicam .oc-batch-actions .icon-button{width:22px;height:22px;font-size:11px}
-      .majoor-omnicam .oc-batch-actions .icon-button.danger:hover{color:#f87171}
+      .majoor-omnicam .oc-batch-actions .icon-button.danger:hover{color:var(--oc-danger)}
       .majoor-omnicam .scene-section-header{display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;user-select:none;font-size:10px;font-weight:700;color:var(--oc-text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px;border-radius:3px}
       .majoor-omnicam .scene-section-header:hover{background:rgba(255,255,255,0.04);color:var(--oc-text)}
       .majoor-omnicam .scene-section-title{flex:0 0 auto}
@@ -274,7 +300,7 @@ export const SHELL_STYLES = `
       .majoor-omnicam .scene-item.scene-item-child::before{content:"";position:absolute;left:8px;top:0;bottom:0;width:1px;background:var(--oc-line);opacity:.5}
       .majoor-omnicam .key-tangent-btn{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid var(--oc-line);background:var(--oc-sunken);color:var(--oc-text-dim);cursor:pointer;transition:all .15s ease}
       .majoor-omnicam .key-tangent-btn:hover{border-color:var(--oc-accent);color:#fff}
-      .majoor-omnicam .key-tangent-btn.active{background:#2563eb;border-color:#3b82f6;color:#fff;font-weight:700;box-shadow:0 0 6px rgba(59,130,246,0.4)}
+      .majoor-omnicam .key-tangent-btn.active{background:var(--oc-accent);border-color:var(--oc-accent-hover);color:#fff;font-weight:700;box-shadow:none}
       .majoor-omnicam .oc-lens-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
       .majoor-omnicam .oc-lens-presets button{padding:3px 2px;font-size:10.5px;background:var(--oc-sunken);border-color:var(--oc-line);color:var(--oc-text-dim)}
       .majoor-omnicam .oc-slider-row input[type=range]{flex:1;min-width:0;height:22px;accent-color:var(--oc-accent);padding:0;background:transparent;border:0;cursor:pointer}
@@ -282,7 +308,7 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-card-actions{display:flex;gap:5px;margin-top:3px}
       .majoor-omnicam .oc-card-actions>button{flex:1;padding:5px 8px;font-size:11px}
       .majoor-omnicam .oc-card-actions>button.primary{background:var(--oc-accent);border-color:var(--oc-accent);box-shadow:none}
-      .majoor-omnicam .oc-card-actions>button.primary:hover{background:#9a8ae4;border-color:#9a8ae4}
+      .majoor-omnicam .oc-card-actions>button.primary:hover{background:var(--oc-accent-hover);border-color:var(--oc-accent-hover)}
       .majoor-omnicam .oc-key-actions>button{flex:0 0 auto}
       .majoor-omnicam .oc-side .key-interp-buttons{display:flex;flex-wrap:wrap;gap:3px}
       .majoor-omnicam .oc-side .key-interp-btn{min-height:22px;padding:3px 8px;font-size:10.5px}
@@ -294,16 +320,16 @@ export const SHELL_STYLES = `
       /* ---- camera health --------------------------------------------- */
       /* One traffic-light palette, shared by the panel rows, the zone list and
          the timeline bands, so the same colour always means the same verdict. */
-      .majoor-omnicam .oc-health{--oc-health-ok:#46a758;--oc-health-warn:#f2b03c;--oc-health-over:#e5484d}
+      .majoor-omnicam .oc-health{--oc-health-ok:var(--oc-ok);--oc-health-warn:var(--oc-warn);--oc-health-over:var(--oc-danger)}
       .majoor-omnicam .oc-health-badge{margin-left:auto;padding:2px 7px;border-radius:9px;background:var(--oc-sunken);color:var(--oc-text-dim);font-size:10px;font-weight:600;letter-spacing:.02em}
-      .majoor-omnicam .oc-health-badge.ok{background:#46a75826;color:#7fd694}
-      .majoor-omnicam .oc-health-badge.warn{background:#f2b03c26;color:#f2c67a}
-      .majoor-omnicam .oc-health-badge.over{background:#e5484d26;color:#f08a8d}
+      .majoor-omnicam .oc-health-badge.ok{background:var(--oc-ok-bg);color:var(--oc-ok-text)}
+      .majoor-omnicam .oc-health-badge.warn{background:var(--oc-warn-bg);color:var(--oc-warn-text)}
+      .majoor-omnicam .oc-health-badge.over{background:var(--oc-danger-bg);color:var(--oc-danger-text)}
       .majoor-omnicam .oc-health-score-badge{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;padding:2px 6px;border-radius:9px}
-      .majoor-omnicam .oc-health-score-badge.grade-a{background:#22c55e26;color:#4ade80;border:1px solid #22c55e4d}
-      .majoor-omnicam .oc-health-score-badge.grade-b{background:#3b82f626;color:#60a5fa;border:1px solid #3b82f64d}
-      .majoor-omnicam .oc-health-score-badge.grade-c{background:#f59e0b26;color:#fbbf24;border:1px solid #f59e0b4d}
-      .majoor-omnicam .oc-health-score-badge.grade-d{background:#ef444426;color:#f87171;border:1px solid #ef44444d}
+      .majoor-omnicam .oc-health-score-badge.grade-a{background:var(--oc-ok-bg);color:var(--oc-ok-text);border:1px solid var(--oc-ok-line)}
+      .majoor-omnicam .oc-health-score-badge.grade-b{background:var(--oc-accent-soft);color:var(--oc-accent-hover);border:1px solid var(--oc-accent)}
+      .majoor-omnicam .oc-health-score-badge.grade-c{background:var(--oc-warn-bg);color:var(--oc-warn-text);border:1px solid var(--oc-warn-line)}
+      .majoor-omnicam .oc-health-score-badge.grade-d{background:var(--oc-danger-bg);color:var(--oc-danger-text);border:1px solid var(--oc-danger-line)}
       .majoor-omnicam .oc-health-metrics{display:flex;flex-direction:column;gap:3px;margin-top:5px}
       .majoor-omnicam .oc-health-metric{display:flex;flex-direction:column;gap:3px;padding:4px 6px;border-radius:4px;background:var(--oc-sunken);font-size:11px}
       .majoor-omnicam .oc-health-metric-row{display:flex;align-items:center;gap:6px;width:100%}
@@ -326,8 +352,8 @@ export const SHELL_STYLES = `
       .majoor-omnicam .oc-health-note{margin:6px 0 0;color:var(--oc-text-dim);font-size:10.5px;line-height:1.45}
       /* Bands sit behind the keyframe diamonds and must never eat their clicks. */
       .majoor-omnicam .oc-health-band{position:absolute;z-index:1;top:0;bottom:0;pointer-events:none}
-      .majoor-omnicam .oc-health-band[data-grade=warn]{background:#f2b03c1f;border-top:2px solid #f2b03caa}
-      .majoor-omnicam .oc-health-band[data-grade=over]{background:#e5484d24;border-top:2px solid #e5484dcc}
+      .majoor-omnicam .oc-health-band[data-grade=warn]{background:var(--oc-warn-bg);border-top:2px solid var(--oc-warn)}
+      .majoor-omnicam .oc-health-band[data-grade=over]{background:var(--oc-danger-bg);border-top:2px solid var(--oc-danger)}
 
       /* ---- footer ---------------------------------------------------- */
       .majoor-omnicam .oc-footer{display:flex;align-items:center;gap:9px;padding:8px 12px;background:var(--oc-panel);border-top:1px solid var(--oc-line)}
@@ -337,7 +363,7 @@ export const SHELL_STYLES = `
       .majoor-omnicam label.oc-disabled{opacity:.45;cursor:not-allowed}
 
       /* ---- preferences modal ------------------------------------------ */
-      .majoor-omnicam .oc-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:900;display:flex;align-items:center;justify-content:center;padding:16px}
+      .majoor-omnicam .oc-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.82);z-index:900;display:flex;align-items:center;justify-content:center;padding:16px}
       .majoor-omnicam .oc-pref-dialog{width:560px;max-width:100%;max-height:85vh;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);box-shadow:0 24px 64px rgba(0,0,0,.75);display:flex;flex-direction:column;overflow:hidden;outline:none}
       .majoor-omnicam .oc-pref-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--oc-line);background:var(--oc-panel-2)}
       .majoor-omnicam .oc-pref-title{font-size:13.5px;font-weight:650;color:var(--oc-text);display:flex;align-items:center;gap:8px}

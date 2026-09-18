@@ -48,14 +48,25 @@ export function headerMarkup() {
 export function footerMarkup() {
   return `
     <div class="oc-footer">
+      <span class="oc-status-badge" data-role="status-indicator">
+        <span class="oc-status-dot"></span>
+        <span data-role="engine-state">${t("READY")}</span>
+      </span>
+      <span class="oc-footer-sep">│</span>
+      <span class="oc-footer-hints" data-role="mouse-hints">
+        <span class="oc-key-hint">LMB</span> ${t("Select")} · 
+        <span class="oc-key-hint">MMB</span> ${t("Orbit")} · 
+        <span class="oc-key-hint">Shift+MMB</span> ${t("Pan")} · 
+        <span class="oc-key-hint">Wheel</span> ${t("Dolly")} · 
+        <span class="oc-key-hint">I</span> ${t("Key")}
+      </span>
+      <span class="oc-footer-spacer"></span>
       <details class="help oc-help">
         <summary><i class="pi pi-question-circle"></i> ${t("OmniCam Help")}</summary>
         <div class="oc-help-body">
           <p>${t("Compose a frame, press I, scrub, move the camera and press I again. Space previews the move; Playblast records the neutral motion reference.")}</p>
-          <p>${t("The proxy communicates camera motion, not final appearance. Use H3 Setup for Omni Reference, Wan Native Camera for core Plücker conditioning, or the pinned ATI/LTX adapters for their supported workflows.")}</p>
+          <p>${t("The proxy communicates camera motion, not final appearance. Delivery profiles and model targets are compiled in OmniCam Monitor.")}</p>
         </div>
       </details>
-      <span class="oc-footer-spacer"></span>
-      <button class="oc-playblast" data-act="record" title="${t("Record proxy playblast")}"><span class="oc-playblast-dot"></span>${t("Playblast")}</button>
     </div>`;
 }

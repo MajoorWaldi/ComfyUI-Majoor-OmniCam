@@ -9,6 +9,8 @@
 // A channel row therefore marks a key when that channel's value differs from
 // the previous key (and always marks the first key, which establishes it).
 
+import { TOKENS } from "./shared/tokens.js";
+
 const EPSILON = 1e-4;
 
 function vectorChanged(a, b) {
@@ -20,11 +22,25 @@ function numberChanged(a, b) {
   return Math.abs(Number(a) - Number(b)) > EPSILON;
 }
 
+// No "Cuts" row here: shot/cut data is not a property of a camera keyframe
+// (which is what every row above reads via `read`/`changed` on a whole-camera
+// key), it is a separate partition of the shared timeline into shot ranges
+// stored on ui.state and mutated through director/sequence.js (sequenceCuts,
+// splitCutAtFrame, trimCutStart, ...). Those cuts already have their own
+// dedicated lane -- sequence-lane.js renders them as one block per shot,
+// coloured by the shot's camera -- inside the Sequence tab of the lower
+// deck (template/timeline-panel.js). Bolting a "cuts" entry onto
+// DOPE_CHANNELS would either fabricate a fake per-key "changed" predicate for
+// data that isn't keyframe-shaped, or duplicate the Sequence lane's own
+// rendering here. TOKENS.typeCuts (#56B6C2) colors that lane's cut-boundary
+// handles instead (template/styles/lower-deck.js .oc-sequence-handle),
+// mirroring the other type-color tokens without forcing a dope-sheet channel
+// to exist for it.
 export const DOPE_CHANNELS = [
   {
     id: "camera",
     label: "Camera",
-    color: "#a78bfa",
+    color: TOKENS.typeCamera,
     // The camera row is the master track: every key belongs to it.
     changed: () => true,
     read: (camera) => camera?.position,
@@ -32,21 +48,21 @@ export const DOPE_CHANNELS = [
   {
     id: "look_at",
     label: "Look At",
-    color: "#f0a742",
+    color: TOKENS.typeLookAt,
     changed: (previous, current) => vectorChanged(previous?.target, current?.target),
     read: (camera) => camera?.target,
   },
   {
     id: "focal_length",
     label: "Focal Length",
-    color: "#4aa3ef",
+    color: TOKENS.typeLens,
     changed: (previous, current) => numberChanged(previous?.fov, current?.fov),
     read: (camera) => camera?.fov,
   },
   {
     id: "roll",
     label: "Roll",
-    color: "#ec4899",
+    color: TOKENS.typeRoll,
     changed: (previous, current) => numberChanged(previous?.roll, current?.roll),
     read: (camera) => camera?.roll,
   },

@@ -1,16 +1,14 @@
 // Reusable visual primitives shared by the Director and Monitor surfaces.
+import { CSS_TOKEN_VARS } from "../../shared/tokens.js";
+import { HOST_THEME_VARS } from "../../shared/host-theme.js";
+
 export const SHARED_STYLES = `
   .majoor-omnicam{
-    --oc-bg:#111214;--oc-panel:#18191c;--oc-panel-2:#202126;--oc-sunken:#0d0e10;
-    --oc-line:#303136;--oc-line-soft:#27282d;
-    --oc-text:#e6e7ea;--oc-text-dim:#9699a2;--oc-text-faint:#656872;
-    --oc-accent:#8d7ee8;--oc-accent-soft:rgba(141,126,232,.18);--oc-accent-ink:#fff;
-    --oc-ok:#58a56a;--oc-ok-bg:#18251c;--oc-ok-line:#315c3a;--oc-ok-text:#8bc997;
-    --oc-warn:#d6a04d;--oc-warn-bg:#282116;--oc-warn-line:#66502b;--oc-warn-text:#e7bd79;
-    --oc-danger:#d85b61;--oc-danger-bg:#29191b;--oc-danger-line:#6c393d;--oc-danger-text:#ee9296;
-    --oc-info:#5d91d8;--oc-radius:8px;--oc-radius-sm:6px;
+    ${CSS_TOKEN_VARS}
+    ${HOST_THEME_VARS}
+    --oc-radius:6px;--oc-radius-sm:4px;
     font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    background:var(--oc-bg);border-color:var(--oc-line);color:var(--oc-text);
+    background:var(--oc-bg-app);border-color:var(--oc-border-default);color:var(--oc-text-primary);
   }
   .majoor-omnicam *{box-sizing:border-box}
   .majoor-omnicam *::-webkit-scrollbar{width:6px;height:6px}

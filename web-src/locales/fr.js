@@ -8,7 +8,14 @@
 import { FR_BASE } from "./fr/base.js";
 import { FR_EDITOR } from "./fr/editor.js";
 
+import { FR_MONITOR } from "./fr/monitor.js";
+import { FR_WORKBENCH } from "./fr/workbench.js";
+import { FR_STATUS } from "./fr/status.js";
+
 export const FR = {
+  ...FR_STATUS,
+  ...FR_WORKBENCH,
+  ...FR_MONITOR,
   ...FR_BASE,
   ...FR_EDITOR,
 };
