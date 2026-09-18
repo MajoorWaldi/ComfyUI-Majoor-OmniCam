@@ -1173,6 +1173,9 @@ guide_style
 
 guide_reference_index
     integer
+
+reference_plan_json
+    optional advanced compiler metadata
 ```
 
 Optional later:
@@ -1181,6 +1184,33 @@ Optional later:
 guide_strictness
     safe
     permissive
+```
+
+The preferred frontend is not a raw JSON workflow. Add a **Reference Role Matrix** editor that serializes to `reference_plan_json`.
+
+Monitor should also display a **Compilation Diff**:
+
+```text
+Authored / requested control
+    -> emitted target representation
+    -> DIRECT / CONDITIONAL / APPROXIMATED / UNSUPPORTED
+    -> warning or reason
+```
+
+Example:
+
+```text
+camera 6DoF
+    -> Seedance Video 2 clay reference + role prompt
+    -> CONDITIONAL
+
+camera roll
+    -> visible in reference video, mentioned in prompt if material
+    -> CONDITIONAL
+
+proxy material
+    -> explicitly ignored
+    -> CONDITIONAL suppression request
 ```
 
 ### 12.1 Profile-driven defaults
@@ -1193,7 +1223,9 @@ h3_scene_coverage
     guide_style = none
 
 seedance25_reference
-    guide_style = clay
+    guide_style = auto
+    auto -> clay when blocking/spatial layout is preserved
+    auto -> motion_proxy for camera-only intent
 
 external_reference_video
     guide_style = passthrough
@@ -1392,31 +1424,94 @@ but that is not required for this feature.
 
 ## 18. Prompt composition policy
 
-The compiler owns the camera/reference contract.
-
-The user owns art direction.
-
-Recommended final structure:
+The compiler owns:
 
 ```text
-[reference role / retention contract]
-
-[camera schedule]
-
-[base_prompt]
+reference role assignment
+preserve / change / ignore contract
+camera semantics
+target-specific wording
+mapping-quality diagnostics
 ```
+
+The user owns the creative art direction and performance intent.
+
+Recommended universal structure:
+
+```text
+[reference role matrix]
+
+[preserve / change / ignore contract]
+
+[shot / action description]
+
+[optional camera schedule]
+
+[base art-direction prompt]
+```
+
+For Seedance 2.5, role assignment comes before detailed camera prose.
+
+For H3 Native, the textual camera contract may remain more explicit because the reference-video path is narrower and the current OmniCam adapter already compiles camera phases.
 
 Do not let the compiler silently rewrite the user's subject action.
 
 Do not automatically freeze subjects unless the selected profile is explicitly a frozen-scene product such as H3 scene coverage.
 
-For action shots:
+### 18.1 Preserve/change examples
 
-- guide describes camera;
-- base prompt describes performance;
-- reference-role paragraph separates the two.
+Camera-only guide:
 
-For Seedance clay guides, blocking may intentionally be copied when the user authored animated objects/characters in MotionScene.
+```text
+preserve:
+    camera_motion
+    camera_framing
+    camera_pacing
+
+change:
+    subject_action
+    identity
+    materials
+    lighting
+    final_appearance
+
+ignore from guide:
+    proxy_geometry
+    proxy_materials
+```
+
+Clay blocking guide:
+
+```text
+preserve:
+    camera_motion
+    composition
+    spatial_layout
+    blocking
+    subject_trajectory
+
+change:
+    identity
+    materials
+    lighting
+    color
+    final_appearance
+```
+
+Beauty reference:
+
+```text
+preserve:
+    appearance
+    materials
+    lighting
+    atmosphere
+
+camera_motion:
+    only if explicitly assigned that role
+```
+
+A Beauty reference should therefore no longer be treated only as a contamination risk. It is a valid intentional reference role when the user wants appearance transfer.
 
 ---
 
@@ -1539,7 +1634,12 @@ Coverage:
 - roll;
 - target drift;
 - cut sequence;
-- reference index.
+- reference index;
+- ReferenceSpec role resolution;
+- preserve/change/ignore intersection;
+- mapping-quality classification;
+- temporal reference ranges;
+- conflicting reference roles.
 
 Golden prompt tests should make wording changes deliberate.
 
@@ -1563,7 +1663,11 @@ Mock current capability schema and assert:
 - guide under 1.8 s blocked;
 - guide index > 10 blocked;
 - total known guide duration validated;
-- `task_type=reference` documented in preflight/recipe.
+- `task_type=reference` documented in preflight/recipe;
+- camera-only intent resolves to `motion_proxy`;
+- blocking intent resolves to `clay`;
+- role-first prompt does not emit an unnecessary verbose camera transcript;
+- conflicting role claims produce a warning rather than a guessed winner.
 
 ### 21.4 Frontend tests
 
@@ -1591,16 +1695,20 @@ Do not call paid generation APIs in CI.
 
 ## 23. Implementation phases
 
-### P0 — contracts and compiler
+### P0 — Universal compile contract
 
-- add guide analysis types;
+- add transient OmniIR / ShotCompileIR;
+- add `ReferenceSpec`, `ShotIntent` and mapping-quality enums;
+- automatically create the OmniCam Guide ReferenceSpec;
 - add deterministic camera phase compiler;
 - add `guide_reference_index`;
 - improve H3 reference prompt;
-- add `seedance25_reference` profile;
-- add capability contract and tests.
+- add `seedance25_reference`;
+- make Seedance prompt role-first;
+- add capability contract and tests;
+- expose `DIRECT / CONDITIONAL / APPROXIMATED / UNSUPPORTED` in preflight.
 
-No renderer refactor required yet: use existing playblast pixels.
+No MotionScene schema migration is required for P0.
 
 ### P1 — capture style separation
 
@@ -1608,32 +1716,43 @@ No renderer refactor required yet: use existing playblast pixels.
 - decouple viewport shading from capture shading;
 - implement `motion_proxy`;
 - implement real `clay`;
+- resolve Seedance `auto` from preserve/change intent;
 - update playblast manifest/freshness;
 - update Monitor UI.
 
-### P2 — depth-rich guide
+### P2 — multi-reference planning
 
+- add `reference_plan_json`;
+- add Reference Role Matrix UI;
+- support identity/look/action/audio ReferenceSpecs without owning their media;
+- support semantic time ranges;
+- detect role conflicts;
+- show Compilation Diff;
+- add beauty-reference as an intentional role, not only a risk state;
+- add Guide Health diagnostics.
+
+### P3 — guide quality / generated guide
+
+- depth-rich capture recipe;
 - foreground/mid/background cue system;
-- automatic proxy scene enrichment when the authored scene is too sparse;
-- Guide Health diagnostics.
+- optional automatic capture-only scene enrichment when the authored scene is too sparse;
+- evaluate whether a deterministic headless synthetic guide is worth maintaining.
 
-This enrichment must be capture-only and never mutate MotionScene.
+Headless rendering remains optional and must not block the role/compiler architecture.
 
-### P3 — headless synthetic guide
+### P4 — persisted semantic shot authoring, only if justified
 
-Optional.
+If reference-role authoring becomes a core Director feature, design MotionScene v2 with persisted:
 
-Generate a neutral guide without requiring a browser-recorded playblast.
+```text
+shots
+reference specs
+semantic timeline
+preserve/change intent
+constraints
+```
 
-Requirements:
-
-- deterministic renderer;
-- supports canonical camera transforms/FOV/roll;
-- supports primitive proxy geometry;
-- has a defined fallback for GLB/character assets;
-- produces Comfy VIDEO / IMAGE frames using current official ComfyUI APIs.
-
-Do not block P0/P1 on this.
+This is a separate product/schema migration and must not be smuggled into the guide compiler feature.
 
 ---
 
@@ -1663,7 +1782,10 @@ A user can:
 5. receive a VIDEO guide and deterministic prompt;
 6. connect them to the official `ByteDance2ReferenceNodeV2`;
 7. use `task_type=reference`;
-8. keep separate image/video references for identity, style and action.
+8. keep separate image/video references for identity, style and action;
+9. declare which reference owns camera, blocking, identity, look or action;
+10. see that camera control is reported as `CONDITIONAL`, not falsely "exact";
+11. use camera-only intent without accidentally forcing clay blocking.
 
 ### Compatibility
 
@@ -1696,6 +1818,22 @@ Guide Style
     Passthrough
     Diagnostic
 
+Reference Role
+    Camera Motion
+    Pacing
+    Composition
+    Spatial Layout
+    Blocking
+    Subject Action
+    Identity / Design
+    Materials / Lighting / Color
+
+Mapping
+    DIRECT
+    CONDITIONAL
+    APPROXIMATED
+    UNSUPPORTED
+
 Target Profile
     MiniMax H3 Native
     MiniMax H3 Scene Coverage
@@ -1723,31 +1861,58 @@ They may be the same file in compatibility mode, but they are not the same seman
                                |
                  +-------------+-------------+
                  |                           |
-          MotionScene                   Playblast pixels
-        exact camera data             recorded reference
+          MotionScene                   recorded guide
+        exact spatial data             / playblast pixels
                  |                           |
                  +-------------+-------------+
                                |
                          OMNICAM MONITOR
                                |
-                     Reference Guide Layer
-                      /       |        \
-             motion_proxy    clay     beauty
-                    |          |         |
-                    +----------+---------+
-                               |
-                      Camera Phase Analysis
-                               |
-                +--------------+---------------+
-                |                              |
-          H3 Prompt Dialect              Seedance 2.5 Dialect
-                |                              |
-       <Video N> camera only         Video N clay/white-model
-                |                              |
-       reference_frames                 reference_video
-                |                              |
-                v                              v
-      MiniMaxH3ReferenceToVideo      ByteDance2ReferenceNodeV2
+                      UNIVERSAL SHOT IR
+                 +-------------+-------------+
+                 |                           |
+           Camera Facts                ReferenceSpec[]
+                 |                  roles / ranges / ignore
+                 |                           |
+                 +----------+----------------+
+                            |
+                     ShotIntent
+               preserve / change / ignore
+                            |
+                    Guide Style Resolver
+                 /          |          \
+         motion_proxy      clay       beauty
+                 \          |          /
+                  +---------+---------+
+                            |
+                   Target Capability Map
+                            |
+              +-------------+--------------+
+              |                            |
+        H3 compiler                  Seedance 2.5 compiler
+              |                            |
+   explicit camera contract          role-first reference prompt
+   + <Video N> guide                + Video N guide
+              |                            |
+       CONDITIONAL /                 CONDITIONAL
+       APPROXIMATED                       |
+              |                            |
+      reference_frames              reference_video
+              |                            |
+              v                            v
+ MiniMaxH3ReferenceToVideo     ByteDance2ReferenceNodeV2
 ```
 
-This architecture keeps OmniCam's value in the correct place: the artist authors one real camera/scene description, and Monitor turns it into the form each model understands.
+The long-term value is not simply "export a greybox video".
+
+It is:
+
+```text
+author one spatial shot
++ declare what each reference means
++ declare what must survive or change
++ compile honestly to each model's real capabilities
+```
+
+That is the Seedance 2.5 lesson worth generalizing across OmniCam.
+
