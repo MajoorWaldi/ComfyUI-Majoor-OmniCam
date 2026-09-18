@@ -285,6 +285,40 @@ class MonitorUI {
     });
   }
 
+  /**
+   * Best-effort downscaled still of whichever preview is currently showing:
+   * the playblast <video> (this.player, MonitorPlayer/ManagedVideoPlayer) or
+   * the `proxy-upstream-preview` canvas fallback -- mirroring the same
+   * `canvas.hidden` check refreshPlayblastPreview() uses to decide which one
+   * is visible. Called by monitor/shell.js only at workbench-close time.
+   * Resolves null when neither has a usable frame yet.
+   */
+  async capturePreviewDataUrl() {
+    const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
+    const media = canvas && !canvas.hidden ? canvas : this.player?.video;
+    if (!media) return null;
+    const offscreen = document.createElement("canvas");
+    const drawn = await drawUpstreamPreview(media, offscreen, 240);
+    return drawn ? offscreen.toDataURL("image/webp", 0.7) : null;
+  }
+
+  /**
+   * The URL of the playblast video currently loaded in `this.player`, but
+   * only when the *video* path is actually what's showing -- same
+   * `canvas.hidden` check refreshPlayblastPreview() uses to decide between
+   * the player and the `proxy-upstream-preview` canvas fallback. "" (not
+   * null) when there is no such video, so the caller (monitor/shell.js) knows
+   * to fall back to a still-frame capture instead. Called by monitor/shell.js
+   * only at workbench-close time.
+   */
+  currentPlayblastVideoUrl() {
+    const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
+    if (!canvas || !canvas.hidden) return "";
+    const video = this.player?.video;
+    if (!video) return "";
+    return video.currentSrc || video.src || "";
+  }
+
   updateReferenceSourceLabel(origin, directorSource) {
     const label = this.root.querySelector('[data-role="reference-source"]');
     if (!label) return;

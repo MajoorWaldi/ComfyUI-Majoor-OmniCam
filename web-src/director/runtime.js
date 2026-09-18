@@ -67,6 +67,19 @@ export class DirectorRuntime extends EventTarget {
     this.camera = sampleCamera(this.state, 0);
     this.directorRevision = 0;
     this.renderRevision = 0;
+    // Best-effort still frame of the active camera's viewport, captured by
+    // director/shell.js at workbench-close time only. Pure in-memory visual
+    // convenience for the compact shell -- never serialized, starts empty
+    // again after a reload until the workbench has been opened and closed
+    // once.
+    this.previewDataUrl = null;
+    // URL of this Director's own recorded playblast (directorPlayblastSource
+    // resolves `recording_path` to an asset URL), refreshed by director/
+    // shell.js's refreshDirectorPreview() at the same workbench-close moment.
+    // When set, the compact shell plays this instead of previewDataUrl above
+    // (updateShell() in director/shell.js decides). Also pure in-memory,
+    // never serialized.
+    this.previewVideoUrl = null;
     // Director modal audit Lot 5: owned here (not by the transient workbench)
     // so the undo/redo stack survives a close+reopen within the same node
     // session -- previously a fresh, empty EditorHistory was created every
@@ -99,6 +112,7 @@ export class DirectorRuntime extends EventTarget {
       height: state.height,
       cameraCount: state.cameras?.length ?? 0,
       objectCount: state.objects?.length ?? 0,
+      previewDataUrl: this.previewDataUrl,
     };
   }
 

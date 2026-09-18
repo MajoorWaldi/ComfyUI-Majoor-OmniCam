@@ -28,7 +28,10 @@ export class TrackViewer {
     this.controls = new TrackControls(this.sceneCamera, { onChange: () => this.requestRender() });
 
     try {
-      this.renderer = rendererFactory({ canvas, antialias: true, alpha: false });
+      // preserveDrawingBuffer: true so the compact node shell can grab a
+      // still frame of the solved result (extractor/shell.js) via
+      // canvas.toDataURL() at any time, not only immediately after a paint.
+      this.renderer = rendererFactory({ canvas, antialias: true, alpha: false, preserveDrawingBuffer: true });
       this.renderer.setClearColor(0x101014, 1);
     } catch (error) {
       console.warn("[OmniCam] track viewer WebGL unavailable", error);

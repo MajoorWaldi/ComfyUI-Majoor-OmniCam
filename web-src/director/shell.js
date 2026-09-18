@@ -14,6 +14,7 @@ import { watchGraphConnections } from "../graph-connection-watch.js";
 import { createNodeShell } from "../workbench/node-shell.js";
 import { WorkbenchHost } from "../workbench/host.js";
 import { workbenchSessions } from "../workbench/session-manager.js";
+import { directorPlayblastSource } from "../monitor/reference-source.js";
 
 function hideInternalWidgets(node) {
   for (const name of ["state_json", "recording_path", "card_asset"]) {
@@ -37,6 +38,72 @@ function updateShell(runtime) {
   runtime.shell?.setStatus(
     `${snapshot.cameraCount} ${t("cameras")}  |  ${snapshot.objectCount} ${t("objects")}`,
   );
+  // The recorded playblast video wins over the single downscaled still frame
+  // whenever one is available -- see refreshDirectorPreview() below.
+  if (runtime.previewVideoUrl) {
+    runtime.shell?.setPreviewVideo(runtime.previewVideoUrl);
+  } else {
+    runtime.shell?.setPreviewVideo(null);
+    runtime.shell?.setPreview(snapshot.previewDataUrl ?? null);
+  }
+}
+
+//: Thumbnail size the compact shell's preview <img> is scaled to. Small on
+//: purpose -- this is a ~124px-tall box, not a viewport -- so the captured
+//: dataURL stays cheap to hold in memory across many closed nodes.
+const PREVIEW_WIDTH = 240;
+const PREVIEW_HEIGHT = 135;
+
+/**
+ * Grab a small downscaled still of the active camera's rendered viewport and
+ * store it on the runtime, for the compact shell to show while the workbench
+ * is closed. `ui.canvas` is the workbench's own 2-D viewport canvas
+ * (web-src/director.js's OmniCamDirectorUI): every render() already
+ * composites the current WebGL frame (or the Canvas-2D fallback) into it via
+ * drawImage (web-src/director/methods/render.js), so it always holds
+ * whatever the viewport last showed -- no need to reach into the three.js
+ * renderer directly. Best-effort: swallows any failure rather than blocking
+ * the close.
+ */
+function captureDirectorPreview(runtime, ui) {
+  try {
+    const source = ui?.canvas;
+    if (!source || !source.width || !source.height) return;
+    const offscreen = document.createElement("canvas");
+    offscreen.width = PREVIEW_WIDTH;
+    offscreen.height = PREVIEW_HEIGHT;
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(source, 0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+    runtime.previewDataUrl = offscreen.toDataURL("image/webp", 0.7);
+    updateShell(runtime);
+  } catch (error) {
+    console.warn("[OmniCam] Director preview capture failed", error);
+  }
+}
+
+/**
+ * Resolve the compact shell's preview at workbench-close time: prefer the
+ * node's own recorded playblast (directorPlayblastSource() -- same resolver
+ * Monitor uses for its live player, reading the `recording_path` widget) so
+ * the closed box can play the actual recording, and fall back to a single
+ * downscaled still frame of the viewport (captureDirectorPreview()) when
+ * nothing has been recorded yet. Best-effort, mirrors the still-frame path's
+ * own swallow-and-warn behavior.
+ */
+function refreshDirectorPreview(runtime, ui) {
+  try {
+    const source = directorPlayblastSource(api, runtime.node);
+    if (source) {
+      runtime.previewVideoUrl = source.url;
+      updateShell(runtime);
+      return;
+    }
+  } catch (error) {
+    console.warn("[OmniCam] Director playblast preview lookup failed", error);
+  }
+  runtime.previewVideoUrl = null;
+  captureDirectorPreview(runtime, ui);
 }
 
 function sessionKeyFor(node) {
@@ -87,11 +154,13 @@ async function openDirectorWorkbenchSession(runtime, opener) {
             return false;
           }
           ui.serialize?.();
+          refreshDirectorPreview(runtime, ui);
           closeDirectorWorkbench(ui);
           host.dispose();
           return true;
         },
         dispose: () => {
+          refreshDirectorPreview(runtime, ui);
           closeDirectorWorkbench(ui);
           host.dispose();
         },

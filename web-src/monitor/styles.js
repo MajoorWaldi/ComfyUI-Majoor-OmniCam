@@ -19,6 +19,11 @@ export const MONITOR_STYLES = `${SHARED_STYLES}
   .oc-monitor .oc-column{display:flex;flex-direction:column;gap:9px;min-width:0}.oc-monitor .oc-player{position:relative;min-height:270px;background:#09090c;border-radius:8px;overflow:hidden}
   .oc-monitor video{display:block;width:100%;height:270px;object-fit:contain;background:#08080b}.oc-monitor .oc-player-empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--oc-text-faint);pointer-events:none}
   .oc-monitor canvas[data-role="proxy-upstream-preview"]{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#08080b;filter:saturate(.7) brightness(.85)}
+  /* [hidden] must win over the position:absolute/display:grid rules above --
+     an author stylesheet rule otherwise beats the UA's [hidden]{display:none},
+     so setting canvas.hidden/emptyEl.hidden = true left both painted on top
+     of the actual <video>, showing a solid near-black box over real playback. */
+  .oc-monitor .oc-player-empty[hidden],.oc-monitor canvas[data-role="proxy-upstream-preview"][hidden]{display:none}
   .oc-monitor .oc-player-controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:7px}.oc-monitor .oc-player-controls input{flex:1;min-width:0}.oc-monitor .oc-player-controls output{min-width:62px;color:var(--oc-text-dim)}
   .oc-monitor .oc-player-empty{color:#98A3B8}
   .oc-monitor .oc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.oc-monitor .oc-row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--oc-line-soft)}

@@ -16,8 +16,41 @@ function updateShell(node, shell) {
   const profilePretty = profile.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   shell.setTitle(t("OmniCam Monitor"));
   shell.setMeta(`${t("Target")}: ${profilePretty}`);
-  const status = node.__majoorOmniCamMonitorRuntime?.status || t("Ready");
-  shell.setStatus(status);
+  const runtime = node.__majoorOmniCamMonitorRuntime;
+  shell.setStatus(runtime?.status || t("Ready"));
+  // The playblast video wins over the single still frame whenever one is
+  // available -- see captureMonitorPreview() below.
+  if (runtime?.previewVideoUrl) {
+    shell.setPreviewVideo(runtime.previewVideoUrl);
+  } else {
+    shell.setPreviewVideo(null);
+    shell.setPreview(runtime?.previewDataUrl ?? null);
+  }
+}
+
+/**
+ * Best-effort preview capture at workbench-close time only (never a
+ * poll/interval). Prefers MonitorUI.currentPlayblastVideoUrl() (monitor/
+ * index.js) -- the URL of whichever playblast video is actually loaded in
+ * the player -- and only falls back to a downscaled still-frame capture
+ * (capturePreviewDataUrl(), which knows whether the playblast <video> or the
+ * upstream-preview canvas is currently showing) when there is no video URL,
+ * e.g. nothing connected/recorded yet.
+ */
+async function captureMonitorPreview(node, shell) {
+  try {
+    const runtime = node.__majoorOmniCamMonitorRuntime;
+    const ui = node.__majoorOmniCamMonitorWorkbench;
+    const videoUrl = ui?.currentPlayblastVideoUrl?.() || "";
+    if (runtime) runtime.previewVideoUrl = videoUrl || null;
+    if (!videoUrl) {
+      const dataUrl = await ui?.capturePreviewDataUrl?.();
+      if (runtime && dataUrl) runtime.previewDataUrl = dataUrl;
+    }
+    updateShell(node, shell);
+  } catch (error) {
+    console.warn("[OmniCam] Monitor preview capture failed", error);
+  }
 }
 
 function sessionKeyFor(node) {
@@ -48,11 +81,13 @@ async function openMonitorWorkbenchSession(node, opener) {
         nodeId: node.id,
         host,
         close: async () => {
+          await captureMonitorPreview(node, node.__majoorOmniCamMonitorShell);
           closeMonitorWorkbench(ui);
           host.dispose();
           return true;
         },
         dispose: () => {
+          void captureMonitorPreview(node, node.__majoorOmniCamMonitorShell);
           closeMonitorWorkbench(ui);
           host.dispose();
         },

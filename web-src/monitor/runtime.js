@@ -11,6 +11,16 @@ export class MonitorRuntime extends EventTarget {
     this.result = null;
     this.executed = false;
     this.status = t("Ready");
+    // Best-effort still frame of the playblast preview, captured by
+    // monitor/shell.js at workbench-close time only. Pure in-memory visual
+    // convenience for the compact shell -- never serialized.
+    this.previewDataUrl = null;
+    // URL of the playblast video currently loaded in the workbench's player
+    // (MonitorUI.currentPlayblastVideoUrl()), refreshed by monitor/shell.js's
+    // captureMonitorPreview() at the same workbench-close moment. When set,
+    // the compact shell plays this instead of previewDataUrl above. Also
+    // pure in-memory, never serialized.
+    this.previewVideoUrl = null;
     this.unsubscribe = bindMonitorPreflightEvents(api, node, this);
   }
 

@@ -36,7 +36,22 @@ export const WORKBENCH_STYLES = `
   .oc-workbench-backdrop[data-kind="extractor"] .oc-workbench-content{overflow:hidden}
   .oc-workbench-backdrop[data-kind="monitor"] .oc-workbench-content{overflow:auto}
 
-  .oc-node-shell{display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:8px 10px;box-sizing:border-box;font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--oc-text-secondary);background:var(--oc-bg-panel);border:1px solid var(--oc-border-default);border-radius:8px}
+  .oc-node-shell{position:relative;display:flex;flex-direction:column;gap:6px;width:100%;height:100%;padding:8px 10px;box-sizing:border-box;font:12px/1.35 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--oc-text-secondary);background:var(--oc-bg-panel);border:1px solid var(--oc-border-default);border-radius:8px;overflow:hidden}
+  .oc-node-shell-preview{display:none;position:absolute;inset:0;z-index:0;width:100%;height:100%;object-fit:cover;border-radius:7px;pointer-events:none}
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-preview{display:block}
+  /* Dark scrim behind the text/controls only when a preview image is showing
+     underneath them -- a flat rgba(0,0,0,..) gradient, not a semantic token,
+     since it exists purely to keep white text legible over an arbitrary
+     photo and has no light/dark-theme variant of its own. Explicit z-index
+     stack (image 0, scrim 1, text/controls 2) rather than relying on DOM
+     order, since ::before would otherwise paint before -- i.e. under -- the
+     real <img> sibling that follows it. */
+  .oc-node-shell[data-has-preview="true"]::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(0,0,0,0.15) 0%,rgba(0,0,0,0.35) 55%,rgba(0,0,0,0.72) 100%);border-radius:7px;pointer-events:none}
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-title,
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-meta,
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-status{position:relative;z-index:2;color:#fff}
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-open{position:relative;z-index:2}
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-progress{z-index:2}
   .oc-node-shell-title{font-weight:700;color:var(--oc-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .oc-node-shell-meta{color:var(--oc-text-secondary);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .oc-node-shell-status{color:var(--oc-text-secondary);font-size:11px}

@@ -27,6 +27,23 @@ function updateShell(runtime) {
   runtime.shell?.setStatus(snapshot.error || `${phase}${snapshot.anomalyCount ? ` · ${snapshot.anomalyCount} ${t("anomalies")}` : ""}`);
   const busy = !["IDLE", "COMPLETED", "FAILED", "CANCELLED", "STOPPED"].includes(phase);
   runtime.shell?.setProgress(busy ? snapshot.progress : null);
+  runtime.shell?.setPreview(snapshot.previewDataUrl ?? null);
+}
+
+/**
+ * Best-effort still-frame capture at workbench-close time only (never a
+ * poll/interval). Delegates to ExtractorUI.capturePreviewDataUrl()
+ * (extractor/index.js), which prefers the solved 3D track result and falls
+ * back to whichever raw-source element is currently visible.
+ */
+async function captureExtractorPreview(runtime, ui) {
+  try {
+    const dataUrl = await ui?.capturePreviewDataUrl?.();
+    if (dataUrl) runtime.previewDataUrl = dataUrl;
+    updateShell(runtime);
+  } catch (error) {
+    console.warn("[OmniCam] Extractor preview capture failed", error);
+  }
 }
 
 function sessionKeyFor(node) {
@@ -62,11 +79,13 @@ async function openExtractorWorkbenchSession(runtime, opener) {
         nodeId: runtime.node.id,
         host,
         close: async () => {
+          await captureExtractorPreview(runtime, ui);
           closeExtractorWorkbench(ui);
           host.dispose();
           return true;
         },
         dispose: () => {
+          void captureExtractorPreview(runtime, ui);
           closeExtractorWorkbench(ui);
           host.dispose();
         },

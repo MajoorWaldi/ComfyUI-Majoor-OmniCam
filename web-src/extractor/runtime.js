@@ -62,6 +62,11 @@ export class ExtractorRuntime extends EventTarget {
     // controller on the next open (openExtractorWorkbench) so a solve that
     // finished while closed is not silently lost.
     this.reconstructionResult = null;
+    // Best-effort still frame of the solve result (or the raw source, when
+    // there is no solve yet), captured by extractor/shell.js at workbench-
+    // close time only. Pure in-memory visual convenience for the compact
+    // shell -- never serialized.
+    this.previewDataUrl = null;
 
     const cached = readCachedResult(node);
     if (cached) {
@@ -95,6 +100,7 @@ export class ExtractorRuntime extends EventTarget {
       extractMode: this.extractMode,
       anomalyCount: this.state.anomalies?.length || 0,
       error: this.state.error || "",
+      previewDataUrl: this.previewDataUrl,
     };
   }
 

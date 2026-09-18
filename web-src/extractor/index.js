@@ -4,6 +4,7 @@ import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { renderSourceStageMedia } from "./source-stage.js";
+import { drawUpstreamPreview } from "../shared/upstream-preview.js";
 import { clearExtractorCache } from "./clear-cache.js";
 
 import { postRefine } from "./refine-client.js";
@@ -441,6 +442,34 @@ export class ExtractorUI {
     this.viewer.setLandmarks(this.landmarks);
     this.viewer.setMode(this.state.trackMode);
     this.coordinator.seek(this.state.frame, "sync");
+  }
+
+  /**
+   * Best-effort downscaled still for the compact node shell: the solved 3D
+   * track viewer (web-src/viewer/track-viewer.js's TrackViewer, whose canvas
+   * is created with preserveDrawingBuffer: true for exactly this) when it has
+   * been loaded and has something drawn, otherwise whichever raw-source
+   * element the SOURCE stage is currently showing (source-stage.js's
+   * renderSourceStageMedia() picks one of these three by toggling `hidden`).
+   * Called by extractor/shell.js only at workbench-close time.
+   */
+  async capturePreviewDataUrl() {
+    const offscreen = document.createElement("canvas");
+    if (this.viewer?.canvas && this.viewer.renderer) {
+      try {
+        if (await drawUpstreamPreview(this.viewer.canvas, offscreen, 240)) {
+          return offscreen.toDataURL("image/webp", 0.7);
+        }
+      } catch (error) {
+        console.warn("[OmniCam] Extractor solve-result preview capture failed", error);
+      }
+    }
+    const media = ["source-video", "fallback-preview", "upstream-preview"]
+      .map((role) => this.$(role))
+      .find((element) => element && !element.hidden);
+    if (!media) return null;
+    const drawn = await drawUpstreamPreview(media, offscreen, 240);
+    return drawn ? offscreen.toDataURL("image/webp", 0.7) : null;
   }
 
   async setViewerMode(mode) {
