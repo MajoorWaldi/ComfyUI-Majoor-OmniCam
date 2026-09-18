@@ -75,6 +75,12 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                     "target_fps", default=0.0, min=0.0, max=120.0, step=1.0, advanced=True,
                     tooltip="Frame rate to sample trajectories at. 0 inherits the authoring fps of the connected MotionScene.",
                 ),
+                IO.Int.Input(
+                    "guide_reference_index", default=1, min=1, max=10, advanced=True,
+                    tooltip="Which <Video N> / Video N slot the OmniCam guide occupies on the target model. "
+                            "MiniMax H3 accepts 1-3, Seedance 2.5 accepts 1-10. An out-of-range value is "
+                            "reported at preflight rather than silently clamped.",
+                ),
             ],
             hidden=[IO.Hidden.unique_id],
             outputs=[
@@ -97,6 +103,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
         cls, motion_scene: dict[str, Any], playblast_video=None, base_prompt: str = "",
         target_profile: str = "", target_width: int = 832, target_height: int = 480,
         duration_seconds: float = 0.0, target_fps: float = 0.0,
+        guide_reference_index: int = 1,
     ) -> IO.NodeOutput:
         try:
             scene = MotionScene.from_dict(motion_scene)
@@ -126,6 +133,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             target_height=target_height,
             duration_seconds=duration_seconds,
             target_fps=target_fps,
+            guide_reference_index=guide_reference_index or None,
         )
         # Detected before compiling: a downstream that cannot receive this output
         # is a preflight failure the panel has to show, not a surprise at queue

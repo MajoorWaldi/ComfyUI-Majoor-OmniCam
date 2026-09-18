@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from ..guides.model import validate_mapping_quality
 from ..profiles.base import validate_frame_policy, validate_profile_id, validate_semantic
 
 CHECK_STATES = frozenset({"PASS", "WARNING", "BLOCKED", "RISK"})
@@ -80,6 +81,7 @@ class Check:
     code: str | None = None
     recoverable: bool = False
     suggestions: tuple[str, ...] = ()
+    mapping_quality: str | None = None
 
     def __post_init__(self) -> None:
         _non_empty(self.id, "id")
@@ -96,6 +98,8 @@ class Check:
         if not all(isinstance(item, str) for item in suggestions):
             raise TypeError("suggestions must contain strings")
         object.__setattr__(self, "suggestions", suggestions)
+        if self.mapping_quality is not None:
+            validate_mapping_quality(self.mapping_quality)
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,6 +195,11 @@ def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str
                 **({"code": check.code} if getattr(check, "code", None) else {}),
                 **({"recoverable": True} if getattr(check, "recoverable", False) else {}),
                 **({"suggestions": list(check.suggestions)} if getattr(check, "suggestions", ()) else {}),
+                **(
+                    {"mapping_quality": check.mapping_quality}
+                    if getattr(check, "mapping_quality", None)
+                    else {}
+                ),
             }
             for check in checks
         ],

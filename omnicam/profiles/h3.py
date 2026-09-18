@@ -7,6 +7,7 @@ import math
 from ..adapters.h3 import (
     H3_API_MEDIA_LIMITS,
     H3_NATIVE_MEDIA_LIMITS,
+    MAX_REFERENCE_INDEX,
     build_h3_prompt,
     h3_native_aligned_length,
 )
@@ -115,7 +116,37 @@ def _reference_frame_count_check(request: CompileRequest, target_frames: int) ->
     )]
 
 
-def _h3_prompt(request: CompileRequest, camera, *, adapter: str) -> str:
+def _resolve_reference_index(request: CompileRequest, *, default: int = 1) -> int:
+    return request.guide_reference_index if request.guide_reference_index is not None else default
+
+
+def _reference_index_check(reference_index: int) -> Check:
+    in_range = 1 <= reference_index <= MAX_REFERENCE_INDEX
+    return Check(
+        id="guide_reference_index",
+        label=f"Guide reference index: {reference_index}",
+        state="PASS" if in_range else "BLOCKED",
+        message="" if in_range else (
+            f"H3 documents reference-video slots 1-{MAX_REFERENCE_INDEX}; "
+            f"guide_reference_index={reference_index} is out of range."
+        ),
+    )
+
+
+def _camera_motion_mapping_check() -> Check:
+    return Check(
+        id="camera_motion_mapping",
+        label="Camera motion control",
+        state="PASS",
+        mapping_quality="CONDITIONAL",
+        message=(
+            "H3 has no native camera-extrinsics socket; camera motion is communicated "
+            "only through the reference-video guide and prompt."
+        ),
+    )
+
+
+def _h3_prompt(request: CompileRequest, camera, *, adapter: str, reference_index: int) -> str:
     """The camera fragment, or a neutral one when the edit has cuts.
 
     Describing one camera's move next to a reference video that cuts between
@@ -125,7 +156,7 @@ def _h3_prompt(request: CompileRequest, camera, *, adapter: str) -> str:
     if request.motion_scene.is_multi_shot:
         fragment = MULTI_SHOT_PROMPT
     else:
-        fragment = build_h3_prompt(camera.track, adapter=adapter)
+        fragment = build_h3_prompt(camera.track, adapter=adapter, reference_index=reference_index)
     return f"{request.base_prompt}\n\n{fragment}".strip()
 
 
@@ -182,6 +213,7 @@ class H3NativeProfile:
                 label=f"H3 Native target length: {timeline.frame_count} (17n+5)",
                 state="PASS",
             ),
+            _reference_index_check(_resolve_reference_index(request)),
             *_reference_media_checks(request, H3_NATIVE_MEDIA_LIMITS),
             *_reference_frame_count_check(request, timeline.frame_count),
             *([freshness] if freshness else []),
@@ -190,6 +222,7 @@ class H3NativeProfile:
                 display_name="MiniMax H3 Native",
                 can_represent=True,
             ),
+            _camera_motion_mapping_check(),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
@@ -212,7 +245,8 @@ class H3NativeProfile:
             raise ValueError("MotionScene has no usable playblast camera")
 
         timeline = self.resolve_timeline(request)
-        final_prompt = _h3_prompt(request, camera, adapter="h3_native")
+        reference_index = _resolve_reference_index(request)
+        final_prompt = _h3_prompt(request, camera, adapter="h3_native", reference_index=reference_index)
 
         frames = resample_video_frames(
             request.playblast_video,
@@ -294,6 +328,7 @@ class H3ApiProfile:
                 state="PASS",
                 message="Video transport required for API",
             ),
+            _reference_index_check(_resolve_reference_index(request)),
             *_reference_media_checks(request, H3_API_MEDIA_LIMITS),
             *([freshness] if freshness else []),
             multi_shot_check(
@@ -301,6 +336,7 @@ class H3ApiProfile:
                 display_name="MiniMax H3 API",
                 can_represent=True,
             ),
+            _camera_motion_mapping_check(),
         ]
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
@@ -323,7 +359,8 @@ class H3ApiProfile:
             raise ValueError("MotionScene has no usable playblast camera")
 
         timeline = self.resolve_timeline(request)
-        final_prompt = _h3_prompt(request, camera, adapter="comfy_api")
+        reference_index = _resolve_reference_index(request)
+        final_prompt = _h3_prompt(request, camera, adapter="comfy_api", reference_index=reference_index)
 
         return CompiledMotion(
             profile_id=self.id,

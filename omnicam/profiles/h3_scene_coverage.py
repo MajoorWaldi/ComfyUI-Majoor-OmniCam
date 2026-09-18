@@ -104,6 +104,20 @@ def _timing_check(requested_frames: int, resolved: H3SceneProfile) -> Check:
     )
 
 
+def _camera_motion_mapping_check() -> Check:
+    return Check(
+        id="camera_motion_mapping",
+        label="Camera motion control",
+        state="PASS",
+        mapping_quality="APPROXIMATED",
+        message=(
+            "This path never ships a reference video; the authored geometry is compiled "
+            "straight into the prompt and H3EDIT_OPTIONS, which approximates the camera "
+            "move rather than communicating it through a guide."
+        ),
+    )
+
+
 def _loop_closure_check(analysis: H3GeometryAnalysis) -> Check:
     if analysis.total_orbit_degrees < 5.0:
         return Check(id="h3_loop_closure", label="H3 loop closure", state="PASS", message="Static hold; loop closure does not apply.")
@@ -154,6 +168,7 @@ class H3SceneCoverageProfile:
         checks = [
             multi_shot_check(request.motion_scene, display_name=DISPLAY_NAME, can_represent=False),
             _representation_check(analysis, representability, error),
+            _camera_motion_mapping_check(),
         ]
         if analysis is not None and representability is not None and representability.state != "BLOCKED":
             requested_frames = max(1, math.ceil(request.duration_seconds * H3_SCENE_FPS))

@@ -751,9 +751,10 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `motion_scene` | — | the canonical scene to compile |
 | `playblast_video` | optional | the shot the scene describes, `VIDEO` or `IMAGE` batch |
 | `base_prompt` | empty | user intent, kept at the head of `final_prompt` |
-| `target_profile` | `external_reference_video` | one of the nine profiles below |
+| `target_profile` | `external_reference_video` | one of the ten profiles below |
 | `target_width`, `target_height` | `832`, `480` | target frame size |
 | `duration_seconds`, `target_fps` | `0` (auto), `0` (auto) | length and frame rate of the shot being compiled; `0` inherits `timeline.duration_seconds` / `timeline.authoring_fps` from the connected MotionScene (the Director's authored shot) |
+| `guide_reference_index` | `1` | which `<Video N>` / `Video N` slot the OmniCam guide occupies on the target model; H3 accepts 1-3, Seedance 2.5 accepts 1-10, out of range is reported at preflight |
 
 **Outputs**, in schema order: `final_prompt`, `reference_video`,
 `reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,
@@ -766,7 +767,7 @@ frame rate (`24.0` for both H3 profiles).
 Only the selected profile's outputs are computed; the rest are `None`. Which one
 carries the payload is decided by the profile's **semantic**, not by its model.
 
-### The nine profiles, by semantic
+### The ten profiles, by semantic
 
 `external_reference_video` is the only permissive one: no upstream node
 requirement, no frame grid, no fps conversion, and it never blocks on a missing
@@ -785,6 +786,7 @@ queue rather than reaching the model broken.
 | `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos`; resampled to 24 fps, length 17n+5 |
 | `h3_scene_coverage` | `prompt_options` | `final_prompt` + `h3edit_options` | `TextEncodeH3Edit.compiled_prompt` / `.options`; no playblast required; 24 fps, length 124/243/362 |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
+| `seedance25_reference` | `reference_video` | `reference_video` + `final_prompt` | `ByteDance2ReferenceNodeV2.reference_videos.video_N`; role-first prompt, `task_type=reference`; guide duration >= 1.8s, output 4-30s |
 
 `h3_scene_coverage` compiles the selected MotionScene camera directly into a
 complete H3 prompt (direction, completion, parallax and mapped timing

@@ -25,6 +25,7 @@ FRAME_POLICIES = frozenset(
         "api_duration_seconds",
         "8n_plus_1",
         "h3_scene_coverage_profiles",
+        "seedance25_duration_seconds",
     }
 )
 
@@ -78,6 +79,7 @@ class CompileRequest:
     target_height: int
     duration_seconds: float
     target_fps: float
+    guide_reference_index: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.motion_scene, MotionScene):
@@ -92,6 +94,8 @@ class CompileRequest:
             _positive_finite(self.duration_seconds, "duration_seconds"),
         )
         object.__setattr__(self, "target_fps", _positive_finite(self.target_fps, "target_fps"))
+        if self.guide_reference_index is not None:
+            _positive_int(self.guide_reference_index, "guide_reference_index")
 
     @property
     def source_frame_count(self) -> int:

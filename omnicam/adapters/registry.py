@@ -182,6 +182,27 @@ ADAPTER_INFO = {
             "OmniCam applies no model-specific contract here."
         ),
     ),
+    "seedance25_reference": _contract(
+        display_name="ByteDance Seedance 2.5 Reference to Video",
+        target="reference video and role-first prompt",
+        node_classes=[["ByteDance2ReferenceNodeV2"]],
+        inputs=["reference_videos", "prompt"],
+        repository="https://github.com/Comfy-Org/ComfyUI",
+        tested_ref="v0.36.0",
+        tested_commit="ee71d5c4993f29086b27fde1629a945ae48425bf",
+        docs="https://github.com/Comfy-Org/ComfyUI/blob/v0.36.0/comfy_api_nodes/nodes_bytedance.py",
+        motion_limits={
+            "min_reference_video_seconds": "1.8",
+            "max_total_reference_video_seconds": "30.1",
+            "output_duration_seconds": "4-30",
+        },
+        connection_recipe=(
+            "Connect reference_video to model.reference_videos.video_N (N = "
+            "guide_reference_index) on ByteDance Seedance 2.5 Reference to Video, set "
+            "model.task_type to 'reference', and wire final_prompt into model.prompt. "
+            "Do not target the deprecated ByteDance2ReferenceNode."
+        ),
+    ),
     "wanvideo_ati": _contract(
         display_name="Wan 2.1 ATI - WanVideoWrapper",
         target="WanVideoATITracks tracks STRING",
