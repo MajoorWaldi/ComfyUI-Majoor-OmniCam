@@ -194,7 +194,7 @@ export function syncFromWidgets(ui, persist = true) {
   }
   for (const el of ui.root.querySelectorAll('[data-role="show-radar"]')) el.checked = Boolean(ui.state.show_radar);
   for (const el of ui.root.querySelectorAll('[data-role="encoder"]')) el.value = ui.state.encoder || "auto";
-  for (const el of ui.root.querySelectorAll('[data-role="proxy-preset"]')) el.value = ui.state.proxy_preset || "balanced";
+  for (const el of ui.root.querySelectorAll('[data-role="proxy-preset"]')) el.value = ui.state.proxy_preset || "clean_proxy";
   for (const el of ui.root.querySelectorAll('[data-role="snap-frames"]')) el.value = String(ui.state.snap_frames || 1);
   for (const btn of ui.root.querySelectorAll('[data-act="auto-key"]')) {
     btn.classList.toggle("active", Boolean(ui.state.auto_key));

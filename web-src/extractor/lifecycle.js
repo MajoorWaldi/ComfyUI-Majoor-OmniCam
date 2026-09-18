@@ -1,14 +1,6 @@
-// Extractor node lifecycle and widget management.
+// Extractor node widget management, shared by web-src/extractor/shell.js.
 
-import {
-  FINGERPRINT_WIDGET,
-  SOURCE_WIDGET,
-  SCENE_WIDGET,
-  ensureCacheWidgets,
-  restoreLateWidgetValues,
-} from "./result-cache.js";
-import { watchGraphConnections } from "../graph-connection-watch.js";
-import { ExtractorUI } from "./index.js";
+import { FINGERPRINT_WIDGET, SOURCE_WIDGET, SCENE_WIDGET } from "./result-cache.js";
 
 const INTERNAL_WIDGETS = [SCENE_WIDGET, FINGERPRINT_WIDGET, SOURCE_WIDGET];
 
@@ -42,71 +34,12 @@ export function hideInternalWidgetsWhenMounted(node) {
   setTimeout(() => hideInternalWidgets(node), 250);
 }
 
-// Called by web-src/main.js once the Extractor chunk has loaded. This module
-// has no startup side effects, which is what keeps it out of the eager chunk.
-export function attachExtractor(node) {
-  if (node.__majoorOmniCamExtractor) return;
-  ensureCacheWidgets(node);
-  if (!widget(node, SOURCE_WIDGET)) {
-    const item = node.addWidget?.("text", SOURCE_WIDGET, "", () => {}, { serialize: true });
-    if (item) {
-      item.computeSize = () => [0, -4];
-      item.draw = () => {};
-      item.hidden = true;
-    }
-  }
-  hideInternalWidgetsWhenMounted(node);
-  // Before the UI is built: its constructor restores the cached solve from
-  // these widgets, and they are only now able to hold what was saved.
-  restoreLateWidgetValues(node);
-
-  const ui = new ExtractorUI(node);
-  node.__majoorOmniCamExtractor = ui;
-  const preferredHeight = () => Math.max(700, ui.root.scrollHeight || 0);
-  node.addDOMWidget("majoor_omnicam_extractor", "omnicam", ui.root, {
-    serialize: false,
-    hideOnZoom: false,
-    getMinHeight: () => 700,
-    getHeight: preferredHeight,
-    getMaxHeight: preferredHeight,
-  });
-
-  const removed = node.onRemoved;
-  node.onRemoved = function () {
-    ui.unwatchGraphConnections?.();
-    ui.dispose();
-    removed?.apply(this, arguments);
-  };
-  // The solved result is adopted from the `executed` websocket event
-  // (queue/events.js), which carries the prompt_id this panel filters on --
-  // node.onExecuted has only the output, so a stale result from a superseded
-  // run could not be told apart there.
-  const resync = () => {
-    if (ui.disposed) return;
-    ui.refreshSource();
-    node.setDirtyCanvas?.(true, true);
-  };
-  const changed = node.onConnectionsChange;
-  node.onConnectionsChange = function () {
-    changed?.apply(this, arguments);
-    resync();
-    // The link array is not always updated by the time this fires; a second
-    // pass a frame or two later reads the settled graph.
-    setTimeout(resync, 60);
-    setTimeout(resync, 400);
-  };
-  // Backstop for the builds where onConnectionsChange is not delivered here
-  // (upstream node deleted, link re-routed by the Vue graph).
-  ui.unwatchGraphConnections = watchGraphConnections(node, () => setTimeout(resync, 0));
-  const configured = node.onAfterGraphConfigured;
-  node.onAfterGraphConfigured = function () {
-    configured?.apply(this, arguments);
-    ui.refreshSource();
-    // A workflow reload restores the recon_* widgets after this panel was
-    // built; re-hydrate its DOM controls from them. The solved result comes
-    // back from the serialized cache widgets (restoreCachedResult), and a
-    // still-running queued solve is followed through ComfyUI's own events --
-    // no custom status recovery.
-    ui.reconstruction?.syncFromWidgets?.();
-  };
+/** Create the SOURCE_WIDGET if this node predates it. Frontend-only, never a backend input. */
+export function ensureSourceWidget(node) {
+  if (widget(node, SOURCE_WIDGET)) return;
+  const item = node.addWidget?.("text", SOURCE_WIDGET, "", () => {}, { serialize: true });
+  if (!item) return;
+  item.computeSize = () => [0, -4];
+  item.draw = () => {};
+  item.hidden = true;
 }

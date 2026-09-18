@@ -67,6 +67,14 @@ Interactive camera-layout, motion-track, animation, timeline and playblast
 environment. Execution compiles the complete editor state to a strict,
 model-independent MotionScene.
 
+The node itself shows a compact status card (scene name, fps/duration/
+resolution, camera/object counts) with an **OPEN DIRECTOR** button; the full
+editor below opens in its own window on demand and closes back to that card.
+Only one Director or Extractor editor is open at a time. State, the semantic
+Director API and the external Agent bridge all work the same whether or not
+the editor is open — closing it does not lose anything, and an upstream
+Extractor can adopt a solve into a Director that has never been opened.
+
 ![OmniCam Director](assets/director-panel.png)
 
 *Regenerate the screenshots against a running ComfyUI (real Director/Extractor/Monitor wiring, a real live preflight):*
@@ -398,6 +406,13 @@ on the upstream scene are not merged.
 Estimates a **relative** 6DoF camera trajectory from one continuous video shot
 and wraps that internal camera solve in a canonical one-camera MotionScene.
 
+Like Director, the node shows a compact status card (source, solve phase and
+progress) with an **OPEN EXTRACTOR** button; the source viewer, timeline and
+3D track viewer open in their own window on demand. Closing that window while
+TRACK / Reconstruct is running does not stop it — the card keeps showing
+progress and the solved result is cached when it finishes. Deleting the node
+does cancel a running solve.
+
 **Inputs.**
 
 | Input | Default | Role |
@@ -697,6 +712,24 @@ The model compiler, and the single exit point from OmniCam into the rest of the
 graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
 selected profile requires, compiles the scene into that model's representation,
 and reports what survived.
+
+Like Director and Extractor, the node on the ComfyUI canvas renders a compact
+status card (target profile and readiness) with an **OPEN MONITOR** button;
+the full workbench (reference viewer, target capabilities matrix, preflight
+checklist, and prompt blocks) opens on demand in its own window.
+
+Closing the workbench keeps its node card and OPEN MONITOR button available.
+The node retains the latest execution result or blocked preflight while closed
+and restores it when reopened. Removing the node disposes both the runtime and
+any pending workbench opening. Only one OmniCam workbench opens at a time.
+On small screens, the window stays within the viewport and the Monitor content
+scrolls so the target settings remain accessible.
+
+Monitor execution UI fields follow ComfyUI V3's list transport:
+`target_profile` is a one-item string list and `capabilities` is a one-item
+object list. The live HTTP preflight and blocked-preflight event retain their
+document-shaped fields; clients normalize both forms. Truncated video decodes
+are rejected before profile compilation can use an incomplete frame batch.
 
 Every profile is a **conditioning compiler, not a path-execution engine**: it
 turns the authored (or extracted, or preset-generated) camera path into the

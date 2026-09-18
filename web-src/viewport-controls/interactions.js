@@ -170,7 +170,7 @@ export function onPointerDown(ui, e) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      ui.setStatus(t(`${hit.camera.name} · Keyframe @ F${hit.keyframe.frame} selected`));
+      ui.setStatus(t("{value1} · Keyframe @ F{value2} selected", { value1: hit.camera.name, value2: hit.keyframe.frame }));
       return;
     }
 
@@ -185,7 +185,7 @@ export function onPointerDown(ui, e) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      ui.setStatus(t(`${hit.object.name || hit.object.type} · Keyframe @ F${hit.keyframe.frame} selected`));
+      ui.setStatus(t("{value1} · Keyframe @ F{value2} selected", { value1: hit.object.name || hit.object.type, value2: hit.keyframe.frame }));
       return;
     }
 
@@ -237,7 +237,7 @@ export function onPointerDown(ui, e) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      ui.setStatus(t(`${hit.camera.name} · Target aim selected`));
+      ui.setStatus(t("{value1} · Target aim selected", { value1: hit.camera.name }));
       return;
     }
 
@@ -252,7 +252,7 @@ export function onPointerDown(ui, e) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      ui.setStatus(t(`${hit.camera.name} selected`));
+      ui.setStatus(t("{value1} selected", { value1: hit.camera.name }));
       // Neither Maya nor Blender ever orbits from a plain left-drag that
       // started on something -- LMB only ever selects/manipulates in both;
       // navigation is exclusively Alt (Maya) or the middle button (Blender).
@@ -288,13 +288,13 @@ export function onPointerDown(ui, e) {
           ui.subSelection = subHit;
           const posStr = subHit.point.map((v) => Math.round(v * 100) / 100).join(", ");
           const modeName = subHit.mode === "vertex" ? "Vertex" : (subHit.mode === "edge" ? "Edge" : "Face");
-          ui.setStatus(t(`${modeName} selected at [${posStr}] · Press F to focus`));
+          ui.setStatus(t("{value1} selected at [{value2}] · Press F to focus", { value1: modeName, value2: posStr }));
         } else {
           ui.subSelection = null;
         }
       } else {
         ui.subSelection = null;
-        ui.setStatus(t(`${hit.object.name || hit.object.type} selected`));
+        ui.setStatus(t("{value1} selected", { value1: hit.object.name || hit.object.type }));
       }
 
       ui.refreshObjects();
@@ -760,7 +760,7 @@ export function onWheel(ui, e) {
   if (!pixels) return;
   if (ui.isNavigatingFly) {
     ui.cameraSpeed = clamp(ui.cameraSpeed * Math.exp(-pixels * 1e-3), 0.05, 20);
-    ui.setStatus(t(`Fly speed: ${ui.cameraSpeed.toFixed(2)}x`));
+    ui.setStatus(t("Fly speed: {value1}x", { value1: ui.cameraSpeed.toFixed(2) }));
     return;
   }
   checkpointWheelGesture(ui);

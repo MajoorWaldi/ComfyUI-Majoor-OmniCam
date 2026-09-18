@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 //
 // Deliberately NOT exercised, because they touch the user's install or graph:
 //   clear-caches (deletes managed files), record (captures + uploads a playblast),
-//   h3-setup (adds nodes to the open workflow), load-*/upload-* (native file dialogs).
+//   load-*/upload-* (native file dialogs).
 // Everything else is driven on a scratch node this test creates itself.
 
 async function mountScratchDirector(page) {
@@ -25,6 +25,11 @@ async function mountScratchDirector(page) {
     window.app.canvas.ds.offset = [-5960, -5960];
     window.app.canvas.setDirty(true, true);
   });
+  // The Director mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // editor's DOM, which no longer exists until then.
+  await page.waitForFunction(() => Boolean(window.__scratch?.__majoorOmniCamDirectorRuntime?.shell?.openButton), null, { timeout: 40000 });
+  await page.evaluate(() => window.__scratch.__majoorOmniCamDirectorRuntime.shell.openButton.click());
   await page.waitForSelector(".majoor-omnicam .oc-header", { timeout: 40000 });
   await page.waitForTimeout(2000);
   return page.evaluate(() => window.__scratch.id);
@@ -43,10 +48,23 @@ test("every non-destructive Director control changes observable state", async ({
     Function("ui", `return ${expression}`)(window.__scratch.__majoorOmniCam), path);
 
   // --- side tabs -----------------------------------------------------------
-  for (const [tab, panel] of [["camera", "camera"], ["display", "display"], ["scene", "scene"]]) {
-    await root.locator(`[data-tab="${tab}"]`).click();
-    await expect(root.locator(`[data-tab-panel="${panel}"]`)).toBeVisible();
-  }
+  // The Inspector became selection-driven in a later, unrelated refactor
+  // (web-src/inspector/context.js): the "camera" and "scene" panes now
+  // follow the selected entity instead of a dedicated tab button -- only
+  // Motion/Shot/Health kept switchable [data-tab] buttons. Reach each pane
+  // the way a user would: select the camera or an object for camera/scene,
+  // click the Shot button for display.
+  await root.locator('.scene-item', { hasText: "Camera 1" }).click();
+  await expect(root.locator('[data-tab-panel="camera"]')).toBeVisible();
+  await root.locator('[data-tab="display"]').click();
+  await expect(root.locator('[data-tab-panel="display"]')).toBeVisible();
+  await root.locator('.scene-item', { hasText: "Subject Card" }).click();
+  await expect(root.locator('[data-tab-panel="scene"]')).toBeVisible();
+  // Re-select the camera: insertKeyframe() (web-src/scene.js) now targets
+  // whichever entity is selected (timelineObject()), so leaving the Subject
+  // Card selected would route the keyframing section below onto the
+  // object's own track instead of the camera's.
+  await root.locator('.scene-item', { hasText: "Camera 1" }).click();
 
   // --- transport -----------------------------------------------------------
   await root.locator('[data-act="next-frame"]').click();
@@ -67,7 +85,9 @@ test("every non-destructive Director control changes observable state", async ({
   await root.locator('.oc-transport [data-act="key"]').click();
   expect(await read("ui.activeCameraTrack().keyframes.length")).toBe(before + 1);
 
-  await root.locator('[data-tab="camera"]').click();
+  // Same selection-driven Inspector as above: reach the camera pane by
+  // selecting the camera entity, not a "camera" tab button.
+  await root.locator('.scene-item', { hasText: "Camera 1" }).click();
   await root.locator('[data-act="next-frame"]').click();
   await root.locator('[data-tab-panel="camera"] [data-act="key"]').click();
   expect(await read("ui.activeCameraTrack().keyframes.length")).toBe(before + 2);
@@ -75,14 +95,25 @@ test("every non-destructive Director control changes observable state", async ({
   await root.locator('[data-tab="display"]').click();
   await root.locator('[data-tab-panel="display"] [data-act="delete-key"]').click();
   await root.locator('[data-act="previous-key"]').click();
+  // A changed keyframe selection is a changed selection identity too
+  // (inspector/context.js's selectionKey() includes selectedKeyFrame), so
+  // syncInspectorSelection() drops the Shot mode back to "entity" here --
+  // unrelated to the workbench migration. Re-enter Shot mode to reach
+  // delete-key again, the way a user would.
+  await root.locator('[data-tab="display"]').click();
   await root.locator('[data-tab-panel="display"] [data-act="delete-key"]').click();
   expect(await read("ui.activeCameraTrack().keyframes.length")).toBe(before);
 
   // --- toggles -------------------------------------------------------------
+  // Loop playback now defaults to true on a fresh Director (unrelated to the
+  // workbench migration -- a later state-schema default change), so assert
+  // the toggle flips relative to whatever it started at, not a hardcoded
+  // true-then-false order.
+  const initialLoop = await read("!!ui.state.loop_playback");
   await root.locator('[data-act="loop"]').click();
-  expect(await read("!!ui.state.loop_playback")).toBe(true);
+  expect(await read("!!ui.state.loop_playback")).toBe(!initialLoop);
   await root.locator('[data-act="loop"]').click();
-  expect(await read("!!ui.state.loop_playback")).toBe(false);
+  expect(await read("!!ui.state.loop_playback")).toBe(initialLoop);
 
   await root.locator('[data-act="auto-key"]').click();
   expect(await read("!!ui.state.auto_key")).toBe(true);
@@ -104,11 +135,13 @@ test("every non-destructive Director control changes observable state", async ({
   await root.locator('[data-act="toggle-fullscreen"]').click();
   await expect(root).not.toHaveClass(/oc-fullscreen/);
 
-  const graph = root.locator(".curve-editor");
-  const wasOpen = await graph.evaluate((el) => el.open);
-  await root.locator('[data-act="toggle-graph"]').click();
-  expect(await graph.evaluate((el) => el.open)).toBe(!wasOpen);
-  await root.locator('[data-act="toggle-graph"]').click();
+  // Timeline/Graph/Sequence are tabs of one block with the player now
+  // (Director modal audit Lot 3), not a separate collapsible section.
+  await root.locator('[data-graph-tab="curves"]').click();
+  await expect(root.locator('[data-role="curve-canvas"]')).toBeVisible();
+  await expect(root.locator('[data-role="dope-stage"]')).toBeHidden();
+  await root.locator('[data-graph-tab="dope"]').click();
+  await expect(root.locator('[data-role="dope-stage"]')).toBeVisible();
 
   // --- dope sheet channels --------------------------------------------------
   const rowCount = () => root.locator(".oc-dope-row").count();
@@ -119,7 +152,8 @@ test("every non-destructive Director control changes observable state", async ({
   expect(await rowCount()).toBe(full);
 
   // --- lens card ------------------------------------------------------------
-  await root.locator('[data-tab="camera"]').click();
+  // Same selection-driven Inspector as above.
+  await root.locator('.scene-item', { hasText: "Camera 1" }).click();
   await root.locator('[data-lens="85"]').click();
   const fov = Number(await root.locator('[data-role="camera-fov"]').inputValue());
   const mm = Number((await root.locator('[data-role="camera-focal"]').inputValue()).replace(",", "."));
@@ -128,7 +162,9 @@ test("every non-destructive Director control changes observable state", async ({
   expect(fov).toBeLessThan(30);
 
   // --- outliner search ------------------------------------------------------
-  await root.locator('[data-tab="scene"]').click();
+  // The outliner list ([data-role="objects"]) lives in the always-visible
+  // left panel now (template/left-panel.js), not behind a "scene" tab --
+  // unrelated to the workbench migration.
   const allRows = await root.locator('[data-role="objects"] .scene-item').count();
   await root.locator('[data-role="outliner-search"]').fill("zzz-no-match");
   expect(await root.locator('[data-role="objects"] .scene-item').count()).toBe(0);

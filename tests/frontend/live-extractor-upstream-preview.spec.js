@@ -22,6 +22,12 @@ test("connecting before the upstream image finishes decoding still ends up with 
     loader.connect(0, node, 0);
     window.omnicamExtractor = node;
   }, IMAGE);
+  // The Extractor mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // panel's __majoorOmniCamExtractor marker, which no longer exists until
+  // then. Unrelated to the connect-before-decode race this test checks.
+  await page.waitForFunction(() => Boolean(window.omnicamExtractor?.__majoorOmniCamExtractorRuntime?.shell?.openButton), null, { timeout: 30000 });
+  await page.evaluate(() => window.omnicamExtractor.__majoorOmniCamExtractorRuntime.shell.openButton.click());
   await page.waitForFunction(() => window.omnicamExtractor?.__majoorOmniCamExtractor?.root?.isConnected, null, { timeout: 30000 });
   await page.waitForTimeout(900);
 

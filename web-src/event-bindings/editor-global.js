@@ -10,7 +10,6 @@ import { onTimelineWheel } from "../timeline-interaction.js";
 import { bindRulerScrub } from "../timeline/ruler.js";
 import { bindGraphTabs } from "../curve-editor/tabs.js";
 import { renderChannelList } from "../curve-editor/channel-list.js";
-import { renderGraphDopeSheet } from "../curve-editor/dope-view.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { parseTagInput, sanitizeAnnotation } from "../assets/labels.js";
@@ -21,6 +20,34 @@ import {
   handleMinimapWheel,
 } from "../viewport/minimap.js";
 import { t } from "../i18n.js";
+import { initAllDragScrubs } from "../inspector/drag-scrub.js";
+
+// Anchors a toolbar-menu's .menu-panel with position:fixed, computed from the
+// <details> element's own rect, so it renders above the bounded Director
+// shell instead of being clipped by an overflow:hidden/auto ancestor (see the
+// "toggle" listener in bindEditorAndGlobal for why this is needed). Mirrors
+// the CSS default's right-alignment via .menu-panel.right and clamps to the
+// viewport so a menu near an edge never runs off-screen.
+function positionMenuPanel(menu) {
+  const panel = menu.querySelector(":scope > .menu-panel");
+  if (!panel) return;
+  const anchor = menu.getBoundingClientRect();
+  const width = panel.offsetWidth || 240;
+  const alignRight = panel.classList.contains("right");
+  let left = alignRight ? anchor.right - width : anchor.left;
+  left = Math.min(Math.max(left, 4), window.innerWidth - width - 4);
+  const top = Math.min(anchor.bottom + 5, window.innerHeight - 4);
+  Object.assign(panel.style, { position: "fixed", top: `${top}px`, left: `${left}px`, right: "auto" });
+}
+
+function unpositionMenuPanel(menu) {
+  const panel = menu.querySelector(":scope > .menu-panel");
+  if (!panel) return;
+  panel.style.position = "";
+  panel.style.top = "";
+  panel.style.left = "";
+  panel.style.right = "";
+}
 
 export function bindEditorAndGlobal(ui, q, signal) {
   for (const role of ["object-x", "object-y", "object-z", "object-px", "object-py", "object-pz", "object-rx", "object-ry", "object-rz", "object-sx", "object-sy", "object-sz", "object-intensity", "object-cone-angle", "object-penumbra", "object-cast-shadow"]) {
@@ -95,7 +122,6 @@ export function bindEditorAndGlobal(ui, q, signal) {
     ui.setChannelFilter("all");
     renderChannelList(ui);
     ui.drawCurveEditor();
-    renderGraphDopeSheet(ui);
   }, { signal });
   q('[data-act="curve-handles"]')?.addEventListener("click", () => ui.toggleCurveHandles(), { signal });
   for (const button of ui.root.querySelectorAll("[data-curve-mode]")) {
@@ -237,15 +263,33 @@ export function bindEditorAndGlobal(ui, q, signal) {
         ui.refreshKeys();
         ui.refreshInspector();
         ui.render();
-        ui.setStatus(t(`Editing: ${ui.activeCameraTrack().name}`));
+        ui.setStatus(t("Editing: {value1}", { value1: ui.activeCameraTrack().name }));
       }
     }, { signal });
   }
   for (const menu of ui.root.querySelectorAll(".toolbar-menu")) {
     menu.addEventListener("toggle", () => {
-      if (menu.open) ui.closeMenus(menu);
+      if (menu.open) {
+        ui.closeMenus(menu);
+        positionMenuPanel(menu);
+      } else {
+        unpositionMenuPanel(menu);
+      }
     }, { signal });
   }
+  // The bounded Director shell (oc-director: overflow:hidden; oc-dock:
+  // overflow-y:auto, since the Lot 1 modal-geometry pass) means a
+  // position:absolute .menu-panel can now be clipped by an ancestor instead
+  // of just growing the page. Anchoring it with position:fixed while open
+  // (positionMenuPanel/unpositionMenuPanel above) escapes any ancestor's
+  // overflow, but a fixed panel no longer tracks its anchor if an ancestor
+  // scrolls -- re-anchor instead of closing (closing on scroll is fragile:
+  // opening a menu whose summary isn't fully visible in a scrollable
+  // ancestor can itself trigger a native focus scroll-into-view, which would
+  // otherwise self-close the very menu just opened).
+  document.addEventListener("scroll", () => {
+    for (const menu of ui.root.querySelectorAll(".toolbar-menu[open]")) positionMenuPanel(menu);
+  }, { capture: true, signal });
   const selectOutlinerItem = (target, event) => {
     const sceneItem = target instanceof HTMLElement ? target.closest(".scene-item") : null;
     if (!sceneItem || event.button === 2 || target.closest(".scene-action-btn")) return;
@@ -294,7 +338,7 @@ export function bindEditorAndGlobal(ui, q, signal) {
       ui.refreshKeys();
       ui.refreshInspector();
       ui.render();
-      ui.setStatus(t(`Selected: ${object.name || object.type}`));
+      ui.setStatus(t("Selected: {value1}", { value1: object.name || object.type }));
     } else if (sceneItem.dataset.cameraId) {
       ui.activateCamera(sceneItem.dataset.cameraId);
     }
@@ -411,5 +455,11 @@ export function bindEditorAndGlobal(ui, q, signal) {
   const wrapEl = ui.root.querySelector(".viewport-wrap");
   if (wrapEl) ro.observe(wrapEl);
   ui.resizeObserver = ro;
+  const scrubDisposers = initAllDragScrubs(ui.root);
+  if (signal) {
+    signal.addEventListener("abort", () => {
+      for (const dispose of scrubDisposers) dispose();
+    });
+  }
   ui.updateEditState();
 }

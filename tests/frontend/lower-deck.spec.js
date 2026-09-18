@@ -121,30 +121,34 @@ test("the camera timeline exposes a full ruler and four aligned channel labels",
   expect(height).toBeGreaterThanOrEqual(160);
 });
 
-test("the graph tabs swap the stage and disable the controls that do not apply", async ({ page }) => {
+test("the mode tabs swap the stage and disable the controls that do not apply", async ({ page }) => {
   await mount(page);
   const canvas = page.locator('[data-role="curve-canvas"]');
-  const sheet = page.locator('[data-role="graph-dope"]');
-  await expect(canvas).toBeVisible();
-  await expect(sheet).toBeHidden();
-
-  await page.locator('[data-graph-tab="dope"]').click();
+  const sheet = page.locator('[data-role="dope-stage"]');
+  // Timeline (the dope sheet) is the default tab, sharing the block with the
+  // camera preview -- Director modal audit Lot 3.
   await expect(canvas).toBeHidden();
   await expect(sheet).toBeVisible();
-  // One lane per graphed component: Position X/Y/Z + Focal Length + Roll.
-  expect(await page.locator(".oc-gdope-row").count()).toBe(5);
   await expect(page.locator('[data-act="curve-fit"]')).toBeDisabled();
-  // The editor is a plain section now; switching modes must not collapse it.
-  await expect(page.locator(".oc-graph")).not.toHaveClass(/oc-graph-collapsed/);
+  // The real, fully-interactive dope sheet (4 fixed rows), not a separate
+  // click-only per-channel render.
+  expect((await page.locator('.oc-dope-label').allTextContents()).map((text) => text.trim())).toEqual(["Camera", "Look At", "Focal Length", "Roll"]);
 
   await page.locator('[data-graph-tab="curves"]').click();
   await expect(canvas).toBeVisible();
   await expect(sheet).toBeHidden();
   await expect(page.locator('[data-act="curve-fit"]')).toBeEnabled();
+
+  await page.locator('[data-graph-tab="dope"]').click();
+  await expect(canvas).toBeHidden();
+  await expect(sheet).toBeVisible();
 });
 
 test("the channel list names the channels the graph is actually drawing", async ({ page }) => {
   await mount(page);
+  // The curve toolbar (curve-group select) only shows on the Graph tab now
+  // (Director modal audit Lot 3: Timeline is the default tab).
+  await page.locator('[data-graph-tab="curves"]').click();
   const listed = async () => (await page.locator('[data-role="curve-legend"] [data-channel-filter]').allTextContents()).slice(1);
 
   // Regression: the group labels used to be assigned by option index, so
@@ -163,6 +167,9 @@ test("the channel list names the channels the graph is actually drawing", async 
 
 test("soloing a channel narrows the graph to that channel", async ({ page }) => {
   await mount(page);
+  // The legend only shows next to the curve canvas (Director modal audit
+  // Lot 3: Timeline is the default tab now).
+  await page.locator('[data-graph-tab="curves"]').click();
   await page.locator('[data-role="curve-legend"] [data-channel-filter="1"]').click();
   await page.waitForTimeout(150);
   const state = await page.evaluate(() => {
@@ -179,7 +186,14 @@ test("a refresh between pointerdown and pointerup does not swallow the click", a
   // time it ran -- which is every frame of playback. The button under the
   // pointer was replaced mid-gesture, so the click event never fired and the
   // chips and diamonds were dead whenever anything was refreshing.
+  // The legend only shows next to the curve canvas (Director modal audit
+  // Lot 3: Timeline is the default tab now).
+  await page.locator('[data-graph-tab="curves"]').click();
   const chip = page.locator('[data-role="curve-legend"] [data-channel-filter="2"]');
+  // .oc-lower and .oc-graph now share one bounded, scrollable .oc-dock
+  // (Director modal audit, Lot 1) instead of both always being fully
+  // visible -- this legend chip can be scrolled out of it.
+  await chip.scrollIntoViewIfNeeded();
   const box = await chip.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
@@ -187,7 +201,10 @@ test("a refresh between pointerdown and pointerup does not swallow the click", a
   await page.mouse.up();
   expect(await page.evaluate(() => window.omnicamNode.__majoorOmniCam.curveChannelFilter)).toBe("2");
 
+  // The derived dope-sheet rows only show on the Timeline tab.
+  await page.locator('[data-graph-tab="dope"]').click();
   const diamond = page.locator('.oc-dope-row[data-channel="roll"] .oc-dope-key').nth(2);
+  await diamond.scrollIntoViewIfNeeded();
   const diamondBox = await diamond.boundingBox();
   await page.mouse.move(diamondBox.x + diamondBox.width / 2, diamondBox.y + diamondBox.height / 2);
   await page.mouse.down();
@@ -277,6 +294,12 @@ test("the empty edit offers auto-split instead of a blank strip", async ({ page 
 test("dragging a shot boundary trims the cut", async ({ page }) => {
   await openEditTab(page);
   const handle = page.locator(".oc-sequence-shot").nth(1).locator(".oc-sequence-handle");
+  // The editor's natural content height (built for a graph node that grows to
+  // fit it) can exceed the workbench window at this viewport, leaving the
+  // sequence lane below the fold -- .oc-workbench-content scrolls (migration
+  // plan Task 18) rather than clipping it away entirely, so scroll there
+  // first, exactly as a real drag would need to.
+  await handle.scrollIntoViewIfNeeded();
   const box = await handle.boundingBox();
   const lane = await page.locator('[data-role="sequence-lane"]').boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -319,6 +342,7 @@ test("the playblast selector offers the edit as a target", async ({ page }) => {
 test("a finished trim does not keep following the pointer", async ({ page }) => {
   await openEditTab(page);
   const handle = page.locator(".oc-sequence-shot").nth(1).locator(".oc-sequence-handle");
+  await handle.scrollIntoViewIfNeeded();
   const box = await handle.boundingBox();
   const lane = await page.locator('[data-role="sequence-lane"]').boundingBox();
 

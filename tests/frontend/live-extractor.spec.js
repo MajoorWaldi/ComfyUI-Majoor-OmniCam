@@ -38,6 +38,15 @@ test("the Extractor previews its source and its solved track", async ({ page }) 
     window.omnicamExtractor = node;
   }, SOURCE);
 
+  // The Extractor mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // panel's __majoorOmniCamExtractor marker, which no longer exists until
+  // then. Unrelated to the solve/preview behavior this test actually checks.
+  await page.waitForFunction(
+    () => Boolean(window.omnicamExtractor?.__majoorOmniCamExtractorRuntime?.shell?.openButton),
+    null, { timeout: 30_000 },
+  );
+  await page.evaluate(() => window.omnicamExtractor.__majoorOmniCamExtractorRuntime.shell.openButton.click());
   await page.waitForFunction(
     () => window.omnicamExtractor?.__majoorOmniCamExtractor?.root?.isConnected,
     null, { timeout: 30_000 },

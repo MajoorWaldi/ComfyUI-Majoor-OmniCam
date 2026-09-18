@@ -1,8 +1,12 @@
-// The lower deck has two views of the same keys: the curve canvas and the
-// per-component dope sheet. They share the toolbar, the channel list and the
-// selection -- only the stage swaps.
+// The lower deck (Director modal audit Lot 3) unifies three views of the
+// same keys in one block alongside the camera preview: the always-visible,
+// fully-interactive dope sheet (Timeline), the curve canvas (Graph) and the
+// sequence lane (Sequence). They share the toolbar, the channel list and the
+// selection -- only the stage swaps. Timeline used to have a second, parallel
+// per-channel dope render (curve-editor/dope-view.js) that only supported
+// click-to-select; it's retired now that the real dope sheet is always the
+// Timeline tab's content instead of a separate always-visible block.
 
-import { renderGraphDopeSheet } from "./dope-view.js";
 import { renderSequenceLane } from "../sequence-lane.js";
 import { t } from "../i18n.js";
 
@@ -13,7 +17,7 @@ const CURVE_ONLY = ['[data-act="curve-zoom-in"]', '[data-act="curve-zoom-out"]',
 const TAB_LABELS = { curves: "Graph", dope: "Timeline", sequence: "Sequence" };
 
 export function setGraphTab(ui, tab) {
-  const mode = tab in TAB_LABELS ? tab : "curves";
+  const mode = tab in TAB_LABELS ? tab : "dope";
   ui.graphTab = mode;
 
   for (const button of ui.root.querySelectorAll("[data-graph-tab]")) {
@@ -22,23 +26,36 @@ export function setGraphTab(ui, tab) {
     button.setAttribute("aria-pressed", String(active));
   }
   const canvas = ui.root.querySelector('[data-role="curve-canvas"]');
-  const sheet = ui.root.querySelector('[data-role="graph-dope"]');
+  const sheet = ui.root.querySelector('[data-role="dope-stage"]');
   const sequence = ui.root.querySelector('[data-role="graph-sequence"]');
+  const legend = ui.root.querySelector('[data-role="curve-legend"]');
+  const toolbar = ui.root.querySelector('[data-role="graph-toolbar"]');
   if (canvas) canvas.hidden = mode !== "curves";
   if (sheet) sheet.hidden = mode !== "dope";
   if (sequence) sequence.hidden = mode !== "sequence";
+  // The channel-list legend and the curve toolbar only mean something next to
+  // the curve canvas; hidden (not just disabled) the rest of the time so
+  // Timeline/Sequence get their 150px column and vertical space back (see
+  // .oc-graph-legend/.oc-graph-stage's explicit grid-column) instead of
+  // rendering a row of disabled buttons nobody can use.
+  if (legend) legend.hidden = mode !== "curves";
+  if (toolbar) toolbar.hidden = mode !== "curves";
   for (const selector of CURVE_ONLY) {
     const button = ui.root.querySelector(selector);
     if (button) button.disabled = mode !== "curves";
   }
 
-  if (mode === "dope") renderGraphDopeSheet(ui);
-  else if (mode === "sequence") {
+  if (mode === "sequence") {
     renderSequenceLane(ui, sequence);
     // Take focus so shortcuts pressed straight after the switch land in the
     // sequence keymap rather than wherever focus happened to be.
     sequence?.focus?.({ preventScroll: true });
-  } else ui.drawCurveEditor();
+  } else if (mode === "curves") {
+    ui.drawCurveEditor();
+  }
+  // "dope": nothing extra to do -- refreshKeys()/renderDopeRows() already
+  // keep the dope sheet current unconditionally, regardless of which tab is
+  // the active one.
   ui.setStatus(t(TAB_LABELS[mode]));
 }
 

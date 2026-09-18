@@ -119,6 +119,25 @@ export function visibleCameraTracks(ui) {
   return pool.length ? pool : cameras;
 }
 
+// Director modal audit Lot 3: the preview strip used to render one tile per
+// visible camera with no ceiling, relying only on the bounded dock's scroll
+// (Lot 1) to contain it -- a scene with many cameras still grew the strip's
+// own content indefinitely. Cap it to a limited grid instead, always keeping
+// the playblast and active cameras (the two a user is actually watching)
+// visible, and fold the rest behind a count so the tile grid itself never
+// grows past a fixed ceiling.
+const MAX_PREVIEW_TILES = 6;
+
+export function boundedPreviewTracks(ui) {
+  const all = visibleCameraTracks(ui);
+  if (all.length <= MAX_PREVIEW_TILES) return { tracks: all, overflow: 0 };
+  const priority = new Set([ui.state.playblast_camera_id, ui.state.active_camera_id].filter(Boolean));
+  const prioritized = all.filter((camera) => priority.has(camera.id));
+  const rest = all.filter((camera) => !priority.has(camera.id));
+  const tracks = [...prioritized, ...rest].slice(0, MAX_PREVIEW_TILES);
+  return { tracks, overflow: all.length - tracks.length };
+}
+
 export function refreshCameraPreviews(ui) {
   const strip = ui.root.querySelector('[data-role="camera-previews"]');
   if (!strip) return;
@@ -131,8 +150,8 @@ export function refreshCameraPreviews(ui) {
   if (aspectChanged) strip.style.setProperty("--shot-aspect", shotAspect);
   const row = ui.root.querySelector('[data-role="camera-view-row"]');
   if (row) row.classList.toggle("maximized", Boolean(ui.state.maximized_camera_id));
-  const visible = visibleCameraTracks(ui);
-  const signature = visible.map((camera) => `${camera.id}:${camera.name}:${camera.muted ? 1 : 0}:${camera.solo ? 1 : 0}:${camera.color || ""}`).join("|");
+  const { tracks: visible, overflow } = boundedPreviewTracks(ui);
+  const signature = `${visible.map((camera) => `${camera.id}:${camera.name}:${camera.muted ? 1 : 0}:${camera.solo ? 1 : 0}:${camera.color || ""}`).join("|")}#${overflow}`;
   let rebuilt = false;
   if (signature !== ui.cameraPreviewSignature) {
     rebuilt = true;
@@ -146,7 +165,7 @@ export function refreshCameraPreviews(ui) {
       tile.dataset.cameraId = camera.id;
       const camColor = camera.color || CAMERA_PALETTE[index % CAMERA_PALETTE.length];
       tile.style.setProperty("--camera-color", camColor);
-      tile.title = t(`Click: set ${camera.name} as primary · Double-click: edit · Right-click: preview actions`);
+      tile.title = t("Click: set {value1} as primary · Double-click: edit · Right-click: preview actions", { value1: camera.name });
       const header = document.createElement("div");
       header.className = "camera-preview-head";
       const icon = document.createElement("i");
@@ -185,6 +204,13 @@ export function refreshCameraPreviews(ui) {
       ui.cameraPreviewCanvases.set(camera.id, canvas);
       ui.cameraPreviewContexts.set(camera.id, canvas.getContext("2d", { alpha: false }));
     });
+    if (overflow > 0) {
+      const more = document.createElement("div");
+      more.className = "camera-preview-tile camera-preview-overflow";
+      more.textContent = t("+{count} more").replace("{count}", String(overflow));
+      more.title = t("Mute or solo cameras to change which previews show here");
+      strip.appendChild(more);
+    }
   }
   for (const tile of strip.querySelectorAll(".camera-preview-tile")) {
     tile.classList.toggle("playblast", tile.dataset.cameraId === ui.state.playblast_camera_id);
@@ -235,7 +261,7 @@ export function addCamera(ui) {
   });
   ui.cameraPreviewSignature = "";
   ui.activateCamera(id);
-  ui.setStatus(t(`${name} added`));
+  ui.setStatus(t("{value1} added", { value1: name }));
 }
 
 export async function renameCamera(ui, id) {
@@ -249,7 +275,7 @@ export async function renameCamera(ui, id) {
   ui.serialize();
   ui.refreshObjects();
   ui.refreshKeys();
-  ui.setStatus(t(`Camera renamed: ${camera.name}`));
+  ui.setStatus(t("Camera renamed: {value1}", { value1: camera.name }));
 }
 
 export function duplicateCamera(ui, id) {
@@ -287,13 +313,13 @@ export function duplicateCamera(ui, id) {
   ui.state.cameras.push(copy);
   ui.cameraPreviewSignature = "";
   ui.activateCamera(copy.id);
-  ui.setStatus(t(`${copy.name} added`));
+  ui.setStatus(t("{value1} added", { value1: copy.name }));
 }
 
 export async function deleteCamera(ui, id) {
   if (ui.state.cameras.length <= 1) return ui.setStatus(t("At least one camera is required"));
   const camera = ui.state.cameras.find((item) => item.id === id);
-  if (!camera || !(await confirmAction(ui.app, t("Delete camera"), t(`Delete ${camera.name} and its ${camera.keyframes.length} keyframe(s)?`)))) return;
+  if (!camera || !(await confirmAction(ui.app, t("Delete camera"), t("Delete {value1} and its {value2} keyframe(s)?", { value1: camera.name, value2: camera.keyframes.length })))) return;
   ui.checkpoint("Delete camera");
   ui.finishCameraEdit();
   const wasActive = id === ui.state.active_camera_id;
@@ -321,7 +347,7 @@ export async function deleteCamera(ui, id) {
   ui.refreshKeys();
   ui.refreshInspector();
   ui.render();
-  ui.setStatus(t(`${camera.name} deleted`));
+  ui.setStatus(t("{value1} deleted", { value1: camera.name }));
 }
 
 export function activateCamera(ui, id) {
@@ -349,7 +375,7 @@ export function activateCamera(ui, id) {
   ui.refreshKeys();
   ui.refreshInspector();
   ui.render();
-  ui.setStatus(t(`Camera: ${camera.name}`));
+  ui.setStatus(t("Camera: {value1}", { value1: camera.name }));
 }
 
 export function setPlayblastCamera(ui, id) {
@@ -364,7 +390,7 @@ export function setPlayblastCamera(ui, id) {
   ui.renderCameraView();
   ui.setStatus(toSequence
     ? t("Playblast: sequence ({count} shots)").replace("{count}", String(cuts.length))
-    : t(`Playblast: ${camera.name}`));
+    : t("Playblast: {value1}", { value1: camera.name }));
 }
 
 export function toggleCameraView(ui) {
@@ -380,7 +406,7 @@ export function toggleCameraView(ui) {
       ui.resizeCanvas();
       ui.renderCameraView();
     });
-  ui.setStatus(t(`Camera previews ${ui.state.camera_view_visible ? "shown" : "hidden"}`));
+  ui.setStatus(t("Camera previews {value1}", { value1: ui.state.camera_view_visible ? "shown" : "hidden" }));
 }
 
 export function maximizeCameraPreview(ui, id) {

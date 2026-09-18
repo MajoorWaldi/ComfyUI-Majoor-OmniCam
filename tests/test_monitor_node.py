@@ -144,7 +144,9 @@ def test_inactive_typed_outputs_are_none_not_fake_tensors(all_targets_installed)
     ui = output.ui
     assert "preflight" in ui
     assert "capabilities" in ui
-    assert ui["target_profile"] == "wan_move_native"
+    assert ui["target_profile"] == ["wan_move_native"]
+    assert len(ui["capabilities"]) == 1
+    assert isinstance(ui["capabilities"][0], dict)
 
 
 def test_zero_duration_and_fps_inherit_the_connected_shot(all_targets_installed):

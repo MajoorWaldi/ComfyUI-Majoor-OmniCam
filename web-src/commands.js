@@ -27,11 +27,15 @@ import {
 
 const TRANSFORM_KEYS = { t: "translate", r: "rotate", s: "scale" };
 
-// First match wins; sequence is inside .oc-graph, so it must be checked first.
+// First match wins; sequence AND the dope sheet both live inside .curve-editor
+// now (Director modal audit Lot 3: Timeline/Graph/Sequence share one block
+// with the player), so both need a more specific selector checked before the
+// broad "graph" one, exactly like sequence already needed before this change.
 const ZONE_SELECTORS = [
   ["viewport", ".viewport-wrap"],
   ["sequence", '[data-role="graph-sequence"]'],
-  ["graph", ".oc-graph"],
+  ["timeline", '[data-role="dope-stage"]'],
+  ["graph", ".curve-editor"],
   ["timeline", ".oc-timeline"],
   // The outliner / scene panel: without its own zone a Delete pressed with a
   // scene row focused fell through to whatever zone was last touched (usually
@@ -156,6 +160,12 @@ function sceneKeymap(ui, event) {
     return true;
   }
   if (event.key === "Escape") {
+    // Only claim Escape when there is an actual selection to clear -- an
+    // unconditional claim here left Escape unable to reach the workbench's
+    // own close handler (migration plan section 4.4) whenever focus
+    // happened to be in the outliner with nothing selected.
+    const hadSelection = Boolean(ui.selectedObjectIds?.size || ui.selectedObjectId);
+    if (!hadSelection) return false;
     ui.selectedObjectIds?.clear?.();
     ui.selectedObjectId = null;
     ui.selectedEntity = "camera";

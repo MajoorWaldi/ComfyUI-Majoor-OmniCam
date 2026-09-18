@@ -81,6 +81,22 @@ export function createEditorMethods(dependencies) {
   restoreFromWidgets() {
     restoreFromWidgets(this);
   },
+  // Director modal audit Lot 5: extracted from the old inline `capture`
+  // closure passed to `new EditorHistory(...)` in director.js, so the
+  // persistent runtime (which now owns the EditorHistory instance -- see
+  // DirectorRuntime.history) can call it whenever a workbench is attached.
+  captureHistorySnapshot() {
+    return JSON.stringify({
+      state: this.state,
+      frame: this.frame,
+      selectedEntity: this.selectedEntity,
+      selectedObjectId: this.selectedObjectId,
+      selectedObjectIds: [...(this.selectedObjectIds || [])],
+      selectedKeyFrame: this.selectedKeyFrame,
+      selectedKeyFrames: [...(this.selectedKeyFrames || [])],
+      subSelection: this.subSelection,
+    });
+  },
   restoreHistorySnapshot(snapshot) {
     const value = JSON.parse(snapshot);
     this.keyDrag?.badge?.remove?.();
@@ -244,6 +260,10 @@ export function createEditorMethods(dependencies) {
     }
     if (target.closest?.('[data-role="keys"]'))
       return this.setFrame(this.timelineFrameFromEvent(event, target.closest('[data-role="keys"]'))), this.openTimelineContext(event, !1);
+    // The dope sheet now lives inside .curve-editor (Lot 3), so it needs its
+    // own check before the broad one below, or a right-click on a derived row
+    // would wrongly open the Curve editor's menu instead of the timeline's.
+    if (target.closest?.('[data-role="dope-stage"]')) return this.openTimelineContext(event, !1);
     if (target.closest?.(".curve-editor")) return this.openCurveContext(event);
     if (target.closest?.(".viewport-wrap")) {
       const rect = this.interactionElement.getBoundingClientRect();
@@ -726,16 +746,24 @@ export function createEditorMethods(dependencies) {
   // ComfyUI only re-reads that on a layout pass -- so a resizable panel that
   // just grew (the Outliner list, the camera-preview strip) needs to ask for
   // one explicitly or the node clips the taller content behind a scrollbar.
+  //
+  // Hosted in the WorkbenchHost modal, growing the underlying graph node is a
+  // pure side effect (the modal's box is independent of node.size) that used
+  // to silently resize the saved node from dragging an internal splitter.
+  // Skip that part there; the .viewport-wrap ResizeObserver (editor-global.js)
+  // already repaints the viewport/canvas for both paths (Lot 4).
   refitNode() {
     if (this.disposed) return;
     const node = this.node;
-    try {
-      if (node && typeof node.computeSize === "function" && typeof node.setSize === "function") {
-        const size = node.computeSize();
-        if (Array.isArray(size)) node.setSize([node.size?.[0] ?? size[0], size[1]]);
-      }
-      node?.graph?.setDirtyCanvas?.(true, true);
-    } catch (_) {}
+    if (!this.root?.closest?.(".oc-workbench-content")) {
+      try {
+        if (node && typeof node.computeSize === "function" && typeof node.setSize === "function") {
+          const size = node.computeSize();
+          if (Array.isArray(size)) node.setSize([node.size?.[0] ?? size[0], size[1]]);
+        }
+        node?.graph?.setDirtyCanvas?.(true, true);
+      } catch (_) {}
+    }
     this.scheduleResizeAndRender();
   },
   resizeCanvas() {

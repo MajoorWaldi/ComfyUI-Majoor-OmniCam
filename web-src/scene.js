@@ -54,7 +54,7 @@ export function insertKeyframe(ui) {
   ui.refreshKeyEditor();
   ui.updateKeyVisualState();
   ui.drawCurveEditor();
-  ui.setStatus(t(`${object?.name || "Camera"} ${index >= 0 ? "key updated" : "key inserted"} @ ${ui.frame}`));
+  ui.setStatus(t("{value1} {value2} @ {value3}", { value1: object?.name || "Camera", value2: index >= 0 ? "key updated" : "key inserted", value3: ui.frame }));
 }
 
 export function setKeyInterpolation(ui, interpolation) {
@@ -76,7 +76,7 @@ export function setKeyInterpolation(ui, interpolation) {
   ui.refreshKeys();
   ui.refreshKeyEditor();
   ui.drawCurveEditor();
-  ui.setStatus(t(`Key @ ${key.frame} interpolation set to ${interpolation}`));
+  ui.setStatus(t("Key @ {value1} interpolation set to {value2}", { value1: key.frame, value2: interpolation }));
 }
 
 export function deleteKeyframe(ui) {
@@ -99,7 +99,7 @@ export function deleteKeyframe(ui) {
   ui.serialize();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(t(`${object?.name || "Camera"} key deleted @ ${deletedFrame}`));
+  ui.setStatus(t("{value1} key deleted @ {value2}", { value1: object?.name || "Camera", value2: deletedFrame }));
 }
 
 export function copyKeyframe(ui) {
@@ -108,14 +108,14 @@ export function copyKeyframe(ui) {
   ui.copiedKeyframe = object
     ? { kind: "object", transform: cloneTransform(key?.transform || object), interpolation: key?.interpolation || ui.root.querySelector('[data-role="interp"]')?.value || "ease" }
     : { kind: "camera", camera: cloneCamera(key?.camera || ui.camera), interpolation: key?.interpolation || ui.root.querySelector('[data-role="interp"]')?.value || "ease" };
-  ui.setStatus(t(`Keyframe copied @ ${key?.frame ?? ui.frame}`));
+  ui.setStatus(t("Keyframe copied @ {value1}", { value1: key?.frame ?? ui.frame }));
 }
 
 export function pasteKeyframe(ui) {
   if (!ui.copiedKeyframe) return ui.setStatus(t("Copy a keyframe first"));
   const object = timelineObject(ui);
   const kind = object ? "object" : "camera";
-  if (ui.copiedKeyframe.kind !== kind) return ui.setStatus(t(`Copy a ${kind} keyframe first`));
+  if (ui.copiedKeyframe.kind !== kind) return ui.setStatus(t("Copy a {value1} keyframe first", { value1: kind }));
   ui.checkpoint("Paste keyframe");
   const pasted = object
     ? { frame: ui.frame, transform: cloneTransform(ui.copiedKeyframe.transform), interpolation: ui.copiedKeyframe.interpolation }
@@ -126,6 +126,11 @@ export function pasteKeyframe(ui) {
   else keys.push(pasted);
   keys.sort((a, b) => a.frame - b.frame);
   ui.selectedKeyFrame = pasted.frame;
+  // Keep the Set in sync with the scalar: resolveSelectedFrames() (used by
+  // Delete/nudge) prefers a non-empty selectedKeyFrames over selectedKeyFrame
+  // when they disagree, so a stale Set from an earlier multi-select/nudge
+  // would otherwise make the next Delete remove the wrong key.
+  ui.selectedKeyFrames = new Set([pasted.frame]);
   ui.editingKeyFrame = null;
   if (object) {
     object.position = [...pasted.transform.position];
@@ -137,7 +142,7 @@ export function pasteKeyframe(ui) {
   ui.serialize();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(t(`Keyframe pasted @ ${pasted.frame}`));
+  ui.setStatus(t("Keyframe pasted @ {value1}", { value1: pasted.frame }));
 }
 
 export function selectedKeyframe(ui) {
@@ -164,7 +169,7 @@ export function selectKeyframe(ui, key) {
 export function beginCameraEdit(ui) {
   const track = ui.activeCameraTrack();
   if (track?.locked) {
-    ui.setStatus(t(`${track.name} is locked`));
+    ui.setStatus(t("{value1} is locked", { value1: track.name }));
     return null;
   }
   let key = findEditableKey(
@@ -231,7 +236,7 @@ export function toggleAutoKey(ui) {
   if (!ui.state.auto_key) ui.exitKeyEdit(false);
   ui.serialize();
   ui.updateEditState();
-  ui.setStatus(t(`Auto Key ${ui.state.auto_key ? "on" : "off"}`));
+  ui.setStatus(t("Auto Key {value1}", { value1: ui.state.auto_key ? "on" : "off" }));
 }
 
 // Overlays drawn only in Camera View (see viewport-overlays.js).
@@ -248,7 +253,7 @@ export function updateEditState(ui) {
   for (const button of ui.root.querySelectorAll('[data-act="auto-key"]')) {
     button.classList.toggle("active", isAutoKey);
     button.setAttribute("aria-pressed", String(isAutoKey));
-    button.title = t(`Auto Key ${isAutoKey ? "on" : "off"}`);
+    button.title = t("Auto Key {value1}", { value1: isAutoKey ? "on" : "off" });
   }
   // Framing aids only mean something when you are looking through the camera.
   // They used to stay clickable in the orbit views, where toggling them did
@@ -375,8 +380,8 @@ export function refreshKeyEditor(ui) {
   const labelEl = ui.root.querySelector('[data-role="selected-key-label"]');
   if (labelEl) {
     labelEl.textContent = key
-      ? t(`${object?.name || "Camera"} Key @ ${key.frame}`)
-      : t(`No ${object ? "object" : "camera"} key selected`);
+      ? t("{value1} Key @ {value2}", { value1: object?.name || "Camera", value2: key.frame })
+      : t("No {value1} key selected", { value1: object ? "object" : "camera" });
   }
   const roles = ["key-frame", "key-interp", "key-tangent-mode", "key-px", "key-py", "key-pz", "key-tx", "key-ty", "key-tz", "key-fov", "key-roll", "key-zoom", "key-near", "key-far", "key-camera-type", "key-timing-weight"];
   for (const role of roles) {
@@ -474,7 +479,7 @@ export function retimeSelectedKey(ui, frame, nearest = false, options = {}) {
   }
   if (occupied(target)) {
     ui.refreshKeyEditor();
-    return ui.setStatus(t(`Frame ${target} already has a keyframe`));
+    return ui.setStatus(t("Frame {value1} already has a keyframe", { value1: target }));
   }
   if (target === key.frame) return;
   if (options.checkpoint !== false) ui.checkpoint("Move keyframe");
@@ -486,7 +491,7 @@ export function retimeSelectedKey(ui, frame, nearest = false, options = {}) {
   keys.sort((a, b) => a.frame - b.frame);
   ui.serialize();
   ui.setFrame(target);
-  ui.setStatus(t(`Keyframe moved to ${target}`));
+  ui.setStatus(t("Keyframe moved to {value1}", { value1: target }));
 }
 
 export function updateSelectedKey(ui) {
@@ -499,7 +504,7 @@ export function updateSelectedKey(ui) {
     key.transform = cloneTransform(timelineObject(ui));
     ui.serialize();
     ui.setFrame(key.frame);
-    ui.setStatus(t(`Object keyframe updated @ ${key.frame}`));
+    ui.setStatus(t("Object keyframe updated @ {value1}", { value1: key.frame }));
     return;
   }
   const read = (role, fallback) => {
@@ -525,7 +530,7 @@ export function updateSelectedKey(ui) {
   ui.frame = key.frame;
   ui.serialize();
   ui.setFrame(key.frame);
-  ui.setStatus(t(`Keyframe updated @ ${key.frame}`));
+  ui.setStatus(t("Keyframe updated @ {value1}", { value1: key.frame }));
 }
 
 export function updateKeyFromView(ui) {
@@ -537,14 +542,14 @@ export function updateKeyFromView(ui) {
   ui.serialize();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(t(`View stored in keyframe @ ${key.frame}`));
+  ui.setStatus(t("View stored in keyframe @ {value1}", { value1: key.frame }));
 }
 
 export function loadSelectedKeyView(ui) {
   const key = selectedKeyframe(ui);
   if (!key) return;
   ui.setFrame(key.frame);
-  ui.setStatus(t(`Loaded keyframe @ ${key.frame}`));
+  ui.setStatus(t("Loaded keyframe @ {value1}", { value1: key.frame }));
 }
 
 export function goToAdjacentKey(ui, direction) {

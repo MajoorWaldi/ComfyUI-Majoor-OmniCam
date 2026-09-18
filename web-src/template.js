@@ -11,7 +11,10 @@ export { DIRECTOR_STYLES } from "./template/styles.js";
 
 export function buildRoot() {
   const root = document.createElement("div");
-  root.className = "majoor-omnicam";
+  // "oc-director" scopes the bounded-modal layout rules (shell.js/lower-deck.js)
+  // to Director specifically -- ".majoor-omnicam" alone is shared with
+  // Extractor/Monitor's own templates, which must keep their current sizing.
+  root.className = "majoor-omnicam oc-director";
   root.innerHTML = `
     <style>${DIRECTOR_STYLES}</style>
     ${headerMarkup()}
@@ -25,7 +28,9 @@ export function buildRoot() {
            title="${t("Drag to resize the side panel — double-click to reset")}" aria-label="${t("Resize side panel")}"></div>
       ${sidePanelMarkup()}
     </div>
-    ${timelinePanelMarkup()}
+    <div class="oc-dock">
+      ${timelinePanelMarkup()}
+    </div>
     ${footerMarkup()}`;
   const contextMenu = document.createElement("div");
   contextMenu.className = "context-menu";

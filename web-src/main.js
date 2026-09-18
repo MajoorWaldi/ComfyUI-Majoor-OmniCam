@@ -4,7 +4,6 @@ import { registerOmniCamNodeBranding } from "./node-branding.js";
 import { configureMotionHealthApi } from "./motion-health/panel.js";
 import {
   OMNICAM_SETTINGS,
-  registerDirectorRuntime,
   registerOmniCamLocales,
   seedDirectorDefaults,
 } from "./settings.js";
@@ -97,17 +96,20 @@ app.registerExtension({
     // cannot make a loaded node look new when the chunk eventually resolves.
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
+    // The compact shell is the only eagerly-loaded Director module: it mounts
+    // a status widget with an "OPEN DIRECTOR" button and defers the full
+    // editor (web-src/director.js) to a dynamic import triggered by that
+    // button (migration plan Task 10).
     await attachWhenLoaded(node, async () => {
       recordDirectorTrace("director:import:start", node);
-      const { attachDirector } = await import("./director.js");
+      const { attachDirectorShell } = await import("./director/shell.js");
       recordDirectorTrace("director:import:resolved", node);
-      return attachDirector;
+      return attachDirectorShell;
     });
-    const ui = node.__majoorOmniCam;
-    if (!ui) return;
+    const runtime = node.__majoorOmniCamDirectorRuntime;
+    if (!runtime) return;
     recordDirectorTrace("director:attach:complete", node);
-    registerDirectorRuntime(ui);
-    if (seedDefaults) seedDirectorDefaults(ui);
+    if (seedDefaults) seedDirectorDefaults(runtime);
     applyNodeLayout(node, DIRECTOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });
@@ -118,8 +120,12 @@ app.registerExtension({
     if (nodeClassOf(node) !== EXTRACTOR_NODE_CLASS) return;
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
-    await attachWhenLoaded(node, async () => (await import("./extractor/index.js")).attachExtractor);
-    if (!node.__majoorOmniCamExtractor) return;
+    // The compact shell is the only eagerly-loaded Extractor module: it mounts
+    // a status widget with an "OPEN EXTRACTOR" button and defers the full
+    // panel (web-src/extractor/index.js) to a dynamic import triggered by
+    // that button (migration plan Task 15).
+    await attachWhenLoaded(node, async () => (await import("./extractor/shell.js")).attachExtractorShell);
+    if (!node.__majoorOmniCamExtractorRuntime) return;
     applyNodeLayout(node, EXTRACTOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });
@@ -130,8 +136,8 @@ app.registerExtension({
     if (nodeClassOf(node) !== MONITOR_NODE_CLASS) return;
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
-    await attachWhenLoaded(node, async () => (await import("./monitor/index.js")).attachMonitor);
-    if (!node.__majoorOmniCamMonitor) return;
+    await attachWhenLoaded(node, async () => (await import("./monitor/shell.js")).attachMonitorShell);
+    if (!node.__majoorOmniCamMonitorShell && !node.__majoorOmniCamMonitor) return;
     applyNodeLayout(node, MONITOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });

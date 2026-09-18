@@ -34,7 +34,7 @@ export async function uploadDirectorPlayblast(ui, blob) {
   }
   if (ui.recordingWidget) ui.recordingWidget.value = uploaded.path;
   ui.serialize();
-  ui.setStatus(t(`Playblast ready: ${uploaded.name}`));
+  ui.setStatus(t("Playblast ready: {value1}", { value1: uploaded.name }));
 }
 
 // Drawing-buffer size for the recorded playblast. "viewport" keeps whatever the
@@ -78,7 +78,7 @@ export async function makePlayblast(ui) {
     if (encoderChoice !== "realtime" && (await supportsDeterministicEncoding(ui.canvas.width, ui.canvas.height))) {
       blob = await encodeDeterministicPlayblast(ui.canvas, ui.state.duration_frames, ui.state.fps, async (frame) => {
         ui.setFrame(frame, true);
-        ui.setStatus(t(`Encoding frame ${frame + 1}/${ui.state.duration_frames}…`));
+        ui.setStatus(t("Encoding frame {value1}/{value2}…", { value1: frame + 1, value2: ui.state.duration_frames }));
         await waitForMediaFrame(ui);
         await new Promise((resolve) => requestAnimationFrame(resolve));
       }, ui.abortController?.signal, ui.state.playblast_quality);
@@ -91,7 +91,7 @@ export async function makePlayblast(ui) {
     await uploadDirectorPlayblast(ui, blob);
   } catch (error) {
     console.error(error);
-    ui.setStatus(t(`Playblast failed: ${error.message || error}`));
+    ui.setStatus(t("Playblast failed: {value1}", { value1: error.message || error }));
   } finally {
     ui.recording = false;
     ui.root.classList.remove("recording");

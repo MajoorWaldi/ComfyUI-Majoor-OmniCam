@@ -1,3 +1,4 @@
+import { t } from "../i18n.js";
 import { drawUpstreamPreview, upstreamPreviewMedia } from "../shared/upstream-preview.js";
 import { api } from "../comfy-runtime.js";
 
@@ -13,7 +14,7 @@ import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
 import { buildMonitorRoot } from "./template.js";
-import { MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
+import { hideMonitorParameters, isH3Profile, MONITOR_WIDGETS, monitorWidgetValues, writeMonitorWidget } from "./widget-contract.js";
 
 //: How often a connected Director's widgets are re-read for a live preflight.
 //: Independent of MonitorSourceWatcher's own poll, which only fires on a
@@ -29,12 +30,7 @@ const LIVE_POLL_INTERVAL_MS = 250;
 const INHERITABLE_SHOT_WIDGETS = new Set(["duration_seconds", "target_fps"]);
 
 function hideWidgets(node) {
-  for (const item of node.widgets || []) {
-    item.computeSize = () => [0, -4];
-    item.draw = () => {};
-    item.hidden = true;
-    item.options = { ...(item.options || {}), hideInVueNodes: true };
-  }
+  hideMonitorParameters(node);
 }
 
 class MonitorUI {
@@ -73,7 +69,7 @@ class MonitorUI {
       if (this.disposed) return;
       renderMonitorProfileInfo(this.root, payload);
     } catch (error) {
-      if (target) target.textContent = "Monitor profile information unavailable.";
+      if (target) target.textContent = t("Monitor profile information unavailable.");
       console.warn("OmniCam: Monitor profile catalog unavailable", error);
     }
   }
@@ -87,6 +83,7 @@ class MonitorUI {
     this.events.on(this.root.querySelector('[data-role="proxy-mute"]'), "change", (event) => this.player.setMuted(event.target.checked));
     this.events.on(this.root.querySelector('[data-role="profile-select"]'), "change", (event) => {
       writeMonitorWidget(this.node, "target_profile", event.target.value);
+      this.updateH3SetupHint(event.target.value);
       this.settingsChanged();
     });
     for (const control of this.root.querySelectorAll("[data-setting]")) {
@@ -113,10 +110,16 @@ class MonitorUI {
     }
   }
 
+  updateH3SetupHint(profile) {
+    const hint = this.root.querySelector('[data-role="h3-setup-hint"]');
+    if (hint) hint.hidden = !isH3Profile(profile);
+  }
+
   syncControlsFromWidgets() {
     const values = monitorWidgetValues(this.node);
     const select = this.root.querySelector('[data-role="profile-select"]');
     if (values.target_profile != null) select.value = String(values.target_profile);
+    this.updateH3SetupHint(select.value);
     for (const name of MONITOR_WIDGETS) {
       if (name === "target_profile") continue;
       const control = this.root.querySelector(`[data-setting="${name}"]`);
@@ -143,8 +146,8 @@ class MonitorUI {
     const origin = this.source?.sceneOrigin;
     const shot = canPreviewLive(origin) ? directorLivePayload(origin) : null;
     const fields = {
-      duration_seconds: shot ? `${shot.duration_seconds} (from Director)` : "auto (from shot)",
-      target_fps: shot ? `${shot.fps} (from Director)` : "auto (from shot)",
+      duration_seconds: shot ? t("{value} (from Director)", {value: shot.duration_seconds}) : t("auto (from shot)"),
+      target_fps: shot ? t("{value} (from Director)", {value: shot.fps}) : t("auto (from shot)"),
     };
     for (const [name, placeholder] of Object.entries(fields)) {
       const control = this.root.querySelector(`[data-setting="${name}"]`);
@@ -153,7 +156,7 @@ class MonitorUI {
   }
 
   markOutdated() {
-    this.root.querySelector('[data-role="output-status"]').textContent = "OUTPUT OUTDATED";
+    this.root.querySelector('[data-role="output-status"]').textContent = t("OUTPUT OUTDATED");
   }
 
   sourceChanged(source) {
@@ -161,11 +164,15 @@ class MonitorUI {
     this.source = source;
     const status = this.root.querySelector('[data-role="source-status"]');
     status.textContent = source.sceneConnected
-      ? `${source.sceneNodeClass || "MotionScene"} connected${source.playblastConnected ? ` · playblast: ${source.playblastNodeClass || "connected"}` : " · no playblast"}`
-      : "Connect a MotionScene and queue the workflow.";
+      ? t("{source} connected · {playblast}", {
+        source: source.sceneNodeClass || "MotionScene",
+        playblast: source.playblastConnected
+          ? t("Playblast: {name}", {name: source.playblastNodeClass || t("CONNECTED")}) : t("No playblast"),
+      })
+      : t("Connect a MotionScene and queue the workflow.");
     const badge = this.root.querySelector('[data-role="monitor-status"]');
-    badge.dataset.state = source.sceneConnected ? "CONNECTED" : "OFFLINE";
-    badge.lastChild.textContent = source.sceneConnected ? " CONNECTED" : " WAITING";
+    badge.dataset.state = source.sceneConnected ? t("CONNECTED") : "OFFLINE";
+    badge.lastChild.textContent = source.sceneConnected ? " " + t("CONNECTED") : " " + t("WAITING");
     this.reflectInheritedShot();
     this.refreshPlayblastPreview();
     this.liveTick();
@@ -199,7 +206,7 @@ class MonitorUI {
     // JSON.stringify (which would otherwise re-encode the entire scene four
     // times a second while nothing is being edited).
     const director = payload.director;
-    const liveKey = `${director.state_json} ${JSON.stringify(payload.monitor)} ${director.recording_path} ${director.card_asset} ${director.width}x${director.height}@${director.fps}/${director.duration_seconds}:${director.render_mode}`;
+    const liveKey = `${director.state_json}\u0000${JSON.stringify(payload.monitor)}\u0000${director.recording_path}\u0000${director.card_asset}\u0000${director.width}x${director.height}@${director.fps}/${director.duration_seconds}:${director.render_mode}`;
     if (liveKey === this._liveKey) return;
     this._liveKey = liveKey;
     this.refreshController.schedule(payload);
@@ -227,8 +234,8 @@ class MonitorUI {
     if (this.hasExecutedOnce) return;
     const connected = Boolean(this.source?.sceneConnected);
     const text = connected
-      ? "CONNECTED — waiting for upstream execution. Queue the workflow once to see a preflight."
-      : "Queue the workflow to validate the selected profile.";
+      ? t("CONNECTED — waiting for upstream execution. Queue the workflow once to see a preflight.")
+      : t("Queue the workflow to validate the selected profile.");
     if (text === this._liveUnavailableText) return;
     this._liveUnavailableText = text;
     this.root.querySelector('[data-role="profile-preflight"]').innerHTML =
@@ -276,6 +283,40 @@ class MonitorUI {
       canvas.hidden = !drawn;
       empty.hidden = drawn;
     });
+  }
+
+  /**
+   * Best-effort downscaled still of whichever preview is currently showing:
+   * the playblast <video> (this.player, MonitorPlayer/ManagedVideoPlayer) or
+   * the `proxy-upstream-preview` canvas fallback -- mirroring the same
+   * `canvas.hidden` check refreshPlayblastPreview() uses to decide which one
+   * is visible. Called by monitor/shell.js only at workbench-close time.
+   * Resolves null when neither has a usable frame yet.
+   */
+  async capturePreviewDataUrl() {
+    const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
+    const media = canvas && !canvas.hidden ? canvas : this.player?.video;
+    if (!media) return null;
+    const offscreen = document.createElement("canvas");
+    const drawn = await drawUpstreamPreview(media, offscreen, 240);
+    return drawn ? offscreen.toDataURL("image/webp", 0.7) : null;
+  }
+
+  /**
+   * The URL of the playblast video currently loaded in `this.player`, but
+   * only when the *video* path is actually what's showing -- same
+   * `canvas.hidden` check refreshPlayblastPreview() uses to decide between
+   * the player and the `proxy-upstream-preview` canvas fallback. "" (not
+   * null) when there is no such video, so the caller (monitor/shell.js) knows
+   * to fall back to a still-frame capture instead. Called by monitor/shell.js
+   * only at workbench-close time.
+   */
+  currentPlayblastVideoUrl() {
+    const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
+    if (!canvas || !canvas.hidden) return "";
+    const video = this.player?.video;
+    if (!video) return "";
+    return video.currentSrc || video.src || "";
   }
 
   updateReferenceSourceLabel(origin, directorSource) {
@@ -327,6 +368,27 @@ class MonitorUI {
     this.player.dispose();
     this.events.dispose();
   }
+}
+
+export function openMonitorWorkbench(node) {
+  if (node.__majoorOmniCamMonitorWorkbench && !node.__majoorOmniCamMonitorWorkbench.disposed) {
+    return node.__majoorOmniCamMonitorWorkbench;
+  }
+  hideWidgets(node);
+  const ui = new MonitorUI(node);
+  node.__majoorOmniCamMonitorWorkbench = ui;
+  const runtime = node.__majoorOmniCamMonitorRuntime;
+  if (runtime) runtime.restore(ui);
+  else ui.events.add(bindMonitorPreflightEvents(api, node, ui));
+  return ui;
+}
+
+export function closeMonitorWorkbench(ui) {
+  if (!ui) return;
+  if (ui.node?.__majoorOmniCamMonitorWorkbench === ui) {
+    ui.node.__majoorOmniCamMonitorWorkbench = null;
+  }
+  ui.dispose();
 }
 
 export function attachMonitor(node) {

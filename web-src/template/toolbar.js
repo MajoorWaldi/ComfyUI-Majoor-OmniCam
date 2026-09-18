@@ -124,6 +124,8 @@ function viewTab() {
       <label>${t("Point color")} <input data-role="point-color" type="color" value="#cbd5e1"></label>
       <label>${t("Card fit")} <select data-role="card-fit"><option value="contain">${t("Fit")}</option><option value="cover">${t("Fill")}</option><option value="stretch">${t("Stretch")}</option></select></label>
       <label>${t("Interface")} <select data-role="ui-density"><option value="basic">${t("Basic")}</option><option value="animation">${t("Animation")}</option><option value="advanced" selected>${t("Advanced")}</option></select></label>
+      <div class="menu-divider"></div>
+      <button data-act="reset-layout" title="${t("Restore every resizable panel to its default size")}"><i class="pi pi-table"></i> ${t("Reset Layout")}</button>
     </div></details>`;
 }
 
@@ -189,29 +191,33 @@ function displayTab() {
 export function toolbarMarkup() {
   return `
     <div class="top">
-      <button class="icon-button oc-drawer-toggle" data-act="toggle-scene-panel" title="${t("Scene")}" aria-pressed="false"><i class="pi pi-list"></i></button>
-      ${fileTab()}
-      ${sceneTab()}
-      ${camerasTab()}
-      ${viewTab()}
-      ${displayTab()}
+      <button class="icon-button oc-drawer-toggle" data-act="toggle-scene-panel" title="${t("Outliner")}" aria-pressed="false"><i class="pi pi-bars"></i></button>
+      <div class="oc-dcc-menubar">
+        ${fileTab()}
+        ${sceneTab()}
+        ${camerasTab()}
+        ${viewTab()}
+        ${displayTab()}
+      </div>
       <input data-role="file" type="file" accept="image/*,video/*" hidden>
       <input data-role="model-file" type="file" accept=".glb,.obj,.fbx,.stl,.ply" hidden>
       <input data-role="audio-file" type="file" accept="audio/*,.wav,.mp3,.ogg,.flac" hidden>
       <input data-role="viewport-bg-file" type="file" accept="image/*" hidden>
       <input data-role="viewport-bg-seq-file" type="file" accept="image/*" multiple hidden>
       <span class="oc-toolbar-spacer"></span>
+      <div class="oc-shelf-modes">
+        <select class="oc-render-mode" data-role="mode" title="${t("Proxy mode")}">
+          <option value="omni_ref">${t("Omni Ref")}</option>
+          <option value="card_grid">${t("Card + Grid")}</option>
+          <option value="graybox">${t("Graybox")}</option>
+          <option value="grid">${t("Grid")}</option>
+          <option value="point_field">${t("Point Field")}</option>
+          <option value="wireframe">${t("Wireframe")}</option>
+          <option value="beauty">${t("Beauty (lit)")}</option>
+        </select>
+        <button class="icon-button oc-strip-toggle" data-act="toggle-camera-view" title="${t("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
+        <button class="icon-button oc-drawer-toggle" data-act="toggle-inspector-panel" title="${t("Inspector")}" aria-pressed="false"><i class="pi pi-sliders-h"></i></button>
+      </div>
       <button class="oc-playblast" data-act="record" title="${t("Record proxy playblast")}"><span class="oc-playblast-dot"></span>${t("Playblast")}</button>
-      <button class="icon-button oc-strip-toggle" data-act="toggle-camera-view" title="${t("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
-      <button class="icon-button oc-drawer-toggle" data-act="toggle-inspector-panel" title="${t("Inspector")}" aria-pressed="false"><i class="pi pi-sliders-h"></i></button>
-      <select class="oc-render-mode" data-role="mode" title="${t("Proxy mode")}">
-        <option value="omni_ref">${t("Omni Ref")}</option>
-        <option value="card_grid">${t("Card + Grid")}</option>
-        <option value="graybox">${t("Graybox")}</option>
-        <option value="grid">${t("Grid")}</option>
-        <option value="point_field">${t("Point Field")}</option>
-        <option value="wireframe">${t("Wireframe")}</option>
-        <option value="beauty">${t("Beauty (lit)")}</option>
-      </select>
     </div>`;
 }

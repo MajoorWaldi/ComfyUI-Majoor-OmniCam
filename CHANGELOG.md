@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Director and Extractor nodes now show a compact status shell with an
+  OPEN DIRECTOR / OPEN EXTRACTOR button instead of embedding the full editor
+  in the graph; the heavy editor (and, for Director, three.js) loads only
+  when opened, in a body-level workbench window. Only one heavy workbench is
+  open at a time.
+- Closing the Extractor workbench no longer cancels an in-progress TRACK /
+  Scene Reconstruct solve -- it keeps running and the compact shell shows its
+  progress. Deleting the node still cancels it.
+- Director's external Agent bridge and semantic API now work identically
+  whether or not its workbench is open; a Director never needs to be opened
+  for a workflow to save/reload its state or for an Extractor reconstruction
+  to be adopted into it.
+
 ## [0.3.3] - 2026-09-14
 
 ### Security

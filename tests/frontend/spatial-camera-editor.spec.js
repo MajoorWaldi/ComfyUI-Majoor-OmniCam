@@ -545,6 +545,12 @@ test("clicking a timeline key selects the same key as a spatial gizmo target, no
   expect(selection.frames).toEqual([30]);
   expect(selection.primary).toBe(30);
 
+  // Clicking the timeline key above may have auto-scrolled .oc-workbench-content
+  // (the embedded editor's natural height can exceed the modal window, plan
+  // Task 18) far enough that the viewport canvas scrolled out of view; bring
+  // it back before computing a screen-space point on it.
+  await page.locator(".viewport-wrap > canvas").scrollIntoViewIfNeeded();
+
   const before = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.activeCameraTrack().keyframes.map((k) => [...k.camera.position]));
   const point = await screenPoint(page, before[1]); // frame 30 is index 1
 

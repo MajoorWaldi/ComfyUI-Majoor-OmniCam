@@ -44,7 +44,7 @@ export function onTimelineWheel(ui, event) {
     ui.timelineZoom = newZoom;
   }
   ui.refreshKeys();
-  ui.setStatus(t(`Timeline zoom: ${(ui.timelineZoom * 100).toFixed(0)}%`));
+  ui.setStatus(t("Timeline zoom: {value1}%", { value1: (ui.timelineZoom * 100).toFixed(0) }));
 }
 
 export function resetTimelineZoom(ui) {
@@ -157,7 +157,7 @@ export function onTimelinePointerUp(ui, event) {
       ui.selectedKeyFrame = hits[0];
       ui.updateKeyVisualState();
       ui.refreshKeyEditor();
-      ui.setStatus(t(`${hits.length} keys selected`));
+      ui.setStatus(t("{value1} keys selected", { value1: hits.length }));
     }
     return;
   }

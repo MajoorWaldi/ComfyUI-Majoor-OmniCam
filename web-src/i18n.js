@@ -20,7 +20,8 @@ export function getLocale() {
 }
 
 // t("English source string") -> translated string when a catalog entry exists.
-export function t(source) {
-  if (activeLocale === DEFAULT_LOCALE) return source;
-  return catalogs.get(activeLocale)?.[source] || source;
+export function t(source, values = {}) {
+  const text = activeLocale === DEFAULT_LOCALE ? source : (catalogs.get(activeLocale)?.[source] || source);
+  return text.replace(/\{(\w+)\}/g, (match, key) =>
+    Object.hasOwn(values, key) ? String(values[key]) : match);
 }

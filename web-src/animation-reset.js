@@ -19,7 +19,7 @@ export function resetCameraAnimation(ui, id) {
   ui.camera = cloneCamera(camera); ui.frame = 0; ui.selectedEntity = "camera"; ui.selectedObjectId = null;
   ui.selectedKeyFrame = 0; ui.editingKeyFrame = null; ui.cameraEditKey = null; ui.cameraEditActive = false;
   ui.cameraPreviewSignature = "";
-  refreshAfterReset(ui); ui.refreshCameraSelectors(); ui.setStatus(t(`${track.name} animation reset`));
+  refreshAfterReset(ui); ui.refreshCameraSelectors(); ui.setStatus(t("{value1} animation reset", { value1: track.name }));
 }
 
 export function resetObjectAnimation(ui, id) {
@@ -29,5 +29,5 @@ export function resetObjectAnimation(ui, id) {
   object.keyframes = []; object.position = [0, 0, 0]; object.rotation = [0, 0, 0];
   ui.frame = 0; ui.selectedEntity = "object"; ui.selectedObjectId = object.id;
   ui.selectedKeyFrame = null; ui.editingKeyFrame = null;
-  refreshAfterReset(ui); ui.setStatus(t(`${object.name || object.type} animation reset`));
+  refreshAfterReset(ui); ui.setStatus(t("{value1} animation reset", { value1: object.name || object.type }));
 }

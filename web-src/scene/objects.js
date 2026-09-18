@@ -129,7 +129,7 @@ export async function renameObject(ui, id) {
   ui.serialize();
   ui.refreshObjects();
   ui.refreshKeys();
-  ui.setStatus(t(`Object renamed: ${object.name}`));
+  ui.setStatus(t("Object renamed: {value1}", { value1: object.name }));
 }
 
 export function duplicateObject(ui, id) {
@@ -161,7 +161,7 @@ export function duplicateObject(ui, id) {
   ui.refreshObjects();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(t(`${copy.name} added`));
+  ui.setStatus(t("{value1} added", { value1: copy.name }));
 }
 
 export function toggleObject(ui, id) {
@@ -172,14 +172,14 @@ export function toggleObject(ui, id) {
   ui.serialize();
   ui.refreshObjects();
   ui.render();
-  ui.setStatus(t(`${object.name || object.type} ${object.enabled ? "shown" : "hidden"}`));
+  ui.setStatus(t("{value1} {value2}", { value1: object.name || object.type, value2: object.enabled ? "shown" : "hidden" }));
 }
 
 export async function deleteObject(ui, id) {
   if (id === "subject") return ui.setStatus(t("The subject card cannot be deleted"));
   const object = ui.state.objects.find((item) => item.id === id);
   if (!object) return;
-  if (!(await confirmAction(ui, t("Delete object"), t(`Delete ${object.name || object.type} and its ${(object.keyframes || []).length} keyframe(s)?`)))) return;
+  if (!(await confirmAction(ui, t("Delete object"), t("Delete {value1} and its {value2} keyframe(s)?", { value1: object.name || object.type, value2: (object.keyframes || []).length })))) return;
   if (ui.disposed || !ui.state.objects.includes(object)) return;
   ui.checkpoint("Delete object");
   for (const child of ui.state.objects) if (child.parent_id === id) child.parent_id = null;
@@ -195,7 +195,7 @@ export async function deleteObject(ui, id) {
   ui.refreshObjects();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(t(`${object.name || object.type} deleted`));
+  ui.setStatus(t("{value1} deleted", { value1: object.name || object.type }));
 }
 
 /**
@@ -519,7 +519,7 @@ export function updateSelectedObject(ui) {
 export function beginObjectEdit(ui, object) {
   if (!object) return null;
   if (object.locked) {
-    ui.setStatus(t(`${object.name || object.type} is locked`));
+    ui.setStatus(t("{value1} is locked", { value1: object.name || object.type }));
     return null;
   }
   object.keyframes ||= [];
@@ -646,7 +646,7 @@ export function setObjectParent(ui, parentId) {
   ui.refreshObjects();
   ui.render();
   const parent = ui.state.objects.find((item) => item.id === parentId);
-  ui.setStatus(parent ? t(`${object.name || object.type} parented to ${parent.name || parent.type}`) : t(`${object.name || object.type} unparented`));
+  ui.setStatus(parent ? t("{value1} parented to {value2}", { value1: object.name || object.type, value2: parent.name || parent.type }) : t("{value1} unparented", { value1: object.name || object.type }));
 }
 
 export function selectObjectAnimation(ui, index) {
@@ -656,7 +656,7 @@ export function selectObjectAnimation(ui, index) {
   object.animation_index = Math.max(0, index || 0);
   ui.serialize();
   ui.webgl?.selectAnimation(object.id, index);
-  ui.setStatus(t(`Animation: ${ui.modelInfoById.get(object.id)?.animationNames?.[index] || index + 1}`));
+  ui.setStatus(t("Animation: {value1}", { value1: ui.modelInfoById.get(object.id)?.animationNames?.[index] || index + 1 }));
 }
 
 export { refreshObjects } from "./outliner.js";

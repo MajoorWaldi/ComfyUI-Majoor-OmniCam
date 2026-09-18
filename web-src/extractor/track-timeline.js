@@ -14,19 +14,20 @@
 // timeline you can drag keys on would be a second, silently disagreeing editor.
 
 import { motionHealthReport } from "../motion-health.js";
+import { TOKENS } from "../shared/tokens.js";
 
 import { QUALITY_COLORS, qualityState } from "./quality-timeline.js";
 
 export const GRADE_COLORS = {
-  ok: "#46a758",
-  warn: "#e5a23c",
-  over: "#e5484d",
+  ok: TOKENS.success,
+  warn: TOKENS.warning,
+  over: TOKENS.error,
 };
 
 export const CHANNEL_COLORS = {
-  position: "#8b7bd8",
-  target: "#e5a23c",
-  roll: "#e2649a",
+  position: TOKENS.typeCamera,
+  target: TOKENS.typeLookAt,
+  roll: TOKENS.typeRoll,
 };
 
 /** The lanes, in the Director's order so the two panels read the same way. */

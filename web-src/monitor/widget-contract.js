@@ -7,6 +7,16 @@ export const MONITOR_WIDGETS = [
   "target_fps",
 ];
 
+export function hideMonitorParameters(node) {
+  for (const item of node.widgets || []) {
+    if (!MONITOR_WIDGETS.includes(item.name)) continue;
+    item.computeSize = () => [0, -4];
+    item.draw = () => {};
+    item.hidden = true;
+    item.options = { ...(item.options || {}), hideInVueNodes: true };
+  }
+}
+
 const NUMERIC_WIDGETS = new Set([
   "target_width", "target_height", "duration_seconds", "target_fps",
 ]);
@@ -26,4 +36,10 @@ export function writeMonitorWidget(node, name, value) {
   item.value = NUMERIC_WIDGETS.has(name) ? Number(value) : value;
   item.callback?.(item.value);
   return true;
+}
+
+// The H3-Setup guidance (moved here from Director's header menu, Director
+// modal audit Lot 2) only makes sense for the h3_* profile family.
+export function isH3Profile(profile) {
+  return String(profile || "").startsWith("h3_");
 }

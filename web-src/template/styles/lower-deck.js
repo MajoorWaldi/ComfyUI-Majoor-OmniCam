@@ -1,12 +1,6 @@
 // Lower deck: camera preview, transport bar, dope sheet, graph editor.
 
 export const LOWER_DECK_STYLES = `
-      /* The Outliner tab escapes the shared 520px side-panel scroll box: its
-         list has an explicit, drag-controlled height (see .scene-tree) and the
-         node grows to fit, so a nested max-height here would just re-introduce
-         the cramped inner scrollbar the resize handle exists to avoid. The
-         other tabs (Inspector, Shot, Health) keep the shared cap. */
-      .majoor-omnicam .oc-side-body[data-tab-panel="scene"]{max-height:none;overflow:visible}
       .majoor-omnicam .oc-lower{display:grid;grid-template-columns:var(--oc-preview-w,236px) 9px minmax(0,1fr);gap:8px;padding:0 8px 8px}
       .majoor-omnicam .oc-preview{display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);position:static;width:auto}
       .majoor-omnicam .oc-preview-head{display:flex;align-items:center;gap:6px;color:var(--oc-text-dim);font-size:11px}
@@ -16,16 +10,19 @@ export const LOWER_DECK_STYLES = `
          overflow:auto grid track gets its row shrunk below its own computed
          height in Chromium/Edge, so consecutive tiles drew on top of each
          other and no camera framed correctly. A flex column with flex:0 0 auto
-         tiles simply stacks -- each tile keeps its full aspect height and the
-         strip grows to fit (the node grows with it), so every camera view is
-         whole. The strip is no longer capped: widening the column via the
-         splitter is meant to enlarge the previews. */
+         tiles simply stacks -- each tile keeps its full aspect height. Widening
+         the column via the splitter is meant to enlarge the previews. The tile
+         *count* is capped instead (boundedPreviewTracks in cameras.js, Director
+         modal audit Lot 3): a scene with many cameras folds the rest behind a
+         "+N more" tile rather than growing the strip's own content further --
+         the shared .oc-dock (Lot 1) still scrolls the overall column either way. */
       .majoor-omnicam .oc-preview .camera-preview-strip{display:flex;flex-direction:column;flex-wrap:nowrap;gap:6px;max-height:none;overflow:visible;padding:0;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-preview .camera-preview-strip:empty{min-height:120px}
       /* A preview whose box is not the shot's shape shows a framing the render
          will not produce. The tile takes the shot aspect; --shot-aspect is set
          from state.width/height in refreshCameraPreviews(). */
       .majoor-omnicam .oc-preview .camera-preview-tile{flex:0 0 auto;width:100%;height:auto;min-height:0;aspect-ratio:var(--shot-aspect,16/9)}
+      .majoor-omnicam .oc-preview .camera-preview-tile.camera-preview-overflow{display:grid;place-items:center;aspect-ratio:auto;min-height:32px;color:var(--oc-text-dim);font-size:11px;background:var(--oc-panel-2);border:1px dashed var(--oc-line)}
       .majoor-omnicam .oc-preview .camera-preview-head{min-height:0;padding:2px 5px;font-size:9.5px}
       /* The sidebar tile is ~120px tall; the badge repeats what the header
          already says and only collides with the tile edge at this size. */
@@ -111,7 +108,10 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-sequence-shot{position:absolute;top:3px;bottom:3px;display:flex;align-items:center;overflow:hidden;border-radius:3px;border:1px solid var(--shot-color);background:color-mix(in srgb,var(--shot-color) 30%,transparent);cursor:context-menu}
       .majoor-omnicam .oc-sequence-shot.no-proxy{border-style:dashed;opacity:.55}
       .majoor-omnicam .oc-sequence-name{padding:0 12px;font-size:11px;line-height:1;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;pointer-events:none}
-      .majoor-omnicam .oc-sequence-handle{position:absolute;left:-6px;top:0;bottom:0;width:13px;cursor:ew-resize;background:var(--shot-color);border-radius:2px;opacity:.85;touch-action:none}
+      /* Cut boundaries use the dedicated Cuts/Shot-marker color (spec 04),
+         distinct from the shot block's own camera-identity color, so a
+         cut point reads as its own semantic type at a glance. */
+      .majoor-omnicam .oc-sequence-handle{position:absolute;left:-6px;top:0;bottom:0;width:13px;cursor:ew-resize;background:var(--oc-type-cuts);border-radius:2px;opacity:.85;touch-action:none}
       .majoor-omnicam .oc-sequence-handle::after{content:"";position:absolute;left:5px;top:35%;bottom:35%;width:3px;background:#fff;opacity:.7;border-radius:2px}
       .majoor-omnicam .oc-sequence-handle:hover{opacity:1}
       .majoor-omnicam .oc-sequence-playhead{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--oc-accent);opacity:.9;pointer-events:none}
@@ -138,20 +138,23 @@ export const LOWER_DECK_STYLES = `
 
       .majoor-omnicam .oc-playhead-line{position:absolute;top:calc(var(--oc-ruler-h,30px) - 9px);bottom:0;width:2px;margin-left:-1px;background:var(--oc-accent);opacity:.85;pointer-events:none;z-index:5}
 
-      /* ---- graph editor ---------------------------------------------- */
-      .majoor-omnicam .oc-graph{margin:0 8px 8px;background:var(--oc-panel);border:1px solid var(--oc-line);border-radius:var(--oc-radius);overflow:hidden}
-      .majoor-omnicam .oc-graph>.oc-graph-head{display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid var(--oc-line)}
-      /* Collapsed by the transport's graph toggle: keep the mode row, drop the rest. */
-      .majoor-omnicam .oc-graph.oc-graph-collapsed>.oc-graph-head{border-bottom:0}
-      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-toolbar,
-      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-body,
-      .majoor-omnicam .oc-graph.oc-graph-collapsed .oc-graph-resize{display:none}
+      /* ---- Timeline/Graph/Sequence mode block (Director modal audit Lot 3) --
+         Timeline (the dope sheet), Graph (the curve editor) and Sequence used
+         to be two stacked sections (.oc-lower always visible, a separate
+         .oc-graph below it with its own inner tabs re-deriving a second,
+         click-only dope view). They now share this one block -- and this same
+         DOM region -- with the camera preview, switching via .oc-graph-tabs;
+         .curve-editor replaces .oc-graph as the scoping class below (kept
+         distinct from transport/solve-health, which stay outside it and
+         visible no matter which mode tab is active) so a right-click inside
+         it still reaches editor.js's .curve-editor context-menu routing. */
+      .majoor-omnicam .curve-editor>.oc-graph-head{display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid var(--oc-line)}
       .majoor-omnicam .oc-graph-tabs{display:inline-flex;align-items:center;gap:2px;padding:2px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-graph-tab{padding:4px 12px;border:0;border-radius:5px;background:transparent;color:var(--oc-text-dim);font-size:11.5px;cursor:pointer}
       .majoor-omnicam .oc-graph-tab strong{font-weight:600}
       .majoor-omnicam .oc-graph-tab:hover{color:var(--oc-text)}
       .majoor-omnicam .oc-graph-tab.active{background:var(--oc-panel-2);color:var(--oc-text);box-shadow:inset 0 0 0 1px var(--oc-line)}
-      .majoor-omnicam .oc-graph>.oc-graph-head .hint{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--oc-text-faint)}
+      .majoor-omnicam .curve-editor>.oc-graph-head .hint{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--oc-text-faint)}
       /* overflow-x:auto here used to clip the overflow popover, leaving its
          interpolation and tangent buttons unreachable. It wraps instead. */
       .majoor-omnicam .oc-graph-toolbar{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--oc-line-soft);flex-wrap:wrap}
@@ -161,22 +164,26 @@ export const LOWER_DECK_STYLES = `
       .majoor-omnicam .oc-graph-toolbar .curve-mode.active{background:var(--oc-accent) !important;border-color:var(--oc-accent) !important;color:#fff !important;box-shadow:none !important}
       .majoor-omnicam .oc-graph-spacer{flex:1;min-width:0}
       .majoor-omnicam .oc-graph-body{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px;padding:8px 10px 10px;min-width:0}
-      .majoor-omnicam .oc-graph-legend{display:flex;flex-direction:column;gap:3px}
+      /* The legend is only relevant to the Graph tab (hidden the rest of the
+         time, see setGraphTab) -- grid-template-columns reserves its 150px
+         track regardless of whether anything occupies it, so a plain
+         grid-column assignment on the stage is not enough to reclaim that
+         width once the legend is hidden; the track itself has to collapse. */
+      .majoor-omnicam .oc-graph-body:has(>.oc-graph-legend[hidden]){grid-template-columns:minmax(0,1fr)}
+      .majoor-omnicam .oc-graph-body:has(>.oc-graph-legend[hidden])>.oc-graph-stage{grid-column:1}
+      .majoor-omnicam .oc-graph-legend{grid-column:1;display:flex;flex-direction:column;gap:3px}
+      .majoor-omnicam .oc-graph-stage{grid-column:2;min-width:0}
       .majoor-omnicam .oc-graph-legend-title{padding:2px 4px 4px;color:var(--oc-text);font-size:11.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .majoor-omnicam .oc-graph-legend .curve-mode{justify-content:flex-start;gap:8px;padding:5px 9px;border-radius:6px;background:var(--oc-sunken);border-color:var(--oc-line);color:var(--oc-text-dim);font-size:11px;text-align:left}
       .majoor-omnicam .oc-graph-legend .curve-mode.active{background:var(--oc-panel-2) !important;border-color:var(--oc-accent) !important;color:var(--oc-text) !important;box-shadow:none !important}
       .majoor-omnicam .oc-graph-legend .ch-dot{width:10px;height:10px;border-radius:2px;flex:none}
-      .majoor-omnicam .oc-graph-stage{min-width:0}
-      .majoor-omnicam .oc-graph .curve-canvas{width:100%;height:var(--oc-graph-h,220px);min-height:140px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
+      .majoor-omnicam .curve-canvas{width:100%;height:var(--oc-graph-h,220px);min-height:140px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft)}
       .majoor-omnicam .oc-graph-resize{margin:2px 10px 8px;cursor:ns-resize}
-
-      /* Dope Sheet tab of the graph panel: one lane per graphed component. */
-      .majoor-omnicam .oc-gdope{display:flex;flex-direction:column;gap:4px;height:var(--oc-graph-h,220px);min-height:140px;padding:9px;border-radius:var(--oc-radius-sm);background:var(--oc-sunken);border:1px solid var(--oc-line-soft);overflow-y:auto;overscroll-behavior:contain}
-      .majoor-omnicam .oc-gdope-row{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;gap:8px}
-      .majoor-omnicam .oc-gdope-label{color:var(--channel-color,var(--oc-text-dim));font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .majoor-omnicam .oc-gdope-track{position:relative;height:26px;border-radius:6px;background:var(--oc-panel-2);border:1px solid var(--oc-line-soft)}
-      .majoor-omnicam .oc-gdope-track::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--channel-color,var(--oc-line));opacity:.4}
-      .majoor-omnicam .oc-gdope-playhead{position:absolute;top:-2px;bottom:-2px;width:2px;margin-left:-1px;background:var(--oc-accent);opacity:.85;pointer-events:none}
+      /* The Timeline tab's stage: the real dope sheet (.oc-dope, styled above)
+         plus the motion-timeline row, sized to the same shared budget as the
+         Graph/Sequence stages so switching tabs does not change the block's
+         own height. */
+      .majoor-omnicam .oc-dope-stage{display:flex;flex-direction:column;gap:8px;height:var(--oc-graph-h,220px);min-height:140px;overflow-y:auto;overscroll-behavior:contain}
 
       /* ---- solve-health strip ------------------------------------------ */
       /* One traffic-light row above the dope sheet. Muted, semantic, and grey
@@ -200,12 +207,10 @@ export const LOWER_DECK_STYLES = `
         .majoor-omnicam .oc-side{width:100%}
         .majoor-omnicam .oc-lower{grid-template-columns:minmax(0,1fr)}
         .majoor-omnicam .oc-lower>.oc-resize-h{display:none}
-        .majoor-omnicam .oc-side-body{max-height:380px}
         .majoor-omnicam .vp-hint{display:none}
       }
       @container (max-width:560px){
         .majoor-omnicam .oc-dope-body{--oc-dope-gutter:86px}
-        .majoor-omnicam .oc-gdope-row{grid-template-columns:74px minmax(0,1fr)}
         .majoor-omnicam .oc-graph-body{grid-template-columns:minmax(0,1fr)}
         .majoor-omnicam .oc-graph-legend{flex-direction:row;flex-wrap:wrap}
         .majoor-omnicam .oc-transport{flex-wrap:wrap}

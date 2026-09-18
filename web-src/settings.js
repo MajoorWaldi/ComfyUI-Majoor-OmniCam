@@ -426,7 +426,13 @@ export function seedDirectorDefaults(ui) {
     extractor_backend: defaults.extractorBackend,
     monitor_profile: defaults.monitorProfile,
   });
-  ui.syncFromWidgets?.();
+  // A workbench reconciles state -> DOM and persists as one step; a bare
+  // runtime (no workbench open yet, e.g. a fresh node whose shell mounted but
+  // was never opened) has no DOM to reconcile, so flush the seeded state to
+  // the state_json widget directly -- otherwise a freshly seeded node queued
+  // without ever opening Director would still queue its unseeded defaults.
+  if (ui.syncFromWidgets) ui.syncFromWidgets();
+  else ui.flushToWidgets?.({ immediate: true });
 }
 
 // Compatibility facade for callers that intentionally initialize a brand-new

@@ -16,6 +16,7 @@ import {
   autoSequenceCuts, removeCut, sequenceCuts, splitCutAtFrame, trimCutStart,
 } from "./director/sequence.js";
 import { timelineFrameFromEvent, timelinePercentForFrame } from "./timeline-interaction.js";
+import { TOKENS } from "./shared/tokens.js";
 
 const CAMERA_COLORS = ["#4aa3ef", "#f2a93b", "#48c774", "#b565d8", "#ec4899"];
 
@@ -259,7 +260,7 @@ function audioTrack(ui) {
     const zoom = Math.min(50, Math.max(0.1, Number(ui.timelineZoom) || 1));
     const pan = Number(ui.timelinePan) || 0;
     const span = lastFrame / zoom;
-    ctx.fillStyle = "#f2d06b";
+    ctx.fillStyle = TOKENS.warning;
     for (let i = 0; i < peaks.length; i++) {
       const frame = (i / (peaks.length - 1)) * lastFrame;
       const x = ((frame - pan) / Math.max(1e-6, span)) * width;

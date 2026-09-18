@@ -35,8 +35,14 @@ test("audit the live director", async ({ page }) => {
     node.pos = [40, 40];
     window.app.graph.add(node);
     node.setSize([1180, 1360]);
+    window.__auditNode = node;
     window.app.canvas?.setDirty?.(true, true);
   });
+  // The Director mounts a compact shell by default (migration plan Task 10);
+  // open its workbench the way a user would before waiting on the embedded
+  // editor's DOM, which no longer exists until then.
+  await page.waitForFunction(() => Boolean(window.__auditNode?.__majoorOmniCamDirectorRuntime?.shell?.openButton), null, { timeout: 40000 });
+  await page.evaluate(() => window.__auditNode.__majoorOmniCamDirectorRuntime.shell.openButton.click());
   await page.waitForSelector(".majoor-omnicam .oc-header", { timeout: 40000 });
   await page.waitForTimeout(2500);
 

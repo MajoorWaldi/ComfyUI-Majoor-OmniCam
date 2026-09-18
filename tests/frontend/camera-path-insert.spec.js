@@ -29,6 +29,14 @@ async function drawPath(page) {
 }
 
 test("double-clicking the rendered path inserts a new camera key there, one undo step", async ({ page }) => {
+  // The viewport is no longer forced to 16:9 (Director modal audit, Lot 1:
+  // the true output framing is drawn at render time, not enforced by CSS),
+  // so the default test window's bounded stage renders it noticeably wider
+  // than tall -- this test's midpoint sample can land where the freehand
+  // path is nearly edge-on to the camera at that shape and go unhit. A
+  // taller window gives the bounded stage enough headroom to land close to
+  // 16:9 again without depending on an exact viewport shape.
+  await page.setViewportSize({ width: 1440, height: 1100 });
   await mount(page);
   await drawPath(page);
 

@@ -23,35 +23,45 @@ export function inspectorPanel() {
             <option value="mobile_9_16">${t("Mobile 9:16 Vertical")}</option>
           </select>
         </div>
-        <div class="oc-field-row"><span class="oc-field-label">${t("Focal Length")}</span>
+        <div class="oc-field-row oc-scrub-field">
+          <span class="oc-channel-key" data-channel="focal" title="${t("Animated channel key indicator")}">◆</span>
+          <span class="oc-field-label" title="${t("Click and drag to scrub Focal Length")}">${t("Focal Length")}</span>
           <input data-role="camera-focal" type="number" min="4" max="800" step="0.5"><span class="oc-unit">mm</span>
         </div>
-        <div class="oc-field-row"><span class="oc-field-label">${t("FOV")}</span>
+        <div class="oc-field-row oc-scrub-field">
+          <span class="oc-field-label" title="${t("Field of View")}">${t("FOV")}</span>
           <input data-role="camera-fov" type="number" min="5" max="150" step="0.1"><span class="oc-unit">°</span>
         </div>
         <div class="oc-lens-presets">${lensButtons}</div>
 
         <div class="oc-section">${t("Transform")}</div>
-        <div class="oc-vec-row"><span class="oc-field-label">${t("Position")}</span>
-          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="camera-px" type="number" step="0.1" aria-label="X"></label>
-          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="camera-py" type="number" step="0.1" aria-label="Y"></label>
-          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="camera-pz" type="number" step="0.1" aria-label="Z"></label>
+        <div class="oc-vec-row">
+          <span class="oc-channel-key" data-channel="pos" title="${t("Position key indicator")}">◆</span>
+          <span class="oc-field-label">${t("Position")}</span>
+          <label class="oc-axis x" title="${t("Scrub X (Shift: 0.01x, Ctrl: 1.0x)")}"><span class="oc-axis-tag">X</span><input data-role="camera-px" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y" title="${t("Scrub Y (Shift: 0.01x, Ctrl: 1.0x)")}"><span class="oc-axis-tag">Y</span><input data-role="camera-py" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z" title="${t("Scrub Z (Shift: 0.01x, Ctrl: 1.0x)")}"><span class="oc-axis-tag">Z</span><input data-role="camera-pz" type="number" step="0.1" aria-label="Z"></label>
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="camera-pos" title="${t("Reset Position")}">⟲</button>
         </div>
-        <div class="oc-vec-row"><span class="oc-field-label">${t("Target XYZ")}</span>
-          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="camera-tx" type="number" step="0.1" aria-label="X"></label>
-          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="camera-ty" type="number" step="0.1" aria-label="Y"></label>
-          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="camera-tz" type="number" step="0.1" aria-label="Z"></label>
+        <div class="oc-vec-row">
+          <span class="oc-channel-key" data-channel="target" title="${t("Target key indicator")}">◆</span>
+          <span class="oc-field-label">${t("Target XYZ")}</span>
+          <label class="oc-axis x" title="${t("Scrub Target X")}"><span class="oc-axis-tag">X</span><input data-role="camera-tx" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y" title="${t("Scrub Target Y")}"><span class="oc-axis-tag">Y</span><input data-role="camera-ty" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z" title="${t("Scrub Target Z")}"><span class="oc-axis-tag">Z</span><input data-role="camera-tz" type="number" step="0.1" aria-label="Z"></label>
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="camera-target" title="${t("Reset Target")}">⟲</button>
         </div>
         <div class="oc-vec-row" title="${t("Pitch/Yaw/Roll: an alternative to Target XYZ, aiming the camera directly like a Maya/Blender rotate channel. Editing either one keeps the other in sync.")}">
+          <span class="oc-channel-key" data-channel="rot" title="${t("Rotation key indicator")}">◆</span>
           <span class="oc-field-label">${t("Rotation")}</span>
-          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="camera-rx" type="number" min="-90" max="90" step="1" aria-label="X"></label>
-          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="camera-ry" type="number" step="1" aria-label="Y"></label>
-          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="camera-rz" type="number" min="-180" max="180" step="1" aria-label="Z"></label>
+          <label class="oc-axis x" title="${t("Scrub Pitch X")}"><span class="oc-axis-tag">X</span><input data-role="camera-rx" type="number" min="-90" max="90" step="1" aria-label="X"></label>
+          <label class="oc-axis y" title="${t("Scrub Yaw Y")}"><span class="oc-axis-tag">Y</span><input data-role="camera-ry" type="number" step="1" aria-label="Y"></label>
+          <label class="oc-axis z" title="${t("Scrub Roll Z")}"><span class="oc-axis-tag">Z</span><input data-role="camera-rz" type="number" min="-180" max="180" step="1" aria-label="Z"></label>
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="rotation" title="${t("Reset Rotation")}">⟲</button>
         </div>
-        <div class="oc-field-row"><span class="oc-field-label">${t("Roll")}</span>
+        <div class="oc-field-row oc-scrub-field">
+          <span class="oc-channel-key" data-channel="roll" title="${t("Roll key indicator")}">◆</span>
+          <span class="oc-field-label" title="${t("Click and drag to scrub Roll")}">${t("Roll")}</span>
           <input data-role="camera-roll" type="number" min="-180" max="180" step="0.1"><span class="oc-unit">°</span>
         </div>
         <div class="oc-field-row"><span class="oc-field-label">${t("Look At")}</span>

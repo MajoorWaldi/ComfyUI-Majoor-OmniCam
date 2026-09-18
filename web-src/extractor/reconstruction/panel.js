@@ -258,6 +258,10 @@ export class ReconstructionPanelController {
     }
     if (this.previewOpen) await this.togglePreview();
     this.dispatch({ type: "RESET" });
+    // A discarded result must not come back on the next open -- clear the
+    // runtime's headless replay copy too (ExtractorRuntime.acceptReconstructionResult).
+    const runtime = this.node.__majoorOmniCamExtractorRuntime;
+    if (runtime) runtime.reconstructionResult = null;
     return true;
   }
 

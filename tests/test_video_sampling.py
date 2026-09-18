@@ -151,3 +151,14 @@ def test_h3_native_resampling_respects_max_frames():
     frames = video_sampling.resample_video_frames(video, target_fps=24.0, max_frames=90)
     assert frames.shape[0] == 90
     assert video.decoded_ranges == [(0, 90)]
+
+
+@pytest.mark.parametrize("decoded", [0, 2, 4])
+def test_resampling_rejects_short_decode_instead_of_returning_unwritten_frames(decoded):
+    video = _Video()
+    video.total = 5
+    video.as_trimmed = lambda **kwargs: SimpleNamespace(
+        get_components=lambda: SimpleNamespace(images=torch.ones((decoded, 2, 3, 3)))
+    )
+    with pytest.raises(ValueError, match=f"expected 5 frames, decoded {decoded}"):
+        video_sampling.resample_video_frames(video, target_fps=24)

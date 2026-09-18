@@ -128,7 +128,7 @@ function metricRow(metric, value, recommended, grade) {
     : `${formatNumber(value)} / ${formatNumber(recommended)}`;
   const hasLimit = recommended !== undefined && recommended !== null && recommended > 0;
   const pct = hasLimit ? Math.min(100, Math.round((value / recommended) * 100)) : 0;
-  const barColor = grade === "over" ? "#ef4444" : grade === "warn" ? "#f59e0b" : "#22c55e";
+  const barColor = grade === "over" ? "var(--oc-danger)" : grade === "warn" ? "var(--oc-warn)" : "var(--oc-ok)";
 
   return `
     <div class="oc-health-metric" data-grade="${grade}">

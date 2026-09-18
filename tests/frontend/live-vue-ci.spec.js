@@ -1,15 +1,17 @@
 import { expect, test } from "@playwright/test";
+import { queueProductGraph, waitForComfyCanvas } from "./live-helpers.js";
 
 const CASES = [
   ["MajoorOmniCamDirector", "__majoorOmniCam"],
   ["MajoorOmniCamExtractor", "__majoorOmniCamExtractor"],
-  ["MajoorOmniCamMonitor", "__majoorOmniCamMonitor"],
+  ["MajoorOmniCamMonitor", "__majoorOmniCamMonitorWorkbench"],
 ];
 
 const MARKERS = CASES.map(([, marker]) => marker);
 
 async function openReady(page) {
   await page.goto("/");
+  await waitForComfyCanvas(page);
   await page.waitForFunction(
     () =>
       window.comfyAPI?.app?.app?.isGraphReady
@@ -27,6 +29,7 @@ async function enableVueNodes(page) {
     await app.extensionManager.setting.set("Comfy.VueNodes.Enabled", true);
     app.graph.clear();
   });
+  await waitForComfyCanvas(page);
 }
 
 /** Resolve whichever OmniCam marker a node carries, and its live root element. */
@@ -50,6 +53,30 @@ async function rootState(page, handle) {
       size,
     };
   }, { handle, markers: MARKERS });
+}
+
+// Director/Extractor mount a compact, always-mounted shell by default now
+// (workbench migration plan Task 10): their editor's __majoorOmniCam* root
+// no longer exists until a user (or this test) opens the workbench via the
+// shell's Open button. Monitor follows the same persistent-shell contract.
+const SHELL_RUNTIME_MARKER = {
+  MajoorOmniCamDirector: "__majoorOmniCamDirectorRuntime",
+  MajoorOmniCamExtractor: "__majoorOmniCamExtractorRuntime",
+  MajoorOmniCamMonitor: "__majoorOmniCamMonitorRuntime",
+};
+
+async function openWorkbenchIfShell(page, handle, nodeType) {
+  const runtimeMarker = SHELL_RUNTIME_MARKER[nodeType];
+  if (!runtimeMarker) return;
+  await page.waitForFunction(
+    ({ handle, runtimeMarker }) => Boolean(window[handle]?.[runtimeMarker]?.shell?.openButton),
+    { handle, runtimeMarker },
+    { timeout: 60_000 },
+  );
+  await page.evaluate(
+    ({ handle, runtimeMarker }) => window[handle][runtimeMarker].shell.openButton.click(),
+    { handle, runtimeMarker },
+  );
 }
 
 async function waitAttached(page, handle) {
@@ -85,6 +112,7 @@ for (const [nodeType, marker] of CASES) {
       app.graph.add(node);
       window.__omnicamVueTestNode = node;
     }, nodeType);
+    await openWorkbenchIfShell(page, "__omnicamVueTestNode", nodeType);
 
     await page.waitForFunction(
       ({ marker }) =>
@@ -113,7 +141,7 @@ for (const [nodeType, marker] of CASES) {
       window.__omnicamDisposedRoot =
         node.__majoorOmniCam?.root
         || node.__majoorOmniCamExtractor?.root
-        || node.__majoorOmniCamMonitor?.root;
+        || node.__majoorOmniCamMonitorWorkbench?.root;
       app.graph.remove(node);
     });
 
@@ -144,6 +172,7 @@ for (const [nodeType] of CASES) {
       app.graph.add(node);
       window.__omniPrimary = node;
     }, nodeType);
+    await openWorkbenchIfShell(page, "__omniPrimary", nodeType);
     await waitAttached(page, "__omniPrimary");
 
     // --- resize through several sizes, including a narrow one -------------
@@ -164,6 +193,15 @@ for (const [nodeType] of CASES) {
       expect(state.width, `root collapsed to zero width after resize to ${size}`).toBeGreaterThan(0);
     }
 
+    // The workbench (still open from the mount/resize checks above) is a
+    // body-level modal (`aria-modal="true"`) whose backdrop legitimately
+    // blocks pointer events elsewhere on the page while open -- Director and
+    // Extractor didn't have that before the workbench migration, since their
+    // editor used to live inside the graph node's own DOM widget rather than
+    // a modal. Close it before touching ComfyUI's own sidebar; the reload and
+    // duplicate steps below reopen it via openWorkbenchIfShell as needed.
+    await page.keyboard.press("Escape");
+
     // --- open a real sidebar, then resize again --------------------------
     // The per-tab button DOM keeps churning across frontend releases: the
     // `.node-library-tab-button` class the 1.49.x fixtures (and this test)
@@ -183,6 +221,12 @@ for (const [nodeType] of CASES) {
     }
     await expect(page.locator(".side-bar-button-selected")).toBeVisible();
     await expect(page.locator(".sidebar-content-container").first()).toBeVisible();
+
+    // Reopen (closing destroys the transient editor/workbench object, not
+    // just hides it -- see director/shell.js) for the "root detached with the
+    // right sidebar open" check just below.
+    await openWorkbenchIfShell(page, "__omniPrimary", nodeType);
+    await waitAttached(page, "__omniPrimary");
 
     await page.evaluate(async () => {
       window.__omniPrimary.setSize([1100, 1100]);
@@ -209,6 +253,7 @@ for (const [nodeType] of CASES) {
       else app.graph.configure(data);
       window.__omniPrimary = app.graph.nodes.find((candidate) => candidate.comfyClass === node.comfyClass);
     });
+    await openWorkbenchIfShell(page, "__omniPrimary", nodeType);
     await waitAttached(page, "__omniPrimary");
     {
       const state = await rootState(page, "__omniPrimary");
@@ -221,6 +266,17 @@ for (const [nodeType] of CASES) {
     }
 
     // --- duplicate: both roots mount and stay independent ----------------
+    // Tag the primary's live root before cloning: for Director/Extractor,
+    // opening the clone's workbench below closes the primary's (only one
+    // workbench may be open at a time, migration plan section 7), so the
+    // primary's marker/root may already be gone by the time we can check
+    // distinctness -- a DOM tag survives that regardless of which side is
+    // still mounted.
+    await page.evaluate(({ markers }) => {
+      const marker = markers.find((name) => window.__omniPrimary?.[name]);
+      window.__omniPrimary[marker].root.dataset.omnicamTestPrimary = "1";
+    }, { markers: MARKERS });
+
     await page.evaluate(async () => {
       const { app } = await import("/scripts/app.js");
       const clone = window.__omniPrimary.clone();
@@ -228,31 +284,34 @@ for (const [nodeType] of CASES) {
       app.graph.add(clone);
       window.__omniClone = clone;
     });
+    await openWorkbenchIfShell(page, "__omniClone", nodeType);
     await waitAttached(page, "__omniClone");
     {
-      const primary = await rootState(page, "__omniPrimary");
       const clone = await rootState(page, "__omniClone");
-      expect(primary.connected && clone.connected).toBe(true);
+      expect(clone.connected, "duplicate's workbench/editor failed to mount").toBe(true);
       const distinct = await page.evaluate(({ markers }) => {
-        const rootOf = (node) => node[markers.find((name) => node?.[name])].root;
-        return rootOf(window.__omniPrimary) !== rootOf(window.__omniClone);
+        const marker = markers.find((name) => window.__omniClone?.[name]);
+        return window.__omniClone[marker].root.dataset.omnicamTestPrimary !== "1";
       }, { markers: MARKERS });
       expect(distinct, "duplicate shares the original's root element").toBe(true);
+
+      if (!SHELL_RUNTIME_MARKER[nodeType]) {
+        // Monitor was not part of the workbench migration -- both editors
+        // stay mounted simultaneously, unlike the single-workbench policy
+        // that now governs Director/Extractor.
+        const primary = await rootState(page, "__omniPrimary");
+        expect(primary.connected, "primary root detached after duplicating").toBe(true);
+      }
     }
 
     // --- queue the graph with Vue nodes enabled -------------------------
-    const queued = page.waitForResponse((response) => response.url().endsWith("/prompt"));
-    await page.evaluate(async () => {
-      const { app } = await import("/scripts/app.js");
-      await app.queuePrompt(0, 1);
-    });
-    expect((await queued).status()).toBeLessThan(500);
+    await queueProductGraph(page, "__omniPrimary");
 
     // --- remove everything: every root disposes ------------------------
     await page.evaluate(async () => {
       const { app } = await import("/scripts/app.js");
       window.__omniDisposedRoots = [window.__omniPrimary, window.__omniClone].map((node) => {
-        const marker = ["__majoorOmniCam", "__majoorOmniCamExtractor", "__majoorOmniCamMonitor"].find((name) => node?.[name]);
+        const marker = ["__majoorOmniCam", "__majoorOmniCamExtractor", "__majoorOmniCamMonitorWorkbench"].find((name) => node?.[name]);
         return marker ? node[marker].root : null;
       });
       app.graph.remove(window.__omniClone);

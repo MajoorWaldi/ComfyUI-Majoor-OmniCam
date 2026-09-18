@@ -10,7 +10,6 @@ import assert from "node:assert/strict";
 
 import { rulerStep, rulerTicks } from "../../web-src/timeline/ruler.js";
 import { niceStep } from "../../web-src/curve-editor/axes.js";
-import { componentFrames } from "../../web-src/curve-editor/dope-view.js";
 import { gateAspect } from "../../web-src/viewport/resolution-gate.js";
 
 function ui(durationFrames, { zoom = 1, pan = 0 } = {}) {
@@ -84,56 +83,6 @@ test("the value axis snaps to 1 / 2 / 2.5 / 5 times a power of ten", () => {
 test("a degenerate value range still yields a usable step", () => {
   assert.ok(niceStep(0, 4) > 0);
   assert.ok(Number.isFinite(niceStep(Number.NaN, 4)));
-});
-
-// ---------------------------------------------------------------------------
-// Per-component dope rows
-// ---------------------------------------------------------------------------
-
-const channel = { get: (camera) => (camera.position || [0, 0, 0])[0] };
-
-test("a component row marks only the frames where that component moves", () => {
-  const keys = [
-    { frame: 0, camera: { position: [0, 0, 0] } },
-    { frame: 10, camera: { position: [0, 5, 0] } },   // Y moved, X did not
-    { frame: 20, camera: { position: [3, 5, 0] } },   // X moved
-    { frame: 30, camera: { position: [3, 9, 0] } },   // Y moved, X did not
-  ];
-  assert.deepEqual(componentFrames(keys, channel, false), [0, 20]);
-});
-
-test("the first key is always marked, because it establishes the value", () => {
-  const keys = [{ frame: 4, camera: { position: [7, 0, 0] } }, { frame: 8, camera: { position: [7, 0, 0] } }];
-  assert.deepEqual(componentFrames(keys, channel, false), [4]);
-});
-
-test("component rows read object transforms when an object is selected", () => {
-  const keys = [
-    { frame: 0, transform: { position: [1, 0, 0] }, camera: { position: [99, 0, 0] } },
-    { frame: 5, transform: { position: [2, 0, 0] }, camera: { position: [99, 0, 0] } },
-  ];
-  assert.deepEqual(componentFrames(keys, channel, true), [0, 5], "must follow the object, not the camera");
-  assert.deepEqual(componentFrames(keys, channel, false), [0], "the camera did not move");
-});
-
-test("unsorted keys are still reported in frame order", () => {
-  const keys = [
-    { frame: 20, camera: { position: [2, 0, 0] } },
-    { frame: 0, camera: { position: [0, 0, 0] } },
-    { frame: 10, camera: { position: [1, 0, 0] } },
-  ];
-  assert.deepEqual(componentFrames(keys, channel, false), [0, 10, 20]);
-});
-
-test("a channel that throws does not take the row down with it", () => {
-  const hostile = { get: () => { throw new Error("no such field"); } };
-  const keys = [{ frame: 0, camera: {} }, { frame: 5, camera: {} }];
-  // NaN never compares equal, so every key is marked rather than none.
-  assert.deepEqual(componentFrames(keys, hostile, false), [0, 5]);
-});
-
-test("no keys means no rows, not a crash", () => {
-  assert.deepEqual(componentFrames([], channel, false), []);
 });
 
 test("a ruler measured at zero pixels still produces a readable step", () => {

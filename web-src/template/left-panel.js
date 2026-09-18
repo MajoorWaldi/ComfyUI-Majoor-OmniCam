@@ -104,9 +104,9 @@ export function leftPanelMarkup() {
   return `
     <aside class="oc-left" data-role="scene-panel" aria-label="${t("Scene")}">
       <div class="oc-left-tabs" data-role="left-tabs" role="tablist">
-        <button type="button" class="oc-left-tab active" data-asset-view="scene" role="tab">${t("Scene")}</button>
-        <button type="button" class="oc-left-tab" data-asset-view="assets" role="tab">${t("Assets")}</button>
-        <button type="button" class="oc-left-tab" data-asset-view="agent" role="tab">${t("Agent")}</button>
+        <button type="button" class="oc-left-tab active" data-asset-view="scene" role="tab"><i class="pi pi-sitemap" style="font-size:11px"></i> ${t("Outliner")}</button>
+        <button type="button" class="oc-left-tab" data-asset-view="assets" role="tab"><i class="pi pi-box" style="font-size:11px"></i> ${t("Assets")}</button>
+        <button type="button" class="oc-left-tab oc-tab-subtle" data-asset-view="agent" role="tab" hidden>${t("Agent")}</button>
       </div>
       <div class="oc-left-body" data-role="scene-tab">
       <div class="oc-panel-head">

@@ -2,6 +2,7 @@
 
 import { t } from "../i18n.js";
 import { toggleObjectLock } from "./object-lock.js";
+import { TOKENS } from "../shared/tokens.js";
 
 // Swap an object-name label for an <input> and rename the object in place on
 // Enter / blur (Escape cancels). Double-clicking the name in the tree is the
@@ -79,7 +80,7 @@ export function refreshObjects(ui) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "scene-action-btn";
-    if (active) button.style.cssText = colorStyle || "color:#f59e0b;border-color:#78350f;background:rgba(245,158,11,0.15)";
+    if (active) button.style.cssText = colorStyle || `color:${TOKENS.warning};border-color:${TOKENS.warning};background:${TOKENS.warningSoft}`;
     button.title = t(label);
     button.innerHTML = `<i class="pi ${icon}" style="font-size:10px"></i>`;
     button.addEventListener("click", (e) => {
@@ -144,20 +145,20 @@ export function refreshObjects(ui) {
 
         const icon = document.createElement("i");
         icon.className = "pi pi-video";
-        icon.style.cssText = "color:#60a5fa";
+        icon.style.cssText = `color:${TOKENS.typeCamera}`;
 
         const label = document.createElement("span");
         label.className = "scene-item-label";
         if (isSelected || isActive) {
           const stateMark = document.createElement("span");
-          stateMark.style.cssText = `color:${isSelected ? "#f59e0b" : "#58cc6b"};font-weight:700`;
+          stateMark.style.cssText = `color:${isSelected ? TOKENS.warning : TOKENS.success};font-weight:700`;
           stateMark.textContent = isSelected ? "● " : "○ ";
           label.appendChild(stateMark);
         }
         label.appendChild(document.createTextNode(camera.name));
         if (isPlayblast) {
           const outputMark = document.createElement("span");
-          outputMark.style.cssText = "color:#f2d06b;font-size:10px";
+          outputMark.style.cssText = `color:${TOKENS.warning};font-size:10px`;
           outputMark.title = "Playblast Output";
           outputMark.textContent = " ★";
           label.appendChild(outputMark);
@@ -177,14 +178,14 @@ export function refreshObjects(ui) {
           ui.serialize();
           ui.refreshObjects();
           ui.renderCameraView();
-        }, "color:#fbbf24;border-color:#78350f;background:rgba(245,158,11,0.2)"));
+        }, `color:${TOKENS.warning};border-color:${TOKENS.warning};background:${TOKENS.warningSoft}`));
         actions.appendChild(createActionBtn("pi-volume-off", "Mute track", camera.muted, () => {
           ui.checkpoint("Mute track");
           camera.muted = !camera.muted;
           ui.serialize();
           ui.refreshObjects();
           ui.renderCameraView();
-        }, "color:#f87171;border-color:#7f1d1d;background:rgba(239,68,68,0.15)"));
+        }, `color:${TOKENS.error};border-color:${TOKENS.error};background:${TOKENS.errorSoft}`));
         actions.appendChild(createActionBtn("pi-lock", "Lock track", camera.locked, () => {
           ui.checkpoint("Lock track");
           camera.locked = !camera.locked;
@@ -213,7 +214,7 @@ export function refreshObjects(ui) {
           ui.refreshKeys();
           ui.refreshInspector();
           ui.render();
-          ui.setStatus(t(`Camera: ${camera.name}`));
+          ui.setStatus(t("Camera: {value1}", { value1: camera.name }));
         };
         element.addEventListener("contextmenu", (event) => {
           event.preventDefault();
@@ -283,31 +284,31 @@ export function refreshObjects(ui) {
           element.style.paddingLeft = `${level * 16 + 6}px`;
         }
 
-        const typeInfo = object.type === "card" ? { icon: "pi-image", color: "#38bdf8" }
-          : object.type === "model" || object.type === "glb" ? { icon: "pi-box", color: "#c084fc" }
-          : object.type === "ground" ? { icon: "pi-minus", color: "#fbbf24" }
-          : object.type === "cube" ? { icon: "pi-stop", color: "#fbbf24" }
-          : object.type === "sphere" ? { icon: "pi-circle", color: "#fbbf24" }
-          : object.type === "cylinder" ? { icon: "pi-database", color: "#fbbf24" }
-          : object.type === "torus" ? { icon: "pi-circle", color: "#fbbf24" }
-          : object.type === "pyramid" ? { icon: "pi-play", color: "#fbbf24" }
-          : object.type === "sun_light" ? { icon: "pi-sun", color: "#f59e0b" }
-          : object.type === "point_light" ? { icon: "pi-bolt", color: "#fbbf24" }
-          : object.type === "spot_light" ? { icon: "pi-compass", color: "#38bdf8" }
-          : object.type === "human" ? { icon: "pi-user", color: "#34d399" }
-          : { icon: "pi-plus", color: "#94a3b8" };
+        const typeInfo = object.type === "card" ? { icon: "pi-image", color: TOKENS.typeReferenceCard }
+          : object.type === "model" || object.type === "glb" ? { icon: "pi-box", color: TOKENS.typePointCloud }
+          : object.type === "ground" ? { icon: "pi-minus", color: TOKENS.typeGroundPlane }
+          : object.type === "sun_light" ? { icon: "pi-sun", color: TOKENS.typeLight }
+          : object.type === "point_light" ? { icon: "pi-bolt", color: TOKENS.typeLight }
+          : object.type === "spot_light" ? { icon: "pi-compass", color: TOKENS.typeLight }
+          : object.type === "human" ? { icon: "pi-user", color: TOKENS.success }
+          : object.type === "cube" ? { icon: "pi-stop", color: TOKENS.typeGeometry }
+          : object.type === "sphere" ? { icon: "pi-circle", color: TOKENS.typeGeometry }
+          : object.type === "cylinder" ? { icon: "pi-database", color: TOKENS.typeGeometry }
+          : object.type === "torus" ? { icon: "pi-circle", color: TOKENS.typeGeometry }
+          : object.type === "pyramid" ? { icon: "pi-play", color: TOKENS.typeGeometry }
+          : { icon: "pi-plus", color: TOKENS.typeGeometry };
 
         const isEnabled = object.enabled !== false;
         const hasError = Boolean(object.load_error);
 
         const objectIcon = document.createElement("i");
         objectIcon.className = `pi ${hasError ? "pi-exclamation-triangle" : typeInfo.icon}`;
-        objectIcon.style.cssText = hasError ? "color:#f87171" : isEnabled ? `color:${typeInfo.color}` : "opacity:.4";
+        objectIcon.style.cssText = hasError ? `color:${TOKENS.error}` : isEnabled ? `color:${typeInfo.color}` : "opacity:.4";
 
         const label = document.createElement("span");
         label.className = "scene-item-label";
         const objectName = document.createElement("span");
-        objectName.style.cssText = hasError ? "color:#fca5a5" : isEnabled ? "" : "opacity:.5;text-decoration:line-through";
+        objectName.style.cssText = hasError ? `color:${TOKENS.error}` : isEnabled ? "" : "opacity:.5;text-decoration:line-through";
         objectName.textContent = object.name || object.type;
         objectName.title = t("Double-click to rename");
         objectName.addEventListener("dblclick", (event) => {
@@ -336,7 +337,7 @@ export function refreshObjects(ui) {
         }
         if (hasError) {
           const formatError = document.createElement("span");
-          formatError.style.cssText = "color:#ef4444;font-size:9px;font-weight:700";
+          formatError.style.cssText = `color:${TOKENS.error};font-size:9px;font-weight:700`;
           formatError.textContent = " [Format!]";
           label.appendChild(formatError);
         }
@@ -373,7 +374,7 @@ export function refreshObjects(ui) {
           } else {
             ui.toggleObject(object.id);
           }
-        }, "color:#ef4444;opacity:.7"));
+        }, `color:${TOKENS.error};opacity:.7`));
         actions.appendChild(createActionBtn(object.locked ? "pi-lock" : "pi-lock-open", "Lock object", object.locked, () => toggleObjectLock(ui, object)));
         actions.appendChild(createActionBtn("pi-copy", "Duplicate object", false, () => ui.duplicateObject?.(object.id)));
         if (object.id !== "subject") {
@@ -425,7 +426,7 @@ export function refreshObjects(ui) {
           ui.refreshKeys();
           ui.refreshInspector();
           ui.render();
-          ui.setStatus(t(`Selected: ${object.name || object.type}`));
+          ui.setStatus(t("Selected: {value1}", { value1: object.name || object.type }));
         };
         // Selection arrives through the delegated .scene-item handler in
         // event-bindings/editor-global.js -- binding it here too toggles twice.

@@ -31,13 +31,17 @@ function withMockElement(fn) {
   try { return fn(); } finally { globalThis.HTMLElement = Previous; }
 }
 
-test("resolveZone maps a target to its panel, sequence winning over the graph it sits in", () => {
+test("resolveZone maps a target to its panel, sequence and the dope sheet winning over the graph they sit in", () => {
   withMockElement(() => {
     assert.equal(resolveZone(el(["viewport-wrap"])), "viewport");
     assert.equal(resolveZone(el(["oc-timeline"])), "timeline");
-    assert.equal(resolveZone(el(["oc-graph"])), "graph");
-    // The sequence stage lives inside .oc-graph; it must still resolve to sequence.
-    assert.equal(resolveZone(el(["oc-graph"], "graph-sequence")), "sequence");
+    assert.equal(resolveZone(el(["curve-editor"])), "graph");
+    // The sequence stage lives inside .curve-editor; it must still resolve to
+    // sequence (Director modal audit Lot 3: Timeline/Graph/Sequence share one
+    // block, so the more specific stages need to be checked first).
+    assert.equal(resolveZone(el(["curve-editor"], "graph-sequence")), "sequence");
+    // Likewise the dope sheet (Timeline tab) also lives inside .curve-editor.
+    assert.equal(resolveZone(el(["curve-editor"], "dope-stage")), "timeline");
     assert.equal(resolveZone(el(["oc-side"])), null);
   });
 });
@@ -278,4 +282,30 @@ test("Numpad 9 flips to the opposite orthographic view", () => {
   const ui = baseUi({ state: { ...baseUi().state, view_mode: "front" }, setViewMode: (mode) => modes.push(mode) });
   press(ui, ["viewport-wrap"], { key: "9", code: "Numpad9" });
   assert.deepEqual(modes, ["back"]);
+});
+
+// Migration plan section 4.4: "Otherwise Escape closes the workbench only
+// when closing is safe." An Escape the outliner zone unconditionally claimed
+// (even with nothing selected) never reached the workbench's own
+// close-on-Escape handler, since dispatchDirectorKey() consuming a key stops
+// propagation before that window-capture listener runs.
+test("Escape in the outliner only clears an actual selection, otherwise it is released for the workbench to close on", () => {
+  const withSelection = baseUi({
+    selectedObjectId: "obj_1",
+    selectedObjectIds: new Set(["obj_1"]),
+    refreshObjects() {}, refreshInspector() {}, render() {},
+  });
+  const consumedWithSelection = withMockElement(() => dispatchDirectorKey(withSelection, {
+    key: "Escape", code: "Escape", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, repeat: false,
+    target: el([], null, { "data-tab-panel": "scene" }), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  }));
+  assert.equal(consumedWithSelection, true, "Escape must still clear a real selection");
+  assert.equal(withSelection.selectedObjectId, null);
+
+  const withoutSelection = baseUi({ selectedObjectId: null, selectedObjectIds: new Set() });
+  const consumedWithoutSelection = withMockElement(() => dispatchDirectorKey(withoutSelection, {
+    key: "Escape", code: "Escape", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, repeat: false,
+    target: el([], null, { "data-tab-panel": "scene" }), preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  }));
+  assert.equal(consumedWithoutSelection, false, "an idle Escape must fall through to the workbench close handler");
 });

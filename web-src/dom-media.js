@@ -218,8 +218,8 @@ export function onModelLoaded(ui, model) {
   if (object) object.load_error = null;
   if (object?.animation_index) ui.webgl?.selectAnimation(model.id, object.animation_index);
   if (model.id === ui.selectedObjectId) ui.refreshInspector();
-  if (!model.meshes && !model.points && model.bones) ui.setStatus(t(`${model.format.toUpperCase()} animation only: ${model.bones} bones, no mesh · skeleton preview`));
-  else ui.setStatus(t(`${model.format.toUpperCase()} loaded: ${model.meshes} mesh${model.meshes === 1 ? "" : "es"}, ${model.vertices} vertices`));
+  if (!model.meshes && !model.points && model.bones) ui.setStatus(t("{value1} animation only: {value2} bones, no mesh · skeleton preview", { value1: model.format.toUpperCase(), value2: model.bones }));
+  else ui.setStatus(t("{value1} loaded: {value2} mesh{value3}, {value4} vertices", { value1: model.format.toUpperCase(), value2: model.meshes, value3: model.meshes === 1 ? "" : "es", value4: model.vertices }));
 }
 
 export async function loadModelFile(ui, file) {
@@ -316,7 +316,7 @@ export async function loadCardFile(ui, file) {
       if (ui.cardWidget) ui.cardWidget.value = data.path;
     }
     ui.serialize();
-    ui.setStatus(t(`Card: ${data.name}`));
+    ui.setStatus(t("Card: {value1}", { value1: data.name }));
   } catch (error) {
     if (ui.disposed || !ui.state.objects.includes(object)) return;
     console.error(error);
@@ -331,7 +331,7 @@ export function loadExecutionPreview(ui, message) {
   ui.executionReferences.forEach((result, index) => {
     const option = document.createElement("option");
     option.value = String(index);
-    option.textContent = result.filename || t(`Upstream ${index + 1}`);
+    option.textContent = result.filename || t("Upstream {value1}", { value1: index + 1 });
     select.appendChild(option);
   });
   if (!ui.executionReferences.length) {
@@ -416,7 +416,7 @@ export async function syncUpstreamInputs(ui) {
           }
           ui.upstreamImageConnected = true;
           anyUpdated = true;
-          ui.setStatus(t(`Upstream ${isVideo ? "video" : "image"}: ${val}`));
+          ui.setStatus(t("Upstream {value1}: {value2}", { value1: isVideo ? "video" : "image", value2: val }));
         }
       } else {
         // No file-backed widget to read: fall back to whatever the origin
@@ -458,7 +458,7 @@ export async function syncUpstreamInputs(ui) {
             await ui.loadAudioFile(file);
             ui.upstreamAudioConnected = true;
             anyUpdated = true;
-            ui.setStatus(t(`Upstream audio: ${val}`));
+            ui.setStatus(t("Upstream audio: {value1}", { value1: val }));
           }
         } catch (err) {
           if (err?.name === "AbortError") return;
@@ -505,7 +505,7 @@ export async function syncUpstreamInputs(ui) {
           ui.refreshObjects();
           ui.render();
           anyUpdated = true;
-          ui.setStatus(t(`Upstream 3D model: ${val}`));
+          ui.setStatus(t("Upstream 3D model: {value1}", { value1: val }));
         }
       }
     }

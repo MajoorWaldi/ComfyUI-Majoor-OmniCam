@@ -8,6 +8,7 @@ from ..comfy_compat import IO
 from ..core.motion_scene import MotionScene
 from ..core.validation import ValidationError
 from ..monitor.events import MONITOR_PREFLIGHT_EVENT, monitor_preflight_event_payload
+from ..monitor.execution_ui import execution_ui_payload
 from ..monitor.result import panel_payload, raise_on_blocked
 from ..profiles.base import CompileRequest
 from ..profiles.capability_gate import capability_check
@@ -181,4 +182,4 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             result.h3edit_options,
             float(result.timeline.fps),
         )
-        return IO.NodeOutput(*ordered, ui=ui)
+        return IO.NodeOutput(*ordered, ui=execution_ui_payload(ui))

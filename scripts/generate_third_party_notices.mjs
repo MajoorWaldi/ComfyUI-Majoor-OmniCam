@@ -11,8 +11,9 @@
 
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const NOTICES = join(ROOT, "THIRD_PARTY_NOTICES.md");
 
 const SOURCES = {

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>OmniCam node shell test</title></head>
+  <body>
+    <div id="status">loading</div>
+    <script type="module">
+      import { createNodeShell } from "/web-src/workbench/node-shell.js";
+
+      function run() {
+        const result = {};
+        let opens = 0;
+        const shell = createNodeShell({
+          kind: "extractor",
+          title: "Camera Track",
+          buttonLabel: "OPEN EXTRACTOR",
+          onOpen: () => { opens++; },
+        });
+        document.body.append(shell.root);
+
+        result.noCanvas = shell.root.querySelector("canvas") === null;
+        result.noVideo = shell.root.querySelector("video") === null;
+        result.buttonLabel = shell.openButton.textContent;
+
+        shell.setStatus("Tracking");
+        shell.setMeta("Frame 184 / 292");
+        shell.setProgress(0.63);
+        result.statusText = shell.root.querySelector(".oc-node-shell-status").textContent;
+        result.metaText = shell.root.querySelector(".oc-node-shell-meta").textContent;
+        result.progressActive = shell.root.querySelector(".oc-node-shell-progress").dataset.active;
+        result.progressWidth = shell.root.querySelector(".oc-node-shell-progress > span").style.width;
+
+        shell.setProgress(null);
+        result.progressHiddenAfterClear = shell.root.querySelector(".oc-node-shell-progress").dataset.active === "false";
+
+        shell.openButton.click();
+        result.opensAfterClick = opens;
+
+        shell.dispose();
+        shell.openButton.click();
+        result.opensAfterDispose = opens;
+
+        result.rootHeight = shell.root.getBoundingClientRect ? "measured" : "unmeasurable";
+
+        window.omnicamNodeShellTest = result;
+        document.querySelector("#status").textContent = "ready";
+      }
+
+      try {
+        run();
+      } catch (error) {
+        window.omnicamNodeShellTest = { error: String(error?.stack || error) };
+        document.querySelector("#status").textContent = "failed";
+      }
+    </script>
+  </body>
+</html>

@@ -57,22 +57,28 @@ export function outlinerPanel() {
           <span class="oc-field-label">${t("Parent")}</span>
           <select data-role="object-parent" title="${t("Parent object")}"><option value="">${t("No parent")}</option></select>
         </div>
-        <div class="oc-vec-row"><span class="oc-field-label">${t("Position")}</span>
-          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="object-x" type="number" step="0.1" aria-label="X"></label>
-          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="object-y" type="number" step="0.1" aria-label="Y"></label>
-          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="object-z" type="number" step="0.1" aria-label="Z"></label>
+        <div class="oc-vec-row">
+          <span class="oc-channel-key" data-channel="obj-pos" title="${t("Object position key indicator")}">◆</span>
+          <span class="oc-field-label">${t("Position")}</span>
+          <label class="oc-axis x" title="${t("Scrub X (Shift: 0.01x, Ctrl: 1.0x)")}"><span class="oc-axis-tag">X</span><input data-role="object-x" type="number" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y" title="${t("Scrub Y (Shift: 0.01x, Ctrl: 1.0x)")}"><span class="oc-axis-tag">Y</span><input data-role="object-y" type="number" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z" title="${t("Scrub Z (Shift: 0.01x, Ctrl: 1.0x)")}"><span class="oc-axis-tag">Z</span><input data-role="object-z" type="number" step="0.1" aria-label="Z"></label>
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="position" title="${t("Reset Position")}">⟲</button>
         </div>
-        <div class="oc-vec-row" data-role="rotation-row"><span class="oc-field-label">${t("Rotation")}</span>
-          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="object-rx" type="number" step="1" aria-label="X"></label>
-          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="object-ry" type="number" step="1" aria-label="Y"></label>
-          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="object-rz" type="number" step="1" aria-label="Z"></label>
+        <div class="oc-vec-row" data-role="rotation-row">
+          <span class="oc-channel-key" data-channel="obj-rot" title="${t("Object rotation key indicator")}">◆</span>
+          <span class="oc-field-label">${t("Rotation")}</span>
+          <label class="oc-axis x" title="${t("Scrub Rot X")}"><span class="oc-axis-tag">X</span><input data-role="object-rx" type="number" step="1" aria-label="X"></label>
+          <label class="oc-axis y" title="${t("Scrub Rot Y")}"><span class="oc-axis-tag">Y</span><input data-role="object-ry" type="number" step="1" aria-label="Y"></label>
+          <label class="oc-axis z" title="${t("Scrub Rot Z")}"><span class="oc-axis-tag">Z</span><input data-role="object-rz" type="number" step="1" aria-label="Z"></label>
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="rotation" title="${t("Reset Rotation")}">⟲</button>
         </div>
-        <div class="oc-vec-row" data-role="scale-row"><span class="oc-field-label">${t("Scale")}</span>
-          <label class="oc-axis x"><span class="oc-axis-tag">X</span><input data-role="object-sx" type="number" min="0.01" step="0.1" aria-label="X"></label>
-          <label class="oc-axis y"><span class="oc-axis-tag">Y</span><input data-role="object-sy" type="number" min="0.01" step="0.1" aria-label="Y"></label>
-          <label class="oc-axis z"><span class="oc-axis-tag">Z</span><input data-role="object-sz" type="number" min="0.01" step="0.1" aria-label="Z"></label>
+        <div class="oc-vec-row" data-role="scale-row">
+          <span class="oc-channel-key" data-channel="obj-scale" title="${t("Object scale key indicator")}">◆</span>
+          <span class="oc-field-label">${t("Scale")}</span>
+          <label class="oc-axis x" title="${t("Scrub Scale X")}"><span class="oc-axis-tag">X</span><input data-role="object-sx" type="number" min="0.01" step="0.1" aria-label="X"></label>
+          <label class="oc-axis y" title="${t("Scrub Scale Y")}"><span class="oc-axis-tag">Y</span><input data-role="object-sy" type="number" min="0.01" step="0.1" aria-label="Y"></label>
+          <label class="oc-axis z" title="${t("Scrub Scale Z")}"><span class="oc-axis-tag">Z</span><input data-role="object-sz" type="number" min="0.01" step="0.1" aria-label="Z"></label>
           <button type="button" class="oc-axis-reset" data-act="reset-vector" data-target="scale" title="${t("Reset Scale")}">⟲</button>
         </div>
         <div class="animation-row" data-role="animation-row" hidden><i class="pi pi-play-circle"></i><select data-role="animation-select" title="${t("Animation clip")}"></select></div>
