@@ -70,14 +70,55 @@ guide pixels
 +
 exact camera metadata
 +
+explicit reference roles
++
+preserve / change / ignore intent
++
 model-specific prompt semantics
 =
-stronger motion conditioning
+stronger, explainable motion conditioning
 ```
 
 This is especially relevant for Seedance 2.5 because ByteDance officially documents **clay / white-model reference** as a way to communicate spatial structure, camera movement, pacing, shot-size transitions, subject paths and blocking.
 
 MiniMax H3 also supports reference videos and explicit reference tokens, but does not expose a native camera-extrinsics socket. For H3, the guide remains a multimodal reference, backed by a deterministic camera-motion description.
+
+### 2.1 Re-analysis from the Seedance 2.5 design discussion
+
+The important lesson is that Seedance 2.5 should not be modeled as merely:
+
+```text
+one playblast + one prompt
+```
+
+Its useful abstraction is closer to:
+
+```text
+multiple references
++ explicit role assignment
++ temporal intent
++ preserve/change rules
++ target-specific compilation
+```
+
+A clay/white-model video, a beauty video, an identity image and a motion reference are **not interchangeable references**.
+
+They carry different intended semantics:
+
+| Reference kind | Typical intended role |
+|---|---|
+| Clay / white-model video | camera, spatial layout, composition, pacing, blocking, subject trajectories |
+| Motion proxy video | camera movement, framing, pacing, parallax, shot timing |
+| Beauty video | appearance, lighting, materials, atmosphere, optionally composition |
+| Identity / design image | subject identity, costume, product design, environment design |
+| Action / motion video | subject performance, gesture, locomotion, action timing |
+| Audio | voice, dialogue, musical/rhythmic or sound reference |
+
+The compiler must therefore describe **what to copy and what not to copy** from each reference.
+
+The Director remains the spatial-authoring tool. The Monitor becomes a **Universal Shot Compiler**: it translates authored spatial facts plus declared reference roles into the strongest representation a target model actually supports.
+
+The compiler must also be honest about control quality. A rendered guide is still reinterpreted by a generative model. It is not the same thing as passing exact extrinsics, tracks or a native camera embedding.
 
 ---
 
@@ -222,7 +263,7 @@ Meaning:
 | Guide style | Purpose | Appearance copying risk | Default target |
 |---|---|---:|---|
 | `motion_proxy` | camera motion, framing, timing, parallax | low | H3 |
-| `clay` | white/grey model, spatial layout, blocking | low | Seedance 2.5 |
+| `clay` | white/grey model, spatial layout, blocking | low | Seedance 2.5 when structure/blocking should be preserved |
 | `depth_rich` | stronger near/mid/far parallax cues | low | experimental H3 / Seedance |
 | `beauty_reference` | intentionally transmit appearance + motion | high / intended | opt-in |
 | `passthrough` | use the existing playblast exactly | depends on source | compatibility |
@@ -284,7 +325,7 @@ optional sparse asymmetric landmarks
 
 Asymmetry matters: a perfectly symmetric scene can make left/right orbit direction ambiguous.
 
-### 5.2 `clay` — Seedance 2.5 default
+### 5.2 `clay` — Seedance 2.5 spatial/blocking guide
 
 This is different from today's generic `graybox`.
 
@@ -324,6 +365,10 @@ brand colors
 lighting design
 final look
 ```
+
+This is **not** the universal Seedance default. If the requested intent is camera-only and the subject is expected to perform differently from the proxy, `auto` should resolve to `motion_proxy` instead. Use `clay` when camera **and** scene structure/blocking/subject trajectories are intended to survive into the result.
+
+Seedance 2.5 can also use a clay guide together with separate identity/look references. In that case the compiler should explicitly preserve camera/blocking from the clay reference while changing appearance from the other references.
 
 ### 5.3 `depth_rich`
 
@@ -523,7 +568,178 @@ If `guide_style` is stored outside the current motion fingerprint input, add a d
 
 ---
 
-## 8. Camera metadata compiler
+## 8. Universal Shot Compiler IR (OmniIR)
+
+The previous Seedance 2.5 analysis proposed a universal intermediate representation between spatial authoring and model adapters.
+
+For this implementation, **do not migrate MotionScene immediately**.
+
+Phase 0 should introduce a transient compiler-side IR derived from:
+
+```text
+MotionScene
++ selected guide
++ declared external reference roles
++ user intent
+```
+
+This preserves the current MotionScene v1 contract while giving Monitor enough semantic information to compile Seedance-like multi-reference prompts.
+
+A future MotionScene v2 may persist these concepts only if the product later needs reference-role authoring to travel between Director and Monitor. Any such persistence requires a real schema migration under the repository migration rules.
+
+### 8.1 ReferenceSpec
+
+Suggested internal contract:
+
+```python
+@dataclass(frozen=True, slots=True)
+class ReferenceSpec:
+    id: str
+    media_type: str                 # image | video | audio | guide
+    slot_hint: int | None           # Video N / Image N / Audio N
+    roles: tuple[str, ...]
+    ignore: tuple[str, ...]
+    temporal_range: tuple[float, float] | None
+    strength: float | None
+    source: str                     # omnicam_guide | external | asset
+    metadata: dict[str, Any]
+```
+
+Initial role vocabulary:
+
+```text
+camera_motion
+camera_framing
+camera_pacing
+composition
+spatial_layout
+blocking
+subject_trajectory
+subject_action
+identity
+design
+materials
+lighting
+color
+atmosphere
+audio_voice
+audio_rhythm
+```
+
+`strength` is an OmniCam compiler hint, **not** a claim that Seedance or H3 exposes a numeric reference weight. A target adapter may only forward it when the target has a real native weighting control. Otherwise it can influence prompt ordering/emphasis or be reported as unsupported.
+
+### 8.2 ShotIntent: preserve / change / ignore
+
+Suggested structure:
+
+```python
+@dataclass(frozen=True, slots=True)
+class ShotIntent:
+    preserve: tuple[str, ...]
+    change: tuple[str, ...]
+    ignore: tuple[str, ...]
+```
+
+Example for a Seedance clay + identity-image workflow:
+
+```text
+preserve:
+    camera_motion
+    camera_pacing
+    composition
+    spatial_layout
+    blocking
+    subject_trajectory
+    identity
+
+change:
+    materials
+    lighting
+    color
+    final_appearance
+
+ignore:
+    proxy_materials
+    diagnostic_markers
+```
+
+The key distinction is:
+
+- **Reference roles** describe what a source is good for.
+- **Shot intent** describes what the final generation should preserve or replace.
+
+The compiler intersects the two.
+
+### 8.3 Semantic timeline
+
+Reference roles may apply to the whole shot or only a time range.
+
+Example:
+
+```text
+0.00-2.50s
+    Video 1: camera_motion + blocking
+
+2.50-5.00s
+    Video 1: camera_motion
+    Video 2: subject_action
+
+full shot
+    Image 1: identity + design
+```
+
+The first implementation may support only full-shot ranges, but the IR must not bake in that limitation.
+
+### 8.4 Target mapping quality
+
+Every compiled control should carry one of:
+
+```text
+DIRECT
+CONDITIONAL
+APPROXIMATED
+UNSUPPORTED
+```
+
+Definitions:
+
+- `DIRECT`: emitted into a native target artifact representing that control directly, such as a camera embedding or native trajectory payload.
+- `CONDITIONAL`: communicated through a reference image/video/audio or prompt and therefore interpreted by the generative model.
+- `APPROXIMATED`: the target cannot represent the authored control exactly and OmniCam emits the closest supported abstraction.
+- `UNSUPPORTED`: intentionally dropped and surfaced to the user.
+
+For the profiles in this document:
+
+| Control path | Mapping quality |
+|---|---|
+| H3 Native reference-video camera guide | `CONDITIONAL` |
+| H3 Scene Coverage camera contract | `APPROXIMATED` / `CONDITIONAL` |
+| Seedance 2.5 clay camera/blocking guide | `CONDITIONAL` |
+| Future native camera embeddings / exact target tracks | `DIRECT` when the destination contract truly accepts them |
+
+The Monitor must never label a clay or playblast workflow as exact geometric camera control.
+
+### 8.5 Initial implementation without a MotionScene migration
+
+P0 only needs one automatically-created ReferenceSpec:
+
+```text
+id: omnicam_guide
+source: omnicam_guide
+media_type: guide
+roles: resolved from guide_style + user intent
+slot_hint: guide_reference_index
+```
+
+External model references may initially remain downstream of Monitor.
+
+P1/P2 may add an advanced model-agnostic `reference_plan_json` plus a proper Monitor **Reference Role Matrix** editor so the prompt compiler can also describe Image N / Video N / Audio N references it does not physically own.
+
+The Monitor must not infer identity/action/lighting roles by inspecting media pixels. Roles are declared by the user or derived from an explicit OmniCam guide recipe.
+
+---
+
+## 9. Camera metadata compiler
 
 The guide video is only half the signal.
 
@@ -586,7 +802,7 @@ phase.h3_prompt = "H3 should dolly..."
 
 ---
 
-## 9. Prompt compiler architecture
+## 10. Prompt compiler architecture
 
 Introduce:
 
@@ -617,7 +833,7 @@ Prompt compilation should be deterministic and covered by golden tests.
 
 ---
 
-## 10. MiniMax H3 compiler
+## 11. MiniMax H3 compiler
 
 ### 10.1 Keep two distinct H3 products
 
@@ -701,7 +917,7 @@ The H3 compiler owns resampling/alignment exactly as today.
 
 ---
 
-## 11. Seedance 2.5 Monitor profile
+## 12. Seedance 2.5 Monitor profile
 
 Add a new Monitor profile:
 
@@ -712,7 +928,7 @@ seedance25_reference
 Suggested contract:
 
 ```text
-semantic: reference_video
+semantic: multimodal_reference
 downstream: ByteDance2ReferenceNodeV2
 task_type: reference
 outputs:
@@ -720,17 +936,39 @@ outputs:
     final_prompt
 ```
 
-The profile does **not** call the ByteDance API. It only prepares the media and prompt that the official node consumes.
+The profile does **not** call the ByteDance API. It prepares the OmniCam guide, the role contract and the prompt that the official node consumes.
 
-### 11.1 Default guide style
+### 12.1 Seedance is role-driven, not just camera-prompt-driven
+
+The official Seedance 2.5 clay example assigns different responsibilities to different references: clay for camera/spatial/blocking information, another image for design/materials/lighting/style.
+
+OmniCam should adopt that pattern directly.
+
+Default compiler priority:
 
 ```text
-clay
+1. assign reference roles
+2. state preserve / change / ignore intent
+3. describe the shot/action
+4. add camera phase text only when useful
 ```
 
-This aligns with ByteDance's documented clay/white-model reference workflow.
+Do **not** lead with a long H3-style numerical camera transcript when a good guide video is already present. For Seedance, the guide pixels are the primary conditional signal; the prompt should clarify their role, not compete with them.
 
-### 11.2 Seedance reference index
+### 12.2 Automatic guide-style resolution
+
+`guide_style=auto` should resolve from intent:
+
+| Intended preservation | Resolved guide |
+|---|---|
+| camera only / framing / pacing | `motion_proxy` |
+| camera + composition + spatial layout + blocking | `clay` |
+| camera + final appearance intentionally | `beauty_reference` |
+| unknown legacy input | `passthrough` with warning |
+
+This avoids over-constraining subject performance when the user only wanted camera motion.
+
+### 12.3 Seedance reference index
 
 Seedance 2.5 currently supports up to 10 reference videos.
 
@@ -747,37 +985,115 @@ The same Monitor widget can use the range required by the selected profile:
 
 The compiler must say `Video N`, not assume the guide is the first reference.
 
-### 11.3 Seedance prompt dialect
+### 12.4 Seedance ReferenceSpec for the OmniCam guide
 
-Recommended output:
+Camera-only example:
 
 ```text
-Use Video 2 as a clay / white-model camera and blocking reference only.
+Video 2
+roles:
+    camera_motion
+    camera_framing
+    camera_pacing
+    composition
 
-Reference Video 2 for:
-- camera movement and viewpoint trajectory;
-- pacing and timing;
-- framing and shot-size transitions;
-- subject trajectory and blocking;
-- occlusion and spatial relationships.
+ignore:
+    identity
+    materials
+    lighting
+    color
+    proxy_geometry
+```
 
-Do not copy the guide's grey materials, placeholder geometry, diagnostic
-markers, proxy textures or temporary lighting.
+Clay/blocking example:
 
-Render the final subjects, environment, materials, lighting and style from
-the main art-direction prompt and the other references.
+```text
+Video 2
+roles:
+    camera_motion
+    camera_framing
+    camera_pacing
+    composition
+    spatial_layout
+    blocking
+    subject_trajectory
 
-Camera plan:
-0.00-2.10s: ...
-2.10-4.80s: ...
-4.80-7.00s: ...
+ignore:
+    proxy_materials
+    proxy_colors
+    temporary_lighting
+```
+
+### 12.5 Seedance prompt dialect — role-first
+
+Recommended camera-only output:
+
+```text
+Use Video 2 as the camera-motion reference.
+
+Preserve from Video 2:
+camera movement, viewpoint trajectory, framing evolution, pacing,
+shot-size changes, parallax and shot timing.
+
+Do not copy from Video 2:
+proxy geometry, grey materials, placeholder subjects, textures,
+colors, lighting or final appearance.
+
+Use the other declared references and the main art-direction prompt for
+subject identity, design, action and final look.
 
 {base_prompt}
 ```
 
-Avoid inventing a special API media type named "Clay Render". The current ComfyUI Seedance node accepts generic reference videos. "Clay / white-model" is a semantic role communicated in the prompt.
+Recommended clay + appearance-reference output:
 
-### 11.4 Seedance preflight
+```text
+Use Video 2 as the clay / white-model spatial reference.
+
+Preserve from Video 2:
+camera movement, pacing, shot-size transitions, composition,
+spatial layout, subject trajectory and blocking.
+
+Use Image 1 for:
+subject/character design, scene design, materials, lighting, color
+and final visual atmosphere.
+
+Do not copy the clay guide's grey proxy materials or temporary lighting.
+
+{base_prompt}
+```
+
+This follows the semantic pattern ByteDance demonstrates publicly without inventing a special ComfyUI media socket called "Clay Render". The current ComfyUI node still receives an ordinary reference VIDEO.
+
+### 12.6 Camera schedule policy
+
+A timecoded camera schedule is optional for Seedance.
+
+Emit it when:
+
+- the guide is weak or visually ambiguous;
+- the shot contains important holds/reversals;
+- cut boundaries need clarification;
+- a movement is hard to distinguish from subject motion;
+- the user selects a verbose compiler mode.
+
+Otherwise, keep the Seedance prompt concise and role-oriented.
+
+H3 can remain more explicit because its existing compiler already relies heavily on a textual camera contract.
+
+### 12.7 Multi-reference role matrix
+
+The intended Monitor UI should be able to show:
+
+| Ref | Media | Preserve / role | Ignore | Range | Mapping |
+|---|---|---|---|---|---|
+| OmniCam Guide / Video 2 | clay video | camera, pacing, composition, blocking | materials, final look | full shot | CONDITIONAL |
+| Image 1 | image | identity, design, materials, lighting | camera motion | full shot | CONDITIONAL |
+| Video 1 | action video | subject action | camera motion if not desired | 2.5–5.0s | CONDITIONAL |
+
+P0 may only populate the OmniCam Guide row. The UI/data model should be designed so external references can be added later without rewriting the compiler architecture.
+
+### 12.8 Seedance preflight
 
 Required checks:
 
@@ -788,22 +1104,52 @@ guide_video_fresh
 guide_duration
 guide_reference_index
 guide_style
+guide_roles
+role_conflicts
 task_type
 reference_media_budget
+mapping_quality
 ```
 
-Important current constraints:
+Important current constraints verified from official ComfyUI:
 
 - direct guide video >= 1.8 s;
-- total reference-video budget <= 30.1 s for Seedance 2.5;
-- `task_type=reference` for generating a new result from the guide;
-- `edit` and `extend` are different products and must not be silently selected.
+- up to 10 reference videos for Seedance 2.5;
+- total reference-video budget <= 30.1 s;
+- up to 30 reference images and 10 reference audios;
+- output duration 4–30 s;
+- `task_type=reference` for generating a new shot from references;
+- `edit` and `extend` are separate products and must not be silently selected.
 
-If OmniCam cannot know the duration of the user's other Seedance references, report that the guide itself is valid but the downstream node remains authoritative for the total reference budget.
+If OmniCam cannot know the duration/count of references connected only downstream, report that the OmniCam guide itself is valid and that the official downstream node remains authoritative for the total request budget.
+
+### 12.9 Conflict policy
+
+The compiler should warn when two references claim the same semantic role incompatibly.
+
+Example:
+
+```text
+Video 1: camera_motion
+Video 2: camera_motion
+```
+
+without priority/range information -> WARNING.
+
+Another example:
+
+```text
+Clay guide: preserve blocking
+Action video: preserve a different subject trajectory over the same range
+```
+
+-> WARNING / role conflict.
+
+The compiler should not guess which reference wins. Require role priority, temporal separation or explicit user intent.
 
 ---
 
-## 12. Monitor UI changes
+## 13. Monitor UI changes
 
 Keep the public node count unchanged.
 
@@ -857,7 +1203,7 @@ The UI should show the **resolved** value when `auto` is selected.
 
 ---
 
-## 13. Monitor output contract
+## 14. Monitor output contract
 
 Do not add model-specific new public outputs unless required.
 
@@ -890,7 +1236,7 @@ This keeps downstream wiring predictable.
 
 ---
 
-## 14. Capability contract for Seedance 2.5
+## 15. Capability contract for Seedance 2.5
 
 Add a strict adapter registry entry for the current official node:
 
@@ -920,7 +1266,7 @@ unless a compatibility fallback is explicitly implemented.
 
 ---
 
-## 15. Recommended code changes
+## 16. Recommended code changes
 
 ### Shared guide layer
 
@@ -1000,7 +1346,7 @@ Exact recording modules must be confirmed from the current source before impleme
 
 ---
 
-## 16. Migration strategy for current render modes
+## 17. Migration strategy for current render modes
 
 Do not perform a destructive rename in v1.
 
@@ -1044,7 +1390,7 @@ but that is not required for this feature.
 
 ---
 
-## 17. Prompt composition policy
+## 18. Prompt composition policy
 
 The compiler owns the camera/reference contract.
 
@@ -1074,7 +1420,7 @@ For Seedance clay guides, blocking may intentionally be copied when the user aut
 
 ---
 
-## 18. Multi-shot policy
+## 19. Multi-shot policy
 
 ### H3 scene coverage
 
@@ -1101,7 +1447,7 @@ When cuts exist:
 
 ---
 
-## 19. Guide quality / contamination analysis
+## 20. Guide quality / contamination analysis
 
 Add Guide Health checks.
 
@@ -1143,7 +1489,7 @@ Block or warn when guide contains:
 
 ---
 
-## 20. Playblast freshness
+## 21. Playblast freshness
 
 The existing playblast freshness gate remains important.
 
@@ -1167,7 +1513,7 @@ PLAYBLAST_STALE: camera motion matches, but guide style changed beauty_reference
 
 ---
 
-## 21. Tests
+## 22. Tests
 
 ### 21.1 Pure Python unit tests
 
@@ -1243,7 +1589,7 @@ Do not call paid generation APIs in CI.
 
 ---
 
-## 22. Implementation phases
+## 23. Implementation phases
 
 ### P0 — contracts and compiler
 
@@ -1291,7 +1637,7 @@ Do not block P0/P1 on this.
 
 ---
 
-## 23. Acceptance criteria
+## 24. Acceptance criteria
 
 The feature is considered usable when all of the following are true.
 
@@ -1329,7 +1675,7 @@ A user can:
 
 ---
 
-## 24. Recommended product terminology
+## 25. Recommended product terminology
 
 To reduce confusion in the UI:
 
@@ -1370,7 +1716,7 @@ They may be the same file in compatibility mode, but they are not the same seman
 
 ---
 
-## 25. Final architectural target
+## 26. Final architectural target
 
 ```text
                          OMNICAM DIRECTOR
