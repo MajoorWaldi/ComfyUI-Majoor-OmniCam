@@ -714,15 +714,18 @@ and reports what survived.
 
 Unlike Director, the full panel (reference viewer, target capabilities matrix,
 preflight checklist, and prompt blocks) is mounted directly on the node
-itself, on the ComfyUI canvas — no open button, no separate window. It shows
-the latest execution result or blocked preflight the moment the node exists,
-and keeps showing it as the graph changes. Removing the node disposes it.
-On small screens, the node content scrolls so the target settings remain
-accessible.
+itself, on the ComfyUI canvas — no open button, no separate window. A
+**Compiled Prompt** card at the top of the panel always shows the exact text
+`final_prompt` will carry, with a Copy button — filled in the moment a Director
+is connected and kept live as it's edited (via the same `compile_prompt()`
+call the real execution uses, so the preview can never diverge from the
+actual output), and updated again after every execution or blocked preflight.
+Removing the node disposes it. On small screens, the node content scrolls so
+the target settings remain accessible.
 
 Monitor execution UI fields follow ComfyUI V3's list transport:
-`target_profile` is a one-item string list and `capabilities` is a one-item
-object list. The live HTTP preflight and blocked-preflight event retain their
+`target_profile`, `capabilities` and `final_prompt` are each a one-item list.
+The live HTTP preflight and blocked-preflight event retain their
 document-shaped fields; clients normalize both forms. Truncated video decodes
 are rejected before profile compilation can use an incomplete frame batch.
 
@@ -772,6 +775,15 @@ or unrecognized downstream. Every other profile is strict -- it encodes one
 real model's contract, and a payload that contract cannot satisfy stops the
 queue rather than reaching the model broken.
 
+Every profile emits `final_prompt` (it is always the compiler's first output);
+the table below only calls it out separately where a profile's *primary*
+control signal is prompt text (`reference_video`/`prompt_options`
+semantics). For the `camera_embedding`/`screen_tracks` profiles, the literal
+motion is already fully carried by the embedding or `tracks_json` -- their
+`final_prompt` stays a short, semantic addition to `base_prompt` (what the
+move accomplishes, or the artist's authored action text), never a
+restatement of the coordinates the control signal already encodes.
+
 | Profile | Semantic | Output | Downstream |
 |---|---|---|---|
 | `external_reference_video` | `reference_video` | `reference_video` + `final_prompt` | any destination model's own reference-video input; no contract enforced |
@@ -784,6 +796,15 @@ queue rather than reaching the model broken.
 | `h3_scene_coverage` | `prompt_options` | `final_prompt` + `h3edit_options` | `TextEncodeH3Edit.compiled_prompt` / `.options`; no playblast required; 24 fps, length 124/243/362 |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
 | `seedance25_reference` | `reference_video` | `reference_video` + `final_prompt` | `ByteDance2ReferenceNodeV2.reference_videos.video_N`; role-first prompt, `task_type=reference`; guide duration >= 1.8s, output 4-30s |
+
+`h3_native`/`h3_api`/`h3_scene_coverage` render MiniMax's documented Ref2VA
+six-section prompt (`subject_definitions`/`summary`/`retention_analysis`/
+`detailed_description`/`overall_soundscape`/`non_diegetic_music`, in that
+order); `overall_soundscape` defers to whatever audio direction is in
+`base_prompt` rather than asserting one of its own. `seedance25_reference`
+additionally appends a `Motion timeline` section segmented by the shot's own
+camera phases, folding in the artist's authored action text where one
+exists.
 
 `h3_scene_coverage` compiles the selected MotionScene camera directly into a
 complete H3 prompt (direction, completion, parallax and mapped timing

@@ -226,6 +226,41 @@ def test_multi_shot_edit_replaces_the_camera_fragment():
 
 
 # ---------------------------------------------------------------------------
+# Motion timeline (P5): the compiler seam actually reaches the profile output.
+# ---------------------------------------------------------------------------
+
+def _request_with_action_layer() -> CompileRequest:
+    payload = _scene().to_dict()
+    payload["motion_layers"] = [
+        {
+            "id": "hero_action",
+            "label": "Hero action",
+            "enabled": True,
+            "semantic": "screen_point",
+            "source_kind": "object_point",
+            "keys": [
+                {"time_seconds": 0.0, "x": 0.2, "y": 0.5},
+                {"time_seconds": 3.9, "x": 0.8, "y": 0.5},
+            ],
+            "source": {"object_id": "hero", "action_text": "raises the sword and turns to face the doorway"},
+        }
+    ]
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    return request
+
+
+def test_compiled_prompt_includes_a_motion_timeline_section():
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(_request())
+    assert "Motion timeline:" in result.final_prompt
+
+
+def test_compiled_prompt_carries_an_authored_action_cue_verbatim():
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(_request_with_action_layer())
+    assert "raises the sword and turns to face the doorway" in result.final_prompt
+
+
+# ---------------------------------------------------------------------------
 # mapping quality / task type
 # ---------------------------------------------------------------------------
 
