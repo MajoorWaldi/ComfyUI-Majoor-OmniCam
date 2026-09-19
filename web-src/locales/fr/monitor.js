@@ -72,5 +72,9 @@ export const FR_MONITOR = {
   "Remove reference": "Supprimer la référence",
   "recoverable": "récupérable",
   "No mapping-quality diagnostics for this compile.": "Aucun diagnostic de qualité de correspondance pour cette compilation.",
-  "No guide-health warnings.": "Aucun avertissement de santé du guide."
+  "No guide-health warnings.": "Aucun avertissement de santé du guide.",
+  "Compiled Prompt": "Prompt compilé",
+  "Copy": "Copier",
+  "Copied": "Copié",
+  "Queue the workflow, or edit the connected Director live, to compile a prompt.": "Lancez le workflow, ou modifiez le Director connecté en direct, pour compiler un prompt."
 };

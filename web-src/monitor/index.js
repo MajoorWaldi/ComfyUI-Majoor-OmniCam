@@ -84,6 +84,7 @@ class MonitorUI {
   bindControls() {
     // Wheel over a scrollable panel scrolls it instead of zooming the graph.
     this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
+    this.events.on(this.root.querySelector('[data-act="copy-compiled-prompt"]'), "click", (event) => this.copyCompiledPrompt(event.currentTarget));
     this.events.on(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle());
     this.events.on(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (event) => this.player.scrub(event.target.value));
     this.events.on(this.root.querySelector('[data-role="proxy-loop"]'), "change", (event) => this.player.setLoop(event.target.checked));
@@ -202,6 +203,27 @@ class MonitorUI {
 
   markOutdated() {
     this.root.querySelector('[data-role="output-status"]').textContent = t("OUTPUT OUTDATED");
+  }
+
+  async copyCompiledPrompt(button) {
+    const prompt = this.root.querySelector('[data-role="compiled-prompt"]');
+    if (!prompt || prompt.dataset.empty === "1") return;
+    try {
+      await navigator.clipboard.writeText(prompt.textContent);
+    } catch {
+      // Clipboard permission can legitimately be denied in an embedded
+      // webview -- a silent no-op is correct here, not a panel error.
+      return;
+    }
+    if (!button) return;
+    const icon = button.querySelector("i");
+    const original = icon ? icon.className : "";
+    button.title = t("Copied");
+    if (icon) icon.className = "pi pi-check";
+    setTimeout(() => {
+      button.title = t("Copy");
+      if (icon) icon.className = original;
+    }, 1200);
   }
 
   sourceChanged(source) {

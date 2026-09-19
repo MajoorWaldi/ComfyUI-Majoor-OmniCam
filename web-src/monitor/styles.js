@@ -26,6 +26,9 @@ export const MONITOR_STYLES = `${SHARED_STYLES}
   .oc-monitor .oc-player-empty[hidden],.oc-monitor canvas[data-role="proxy-upstream-preview"][hidden]{display:none}
   .oc-monitor .oc-player-controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:7px}.oc-monitor .oc-player-controls input{flex:1;min-width:0}.oc-monitor .oc-player-controls output{min-width:62px;color:var(--oc-text-dim)}
   .oc-monitor .oc-player-empty{color:#98A3B8}
+  .oc-monitor .oc-prompt-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .oc-monitor .oc-prompt-text{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.5;max-height:220px;overflow:auto;padding:8px;background:var(--oc-sunken);border-radius:6px;margin-top:6px}
+  .oc-monitor .icon-button{padding:3px 6px}
   .oc-monitor .oc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.oc-monitor .oc-row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--oc-line-soft)}
   .oc-monitor .oc-row:last-child{border-bottom:0}.oc-monitor .oc-row strong{font-weight:600}.oc-monitor .oc-row small{color:var(--oc-text-dim)}
   .oc-monitor .oc-state{font-size:10px;font-weight:750}.oc-monitor .oc-state[data-state="ready"]{color:var(--oc-ok-text)}.oc-monitor .oc-state[data-state="warning"]{color:var(--oc-warn-text)}.oc-monitor .oc-state[data-state="blocked"]{color:var(--oc-danger-text)}.oc-monitor .oc-state[data-state="pass"]{color:var(--oc-ok-text)}.oc-monitor .oc-state[data-state="risk"]{color:var(--oc-text-dim)}

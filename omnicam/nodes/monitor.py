@@ -192,7 +192,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             raise
 
         checks = [*result.checks, downstream] if downstream is not None else list(result.checks)
-        ui = panel_payload(checks, capabilities, target_profile)
+        ui = panel_payload(checks, capabilities, target_profile, final_prompt=result.final_prompt)
         ordered = (
             result.final_prompt,
             result.reference_video,

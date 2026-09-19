@@ -14,8 +14,10 @@ export function normalizeMonitorExecution(message) {
     : payload.preflight;
   const capabilities = unwrap(payload.capabilities);
   const targetProfile = unwrap(payload.target_profile);
+  const finalPrompt = unwrap(payload.final_prompt);
   return {
     targetProfile: typeof targetProfile === "string" ? targetProfile : "",
+    finalPrompt: typeof finalPrompt === "string" ? finalPrompt : "",
     preflight: Array.isArray(preflight) ? preflight : [],
     capabilities: capabilities && typeof capabilities === "object"
       ? capabilities
@@ -72,6 +74,19 @@ export function renderMonitorExecution(root, message, { live = false } = {}) {
   const diffChecks = result.preflight.filter((check) => check.mapping_quality);
   const healthChecks = result.preflight.filter(isGuideHealthCheck);
   const generalChecks = result.preflight.filter((check) => !check.mapping_quality && !isGuideHealthCheck(check));
+
+  const prompt = root.querySelector('[data-role="compiled-prompt"]');
+  if (prompt) {
+    if (result.finalPrompt) {
+      prompt.textContent = result.finalPrompt;
+      prompt.classList.remove("oc-empty");
+      prompt.dataset.empty = "0";
+    } else {
+      prompt.textContent = t("Queue the workflow, or edit the connected Director live, to compile a prompt.");
+      prompt.classList.add("oc-empty");
+      prompt.dataset.empty = "1";
+    }
+  }
 
   const preflight = root.querySelector('[data-role="profile-preflight"]');
   preflight.innerHTML = generalChecks.length

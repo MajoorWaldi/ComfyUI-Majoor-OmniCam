@@ -7,6 +7,7 @@ const result = {
   target_profile: ["external_reference_video"],
   capabilities: [{capabilities: [{display: "Regression capability", state: "available"}]}],
   preflight: [{id: "regression", label: "Retained execution", state: "READY"}],
+  final_prompt: ["A stone tower at blue hour.\n\nThe camera pushes in."],
 };
 
 test.beforeEach(async ({page}) => {
@@ -31,6 +32,48 @@ test("execution and blocked-preflight messages render directly, with no separate
   }, result);
   await expect(page.locator('[data-role="profile-preflight"]')).toContainText("BLOCKED");
   await expect(page.locator('[data-role="output-status"]')).toContainText("NO OUTPUT");
+});
+
+test("the Compiled Prompt card shows a placeholder until something compiles", async ({page}) => {
+  const prompt = page.locator('[data-role="compiled-prompt"]');
+  await expect(prompt).toHaveAttribute("data-empty", "1");
+  await expect(prompt).toContainText("Queue the workflow");
+});
+
+test("execution fills the Compiled Prompt card with the real final_prompt", async ({page}) => {
+  await page.evaluate(message => window.monitorNode.onExecuted(message), result);
+  const prompt = page.locator('[data-role="compiled-prompt"]');
+  await expect(prompt).toHaveAttribute("data-empty", "0");
+  await expect(prompt).toHaveText("A stone tower at blue hour.\n\nThe camera pushes in.");
+});
+
+test("a blocked preflight still shows the previewed final_prompt", async ({page}) => {
+  await page.evaluate(message => {
+    message.preflight[0].state = "BLOCKED";
+    window.monitorNode.__majoorOmniCamMonitor.blockedPreflight(message);
+  }, result);
+  await expect(page.locator('[data-role="compiled-prompt"]')).toHaveText(
+    "A stone tower at blue hour.\n\nThe camera pushes in.",
+  );
+});
+
+test("the Copy button copies the compiled prompt and shows a Copied state", async ({page}) => {
+  await page.addInitScript(() => {
+    window.__omnicamCopiedText = null;
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: async (text) => { window.__omnicamCopiedText = text; } },
+      configurable: true,
+    });
+  });
+  await page.goto("/tests/frontend/workbench-monitor-mount.html");
+  await expect(page.locator("#status")).toHaveText("ready");
+  await page.evaluate(message => window.monitorNode.onExecuted(message), result);
+
+  const copyButton = page.locator('[data-act="copy-compiled-prompt"]');
+  await copyButton.click();
+  await expect.poll(() => page.evaluate(() => window.__omnicamCopiedText))
+    .toBe("A stone tower at blue hour.\n\nThe camera pushes in.");
+  await expect(copyButton).toHaveAttribute("title", "Copied");
 });
 
 test("node removal disposes the panel cleanly", async ({page}) => {
