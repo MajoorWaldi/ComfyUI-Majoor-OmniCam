@@ -107,8 +107,13 @@ def test_ltx_motion_profile_compiles_json():
     assert points[0]["x"] == pytest.approx(0.1 * 832)
     assert points[0]["y"] == pytest.approx(0.2 * 480)
 
-    # Prompt should be base prompt, no duplicated motion logic
-    assert result.final_prompt == "A testing prompt."
+    # A real LTX prose renderer now runs (P5): the base prompt leads, followed
+    # by scene-level camera language -- never a numeric schedule or a token
+    # reference, since the track itself carries the literal trajectory.
+    assert result.final_prompt.startswith("A testing prompt.")
+    assert "The camera" in result.final_prompt
+    assert "<Video" not in result.final_prompt
+    assert "Camera schedule:" not in result.final_prompt
 
 
 def test_ltx_motion_profile_requires_enabled_layers():

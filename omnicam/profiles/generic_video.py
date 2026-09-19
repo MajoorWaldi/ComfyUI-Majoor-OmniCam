@@ -36,6 +36,27 @@ from .shots import multi_shot_check
 EXTERNAL_DEFAULT_GUIDE_STYLE = "passthrough"
 
 
+def _enhanced_prompt(ir: PromptCompileIR) -> str:
+    """A light, model-neutral enhancement -- opt-in only via ``prompt_mode``.
+
+    Appends only what the IR actually knows (an authored action, a camera
+    phrase) as plain prose. No reference tokens, no model-specific wording --
+    the destination is genuinely unknown, so this never guesses at a dialect.
+    """
+    scene = ir.base_prompt.strip()
+    clauses: list[str] = []
+    if ir.action_cues:
+        clauses.append("; ".join(cue.text for cue in ir.action_cues).rstrip("."))
+    if ir.camera_phases:
+        phrases = [phase.phrase for phase in ir.camera_phases]
+        joined = phrases[0] if len(phrases) == 1 else ", then ".join(phrases)
+        clauses.append(f"The camera {joined}".rstrip("."))
+    if not clauses:
+        return ir.base_prompt
+    addition = ". ".join(clauses) + "."
+    return f"{scene}\n\n{addition}".strip() if scene else addition
+
+
 class ExternalReferenceVideoProfile:
     id = "external_reference_video"
     display_name = "External / Generic Reference Video"
@@ -88,7 +109,8 @@ class ExternalReferenceVideoProfile:
         ]
 
     def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
-        del ir  # an opt-in "enhanced" mode lands in a later commit; passthrough today
+        if request.prompt_mode == "enhanced":
+            return PromptCompilation(text=_enhanced_prompt(ir))
         return PromptCompilation(text=request.base_prompt)
 
     def compile(self, request: CompileRequest) -> CompiledMotion:

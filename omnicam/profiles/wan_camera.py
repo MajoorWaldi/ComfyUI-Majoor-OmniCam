@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from ..adapters.wan_native import build_wan_camera_embedding
+from ..adapters.wan_prompt import build_wan_camera_prompt
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
 from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
@@ -73,8 +74,8 @@ class WanCameraProfile:
         ]
 
     def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
-        del ir  # a real Wan renderer lands in a later commit; passthrough today
-        return PromptCompilation(text=request.base_prompt)
+        del request  # every clause comes from ir; base_prompt is ir.base_prompt
+        return PromptCompilation(text=build_wan_camera_prompt(ir))
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)

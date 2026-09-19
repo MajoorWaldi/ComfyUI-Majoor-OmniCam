@@ -38,6 +38,12 @@ GUIDE_STYLE_OPTIONS = (
 )
 GUIDE_STYLES = frozenset(GUIDE_STYLE_OPTIONS)
 
+#: ``external_reference_video``'s prompt widget (doc's "we don't know the
+#: destination" reasoning): passthrough is the only default that can never
+#: surprise an unknown downstream, so it stays first/default in the vocabulary.
+PROMPT_MODE_OPTIONS = ("passthrough", "enhanced")
+PROMPT_MODES = frozenset(PROMPT_MODE_OPTIONS)
+
 _PROFILE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -102,6 +108,11 @@ class CompileRequest:
     #: parsed value, so an in-progress edit never fails CompileRequest
     #: construction itself; a malformed plan surfaces as a preflight Check.
     reference_plan_json: str = ""
+    #: Only ``external_reference_video`` reads this. Every named profile keeps
+    #: rendering its own dialect regardless of what this says -- it exists
+    #: solely so the one profile with no upstream contract to enforce can be
+    #: opted into a light prose enhancement instead of its passthrough default.
+    prompt_mode: str = "passthrough"
 
     def __post_init__(self) -> None:
         if not isinstance(self.motion_scene, MotionScene):
@@ -122,6 +133,8 @@ class CompileRequest:
             _positive_int(self.guide_reference_index, "guide_reference_index")
         if self.guide_style is not None:
             validate_guide_style(self.guide_style)
+        if self.prompt_mode not in PROMPT_MODES:
+            raise ValueError(f"prompt_mode must be one of {sorted(PROMPT_MODES)}")
 
     @property
     def source_frame_count(self) -> int:
