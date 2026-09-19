@@ -555,6 +555,19 @@ export function omnicamListModal({ title, items = [], onDelete = null, owner = n
   });
 }
 
+// ComfyUI's own dialog manager (app.extensionManager.dialog) renders a
+// PrimeVue ConfirmDialog/prompt teleported straight to document.body at
+// PrimeVue's own z-index (~1100). The OmniCam workbench's backdrop
+// (web-src/workbench/styles.js, .oc-workbench-backdrop) is also appended to
+// document.body, but at z-index 100000 -- so while Director is open inside
+// it, ComfyUI's dialog still fires and can still be answered with Enter/Esc,
+// but it paints underneath the workbench veil and is invisible. Our own
+// omnicamModal() shares the workbench's z-index tier and is guaranteed to be
+// appended after it in DOM order, so it always stacks on top instead.
+function hasOpenWorkbench() {
+  return typeof document !== "undefined" && Boolean(document.querySelector(".oc-workbench-backdrop"));
+}
+
 export async function promptText(appOrTitle, titleOrMessage, messageOrValue, initialValue) {
   let app, owner, title, message, defaultValue;
   if (typeof appOrTitle === "object" && appOrTitle !== null) {
@@ -570,10 +583,12 @@ export async function promptText(appOrTitle, titleOrMessage, messageOrValue, ini
     defaultValue = messageOrValue;
   }
   const dialog = app?.extensionManager?.dialog || (typeof window !== "undefined" ? window.app?.extensionManager?.dialog : null);
-  if (dialog?.prompt) return dialog.prompt({ title, message, defaultValue });
-  // ComfyUI's dialog manager could not be reached (wrong app instance behind
-  // the bundle, or a build that does not expose it). Fall back to our own DOM
-  // modal -- never a blocked browser modal API -- so the control still works.
+  if (dialog?.prompt && !hasOpenWorkbench()) return dialog.prompt({ title, message, defaultValue });
+  // Either ComfyUI's dialog manager could not be reached (wrong app instance
+  // behind the bundle, or a build that does not expose it), or it would be
+  // hidden behind an open workbench modal. Fall back to our own DOM modal --
+  // never a blocked browser modal API -- so the control still works and is
+  // actually visible.
   return omnicamModal({ title, message, withInput: true, defaultValue, owner });
 }
 
@@ -590,11 +605,12 @@ export async function confirmAction(appOrTitle, titleOrMessage, messageText) {
     message = titleOrMessage;
   }
   const dialog = app?.extensionManager?.dialog || (typeof window !== "undefined" ? window.app?.extensionManager?.dialog : null);
-  if (dialog?.confirm) return dialog.confirm({ title, message });
-  // ComfyUI's dialog manager could not be reached (wrong app instance behind
-  // the bundle, or a build that does not expose it). Fall back to our own DOM
-  // modal -- never a blocked browser modal API -- so the button still works
-  // instead of silently resolving "no" (this is what made "Clear Cache" look
-  // dead).
+  if (dialog?.confirm && !hasOpenWorkbench()) return dialog.confirm({ title, message });
+  // Either ComfyUI's dialog manager could not be reached (wrong app instance
+  // behind the bundle, or a build that does not expose it), or it would be
+  // hidden behind an open workbench modal. Fall back to our own DOM modal --
+  // never a blocked browser modal API -- so the button still works instead
+  // of silently resolving "no" (this is what made "Clear Cache" look dead),
+  // and is actually visible instead of buried under the workbench veil.
   return omnicamModal({ title, message, withInput: false, owner });
 }
