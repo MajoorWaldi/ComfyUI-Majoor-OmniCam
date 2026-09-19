@@ -243,6 +243,7 @@ export function buildOmniCamSettings({
         { text: "Auto", value: "auto" },
         { text: "Motion Proxy", value: "motion_proxy" },
         { text: "Clay / White Model", value: "clay" },
+        { text: "Depth Rich", value: "depth_rich" },
       ], "auto"),
 
     choice(SETTING_POINT_DENSITY, "Proxy", "Default point density",

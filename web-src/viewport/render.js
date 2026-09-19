@@ -12,11 +12,12 @@ export function createRenderMethods(dependencies) {
     // for the explicit "beauty" mode; every other proxy mode records flat --
     // unless Guide Capture Style overrides it: clay wants the studio rig on
     // (broad key, soft fill, doc 5.2) even under a proxy render_mode, and
-    // motion_proxy wants it off (flat readable lighting, doc 5.1) even under
-    // "beauty". Both only apply while actually recording.
+    // motion_proxy / depth_rich want it off (flat readable / neutral lighting,
+    // doc 5.1 / 5.3) even under "beauty". All three only apply while actually
+    // recording.
     const wantStudio = cleanCapture && captureStyle === "clay"
       ? true
-      : cleanCapture && captureStyle === "motion_proxy"
+      : cleanCapture && (captureStyle === "motion_proxy" || captureStyle === "depth_rich")
         ? false
         : !cleanCapture || (state.render_mode || "") === "beauty";
     if (wantStudio !== this.studioEnabled) {
@@ -155,7 +156,11 @@ export function createRenderMethods(dependencies) {
     // editing -- it only ever affected the capture. point_field is the one mode
     // that is meant to read without a grid.
     const editorGrid = state.show_grid !== false && state.render_mode !== "point_field";
-    this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
+    // depth_rich's floor markers / horizon relationship (doc 5.3) are part of
+    // the recipe itself, not the optional "keep the grid in the playblast"
+    // toggle -- force it on for that capture regardless of playblast_grid.
+    const captureGrid = captureStyle === "depth_rich" || Boolean(state.playblast_grid);
+    this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? captureGrid : editorGrid; });
 
     // Looking through the active camera, its own path and frustum are just
     // clutter drawn over the shot -- the look-at target still shows so it can

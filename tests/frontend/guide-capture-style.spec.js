@@ -107,3 +107,77 @@ test("guide capture style toolbar select mirrors and serializes state without to
   expect(result.renderMode).toBe("omni_ref");
   expect(result.serialized).toBe("clay");
 });
+
+// ---------------------------------------------------------------------------
+// P3: depth_rich -- reuses the omni_ref/point_field layered point generator
+// at capture time (independent of render_mode), forces the floor grid, and
+// records flat (no studio lighting), same as motion_proxy.
+// ---------------------------------------------------------------------------
+
+test("depth_rich draws depth-cue points and forces the floor grid regardless of render_mode", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  expect(await page.locator("#status").textContent()).toBe("ready");
+
+  const result = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.state.render_mode = "beauty";
+    ui.state.playblast_grid = false;
+    ui.render();
+    const before = { hasPoints: [...ui.webgl.content.children].some((child) => child.isPoints) };
+
+    ui.state.guide_capture_style = "depth_rich";
+    ui.recording = true;
+    ui.render();
+    const grids = [];
+    ui.webgl.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) grids.push(object.visible); });
+    const during = {
+      hasPoints: [...ui.webgl.content.children].some((child) => child.isPoints),
+      gridsVisible: grids.length > 0 && grids.every(Boolean),
+      studioEnabled: ui.webgl.studioEnabled,
+    };
+    ui.recording = false;
+
+    // Back to a live render: the depth-cue points and forced grid must not leak.
+    ui.render();
+    const after = {
+      hasPoints: [...ui.webgl.content.children].some((child) => child.isPoints),
+      renderMode: ui.state.render_mode,
+      playblastGrid: ui.state.playblast_grid,
+    };
+
+    return { before, during, after };
+  });
+
+  expect(result.before.hasPoints).toBe(false);
+  expect(result.during.hasPoints).toBe(true);
+  expect(result.during.gridsVisible).toBe(true);
+  expect(result.during.studioEnabled).toBe(false);
+  expect(result.after.hasPoints).toBe(false);
+  expect(result.after.renderMode).toBe("beauty");
+  expect(result.after.playblastGrid).toBe(false);
+});
+
+test("depth_rich enriches a sparse, single-object scene even when point_density is none", async ({ page }) => {
+  await page.goto("/tests/frontend/director-mount.html");
+  await page.waitForFunction(() => document.querySelector("#status")?.textContent !== "loading", null, { timeout: 15000 });
+  expect(await page.locator("#status").textContent()).toBe("ready");
+
+  const result = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    // director-mount.html's scene has exactly one real object (qa_cube).
+    ui.state.point_density = "none";
+    ui.state.guide_capture_style = "depth_rich";
+    ui.recording = true;
+    ui.render();
+    const pointsMesh = [...ui.webgl.content.children].find((child) => child.isPoints);
+    const pointCount = pointsMesh?.geometry?.attributes?.position?.count || 0;
+    ui.recording = false;
+    ui.render();
+    // The enrichment is capture-only -- the authored setting must survive untouched.
+    return { pointCount, densityUnchanged: ui.state.point_density };
+  });
+
+  expect(result.pointCount).toBeGreaterThan(0);
+  expect(result.densityUnchanged).toBe("none");
+});

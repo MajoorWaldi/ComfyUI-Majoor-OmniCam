@@ -214,6 +214,7 @@ export const FR_BASE = {
   "Guide: Auto": "Guide : Auto",
   "Guide: Motion Proxy": "Guide : Proxy de mouvement",
   "Guide: Clay": "Guide : Argile",
+  "Guide: Depth Rich": "Guide : Profondeur enrichie",
   "Timeline": "Timeline",
   "Ground": "Sol",
   "Ground + Low Angle": "Sol + contre-plongée",

@@ -244,7 +244,7 @@ export function directorDefaults() {
     playblastQuality: choiceSetting(SETTING_PLAYBLAST_QUALITY, "balanced", ["low", "balanced", "high"]),
     playblastGrid: booleanSetting(SETTING_PLAYBLAST_GRID, false),
     playblastLabels: booleanSetting(SETTING_PLAYBLAST_LABELS, false),
-    guideCaptureStyle: choiceSetting(SETTING_GUIDE_CAPTURE_STYLE, "auto", ["auto", "motion_proxy", "clay"]),
+    guideCaptureStyle: choiceSetting(SETTING_GUIDE_CAPTURE_STYLE, "auto", ["auto", "motion_proxy", "clay", "depth_rich"]),
 
     pointDensity: choiceSetting(SETTING_POINT_DENSITY, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
     pointSpread: choiceSetting(SETTING_POINT_SPREAD, "all_views", ["all_views", "ground_focus", "dome"]),

@@ -76,7 +76,7 @@ export function createResourceMethods(dependencies) {
     // object.material_mode, which a capture override must not touch. So a
     // capture-active primitive gets a dedicated neutral material built here
     // instead of going through objectMaterial at all.
-    const captureOverrideActive = cleanCapture && (captureStyle === "clay" || captureStyle === "motion_proxy");
+    const captureOverrideActive = cleanCapture && ["clay", "motion_proxy", "depth_rich"].includes(captureStyle);
     const captureOverrideMaterial = (object, backfaceCulling) => {
       const mat = neutral.clone();
       mat.side = backfaceCulling ? THREE.FrontSide : THREE.DoubleSide;
@@ -114,8 +114,25 @@ export function createResourceMethods(dependencies) {
     gridGroup.add(axisLineZ);
 
     this.content.add(gridGroup);
-    if (["omni_ref", "point_field"].includes(mode)) {
-      const { points, colors } = generatePointField(state.point_density || "balanced", state.point_spread || "all_views", state.point_color || null);
+    // depth_rich reuses the same layered near/mid/far point field omni_ref /
+    // point_field already draw for Viewport Shading (generatePointField's four
+    // depth-stratified layers already are doc 5.3's "near/mid/far landmarks"
+    // and "different neutral luminance values by depth band") -- but at
+    // *capture* time, independent of render_mode, since the artist may be
+    // editing in Beauty or Graybox while recording a depth_rich guide.
+    const wantsDepthCues = cleanCapture && captureStyle === "depth_rich";
+    if (["omni_ref", "point_field"].includes(mode) || wantsDepthCues) {
+      // Capture-only enrichment (doc section 23): a depth_rich guide with no
+      // declared density and at most one real object has nothing to convey
+      // depth with, so it borrows "sparse" for this capture. Never written
+      // back to state.point_density -- the next edit or non-depth_rich
+      // capture sees the authored value exactly as before.
+      const realObjectCount = state.objects.filter((object) => object.enabled !== false
+        && !["sun_light", "point_light", "spot_light", "null"].includes(object.type)).length;
+      const density = wantsDepthCues && realObjectCount <= 1 && (!state.point_density || state.point_density === "none")
+        ? "sparse"
+        : (state.point_density || "balanced");
+      const { points, colors } = generatePointField(density, state.point_spread || "all_views", state.point_color || null);
       if (points.length > 0) {
         const pointGeometry = new THREE.BufferGeometry();
         pointGeometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));

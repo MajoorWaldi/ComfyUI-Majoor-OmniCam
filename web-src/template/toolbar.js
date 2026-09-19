@@ -222,6 +222,7 @@ export function toolbarMarkup() {
         <option value="auto">${t("Guide: Auto")}</option>
         <option value="motion_proxy">${t("Guide: Motion Proxy")}</option>
         <option value="clay">${t("Guide: Clay")}</option>
+        <option value="depth_rich">${t("Guide: Depth Rich")}</option>
       </select>
       <button class="oc-playblast" data-act="record" title="${t("Record proxy playblast")}"><span class="oc-playblast-dot"></span>${t("Playblast")}</button>
     </div>`;
