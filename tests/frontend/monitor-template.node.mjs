@@ -11,12 +11,15 @@ test("Monitor template mirrors the V3 Monitor profile contract", () => {
   // The H3-Setup guidance moved here from Director's header menu (Director
   // modal audit Lot 2); it must start hidden, only shown for an h3_* profile.
   assert.match(markup, /data-role="h3-setup-hint" hidden/);
-  for (const setting of ["base_prompt", "target_width", "target_height", "duration_seconds", "target_fps"]) {
+  for (const setting of [
+    "base_prompt", "target_width", "target_height", "duration_seconds", "target_fps",
+    "guide_reference_index", "guide_style", "reference_plan_json",
+  ]) {
     assert.match(markup, new RegExp(`data-setting="${setting}"`));
   }
   assert.deepEqual(PROFILE_OPTIONS.map(([id]) => id), [
     "external_reference_video", "h3_api", "h3_native", "h3_scene_coverage", "ltx25_motion_track",
-    "wan_camera_native", "wan_move_native", "wan_track_native", "wanvideo_ati",
+    "seedance25_reference", "wan_camera_native", "wan_move_native", "wan_track_native", "wanvideo_ati",
   ]);
   // The permissive profile leads the list, matching the backend widget default
   // in omnicam/nodes/monitor.py (PROFILE_REGISTRY.ids[0], alphabetically first).

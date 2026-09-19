@@ -15,17 +15,37 @@ from ..adapters.seedance25 import (
     MAX_REFERENCE_INDEX,
     SEEDANCE25_MEDIA_LIMITS,
     build_seedance25_prompt,
+    reference_token,
     resolve_seedance25_guide_style,
 )
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.video_sampling import inspect_video
-from ..guides.model import ShotIntent
+from ..guides.conflicts import detect_role_conflicts
+from ..guides.health import guide_health_checks
+from ..guides.model import ReferenceSpec, ShotIntent, omnicam_guide_reference, parse_reference_plan
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .playblast_freshness import captured_guide_style, guide_style_mismatch_check, stale_playblast_check
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
 
 DISPLAY_NAME = "ByteDance Seedance 2.5 Reference"
+
+#: What each guide_style is understood to carry, for the OmniCam guide's own
+#: ReferenceSpec (doc 12.4's camera-only vs clay/blocking examples, plus the
+#: beauty_reference role from doc 18.1).
+_GUIDE_STYLE_ROLES: dict[str, tuple[str, ...]] = {
+    "motion_proxy": ("camera_motion", "camera_framing", "camera_pacing", "composition"),
+    "clay": (
+        "camera_motion", "camera_framing", "camera_pacing", "composition",
+        "spatial_layout", "blocking", "subject_trajectory",
+    ),
+    "beauty_reference": ("materials", "lighting", "color", "atmosphere"),
+}
+
+
+def _guide_reference_spec(reference_index: int, guide_style: str) -> ReferenceSpec:
+    roles = _GUIDE_STYLE_ROLES.get(guide_style, _GUIDE_STYLE_ROLES["motion_proxy"])
+    return omnicam_guide_reference(slot_hint=reference_index, roles=roles)
 
 
 def _resolve_shot_intent(request: CompileRequest) -> ShotIntent:
@@ -154,12 +174,49 @@ def _task_type_check() -> Check:
     )
 
 
-def _seedance25_prompt(request: CompileRequest, camera, *, reference_index: int) -> str:
+def _parse_reference_plan(request: CompileRequest) -> tuple[tuple[ReferenceSpec, ...], Check | None]:
+    """The declared references, or a BLOCKED Check if the plan does not parse.
+
+    An empty plan is not an error -- P2 is opt-in, and every profile compiles
+    exactly as it did before this widget existed when nothing is declared.
+    """
+    try:
+        return parse_reference_plan(request.reference_plan_json), None
+    except ValueError as error:
+        return (), Check(id="reference_plan", label="Reference plan", state="BLOCKED", message=str(error))
+
+
+def _reference_role_diff_checks(declared: tuple[ReferenceSpec, ...]) -> list[Check]:
+    """One Compilation Diff entry per declared reference (doc section 13).
+
+    Reuses the existing Check/mapping_quality machinery rather than a new
+    data type: the authored control is the reference's declared role, the
+    emitted representation is which prompt slot it compiled to.
+    """
+    return [
+        Check(
+            id=f"reference_role:{spec.id}",
+            label=f"{spec.id} -> {', '.join(spec.roles) or 'no roles declared'}",
+            state="PASS",
+            mapping_quality="CONDITIONAL",
+            message=(
+                f"Compiled as {reference_token(spec)} in the prompt"
+                + (f"; ignored: {', '.join(spec.ignore)}." if spec.ignore else ".")
+            ),
+        )
+        for spec in declared
+    ]
+
+
+def _seedance25_prompt(
+    request: CompileRequest, camera, *, reference_index: int, other_references: tuple[ReferenceSpec, ...] = (),
+) -> str:
     if request.motion_scene.is_multi_shot:
         fragment = MULTI_SHOT_PROMPT
     else:
         fragment = build_seedance25_prompt(
             camera.track, reference_index=reference_index, guide_style=_resolve_guide_style(request),
+            other_references=other_references,
         )
     return f"{request.base_prompt}\n\n{fragment}".strip()
 
@@ -213,9 +270,16 @@ class Seedance25ReferenceProfile:
         freshness = stale_playblast_check(
             request.motion_scene, display_name=DISPLAY_NAME, block=True
         )
+        guide_style = _resolve_guide_style(request)
         mismatch = guide_style_mismatch_check(
-            request.motion_scene, expected=_resolve_guide_style(request), display_name=DISPLAY_NAME, block=False,
+            request.motion_scene, expected=guide_style, display_name=DISPLAY_NAME, block=False,
         )
+
+        declared, plan_error = _parse_reference_plan(request)
+        guide_spec = _guide_reference_spec(_resolve_reference_index(request), guide_style)
+        conflict_checks = detect_role_conflicts((guide_spec, *declared))
+        health_checks = guide_health_checks(camera.track, guide_style=guide_style) if camera is not None else []
+
         return [
             Check(
                 id="playblast_camera",
@@ -241,6 +305,10 @@ class Seedance25ReferenceProfile:
             _task_type_check(),
             *([freshness] if freshness else []),
             *([mismatch] if mismatch else []),
+            *([plan_error] if plan_error else []),
+            *conflict_checks,
+            *health_checks,
+            *_reference_role_diff_checks(declared),
             multi_shot_check(request.motion_scene, display_name=DISPLAY_NAME, can_represent=True),
             _camera_motion_mapping_check(),
         ]
@@ -263,7 +331,13 @@ class Seedance25ReferenceProfile:
 
         timeline = self.resolve_timeline(request)
         reference_index = _resolve_reference_index(request)
-        final_prompt = _seedance25_prompt(request, camera, reference_index=reference_index)
+        # Already validated by preflight -- a still-invalid plan would have
+        # been a BLOCKED "reference_plan" check above and raised via
+        # raise_on_blocked before this line.
+        declared, _plan_error = _parse_reference_plan(request)
+        final_prompt = _seedance25_prompt(
+            request, camera, reference_index=reference_index, other_references=declared,
+        )
 
         return CompiledMotion(
             profile_id=self.id,

@@ -51,7 +51,8 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
     queue widgets (``state_json``, ``recording_path``, ``card_asset``,
     ``width``, ``height``, ``fps``, ``duration_seconds``, ``render_mode``) and
     the Monitor's own settings (``target_profile``, ``base_prompt``,
-    ``target_width``, ``target_height``, ``duration_seconds``, ``target_fps``).
+    ``target_width``, ``target_height``, ``duration_seconds``, ``target_fps``,
+    ``guide_reference_index``, ``guide_style``, ``reference_plan_json``).
     """
     director = payload.get("director")
     monitor = payload.get("monitor")
@@ -104,6 +105,7 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
         mon_fps = scene.timeline.authoring_fps
 
     try:
+        guide_reference_index = int(_numeric(monitor, "guide_reference_index", 0, cast=int))
         request = CompileRequest(
             motion_scene=scene,
             playblast_video=playblast_video,
@@ -112,6 +114,9 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
             target_height=_numeric(monitor, "target_height", 480, cast=int),
             duration_seconds=mon_duration,
             target_fps=mon_fps,
+            guide_reference_index=guide_reference_index or None,
+            guide_style=str(monitor.get("guide_style") or "") or None,
+            reference_plan_json=str(monitor.get("reference_plan_json", "") or ""),
         )
     except LivePreflightError:
         raise

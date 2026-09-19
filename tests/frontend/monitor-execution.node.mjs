@@ -14,10 +14,12 @@ class FakeElement {
   querySelector() { return null; }
 }
 
-/** Just enough of a DOM root for renderMonitorExecution's four lookups. */
+/** Just enough of a DOM root for renderMonitorExecution's lookups. */
 function fakeRoot() {
   const elements = {
     '[data-role="profile-preflight"]': new FakeElement(),
+    '[data-role="profile-diff"]': new FakeElement(),
+    '[data-role="profile-health"]': new FakeElement(),
     '[data-role="profile-capabilities"]': new FakeElement(),
     '[data-role="monitor-status"]': new FakeElement(),
     '[data-role="output-status"]': new FakeElement(),
@@ -100,4 +102,79 @@ test("renderMonitorExecution still reads BLOCKED correctly when live", () => {
   renderMonitorExecution(root, message, { live: true });
   assert.equal(root.elements['[data-role="monitor-status"]'].dataset.state, "BLOCKED");
   assert.equal(root.elements['[data-role="output-status"]'].textContent, "LIVE — WOULD BLOCK · h3_native");
+});
+
+// ---------------------------------------------------------------------------
+// P2: Compilation Diff / Guide Health grouping, and the previously-unrendered
+// code/recoverable/suggestions Check fields.
+// ---------------------------------------------------------------------------
+
+test("checks with mapping_quality render in the diff panel, not the general preflight list", () => {
+  const root = fakeRoot();
+  const message = {
+    target_profile: "seedance25_reference",
+    preflight: [
+      { id: "playblast_video", label: "Connected playblast media", state: "PASS", message: "" },
+      { id: "camera_motion_mapping", label: "Camera motion control", state: "PASS", mapping_quality: "CONDITIONAL", message: "" },
+    ],
+    capabilities: { capabilities: [] },
+  };
+  renderMonitorExecution(root, message);
+  assert.match(root.elements['[data-role="profile-preflight"]'].innerHTML, /Connected playblast media/);
+  assert.doesNotMatch(root.elements['[data-role="profile-preflight"]'].innerHTML, /Camera motion control/);
+  assert.match(root.elements['[data-role="profile-diff"]'].innerHTML, /Camera motion control/);
+  assert.match(root.elements['[data-role="profile-diff"]'].innerHTML, /CONDITIONAL/);
+});
+
+test("guide_health_* checks render in the health panel, not the general preflight list", () => {
+  const root = fakeRoot();
+  const message = {
+    target_profile: "seedance25_reference",
+    preflight: [
+      { id: "playblast_video", label: "Connected playblast media", state: "PASS", message: "" },
+      { id: "guide_health_peak_speed", label: "Guide motion readability", state: "WARNING", message: "close to a hold" },
+    ],
+    capabilities: { capabilities: [] },
+  };
+  renderMonitorExecution(root, message);
+  assert.doesNotMatch(root.elements['[data-role="profile-preflight"]'].innerHTML, /Guide motion readability/);
+  assert.match(root.elements['[data-role="profile-health"]'].innerHTML, /Guide motion readability/);
+});
+
+test("empty diff/health panels show an empty state rather than nothing", () => {
+  const root = fakeRoot();
+  renderMonitorExecution(root, {
+    target_profile: "external_reference_video",
+    preflight: [{ id: "playblast_video", label: "x", state: "PASS", message: "" }],
+    capabilities: { capabilities: [] },
+  });
+  assert.match(root.elements['[data-role="profile-diff"]'].innerHTML, /oc-empty/);
+  assert.match(root.elements['[data-role="profile-health"]'].innerHTML, /oc-empty/);
+});
+
+test("suggestions and recoverable render for a check that carries them", () => {
+  const root = fakeRoot();
+  renderMonitorExecution(root, {
+    target_profile: "h3_native",
+    preflight: [{
+      id: "playblast_freshness", label: "Playblast out of date", state: "BLOCKED",
+      message: "The scene has changed.", code: "PLAYBLAST_STALE", recoverable: true,
+      suggestions: ["Re-record the playblast from the Director before compiling."],
+    }],
+    capabilities: { capabilities: [] },
+  });
+  const html = root.elements['[data-role="profile-preflight"]'].innerHTML;
+  assert.match(html, /Re-record the playblast from the Director before compiling\./);
+  assert.match(html, /recoverable/i);
+  assert.match(html, /data-code="PLAYBLAST_STALE"/);
+});
+
+test("a check with no suggestions renders no suggestions list", () => {
+  const root = fakeRoot();
+  renderMonitorExecution(root, {
+    target_profile: "h3_native",
+    preflight: [{ id: "playblast_video", label: "Connected playblast media", state: "PASS", message: "" }],
+    capabilities: { capabilities: [] },
+  });
+  assert.doesNotMatch(root.elements['[data-role="profile-preflight"]'].innerHTML, /oc-suggestions/);
 });

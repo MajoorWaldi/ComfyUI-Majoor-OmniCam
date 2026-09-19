@@ -6,10 +6,12 @@ from h3_track_fixtures import orbit_track
 from omnicam.adapters.seedance25 import (
     MAX_REFERENCE_INDEX,
     build_seedance25_prompt,
+    reference_token,
+    render_reference_role_block,
     resolve_seedance25_guide_style,
     seedance25_video_token,
 )
-from omnicam.guides.model import ShotIntent
+from omnicam.guides.model import ReferenceSpec, ShotIntent
 
 # ---------------------------------------------------------------------------
 # seedance25_video_token
@@ -82,3 +84,60 @@ def test_prompt_uses_the_requested_reference_index():
     prompt = build_seedance25_prompt(orbit_track(90.0), reference_index=7)
     assert "Video 7" in prompt
     assert "Video 1" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# beauty_reference (P2, doc 18.1): an intentional appearance role, not a
+# contamination risk -- must not tell the guide to hide the appearance it's
+# meant to provide.
+# ---------------------------------------------------------------------------
+
+def test_prompt_has_a_beauty_reference_branch():
+    prompt = build_seedance25_prompt(orbit_track(90.0), reference_index=1, guide_style="beauty_reference")
+    assert "Use Video 1 as the appearance / beauty reference." in prompt
+    assert "materials, lighting, color and atmosphere" in prompt
+
+
+def test_beauty_reference_prompt_does_not_contradict_the_resolved_intent():
+    # Regression: the pre-P2 `else` branch told every non-clay guide to
+    # "not copy ... lighting or final appearance" -- exactly backwards for a
+    # guide whose entire declared role is to carry appearance through.
+    prompt = build_seedance25_prompt(orbit_track(90.0), guide_style="beauty_reference")
+    assert "Do not copy from Video 1" not in prompt
+    assert "final appearance" not in prompt.split("Preserve from Video 1:")[0]
+
+
+# ---------------------------------------------------------------------------
+# reference_token / render_reference_role_block / other_references (P2)
+# ---------------------------------------------------------------------------
+
+def test_reference_token_by_media_type():
+    assert reference_token(ReferenceSpec(id="x", media_type="image", slot_hint=1, roles=())) == "Image 1"
+    assert reference_token(ReferenceSpec(id="x", media_type="video", slot_hint=3, roles=())) == "Video 3"
+    assert reference_token(ReferenceSpec(id="x", media_type="audio", slot_hint=2, roles=())) == "Audio 2"
+
+
+def test_reference_token_defaults_to_slot_one():
+    assert reference_token(ReferenceSpec(id="x", media_type="image", slot_hint=None, roles=())) == "Image 1"
+
+
+def test_render_reference_role_block_lists_roles_and_ignore():
+    spec = ReferenceSpec(
+        id="identity_img", media_type="image", slot_hint=1,
+        roles=("identity", "design"), ignore=("camera_motion",),
+    )
+    block = render_reference_role_block(spec)
+    assert "Use Image 1 for: identity, design." in block
+    assert "Do not use Image 1 for: camera_motion." in block
+
+
+def test_prompt_replaces_the_generic_catch_all_with_declared_role_blocks():
+    identity = ReferenceSpec(id="identity_img", media_type="image", slot_hint=1, roles=("identity", "design"))
+    prompt = build_seedance25_prompt(orbit_track(90.0), reference_index=2, other_references=(identity,))
+    assert "Use Image 1 for: identity, design." in prompt
+    assert "Use the other declared references" not in prompt
+
+
+def test_prompt_keeps_the_generic_catch_all_when_nothing_is_declared():
+    prompt = build_seedance25_prompt(orbit_track(90.0))
+    assert "Use the other declared references" in prompt

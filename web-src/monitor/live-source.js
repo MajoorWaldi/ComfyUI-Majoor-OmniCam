@@ -48,6 +48,9 @@ export function monitorLivePayload(values) {
     // 0 tells the backend to inherit the connected shot's duration / fps.
     duration_seconds: Number(values?.duration_seconds ?? 0),
     target_fps: Number(values?.target_fps ?? 0),
+    guide_reference_index: Number(values?.guide_reference_index ?? 0),
+    guide_style: String(values?.guide_style ?? ""),
+    reference_plan_json: String(values?.reference_plan_json ?? ""),
   };
 }
 

@@ -83,7 +83,7 @@ class MockVideo:
 
 def _request(*, with_video: bool = True, video=None, duration_seconds: float = 4.0,
              guide_reference_index: int | None = None, guide_style: str | None = None,
-             captured_guide_style: str | None = None) -> CompileRequest:
+             captured_guide_style: str | None = None, reference_plan_json: str = "") -> CompileRequest:
     metadata = {"playblast": {"guide_style": captured_guide_style}} if captured_guide_style else None
     return CompileRequest(
         motion_scene=_scene(duration_seconds=duration_seconds, metadata=metadata),
@@ -95,6 +95,7 @@ def _request(*, with_video: bool = True, video=None, duration_seconds: float = 4
         target_fps=24.0,
         guide_reference_index=guide_reference_index,
         guide_style=guide_style,
+        reference_plan_json=reference_plan_json,
     )
 
 
@@ -347,3 +348,74 @@ def test_no_mismatch_check_when_captured_matches_resolved():
     request = _request(captured_guide_style="clay")
     checks = SEEDANCE25_REFERENCE_PROFILE.preflight(request)
     assert not [c for c in checks if c.id == "guide_style_mismatch"]
+
+
+# ---------------------------------------------------------------------------
+# P2: reference_plan_json parsing
+# ---------------------------------------------------------------------------
+
+def test_empty_reference_plan_compiles_exactly_as_before():
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(_request())
+    assert "Use the other declared references" in result.final_prompt
+
+
+def test_a_declared_reference_appears_in_the_compiled_prompt():
+    plan = '[{"id": "identity_img", "media_type": "image", "slot_hint": 1, "roles": ["identity", "design"]}]'
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(_request(reference_plan_json=plan))
+    assert "Use Image 1 for: identity, design." in result.final_prompt
+
+
+def test_a_malformed_reference_plan_blocks_preflight_and_compile():
+    request = _request(reference_plan_json="{not json")
+    check = _check(SEEDANCE25_REFERENCE_PROFILE.preflight(request), "reference_plan")
+    assert check.state == "BLOCKED"
+    with pytest.raises(ValueError):
+        SEEDANCE25_REFERENCE_PROFILE.compile(request)
+
+
+def test_a_declared_reference_gets_a_compilation_diff_check():
+    plan = '[{"id": "identity_img", "media_type": "image", "slot_hint": 1, "roles": ["identity"]}]'
+    request = _request(reference_plan_json=plan)
+    check = _check(SEEDANCE25_REFERENCE_PROFILE.preflight(request), "reference_role:identity_img")
+    assert check.state == "PASS"
+    assert check.mapping_quality == "CONDITIONAL"
+    assert "Image 1" in check.message
+
+
+# ---------------------------------------------------------------------------
+# P2: role-conflict detection against the OmniCam guide
+# ---------------------------------------------------------------------------
+
+def test_a_declared_reference_sharing_the_guides_role_warns():
+    # Default guide_style resolves to motion_proxy, which claims camera_motion.
+    plan = '[{"id": "action_video", "media_type": "video", "slot_hint": 2, "roles": ["camera_motion"]}]'
+    request = _request(reference_plan_json=plan)
+    check = _check(SEEDANCE25_REFERENCE_PROFILE.preflight(request), "role_conflict")
+    assert check is not None
+    assert check.state == "WARNING"
+
+
+def test_a_declared_reference_with_no_shared_roles_does_not_warn():
+    plan = '[{"id": "identity_img", "media_type": "image", "slot_hint": 1, "roles": ["identity"]}]'
+    request = _request(reference_plan_json=plan)
+    assert not [c for c in SEEDANCE25_REFERENCE_PROFILE.preflight(request) if c.id == "role_conflict"]
+
+
+# ---------------------------------------------------------------------------
+# P2: Guide Health checks surface in preflight
+# ---------------------------------------------------------------------------
+
+def test_guide_health_checks_never_block_a_compile():
+    # Guide Health is advisory (doc 20) -- exact thresholds are covered in
+    # tests/test_guide_health.py; this only pins that the wiring here never
+    # escalates a health check to BLOCKED.
+    checks = SEEDANCE25_REFERENCE_PROFILE.preflight(_request())
+    health_checks = [c for c in checks if c.id.startswith("guide_health_")]
+    assert all(c.state != "BLOCKED" for c in health_checks)
+
+
+def test_beauty_reference_guide_gets_an_intentional_appearance_check():
+    request = _request(captured_guide_style="beauty_reference")
+    check = _check(SEEDANCE25_REFERENCE_PROFILE.preflight(request), "guide_health_appearance")
+    assert check is not None
+    assert check.state == "PASS"

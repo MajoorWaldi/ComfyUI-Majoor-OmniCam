@@ -11,6 +11,7 @@ running ComfyUI, same as every other ``core``/``guides`` module.
 
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -138,6 +139,54 @@ def omnicam_guide_reference(
         source="omnicam_guide",
         metadata={},
     )
+
+
+def parse_reference_plan(raw: str) -> tuple[ReferenceSpec, ...]:
+    """Parse the Monitor's ``reference_plan_json`` widget into declared ReferenceSpecs.
+
+    Never returns the auto-created ``omnicam_guide`` entry -- that one is
+    compiled separately and always occupies its own slot. An empty or blank
+    string means "no additional references declared", not an error: P2 is
+    opt-in, and every profile must keep compiling exactly as it did before a
+    plan was ever authored.
+    """
+    text = (raw or "").strip()
+    if not text:
+        return ()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"reference_plan_json is not valid JSON: {error}") from error
+    if not isinstance(payload, list):
+        raise ValueError("reference_plan_json must be a JSON array of reference objects")
+
+    specs: list[ReferenceSpec] = []
+    for index, entry in enumerate(payload):
+        if not isinstance(entry, dict):
+            raise ValueError(f"reference_plan_json[{index}] must be an object")
+        entry_id = str(entry.get("id") or f"reference_{index + 1}")
+        try:
+            spec = ReferenceSpec(
+                id=entry_id,
+                media_type=str(entry.get("media_type", "")),
+                slot_hint=entry.get("slot_hint"),
+                roles=tuple(entry.get("roles") or ()),
+                ignore=tuple(entry.get("ignore") or ()),
+                temporal_range=tuple(entry["temporal_range"]) if entry.get("temporal_range") else None,
+                strength=entry.get("strength"),
+                source=str(entry.get("source") or "external"),
+                metadata=dict(entry.get("metadata") or {}),
+            )
+        except (TypeError, ValueError) as error:
+            raise ValueError(f"reference_plan_json[{index}] ({entry_id!r}): {error}") from error
+        specs.append(spec)
+
+    ids = [spec.id for spec in specs]
+    if len(ids) != len(set(ids)):
+        raise ValueError("reference_plan_json entries must have unique ids")
+    if any(spec.id == "omnicam_guide" for spec in specs):
+        raise ValueError("reference_plan_json must not declare the reserved id 'omnicam_guide'")
+    return tuple(specs)
 
 
 @dataclass(frozen=True, slots=True)

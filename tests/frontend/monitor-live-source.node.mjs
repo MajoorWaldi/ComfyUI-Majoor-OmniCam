@@ -58,10 +58,12 @@ test("monitorLivePayload shapes the Monitor's own widget values", () => {
   const payload = monitorLivePayload({
     target_profile: "h3_native", base_prompt: "A move.",
     target_width: 832, target_height: 480, duration_seconds: 2, target_fps: 24,
+    guide_reference_index: 2, guide_style: "clay", reference_plan_json: "[]",
   });
   assert.deepEqual(payload, {
     target_profile: "h3_native", base_prompt: "A move.",
     target_width: 832, target_height: 480, duration_seconds: 2, target_fps: 24,
+    guide_reference_index: 2, guide_style: "clay", reference_plan_json: "[]",
   });
 });
 
@@ -70,6 +72,7 @@ test("monitorLivePayload falls back to safe defaults when values are missing", (
     target_profile: "", base_prompt: "", target_width: 832, target_height: 480,
     // 0 => the backend inherits the connected shot's duration / fps.
     duration_seconds: 0, target_fps: 0,
+    guide_reference_index: 0, guide_style: "", reference_plan_json: "",
   });
 });
 

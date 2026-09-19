@@ -10,6 +10,7 @@ import { MonitorRefreshController } from "./refresh.js";
 import { MonitorSourceWatcher } from "./source-sync.js";
 import { loadMonitorProfileInfo, renderMonitorProfileInfo } from "./profile-info.js";
 import { bindMonitorPreflightEvents } from "./preflight-events.js";
+import { readReferenceMatrix, referencePlanToSpecs, renderReferenceMatrix } from "./reference-role-matrix.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
@@ -92,6 +93,43 @@ class MonitorUI {
         this.settingsChanged();
       });
     }
+    this.events.on(this.root.querySelector('[data-act="reference-matrix-add"]'), "click", () => {
+      const specs = readReferenceMatrix(this.root);
+      specs.push({ id: `reference_${specs.length + 1}`, media_type: "image", roles: [] });
+      this.syncReferenceMatrix(specs);
+    });
+    const matrixRows = this.root.querySelector('[data-role="reference-matrix-rows"]');
+    this.events.on(matrixRows, "click", (event) => {
+      const button = event.target.closest('[data-act="reference-row-remove"]');
+      if (!button) return;
+      const row = button.closest('[data-role="reference-row"]');
+      const rows = [...this.root.querySelectorAll('[data-role="reference-row"]')];
+      const index = rows.indexOf(row);
+      const specs = readReferenceMatrix(this.root);
+      if (index >= 0) specs.splice(index, 1);
+      this.syncReferenceMatrix(specs);
+    });
+    // A field edit (id/media_type/slot_hint/roles/ignore) never re-renders the
+    // rows -- only add/remove change row count. Re-rendering mid-edit would
+    // wipe whatever the user is typing or the <select multiple> they're
+    // mid-click on.
+    this.events.on(matrixRows, "change", (event) => {
+      if (!event.target.closest('[data-role="reference-row"]')) return;
+      this.commitReferenceMatrix(readReferenceMatrix(this.root));
+    });
+  }
+
+  /** Repaints the matrix rows from `specs`, then commits. Only for add/remove. */
+  syncReferenceMatrix(specs) {
+    renderReferenceMatrix(this.root, specs);
+    this.commitReferenceMatrix(specs);
+  }
+
+  /** Serializes `specs` into the hidden reference_plan_json widget and
+   * schedules a fresh preflight, without touching the rendered rows. */
+  commitReferenceMatrix(specs) {
+    writeMonitorWidget(this.node, "reference_plan_json", JSON.stringify(specs));
+    this.settingsChanged();
   }
 
   /**
@@ -132,6 +170,7 @@ class MonitorUI {
         control.value = values[name];
       }
     }
+    renderReferenceMatrix(this.root, referencePlanToSpecs(values.reference_plan_json));
     this.reflectInheritedShot();
   }
 

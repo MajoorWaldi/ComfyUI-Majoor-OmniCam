@@ -13,6 +13,7 @@ from ..adapters.h3 import (
 )
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.video_sampling import inspect_video, resample_video_frames, resampling_indices
+from ..guides.health import guide_health_checks
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .playblast_freshness import guide_style_mismatch_check, stale_playblast_check
@@ -203,6 +204,9 @@ class H3NativeProfile:
         mismatch = guide_style_mismatch_check(
             request.motion_scene, expected=H3_DEFAULT_GUIDE_STYLE, display_name="MiniMax H3 Native", block=False,
         )
+        health_checks = (
+            guide_health_checks(camera.track, guide_style=H3_DEFAULT_GUIDE_STYLE) if camera is not None else []
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -226,6 +230,7 @@ class H3NativeProfile:
             *_reference_frame_count_check(request, timeline.frame_count),
             *([freshness] if freshness else []),
             *([mismatch] if mismatch else []),
+            *health_checks,
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 Native",
@@ -321,6 +326,9 @@ class H3ApiProfile:
         mismatch = guide_style_mismatch_check(
             request.motion_scene, expected=H3_DEFAULT_GUIDE_STYLE, display_name="MiniMax H3 API", block=False,
         )
+        health_checks = (
+            guide_health_checks(camera.track, guide_style=H3_DEFAULT_GUIDE_STYLE) if camera is not None else []
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -344,6 +352,7 @@ class H3ApiProfile:
             *_reference_media_checks(request, H3_API_MEDIA_LIMITS),
             *([freshness] if freshness else []),
             *([mismatch] if mismatch else []),
+            *health_checks,
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 API",

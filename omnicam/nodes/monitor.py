@@ -87,6 +87,13 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                             "connected guide. 'auto' resolves it from what the Director actually recorded "
                             "(see the playblast's guide_style); forcing a value here overrides that.",
                 ),
+                IO.String.Input(
+                    "reference_plan_json", default="", multiline=True, optional=True, advanced=True,
+                    tooltip="Advanced: a JSON array of declared references OmniCam does not own the media "
+                            "for (e.g. an identity image, an action video), authored via the Reference Role "
+                            "Matrix editor. Each entry declares id, media_type, slot_hint, roles and ignore. "
+                            "Empty means no additional references are declared.",
+                ),
             ],
             hidden=[IO.Hidden.unique_id],
             outputs=[
@@ -110,6 +117,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
         target_profile: str = "", target_width: int = 832, target_height: int = 480,
         duration_seconds: float = 0.0, target_fps: float = 0.0,
         guide_reference_index: int = 1, guide_style: str = "auto",
+        reference_plan_json: str = "",
     ) -> IO.NodeOutput:
         try:
             scene = MotionScene.from_dict(motion_scene)
@@ -141,6 +149,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             target_fps=target_fps,
             guide_reference_index=guide_reference_index or None,
             guide_style=guide_style or None,
+            reference_plan_json=reference_plan_json or "",
         )
         # Detected before compiling: a downstream that cannot receive this output
         # is a preflight failure the panel has to show, not a surprise at queue

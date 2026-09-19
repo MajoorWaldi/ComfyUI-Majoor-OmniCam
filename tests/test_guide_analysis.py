@@ -12,6 +12,7 @@ from omnicam.guides.model import (
     ShotCompileIR,
     ShotIntent,
     omnicam_guide_reference,
+    parse_reference_plan,
     validate_mapping_quality,
     validate_reference_role,
 )
@@ -153,3 +154,79 @@ def test_shot_compile_ir_rejects_an_invalid_mapping_quality_value():
             track, guide_reference=guide, intent=ShotIntent(),
             mapping_quality={"camera_motion_mapping": "SORT_OF"},
         )
+
+
+def test_build_shot_compile_ir_with_additional_references():
+    track = base_track()
+    guide = omnicam_guide_reference(slot_hint=1, roles=("camera_motion",))
+    identity = ReferenceSpec(id="identity_img", media_type="image", slot_hint=1, roles=("identity", "design"))
+    ir = build_shot_compile_ir(
+        track, guide_reference=guide, intent=ShotIntent(), mapping_quality={},
+        additional_references=(identity,),
+    )
+    assert ir.references == (guide, identity)
+
+
+# ---------------------------------------------------------------------------
+# parse_reference_plan (P2)
+# ---------------------------------------------------------------------------
+
+def test_parse_reference_plan_empty_string_is_no_references():
+    assert parse_reference_plan("") == ()
+    assert parse_reference_plan("   ") == ()
+
+
+def test_parse_reference_plan_parses_a_single_entry():
+    plan = parse_reference_plan(
+        '[{"id": "identity_img", "media_type": "image", "slot_hint": 1, "roles": ["identity", "design"]}]'
+    )
+    assert len(plan) == 1
+    spec = plan[0]
+    assert spec.id == "identity_img"
+    assert spec.media_type == "image"
+    assert spec.slot_hint == 1
+    assert spec.roles == ("identity", "design")
+    assert spec.source == "external"
+
+
+def test_parse_reference_plan_parses_temporal_range_and_ignore():
+    plan = parse_reference_plan(
+        '[{"id": "action_video", "media_type": "video", "slot_hint": 2, '
+        '"roles": ["subject_action"], "ignore": ["camera_motion"], "temporal_range": [2.5, 5.0]}]'
+    )
+    spec = plan[0]
+    assert spec.temporal_range == (2.5, 5.0)
+    assert spec.ignore == ("camera_motion",)
+
+
+def test_parse_reference_plan_rejects_malformed_json():
+    with pytest.raises(ValueError, match="not valid JSON"):
+        parse_reference_plan("{not json")
+
+
+def test_parse_reference_plan_rejects_a_non_array_payload():
+    with pytest.raises(ValueError, match="JSON array"):
+        parse_reference_plan('{"id": "x"}')
+
+
+def test_parse_reference_plan_rejects_a_non_object_entry():
+    with pytest.raises(ValueError, match="must be an object"):
+        parse_reference_plan("[1, 2]")
+
+
+def test_parse_reference_plan_rejects_an_invalid_role():
+    with pytest.raises(ValueError):
+        parse_reference_plan('[{"id": "x", "media_type": "image", "roles": ["not_a_role"]}]')
+
+
+def test_parse_reference_plan_rejects_duplicate_ids():
+    with pytest.raises(ValueError, match="unique"):
+        parse_reference_plan(
+            '[{"id": "x", "media_type": "image", "roles": []}, '
+            '{"id": "x", "media_type": "video", "roles": []}]'
+        )
+
+
+def test_parse_reference_plan_rejects_the_reserved_guide_id():
+    with pytest.raises(ValueError, match="omnicam_guide"):
+        parse_reference_plan('[{"id": "omnicam_guide", "media_type": "image", "roles": []}]')

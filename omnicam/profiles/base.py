@@ -95,12 +95,20 @@ class CompileRequest:
     target_fps: float
     guide_reference_index: int | None = None
     guide_style: str | None = None
+    #: Raw JSON text from the Monitor's Reference Role Matrix editor (doc
+    #: section 13). Parsed lazily by each profile via
+    #: ``guides.model.parse_reference_plan`` -- kept as a string here, not a
+    #: parsed value, so an in-progress edit never fails CompileRequest
+    #: construction itself; a malformed plan surfaces as a preflight Check.
+    reference_plan_json: str = ""
 
     def __post_init__(self) -> None:
         if not isinstance(self.motion_scene, MotionScene):
             raise TypeError("motion_scene must be a MotionScene")
         if not isinstance(self.base_prompt, str):
             raise TypeError("base_prompt must be a string")
+        if not isinstance(self.reference_plan_json, str):
+            raise TypeError("reference_plan_json must be a string")
         _positive_int(self.target_width, "target_width")
         _positive_int(self.target_height, "target_height")
         object.__setattr__(

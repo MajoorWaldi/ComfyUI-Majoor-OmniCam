@@ -29,6 +29,19 @@ export const MONITOR_STYLES = `${SHARED_STYLES}
   .oc-monitor .oc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.oc-monitor .oc-row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--oc-line-soft)}
   .oc-monitor .oc-row:last-child{border-bottom:0}.oc-monitor .oc-row strong{font-weight:600}.oc-monitor .oc-row small{color:var(--oc-text-dim)}
   .oc-monitor .oc-state{font-size:10px;font-weight:750}.oc-monitor .oc-state[data-state="ready"]{color:var(--oc-ok-text)}.oc-monitor .oc-state[data-state="warning"]{color:var(--oc-warn-text)}.oc-monitor .oc-state[data-state="blocked"]{color:var(--oc-danger-text)}.oc-monitor .oc-state[data-state="pass"]{color:var(--oc-ok-text)}.oc-monitor .oc-state[data-state="risk"]{color:var(--oc-text-dim)}
+  .oc-monitor .oc-mapping-quality{font-size:10px;font-weight:750;color:var(--oc-text-dim);white-space:nowrap}
+  .oc-monitor .oc-mapping-quality[data-quality="DIRECT"]{color:var(--oc-ok-text)}
+  .oc-monitor .oc-mapping-quality[data-quality="CONDITIONAL"]{color:#86b6f2}
+  .oc-monitor .oc-mapping-quality[data-quality="APPROXIMATED"]{color:var(--oc-warn-text)}
+  .oc-monitor .oc-mapping-quality[data-quality="UNSUPPORTED"]{color:var(--oc-danger-text)}
+  .oc-monitor .oc-suggestions{margin:3px 0 0;padding-left:15px;color:var(--oc-text-dim);font-size:11px}
+  .oc-monitor .oc-recoverable{font-size:9px;font-weight:750;color:var(--oc-accent);border:1px solid var(--oc-accent);border-radius:4px;padding:0 4px}
+  .oc-monitor .oc-reference-row{display:grid;grid-template-columns:1fr auto 56px 1fr 1fr auto;gap:5px;align-items:start;padding:6px 0;border-bottom:1px solid var(--oc-line-soft)}
+  .oc-monitor .oc-reference-row:last-child{border-bottom:0}
+  .oc-monitor .oc-reference-row input,.oc-monitor .oc-reference-row select{width:100%;padding:4px;font-size:11px}
+  .oc-monitor .oc-remove-reference{padding:4px 7px}
+  .oc-monitor .oc-add-reference{margin-top:7px}
+  @container(max-width:700px){.oc-monitor .oc-reference-row{grid-template-columns:1fr}}
   .oc-monitor .oc-advanced>summary{cursor:pointer;list-style:none}.oc-monitor .oc-advanced>summary::-webkit-details-marker{display:none}
   .oc-monitor .oc-collapsible>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none}
   .oc-monitor .oc-collapsible>summary::-webkit-details-marker{display:none}

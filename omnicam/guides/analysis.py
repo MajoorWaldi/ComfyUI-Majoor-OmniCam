@@ -73,11 +73,17 @@ def build_shot_compile_ir(
     intent: ShotIntent,
     mapping_quality: dict[str, str],
     max_phases: int = 4,
+    additional_references: tuple[ReferenceSpec, ...] = (),
 ) -> ShotCompileIR:
-    """Assemble the transient compiler IR for one shot (doc section 8.5)."""
+    """Assemble the transient compiler IR for one shot (doc section 8.5).
+
+    ``additional_references`` are declared references OmniCam does not own
+    the media for (doc section 8.5's P2 extension, e.g. a Reference Role
+    Matrix entry) -- the OmniCam guide always occupies the first slot.
+    """
     return ShotCompileIR(
         camera_phases=camera_phases_from_track(track, max_phases=max_phases),
-        references=(guide_reference,),
+        references=(guide_reference, *additional_references),
         intent=intent,
         mapping_quality=dict(mapping_quality),
     )

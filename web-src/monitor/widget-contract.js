@@ -5,6 +5,9 @@ export const MONITOR_WIDGETS = [
   "target_height",
   "duration_seconds",
   "target_fps",
+  "guide_reference_index",
+  "guide_style",
+  "reference_plan_json",
 ];
 
 export function hideMonitorParameters(node) {
@@ -18,7 +21,7 @@ export function hideMonitorParameters(node) {
 }
 
 const NUMERIC_WIDGETS = new Set([
-  "target_width", "target_height", "duration_seconds", "target_fps",
+  "target_width", "target_height", "duration_seconds", "target_fps", "guide_reference_index",
 ]);
 
 function widget(node, name) {
