@@ -1,3 +1,3 @@
 import "../../scripts/app.js";
 import "../../scripts/api.js";
-import "./chunk-DVmalmrw.js";
+import "./chunk-BpIa106Z.js";

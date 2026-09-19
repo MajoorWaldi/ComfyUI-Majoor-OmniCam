@@ -13,6 +13,7 @@ export const RESPONSIVE_STYLES = `
       .majoor-omnicam .oc-drawer-toggle{display:none !important}
 
       @container (max-width:1120px){
+        .majoor-omnicam .top{flex-wrap:wrap !important;align-content:flex-start}
         .majoor-omnicam .oc-body{grid-template-columns:minmax(0,1fr) 9px var(--oc-side-w,280px);position:relative}
         .majoor-omnicam .oc-left,.majoor-omnicam .oc-left-resize{
           position:absolute;z-index:40;top:0;left:0;bottom:0;width:min(300px,80%);
