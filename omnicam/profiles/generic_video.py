@@ -25,7 +25,8 @@ user's.
 
 from __future__ import annotations
 
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline
 from .base import CompileRequest
 from .playblast_freshness import guide_style_mismatch_check, stale_playblast_check
 from .shots import multi_shot_check
@@ -86,14 +87,19 @@ class ExternalReferenceVideoProfile:
             ),
         ]
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # an opt-in "enhanced" mode lands in a later commit; passthrough today
+        return PromptCompilation(text=request.base_prompt)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         timeline = self.resolve_timeline(request)
+        ir = build_prompt_compile_ir(request)
         return CompiledMotion(
             profile_id=self.id,
             semantic=self.semantic,
             timeline=timeline,
-            final_prompt=request.base_prompt,
+            final_prompt=self.compile_prompt(request, ir).text,
             reference_video=request.playblast_video,
             checks=tuple(checks),
         )

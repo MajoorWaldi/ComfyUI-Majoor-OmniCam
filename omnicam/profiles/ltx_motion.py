@@ -6,7 +6,8 @@ import math
 
 from ..adapters.ltx_tracks import ltx_frame_count
 from ..core.motion_resolution import resolve_motion_scene_tracks
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check, multi_shot_error
 from .track_json import encoding_check, tracks_json, visible_prefix_tracks
@@ -67,6 +68,10 @@ class LtxMotionProfile:
             encoding_check(tracks, display_name="LTX Motion Track"),
         ]
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # a real LTX renderer lands in a later commit; passthrough today
+        return PromptCompilation(text=request.base_prompt)  # Keep prompts free of duplicated motion instructions
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         # A blocked gate has to stop compilation, not just colour the panel.
@@ -85,11 +90,12 @@ class LtxMotionProfile:
         if not encoded:
             raise ValueError("LTX Motion has no trajectory visible on its first sample")
 
+        ir = build_prompt_compile_ir(request)
         return CompiledMotion(
             profile_id=self.id,
             semantic=self.semantic,
             timeline=timeline,
-            final_prompt=request.base_prompt,  # Keep final prompts free of duplicated motion instructions
+            final_prompt=self.compile_prompt(request, ir).text,
             tracks_json=tracks_json(encoded),
             checks=tuple(checks),
         )

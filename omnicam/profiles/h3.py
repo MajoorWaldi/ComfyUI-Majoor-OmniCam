@@ -14,7 +14,8 @@ from ..adapters.h3 import (
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.video_sampling import inspect_video, resample_video_frames, resampling_indices
 from ..guides.health import guide_health_checks
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .playblast_freshness import guide_style_mismatch_check, stale_playblast_check
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
@@ -239,6 +240,15 @@ class H3NativeProfile:
             _camera_motion_mapping_check(),
         ]
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # camera-track rendering is unchanged in this commit; wired up next
+        camera = _playblast_camera(request.motion_scene)
+        if camera is None or not camera.enabled:
+            return PromptCompilation(text=request.base_prompt)
+        reference_index = _resolve_reference_index(request)
+        text = _h3_prompt(request, camera, adapter="h3_native", reference_index=reference_index)
+        return PromptCompilation(text=text)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         if any(check.state == "BLOCKED" for check in checks):
@@ -259,8 +269,8 @@ class H3NativeProfile:
             raise ValueError("MotionScene has no usable playblast camera")
 
         timeline = self.resolve_timeline(request)
-        reference_index = _resolve_reference_index(request)
-        final_prompt = _h3_prompt(request, camera, adapter="h3_native", reference_index=reference_index)
+        ir = build_prompt_compile_ir(request)
+        final_prompt = self.compile_prompt(request, ir).text
 
         frames = resample_video_frames(
             request.playblast_video,
@@ -361,6 +371,15 @@ class H3ApiProfile:
             _camera_motion_mapping_check(),
         ]
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # camera-track rendering is unchanged in this commit; wired up next
+        camera = _playblast_camera(request.motion_scene)
+        if camera is None or not camera.enabled:
+            return PromptCompilation(text=request.base_prompt)
+        reference_index = _resolve_reference_index(request)
+        text = _h3_prompt(request, camera, adapter="comfy_api", reference_index=reference_index)
+        return PromptCompilation(text=text)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         if any(check.state == "BLOCKED" for check in checks):
@@ -381,8 +400,8 @@ class H3ApiProfile:
             raise ValueError("MotionScene has no usable playblast camera")
 
         timeline = self.resolve_timeline(request)
-        reference_index = _resolve_reference_index(request)
-        final_prompt = _h3_prompt(request, camera, adapter="comfy_api", reference_index=reference_index)
+        ir = build_prompt_compile_ir(request)
+        final_prompt = self.compile_prompt(request, ir).text
 
         return CompiledMotion(
             profile_id=self.id,

@@ -103,6 +103,28 @@ class Check:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptCompilation:
+    """One profile's dialect-rendered prompt text, plus any warnings it raised.
+
+    The single result type ``compile_prompt`` returns. A real execution's
+    ``compile()`` folds ``.text`` into ``CompiledMotion.final_prompt``; the
+    Monitor's live-preflight route calls ``compile_prompt`` directly (no
+    ``compile()``, no video decode) to preview the identical text.
+    """
+
+    text: str
+    checks: tuple[Check, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.text, str):
+            raise TypeError("text must be a string")
+        checks = tuple(self.checks)
+        if not all(isinstance(check, Check) for check in checks):
+            raise TypeError("checks must contain Check values")
+        object.__setattr__(self, "checks", checks)
+
+
+@dataclass(frozen=True, slots=True)
 class ResolvedTimeline:
     width: int
     height: int
@@ -174,12 +196,15 @@ class CompiledMotion:
 
 
 
-def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str) -> dict[str, Any]:
+def panel_payload(
+    checks: Any, capabilities: dict[str, Any], target_profile: str, *, final_prompt: str = "",
+) -> dict[str, Any]:
     """The payload the Monitor panel renders, blocked or not.
 
     Shared by a real execution's ``ui`` output and the live preflight route:
     both are the same report of the same checks, and the panel does not need
-    to know which one produced it.
+    to know which one produced it. ``final_prompt`` defaults to "" so a
+    blocked/errored compile still serializes the same shape, just empty.
     """
     return {
         "preflight": [
@@ -205,6 +230,7 @@ def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str
         ],
         "capabilities": capabilities,
         "target_profile": target_profile,
+        "final_prompt": final_prompt,
     }
 
 

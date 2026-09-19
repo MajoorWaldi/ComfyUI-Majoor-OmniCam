@@ -7,7 +7,8 @@ from typing import Any
 
 from ..core.motion_resolution import resolve_motion_scene_tracks
 from ..core.motion_sampling import SampledTrack
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check, multi_shot_error
 
@@ -76,6 +77,10 @@ class WanMoveProfile:
             ),
         ]
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # a real Wan renderer lands in a later commit; passthrough today
+        return PromptCompilation(text=request.base_prompt)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         # A blocked gate has to stop compilation, not just colour the panel.
@@ -95,11 +100,12 @@ class WanMoveProfile:
             height=timeline.height,
         )
         native = _native_tracks(tracks, width=timeline.width, height=timeline.height)
+        ir = build_prompt_compile_ir(request)
         return CompiledMotion(
             profile_id=self.id,
             semantic=self.semantic,
             timeline=timeline,
-            final_prompt=request.base_prompt,
+            final_prompt=self.compile_prompt(request, ir).text,
             native_tracks=native,
             checks=tuple(checks),
         )

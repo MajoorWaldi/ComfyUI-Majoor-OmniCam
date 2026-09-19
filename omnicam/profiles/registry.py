@@ -35,7 +35,7 @@ class ProfileRegistry:
             raise ValueError("profile display_name must be a non-empty string")
         validate_semantic(getattr(profile, "semantic", None))
         validate_frame_policy(getattr(profile, "frame_policy", None))
-        for method_name in ("resolve_timeline", "preflight", "compile"):
+        for method_name in ("resolve_timeline", "preflight", "compile_prompt", "compile"):
             if not callable(getattr(profile, method_name, None)):
                 raise TypeError(f"profile {profile_id!r} must implement {method_name}()")
         if profile_id in self._profiles:

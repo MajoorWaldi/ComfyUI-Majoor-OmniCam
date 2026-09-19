@@ -22,7 +22,8 @@ from ..adapters.h3_scene_coverage import (
 )
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.track import OmniCamTrack
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check
 
@@ -179,6 +180,17 @@ class H3SceneCoverageProfile:
             checks.append(_loop_closure_check(analysis))
         return checks
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # geometry-track rendering is unchanged in this commit; wired up next
+        track, analysis, _representability, _error = self._analyze(request)
+        if track is None or analysis is None:
+            return PromptCompilation(text=request.base_prompt)
+        timeline = self.resolve_timeline(request)
+        text = build_h3_scene_coverage_prompt(
+            track, analysis, target_frames=timeline.frame_count, base_prompt=request.base_prompt,
+        )
+        return PromptCompilation(text=text)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         if any(check.state == "BLOCKED" for check in checks):
@@ -189,9 +201,8 @@ class H3SceneCoverageProfile:
             raise TypeError("track and analysis must be present after a non-BLOCKED preflight")
 
         timeline = self.resolve_timeline(request)
-        final_prompt = build_h3_scene_coverage_prompt(
-            track, analysis, target_frames=timeline.frame_count, base_prompt=request.base_prompt,
-        )
+        ir = build_prompt_compile_ir(request)
+        final_prompt = self.compile_prompt(request, ir).text
         h3edit_options = build_h3edit_scene_options(track, analysis, target_frames=timeline.frame_count)
 
         return CompiledMotion(

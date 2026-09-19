@@ -23,7 +23,8 @@ from ..core.video_sampling import inspect_video
 from ..guides.conflicts import detect_role_conflicts
 from ..guides.health import guide_health_checks
 from ..guides.model import ReferenceSpec, ShotIntent, omnicam_guide_reference, parse_reference_plan
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .playblast_freshness import captured_guide_style, guide_style_mismatch_check, stale_playblast_check
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
@@ -313,6 +314,18 @@ class Seedance25ReferenceProfile:
             _camera_motion_mapping_check(),
         ]
 
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # camera-track rendering is unchanged in this commit; wired up next
+        camera = _playblast_camera(request.motion_scene)
+        if camera is None or not camera.enabled:
+            return PromptCompilation(text=request.base_prompt)
+        reference_index = _resolve_reference_index(request)
+        declared, _plan_error = _parse_reference_plan(request)
+        text = _seedance25_prompt(
+            request, camera, reference_index=reference_index, other_references=declared,
+        )
+        return PromptCompilation(text=text)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
         if any(check.state == "BLOCKED" for check in checks):
@@ -330,14 +343,8 @@ class Seedance25ReferenceProfile:
             raise ValueError("MotionScene has no usable playblast camera")
 
         timeline = self.resolve_timeline(request)
-        reference_index = _resolve_reference_index(request)
-        # Already validated by preflight -- a still-invalid plan would have
-        # been a BLOCKED "reference_plan" check above and raised via
-        # raise_on_blocked before this line.
-        declared, _plan_error = _parse_reference_plan(request)
-        final_prompt = _seedance25_prompt(
-            request, camera, reference_index=reference_index, other_references=declared,
-        )
+        ir = build_prompt_compile_ir(request)
+        final_prompt = self.compile_prompt(request, ir).text
 
         return CompiledMotion(
             profile_id=self.id,

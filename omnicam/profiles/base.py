@@ -11,7 +11,8 @@ from ..core.motion_sampling import last_frame_time_seconds
 from ..core.motion_scene import MotionScene
 
 if TYPE_CHECKING:
-    from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+    from ..guides.prompt_ir import PromptCompileIR
+    from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline
 
 
 MOTION_SEMANTICS = frozenset({"camera_embedding", "reference_video", "screen_tracks", "prompt_options"})
@@ -155,6 +156,8 @@ class MotionProfile(Protocol):
     def resolve_timeline(self, request: CompileRequest) -> ResolvedTimeline: ...
 
     def preflight(self, request: CompileRequest) -> list[Check]: ...
+
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation: ...
 
     def compile(self, request: CompileRequest) -> CompiledMotion: ...
 
