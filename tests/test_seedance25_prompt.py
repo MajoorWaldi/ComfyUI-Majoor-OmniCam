@@ -5,13 +5,15 @@ from h3_track_fixtures import orbit_track
 
 from omnicam.adapters.seedance25 import (
     MAX_REFERENCE_INDEX,
+    build_motion_timeline_block,
     build_seedance25_prompt,
     reference_token,
     render_reference_role_block,
     resolve_seedance25_guide_style,
     seedance25_video_token,
 )
-from omnicam.guides.model import ReferenceSpec, ShotIntent
+from omnicam.guides.model import CameraPhase, ReferenceSpec, ShotIntent
+from omnicam.guides.prompt_ir import ActionCue, PromptCompileIR, SubjectTrajectoryCue
 
 # ---------------------------------------------------------------------------
 # seedance25_video_token
@@ -141,3 +143,77 @@ def test_prompt_replaces_the_generic_catch_all_with_declared_role_blocks():
 def test_prompt_keeps_the_generic_catch_all_when_nothing_is_declared():
     prompt = build_seedance25_prompt(orbit_track(90.0))
     assert "Use the other declared references" in prompt
+
+
+# ---------------------------------------------------------------------------
+# Motion timeline (P5): segments come from ir.camera_phases only -- never
+# invented timing divisions -- and action cues always win over a trajectory
+# description, since a trajectory is physical motion only, never a verb.
+# ---------------------------------------------------------------------------
+
+def _phase(start: float, end: float, *, phrase: str = "arcs left") -> CameraPhase:
+    return CameraPhase(
+        start_seconds=start, end_seconds=end, axis="truck_left", phrase=phrase,
+        pace="steady", magnitudes={}, peak_speed=1.0,
+    )
+
+
+def _ir(
+    *, camera_phases: tuple[CameraPhase, ...] = (), action_cues: tuple[ActionCue, ...] = (),
+    subject_trajectories: tuple[SubjectTrajectoryCue, ...] = (),
+) -> PromptCompileIR:
+    return PromptCompileIR(
+        duration_seconds=5.0, base_prompt="", camera_phases=camera_phases, cuts=(),
+        subject_trajectories=subject_trajectories, action_cues=action_cues, references=(), intent=ShotIntent(),
+    )
+
+
+def test_motion_timeline_is_absent_without_camera_phases():
+    assert build_motion_timeline_block(_ir()) is None
+    assert "Motion timeline:" not in build_seedance25_prompt(orbit_track(90.0), ir=_ir())
+
+
+def test_motion_timeline_lists_one_segment_per_camera_phase():
+    ir = _ir(camera_phases=(_phase(0.0, 1.8, phrase="arcs left"), _phase(1.8, 3.4, phrase="holds")))
+    block = build_motion_timeline_block(ir)
+    assert block.startswith("Motion timeline:")
+    assert "[0.0-1.8s] the camera arcs left." in block
+    assert "[1.8-3.4s] the camera holds." in block
+
+
+def test_motion_timeline_prefers_a_verbatim_action_cue_over_a_trajectory():
+    ir = _ir(
+        camera_phases=(_phase(0.0, 2.0),),
+        action_cues=(ActionCue(subject_id="hero", start_seconds=0.0, end_seconds=2.0, text="raises the sword"),),
+        subject_trajectories=(
+            SubjectTrajectoryCue(
+                subject_id="hero", label="Hero", start_seconds=0.0, end_seconds=2.0,
+                screen_direction="left_to_right", pace="steady",
+            ),
+        ),
+    )
+    block = build_motion_timeline_block(ir)
+    assert "raises the sword" in block
+    assert "continues moving" not in block
+
+
+def test_motion_timeline_falls_back_to_physical_direction_without_an_action_cue():
+    ir = _ir(
+        camera_phases=(_phase(0.0, 2.0),),
+        subject_trajectories=(
+            SubjectTrajectoryCue(
+                subject_id="hero", label="Hero", start_seconds=0.0, end_seconds=2.0,
+                screen_direction="left_to_right", pace="steady",
+            ),
+        ),
+    )
+    block = build_motion_timeline_block(ir)
+    assert "the subject continues moving left to right" in block
+    # Never a verb invented from trajectory math alone.
+    assert "runs" not in block and "walks" not in block
+
+
+def test_motion_timeline_is_appended_to_the_full_prompt_when_ir_is_given():
+    ir = _ir(camera_phases=(_phase(0.0, 2.0, phrase="pushes in"),))
+    prompt = build_seedance25_prompt(orbit_track(90.0), ir=ir)
+    assert "Motion timeline:\n[0.0-2.0s] the camera pushes in." in prompt

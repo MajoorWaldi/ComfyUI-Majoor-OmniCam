@@ -16,6 +16,7 @@ from __future__ import annotations
 from ..core.track import OmniCamTrack
 from ..guides.analysis import build_camera_motion_block
 from ..guides.model import ReferenceSpec, ShotIntent
+from ..guides.prompt_ir import ActionCue, PromptCompileIR, SubjectTrajectoryCue
 
 SEEDANCE25_NODE_CLASS = "ByteDance2ReferenceNodeV2"
 
@@ -80,6 +81,59 @@ def resolve_seedance25_guide_style(intent: ShotIntent) -> str:
     return "motion_proxy"
 
 
+def _readable_direction(direction: str) -> str:
+    return direction.replace("_", " ")
+
+
+def _overlaps(start: float, end: float, other_start: float, other_end: float) -> bool:
+    return start < other_end and end > other_start
+
+
+def _timeline_beat(
+    start: float, end: float, action_cues: tuple[ActionCue, ...], trajectories: tuple[SubjectTrajectoryCue, ...],
+) -> str | None:
+    """One segment's worth of what-happens text, or ``None`` when nothing does.
+
+    Action cues (verbatim artist text) always win over a trajectory
+    description -- a trajectory is just physical screen motion, never a
+    substitute for an authored action.
+    """
+    overlapping_cues = [cue for cue in action_cues if _overlaps(start, end, cue.start_seconds, cue.end_seconds)]
+    if overlapping_cues:
+        return "; ".join(cue.text for cue in overlapping_cues)
+    overlapping_trajectories = [
+        cue for cue in trajectories
+        if cue.screen_direction != "static" and _overlaps(start, end, cue.start_seconds, cue.end_seconds)
+    ]
+    if overlapping_trajectories:
+        return "; ".join(
+            f"the subject continues moving {_readable_direction(cue.screen_direction)}"
+            for cue in overlapping_trajectories
+        )
+    return None
+
+
+def build_motion_timeline_block(ir: PromptCompileIR) -> str | None:
+    """A per-segment beat list: what the camera does, and what else happens.
+
+    Built from ``ir.camera_phases`` -- already the shot's own stable-motion
+    segments, so this never invents timing divisions of its own. Semantic and
+    concise on purpose: when the reference video already carries the camera
+    move pixel-for-pixel, restating it as coordinates would compete with, not
+    clarify, the conditional signal (doc section 12.1's own guidance).
+    """
+    if not ir.camera_phases:
+        return None
+    lines: list[str] = []
+    for phase in ir.camera_phases:
+        beat = _timeline_beat(phase.start_seconds, phase.end_seconds, ir.action_cues, ir.subject_trajectories)
+        sentence = f"the camera {phase.phrase}"
+        if beat:
+            sentence = f"{sentence}; {beat}"
+        lines.append(f"[{phase.start_seconds:.1f}-{phase.end_seconds:.1f}s] {sentence}.")
+    return "Motion timeline:\n" + "\n".join(lines)
+
+
 def build_seedance25_prompt(
     track: OmniCamTrack,
     *,
@@ -88,6 +142,7 @@ def build_seedance25_prompt(
     max_phases: int = 4,
     include_camera_schedule: bool = False,
     other_references: tuple[ReferenceSpec, ...] = (),
+    ir: PromptCompileIR | None = None,
 ) -> str:
     """Role-first Seedance guide fragment (doc section 12.5).
 
@@ -142,4 +197,8 @@ def build_seedance25_prompt(
         )
     if include_camera_schedule:
         sections.append(f"Camera schedule:\n{build_camera_motion_block(track, max_phases=max_phases)}")
+    if ir is not None:
+        timeline = build_motion_timeline_block(ir)
+        if timeline:
+            sections.append(timeline)
     return "\n\n".join(sections)

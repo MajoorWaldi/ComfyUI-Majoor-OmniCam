@@ -210,14 +210,19 @@ def _reference_role_diff_checks(declared: tuple[ReferenceSpec, ...]) -> list[Che
 
 
 def _seedance25_prompt(
-    request: CompileRequest, camera, *, reference_index: int, other_references: tuple[ReferenceSpec, ...] = (),
+    request: CompileRequest,
+    camera,
+    *,
+    reference_index: int,
+    other_references: tuple[ReferenceSpec, ...] = (),
+    ir: PromptCompileIR | None = None,
 ) -> str:
     if request.motion_scene.is_multi_shot:
         fragment = MULTI_SHOT_PROMPT
     else:
         fragment = build_seedance25_prompt(
             camera.track, reference_index=reference_index, guide_style=_resolve_guide_style(request),
-            other_references=other_references,
+            other_references=other_references, ir=ir,
         )
     return f"{request.base_prompt}\n\n{fragment}".strip()
 
@@ -315,14 +320,13 @@ class Seedance25ReferenceProfile:
         ]
 
     def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
-        del ir  # camera-track rendering is unchanged in this commit; wired up next
         camera = _playblast_camera(request.motion_scene)
         if camera is None or not camera.enabled:
             return PromptCompilation(text=request.base_prompt)
         reference_index = _resolve_reference_index(request)
         declared, _plan_error = _parse_reference_plan(request)
         text = _seedance25_prompt(
-            request, camera, reference_index=reference_index, other_references=declared,
+            request, camera, reference_index=reference_index, other_references=declared, ir=ir,
         )
         return PromptCompilation(text=text)
 
