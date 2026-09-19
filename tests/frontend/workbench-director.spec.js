@@ -102,6 +102,13 @@ for (const size of [{ width: 1366, height: 768 }, { width: 980, height: 900 }]) 
       const ui = window.omnicamNodeA.__majoorOmniCam;
       for (let i = 0; i < 4; i += 1) ui.addCamera();
     });
+    // addCamera() defers resizeCanvas()/renderCameraView() to a
+    // requestAnimationFrame (cameras.js refreshCameraPreviews); on a slow or
+    // loaded renderer that frame may not have fired yet by the time this
+    // evaluate's own round trip lands, so the geometry read below can catch a
+    // pre-settle layout. Wait for two frames so it is always measuring the
+    // settled DOM.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
     const geometry = await page.evaluate(() => {
       const root = document.querySelector(".majoor-omnicam");
