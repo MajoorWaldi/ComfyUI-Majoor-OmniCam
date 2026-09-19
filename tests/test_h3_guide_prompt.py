@@ -4,6 +4,7 @@ import pytest
 from h3_track_fixtures import orbit_track
 
 from omnicam.adapters.h3 import MAX_REFERENCE_INDEX, build_h3_prompt, h3_native_aligned_length
+from omnicam.adapters.h3_sections import H3_SECTION_ORDER
 
 
 def test_build_h3_prompt_defaults_to_reference_index_one():
@@ -29,11 +30,22 @@ def test_build_h3_prompt_rejects_an_out_of_range_reference_index(index):
         build_h3_prompt(orbit_track(90.0), adapter="h3_native", reference_index=index)
 
 
-def test_build_h3_prompt_is_role_first():
+def test_build_h3_prompt_renders_the_six_ref2va_sections_in_order():
     prompt = build_h3_prompt(orbit_track(90.0), adapter="h3_native")
-    assert prompt.startswith("Use <Video 1> only as the camera-motion, framing and shot-timing guide.")
-    assert "Do not copy the guide's proxy geometry" in prompt
+    positions = [prompt.index(f"{name}:") for name in H3_SECTION_ORDER]
+    assert positions == sorted(positions), "sections must appear in Ref2VA's fixed order"
+    assert "<Video 1> is the OmniCam motion-reference video" in prompt
+    assert "fully_preserved" in prompt
     assert "Camera schedule:" in prompt
+    assert "non_diegetic_music:\nN/A" in prompt
+
+
+def test_build_h3_prompt_never_asserts_silence():
+    """Regression: a hardcoded 'Silence.' can contradict audio the artist wrote
+    into the main prompt, which the profile composes just above this block."""
+    prompt = build_h3_prompt(orbit_track(90.0), adapter="h3_native")
+    assert "Silence." not in prompt
+    assert "overall_soundscape:\nFollow any audio direction given in the main prompt" in prompt
 
 
 def test_build_h3_prompt_pinned_token_overrides_reference_index():

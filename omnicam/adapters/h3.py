@@ -23,6 +23,7 @@ from typing import Any
 
 from ..core.track import OmniCamTrack
 from ..guides.analysis import build_camera_motion_block
+from .h3_sections import H3_SOUNDSCAPE_FALLBACK, H3_TASK_MARKER, render_h3_sections
 
 __all__ = [
     "DEFAULT_DIALECT",
@@ -151,7 +152,15 @@ def build_h3_prompt(
     max_phases: int = 4,
     reference_index: int = 1,
 ) -> str:
-    """Camera-motion instruction for an H3 reference video.
+    """The MiniMax Ref2VA six-section prompt for an H3 reference video.
+
+    Ref2VA documents ``subject_definitions`` / ``summary`` / ``retention_analysis``
+    / ``detailed_description`` / ``overall_soundscape`` / ``non_diegetic_music``,
+    in that fixed order, referencing each media slot by its dialect token
+    (``<Video N>`` native, ``Video N`` API). OmniCam's own guide only ever
+    occupies the camera-motion role here -- subject, appearance and audio come
+    from the main prompt and any other declared references, never from this
+    video.
 
     ``video_ref_token`` stays accepted for workflows that pinned one, but the
     dialect resolved from the installed node is the default and the correct
@@ -169,14 +178,31 @@ def build_h3_prompt(
             )
         token = dialect["video_token_template"].format(index=int(reference_index))
     motion = build_camera_motion_block(track, max_phases=max_phases) if template == "auto" else str(template)
-    return (
-        f"Use {token} only as the camera-motion, framing and shot-timing guide.\n\n"
-        f"Follow its camera translation, rotation, viewpoint evolution, parallax, "
-        f"shot-size changes, acceleration/deceleration and holds.\n\n"
-        f"Do not copy the guide's proxy geometry, grey materials, floor, markers, "
-        f"placeholder characters, textures, colors or lighting.\n\n"
-        f"Subject identity, final scene appearance, materials and action come from "
-        f"the main prompt and the other references.\n\n"
-        f"Camera schedule:\n{motion}\n\n"
-        f"Reference duration: {track.duration_seconds:.3f}s at {track.fps} fps."
-    )
+
+    sections = {
+        "subject_definitions": (
+            f"{token} is the OmniCam motion-reference video. It defines camera translation, "
+            "rotation, viewpoint evolution, parallax, shot-size changes and shot timing only. "
+            "Subject identity, materials and final appearance come from the main prompt and any "
+            "other declared references, never from this video."
+        ),
+        "summary": (
+            f"{H3_TASK_MARKER} Generate the requested scene while preserving the camera work and "
+            f"temporal structure carried by {token}."
+        ),
+        "retention_analysis": (
+            f"{token} (camera translation, rotation, framing, parallax and shot timing): "
+            "fully_preserved - preserve its physical camera trajectory, pacing, holds, "
+            "acceleration/deceleration, shot-size changes and cuts exactly. Do not transfer its "
+            "proxy geometry, grey materials, floor, markers, placeholder characters, textures, "
+            "colors or lighting."
+        ),
+        "detailed_description": (
+            f"The camera movement follows {token} throughout this shot.\n\n"
+            f"Camera schedule:\n{motion}\n\n"
+            f"Reference duration: {track.duration_seconds:.3f}s at {track.fps} fps."
+        ),
+        "overall_soundscape": H3_SOUNDSCAPE_FALLBACK,
+        "non_diegetic_music": "N/A",
+    }
+    return render_h3_sections(sections)

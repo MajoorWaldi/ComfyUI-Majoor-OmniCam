@@ -93,14 +93,16 @@ class MockVideo:
         return Trimmed()
 
 
-def _request(*, camera_enabled: bool = True, with_video: bool = True) -> CompileRequest:
+def _request(
+    *, camera_enabled: bool = True, with_video: bool = True, duration_seconds: float = 2.0,
+) -> CompileRequest:
     return CompileRequest(
         motion_scene=_scene(camera_enabled=camera_enabled),
         playblast_video=MockVideo() if with_video else None,
         base_prompt="A stone tower at blue hour.",
         target_width=832,
         target_height=480,
-        duration_seconds=2.0,
+        duration_seconds=duration_seconds,
         target_fps=24.0,
     )
 
@@ -133,13 +135,38 @@ def test_h3_api_profile_resolves_timeline():
 
 
 def test_h3_api_profile_compiles_video_transport():
-    request = _request()
+    request = _request(duration_seconds=6.0)  # within the API's 4-15s output range
     result = H3_API_PROFILE.compile(request)
     assert result.profile_id == "h3_api"
     assert result.semantic == "reference_video"
     assert "Video 1" in result.final_prompt  # No brackets for API
     assert result.reference_video is request.playblast_video
     assert result.reference_frames is None
+
+
+def test_h3_api_blocks_an_output_duration_outside_four_to_fifteen_seconds():
+    """MinimaxHailuo03ReferenceNode rejects this itself, only after the upload."""
+    too_short = _request(duration_seconds=2.0)
+    check = _check(H3_API_PROFILE.preflight(too_short), "output_duration")
+    assert check.state == "BLOCKED"
+
+    with pytest.raises(ValueError, match="4-15s"):
+        H3_API_PROFILE.compile(too_short)
+
+    in_range = _request(duration_seconds=6.0)
+    assert _check(H3_API_PROFILE.preflight(in_range), "output_duration").state == "PASS"
+
+
+def test_h3_native_warns_rather_than_blocks_outside_its_trained_frame_range():
+    """Native technically accepts a wider grid than it was trained on."""
+    too_short = _request(duration_seconds=2.0)  # 56 frames, below the ~124 floor
+    check = _check(H3_NATIVE_PROFILE.preflight(too_short), "native_trained_range")
+    assert check.state == "WARNING"
+    # A WARNING must not stop the compile the way a BLOCKED gate does.
+    H3_NATIVE_PROFILE.compile(too_short)
+
+    in_range = _request(duration_seconds=10.0)  # 243 frames, inside 124-362
+    assert _check(H3_NATIVE_PROFILE.preflight(in_range), "native_trained_range").state == "PASS"
 
 
 def test_h3_profiles_require_playblast_video():
@@ -286,7 +313,7 @@ def _multi_shot_request() -> CompileRequest:
         {"camera_id": "hero_camera", "time_seconds": 0.0, "end_time_seconds": 1.0},
         {"camera_id": "wide_camera", "time_seconds": 1.0, "end_time_seconds": 2.0},
     ]
-    request = _request()
+    request = _request(duration_seconds=6.0)  # within the API's 4-15s output range
     object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
     return request
 
@@ -308,7 +335,8 @@ def test_a_single_camera_scene_is_not_reported_as_an_edit():
     check = _check(H3_API_PROFILE.preflight(_request()), "multi_shot")
 
     assert check.state == "PASS"
-    assert MULTI_SHOT_PROMPT not in H3_API_PROFILE.compile(_request()).final_prompt
+    in_range_request = _request(duration_seconds=6.0)  # within the API's 4-15s output range
+    assert MULTI_SHOT_PROMPT not in H3_API_PROFILE.compile(in_range_request).final_prompt
 
 
 def _stale_request() -> CompileRequest:

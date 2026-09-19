@@ -25,6 +25,17 @@ from .shots import MULTI_SHOT_PROMPT, multi_shot_check
 #: from intent the way Seedance's is.
 H3_DEFAULT_GUIDE_STYLE = "motion_proxy"
 
+#: MinimaxHailuo03ReferenceNode's own duration contract -- the API rejects a
+#: request outside this range after the upload, so it is enforced here first.
+H3_API_MIN_OUTPUT_SECONDS = 4.0
+H3_API_MAX_OUTPUT_SECONDS = 15.0
+
+#: MiniMaxH3ReferenceToVideo technically accepts 5 + 17n frames up to 3600, but
+#: it is trained on roughly this range -- outside it, results degrade rather
+#: than fail outright, so this is a WARNING, not a BLOCKED gate.
+H3_NATIVE_TRAINED_MIN_FRAMES = 124
+H3_NATIVE_TRAINED_MAX_FRAMES = 362
+
 
 def _playblast_camera(scene: MotionScene) -> CameraSceneItem | None:
     return next(
@@ -153,6 +164,34 @@ def _camera_motion_mapping_check() -> Check:
     )
 
 
+def _api_output_duration_check(request: CompileRequest) -> Check:
+    duration = request.duration_seconds
+    in_range = H3_API_MIN_OUTPUT_SECONDS <= duration <= H3_API_MAX_OUTPUT_SECONDS
+    return Check(
+        id="output_duration",
+        label=f"H3 API output duration: {duration:.2f}s",
+        state="PASS" if in_range else "BLOCKED",
+        message="" if in_range else (
+            f"MiniMax H3 API supports {H3_API_MIN_OUTPUT_SECONDS:g}-{H3_API_MAX_OUTPUT_SECONDS:g}s "
+            f"of output; requested duration is {duration:.2f}s."
+        ),
+    )
+
+
+def _native_trained_range_check(frame_count: int) -> Check:
+    in_range = H3_NATIVE_TRAINED_MIN_FRAMES <= frame_count <= H3_NATIVE_TRAINED_MAX_FRAMES
+    return Check(
+        id="native_trained_range",
+        label=f"H3 Native trained length range: {frame_count} frames",
+        state="PASS" if in_range else "WARNING",
+        message="" if in_range else (
+            f"MiniMax H3 Native is trained on roughly {H3_NATIVE_TRAINED_MIN_FRAMES}-"
+            f"{H3_NATIVE_TRAINED_MAX_FRAMES} frames; {frame_count} is outside that range and "
+            "may produce less reliable results."
+        ),
+    )
+
+
 def _h3_prompt(request: CompileRequest, camera, *, adapter: str, reference_index: int) -> str:
     """The camera fragment, or a neutral one when the edit has cuts.
 
@@ -226,6 +265,7 @@ class H3NativeProfile:
                 label=f"H3 Native target length: {timeline.frame_count} (17n+5)",
                 state="PASS",
             ),
+            _native_trained_range_check(timeline.frame_count),
             _reference_index_check(_resolve_reference_index(request)),
             *_reference_media_checks(request, H3_NATIVE_MEDIA_LIMITS),
             *_reference_frame_count_check(request, timeline.frame_count),
@@ -241,7 +281,7 @@ class H3NativeProfile:
         ]
 
     def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
-        del ir  # camera-track rendering is unchanged in this commit; wired up next
+        del ir  # the reference video itself carries the exact motion; no IR needed here
         camera = _playblast_camera(request.motion_scene)
         if camera is None or not camera.enabled:
             return PromptCompilation(text=request.base_prompt)
@@ -360,6 +400,7 @@ class H3ApiProfile:
             ),
             _reference_index_check(_resolve_reference_index(request)),
             *_reference_media_checks(request, H3_API_MEDIA_LIMITS),
+            _api_output_duration_check(request),
             *([freshness] if freshness else []),
             *([mismatch] if mismatch else []),
             *health_checks,
@@ -372,7 +413,7 @@ class H3ApiProfile:
         ]
 
     def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
-        del ir  # camera-track rendering is unchanged in this commit; wired up next
+        del ir  # the reference video itself carries the exact motion; no IR needed here
         camera = _playblast_camera(request.motion_scene)
         if camera is None or not camera.enabled:
             return PromptCompilation(text=request.base_prompt)
