@@ -406,12 +406,11 @@ on the upstream scene are not merged.
 Estimates a **relative** 6DoF camera trajectory from one continuous video shot
 and wraps that internal camera solve in a canonical one-camera MotionScene.
 
-Like Director, the node shows a compact status card (source, solve phase and
-progress) with an **OPEN EXTRACTOR** button; the source viewer, timeline and
-3D track viewer open in their own window on demand. Closing that window while
-TRACK / Reconstruct is running does not stop it — the card keeps showing
-progress and the solved result is cached when it finishes. Deleting the node
-does cancel a running solve.
+The source viewer, timeline and 3D track viewer are mounted directly on the
+node itself, on the ComfyUI canvas — no open button, no separate window.
+Running TRACK / Reconstruct keeps progressing whether or not the node is
+scrolled into view; the solved result is cached when it finishes. Deleting
+the node does cancel a running solve.
 
 **Inputs.**
 
@@ -713,17 +712,13 @@ graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
 selected profile requires, compiles the scene into that model's representation,
 and reports what survived.
 
-Like Director and Extractor, the node on the ComfyUI canvas renders a compact
-status card (target profile and readiness) with an **OPEN MONITOR** button;
-the full workbench (reference viewer, target capabilities matrix, preflight
-checklist, and prompt blocks) opens on demand in its own window.
-
-Closing the workbench keeps its node card and OPEN MONITOR button available.
-The node retains the latest execution result or blocked preflight while closed
-and restores it when reopened. Removing the node disposes both the runtime and
-any pending workbench opening. Only one OmniCam workbench opens at a time.
-On small screens, the window stays within the viewport and the Monitor content
-scrolls so the target settings remain accessible.
+Unlike Director, the full panel (reference viewer, target capabilities matrix,
+preflight checklist, and prompt blocks) is mounted directly on the node
+itself, on the ComfyUI canvas — no open button, no separate window. It shows
+the latest execution result or blocked preflight the moment the node exists,
+and keeps showing it as the graph changes. Removing the node disposes it.
+On small screens, the node content scrolls so the target settings remain
+accessible.
 
 Monitor execution UI fields follow ComfyUI V3's list transport:
 `target_profile` is a one-item string list and `capabilities` is a one-item
@@ -756,7 +751,7 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `duration_seconds`, `target_fps` | `0` (auto), `0` (auto) | length and frame rate of the shot being compiled; `0` inherits `timeline.duration_seconds` / `timeline.authoring_fps` from the connected MotionScene (the Director's authored shot) |
 | `guide_reference_index` | `1` | which `<Video N>` / `Video N` slot the OmniCam guide occupies on the target model; H3 accepts 1-3, Seedance 2.5 accepts 1-10, out of range is reported at preflight |
 | `guide_style` | `auto` | forces the compiled prompt's guide semantics (`auto`, `motion_proxy`, `clay`, `depth_rich`, `beauty_reference`, `passthrough`, `diagnostic`); `auto` resolves it from the Guide Capture Style the Director actually recorded with (`metadata.playblast.guide_style`), reported as a non-blocking `guide_style_mismatch` check when it disagrees |
-| `reference_plan_json` | empty | advanced: a JSON array declaring references OmniCam does not own the media for (an identity image, an action video...), authored through the Monitor workbench's Reference Role Matrix editor. Each entry compiles into its own role-first prompt block; overlapping, unresolved roles across declared references (including the OmniCam guide itself) surface as a non-blocking `role_conflict` check |
+| `reference_plan_json` | empty | advanced: a JSON array declaring references OmniCam does not own the media for (an identity image, an action video...), authored through the Monitor panel's Reference Role Matrix editor. Each entry compiles into its own role-first prompt block; overlapping, unresolved roles across declared references (including the OmniCam guide itself) surface as a non-blocking `role_conflict` check |
 
 **Outputs**, in schema order: `final_prompt`, `reference_video`,
 `reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,

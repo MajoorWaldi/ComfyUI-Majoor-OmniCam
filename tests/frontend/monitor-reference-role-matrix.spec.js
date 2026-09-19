@@ -3,8 +3,9 @@ import { expect, test } from "@playwright/test";
 // P2: the Reference Role Matrix editor, plus the guide_reference_index /
 // guide_style controls it sits beside. Uses the same real-node fixture as
 // workbench-monitor.spec.js so writes actually round-trip through the
-// backing ComfyUI widgets, not just the DOM.
-const open = (page) => page.locator("#host .oc-node-shell-open").click();
+// backing ComfyUI widgets, not just the DOM. Monitor mounts inline now (no
+// compact shell, no modal) -- the panel is already there once the fixture
+// reports "ready".
 
 /** The matrix lives inside a collapsed `<details>` (no Monitor `<details>`
  * ships pre-opened) -- expand it before interacting with anything inside. */
@@ -14,8 +15,6 @@ const openMatrix = (page) => page.locator('[data-role="reference-matrix-rows"]')
 test.beforeEach(async ({ page }) => {
   await page.goto("/tests/frontend/workbench-monitor-mount.html");
   await expect(page.locator("#status")).toHaveText("ready");
-  await open(page);
-  await expect(page.locator(".oc-workbench-backdrop")).toBeVisible();
   await openMatrix(page);
 });
 
@@ -63,16 +62,16 @@ test("removing a reference row clears it from reference_plan_json", async ({ pag
   expect(JSON.parse(raw)).toEqual([]);
 });
 
-test("a previously-declared plan renders its rows on reopen", async ({ page }) => {
+test("a plan restored from a saved workflow renders its rows once re-synced", async ({ page }) => {
   const plan = JSON.stringify([{ id: "action_video", media_type: "video", slot_hint: 2, roles: ["subject_action"] }]);
   await page.evaluate((value) => {
     window.monitorNode.widgets.find((item) => item.name === "reference_plan_json").value = value;
+    // Simulates a workflow reload: ComfyUI calls the node's own onConfigure,
+    // which attachMonitor wires to MonitorUI.syncControlsFromWidgets().
+    window.monitorNode.onConfigure();
   }, plan);
-
-  // Close and reopen so syncControlsFromWidgets() re-reads the widget value.
-  await page.locator('[data-workbench-act="close"]').click();
-  await open(page);
-  await openMatrix(page);
+  // The <details> section stays open across the resync -- only its rows are
+  // repainted -- so no second openMatrix() call is needed here.
 
   const row = page.locator('[data-role="reference-row"]').first();
   await expect(row).toBeVisible();
