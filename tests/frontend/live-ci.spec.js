@@ -70,17 +70,17 @@ function captureBrowserDiagnostics(page, testInfo) {
 }
 
 
-// Director/Extractor mount a compact shell by default (migration plan
-// Task 10/15); the workbench marker this helper waits for only exists once
-// that shell's OPEN button has been clicked. Click it as soon as the
-// persistent runtime attaches, exactly as a user would, before waiting for
-// the workbench itself to mount.
+// Director is the only product left mounting a compact shell (migration plan
+// Task 10); its workbench marker only exists once that shell's OPEN button
+// is clicked, so this helper does that first, exactly as a user would.
+// Extractor and Monitor mount their full panel inline, immediately, with no
+// shell and no open step -- assertAttachReady() below skips this for them.
 function runtimeMarkerFor(typeName) {
-  if (typeName === "MajoorOmniCamMonitor") return "__majoorOmniCamMonitorRuntime";
+  if (typeName === "MajoorOmniCamMonitor") return "__majoorOmniCamMonitor";
   return typeName === "MajoorOmniCamExtractor" ? "__majoorOmniCamExtractorRuntime" : "__majoorOmniCamDirectorRuntime";
 }
 
-test("Monitor receives real execution while closed and reopens on a small screen", async ({page}) => {
+test("Monitor receives real execution and renders it inline, and resizes on a small screen", async ({page}) => {
   await openComfyReady(page);
   await page.evaluate(async () => {
     const {app} = await import("/scripts/app.js");
@@ -89,27 +89,15 @@ test("Monitor receives real execution while closed and reopens on a small screen
     app.graph.add(monitor);
     window.liveClosedMonitor = monitor;
   });
-  await page.waitForFunction(() => Boolean(window.liveClosedMonitor?.__majoorOmniCamMonitorRuntime));
+  // No shell, no open step -- the panel is already attached inline.
+  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitor");
   await queueProductGraph(page, "liveClosedMonitor", {repeat: true});
-  await page.waitForFunction(() => Boolean(window.liveClosedMonitor.__majoorOmniCamMonitorRuntime.result));
+  await page.waitForFunction(() => window.liveClosedMonitor.__majoorOmniCamMonitor?.hasExecutedOnce);
+  await expect(page.locator('[data-role="profile-preflight"] .oc-row').first()).toBeVisible();
+
   await page.setViewportSize({width: 850, height: 600});
-  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitorWorkbench");
-  await expect(page.locator('[data-role="profile-preflight"] .oc-row').first()).toBeVisible();
-  const box = await page.locator(".oc-workbench-window").boundingBox();
-  expect(box.x).toBeGreaterThanOrEqual(0);
-  expect(box.y).toBeGreaterThanOrEqual(0);
-  expect(box.x + box.width).toBeLessThanOrEqual(850);
-  expect(box.y + box.height).toBeLessThanOrEqual(600);
-  await page.locator('[data-workbench-act="close"]').click();
-  await expect(page.locator(".oc-workbench-backdrop")).toHaveCount(0);
-  expect(await page.evaluate(() => {
-    const widget = window.liveClosedMonitor.widgets.find(w => w.name === "majoor_omnicam_monitor_shell");
-    return Boolean(widget.hidden || widget.options?.hideInVueNodes);
-  })).toBe(false);
-  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitorWorkbench");
-  await expect(page.locator('[data-role="profile-preflight"] .oc-row').first()).toBeVisible();
-  await page.locator('[data-workbench-act="close"]').click();
-  await expect(page.locator(".oc-workbench-backdrop")).toHaveCount(0);
+  expect(await page.locator(".oc-monitor").evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+
   const blockedRequest = await page.evaluate(async () => {
     const {app} = await import("/scripts/app.js");
     const {api} = await import("/scripts/api.js");
@@ -119,12 +107,7 @@ test("Monitor receives real execution while closed and reopens on a small screen
   // No playblast: H3 must publish its blocked preflight before failing the run.
   const blockedResponse = await page.request.post("/prompt", {data: blockedRequest});
   expect(blockedResponse.ok()).toBe(true);
-  await page.waitForFunction(() => {
-    const runtime = window.liveClosedMonitor.__majoorOmniCamMonitorRuntime;
-    return runtime.result && !runtime.executed && runtime.result.preflight.some(c => c.state === "BLOCKED");
-  });
-  await assertAttachReady(page, "MajoorOmniCamMonitor", "liveClosedMonitor", "__majoorOmniCamMonitorWorkbench");
-  await expect(page.locator('[data-role="profile-preflight"]')).toContainText("BLOCKED");
+  await expect(page.locator('[data-role="profile-preflight"]')).toContainText("BLOCKED", {timeout: 30_000});
 });
 
 async function openWorkbenchShell(page, globalNodeVar, runtimeMarker) {
@@ -141,7 +124,9 @@ async function openWorkbenchShell(page, globalNodeVar, runtimeMarker) {
 
 async function assertAttachReady(page, typeName, globalNodeVar, expectedUIMarker) {
   try {
-    await openWorkbenchShell(page, globalNodeVar, runtimeMarkerFor(typeName));
+    if (typeName === "MajoorOmniCamDirector") {
+      await openWorkbenchShell(page, globalNodeVar, runtimeMarkerFor(typeName));
+    }
     await page.waitForFunction(
       (args) => {
         const { globalNodeVar, expectedUIMarker } = args;

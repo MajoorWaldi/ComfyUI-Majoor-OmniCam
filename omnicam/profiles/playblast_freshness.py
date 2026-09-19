@@ -67,3 +67,44 @@ def stale_playblast_check(
             )
         ),
     )
+
+
+def captured_guide_style(scene: MotionScene) -> str | None:
+    """The Guide Capture Style the connected playblast was actually recorded with.
+
+    ``None`` covers both "no playblast recorded" and "recorded before Guide
+    Capture Style existed" -- both are "unknown", never a false mismatch, same
+    principle ``playblast_staleness`` already applies to its own fingerprint.
+    """
+    metadata = scene.metadata if isinstance(scene.metadata, dict) else {}
+    playblast = metadata.get("playblast")
+    style = playblast.get("guide_style") if isinstance(playblast, dict) else None
+    return style if isinstance(style, str) and style else None
+
+
+def guide_style_mismatch_check(
+    scene: MotionScene, *, expected: str, display_name: str, block: bool
+) -> Check | None:
+    """A preflight Check when the recorded guide_style disagrees with ``expected``.
+
+    A plain string compare, not a hash: guide_style is a small enum, not scene
+    geometry, so the backend can compare it directly rather than trusting an
+    opaque fingerprint the way ``stale_playblast_check`` has to.
+    """
+    captured = captured_guide_style(scene)
+    if captured is None or captured == expected:
+        return None
+    return Check(
+        id="guide_style_mismatch",
+        label=f"Guide style: recorded {captured!r}, compiling for {expected!r}",
+        state="BLOCKED" if block else "WARNING",
+        message=(
+            f"The connected playblast was captured with guide_style={captured!r}, but "
+            f"{display_name} is compiling for guide_style={expected!r}. "
+            + (
+                "Re-record the playblast with the matching capture style."
+                if block
+                else "The reference pixels may not match what the prompt promises."
+            )
+        ),
+    )

@@ -153,8 +153,9 @@ def test_h3_native_resampling_respects_max_frames():
     assert video.decoded_ranges == [(0, 90)]
 
 
-@pytest.mark.parametrize("decoded", [0, 2, 4])
+@pytest.mark.parametrize("decoded", [0, 2])
 def test_resampling_rejects_short_decode_instead_of_returning_unwritten_frames(decoded):
+    """A shortfall of more than one frame is genuine corruption/truncation, never recovered."""
     video = _Video()
     video.total = 5
     video.as_trimmed = lambda **kwargs: SimpleNamespace(
@@ -162,3 +163,40 @@ def test_resampling_rejects_short_decode_instead_of_returning_unwritten_frames(d
     )
     with pytest.raises(ValueError, match=f"expected 5 frames, decoded {decoded}"):
         video_sampling.resample_video_frames(video, target_fps=24)
+
+
+def test_a_one_frame_tail_shortfall_retries_with_the_corrected_frame_count():
+    """Container/VFR rounding: metadata claims one more frame than decodes.
+
+    Regression for a real playblast that reported frame_count=121 (matching
+    H3 Native's 17n+5 grid) but only ever decoded 120 -- a metadata/decoder
+    mismatch at the clip's true tail, not a broken or truncated file.
+    """
+    video = _Video()
+    video.total = 5
+    video.as_trimmed = lambda **kwargs: SimpleNamespace(
+        get_components=lambda: SimpleNamespace(images=torch.ones((4, 2, 3, 3)))
+    )
+    frames = video_sampling.resample_video_frames(video, target_fps=24)
+    # The corrected plan targets a 4-frame source: fewer output frames than
+    # requested, but every one of them is a real, fully-decoded frame.
+    assert frames.shape == (4, 2, 3, 3)
+
+
+def test_a_mid_clip_short_decode_is_never_treated_as_a_recoverable_tail_shortfall():
+    """The one-frame tolerance only applies at the source's true end."""
+    video = _Video()
+    video.total = 200
+    calls = []
+
+    def as_trimmed(**kwargs):
+        calls.append(kwargs)
+        # Every requested chunk decodes one frame short, including chunks
+        # nowhere near frame 200 -- this must never be treated as the
+        # rounding quirk the retry exists for.
+        count = max(1, round(kwargs["duration"] * video.fps))
+        return SimpleNamespace(get_components=lambda: SimpleNamespace(images=torch.ones((count - 1, 2, 3, 3))))
+
+    video.as_trimmed = as_trimmed
+    with pytest.raises(ValueError, match="Incomplete video decode"):
+        video_sampling.resample_video_frames(video, target_fps=24, max_frames=50)

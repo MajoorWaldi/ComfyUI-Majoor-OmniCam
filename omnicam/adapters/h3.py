@@ -21,8 +21,24 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..core.motion_phases import segment_motion_phases
 from ..core.track import OmniCamTrack
+from ..guides.analysis import build_camera_motion_block
+from .h3_sections import H3_SOUNDSCAPE_FALLBACK, H3_TASK_MARKER, render_h3_sections
+
+__all__ = [
+    "DEFAULT_DIALECT",
+    "H3_API_MEDIA_LIMITS",
+    "H3_DIALECTS",
+    "H3_NATIVE_MEDIA_LIMITS",
+    "H3_PROXY_PRESETS",
+    "H3_RECOMMENDED_MOTION_LIMITS",
+    "build_camera_motion_block",
+    "build_h3_prompt",
+    "classify_camera_motion",
+    "h3_dialect",
+    "h3_native_aligned_length",
+    "resolve_h3_dialect",
+]
 
 H3_PROXY_PRESETS = {
     "balanced": {"render_mode": "omni_ref", "point_count": 90, "burn_in": False},
@@ -70,11 +86,16 @@ def h3_native_aligned_length(length: int) -> int:
         value += 1
     return value
 
+#: H3 documents reference-video slots 1-3 only; a higher index is read as
+#: literal prompt text instead of binding the reference (see module docstring).
+MAX_REFERENCE_INDEX = 3
+
 H3_DIALECTS = {
     "comfy_api": {
         "id": "comfy_api",
         "display_name": "MiniMax H3 - Comfy API",
         "node_class": "MinimaxHailuo03ReferenceNode",
+        "video_token_template": "Video {index}",
         "video_token": "Video 1",
         "image_token": "Image 1",
         "audio_token": "Audio 1",
@@ -86,6 +107,7 @@ H3_DIALECTS = {
         "id": "native",
         "display_name": "MiniMax H3 - Native",
         "node_class": "MiniMaxH3ReferenceToVideo",
+        "video_token_template": "<Video {index}>",
         "video_token": "<Video 1>",
         "image_token": "<Picture 1>",
         "audio_token": "<Audio 1>",
@@ -120,40 +142,6 @@ def classify_camera_motion(track: OmniCamTrack) -> str:
     return str(analysis["classification"]["primary"])
 
 
-def _phase_sentence(phase: dict[str, Any], *, first: bool, only: bool) -> str:
-    subject = "The camera" if first else "It"
-    if only:
-        subject = "The camera"
-    pace = {
-        "accelerating": " and gradually gains speed",
-        "decelerating": " and eases to a stop",
-        "steady": "",
-    }[phase["pace"]]
-    magnitudes = phase.get("magnitudes") or {}
-    detail = ""
-    if phase["axis"] in {"truck_left", "truck_right"} and abs(magnitudes.get("pan_degrees", 0.0)) > 5.0:
-        detail = ", producing increasing background parallax"
-    elif phase["axis"] in {"dolly_in", "dolly_out"} and abs(magnitudes.get("fov_degrees", 0.0)) > 2.0:
-        detail = ", with the focal length changing at the same time"
-    return f"{subject} {phase['phrase']}{detail}{pace}."
-
-
-def build_camera_motion_block(track: OmniCamTrack, *, max_phases: int = 4) -> str:
-    """Timecoded shot list, or one sentence when the move is single-phase.
-
-    A track that really is one continuous push-in gets one line: inventing four
-    phases for it would describe a shot the author never authored.
-    """
-    phases = segment_motion_phases(track, max_phases=max_phases)
-    if len(phases) == 1:
-        return _phase_sentence(phases[0], first=True, only=True)
-    lines = []
-    for index, phase in enumerate(phases):
-        span = f"[{phase['start_seconds']:.1f}-{phase['end_seconds']:.1f}s]"
-        lines.append(f"{span} {_phase_sentence(phase, first=index == 0, only=False)}")
-    return "\n".join(lines)
-
-
 def build_h3_prompt(
     track: OmniCamTrack,
     video_ref_token: str | None = None,
@@ -162,24 +150,59 @@ def build_h3_prompt(
     adapter: str = "h3",
     capabilities: dict[str, Any] | None = None,
     max_phases: int = 4,
+    reference_index: int = 1,
 ) -> str:
-    """Camera-motion instruction for an H3 reference video.
+    """The MiniMax Ref2VA six-section prompt for an H3 reference video.
+
+    Ref2VA documents ``subject_definitions`` / ``summary`` / ``retention_analysis``
+    / ``detailed_description`` / ``overall_soundscape`` / ``non_diegetic_music``,
+    in that fixed order, referencing each media slot by its dialect token
+    (``<Video N>`` native, ``Video N`` API). OmniCam's own guide only ever
+    occupies the camera-motion role here -- subject, appearance and audio come
+    from the main prompt and any other declared references, never from this
+    video.
 
     ``video_ref_token`` stays accepted for workflows that pinned one, but the
     dialect resolved from the installed node is the default and the correct
-    answer in every other case.
+    answer in every other case. ``reference_index`` picks which ``<Video N>``
+    / ``Video N`` slot the guide occupies when other references are already
+    connected (doc section 10.3) -- H3 documents slots 1-3 only.
     """
     dialect = resolve_h3_dialect(adapter, capabilities)
     token = (video_ref_token or "").strip()
     if not token or token.lower() == "auto":
-        token = dialect["video_token"]
+        if not (1 <= int(reference_index) <= MAX_REFERENCE_INDEX):
+            raise ValueError(
+                f"reference_index must be between 1 and {MAX_REFERENCE_INDEX} for H3; "
+                f"got {reference_index}"
+            )
+        token = dialect["video_token_template"].format(index=int(reference_index))
     motion = build_camera_motion_block(track, max_phases=max_phases) if template == "auto" else str(template)
-    return (
-        f"Use {token} only as the camera-motion and shot-timing reference. "
-        f"Do not reproduce its proxy geometry, grid, markers, textures, colors or placeholder "
-        f"materials. Preserve the subject identity, scene appearance and visual styling described "
-        f"by the main prompt and the other references.\n\n"
-        f"Camera motion:\n{motion}\n\n"
-        f"Follow the reference video's timing and framing evolution closely. "
-        f"Reference duration: {track.duration_seconds:.3f}s at {track.fps} fps."
-    )
+
+    sections = {
+        "subject_definitions": (
+            f"{token} is the OmniCam motion-reference video. It defines camera translation, "
+            "rotation, viewpoint evolution, parallax, shot-size changes and shot timing only. "
+            "Subject identity, materials and final appearance come from the main prompt and any "
+            "other declared references, never from this video."
+        ),
+        "summary": (
+            f"{H3_TASK_MARKER} Generate the requested scene while preserving the camera work and "
+            f"temporal structure carried by {token}."
+        ),
+        "retention_analysis": (
+            f"{token} (camera translation, rotation, framing, parallax and shot timing): "
+            "fully_preserved - preserve its physical camera trajectory, pacing, holds, "
+            "acceleration/deceleration, shot-size changes and cuts exactly. Do not transfer its "
+            "proxy geometry, grey materials, floor, markers, placeholder characters, textures, "
+            "colors or lighting."
+        ),
+        "detailed_description": (
+            f"The camera movement follows {token} throughout this shot.\n\n"
+            f"Camera schedule:\n{motion}\n\n"
+            f"Reference duration: {track.duration_seconds:.3f}s at {track.fps} fps."
+        ),
+        "overall_soundscape": H3_SOUNDSCAPE_FALLBACK,
+        "non_diegetic_music": "N/A",
+    }
+    return render_h3_sections(sections)

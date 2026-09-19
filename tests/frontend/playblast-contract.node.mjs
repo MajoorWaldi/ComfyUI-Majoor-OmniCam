@@ -22,12 +22,28 @@ test("playblast manifest records exact authored timing, dimensions and cuts", ()
     aspect_ratio: 16 / 9, clean_capture: true, drift_ms: 0,
     cuts: [{ camera_id: "a", start_frame: 0, end_frame: 23 }, { camera_id: "b", start_frame: 24, end_frame: 47 }],
     motion_scene_fingerprint: motionFingerprint(ui.state),
+    guide_style: "auto",
   };
   assert.deepEqual(playblastManifest(ui, blob), expected);
   ui.state.metadata = { production: "demo" };
   const withProduction = { ...expected, motion_scene_fingerprint: motionFingerprint(ui.state) };
   assert.deepEqual(storePlayblastManifest(ui, blob), withProduction);
   assert.deepEqual(ui.state.metadata, { production: "demo", playblast: withProduction });
+});
+
+test("playblast manifest records a forced guide capture style, and falls back to auto when unset", () => {
+  const ui = {
+    canvas: { width: 640, height: 360 },
+    state: { fps: 24, duration_frames: 24, cameras: [{ id: "a" }], guide_capture_style: "clay" },
+  };
+  const blob = { type: "video/webm", omnicamMetrics: { encoder: "webcodecs", requestedFrames: 24, fps: 24, width: 640, height: 360 } };
+  assert.equal(playblastManifest(ui, blob).guide_style, "clay");
+
+  ui.state.guide_capture_style = "auto";
+  assert.equal(playblastManifest(ui, blob).guide_style, "auto");
+
+  delete ui.state.guide_capture_style;
+  assert.equal(playblastManifest(ui, blob).guide_style, "auto");
 });
 
 test("the manifest fingerprint changes when the recorded scene does, and not from playblast metadata itself", () => {

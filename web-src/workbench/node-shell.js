@@ -1,22 +1,22 @@
-// Compact, always-mounted DOMWidget shell shown on a closed Director/
-// Extractor/Monitor node: title, one status line, one meta line, an optional
-// progress bar, an Open button, and an optional preview.
-// Deliberately inert for Extractor and for the no-preview-yet state -- no RAF
-// loop, no ResizeObserver, and the preview is a plain <img> whose `src` is
-// pushed in from outside (setPreview()) rather than anything drawn here.
-// By design, Director and Monitor shells (kind: "director" | "monitor") also
-// mount a live-looping <video> (setPreviewVideo()) so the closed box can show
-// the actual recorded playblast playing, muted and looped, instead of a
-// single still frame -- an intentional exception to that inertness for those
-// two kinds only; Extractor keeps the passive still image (or nothing).
+// Compact, always-mounted DOMWidget shell shown on a closed Director node:
+// title, one status line, one meta line, an optional progress bar, an Open
+// button, and an optional preview. Director is the only product still using
+// this -- Extractor and Monitor mount their full panel inline instead (see
+// web-src/extractor/index.js's attachExtractor / web-src/monitor/index.js's
+// attachMonitor), with no compact shell and no modal workbench.
+// Deliberately inert for the no-preview-yet state -- no RAF loop, no
+// ResizeObserver, and the still-image preview is a plain <img> whose `src`
+// is pushed in from outside (setPreview()) rather than anything drawn here.
+// A live-looping <video> preview (setPreviewVideo()) is also supported, kept
+// generic (kind-gated) in case a future product shell wants it.
 // Shell state is written by the caller's runtime; it is never a second
 // source of truth (migration plan section 8).
 
 import { injectWorkbenchStyles } from "./styles.js";
 
-// Only Director/Monitor closed shells offer a playing playblast preview;
-// Extractor stays image-or-nothing (out of scope for that feature).
-const VIDEO_PREVIEW_KINDS = new Set(["director", "monitor"]);
+// Which shell kinds get a live-looping playblast preview instead of a still
+// image. Director is the only kind that exists today.
+const VIDEO_PREVIEW_KINDS = new Set(["director"]);
 
 export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
   injectWorkbenchStyles(document);

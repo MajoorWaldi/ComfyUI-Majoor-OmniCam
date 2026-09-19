@@ -116,7 +116,12 @@ def test_wan_camera_profile_compiles_the_authored_playblast_camera(monkeypatch):
     assert captured["height"] == 480
     assert captured["length"] == 49
     assert result.camera_embedding is embedding
-    assert result.final_prompt == "A stone tower at blue hour."
+    # A real semantic renderer now runs (P5): base prompt leads, followed by
+    # a short scene-level camera description -- never the degrees/positions
+    # the embedding itself already encodes.
+    assert result.final_prompt.startswith("A stone tower at blue hour.")
+    assert "continuous take" in result.final_prompt
+    assert "degrees" not in result.final_prompt
     assert result.profile_id == "wan_camera_native"
     assert result.semantic == "camera_embedding"
     assert [check.state for check in result.checks] == ["PASS", "PASS", "PASS"]

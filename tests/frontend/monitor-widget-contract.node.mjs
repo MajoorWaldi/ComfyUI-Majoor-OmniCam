@@ -14,6 +14,7 @@ test("Monitor UI persists only the V3 node widgets", () => {
   assert.deepEqual(MONITOR_WIDGETS, [
     "base_prompt", "target_profile", "target_width", "target_height",
     "duration_seconds", "target_fps",
+    "guide_reference_index", "guide_style", "reference_plan_json",
   ]);
   assert.equal(monitorWidgetValues(node).target_profile, "wan_move_native");
   writeMonitorWidget(node, "target_profile", "ltx25_motion_track");

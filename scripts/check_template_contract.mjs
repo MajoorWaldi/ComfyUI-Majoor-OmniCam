@@ -25,6 +25,8 @@ const RUNTIME_ONLY = new Set([
   "sequence-lane",  // built by renderSequenceLane() only while the edit is on
   "sequence-track", // wrapper for the shot + audio lanes, same lifetime
   "health-smooth-zone", // stamped on dynamically rendered problem zone rows
+  "reference-row",        // stamped on Reference Role Matrix rows (reference-role-matrix.js)
+  "reference-row-remove", // remove button inside each generated matrix row
 ]);
 
 // data-act hooks wired with querySelector (not querySelectorAll): a second copy

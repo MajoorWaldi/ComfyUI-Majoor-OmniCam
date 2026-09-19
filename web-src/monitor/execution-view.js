@@ -14,8 +14,10 @@ export function normalizeMonitorExecution(message) {
     : payload.preflight;
   const capabilities = unwrap(payload.capabilities);
   const targetProfile = unwrap(payload.target_profile);
+  const finalPrompt = unwrap(payload.final_prompt);
   return {
     targetProfile: typeof targetProfile === "string" ? targetProfile : "",
+    finalPrompt: typeof finalPrompt === "string" ? finalPrompt : "",
     preflight: Array.isArray(preflight) ? preflight : [],
     capabilities: capabilities && typeof capabilities === "object"
       ? capabilities
@@ -23,10 +25,25 @@ export function normalizeMonitorExecution(message) {
   };
 }
 
+function suggestionsMarkup(check) {
+  if (!Array.isArray(check.suggestions) || !check.suggestions.length) return "";
+  return `<ul class="oc-suggestions">${check.suggestions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
 function checkMarkup(check) {
   const state = diagnosticState(check.state);
   const message = check.message ? `<br><small>${escapeHtml(check.message)}</small>` : "";
-  return `<div class="oc-row"><span><strong>${escapeHtml(check.label || check.id)}</strong>${message}</span><span class="oc-state" data-state="${state}">${escapeHtml(check.state || "UNKNOWN")}</span></div>`;
+  const recoverable = check.recoverable ? ` <span class="oc-recoverable">${escapeHtml(t("recoverable"))}</span>` : "";
+  return `<div class="oc-row"${check.code ? ` data-code="${escapeHtml(check.code)}"` : ""}><span><strong>${escapeHtml(check.label || check.id)}</strong>${recoverable}${message}${suggestionsMarkup(check)}</span><span class="oc-state" data-state="${state}">${escapeHtml(check.state || "UNKNOWN")}</span></div>`;
+}
+
+function mappingQualityMarkup(check) {
+  const message = check.message ? `<br><small>${escapeHtml(check.message)}</small>` : "";
+  return `<div class="oc-row"><span><strong>${escapeHtml(check.label || check.id)}</strong>${message}${suggestionsMarkup(check)}</span><span class="oc-mapping-quality" data-quality="${escapeHtml(check.mapping_quality)}">${escapeHtml(check.mapping_quality)}</span></div>`;
+}
+
+function isGuideHealthCheck(check) {
+  return String(check.id || "").startsWith("guide_health_");
 }
 
 /**
@@ -50,10 +67,45 @@ export function outputStatusText(blocked, targetProfile, live = false) {
 
 export function renderMonitorExecution(root, message, { live = false } = {}) {
   const result = normalizeMonitorExecution(message);
+
+  // Doc section 13's Compilation Diff and Guide Health are both just Checks
+  // with a distinguishing marker (mapping_quality / a guide_health_ id
+  // prefix) -- grouped for display, not a separate backend data shape.
+  const diffChecks = result.preflight.filter((check) => check.mapping_quality);
+  const healthChecks = result.preflight.filter(isGuideHealthCheck);
+  const generalChecks = result.preflight.filter((check) => !check.mapping_quality && !isGuideHealthCheck(check));
+
+  const prompt = root.querySelector('[data-role="compiled-prompt"]');
+  if (prompt) {
+    if (result.finalPrompt) {
+      prompt.textContent = result.finalPrompt;
+      prompt.classList.remove("oc-empty");
+      prompt.dataset.empty = "0";
+    } else {
+      prompt.textContent = t("Queue the workflow, or edit the connected Director live, to compile a prompt.");
+      prompt.classList.add("oc-empty");
+      prompt.dataset.empty = "1";
+    }
+  }
+
   const preflight = root.querySelector('[data-role="profile-preflight"]');
-  preflight.innerHTML = result.preflight.length
-    ? result.preflight.map(checkMarkup).join("")
+  preflight.innerHTML = generalChecks.length
+    ? generalChecks.map(checkMarkup).join("")
     : `<div class="oc-empty">${escapeHtml(t("No preflight checks returned."))}</div>`;
+
+  const diff = root.querySelector('[data-role="profile-diff"]');
+  if (diff) {
+    diff.innerHTML = diffChecks.length
+      ? diffChecks.map(mappingQualityMarkup).join("")
+      : `<div class="oc-empty">${escapeHtml(t("No mapping-quality diagnostics for this compile."))}</div>`;
+  }
+
+  const health = root.querySelector('[data-role="profile-health"]');
+  if (health) {
+    health.innerHTML = healthChecks.length
+      ? healthChecks.map(checkMarkup).join("")
+      : `<div class="oc-empty">${escapeHtml(t("No guide-health warnings."))}</div>`;
+  }
 
   const entries = Array.isArray(result.capabilities.capabilities)
     ? result.capabilities.capabilities

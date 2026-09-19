@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from omnicam.core.motion_scene import MotionScene
 from omnicam.profiles import CompileRequest
 from omnicam.profiles.capability_gate import capability_check
@@ -55,7 +57,13 @@ def _scene(*, cuts: list | None = None, camera_enabled: bool = True) -> MotionSc
     )
 
 
-def _request(*, with_video: bool = True, cuts: list | None = None, base_prompt: str = "A stone tower.") -> CompileRequest:
+def _request(
+    *,
+    with_video: bool = True,
+    cuts: list | None = None,
+    base_prompt: str = "A stone tower.",
+    prompt_mode: str = "passthrough",
+) -> CompileRequest:
     return CompileRequest(
         motion_scene=_scene(cuts=cuts),
         playblast_video="a-video-sentinel" if with_video else None,
@@ -64,6 +72,7 @@ def _request(*, with_video: bool = True, cuts: list | None = None, base_prompt: 
         target_height=480,
         duration_seconds=2.0,
         target_fps=24.0,
+        prompt_mode=prompt_mode,
     )
 
 
@@ -126,6 +135,27 @@ def test_capability_check_reports_user_managed_for_a_requirement_free_profile():
     assert check is not None
     assert check.state == "PASS"
     assert "user managed" in check.label.lower()
+
+
+# ---------------------------------------------------------------------------
+# prompt_mode (P5): passthrough stays the default -- the destination is
+# genuinely unknown -- but "enhanced" is available as an explicit opt-in.
+# ---------------------------------------------------------------------------
+
+def test_prompt_mode_defaults_to_passthrough():
+    result = EXTERNAL_REFERENCE_VIDEO_PROFILE.compile(_request())
+    assert result.final_prompt == "A stone tower."
+
+
+def test_prompt_mode_enhanced_adds_camera_language_from_the_selected_track():
+    result = EXTERNAL_REFERENCE_VIDEO_PROFILE.compile(_request(prompt_mode="enhanced"))
+    assert result.final_prompt.startswith("A stone tower.")
+    assert "The camera" in result.final_prompt
+
+
+def test_prompt_mode_rejects_an_unknown_value():
+    with pytest.raises(ValueError, match="prompt_mode"):
+        _request(prompt_mode="cinematic")
 
 
 def test_the_registry_actually_reports_external_reference_video_as_requirement_free():

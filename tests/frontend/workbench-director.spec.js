@@ -102,6 +102,13 @@ for (const size of [{ width: 1366, height: 768 }, { width: 980, height: 900 }]) 
       const ui = window.omnicamNodeA.__majoorOmniCam;
       for (let i = 0; i < 4; i += 1) ui.addCamera();
     });
+    // addCamera() defers resizeCanvas()/renderCameraView() to a
+    // requestAnimationFrame (cameras.js refreshCameraPreviews); on a slow or
+    // loaded renderer that frame may not have fired yet by the time this
+    // evaluate's own round trip lands, so the geometry read below can catch a
+    // pre-settle layout. Wait for two frames so it is always measuring the
+    // settled DOM.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 
     const geometry = await page.evaluate(() => {
       const root = document.querySelector(".majoor-omnicam");
@@ -240,4 +247,43 @@ test("opening and closing repeatedly leaves no growth in DOM nodes or WebGL view
   expect(settledCount).toBeLessThanOrEqual(idleCount + 5);
   expect(await page.locator("canvas").count()).toBe(0);
   expect(await page.locator(".oc-workbench-backdrop").count()).toBe(0);
+});
+
+test("a confirm prompt (e.g. deleting a camera) uses OmniCam's own modal instead of ComfyUI's, which would render hidden behind the workbench", async ({page}) => {
+  await mount(page);
+
+  await page.locator("#host-a .oc-node-shell-open").click();
+  await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCamDirectorRuntime?.workbench));
+
+  // ComfyUI's own dialog renders at PrimeVue's z-index (~1100), well below
+  // the workbench backdrop's z-index (100000, web-src/workbench/styles.js)
+  // -- if confirmAction reached it, the confirmation would be invisible.
+  const secondCameraId = await page.evaluate(() => {
+    const ui = window.omnicamNodeA.__majoorOmniCam;
+    window.__omnicamLiveApp.extensionManager.dialog = {
+      confirm: async () => { window.__omnicamDialogConfirmCalled = true; return true; },
+    };
+    const id = ui.addCamera();
+    return typeof id === "string" ? id : ui.state.cameras.at(-1)?.id;
+  });
+
+  await page.evaluate((id) => {
+    window.omnicamNodeA.__majoorOmniCam.deleteCamera(id);
+  }, secondCameraId);
+
+  const modal = page.locator(".oc-modal-backdrop");
+  await expect(modal).toBeVisible();
+  expect(await page.evaluate(() => window.__omnicamDialogConfirmCalled)).toBeUndefined();
+
+  // The modal actually stacks above the workbench (not just present in the
+  // DOM but painted underneath it).
+  const [modalZ, workbenchZ] = await page.evaluate(() => [
+    Number(getComputedStyle(document.querySelector(".oc-modal-backdrop")).zIndex),
+    Number(getComputedStyle(document.querySelector(".oc-workbench-backdrop")).zIndex),
+  ]);
+  expect(modalZ).toBeGreaterThanOrEqual(workbenchZ);
+
+  await modal.getByRole("button", {name: "OK"}).click();
+  await expect(modal).toHaveCount(0);
+  expect(await page.evaluate(() => window.omnicamNodeA.__majoorOmniCam.state.cameras.length)).toBe(1);
 });

@@ -188,6 +188,7 @@ one exception, by design -- see below.
 | `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos` |
 | `h3_scene_coverage` | `prompt_options` | `final_prompt` + `h3edit_options` | `TextEncodeH3Edit.compiled_prompt` / `.options` |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
+| `seedance25_reference` | `reference_video` | `reference_video` + `final_prompt` | `ByteDance2ReferenceNodeV2.reference_videos.video_N` |
 
 `external_reference_video` is the Monitor default and the odd one out: it names
 no upstream node, imposes no frame grid or fps conversion, and never blocks on

@@ -120,11 +120,11 @@ app.registerExtension({
     if (nodeClassOf(node) !== EXTRACTOR_NODE_CLASS) return;
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
-    // The compact shell is the only eagerly-loaded Extractor module: it mounts
-    // a status widget with an "OPEN EXTRACTOR" button and defers the full
-    // panel (web-src/extractor/index.js) to a dynamic import triggered by
-    // that button (migration plan Task 15).
-    await attachWhenLoaded(node, async () => (await import("./extractor/shell.js")).attachExtractorShell);
+    // Extractor mounts its full panel inline, directly as the node's own DOM
+    // widget -- no compact shell, no modal workbench. The dynamic import
+    // still keeps the (larger) panel chunk out of the eager startup bundle;
+    // it now loads as soon as the node is created rather than on a click.
+    await attachWhenLoaded(node, async () => (await import("./extractor/index.js")).attachExtractor);
     if (!node.__majoorOmniCamExtractorRuntime) return;
     applyNodeLayout(node, EXTRACTOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
@@ -136,8 +136,10 @@ app.registerExtension({
     if (nodeClassOf(node) !== MONITOR_NODE_CLASS) return;
     const seedDefaults = !configuringGraph;
     const getRestoredSize = seedDefaults ? null : captureRestoredSize(node);
-    await attachWhenLoaded(node, async () => (await import("./monitor/shell.js")).attachMonitorShell);
-    if (!node.__majoorOmniCamMonitorShell && !node.__majoorOmniCamMonitor) return;
+    // Monitor mounts its full panel inline, directly as the node's own DOM
+    // widget -- no compact shell, no modal workbench.
+    await attachWhenLoaded(node, async () => (await import("./monitor/index.js")).attachMonitor);
+    if (!node.__majoorOmniCamMonitor) return;
     applyNodeLayout(node, MONITOR_NODE_CLASS, seedDefaults, getRestoredSize?.());
   },
 });

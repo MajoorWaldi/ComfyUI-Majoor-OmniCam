@@ -11,7 +11,8 @@ from ..core.motion_sampling import last_frame_time_seconds
 from ..core.motion_scene import MotionScene
 
 if TYPE_CHECKING:
-    from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
+    from ..guides.prompt_ir import PromptCompileIR
+    from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline
 
 
 MOTION_SEMANTICS = frozenset({"camera_embedding", "reference_video", "screen_tracks", "prompt_options"})
@@ -25,8 +26,23 @@ FRAME_POLICIES = frozenset(
         "api_duration_seconds",
         "8n_plus_1",
         "h3_scene_coverage_profiles",
+        "seedance25_duration_seconds",
     }
 )
+
+#: The Guide Capture Style vocabulary, in the order a Combo widget should list
+#: it (doc section 4.2). "auto" means "resolve it" and is never itself a
+#: captured or compiled value.
+GUIDE_STYLE_OPTIONS = (
+    "auto", "motion_proxy", "clay", "depth_rich", "beauty_reference", "passthrough", "diagnostic",
+)
+GUIDE_STYLES = frozenset(GUIDE_STYLE_OPTIONS)
+
+#: ``external_reference_video``'s prompt widget (doc's "we don't know the
+#: destination" reasoning): passthrough is the only default that can never
+#: surprise an unknown downstream, so it stays first/default in the vocabulary.
+PROMPT_MODE_OPTIONS = ("passthrough", "enhanced")
+PROMPT_MODES = frozenset(PROMPT_MODE_OPTIONS)
 
 _PROFILE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
@@ -40,6 +56,12 @@ def validate_profile_id(value: Any) -> str:
 def validate_semantic(value: Any) -> str:
     if value not in MOTION_SEMANTICS:
         raise ValueError(f"semantic must be one of {sorted(MOTION_SEMANTICS)}")
+    return str(value)
+
+
+def validate_guide_style(value: Any) -> str:
+    if value not in GUIDE_STYLES:
+        raise ValueError(f"guide_style must be one of {sorted(GUIDE_STYLES)}")
     return str(value)
 
 
@@ -78,12 +100,27 @@ class CompileRequest:
     target_height: int
     duration_seconds: float
     target_fps: float
+    guide_reference_index: int | None = None
+    guide_style: str | None = None
+    #: Raw JSON text from the Monitor's Reference Role Matrix editor (doc
+    #: section 13). Parsed lazily by each profile via
+    #: ``guides.model.parse_reference_plan`` -- kept as a string here, not a
+    #: parsed value, so an in-progress edit never fails CompileRequest
+    #: construction itself; a malformed plan surfaces as a preflight Check.
+    reference_plan_json: str = ""
+    #: Only ``external_reference_video`` reads this. Every named profile keeps
+    #: rendering its own dialect regardless of what this says -- it exists
+    #: solely so the one profile with no upstream contract to enforce can be
+    #: opted into a light prose enhancement instead of its passthrough default.
+    prompt_mode: str = "passthrough"
 
     def __post_init__(self) -> None:
         if not isinstance(self.motion_scene, MotionScene):
             raise TypeError("motion_scene must be a MotionScene")
         if not isinstance(self.base_prompt, str):
             raise TypeError("base_prompt must be a string")
+        if not isinstance(self.reference_plan_json, str):
+            raise TypeError("reference_plan_json must be a string")
         _positive_int(self.target_width, "target_width")
         _positive_int(self.target_height, "target_height")
         object.__setattr__(
@@ -92,6 +129,12 @@ class CompileRequest:
             _positive_finite(self.duration_seconds, "duration_seconds"),
         )
         object.__setattr__(self, "target_fps", _positive_finite(self.target_fps, "target_fps"))
+        if self.guide_reference_index is not None:
+            _positive_int(self.guide_reference_index, "guide_reference_index")
+        if self.guide_style is not None:
+            validate_guide_style(self.guide_style)
+        if self.prompt_mode not in PROMPT_MODES:
+            raise ValueError(f"prompt_mode must be one of {sorted(PROMPT_MODES)}")
 
     @property
     def source_frame_count(self) -> int:
@@ -126,6 +169,8 @@ class MotionProfile(Protocol):
     def resolve_timeline(self, request: CompileRequest) -> ResolvedTimeline: ...
 
     def preflight(self, request: CompileRequest) -> list[Check]: ...
+
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation: ...
 
     def compile(self, request: CompileRequest) -> CompiledMotion: ...
 

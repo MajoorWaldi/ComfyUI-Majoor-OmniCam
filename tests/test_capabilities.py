@@ -160,7 +160,7 @@ def test_adapter_contract_matrix_pins_upstream_and_input_fingerprints():
     assert set(ADAPTER_INFO) == {
         "wan_camera_native", "wan_move_native", "wan_track_native", "h3_api",
         "h3_native", "h3_scene_coverage", "ltx25_motion_track", "wanvideo_ati",
-        "external_reference_video",
+        "external_reference_video", "seedance25_reference",
     }
     for adapter, info in ADAPTER_INFO.items():
         if not info["requirements"]:

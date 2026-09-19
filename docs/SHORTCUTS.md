@@ -4,10 +4,11 @@
 
 # OmniCam keyboard shortcuts and controls
 
-Director and Extractor nodes show a compact status card with an **OPEN
-DIRECTOR** / **OPEN EXTRACTOR** button; every shortcut below only exists once
-that editor is open, since the closed node has no editor DOM to claim keys
-from. Only one Director or Extractor editor is ever open at once.
+The Director node shows a compact status card with an **OPEN DIRECTOR**
+button; every shortcut below only exists once that editor is open, since the
+closed node has no editor DOM to claim keys from. Only one Director editor is
+ever open at once. Extractor and Monitor mount their full panel inline on the
+node itself instead, with no open step.
 
 Shortcuts are live only while the OmniCam viewport or timeline has focus. They
 never capture the keyboard while you are typing into a field, and OmniCam

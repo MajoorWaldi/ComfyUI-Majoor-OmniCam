@@ -72,6 +72,20 @@ def test_prompt_is_complete_h3_document_and_artist_prompt_occurs_once():
     assert prompt.count("A frozen product on a laboratory table.") == 1
 
 
+def test_prompt_never_asserts_silence_over_artist_audio_direction():
+    """Regression: a hardcoded 'Silence.' contradicted audio direction the
+    artist wrote into base_prompt, which the same detailed_description section
+    folds in as "Additional art direction"."""
+    track = orbit_track(degrees=90.0, frames=124)
+    prompt = build_h3_scene_coverage_prompt(
+        track, analyze_h3_geometry(track), target_frames=124,
+        base_prompt="Thunder rolls in the distance as footsteps echo.",
+    )
+    assert "Silence." not in prompt
+    assert "Thunder rolls in the distance as footsteps echo." in prompt
+    assert "overall_soundscape:\nFollow any audio direction given in the main prompt" in prompt
+
+
 def test_prompt_contains_checkable_camera_contracts():
     track = orbit_track(degrees=180.0, frames=124)
     prompt = build_h3_scene_coverage_prompt(track, analyze_h3_geometry(track), target_frames=124)
