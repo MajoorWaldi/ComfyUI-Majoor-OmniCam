@@ -12,7 +12,7 @@ from omnicam.profiles.seedance25 import SEEDANCE25_REFERENCE_PROFILE
 from omnicam.profiles.shots import MULTI_SHOT_PROMPT
 
 
-def _scene(*, camera_enabled: bool = True, duration_seconds: float = 4.0) -> MotionScene:
+def _scene(*, camera_enabled: bool = True, duration_seconds: float = 4.0, metadata: dict | None = None) -> MotionScene:
     frames = round(duration_seconds * 24.0)
     return MotionScene.from_dict(
         {
@@ -59,7 +59,7 @@ def _scene(*, camera_enabled: bool = True, duration_seconds: float = 4.0) -> Mot
             "objects": [],
             "motion_layers": [],
             "cuts": [],
-            "metadata": {},
+            "metadata": metadata or {},
         }
     )
 
@@ -82,9 +82,11 @@ class MockVideo:
 
 
 def _request(*, with_video: bool = True, video=None, duration_seconds: float = 4.0,
-             guide_reference_index: int | None = None) -> CompileRequest:
+             guide_reference_index: int | None = None, guide_style: str | None = None,
+             captured_guide_style: str | None = None) -> CompileRequest:
+    metadata = {"playblast": {"guide_style": captured_guide_style}} if captured_guide_style else None
     return CompileRequest(
-        motion_scene=_scene(duration_seconds=duration_seconds),
+        motion_scene=_scene(duration_seconds=duration_seconds, metadata=metadata),
         playblast_video=video if video is not None else (MockVideo(duration_seconds) if with_video else None),
         base_prompt="A stone tower at blue hour.",
         target_width=832,
@@ -92,6 +94,7 @@ def _request(*, with_video: bool = True, video=None, duration_seconds: float = 4
         duration_seconds=duration_seconds,
         target_fps=24.0,
         guide_reference_index=guide_reference_index,
+        guide_style=guide_style,
     )
 
 
@@ -286,3 +289,61 @@ def test_capability_detection_reaches_the_nested_dynamiccombo_sockets():
     capabilities = detect_capabilities(node_classes={"ByteDance2ReferenceNodeV2": _FakeByteDanceNode})
     entry = next(c for c in capabilities["capabilities"] if c["adapter"] == "seedance25_reference")
     assert entry["state"] == "verified"
+
+
+# ---------------------------------------------------------------------------
+# P1: guide_style resolution from what the Director actually captured
+# ---------------------------------------------------------------------------
+
+def test_prompt_resolves_motion_proxy_when_nothing_was_captured():
+    request = _request()
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(request)
+    assert "Use Video 1 as the camera-motion reference." in result.final_prompt
+
+
+def test_prompt_resolves_clay_from_a_captured_clay_playblast():
+    request = _request(captured_guide_style="clay")
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(request)
+    assert "Use Video 1 as the clay / white-model spatial reference." in result.final_prompt
+
+
+def test_prompt_resolves_motion_proxy_from_a_captured_motion_proxy_playblast():
+    request = _request(captured_guide_style="motion_proxy")
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(request)
+    assert "Use Video 1 as the camera-motion reference." in result.final_prompt
+
+
+def test_explicit_guide_style_bypasses_the_captured_resolver():
+    # Captured clay, but the Monitor widget forces motion_proxy -- the forced
+    # value wins, the resolver from _resolve_shot_intent never runs.
+    request = _request(captured_guide_style="clay", guide_style="motion_proxy")
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(request)
+    assert "Use Video 1 as the camera-motion reference." in result.final_prompt
+
+
+def test_explicit_guide_style_auto_still_resolves_from_captured():
+    request = _request(captured_guide_style="clay", guide_style="auto")
+    result = SEEDANCE25_REFERENCE_PROFILE.compile(request)
+    assert "Use Video 1 as the clay / white-model spatial reference." in result.final_prompt
+
+
+# ---------------------------------------------------------------------------
+# P1: guide_style_mismatch preflight check
+# ---------------------------------------------------------------------------
+
+def test_no_mismatch_check_when_nothing_was_captured():
+    checks = SEEDANCE25_REFERENCE_PROFILE.preflight(_request())
+    assert not [c for c in checks if c.id == "guide_style_mismatch"]
+
+
+def test_mismatch_check_warns_when_forced_style_disagrees_with_captured():
+    request = _request(captured_guide_style="clay", guide_style="motion_proxy")
+    check = _check(SEEDANCE25_REFERENCE_PROFILE.preflight(request), "guide_style_mismatch")
+    assert check.state == "WARNING"
+    assert "clay" in check.message and "motion_proxy" in check.message
+
+
+def test_no_mismatch_check_when_captured_matches_resolved():
+    request = _request(captured_guide_style="clay")
+    checks = SEEDANCE25_REFERENCE_PROFILE.preflight(request)
+    assert not [c for c in checks if c.id == "guide_style_mismatch"]

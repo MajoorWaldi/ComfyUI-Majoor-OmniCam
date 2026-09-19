@@ -439,7 +439,7 @@ export function defaultState() {
       { id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" },
       { id: "sun_light", type: "sun_light", name: "Sun light", position: [5.0, 8.5, 4.0], rotation: [-55, 35, 0], size: [1, 1, 1], color: "#fff6ec", intensity: 2.2, cast_shadow: true, keyframes: [], enabled: true },
     ],
-    metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_labels: false, playblast_resolution: "output", playblast_quality: "balanced", card_fit: "contain", card_asset: "", reference_index: 0,
+    metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_labels: false, playblast_resolution: "output", playblast_quality: "balanced", guide_capture_style: "auto", card_fit: "contain", card_asset: "", reference_index: 0,
     // Interactive inspection defaults to the recovered source texture (the plan's
     // "interactive layout inspection may use Source Texture"); omni_ref conditioning
     // playblasts force Neutral regardless of this value (see viewport/resources.js's

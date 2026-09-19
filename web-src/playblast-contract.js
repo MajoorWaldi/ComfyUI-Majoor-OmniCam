@@ -33,6 +33,11 @@ export function playblastManifest(ui, blob) {
     // as it stands right now -- recording holds the panel locked, so this is
     // the state that produced the pixels above.
     motion_scene_fingerprint: motionFingerprint(ui.state),
+    // The material/lighting recipe these pixels were actually recorded with
+    // (Guide Capture Style, decoupled from Viewport Shading / render_mode).
+    // "auto" is stored as-is: Monitor is the one place "auto" resolution is
+    // actually specified (the compiled prompt's semantics), not the Director.
+    guide_style: ui.state.guide_capture_style || "auto",
   };
 }
 

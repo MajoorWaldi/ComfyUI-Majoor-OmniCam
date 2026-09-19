@@ -218,6 +218,11 @@ export function toolbarMarkup() {
         <button class="icon-button oc-strip-toggle" data-act="toggle-camera-view" title="${t("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
         <button class="icon-button oc-drawer-toggle" data-act="toggle-inspector-panel" title="${t("Inspector")}" aria-pressed="false"><i class="pi pi-sliders-h"></i></button>
       </div>
+      <select class="oc-guide-capture-style" data-role="guide-capture-style" title="${t("Guide Capture Style: the material/lighting recipe recorded into the playblast, independent of Proxy mode")}">
+        <option value="auto">${t("Guide: Auto")}</option>
+        <option value="motion_proxy">${t("Guide: Motion Proxy")}</option>
+        <option value="clay">${t("Guide: Clay")}</option>
+      </select>
       <button class="oc-playblast" data-act="record" title="${t("Record proxy playblast")}"><span class="oc-playblast-dot"></span>${t("Playblast")}</button>
     </div>`;
 }

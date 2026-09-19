@@ -22,16 +22,37 @@ from ..core.video_sampling import inspect_video
 from ..guides.model import ShotIntent
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
-from .playblast_freshness import stale_playblast_check
+from .playblast_freshness import captured_guide_style, guide_style_mismatch_check, stale_playblast_check
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
 
 DISPLAY_NAME = "ByteDance Seedance 2.5 Reference"
 
-#: P0 has no Monitor widget to author a different shot intent -- that is P1's
-#: Reference Role Matrix. Until then every compile means "camera only".
-_CAMERA_ONLY_INTENT = ShotIntent(
-    preserve=("camera_motion", "camera_framing", "camera_pacing"),
-)
+
+def _resolve_shot_intent(request: CompileRequest) -> ShotIntent:
+    """What the shot means to preserve, from what the Director actually captured.
+
+    No Reference Role Matrix yet (P2) -- the Guide Capture Style the artist
+    recorded with is itself the best available signal of intent.
+    """
+    captured = captured_guide_style(request.motion_scene)
+    if captured == "clay":
+        return ShotIntent(
+            preserve=("camera_motion", "camera_framing", "camera_pacing", "spatial_layout", "blocking"),
+        )
+    if captured == "beauty_reference":
+        return ShotIntent(
+            preserve=("camera_motion", "camera_framing", "camera_pacing", "final_appearance"),
+        )
+    # motion_proxy, passthrough, diagnostic, depth_rich, or nothing captured yet.
+    return ShotIntent(preserve=("camera_motion", "camera_framing", "camera_pacing"))
+
+
+def _resolve_guide_style(request: CompileRequest) -> str:
+    """The Monitor-forced value, or the one resolved from what was captured."""
+    requested = request.guide_style or "auto"
+    if requested != "auto":
+        return requested
+    return resolve_seedance25_guide_style(_resolve_shot_intent(request))
 
 
 def _playblast_camera(scene: MotionScene) -> CameraSceneItem | None:
@@ -137,9 +158,8 @@ def _seedance25_prompt(request: CompileRequest, camera, *, reference_index: int)
     if request.motion_scene.is_multi_shot:
         fragment = MULTI_SHOT_PROMPT
     else:
-        guide_style = resolve_seedance25_guide_style(_CAMERA_ONLY_INTENT)
         fragment = build_seedance25_prompt(
-            camera.track, reference_index=reference_index, guide_style=guide_style,
+            camera.track, reference_index=reference_index, guide_style=_resolve_guide_style(request),
         )
     return f"{request.base_prompt}\n\n{fragment}".strip()
 
@@ -193,6 +213,9 @@ class Seedance25ReferenceProfile:
         freshness = stale_playblast_check(
             request.motion_scene, display_name=DISPLAY_NAME, block=True
         )
+        mismatch = guide_style_mismatch_check(
+            request.motion_scene, expected=_resolve_guide_style(request), display_name=DISPLAY_NAME, block=False,
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -217,6 +240,7 @@ class Seedance25ReferenceProfile:
             ),
             _task_type_check(),
             *([freshness] if freshness else []),
+            *([mismatch] if mismatch else []),
             multi_shot_check(request.motion_scene, display_name=DISPLAY_NAME, can_represent=True),
             _camera_motion_mapping_check(),
         ]

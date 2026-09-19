@@ -346,6 +346,27 @@ def test_h3_does_not_flag_a_fresh_playblast(profile):
     assert not [c for c in profile.preflight(request) if c.id == "playblast_freshness"]
 
 
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_warns_when_the_captured_guide_style_is_not_motion_proxy(profile):
+    """H3 always expects motion_proxy (doc 12.1) -- a clay-captured guide gets
+    a non-blocking heads-up, not a hard stop."""
+    payload = _scene().to_dict()
+    payload["metadata"] = {"playblast": {"guide_style": "clay"}}
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    check = _check(profile.preflight(request), "guide_style_mismatch")
+    assert check.state == "WARNING"
+
+
+@pytest.mark.parametrize("profile", [H3_NATIVE_PROFILE, H3_API_PROFILE])
+def test_h3_does_not_flag_a_motion_proxy_capture(profile):
+    payload = _scene().to_dict()
+    payload["metadata"] = {"playblast": {"guide_style": "motion_proxy"}}
+    request = _request()
+    object.__setattr__(request, "motion_scene", MotionScene.from_dict(payload))
+    assert not [c for c in profile.preflight(request) if c.id == "guide_style_mismatch"]
+
+
 # ---------------------------------------------------------------------------
 # h3_scene_coverage: prompt/options compilation without a playblast
 # ---------------------------------------------------------------------------

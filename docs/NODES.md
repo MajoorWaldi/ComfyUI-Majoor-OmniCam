@@ -755,6 +755,7 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `target_width`, `target_height` | `832`, `480` | target frame size |
 | `duration_seconds`, `target_fps` | `0` (auto), `0` (auto) | length and frame rate of the shot being compiled; `0` inherits `timeline.duration_seconds` / `timeline.authoring_fps` from the connected MotionScene (the Director's authored shot) |
 | `guide_reference_index` | `1` | which `<Video N>` / `Video N` slot the OmniCam guide occupies on the target model; H3 accepts 1-3, Seedance 2.5 accepts 1-10, out of range is reported at preflight |
+| `guide_style` | `auto` | forces the compiled prompt's guide semantics (`auto`, `motion_proxy`, `clay`, `depth_rich`, `beauty_reference`, `passthrough`, `diagnostic`); `auto` resolves it from the Guide Capture Style the Director actually recorded with (`metadata.playblast.guide_style`), reported as a non-blocking `guide_style_mismatch` check when it disagrees |
 
 **Outputs**, in schema order: `final_prompt`, `reference_video`,
 `reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,

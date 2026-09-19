@@ -10,7 +10,7 @@ from ..core.validation import ValidationError
 from ..monitor.events import MONITOR_PREFLIGHT_EVENT, monitor_preflight_event_payload
 from ..monitor.execution_ui import execution_ui_payload
 from ..monitor.result import panel_payload, raise_on_blocked
-from ..profiles.base import CompileRequest
+from ..profiles.base import GUIDE_STYLE_OPTIONS, CompileRequest
 from ..profiles.capability_gate import capability_check
 from ..profiles.catalog import PROFILE_REGISTRY
 from .base import OMNICAM_MOTION_SCENE
@@ -81,6 +81,12 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
                             "MiniMax H3 accepts 1-3, Seedance 2.5 accepts 1-10. An out-of-range value is "
                             "reported at preflight rather than silently clamped.",
                 ),
+                IO.Combo.Input(
+                    "guide_style", options=list(GUIDE_STYLE_OPTIONS), default="auto", advanced=True,
+                    tooltip="Which capture-recipe semantics the compiled prompt should assume for the "
+                            "connected guide. 'auto' resolves it from what the Director actually recorded "
+                            "(see the playblast's guide_style); forcing a value here overrides that.",
+                ),
             ],
             hidden=[IO.Hidden.unique_id],
             outputs=[
@@ -103,7 +109,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
         cls, motion_scene: dict[str, Any], playblast_video=None, base_prompt: str = "",
         target_profile: str = "", target_width: int = 832, target_height: int = 480,
         duration_seconds: float = 0.0, target_fps: float = 0.0,
-        guide_reference_index: int = 1,
+        guide_reference_index: int = 1, guide_style: str = "auto",
     ) -> IO.NodeOutput:
         try:
             scene = MotionScene.from_dict(motion_scene)
@@ -134,6 +140,7 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             duration_seconds=duration_seconds,
             target_fps=target_fps,
             guide_reference_index=guide_reference_index or None,
+            guide_style=guide_style or None,
         )
         # Detected before compiling: a downstream that cannot receive this output
         # is a preflight failure the panel has to show, not a surprise at queue

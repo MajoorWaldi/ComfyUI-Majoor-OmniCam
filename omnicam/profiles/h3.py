@@ -15,8 +15,13 @@ from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.video_sampling import inspect_video, resample_video_frames, resampling_indices
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
-from .playblast_freshness import stale_playblast_check
+from .playblast_freshness import guide_style_mismatch_check, stale_playblast_check
 from .shots import MULTI_SHOT_PROMPT, multi_shot_check
+
+#: H3's guide_style default (doc section 12.1's profile-driven defaults table).
+#: H3 has no role-matrix concept, so this is a fixed expectation, never resolved
+#: from intent the way Seedance's is.
+H3_DEFAULT_GUIDE_STYLE = "motion_proxy"
 
 
 def _playblast_camera(scene: MotionScene) -> CameraSceneItem | None:
@@ -195,6 +200,9 @@ class H3NativeProfile:
         freshness = stale_playblast_check(
             request.motion_scene, display_name="MiniMax H3 Native", block=True
         )
+        mismatch = guide_style_mismatch_check(
+            request.motion_scene, expected=H3_DEFAULT_GUIDE_STYLE, display_name="MiniMax H3 Native", block=False,
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -217,6 +225,7 @@ class H3NativeProfile:
             *_reference_media_checks(request, H3_NATIVE_MEDIA_LIMITS),
             *_reference_frame_count_check(request, timeline.frame_count),
             *([freshness] if freshness else []),
+            *([mismatch] if mismatch else []),
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 Native",
@@ -309,6 +318,9 @@ class H3ApiProfile:
         freshness = stale_playblast_check(
             request.motion_scene, display_name="MiniMax H3 API", block=True
         )
+        mismatch = guide_style_mismatch_check(
+            request.motion_scene, expected=H3_DEFAULT_GUIDE_STYLE, display_name="MiniMax H3 API", block=False,
+        )
         return [
             Check(
                 id="playblast_camera",
@@ -331,6 +343,7 @@ class H3ApiProfile:
             _reference_index_check(_resolve_reference_index(request)),
             *_reference_media_checks(request, H3_API_MEDIA_LIMITS),
             *([freshness] if freshness else []),
+            *([mismatch] if mismatch else []),
             multi_shot_check(
                 request.motion_scene,
                 display_name="MiniMax H3 API",

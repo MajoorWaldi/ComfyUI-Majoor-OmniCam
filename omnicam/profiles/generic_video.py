@@ -27,8 +27,12 @@ from __future__ import annotations
 
 from ..monitor.result import Check, CompiledMotion, ResolvedTimeline
 from .base import CompileRequest
-from .playblast_freshness import stale_playblast_check
+from .playblast_freshness import guide_style_mismatch_check, stale_playblast_check
 from .shots import multi_shot_check
+
+#: doc section 12.1's profile-driven defaults table: external destinations
+#: default to a straight passthrough of whatever was recorded.
+EXTERNAL_DEFAULT_GUIDE_STYLE = "passthrough"
 
 
 class ExternalReferenceVideoProfile:
@@ -56,6 +60,9 @@ class ExternalReferenceVideoProfile:
         freshness = stale_playblast_check(
             request.motion_scene, display_name=self.display_name, block=False
         )
+        mismatch = guide_style_mismatch_check(
+            request.motion_scene, expected=EXTERNAL_DEFAULT_GUIDE_STYLE, display_name=self.display_name, block=False,
+        )
         return [
             Check(
                 id="playblast_video",
@@ -67,6 +74,7 @@ class ExternalReferenceVideoProfile:
                 ),
             ),
             *([freshness] if freshness else []),
+            *([mismatch] if mismatch else []),
             # No "downstream_contract" check here: this profile has no
             # ADAPTER_INFO requirements, and capability_gate.capability_check
             # already reports that case as "user managed" rather than

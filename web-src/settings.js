@@ -18,6 +18,7 @@ import {
   SETTING_CAMERA_VIEW_VISIBLE, SETTING_CARD_FIT, SETTING_DEFAULT_INTERP, SETTING_DOLLY_SENSITIVITY,
   SETTING_DURATION, SETTING_ENABLE_SHORTCUTS, SETTING_ENCODER, SETTING_EXTRACTOR_BACKEND,
   SETTING_FLY_SPEED, SETTING_FPS, SETTING_GIZMO_MODE, SETTING_GIZMO_SPACE, SETTING_GUIDES,
+  SETTING_GUIDE_CAPTURE_STYLE,
   SETTING_HEIGHT, SETTING_INVERT_ORBIT_Y, SETTING_LOCALE, SETTING_LOOP_PLAYBACK,
   SETTING_MONITOR_PROFILE, SETTING_NAVIGATION_PROFILE, SETTING_ORBIT_SENSITIVITY,
   SETTING_PAN_SENSITIVITY, SETTING_PLAYBLAST_GRID, SETTING_PLAYBLAST_LABELS, SETTING_PLAYBLAST_QUALITY,
@@ -243,6 +244,7 @@ export function directorDefaults() {
     playblastQuality: choiceSetting(SETTING_PLAYBLAST_QUALITY, "balanced", ["low", "balanced", "high"]),
     playblastGrid: booleanSetting(SETTING_PLAYBLAST_GRID, false),
     playblastLabels: booleanSetting(SETTING_PLAYBLAST_LABELS, false),
+    guideCaptureStyle: choiceSetting(SETTING_GUIDE_CAPTURE_STYLE, "auto", ["auto", "motion_proxy", "clay"]),
 
     pointDensity: choiceSetting(SETTING_POINT_DENSITY, "balanced", ["none", "sparse", "balanced", "dense", "ultra"]),
     pointSpread: choiceSetting(SETTING_POINT_SPREAD, "all_views", ["all_views", "ground_focus", "dome"]),
@@ -375,6 +377,7 @@ export function seedDirectorDefaults(ui) {
     playblast_quality: defaults.playblastQuality,
     playblast_grid: defaults.playblastGrid,
     playblast_labels: defaults.playblastLabels,
+    guide_capture_style: defaults.guideCaptureStyle,
 
     point_density: defaults.pointDensity,
     point_spread: defaults.pointSpread,

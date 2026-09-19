@@ -29,6 +29,7 @@ export const SETTING_PLAYBLAST_RESOLUTION = "MajoorOmniCam.Defaults.PlayblastRes
 export const SETTING_PLAYBLAST_QUALITY = "MajoorOmniCam.Playblast.Quality";
 export const SETTING_PLAYBLAST_GRID = "MajoorOmniCam.Defaults.PlayblastGrid";
 export const SETTING_PLAYBLAST_LABELS = "MajoorOmniCam.Defaults.PlayblastLabels";
+export const SETTING_GUIDE_CAPTURE_STYLE = "MajoorOmniCam.Defaults.GuideCaptureStyle";
 
 // Proxy look
 export const SETTING_POINT_DENSITY = "MajoorOmniCam.Proxy.PointDensity";
@@ -236,6 +237,13 @@ export function buildOmniCamSettings({
       "Records the floor grid into the playblast instead of hiding it for the capture.", false),
     toggle(SETTING_PLAYBLAST_LABELS, "Defaults", "Burn labels / annotations into the playblast",
       "Paints the viewport Labels overlay onto the recorded frames (they are hidden by default for a clean capture).", false),
+    choice(SETTING_GUIDE_CAPTURE_STYLE, "Defaults", "Default guide capture style",
+      "Material/lighting recipe applied only while recording a playblast -- independent of Viewport Shading. "
+      + "'Auto' records the current shading as-is.", [
+        { text: "Auto", value: "auto" },
+        { text: "Motion Proxy", value: "motion_proxy" },
+        { text: "Clay / White Model", value: "clay" },
+      ], "auto"),
 
     choice(SETTING_POINT_DENSITY, "Proxy", "Default point density",
       "Point count of the omni-reference point field.",

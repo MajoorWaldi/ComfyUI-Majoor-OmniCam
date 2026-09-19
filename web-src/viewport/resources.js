@@ -55,7 +55,7 @@ export function createResourceMethods(dependencies) {
     this.invalidate();
   },
 
-  rebuild(state, mediaById, modelUrlsById, cleanCapture = false) {
+  rebuild(state, mediaById, modelUrlsById, cleanCapture = false, captureStyle = "auto") {
     this.content.traverse((parent) => {
       for (const child of [...parent.children]) {
         if (!child.userData.omnicamHelper) continue;
@@ -67,6 +67,25 @@ export function createResourceMethods(dependencies) {
     this.objectNodes.clear();
     this.selectionKey = "";
     const mode = state.render_mode;
+    // Guide Capture Style is orthogonal to Viewport Shading (state.render_mode):
+    // it overrides *material* only, only during an actual recording pass, and
+    // never mutates state.render_mode or any object's material_mode.
+    //
+    // objectMaterial(object, mode, ...) only reads `mode` to detect the global
+    // "wireframe" Viewport Shading override -- every other look comes from
+    // object.material_mode, which a capture override must not touch. So a
+    // capture-active primitive gets a dedicated neutral material built here
+    // instead of going through objectMaterial at all.
+    const captureOverrideActive = cleanCapture && (captureStyle === "clay" || captureStyle === "motion_proxy");
+    const captureOverrideMaterial = (object, backfaceCulling) => {
+      const mat = neutral.clone();
+      mat.side = backfaceCulling ? THREE.FrontSide : THREE.DoubleSide;
+      if (object.color) mat.color = new THREE.Color(object.color);
+      return mat;
+    };
+    const primitiveMaterial = (object) => captureOverrideActive
+      ? captureOverrideMaterial(object, Boolean(state.backface_culling))
+      : objectMaterial(object, mode, Boolean(state.backface_culling));
     // Dual-tier 3D grid: major 5-unit grid + fine 1-unit subdivisions + ground axes
     const gridGroup = new THREE.Group();
     gridGroup.userData.omnicamCaptureGuide = true;
@@ -121,20 +140,25 @@ export function createResourceMethods(dependencies) {
         const format = object.format || (object.type === "glb" ? "glb" : "");
         if (url && (model?.url !== url || model?.format !== format)) this.loadModel(object.id, url, format);
         const cull = Boolean(state.backface_culling);
-        const effectiveAppearance = reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
+        // Clay demands *all* scene geometry neutralized, not only reconstructed
+        // objects -- a straight matte/textured GLB must go neutral too. motion_proxy
+        // is not this strict (doc 5.1 vs 5.2): it leaves GLB handling as today.
+        const effectiveAppearance = cleanCapture && captureStyle === "clay"
+          ? "neutral"
+          : reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
         if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object, cull); }
       } else if (object.type === "sphere") {
-        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), objectMaterial(object, mode, Boolean(state.backface_culling)));
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), primitiveMaterial(object));
       } else if (object.type === "cylinder") {
-        mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), objectMaterial(object, mode, Boolean(state.backface_culling)));
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 24), primitiveMaterial(object));
       } else if (object.type === "torus") {
         const torusGeom = new THREE.TorusGeometry(0.5, 0.2, 16, 32);
         torusGeom.rotateX(Math.PI / 2);
-        mesh = new THREE.Mesh(torusGeom, objectMaterial(object, mode, Boolean(state.backface_culling)));
+        mesh = new THREE.Mesh(torusGeom, primitiveMaterial(object));
       } else if (object.type === "pyramid") {
         const pyrGeom = new THREE.ConeGeometry(0.7, 1, 4);
         pyrGeom.rotateY(Math.PI / 4);
-        mesh = new THREE.Mesh(pyrGeom, objectMaterial(object, mode, Boolean(state.backface_culling)));
+        mesh = new THREE.Mesh(pyrGeom, primitiveMaterial(object));
       } else if (object.type === "sun_light") {
         const lightGroup = new THREE.Group();
         const dirLight = new THREE.DirectionalLight(object.color || 0xfff6ec, object.intensity ?? 2.2);
@@ -191,15 +215,15 @@ export function createResourceMethods(dependencies) {
         lightGroup.add(spotHelper);
         mesh = lightGroup;
       } else if (object.type === "human") {
-        mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), objectMaterial(object, mode, Boolean(state.backface_culling)));
-      } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode, Boolean(state.backface_culling)));
+        mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), primitiveMaterial(object));
+      } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), primitiveMaterial(object));
       else if (object.type === "card") {
         const isCardTextured = !object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode);
-        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), objectMaterial(object, mode, Boolean(state.backface_culling))) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), primitiveMaterial(object)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
       } else if (object.type === "null") {
         const axes = new THREE.AxesHelper(0.5); axes.position.fromArray(object.position || [0, 0, 0]); axes.userData.omnicamId = object.id; axes.frustumCulled = false; this.objectNodes.set(object.id, axes); this.content.add(axes); continue;
       } else {
-        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), objectMaterial(object, mode, Boolean(state.backface_culling)));
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), primitiveMaterial(object));
       }
       if (!mesh) continue;
       mesh.position.fromArray(object.position || [0, 0, 0]);

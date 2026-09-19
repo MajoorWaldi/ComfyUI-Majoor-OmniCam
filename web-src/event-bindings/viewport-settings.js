@@ -45,6 +45,16 @@ export function bindViewportSettings(ui, q, signal) {
       ui.render();
     }, { signal });
   }
+  for (const el of ui.root.querySelectorAll('[data-role="guide-capture-style"]')) {
+    el.addEventListener("change", (e) => {
+      if (ui.state.guide_capture_style !== e.target.value) ui.checkpoint("Change guide capture style");
+      ui.state.guide_capture_style = e.target.value;
+      for (const o of ui.root.querySelectorAll('[data-role="guide-capture-style"]')) o.value = e.target.value;
+      ui.serialize();
+      // Only the next recording is affected -- the live viewport never
+      // renders with a capture-style override, so no repaint is needed here.
+    }, { signal });
+  }
   for (const el of ui.root.querySelectorAll('[data-role="frame"]')) {
     el.addEventListener("change", (e) => ui.setFrame(Number(e.target.value)), { signal });
   }

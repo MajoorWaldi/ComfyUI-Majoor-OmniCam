@@ -29,6 +29,14 @@ FRAME_POLICIES = frozenset(
     }
 )
 
+#: The Guide Capture Style vocabulary, in the order a Combo widget should list
+#: it (doc section 4.2). "auto" means "resolve it" and is never itself a
+#: captured or compiled value.
+GUIDE_STYLE_OPTIONS = (
+    "auto", "motion_proxy", "clay", "depth_rich", "beauty_reference", "passthrough", "diagnostic",
+)
+GUIDE_STYLES = frozenset(GUIDE_STYLE_OPTIONS)
+
 _PROFILE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -41,6 +49,12 @@ def validate_profile_id(value: Any) -> str:
 def validate_semantic(value: Any) -> str:
     if value not in MOTION_SEMANTICS:
         raise ValueError(f"semantic must be one of {sorted(MOTION_SEMANTICS)}")
+    return str(value)
+
+
+def validate_guide_style(value: Any) -> str:
+    if value not in GUIDE_STYLES:
+        raise ValueError(f"guide_style must be one of {sorted(GUIDE_STYLES)}")
     return str(value)
 
 
@@ -80,6 +94,7 @@ class CompileRequest:
     duration_seconds: float
     target_fps: float
     guide_reference_index: int | None = None
+    guide_style: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.motion_scene, MotionScene):
@@ -96,6 +111,8 @@ class CompileRequest:
         object.__setattr__(self, "target_fps", _positive_finite(self.target_fps, "target_fps"))
         if self.guide_reference_index is not None:
             _positive_int(self.guide_reference_index, "guide_reference_index")
+        if self.guide_style is not None:
+            validate_guide_style(self.guide_style)
 
     @property
     def source_frame_count(self) -> int:
