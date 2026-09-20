@@ -1,3 +1,9 @@
+// The OmniCam Monitor node's UI. Mounted inline as the node's own DOM widget
+// by attachMonitor() (called from web-src/main.js's nodeCreated) -- there is
+// no compact shell and no modal workbench for Monitor; the full panel is
+// always on the canvas for the node's whole lifetime, disposed only when the
+// node itself is removed.
+
 import { t } from "../i18n.js";
 import { drawUpstreamPreview, upstreamPreviewMedia } from "../shared/upstream-preview.js";
 import { api } from "../comfy-runtime.js";
@@ -10,6 +16,7 @@ import { MonitorRefreshController } from "./refresh.js";
 import { MonitorSourceWatcher } from "./source-sync.js";
 import { loadMonitorProfileInfo, renderMonitorProfileInfo } from "./profile-info.js";
 import { bindMonitorPreflightEvents } from "./preflight-events.js";
+import { readReferenceMatrix, referencePlanToSpecs, renderReferenceMatrix } from "./reference-role-matrix.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
 import { EventScope } from "../shared/event-scope.js";
 import { closeHelpPopup } from "../help/schema.js";
@@ -77,6 +84,7 @@ class MonitorUI {
   bindControls() {
     // Wheel over a scrollable panel scrolls it instead of zooming the graph.
     this.events.on(this.root, "wheel", panelWheelKeeper(this.root));
+    this.events.on(this.root.querySelector('[data-act="copy-compiled-prompt"]'), "click", (event) => this.copyCompiledPrompt(event.currentTarget));
     this.events.on(this.root.querySelector('[data-act="proxy-play"]'), "click", () => this.player.toggle());
     this.events.on(this.root.querySelector('[data-role="proxy-scrubber"]'), "input", (event) => this.player.scrub(event.target.value));
     this.events.on(this.root.querySelector('[data-role="proxy-loop"]'), "change", (event) => this.player.setLoop(event.target.checked));
@@ -92,6 +100,43 @@ class MonitorUI {
         this.settingsChanged();
       });
     }
+    this.events.on(this.root.querySelector('[data-act="reference-matrix-add"]'), "click", () => {
+      const specs = readReferenceMatrix(this.root);
+      specs.push({ id: `reference_${specs.length + 1}`, media_type: "image", roles: [] });
+      this.syncReferenceMatrix(specs);
+    });
+    const matrixRows = this.root.querySelector('[data-role="reference-matrix-rows"]');
+    this.events.on(matrixRows, "click", (event) => {
+      const button = event.target.closest('[data-act="reference-row-remove"]');
+      if (!button) return;
+      const row = button.closest('[data-role="reference-row"]');
+      const rows = [...this.root.querySelectorAll('[data-role="reference-row"]')];
+      const index = rows.indexOf(row);
+      const specs = readReferenceMatrix(this.root);
+      if (index >= 0) specs.splice(index, 1);
+      this.syncReferenceMatrix(specs);
+    });
+    // A field edit (id/media_type/slot_hint/roles/ignore) never re-renders the
+    // rows -- only add/remove change row count. Re-rendering mid-edit would
+    // wipe whatever the user is typing or the <select multiple> they're
+    // mid-click on.
+    this.events.on(matrixRows, "change", (event) => {
+      if (!event.target.closest('[data-role="reference-row"]')) return;
+      this.commitReferenceMatrix(readReferenceMatrix(this.root));
+    });
+  }
+
+  /** Repaints the matrix rows from `specs`, then commits. Only for add/remove. */
+  syncReferenceMatrix(specs) {
+    renderReferenceMatrix(this.root, specs);
+    this.commitReferenceMatrix(specs);
+  }
+
+  /** Serializes `specs` into the hidden reference_plan_json widget and
+   * schedules a fresh preflight, without touching the rendered rows. */
+  commitReferenceMatrix(specs) {
+    writeMonitorWidget(this.node, "reference_plan_json", JSON.stringify(specs));
+    this.settingsChanged();
   }
 
   /**
@@ -132,6 +177,7 @@ class MonitorUI {
         control.value = values[name];
       }
     }
+    renderReferenceMatrix(this.root, referencePlanToSpecs(values.reference_plan_json));
     this.reflectInheritedShot();
   }
 
@@ -157,6 +203,27 @@ class MonitorUI {
 
   markOutdated() {
     this.root.querySelector('[data-role="output-status"]').textContent = t("OUTPUT OUTDATED");
+  }
+
+  async copyCompiledPrompt(button) {
+    const prompt = this.root.querySelector('[data-role="compiled-prompt"]');
+    if (!prompt || prompt.dataset.empty === "1") return;
+    try {
+      await navigator.clipboard.writeText(prompt.textContent);
+    } catch {
+      // Clipboard permission can legitimately be denied in an embedded
+      // webview -- a silent no-op is correct here, not a panel error.
+      return;
+    }
+    if (!button) return;
+    const icon = button.querySelector("i");
+    const original = icon ? icon.className : "";
+    button.title = t("Copied");
+    if (icon) icon.className = "pi pi-check";
+    setTimeout(() => {
+      button.title = t("Copy");
+      if (icon) icon.className = original;
+    }, 1200);
   }
 
   sourceChanged(source) {
@@ -285,40 +352,6 @@ class MonitorUI {
     });
   }
 
-  /**
-   * Best-effort downscaled still of whichever preview is currently showing:
-   * the playblast <video> (this.player, MonitorPlayer/ManagedVideoPlayer) or
-   * the `proxy-upstream-preview` canvas fallback -- mirroring the same
-   * `canvas.hidden` check refreshPlayblastPreview() uses to decide which one
-   * is visible. Called by monitor/shell.js only at workbench-close time.
-   * Resolves null when neither has a usable frame yet.
-   */
-  async capturePreviewDataUrl() {
-    const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
-    const media = canvas && !canvas.hidden ? canvas : this.player?.video;
-    if (!media) return null;
-    const offscreen = document.createElement("canvas");
-    const drawn = await drawUpstreamPreview(media, offscreen, 240);
-    return drawn ? offscreen.toDataURL("image/webp", 0.7) : null;
-  }
-
-  /**
-   * The URL of the playblast video currently loaded in `this.player`, but
-   * only when the *video* path is actually what's showing -- same
-   * `canvas.hidden` check refreshPlayblastPreview() uses to decide between
-   * the player and the `proxy-upstream-preview` canvas fallback. "" (not
-   * null) when there is no such video, so the caller (monitor/shell.js) knows
-   * to fall back to a still-frame capture instead. Called by monitor/shell.js
-   * only at workbench-close time.
-   */
-  currentPlayblastVideoUrl() {
-    const canvas = this.root.querySelector('[data-role="proxy-upstream-preview"]');
-    if (!canvas || !canvas.hidden) return "";
-    const video = this.player?.video;
-    if (!video) return "";
-    return video.currentSrc || video.src || "";
-  }
-
   updateReferenceSourceLabel(origin, directorSource) {
     const label = this.root.querySelector('[data-role="reference-source"]');
     if (!label) return;
@@ -368,27 +401,6 @@ class MonitorUI {
     this.player.dispose();
     this.events.dispose();
   }
-}
-
-export function openMonitorWorkbench(node) {
-  if (node.__majoorOmniCamMonitorWorkbench && !node.__majoorOmniCamMonitorWorkbench.disposed) {
-    return node.__majoorOmniCamMonitorWorkbench;
-  }
-  hideWidgets(node);
-  const ui = new MonitorUI(node);
-  node.__majoorOmniCamMonitorWorkbench = ui;
-  const runtime = node.__majoorOmniCamMonitorRuntime;
-  if (runtime) runtime.restore(ui);
-  else ui.events.add(bindMonitorPreflightEvents(api, node, ui));
-  return ui;
-}
-
-export function closeMonitorWorkbench(ui) {
-  if (!ui) return;
-  if (ui.node?.__majoorOmniCamMonitorWorkbench === ui) {
-    ui.node.__majoorOmniCamMonitorWorkbench = null;
-  }
-  ui.dispose();
 }
 
 export function attachMonitor(node) {

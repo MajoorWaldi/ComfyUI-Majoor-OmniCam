@@ -4,11 +4,14 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   await page.goto("/tests/frontend/scene-reconstruction-mount.html");
   await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
 
-  const extractorHost = page.locator('.oc-workbench-backdrop[data-kind="extractor"]');
+  // Extractor mounts its full panel inline in #extractor-host -- no compact
+  // shell, no modal (Monitor/Extractor inline migration).
+  const extractorHost = page.locator("#extractor-host");
   const directorHost = page.locator("#director-host");
   // The compact shell lives in #director-host, but its editor only exists
   // once opened, mounted body-level by WorkbenchHost (migration plan
-  // section 4.3) -- not a descendant of #director-host.
+  // section 4.3) -- not a descendant of #director-host. Director is the only
+  // product that still works this way.
   const directorWorkbench = page.locator('.oc-workbench-backdrop[data-kind="director"]');
 
   // 1. Check Extractor defaults to Camera Track mode
@@ -123,13 +126,6 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   // workbench opened yet (migration plan Task 16).
   await openDirectorBtn.click();
 
-  // Only one heavy workbench is active globally (migration plan section 7):
-  // Extractor's own body-level modal covers the whole page, physically
-  // blocking a click on Director's Open button underneath it, exactly as it
-  // would for a real user -- close it first.
-  await extractorHost.locator('[data-workbench-act="close"]').click();
-  await expect(extractorHost).toHaveCount(0);
-
   // Open the Director workbench the way a user would, to verify the
   // reconstructed scene the headless adoption above just wrote actually
   // renders once the editor is opened -- the plan's literal acceptance
@@ -200,10 +196,8 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   await directorWorkbench.locator('[data-workbench-act="close"]').click();
   await expect(directorWorkbench).toHaveCount(0);
 
-  // Reopen the Extractor workbench (closed above, ahead of opening Director)
-  // before driving its controls again.
-  await page.locator("#extractor-host .oc-node-shell-open").click();
-  await expect(extractorHost).toHaveCount(1);
+  // The Extractor panel was never closed -- it is always mounted inline --
+  // so it is already there to drive again.
 
   // 10. Regression: switch back to camera_track mode
   await camModeBtn.click();
@@ -224,7 +218,7 @@ test("Scene Reconstruct mode restores correctly after a workflow reload", async 
   await page.goto("/tests/frontend/scene-reconstruction-mount.html?mode=scene_reconstruct");
   await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
 
-  const extractorHost = page.locator('.oc-workbench-backdrop[data-kind="extractor"]');
+  const extractorHost = page.locator("#extractor-host");
   const camModeBtn = extractorHost.locator('[data-role="extract-mode-camera"]');
   const reconModeBtn = extractorHost.locator('[data-role="extract-mode-reconstruct"]');
   const reconPanel = extractorHost.locator('[data-role="reconstruction-panel"]');
@@ -243,7 +237,7 @@ test("Result modes: Blockout reveals the semantic controls, Depth Mesh hides the
   await page.goto("/tests/frontend/scene-reconstruction-mount.html?mode=scene_reconstruct");
   await expect(page.locator("#status")).toHaveText("ready", { timeout: 20_000 });
 
-  const host = page.locator('.oc-workbench-backdrop[data-kind="extractor"]');
+  const host = page.locator("#extractor-host");
   const resultSelect = host.locator('[data-role="reconstruction-mode"]');
   // The four current Result modes are present (legacy geometry/layout gone).
   await expect(resultSelect.locator("option")).toHaveText([

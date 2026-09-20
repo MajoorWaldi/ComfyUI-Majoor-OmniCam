@@ -9,4 +9,5 @@ def execution_ui_payload(panel: dict[str, Any]) -> dict[str, list[Any]]:
         "preflight": panel["preflight"],
         "capabilities": [panel["capabilities"]],
         "target_profile": [panel["target_profile"]],
+        "final_prompt": [panel.get("final_prompt", "")],
     }

@@ -21,6 +21,7 @@ from typing import Any
 
 from ..capabilities import detect_capabilities
 from ..core.director_compile import compile_director_motion_scene, parse_director_state
+from ..guides.prompt_ir import build_prompt_compile_ir
 from ..monitor.result import panel_payload
 from ..profiles.base import CompileRequest
 from ..profiles.capability_gate import capability_check
@@ -51,7 +52,8 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
     queue widgets (``state_json``, ``recording_path``, ``card_asset``,
     ``width``, ``height``, ``fps``, ``duration_seconds``, ``render_mode``) and
     the Monitor's own settings (``target_profile``, ``base_prompt``,
-    ``target_width``, ``target_height``, ``duration_seconds``, ``target_fps``).
+    ``target_width``, ``target_height``, ``duration_seconds``, ``target_fps``,
+    ``guide_reference_index``, ``guide_style``, ``reference_plan_json``).
     """
     director = payload.get("director")
     monitor = payload.get("monitor")
@@ -104,6 +106,7 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
         mon_fps = scene.timeline.authoring_fps
 
     try:
+        guide_reference_index = int(_numeric(monitor, "guide_reference_index", 0, cast=int))
         request = CompileRequest(
             motion_scene=scene,
             playblast_video=playblast_video,
@@ -112,6 +115,9 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
             target_height=_numeric(monitor, "target_height", 480, cast=int),
             duration_seconds=mon_duration,
             target_fps=mon_fps,
+            guide_reference_index=guide_reference_index or None,
+            guide_style=str(monitor.get("guide_style") or "") or None,
+            reference_plan_json=str(monitor.get("reference_plan_json", "") or ""),
         )
     except LivePreflightError:
         raise
@@ -130,7 +136,16 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
     if downstream is not None:
         checks.append(downstream)
 
-    result = panel_payload(checks, capabilities, target_profile)
+    # Cheap by construction (guides.prompt_ir.build_prompt_compile_ir never
+    # touches playblast_video), and the same compile_prompt() a real Queue
+    # Prompt run would call -- so this preview can never diverge from the
+    # actual final_prompt output.
+    try:
+        final_prompt = profile.compile_prompt(request, build_prompt_compile_ir(request)).text
+    except Exception:  # noqa: BLE001 - a live preview must never 500 on a mid-edit scene
+        final_prompt = ""
+
+    result = panel_payload(checks, capabilities, target_profile, final_prompt=final_prompt)
     result["live"] = True
     result["recording_path"] = active_recording_path
     return result

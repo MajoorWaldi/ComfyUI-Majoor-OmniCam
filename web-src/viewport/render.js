@@ -7,10 +7,19 @@ import { motionClipTime } from "../assets/character/motion-state.js";
 export function createRenderMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform, hasOutlineMesh, SelectionOutlineRenderer } = dependencies;
   return {
-  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null, selectedFrame = null, selectedFrames = null) {
+  render(state, cameraState, mediaById, width, height, modelUrlsById = new Map(), frame = 0, cleanCapture = false, selectedEntity = "camera", selectedObjectId = "subject", subSelection = null, selectedFrame = null, selectedFrames = null, captureStyle = "auto") {
     // The studio look stays on while editing. During a capture it survives only
-    // for the explicit "beauty" mode; every other proxy mode records flat.
-    const wantStudio = !cleanCapture || (state.render_mode || "") === "beauty";
+    // for the explicit "beauty" mode; every other proxy mode records flat --
+    // unless Guide Capture Style overrides it: clay wants the studio rig on
+    // (broad key, soft fill, doc 5.2) even under a proxy render_mode, and
+    // motion_proxy / depth_rich want it off (flat readable / neutral lighting,
+    // doc 5.1 / 5.3) even under "beauty". All three only apply while actually
+    // recording.
+    const wantStudio = cleanCapture && captureStyle === "clay"
+      ? true
+      : cleanCapture && (captureStyle === "motion_proxy" || captureStyle === "depth_rich")
+        ? false
+        : !cleanCapture || (state.render_mode || "") === "beauty";
     if (wantStudio !== this.studioEnabled) {
       this.studioEnabled = wantStudio;
       setStudioEnabled(THREE, this.scene, this.renderer, this.studio, wantStudio);
@@ -101,6 +110,7 @@ export function createRenderMethods(dependencies) {
       Boolean(state.backface_culling),
       state.reconstruction_appearance || "neutral",
       Boolean(cleanCapture),
+      captureStyle,
       state.objects.map((object) => {
         const { position, rotation, keyframes, size, ...shape } = object;
         if (object.type === "card") shape.size = size;
@@ -110,7 +120,7 @@ export function createRenderMethods(dependencies) {
     const mediaSignature = [...mediaById.entries()].map(([id, media]) => `${id}:${media?.src || ""}`).join("|");
     const modelSignature = [...modelUrlsById.entries()].map(([id, url]) => `${id}:${url}`).join("|");
     if (sceneKey !== this.sceneKey || mediaSignature !== this.mediaSignature || modelSignature !== this.modelSignature) {
-      this.sceneKey = sceneKey; this.mediaSignature = mediaSignature; this.modelSignature = modelSignature; this.rebuild(state, mediaById, modelUrlsById, cleanCapture);
+      this.sceneKey = sceneKey; this.mediaSignature = mediaSignature; this.modelSignature = modelSignature; this.rebuild(state, mediaById, modelUrlsById, cleanCapture, captureStyle);
     }
     // Advance each animated model's mixer from the Director timeline. A
     // character with a motion clip honours its start/end/speed/loop/offset
@@ -146,7 +156,11 @@ export function createRenderMethods(dependencies) {
     // editing -- it only ever affected the capture. point_field is the one mode
     // that is meant to read without a grid.
     const editorGrid = state.show_grid !== false && state.render_mode !== "point_field";
-    this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? Boolean(state.playblast_grid) : editorGrid; });
+    // depth_rich's floor markers / horizon relationship (doc 5.3) are part of
+    // the recipe itself, not the optional "keep the grid in the playblast"
+    // toggle -- force it on for that capture regardless of playblast_grid.
+    const captureGrid = captureStyle === "depth_rich" || Boolean(state.playblast_grid);
+    this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? captureGrid : editorGrid; });
 
     // Looking through the active camera, its own path and frustum are just
     // clutter drawn over the shot -- the look-at target still shows so it can

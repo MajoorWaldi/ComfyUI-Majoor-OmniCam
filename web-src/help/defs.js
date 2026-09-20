@@ -93,6 +93,7 @@ registerNodeHelp("MajoorOmniCamMonitor", {
         ["h3_native", "Reference video. Playblast frames resampled to 24 fps plus a prompt, for MiniMaxH3ReferenceToVideo; length resolves to 17n+5."],
         ["h3_scene_coverage", "Prompt + options. No playblast: compiles the selected camera's orbit/arc directly into a complete H3 prompt and H3EDIT_OPTIONS for TextEncodeH3Edit; length resolves to 124/243/362 at 24 fps. Blocks on moving targets, cuts or more than one full turn, and recommends h3_native instead."],
         ["h3_api", "Reference video. The playblast as a VIDEO plus a prompt, for MinimaxHailuo03ReferenceNode."],
+        ["seedance25_reference", "Reference video. The playblast plus a role-first prompt, for ByteDance Seedance 2.5 Reference to Video (ByteDance2ReferenceNodeV2); guide duration must be at least 1.8s, output resolves to 4-30s. guide_reference_index picks which Video N slot the guide occupies (1-10); guide_style and the Reference Role Matrix (reference_plan_json) describe what it and any other declared references are for."],
       ],
     },
     {

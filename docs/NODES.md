@@ -406,12 +406,11 @@ on the upstream scene are not merged.
 Estimates a **relative** 6DoF camera trajectory from one continuous video shot
 and wraps that internal camera solve in a canonical one-camera MotionScene.
 
-Like Director, the node shows a compact status card (source, solve phase and
-progress) with an **OPEN EXTRACTOR** button; the source viewer, timeline and
-3D track viewer open in their own window on demand. Closing that window while
-TRACK / Reconstruct is running does not stop it — the card keeps showing
-progress and the solved result is cached when it finishes. Deleting the node
-does cancel a running solve.
+The source viewer, timeline and 3D track viewer are mounted directly on the
+node itself, on the ComfyUI canvas — no open button, no separate window.
+Running TRACK / Reconstruct keeps progressing whether or not the node is
+scrolled into view; the solved result is cached when it finishes. Deleting
+the node does cancel a running solve.
 
 **Inputs.**
 
@@ -713,21 +712,20 @@ graph. Monitor takes a MotionScene and its playblast, resolves the timeline the
 selected profile requires, compiles the scene into that model's representation,
 and reports what survived.
 
-Like Director and Extractor, the node on the ComfyUI canvas renders a compact
-status card (target profile and readiness) with an **OPEN MONITOR** button;
-the full workbench (reference viewer, target capabilities matrix, preflight
-checklist, and prompt blocks) opens on demand in its own window.
-
-Closing the workbench keeps its node card and OPEN MONITOR button available.
-The node retains the latest execution result or blocked preflight while closed
-and restores it when reopened. Removing the node disposes both the runtime and
-any pending workbench opening. Only one OmniCam workbench opens at a time.
-On small screens, the window stays within the viewport and the Monitor content
-scrolls so the target settings remain accessible.
+Unlike Director, the full panel (reference viewer, target capabilities matrix,
+preflight checklist, and prompt blocks) is mounted directly on the node
+itself, on the ComfyUI canvas — no open button, no separate window. A
+**Compiled Prompt** card at the top of the panel always shows the exact text
+`final_prompt` will carry, with a Copy button — filled in the moment a Director
+is connected and kept live as it's edited (via the same `compile_prompt()`
+call the real execution uses, so the preview can never diverge from the
+actual output), and updated again after every execution or blocked preflight.
+Removing the node disposes it. On small screens, the node content scrolls so
+the target settings remain accessible.
 
 Monitor execution UI fields follow ComfyUI V3's list transport:
-`target_profile` is a one-item string list and `capabilities` is a one-item
-object list. The live HTTP preflight and blocked-preflight event retain their
+`target_profile`, `capabilities` and `final_prompt` are each a one-item list.
+The live HTTP preflight and blocked-preflight event retain their
 document-shaped fields; clients normalize both forms. Truncated video decodes
 are rejected before profile compilation can use an incomplete frame batch.
 
@@ -751,9 +749,12 @@ The watcher follows the **sockets**, not the upstream node class: any source of
 | `motion_scene` | — | the canonical scene to compile |
 | `playblast_video` | optional | the shot the scene describes, `VIDEO` or `IMAGE` batch |
 | `base_prompt` | empty | user intent, kept at the head of `final_prompt` |
-| `target_profile` | `external_reference_video` | one of the nine profiles below |
+| `target_profile` | `external_reference_video` | one of the ten profiles below |
 | `target_width`, `target_height` | `832`, `480` | target frame size |
 | `duration_seconds`, `target_fps` | `0` (auto), `0` (auto) | length and frame rate of the shot being compiled; `0` inherits `timeline.duration_seconds` / `timeline.authoring_fps` from the connected MotionScene (the Director's authored shot) |
+| `guide_reference_index` | `1` | which `<Video N>` / `Video N` slot the OmniCam guide occupies on the target model; H3 accepts 1-3, Seedance 2.5 accepts 1-10, out of range is reported at preflight |
+| `guide_style` | `auto` | forces the compiled prompt's guide semantics (`auto`, `motion_proxy`, `clay`, `depth_rich`, `beauty_reference`, `passthrough`, `diagnostic`); `auto` resolves it from the Guide Capture Style the Director actually recorded with (`metadata.playblast.guide_style`), reported as a non-blocking `guide_style_mismatch` check when it disagrees |
+| `reference_plan_json` | empty | advanced: a JSON array declaring references OmniCam does not own the media for (an identity image, an action video...), authored through the Monitor panel's Reference Role Matrix editor. Each entry compiles into its own role-first prompt block; overlapping, unresolved roles across declared references (including the OmniCam guide itself) surface as a non-blocking `role_conflict` check |
 
 **Outputs**, in schema order: `final_prompt`, `reference_video`,
 `reference_frames`, `camera_embedding`, `native_tracks`, `tracks_json`,
@@ -766,13 +767,22 @@ frame rate (`24.0` for both H3 profiles).
 Only the selected profile's outputs are computed; the rest are `None`. Which one
 carries the payload is decided by the profile's **semantic**, not by its model.
 
-### The nine profiles, by semantic
+### The ten profiles, by semantic
 
 `external_reference_video` is the only permissive one: no upstream node
 requirement, no frame grid, no fps conversion, and it never blocks on a missing
 or unrecognized downstream. Every other profile is strict -- it encodes one
 real model's contract, and a payload that contract cannot satisfy stops the
 queue rather than reaching the model broken.
+
+Every profile emits `final_prompt` (it is always the compiler's first output);
+the table below only calls it out separately where a profile's *primary*
+control signal is prompt text (`reference_video`/`prompt_options`
+semantics). For the `camera_embedding`/`screen_tracks` profiles, the literal
+motion is already fully carried by the embedding or `tracks_json` -- their
+`final_prompt` stays a short, semantic addition to `base_prompt` (what the
+move accomplishes, or the artist's authored action text), never a
+restatement of the coordinates the control signal already encodes.
 
 | Profile | Semantic | Output | Downstream |
 |---|---|---|---|
@@ -785,6 +795,16 @@ queue rather than reaching the model broken.
 | `h3_native` | `reference_video` | `reference_frames` + `final_prompt` | `MiniMaxH3ReferenceToVideo.ref_videos`; resampled to 24 fps, length 17n+5 |
 | `h3_scene_coverage` | `prompt_options` | `final_prompt` + `h3edit_options` | `TextEncodeH3Edit.compiled_prompt` / `.options`; no playblast required; 24 fps, length 124/243/362 |
 | `h3_api` | `reference_video` | `reference_video` + `final_prompt` | `MinimaxHailuo03ReferenceNode.reference_video` |
+| `seedance25_reference` | `reference_video` | `reference_video` + `final_prompt` | `ByteDance2ReferenceNodeV2.reference_videos.video_N`; role-first prompt, `task_type=reference`; guide duration >= 1.8s, output 4-30s |
+
+`h3_native`/`h3_api`/`h3_scene_coverage` render MiniMax's documented Ref2VA
+six-section prompt (`subject_definitions`/`summary`/`retention_analysis`/
+`detailed_description`/`overall_soundscape`/`non_diegetic_music`, in that
+order); `overall_soundscape` defers to whatever audio direction is in
+`base_prompt` rather than asserting one of its own. `seedance25_reference`
+additionally appends a `Motion timeline` section segmented by the shot's own
+camera phases, folding in the artist's authored action text where one
+exists.
 
 `h3_scene_coverage` compiles the selected MotionScene camera directly into a
 complete H3 prompt (direction, completion, parallax and mapped timing

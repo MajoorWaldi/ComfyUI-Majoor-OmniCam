@@ -164,6 +164,24 @@ def test_the_downstream_capability_check_is_folded_in_like_a_real_execution(monk
     assert downstream["state"] == "BLOCKED"
 
 
+def test_guide_reference_index_guide_style_and_reference_plan_reach_the_request():
+    """P2: these three fields were previously dropped on the floor by the live
+    route (only the queued execute() threaded them into CompileRequest)."""
+    plan = '[{"id": "identity_img", "media_type": "image", "slot_hint": 1, "roles": ["identity"]}]'
+    result = build_live_preflight({
+        "director": _director(),
+        "monitor": _monitor(
+            target_profile="seedance25_reference",
+            guide_reference_index=3,
+            guide_style="clay",
+            reference_plan_json=plan,
+        ),
+    })
+    states = {check["id"]: check for check in result["preflight"]}
+    assert states["guide_reference_index"]["state"] == "PASS"
+    assert "reference_role:identity_img" in states
+
+
 def test_a_scene_that_does_not_validate_yet_is_a_client_error_not_a_500():
     """Mid-edit is the normal state a live preview runs against -- a dangling
     camera reference is the easy way to reach that mid-edit invalid state:

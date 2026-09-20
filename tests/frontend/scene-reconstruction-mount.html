@@ -133,18 +133,16 @@
         window.omnicamDirector = directorNode;
         window.omnicamApi = api;
 
-        // Both nodes mount a compact shell by default (migration plan Task 10
-        // / Task 15); open the Extractor's workbench the way a user would --
-        // this test drives its DOM directly. The Director stays closed: the
-        // point of this scenario is that adoption into it works headlessly.
-        const extractorOpenButton = document.querySelector("#extractor-host .oc-node-shell-open");
-        if (!extractorOpenButton) throw new Error("Extractor compact shell did not mount an Open button");
-        extractorOpenButton.click();
+        // Extractor mounts its full panel inline, with no compact shell and no
+        // open step (Monitor/Extractor inline migration) -- the workbench is
+        // already attached once nodeCreated() resolves. Director's own
+        // compact shell stays closed here: the point of this scenario is that
+        // adoption into it works headlessly.
         for (let retry = 0; retry < 200 && !extractorNode.__majoorOmniCamExtractorRuntime?.workbench; retry++) {
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
         if (!extractorNode.__majoorOmniCamExtractorRuntime?.workbench) {
-          throw new Error("Extractor workbench did not open");
+          throw new Error("Extractor panel did not attach");
         }
 
         // Populate source info for extractor so it considers source ready

@@ -12,7 +12,8 @@
     const node = {
       id: 41, comfyClass: "MajoorOmniCamMonitor", inputs: [], size: [400, 250], pos: [0, 0],
       widgets: Object.entries({target_profile: "external_reference_video", base_prompt: "", target_width: 1280,
-        target_height: 720, duration_seconds: 0, target_fps: 0}).map(([name, value]) => ({name, value})),
+        target_height: 720, duration_seconds: 0, target_fps: 0, guide_reference_index: 1, guide_style: "auto",
+        reference_plan_json: ""}).map(([name, value]) => ({name, value})),
       graph: {setDirtyCanvas() {}}, setSize() {},
       addDOMWidget(name, type, element, options) {
         document.querySelector("#host").append(element);

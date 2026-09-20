@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from ..guides.model import validate_mapping_quality
 from ..profiles.base import validate_frame_policy, validate_profile_id, validate_semantic
 
 CHECK_STATES = frozenset({"PASS", "WARNING", "BLOCKED", "RISK"})
@@ -80,6 +81,7 @@ class Check:
     code: str | None = None
     recoverable: bool = False
     suggestions: tuple[str, ...] = ()
+    mapping_quality: str | None = None
 
     def __post_init__(self) -> None:
         _non_empty(self.id, "id")
@@ -96,6 +98,30 @@ class Check:
         if not all(isinstance(item, str) for item in suggestions):
             raise TypeError("suggestions must contain strings")
         object.__setattr__(self, "suggestions", suggestions)
+        if self.mapping_quality is not None:
+            validate_mapping_quality(self.mapping_quality)
+
+
+@dataclass(frozen=True, slots=True)
+class PromptCompilation:
+    """One profile's dialect-rendered prompt text, plus any warnings it raised.
+
+    The single result type ``compile_prompt`` returns. A real execution's
+    ``compile()`` folds ``.text`` into ``CompiledMotion.final_prompt``; the
+    Monitor's live-preflight route calls ``compile_prompt`` directly (no
+    ``compile()``, no video decode) to preview the identical text.
+    """
+
+    text: str
+    checks: tuple[Check, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.text, str):
+            raise TypeError("text must be a string")
+        checks = tuple(self.checks)
+        if not all(isinstance(check, Check) for check in checks):
+            raise TypeError("checks must contain Check values")
+        object.__setattr__(self, "checks", checks)
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,12 +196,15 @@ class CompiledMotion:
 
 
 
-def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str) -> dict[str, Any]:
+def panel_payload(
+    checks: Any, capabilities: dict[str, Any], target_profile: str, *, final_prompt: str = "",
+) -> dict[str, Any]:
     """The payload the Monitor panel renders, blocked or not.
 
     Shared by a real execution's ``ui`` output and the live preflight route:
     both are the same report of the same checks, and the panel does not need
-    to know which one produced it.
+    to know which one produced it. ``final_prompt`` defaults to "" so a
+    blocked/errored compile still serializes the same shape, just empty.
     """
     return {
         "preflight": [
@@ -191,11 +220,17 @@ def panel_payload(checks: Any, capabilities: dict[str, Any], target_profile: str
                 **({"code": check.code} if getattr(check, "code", None) else {}),
                 **({"recoverable": True} if getattr(check, "recoverable", False) else {}),
                 **({"suggestions": list(check.suggestions)} if getattr(check, "suggestions", ()) else {}),
+                **(
+                    {"mapping_quality": check.mapping_quality}
+                    if getattr(check, "mapping_quality", None)
+                    else {}
+                ),
             }
             for check in checks
         ],
         "capabilities": capabilities,
         "target_profile": target_profile,
+        "final_prompt": final_prompt,
     }
 
 

@@ -120,11 +120,26 @@ def resample_video_frames(
     target_fps: float,
     max_seconds: float | None = None,
     max_frames: int | None = None,
+    _frame_count_override: int | None = None,
 ) -> torch.Tensor:
-    """Decode a VIDEO on a new clock while preserving its elapsed duration."""
+    """Decode a VIDEO on a new clock while preserving its elapsed duration.
+
+    ``get_frame_count()`` is metadata, not a guarantee: some containers report
+    one more frame than the decoder can actually produce, because the last
+    frame's duration is fractionally short of a full frame period and rounds
+    up. When that shows up as exactly a one-frame-short decode at the true
+    end of the source, this retries once with the reported frame count
+    corrected down by one -- the resampling plan then targets a source that
+    matches what actually decodes, rather than either trusting an inaccurate
+    report or fabricating the missing frame. Any other shortfall (more than
+    one frame, or not at the tail) still raises: that is genuine corruption
+    or truncation, not a rounding quirk.
+    """
     import torch
 
     metadata = inspect_video(video)
+    if _frame_count_override is not None:
+        metadata = VideoMetadata(_frame_count_override, metadata.frame_rate, metadata.width, metadata.height)
     indices = resampling_indices(
         metadata.frame_count,
         metadata.frame_rate,
@@ -142,16 +157,29 @@ def resample_video_frames(
 
     out = torch.empty((len(indices), metadata.height, metadata.width, 3), dtype=torch.float32)
 
-    for r_start, r_stop in ranges:
+    for range_index, (r_start, r_stop) in enumerate(ranges):
         count = r_stop - r_start
         batch = _decode_trim(video, r_start, count, metadata.frame_rate)
-        if batch.shape[0] != count:
+        decoded = batch.shape[0]
+        if decoded != count:
+            recoverable = (
+                _frame_count_override is None
+                and range_index == len(ranges) - 1
+                and r_stop >= metadata.frame_count
+                and count - decoded == 1
+                and decoded > 0
+            )
+            if recoverable:
+                return resample_video_frames(
+                    video, target_fps=target_fps, max_seconds=max_seconds, max_frames=max_frames,
+                    _frame_count_override=metadata.frame_count - 1,
+                )
             raise ValueError(
                 f"Incomplete video decode at source frame {r_start}: "
-                f"expected {count} frames, decoded {batch.shape[0]}. "
+                f"expected {count} frames, decoded {decoded}. "
                 "Re-encode or replace the source video."
             )
-        for i in range(batch.shape[0]):
+        for i in range(decoded):
             src_idx = r_start + i
             if src_idx in frame_to_out:
                 for out_idx in frame_to_out[src_idx]:

@@ -131,6 +131,7 @@ export function syncFromWidgets(ui, persist = true) {
   for (const el of ui.root.querySelectorAll('[data-role="guides"]')) el.checked = ui.state.guides !== false;
   for (const el of ui.root.querySelectorAll('[data-role="playblast-grid"]')) el.checked = Boolean(ui.state.playblast_grid);
   for (const el of ui.root.querySelectorAll('[data-role="playblast-labels"]')) el.checked = Boolean(ui.state.playblast_labels);
+  for (const el of ui.root.querySelectorAll('[data-role="guide-capture-style"]')) el.value = ui.state.guide_capture_style || "auto";
   for (const el of ui.root.querySelectorAll('[data-role="reconstruction-appearance"]')) el.value = ui.state.reconstruction_appearance || "neutral";
   for (const el of ui.root.querySelectorAll('[data-role="playblast-resolution"]')) el.value = ui.state.playblast_resolution || "output";
   for (const el of ui.root.querySelectorAll('[data-role="show-wireframe"]')) el.checked = Boolean(ui.state.show_wireframe);

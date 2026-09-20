@@ -1,19 +1,10 @@
-"""The recorded-vs-current playblast fingerprint gate."""
-
 from __future__ import annotations
 
 from omnicam.core.motion_scene import MotionScene
-from omnicam.profiles import CompileRequest
-from omnicam.profiles.generic_video import EXTERNAL_REFERENCE_VIDEO_PROFILE
-from omnicam.profiles.playblast_freshness import playblast_staleness, stale_playblast_check
+from omnicam.profiles.playblast_freshness import captured_guide_style, guide_style_mismatch_check
 
 
-def _scene(*, recorded: str | None = None, live: str | None = None) -> MotionScene:
-    metadata: dict = {}
-    if recorded is not None:
-        metadata["playblast"] = {"motion_scene_fingerprint": recorded}
-    if live is not None:
-        metadata["motion_scene_fingerprint_live"] = live
+def _scene(*, metadata: dict | None = None) -> MotionScene:
     return MotionScene.from_dict(
         {
             "version": 1,
@@ -21,8 +12,8 @@ def _scene(*, recorded: str | None = None, live: str | None = None) -> MotionSce
             "canvas": {"width": 640, "height": 360},
             "cameras": [
                 {
-                    "id": "hero",
-                    "label": "Hero",
+                    "id": "hero_camera",
+                    "label": "Hero Camera",
                     "enabled": True,
                     "track": {
                         "schema_version": 1,
@@ -36,62 +27,76 @@ def _scene(*, recorded: str | None = None, live: str | None = None) -> MotionSce
                                 "frame": 0,
                                 "camera": {"position": [0.0, 2.0, 6.0], "target": [0.0, 1.0, 0.0], "fov": 45.0, "roll": 0.0},
                                 "interpolation": "linear",
-                            }
+                            },
+                            {
+                                "frame": 47,
+                                "camera": {"position": [2.5, 3.0, 3.0], "target": [0.0, 1.0, 0.0], "fov": 32.0, "roll": 12.0},
+                                "interpolation": "smooth",
+                            },
                         ],
                         "objects": [],
                         "metadata": {},
                     },
                 }
             ],
-            "active_camera_id": "hero",
-            "playblast_camera_id": "hero",
+            "active_camera_id": "hero_camera",
+            "playblast_camera_id": "hero_camera",
             "objects": [],
             "motion_layers": [],
             "cuts": [],
-            "metadata": metadata,
+            "metadata": metadata or {},
         }
     )
 
 
-def test_staleness_is_unknown_until_both_fingerprints_are_present():
-    assert playblast_staleness(_scene()) == "unknown"
-    assert playblast_staleness(_scene(recorded="abc")) == "unknown"
-    assert playblast_staleness(_scene(live="abc")) == "unknown"
+# ---------------------------------------------------------------------------
+# captured_guide_style
+# ---------------------------------------------------------------------------
+
+def test_captured_guide_style_is_none_without_a_playblast():
+    assert captured_guide_style(_scene()) is None
 
 
-def test_matching_fingerprints_are_fresh_and_a_mismatch_is_stale():
-    assert playblast_staleness(_scene(recorded="abc123", live="abc123")) == "fresh"
-    assert playblast_staleness(_scene(recorded="abc123", live="def456")) == "stale"
+def test_captured_guide_style_is_none_for_a_playblast_recorded_before_p1():
+    scene = _scene(metadata={"playblast": {"motion_scene_fingerprint": "abc"}})
+    assert captured_guide_style(scene) is None
 
 
-def test_stale_check_blocks_or_warns_by_profile_kind():
-    fresh = _scene(recorded="abc", live="abc")
-    assert stale_playblast_check(fresh, display_name="X", block=True) is None
-
-    stale = _scene(recorded="abc", live="zzz")
-    blocked = stale_playblast_check(stale, display_name="MiniMax H3 API", block=True)
-    assert blocked is not None and blocked.state == "BLOCKED"
-    warned = stale_playblast_check(stale, display_name="Generic", block=False)
-    assert warned is not None and warned.state == "WARNING"
+def test_captured_guide_style_reads_the_recorded_value():
+    scene = _scene(metadata={"playblast": {"guide_style": "clay"}})
+    assert captured_guide_style(scene) == "clay"
 
 
-def _request(scene: MotionScene) -> CompileRequest:
-    return CompileRequest(
-        motion_scene=scene,
-        playblast_video=None,
-        base_prompt="A stone tower.",
-        target_width=832,
-        target_height=480,
-        duration_seconds=2.0,
-        target_fps=24.0,
-    )
+def test_captured_guide_style_ignores_a_non_string_value():
+    scene = _scene(metadata={"playblast": {"guide_style": 123}})
+    assert captured_guide_style(scene) is None
 
 
-def test_generic_profile_only_warns_on_a_stale_playblast():
-    checks = EXTERNAL_REFERENCE_VIDEO_PROFILE.preflight(_request(_scene(recorded="abc", live="zzz")))
-    freshness = [check for check in checks if check.id == "playblast_freshness"]
-    assert len(freshness) == 1
-    assert freshness[0].state == "WARNING"
+# ---------------------------------------------------------------------------
+# guide_style_mismatch_check
+# ---------------------------------------------------------------------------
 
-    clean = EXTERNAL_REFERENCE_VIDEO_PROFILE.preflight(_request(_scene(recorded="abc", live="abc")))
-    assert not [check for check in clean if check.id == "playblast_freshness"]
+def test_no_check_when_nothing_was_captured():
+    scene = _scene()
+    assert guide_style_mismatch_check(scene, expected="motion_proxy", display_name="X", block=False) is None
+
+
+def test_no_check_when_captured_matches_expected():
+    scene = _scene(metadata={"playblast": {"guide_style": "clay"}})
+    assert guide_style_mismatch_check(scene, expected="clay", display_name="X", block=False) is None
+
+
+def test_warns_on_mismatch_by_default():
+    scene = _scene(metadata={"playblast": {"guide_style": "clay"}})
+    check = guide_style_mismatch_check(scene, expected="motion_proxy", display_name="X", block=False)
+    assert check is not None
+    assert check.id == "guide_style_mismatch"
+    assert check.state == "WARNING"
+    assert "clay" in check.message
+    assert "motion_proxy" in check.message
+
+
+def test_blocks_on_mismatch_when_requested():
+    scene = _scene(metadata={"playblast": {"guide_style": "clay"}})
+    check = guide_style_mismatch_check(scene, expected="motion_proxy", display_name="X", block=True)
+    assert check.state == "BLOCKED"

@@ -132,7 +132,13 @@ def test_wan_move_compiles_native_tracks_in_time_track_coordinate_order():
         [True, True],
         [True, True],
     ]
-    assert result.final_prompt == "A runner crosses the courtyard."
+    # A real semantic renderer now runs (P5): base prompt leads, followed by
+    # a generic trajectory-continuity sentence (no authored action_text here)
+    # -- never a coordinate restatement of the track the embedding is
+    # already carrying above.
+    assert result.final_prompt.startswith("A runner crosses the courtyard.")
+    assert "authored trajectory" in result.final_prompt
+    assert "0.1" not in result.final_prompt
     assert result.target_length == 3
     assert result.tracks_json == ""
 

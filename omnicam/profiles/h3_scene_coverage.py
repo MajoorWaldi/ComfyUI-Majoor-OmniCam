@@ -22,7 +22,8 @@ from ..adapters.h3_scene_coverage import (
 )
 from ..core.motion_scene import CameraSceneItem, MotionScene
 from ..core.track import OmniCamTrack
-from ..monitor.result import Check, CompiledMotion, ResolvedTimeline, raise_on_blocked
+from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
+from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
 from .base import CompileRequest
 from .shots import multi_shot_check
 
@@ -104,6 +105,20 @@ def _timing_check(requested_frames: int, resolved: H3SceneProfile) -> Check:
     )
 
 
+def _camera_motion_mapping_check() -> Check:
+    return Check(
+        id="camera_motion_mapping",
+        label="Camera motion control",
+        state="PASS",
+        mapping_quality="APPROXIMATED",
+        message=(
+            "This path never ships a reference video; the authored geometry is compiled "
+            "straight into the prompt and H3EDIT_OPTIONS, which approximates the camera "
+            "move rather than communicating it through a guide."
+        ),
+    )
+
+
 def _loop_closure_check(analysis: H3GeometryAnalysis) -> Check:
     if analysis.total_orbit_degrees < 5.0:
         return Check(id="h3_loop_closure", label="H3 loop closure", state="PASS", message="Static hold; loop closure does not apply.")
@@ -154,6 +169,7 @@ class H3SceneCoverageProfile:
         checks = [
             multi_shot_check(request.motion_scene, display_name=DISPLAY_NAME, can_represent=False),
             _representation_check(analysis, representability, error),
+            _camera_motion_mapping_check(),
         ]
         if analysis is not None and representability is not None and representability.state != "BLOCKED":
             requested_frames = max(1, math.ceil(request.duration_seconds * H3_SCENE_FPS))
@@ -163,6 +179,17 @@ class H3SceneCoverageProfile:
             checks.append(_timing_check(requested_frames, resolved))
             checks.append(_loop_closure_check(analysis))
         return checks
+
+    def compile_prompt(self, request: CompileRequest, ir: PromptCompileIR) -> PromptCompilation:
+        del ir  # geometry-track rendering is unchanged in this commit; wired up next
+        track, analysis, _representability, _error = self._analyze(request)
+        if track is None or analysis is None:
+            return PromptCompilation(text=request.base_prompt)
+        timeline = self.resolve_timeline(request)
+        text = build_h3_scene_coverage_prompt(
+            track, analysis, target_frames=timeline.frame_count, base_prompt=request.base_prompt,
+        )
+        return PromptCompilation(text=text)
 
     def compile(self, request: CompileRequest) -> CompiledMotion:
         checks = self.preflight(request)
@@ -174,9 +201,8 @@ class H3SceneCoverageProfile:
             raise TypeError("track and analysis must be present after a non-BLOCKED preflight")
 
         timeline = self.resolve_timeline(request)
-        final_prompt = build_h3_scene_coverage_prompt(
-            track, analysis, target_frames=timeline.frame_count, base_prompt=request.base_prompt,
-        )
+        ir = build_prompt_compile_ir(request)
+        final_prompt = self.compile_prompt(request, ir).text
         h3edit_options = build_h3edit_scene_options(track, analysis, target_frames=timeline.frame_count)
 
         return CompiledMotion(

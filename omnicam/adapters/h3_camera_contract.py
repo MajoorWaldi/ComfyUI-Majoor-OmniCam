@@ -13,6 +13,7 @@ from __future__ import annotations
 from ..core.track import OmniCamTrack
 from .h3_geometry import H3GeometryAnalysis, H3OrbitSegment
 from .h3_scene_coverage import H3_SCENE_FPS, map_h3_scene_frame
+from .h3_sections import H3_SOUNDSCAPE_FALLBACK, H3_TASK_MARKER, render_h3_sections
 
 _STATIC_ORBIT_THRESHOLD_DEGREES = 5.0
 
@@ -42,19 +43,23 @@ def build_h3_scene_coverage_prompt(
             track, analysis, is_static=is_static, target_frames=target_frames,
             target_duration_seconds=target_duration_seconds, base_prompt=base_prompt, max_segments=max_segments,
         ),
-        "overall_soundscape": "Silence.",
+        "overall_soundscape": H3_SOUNDSCAPE_FALLBACK,
         "non_diegetic_music": "N/A",
     }
 
-    return "\n\n".join(f"{heading}:\n{body}" for heading, body in sections.items())
+    return render_h3_sections(sections)
 
 
 def _summary(analysis: H3GeometryAnalysis, is_static: bool, target_duration_seconds: float) -> str:
     if is_static:
-        return f"A locked-off shot of {target_duration_seconds:.1f} seconds; the camera does not move."
+        return (
+            f"{H3_TASK_MARKER} A locked-off shot of {target_duration_seconds:.1f} seconds; "
+            "the camera does not move."
+        )
     return (
-        f"A single continuous {abs(analysis.net_orbit_degrees):.1f}° {analysis.coverage_direction} camera orbit "
-        f"around the fixed subject over {target_duration_seconds:.1f} seconds."
+        f"{H3_TASK_MARKER} A single continuous {abs(analysis.net_orbit_degrees):.1f}° "
+        f"{analysis.coverage_direction} camera orbit around the fixed subject over "
+        f"{target_duration_seconds:.1f} seconds."
     )
 
 

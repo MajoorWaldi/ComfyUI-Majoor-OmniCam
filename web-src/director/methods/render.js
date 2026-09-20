@@ -95,7 +95,7 @@ export function createRenderMethods(dependencies) {
         // runs after the draw so next frame's gizmo position tracks this
         // frame's just-configured camera exactly (see its own comment).
         if (this.webgl.activeCamera) this.transformControlsWiring?.sync();
-        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null, this.selectedKeyFrames ? [...this.selectedKeyFrames] : null);
+        this.webgl.render(renderState, viewCamera, this.cardMediaById, rw, rh, this.modelUrlsById, this.frame, this.recording, this.selectedEntity, this.selectedObjectId, this.subSelection, this.selectedKeyFrame ?? null, this.selectedKeyFrames ? [...this.selectedKeyFrames] : null, this.recording ? (this.state.guide_capture_style || "auto") : "auto");
         c.imageSmoothingEnabled = true;
         c.imageSmoothingQuality = "high";
         if (rw !== w || rh !== h) c.drawImage(this.webgl.canvas, 0, 0, rw, rh, 0, 0, w, h);

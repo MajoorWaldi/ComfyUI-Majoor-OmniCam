@@ -10,6 +10,7 @@ from omnicam.monitor.result import (
     KNOWN_CHECK_SUGGESTIONS,
     Check,
     CompiledMotion,
+    PromptCompilation,
     ResolvedTimeline,
     panel_payload,
     suggestions_for_code,
@@ -92,12 +93,16 @@ class _Profile:
         del request
         return [Check(id="contract", label="Pinned contract", state="PASS")]
 
+    def compile_prompt(self, request: CompileRequest, ir) -> PromptCompilation:
+        del ir
+        return PromptCompilation(text=request.base_prompt)
+
     def compile(self, request: CompileRequest) -> CompiledMotion:
         return CompiledMotion(
             profile_id=self.id,
             semantic=self.semantic,
             timeline=self.resolve_timeline(request),
-            final_prompt=request.base_prompt,
+            final_prompt=self.compile_prompt(request, None).text,
         )
 
 
