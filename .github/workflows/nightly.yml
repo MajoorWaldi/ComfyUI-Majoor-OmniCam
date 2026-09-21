@@ -1,0 +1,115 @@
+name: Nightly build
+
+# Publishes a rolling pre-release GitHub Release built from main every night,
+# for early testers who don't want to build main themselves. This never
+# writes pyproject.toml and never publishes to the Comfy Registry -- only an
+# explicit version bump landing on main (publish_action.yml) does that.
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Publish even if main has not advanced since the last nightly"
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly-build
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  nightly:
+    name: Build and publish nightly
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'MajoorWaldi' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Skip if main has not advanced since the last nightly
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          LAST_SHA="$(gh release view nightly --json targetCommitish --jq .targetCommitish 2>/dev/null || true)"
+          if [ "${LAST_SHA}" = "${GITHUB_SHA}" ] && [ "${FORCE}" != "true" ]; then
+            echo "Main is unchanged since the last nightly (${LAST_SHA}); skipping."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v6
+        if: steps.gate.outputs.build == 'true'
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.build == 'true'
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Build the frontend bundle
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          npm ci
+          npm run build
+          test -f web/omnicam.js
+          test -d web-chunks
+
+      - name: Verify release contract
+        # Cheap, static checks that the packed archive really carries the
+        # generated frontend -- same gate publish_action.yml's release runs.
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -q tests/test_release_contract.py
+
+      - name: Install Comfy CLI
+        if: steps.gate.outputs.build == 'true'
+        run: pip install comfy-cli==1.20.0
+
+      - name: Pack Registry-format archive
+        if: steps.gate.outputs.build == 'true'
+        run: |
+          comfy --skip-prompt --no-enable-telemetry node pack
+          test -f node.zip
+
+      - name: Audit the exact archive
+        if: steps.gate.outputs.build == 'true'
+        run: python scripts/registry_package_audit.py node.zip --json-out registry-audit.json
+
+      - name: Resolve nightly artifact name
+        if: steps.gate.outputs.build == 'true'
+        id: nightly
+        run: |
+          BASE_VERSION="$(python -c 'from pathlib import Path; lines=Path("pyproject.toml").read_text(encoding="utf-8").splitlines(); print(next(line.split("=", 1)[1].strip().strip("\"") for line in lines if line.startswith("version = ")))')"
+          DATE="$(date -u +%Y%m%d)"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          ASSET="majoor-omnicam-nightly-${DATE}-${SHORT_SHA}.zip"
+          cp node.zip "${ASSET}"
+          echo "version=${BASE_VERSION}-nightly.${DATE}+${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "asset=${ASSET}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish rolling nightly release
+        # A rolling tag can't be retargeted with `gh release edit --target` --
+        # GitHub only honors target_commitish at tag creation. Delete and
+        # recreate instead so the "nightly" tag always points at this commit.
+        if: steps.gate.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ steps.nightly.outputs.asset }}
+          VERSION: ${{ steps.nightly.outputs.version }}
+        run: |
+          if gh release view nightly >/dev/null 2>&1; then
+            gh release delete nightly --cleanup-tag --yes
+          fi
+          gh release create nightly "${ASSET}" \
+            --target "${GITHUB_SHA}" \
+            --title "Nightly build ${VERSION}" \
+            --notes "Unreviewed automatic build of main@${GITHUB_SHA}. Not published to the Comfy Registry -- install this archive manually for early testing only, or track the pinned stable release instead." \
+            --prerelease

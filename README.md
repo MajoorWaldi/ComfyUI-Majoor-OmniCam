@@ -111,6 +111,14 @@ frontend compatibility dependency. Extractor solver backends and advanced
 reconstruction providers remain optional; see the
 [User Guide](docs/USER_GUIDE.md#install).
 
+### Nightly builds
+
+The [`nightly` GitHub Release](https://github.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/releases/tag/nightly)
+carries a packed archive of `main` as of last night's build, with its frontend
+already compiled. It is unreviewed and moves every day; use it only to test an
+unreleased fix, not for normal use. It is never published to the Comfy
+Registry -- only a tagged version release is.
+
 ## The three nodes
 
 > All three nodes are marked **experimental** in ComfyUI. Camera authoring and
