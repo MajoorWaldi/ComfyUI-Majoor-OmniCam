@@ -12,6 +12,7 @@
 // Shell state is written by the caller's runtime; it is never a second
 // source of truth (migration plan section 8).
 
+import { t } from "../i18n.js";
 import { injectWorkbenchStyles } from "./styles.js";
 
 // Which shell kinds get a live-looping playblast preview instead of a still
@@ -50,7 +51,20 @@ export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
 
   const titleEl = document.createElement("div");
   titleEl.className = "oc-node-shell-title";
-  titleEl.textContent = title ?? "";
+
+  // Dirty dot: shown before the title once the scene has unsaved changes
+  // (spec section 05, top bar "nom scène + dirty state"). A dot rather than
+  // an asterisk in the text so a locale swap can never desync it from the
+  // title string. Lives in its own span, sibling to the title text span, so
+  // setTitle()'s textContent write never wipes it back out.
+  const dirtyDotEl = document.createElement("span");
+  dirtyDotEl.className = "oc-node-shell-dirty-dot";
+  dirtyDotEl.hidden = true;
+  dirtyDotEl.setAttribute("aria-hidden", "true");
+  const titleTextEl = document.createElement("span");
+  titleTextEl.className = "oc-node-shell-title-text";
+  titleTextEl.textContent = title ?? "";
+  titleEl.append(dirtyDotEl, titleTextEl);
 
   const metaEl = document.createElement("div");
   metaEl.className = "oc-node-shell-meta";
@@ -86,7 +100,11 @@ export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
     root,
     openButton,
     setTitle(value) {
-      titleEl.textContent = value ?? "";
+      titleTextEl.textContent = value ?? "";
+    },
+    setDirty(value) {
+      dirtyDotEl.hidden = !value;
+      dirtyDotEl.title = value ? t("Unsaved changes") : "";
     },
     setMeta(value) {
       metaEl.textContent = value ?? "";

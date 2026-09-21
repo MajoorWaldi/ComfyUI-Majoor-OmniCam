@@ -34,10 +34,15 @@ function updateShell(runtime) {
   if (snapshot.durationSeconds) metaParts.push(`${snapshot.durationSeconds.toFixed(1)} s`);
   if (snapshot.width && snapshot.height) metaParts.push(`${snapshot.width}x${snapshot.height}`);
   runtime.shell?.setTitle(snapshot.sceneName || t("OmniCam Director"));
+  runtime.shell?.setDirty(snapshot.isDirty);
   runtime.shell?.setMeta(metaParts.join("  |  "));
   runtime.shell?.setStatus(
     `${snapshot.cameraCount} ${t("cameras")}  |  ${snapshot.objectCount} ${t("objects")}`,
   );
+  // Live-mirrors onto the open workbench's own top bar, if one is mounted
+  // right now (openDirectorWorkbenchSession() below sets/clears this ref).
+  runtime.activeWorkbenchHost?.setTitle(snapshot.sceneName || t("OmniCam Director"));
+  runtime.activeWorkbenchHost?.setDirty(snapshot.isDirty);
   // The recorded playblast video wins over the single downscaled still frame
   // whenever one is available -- see refreshDirectorPreview() below.
   if (runtime.previewVideoUrl) {
@@ -137,6 +142,11 @@ async function openDirectorWorkbenchSession(runtime, opener) {
         onResize: () => ui.scheduleResizeAndRender?.(),
       });
       host.mount(ui.root);
+      // Lets updateShell() mirror scene name/dirty state live onto this
+      // workbench's own top bar while it is open (cleared below on close/
+      // dispose so a stale reference can never outlive its host).
+      runtime.activeWorkbenchHost = host;
+      host.setDirty(runtime.isDirty);
 
       return {
         key,
@@ -156,12 +166,14 @@ async function openDirectorWorkbenchSession(runtime, opener) {
           ui.serialize?.();
           refreshDirectorPreview(runtime, ui);
           closeDirectorWorkbench(ui);
+          if (runtime.activeWorkbenchHost === host) runtime.activeWorkbenchHost = null;
           host.dispose();
           return true;
         },
         dispose: () => {
           refreshDirectorPreview(runtime, ui);
           closeDirectorWorkbench(ui);
+          if (runtime.activeWorkbenchHost === host) runtime.activeWorkbenchHost = null;
           host.dispose();
         },
       };

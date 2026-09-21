@@ -15,7 +15,9 @@ export const WORKBENCH_STYLES = `
   .oc-workbench-window{display:flex;flex-direction:column;width:min(96vw,1920px);height:92dvh;min-width:0;min-height:0;max-width:100vw;max-height:100dvh;background:var(--oc-bg-app);border:1px solid var(--oc-border-default);border-radius:8px;box-shadow:0 24px 64px rgba(0,0,0,0.7);overflow:hidden;outline:none}
   .oc-workbench-window.is-maximized{width:100vw;height:100vh;min-width:0;min-height:0;border-radius:0;border:none}
   .oc-workbench-header{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 12px;background:var(--oc-bg-panel);border-bottom:1px solid var(--oc-border-default);flex:none}
-  .oc-workbench-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--oc-text-primary);font:600 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .oc-workbench-title{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;overflow:hidden;color:var(--oc-text-primary);font:600 13px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .oc-workbench-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oc-workbench-dirty-dot{flex:none;width:7px;height:7px;border-radius:50%;background:${TOKENS.warning}}
   .oc-workbench-actions{display:flex;align-items:center;gap:6px;flex:none}
   .oc-workbench-actions button{display:inline-grid;place-items:center;width:28px;height:28px;padding:0;color:var(--oc-text-secondary);background:var(--oc-bg-control);border:1px solid var(--oc-border-default);border-radius:6px;cursor:pointer;transition:all .15s ease}
   .oc-workbench-actions button:hover{background:var(--oc-bg-control);border-color:${TOKENS.accent};color:var(--oc-text-primary)}
@@ -52,7 +54,9 @@ export const WORKBENCH_STYLES = `
   .oc-node-shell[data-has-preview="true"] .oc-node-shell-status{position:relative;z-index:2;color:#fff}
   .oc-node-shell[data-has-preview="true"] .oc-node-shell-open{position:relative;z-index:2}
   .oc-node-shell[data-has-preview="true"] .oc-node-shell-progress{z-index:2}
-  .oc-node-shell-title{font-weight:700;color:var(--oc-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oc-node-shell-title{display:flex;align-items:center;gap:5px;font-weight:700;color:var(--oc-text-primary);overflow:hidden}
+  .oc-node-shell-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oc-node-shell-dirty-dot{flex:none;width:6px;height:6px;border-radius:50%;background:${TOKENS.warning}}
   .oc-node-shell-meta{color:var(--oc-text-secondary);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .oc-node-shell-status{color:var(--oc-text-secondary);font-size:11px}
   .oc-node-shell-progress{position:relative;height:5px;border-radius:3px;background:var(--oc-bg-control);border:1px solid var(--oc-border-default);overflow:hidden;display:none}
