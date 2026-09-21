@@ -116,7 +116,7 @@ export function extractorMarkup() {
         <div data-role="reconstruction-stage" class="oc-stage-label"></div>
         <div data-role="reconstruction-summary" class="oc-summary-box" hidden></div>
         <div data-role="reconstruction-warnings" class="oc-warnings-box" hidden></div>
-        <div class="oc-recon-preview" data-role="reconstruction-preview" hidden>
+        <div class="oc-recon-preview" data-role="reconstruction-preview">
           <div class="oc-recon-preview-bar">
             <button type="button" data-role="reconstruction-preview-fit" title="${t("Frame the reconstructed scene")}"><i class="pi pi-search"></i> ${t("Fit")}</button>
           </div>
@@ -126,7 +126,6 @@ export function extractorMarkup() {
           <button type="button" class="oc-primary" data-role="reconstruction-run">${t("▶ RECONSTRUCT")}</button>
           <button type="button" data-role="reconstruction-stop" disabled>${t("■ STOP")}</button>
           <button type="button" data-role="reconstruction-discard" title="${t("Discard this reconstruction and its cached files so the next run recomputes it")}" disabled>${t("✕ DISCARD")}</button>
-          <button type="button" data-role="reconstruction-preview-toggle" disabled>${t("3D PREVIEW")}</button>
           <button type="button" class="oc-primary" data-role="reconstruction-open-director" disabled>${t("OPEN IN DIRECTOR")}</button>
         </div>
       </div>

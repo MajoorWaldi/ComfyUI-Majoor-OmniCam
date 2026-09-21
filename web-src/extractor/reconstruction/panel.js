@@ -67,12 +67,11 @@ export class ReconstructionPanelController {
     syncWidgetsFromPanel(this.node, this.root);
 
     // Lazy read-only 3D preview of the reconstructed scene (three.js is only
-    // pulled in when the user opens it).
+    // pulled in the first time Scene Reconstruct mode is entered -- see
+    // openPreview(), called from Extractor.setExtractMode()). From then on it
+    // stays mounted for the node's life, same as Camera Track's TRACK 3D tab.
     this.preview = null;
     this.previewLoad = null;
-    this.previewOpen = false;
-    const previewToggle = this.root?.querySelector?.('[data-role="reconstruction-preview-toggle"]');
-    if (previewToggle) this.on(previewToggle, "click", () => this.togglePreview());
     const previewFit = this.root?.querySelector?.('[data-role="reconstruction-preview-fit"]');
     if (previewFit) this.on(previewFit, "click", () => this.preview?.fit());
     const discardBtn = this.root?.querySelector?.('[data-role="reconstruction-discard"]');
@@ -119,13 +118,10 @@ export class ReconstructionPanelController {
     this.preview.fit();
   }
 
-  async togglePreview() {
-    this.previewOpen = !this.previewOpen;
-    const box = this.root.querySelector('[data-role="reconstruction-preview"]');
-    if (box) box.hidden = !this.previewOpen;
-    const btn = this.root.querySelector('[data-role="reconstruction-preview-toggle"]');
-    if (btn) btn.setAttribute("aria-pressed", String(this.previewOpen));
-    if (!this.previewOpen) return;
+  /** Mount the 3D preview if it isn't already, and draw whatever scene is
+   * currently available (an empty grid before the first result, same as
+   * Camera Track's TRACK 3D view before a solve exists). */
+  async openPreview() {
     await this.ensurePreview();
     if (this.disposed) return;
     this.pushSceneToPreview();
@@ -169,8 +165,8 @@ export class ReconstructionPanelController {
     const previousResult = this.state.result;
     this.state = reduceReconstructionState(this.state, action);
     this.render();
-    // A fresh result while the 3D preview is open -> redraw it.
-    if (this.previewOpen && this.preview && this.state.result && this.state.result !== previousResult) {
+    // A fresh result -> redraw the (always-mounted) 3D preview.
+    if (this.preview && this.state.result && this.state.result !== previousResult) {
       this.pushSceneToPreview();
     }
   }
@@ -256,7 +252,7 @@ export class ReconstructionPanelController {
         return false;
       }
     }
-    if (this.previewOpen) await this.togglePreview();
+    this.preview?.setReconstructedScene(null);
     this.dispatch({ type: "RESET" });
     // A discarded result must not come back on the next open -- clear the
     // runtime's headless replay copy too (ExtractorRuntime.acceptReconstructionResult).

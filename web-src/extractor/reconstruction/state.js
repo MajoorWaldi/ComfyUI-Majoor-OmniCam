@@ -96,7 +96,6 @@ export function reconstructionActions(state) {
     canStart,
     canStop,
     canOpenDirector,
-    canPreview: hasResult,
     // Discard a result you don't want (deletes its cached files so a re-run
     // recomputes). Never mid-job.
     canDiscard: hasResult && !active && jobState !== "STOPPING",

@@ -644,6 +644,10 @@ export class ExtractorUI {
     if (isReconstruct && this.reconstruction) {
       const src = this.state.source?.ref || this.state.source;
       if (src) this.reconstruction.setSource(src);
+      // Mirrors Camera Track's TRACK 3D tab: the 3D preview mounts the first
+      // time this mode is entered and then stays alive for the rest of the
+      // node's life, instead of needing its own separate open button.
+      this.reconstruction.openPreview();
     }
 
     const modeWidget = widget(this.node, "extract_mode");

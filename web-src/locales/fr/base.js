@@ -1,7 +1,6 @@
 // French catalogue partition (FR_BASE) for the OmniCam Director UI.
 export const FR_BASE = {
   "3D assets": "Objets 3D",
-  "3D PREVIEW": "APERÇU 3D",
   "3D preview of the reconstructed scene": "Aperçu 3D de la scène reconstruite",
   "Frame the reconstructed scene": "Cadrer la scène reconstruite",
   "Boxes only": "Boîtes seules",
