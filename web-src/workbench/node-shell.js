@@ -14,6 +14,7 @@
 
 import { t } from "../i18n.js";
 import { injectWorkbenchStyles } from "./styles.js";
+import { OMNICAM_VERSION } from "../shared/version.js";
 
 // Which shell kinds get a live-looping playblast preview instead of a still
 // image. Director is the only kind that exists today.
@@ -82,8 +83,12 @@ export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
   openButton.className = "oc-node-shell-open";
   openButton.textContent = buttonLabel ?? "Open";
 
-  if (videoEl) root.append(previewEl, videoEl, titleEl, metaEl, statusEl, progressEl, openButton);
-  else root.append(previewEl, titleEl, metaEl, statusEl, progressEl, openButton);
+  const versionEl = document.createElement("span");
+  versionEl.className = "oc-node-shell-version";
+  versionEl.textContent = `v${OMNICAM_VERSION}`;
+
+  if (videoEl) root.append(previewEl, videoEl, versionEl, titleEl, metaEl, statusEl, progressEl, openButton);
+  else root.append(previewEl, versionEl, titleEl, metaEl, statusEl, progressEl, openButton);
 
   const abort = new AbortController();
   openButton.addEventListener("click", (event) => onOpen?.(event), { signal: abort.signal });

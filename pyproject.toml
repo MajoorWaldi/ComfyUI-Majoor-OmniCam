@@ -1,7 +1,7 @@
 [project]
 name = "majoor-omnicam"
-version = "0.3.3"
-description = "Interactive camera authoring and proxy-reference playblasts for ComfyUI video models."
+version = "0.4.0"
+description = "Interactive 3D camera authoring and proxy-reference playblasts for ComfyUI video models."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }

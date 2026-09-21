@@ -5,28 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-21
 
 ### Added
 
 - Director Graph Editor gained a camera-only **Timing / Speed** view backed by the existing per-key Timing Weight contract, with Custom / Constant / Ease In / Ease Out / Ease In-Out remap presets. Apply Remap bakes timing into ordinary camera key frames without changing MotionScene schema or introducing model-specific camera semantics.
 - Camera Health gained **Inspect Timing**, which opens the active camera directly in the Timing / Speed graph for manual repair after speed, acceleration or jerk diagnostics.
 - Extractor gained optional **Horizon Stabilization** (`0..1`): a per-pose residual-roll damper applied after global Level Horizon/alignment and before quaternion continuity/smoothing. It preserves position and look direction and defaults to zero for backward compatibility.
+- Viewport label annotations now render into view-mode playblasts as well as capture mode, alongside multiselect group editing (select and transform several path keyframes or objects together) and a refreshed card design.
 
 ### Changed
 
-- Director and Extractor nodes now show a compact status shell with an
-  OPEN DIRECTOR / OPEN EXTRACTOR button instead of embedding the full editor
-  in the graph; the heavy editor (and, for Director, three.js) loads only
-  when opened, in a body-level workbench window. Only one heavy workbench is
-  open at a time.
-- Closing the Extractor workbench no longer cancels an in-progress TRACK /
-  Scene Reconstruct solve -- it keeps running and the compact shell shows its
-  progress. Deleting the node still cancels it.
+- Director now shows a compact status shell with an OPEN DIRECTOR button
+  instead of embedding the full editor in the graph; the heavy editor (and
+  its three.js viewport) loads only when opened, in a body-level workbench
+  window.
 - Director's external Agent bridge and semantic API now work identically
   whether or not its workbench is open; a Director never needs to be opened
   for a workflow to save/reload its state or for an Extractor reconstruction
   to be adopted into it.
+- Extractor reverted to mounting its full panel (DOM, media, 3D viewer)
+  inline in the node for the node's whole lifetime, replacing the compact-
+  shell/workbench toggle it briefly grew alongside Director's. A queued
+  TRACK / Scene Reconstruct solve still only cancels on node removal, not on
+  any close step -- there is no longer a separate close step at all.
+- Extractor's Scene Reconstruct 3D preview now mounts automatically on
+  entering Scene Reconstruct mode and stays active for the node's life,
+  matching Camera Track's TRACK 3D tab instead of hiding behind its own gate.
+- The floor grid is now built once as a persistent group instead of being
+  rebuilt on every viewport `rebuild()`, and stays under `content` so
+  capture-guide traversals and grid-only modes see it consistently.
+
+### Fixed
+
+- Label offset across HiDPI displays, playblasts, and human-origin objects
+  in the viewport.
+- `MoGeInference.execute()` is now called with `refine_steps` only when the
+  installed ComfyUI core's signature accepts it, fixing a `TypeError` that
+  broke every Scene Reconstruct run against stable ComfyUI builds that
+  predate that parameter.
+- Depth Mesh Scene Reconstruct now recentres its Source Camera and
+  environment mesh onto the recovered floor plane, matching the
+  Blockout/Hybrid/Scan leveling behaviour instead of leaving the camera at
+  a literal `(0, 0, 0)` disconnected from the recovered floor.
+- The shared subject-card placeholder texture is no longer disposed when a
+  single viewport instance rebuilds or closes, which could flicker or
+  corrupt the placeholder in other open Director nodes.
+- A manually typed clip duration no longer gets silently reverted by the
+  next upstream media re-sync; the duration widget is marked user-owned on
+  manual edit and only re-derived when the connected media source actually
+  changes.
+- Capture grid is now kept under the viewport's content group across
+  rebuilds instead of being dropped from grid-only and capture-guide
+  traversals.
 
 ## [0.3.3] - 2026-09-14
 
