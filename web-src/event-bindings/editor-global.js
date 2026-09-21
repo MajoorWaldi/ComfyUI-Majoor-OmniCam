@@ -108,6 +108,10 @@ export function bindEditorAndGlobal(ui, q, signal) {
   q('[data-role="duration-seconds"]')?.addEventListener("change", (event) => {
     if (ui.durationWidget && Number(ui.durationWidget.value) !== Number(event.target.value)) ui.checkpoint("Change duration");
     if (ui.durationWidget) ui.durationWidget.value = Number(event.target.value);
+    // Marks this clip's duration as user-owned so the next upstream media
+    // re-sync (every queue execution, not only on connect) does not stomp it
+    // back to the connected input's own length -- see adoptUpstreamMediaMetadata.
+    ui.durationManuallySet = true;
     ui.syncFromWidgets();
   }, { signal });
   q('[data-role="timeline-fps"]')?.addEventListener("change", (event) => {
