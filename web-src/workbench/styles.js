@@ -54,6 +54,8 @@ export const WORKBENCH_STYLES = `
   .oc-node-shell[data-has-preview="true"] .oc-node-shell-status{position:relative;z-index:2;color:#fff}
   .oc-node-shell[data-has-preview="true"] .oc-node-shell-open{position:relative;z-index:2}
   .oc-node-shell[data-has-preview="true"] .oc-node-shell-progress{z-index:2}
+  .oc-node-shell-version{position:absolute;top:6px;right:8px;z-index:2;font-size:9px;color:var(--oc-text-muted);pointer-events:none}
+  .oc-node-shell[data-has-preview="true"] .oc-node-shell-version{color:rgba(255,255,255,.65)}
   .oc-node-shell-title{display:flex;align-items:center;gap:5px;font-weight:700;color:var(--oc-text-primary);overflow:hidden}
   .oc-node-shell-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .oc-node-shell-dirty-dot{flex:none;width:6px;height:6px;border-radius:50%;background:${TOKENS.warning}}
