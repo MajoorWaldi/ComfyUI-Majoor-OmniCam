@@ -72,6 +72,12 @@ export function onCurvePointerDown(ui, event) {
     return;
   }
 
+  const wasMultiSelected = Boolean(
+    !hit.point.handle &&
+    ui.selectedKeyFrames?.size >= 2 &&
+    ui.selectedKeyFrames.has(hit.point.key.frame)
+  );
+
   if (hit.point.handle) {
     ui.selectedKeyFrame = hit.point.key.frame;
     ui.editingKeyFrame = null;
@@ -88,11 +94,16 @@ export function onCurvePointerDown(ui, event) {
     ui.updateKeyVisualState();
     ui.refreshKeyEditor();
     return;
+  } else if (wasMultiSelected) {
+    // Preserve multi-selection so dragging moves the whole group.
+    ui.selectedKeyFrame = hit.point.key.frame;
+    ui.editingKeyFrame = null;
+    ui.setFrame(hit.point.key.frame);
   } else {
     ui.selectKeyframe(hit.point.key);
     ui.setFrame(hit.point.key.frame);
   }
-  const value = hit.point.object ? hit.point.key.transform : hit.point.key.camera;
+  const value = hit.point.object ? (hit.point.key.transform || hit.point.object) : (hit.point.key.camera || hit.point.key);
   ui.curveDrag = {
     ...hit.point,
     startY: y,
@@ -101,10 +112,12 @@ export function onCurvePointerDown(ui, event) {
     startValue: hit.point.channel.get(value),
     pointerId: event.pointerId,
     historyCheckpointed: false,
+    wasMultiSelected,
+    moved: false,
   };
   // Dragging any key of a multi-selection moves the whole selection -- same
   // channel value delta, same frame delta -- the way the Timeline already does.
-  if (!hit.point.handle && ui.selectedKeyFrames?.size >= 2 && ui.selectedKeyFrames.has(hit.point.key.frame)) {
+  if (wasMultiSelected) {
     ui.curveDrag.group = ui.timelineKeyframes()
       .filter((k) => ui.selectedKeyFrames.has(k.frame))
       .map((k) => {
@@ -203,6 +216,9 @@ export function onCurvePointerMove(ui, event) {
   ui.curveHover = null;
   event.preventDefault();
   event.stopPropagation();
+  if (!ui.curveDrag.moved && Math.hypot(x - ui.curveDrag.startX, y - ui.curveDrag.startY) > 3) {
+    ui.curveDrag.moved = true;
+  }
   if (!ui.curveDrag.historyCheckpointed) {
     ui.checkpoint?.(ui.curveDrag.handle ? "Edit curve tangent" : "Edit curve");
     ui.curveDrag.historyCheckpointed = true;
@@ -263,27 +279,52 @@ export function onCurvePointerMove(ui, event) {
   }
 
   // 2D Keyframe Point Dragging (Value & Time)
-  const value = ui.curveDrag.maximum - ((y - ui.curveDrag.top) * (ui.curveDrag.maximum - ui.curveDrag.minimum)) / Math.max(1, ui.curveDrag.graphHeight);
-  const keyedValue = ui.curveDrag.object ? ui.curveDrag.key.transform : ui.curveDrag.key.camera;
+  const top = ui.curveDrag.top ?? 16;
+  const graphHeight = ui.curveDrag.graphHeight ?? Math.max(1, (canvas.clientHeight || 180) - 38);
+  const minVal = ui.curveDrag.minimum ?? -1;
+  const maxVal = ui.curveDrag.maximum ?? 1;
+  const value = maxVal - ((y - top) * (maxVal - minVal)) / Math.max(1, graphHeight);
+  const keyedValue = ui.curveDrag.object ? (ui.curveDrag.key.transform || ui.curveDrag.object) : (ui.curveDrag.key.camera || ui.curveDrag.key);
 
   // Time Retiming (X axis) if dragging horizontally without shift lock
-  const timeSpan = ui.curveDrag.lastFrame / (Number(ui.curveZoomX) || 1.0);
+  const lastFrame = ui.curveDrag.lastFrame ?? Math.max(1, (ui.state?.duration_frames || 100) - 1);
+  const graphWidth = ui.curveDrag.graphWidth ?? Math.max(1, (canvas.clientWidth || 600) - 58);
+  const left = ui.curveDrag.left ?? 44;
+  const timeSpan = lastFrame / (Number(ui.curveZoomX) || 1.0);
   const timeMin = Number(ui.curvePanX) || 0;
-  const newFrame = clamp(Math.round(timeMin + ((x - ui.curveDrag.left) / Math.max(1, ui.curveDrag.graphWidth)) * timeSpan), 0, ui.curveDrag.lastFrame);
+  const newFrame = clamp(Math.round(timeMin + ((x - left) / Math.max(1, graphWidth)) * timeSpan), 0, lastFrame);
   const retime = !event.shiftKey && Math.abs(x - ui.curveDrag.startX) > 8;
 
   if (ui.curveDrag.group) {
     const deltaValue = value - ui.curveDrag.startValue;
     let deltaFrame = retime ? newFrame - ui.curveDrag.startFrame : 0;
-    const others = new Set(ui.timelineKeyframes().filter((k) => !ui.selectedKeyFrames.has(k.frame)).map((k) => k.frame));
-    // Frame move is all-or-nothing (like the Timeline's shiftKeyframes): if any
-    // key would land on an unselected key or collide with another moved key,
-    // the whole retime is blocked and only the value delta applies.
+    const movingKeys = new Set(ui.curveDrag.group.map((entry) => entry.key));
+    const others = ui.timelineKeyframes().filter((k) => !movingKeys.has(k)).map((k) => k.frame);
     if (deltaFrame) {
-      const targets = ui.curveDrag.group.map((entry) => clamp(Math.round(entry.startFrame + deltaFrame), 0, ui.curveDrag.lastFrame));
-      const collides = targets.some((f) => others.has(f)) || new Set(targets).size !== targets.length;
-      if (collides) deltaFrame = 0;
-      else ui.curveDrag.group.forEach((entry, i) => { entry.key.frame = targets[i]; });
+      const maxFrame = lastFrame;
+      let effectiveDelta = 0;
+      if (deltaFrame > 0) {
+        let maxPos = Infinity;
+        for (const entry of ui.curveDrag.group) {
+          maxPos = Math.min(maxPos, maxFrame - entry.startFrame);
+          for (const obs of others) {
+            if (obs > entry.startFrame) maxPos = Math.min(maxPos, (obs - 1) - entry.startFrame);
+          }
+        }
+        effectiveDelta = Math.max(0, Math.min(deltaFrame, maxPos));
+      } else if (deltaFrame < 0) {
+        let maxNeg = Infinity;
+        for (const entry of ui.curveDrag.group) {
+          maxNeg = Math.min(maxNeg, entry.startFrame - 0);
+          for (const obs of others) {
+            if (obs < entry.startFrame) maxNeg = Math.min(maxNeg, entry.startFrame - (obs + 1));
+          }
+        }
+        effectiveDelta = Math.min(0, Math.max(deltaFrame, -Math.max(0, maxNeg)));
+      }
+      ui.curveDrag.group.forEach((entry) => {
+        entry.key.frame = entry.startFrame + effectiveDelta;
+      });
     }
     for (const entry of ui.curveDrag.group) {
       ui.curveDrag.channel.set(entry.backing, entry.startValue + deltaValue);
@@ -295,10 +336,27 @@ export function onCurvePointerMove(ui, event) {
     ui.frame = ui.curveDrag.key.frame;
   } else {
     ui.curveDrag.channel.set(keyedValue, value);
-    if (retime && newFrame !== ui.curveDrag.key.frame) {
-      ui.curveDrag.key.frame = newFrame;
-      ui.selectedKeyFrame = newFrame;
-      ui.frame = newFrame;
+    if (retime) {
+      const allKeys = ui.timelineKeyframes();
+      let minAllowed = 0;
+      let maxAllowed = lastFrame;
+      for (const k of allKeys) {
+        if (k === ui.curveDrag.key) continue;
+        if (k.frame < ui.curveDrag.startFrame && k.frame >= minAllowed) {
+          minAllowed = k.frame + 1;
+        }
+        if (k.frame > ui.curveDrag.startFrame && k.frame <= maxAllowed) {
+          maxAllowed = k.frame - 1;
+        }
+      }
+      const clampedFrame = clamp(newFrame, minAllowed, maxAllowed);
+      if (clampedFrame !== ui.curveDrag.key.frame) {
+        ui.curveDrag.key.frame = clampedFrame;
+        ui.selectedKeyFrame = clampedFrame;
+        ui.selectedKeyFrames = new Set([clampedFrame]);
+        ui.frame = clampedFrame;
+        ui.timelineKeyframes().sort((a, b) => a.frame - b.frame);
+      }
     } else {
       ui.editingKeyFrame = ui.curveDrag.key.frame;
       ui.frame = ui.curveDrag.key.frame;
@@ -306,17 +364,17 @@ export function onCurvePointerMove(ui, event) {
   }
 
   if (ui.curveDrag.object) {
-    const transform = cloneTransform(ui.curveDrag.key.transform);
-    ui.curveDrag.object.position = transform.position;
-    ui.curveDrag.object.rotation = transform.rotation;
-    ui.curveDrag.object.size = transform.size;
-  } else {
-    const camera = cloneCamera(ui.curveDrag.key.camera);
-    ui.camera.position = camera.position;
-    ui.camera.target = camera.target;
-    ui.camera.fov = camera.fov;
-    ui.camera.roll = camera.roll;
-    ui.camera.zoom = camera.zoom;
+    const transform = cloneTransform(ui.curveDrag.key.transform || ui.curveDrag.object);
+    if (transform.position) ui.curveDrag.object.position = transform.position;
+    if (transform.rotation) ui.curveDrag.object.rotation = transform.rotation;
+    if (transform.size) ui.curveDrag.object.size = transform.size;
+  } else if (ui.camera) {
+    const camera = cloneCamera(ui.curveDrag.key.camera || ui.camera);
+    if (camera.position) ui.camera.position = camera.position;
+    if (camera.target) ui.camera.target = camera.target;
+    if (camera.fov !== undefined) ui.camera.fov = camera.fov;
+    if (camera.roll !== undefined) ui.camera.roll = camera.roll;
+    if (camera.zoom !== undefined) ui.camera.zoom = camera.zoom;
   }
   ui.scheduleSerialize();
   ui.render();
@@ -332,11 +390,18 @@ export function onCurvePointerUp(ui, event) {
   if (ui.curveDrag) {
     const cancelled = event.type === "pointercancel" || event.type === "lostpointercapture";
     const checkpointed = ui.curveDrag.historyCheckpointed;
+    const wasMultiSelected = ui.curveDrag.wasMultiSelected;
+    const moved = ui.curveDrag.moved;
+    const clickedKey = ui.curveDrag.key;
     const keys = ui.timelineKeyframes();
     keys.sort((a, b) => a.frame - b.frame);
     ui.editingKeyFrame = null;
     ui.curveDrag = null;
-    if (cancelled && checkpointed) ui.undo?.();
+    if (cancelled && checkpointed) {
+      ui.undo?.();
+    } else if (wasMultiSelected && !moved && !event.shiftKey) {
+      ui.selectKeyframe(clickedKey);
+    }
     ui.serialize();
     ui.refreshKeys();
     ui.updateKeyVisualState();
@@ -345,22 +410,37 @@ export function onCurvePointerUp(ui, event) {
 }
 
 export function setCurveInterpolation(ui, mode) {
-  const key = ui.selectedKeyframe() || ui.timelineKeyframes().find((item) => item.frame === ui.frame);
-  if (!key) return ui.setStatus(t("Select a keyframe first"));
-  ui.checkpoint("Change interpolation");
-  key.interpolation = mode;
+  const allKeys = ui.timelineKeyframes();
+  const selectedFrames = ui.selectedKeyFrames && ui.selectedKeyFrames.size >= 2
+    ? ui.selectedKeyFrames
+    : null;
+  const targetKeys = selectedFrames
+    ? allKeys.filter((item) => selectedFrames.has(item.frame))
+    : [ui.selectedKeyframe() || allKeys.find((item) => item.frame === ui.frame)].filter(Boolean);
+  if (!targetKeys.length) return ui.setStatus(t("Select a keyframe first"));
+  ui.checkpoint(targetKeys.length > 1 ? t("Interpolation on {n} keys").replace("{n}", targetKeys.length) : "Change interpolation");
+  for (const key of targetKeys) {
+    key.interpolation = mode;
+  }
   for (const btn of ui.root.querySelectorAll("[data-curve-mode]")) {
     const isMode = btn.dataset.curveMode === mode;
     btn.classList.toggle("active", isMode);
     btn.setAttribute("aria-pressed", String(isMode));
   }
-  ui.selectedKeyFrame = key.frame;
+  const interpSelect = ui.root.querySelector('[data-role="key-interp"]');
+  if (interpSelect) interpSelect.value = mode;
+  for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
+    btn.classList.toggle("active", btn.dataset.interp === mode);
+  }
+  ui.selectedKeyFrame = targetKeys[0].frame;
   ui.serialize();
   ui.refreshKeys();
   ui.refreshKeyEditor();
   ui.render();
   ui.drawCurveEditor();
-  ui.setStatus(t("{value1} interpolation @ {value2}", { value1: mode.replace("_", " "), value2: key.frame }));
+  ui.setStatus(targetKeys.length > 1
+    ? t("{mode} interpolation on {n} keys").replace("{mode}", mode.replace(/_/g, " ")).replace("{n}", targetKeys.length)
+    : t("{value1} interpolation @ {value2}", { value1: mode.replace(/_/g, " "), value2: targetKeys[0].frame }));
 }
 
 export function setChannelFilter(ui, filter) {
@@ -375,29 +455,45 @@ export function setChannelFilter(ui, filter) {
 }
 
 export function setTangentMode(ui, mode) {
-  const key = ui.selectedKeyframe();
-  if (!key || !["auto", "vector", "free", "aligned", "flat"].includes(mode)) return ui.setStatus(t("Select a keyframe first"));
-  ui.checkpoint("Change tangent mode");
-  if (mode !== "auto" && key.interpolation !== "bezier") key.interpolation = "bezier";
-  if (!key.tangents) key.tangents = { mode: "auto", channels: {} };
-  key.tangents.mode = mode;
-  if (!key.tangents.channels) key.tangents.channels = {};
+  if (!["auto", "vector", "free", "aligned", "flat"].includes(mode)) return ui.setStatus(t("Select a keyframe first"));
+  const allKeys = ui.timelineKeyframes();
+  const selectedFrames = ui.selectedKeyFrames && ui.selectedKeyFrames.size >= 2
+    ? ui.selectedKeyFrames
+    : null;
+  const targetKeys = selectedFrames
+    ? allKeys.filter((item) => selectedFrames.has(item.frame))
+    : [ui.selectedKeyframe()].filter(Boolean);
+  if (!targetKeys.length) return ui.setStatus(t("Select a keyframe first"));
+  ui.checkpoint(targetKeys.length > 1 ? t("Tangents on {n} keys").replace("{n}", targetKeys.length) : "Change tangent mode");
   const channels = curveChannels(ui);
-  for (const ch of channels) {
-    if (!key.tangents.channels[ch.id]) key.tangents.channels[ch.id] = { mode };
-    else key.tangents.channels[ch.id].mode = mode;
+  for (const key of targetKeys) {
+    if (mode !== "auto" && key.interpolation !== "bezier") key.interpolation = "bezier";
+    if (!key.tangents) key.tangents = { mode: "auto", channels: {} };
+    key.tangents.mode = mode;
+    if (!key.tangents.channels) key.tangents.channels = {};
+    for (const ch of channels) {
+      if (!key.tangents.channels[ch.id]) key.tangents.channels[ch.id] = { mode };
+      else key.tangents.channels[ch.id].mode = mode;
+    }
   }
   for (const btn of ui.root.querySelectorAll("[data-tangent-mode]")) {
     const isMode = btn.dataset.tangentMode === mode;
     btn.classList.toggle("active", isMode);
     btn.setAttribute("aria-pressed", String(isMode));
   }
-  ui.selectedKeyFrame = key.frame;
+  const tangentSelect = ui.root.querySelector('[data-role="key-tangent-mode"]');
+  if (tangentSelect) tangentSelect.value = mode;
+  for (const btn of ui.root.querySelectorAll("[data-tangent]")) {
+    btn.classList.toggle("active", btn.dataset.tangent === mode);
+  }
+  ui.selectedKeyFrame = targetKeys[0].frame;
   ui.serialize();
   ui.refreshKeys();
   ui.render();
   ui.drawCurveEditor();
-  ui.setStatus(t("Tangent mode: {value1} @ {value2}", { value1: mode, value2: key.frame }));
+  ui.setStatus(targetKeys.length > 1
+    ? t("{mode} tangents on {n} keys").replace("{mode}", mode).replace("{n}", targetKeys.length)
+    : t("Tangent mode: {value1} @ {value2}", { value1: mode, value2: targetKeys[0].frame }));
 }
 
 export function toggleCurveHandles(ui) {

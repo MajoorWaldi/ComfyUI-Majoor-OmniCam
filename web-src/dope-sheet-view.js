@@ -64,7 +64,7 @@ function appendDiamonds(ui, track, row, keys, percentFor) {
       event.preventDefault();
       event.stopPropagation();
       const key = keys.find((item) => item.frame === frame);
-      if (!key) return;
+      if (!key || ui.suppressKeyClick) return;
       if (event.shiftKey) {
         ui.selectedKeyFrames = new Set(ui.selectedKeyFrames || [ui.selectedKeyFrame].filter((item) => item !== null));
         ui.selectedKeyFrames.has(frame) ? ui.selectedKeyFrames.delete(frame) : ui.selectedKeyFrames.add(frame);

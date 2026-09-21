@@ -4,6 +4,7 @@ import { add, clamp, generatePointField, length, project, sampleCamera, sampleOb
 import { labelAnchorWorld, labelText, sanitizeLabelSettings, shouldShowLabel } from "./assets/labels.js";
 import { drawResolutionGate } from "./viewport/resolution-gate.js";
 import { drawTopDownRadar } from "./viewport/minimap.js";
+import { applyMediaAspectToCard, getSubjectPlaceholderCanvas } from "./viewport/subject-placeholder.js";
 
 // Viewport Labels are normally a DOM layer that hides itself during a capture
 // (design spec section 14). With `playblast_labels` on, this paints the same
@@ -18,7 +19,9 @@ export function drawPlayblastLabels(ui) {
   const h = ui.canvas.height;
   const scale = clamp(h / 720, 0.75, 4);
   const frame = Number(ui.frame) || 0;
-  const selected = ui.selectedObjectIds instanceof Set ? ui.selectedObjectIds : new Set();
+  const selected = (ui.selectedObjectIds instanceof Set && ui.selectedObjectIds.size)
+    ? ui.selectedObjectIds
+    : new Set([ui.selectedObjectId].filter(Boolean));
 
   c.save();
   c.font = `${Math.round(12 * scale)}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
@@ -30,9 +33,20 @@ export function drawPlayblastLabels(ui) {
     if (!text) continue;
     const transform = sampleObjectWorldTransform(objects, object, frame)
       || { position: object.position, size: object.size };
-    const projected = project(labelAnchorWorld(transform, object.type), camera, w, h);
-    if (!projected) continue;
-    const [px, py] = projected;
+    const anchor = object.annotation?.anchor || "top";
+    const worldPoint = labelAnchorWorld(transform, object.type, anchor);
+    let px, py;
+    if (ui.webgl?.projectWorldToScreen && ui.webgl.activeCamera) {
+      const screen = ui.webgl.projectWorldToScreen(worldPoint);
+      if (!screen || screen.behind) continue;
+      px = screen.x;
+      py = screen.y;
+    } else {
+      const projected = project(worldPoint, camera, w, h);
+      if (!projected) continue;
+      px = projected[0];
+      py = projected[1];
+    }
     const accent = settings.content === "annotation" ? object.annotation?.color || "" : "";
     const padX = 6 * scale;
     const padY = 4 * scale;
@@ -41,15 +55,15 @@ export function drawPlayblastLabels(ui) {
     const boxH = 12 * scale + padY * 2;
     const bx = Math.round(px - boxW / 2);
     const by = Math.round(py - boxH - 6 * scale);
-    c.fillStyle = "rgba(16,17,22,0.82)";
+    c.fillStyle = "rgba(16,17,22,0.88)";
     _roundRect(c, bx, by, boxW, boxH, 4 * scale);
     c.fill();
     if (accent) {
       c.strokeStyle = accent;
-      c.lineWidth = Math.max(1, scale);
+      c.lineWidth = Math.max(1, 1.5 * scale);
       c.stroke();
     }
-    c.fillStyle = accent || "#e6e6ec";
+    c.fillStyle = accent ? "#f3f4f6" : "#e6e6ec";
     c.fillText(text, bx + padX, by + boxH - padY - 2 * scale);
   }
   c.restore();
@@ -283,6 +297,10 @@ export function drawNull(ui, obj) {
 }
 
 export function drawCard(ui, obj) {
+  const media = ui.cardMediaById.get(obj.id) || (obj.id === "subject" ? ui.cardMedia : null);
+  if (media) {
+    applyMediaAspectToCard(obj, media);
+  }
   const [x, y, z] = obj.position || [0, 1.5, 0];
   const [w, h] = obj.size || [2, 3];
   const camera = ui.viewportCamera();
@@ -302,10 +320,36 @@ export function drawCard(ui, obj) {
   ui.ctx.save();
   ui.ctx.beginPath();
   ui.ctx.moveTo(corners[0][0], corners[0][1]);
-  for (let i = 1; i < 4; i++) ui.ctx.lineTo(corners[i][0], corners[i][1]);
   ui.ctx.closePath();
   ui.ctx.clip();
-  const media = ui.cardMediaById.get(obj.id) || (obj.id === "subject" ? ui.cardMedia : null);
+  if (ui.state.render_mode === "graybox") {
+    ui.ctx.fillStyle = "#3f4654";
+    ui.ctx.fill();
+    ui.ctx.restore();
+    ui.ctx.strokeStyle = "#64748b";
+    ui.ctx.lineWidth = 1.5;
+    ui.ctx.beginPath();
+    ui.ctx.moveTo(corners[0][0], corners[0][1]);
+    for (let i = 1; i < 4; i++) ui.ctx.lineTo(corners[i][0], corners[i][1]);
+    ui.ctx.closePath();
+    ui.ctx.stroke();
+    return;
+  }
+  if (ui.state.render_mode === "wireframe") {
+    ui.ctx.restore();
+    ui.ctx.strokeStyle = "#8ab4f8";
+    ui.ctx.lineWidth = 1.5;
+    ui.ctx.beginPath();
+    ui.ctx.moveTo(corners[0][0], corners[0][1]);
+    for (let i = 1; i < 4; i++) ui.ctx.lineTo(corners[i][0], corners[i][1]);
+    ui.ctx.closePath();
+    ui.ctx.moveTo(corners[0][0], corners[0][1]);
+    ui.ctx.lineTo(corners[2][0], corners[2][1]);
+    ui.ctx.moveTo(corners[1][0], corners[1][1]);
+    ui.ctx.lineTo(corners[3][0], corners[3][1]);
+    ui.ctx.stroke();
+    return;
+  }
   if (media) {
     try {
       const dw = Math.max(1, maxX - minX);
@@ -330,16 +374,21 @@ export function drawCard(ui, obj) {
       }
     } catch (_) {}
   } else {
-    ui.ctx.fillStyle = "#3a414b";
-    ui.ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
-    ui.ctx.fillStyle = "#d8d8d8";
-    ui.ctx.textAlign = "center";
-    ui.ctx.font = `${Math.max(12, Math.min(28, (maxX - minX) * 0.08))}px system-ui`;
-    ui.ctx.fillText("SUBJECT CARD", (minX + maxX) / 2, (minY + maxY) / 2);
+    const placeholder = getSubjectPlaceholderCanvas();
+    if (placeholder) {
+      ui.ctx.drawImage(placeholder, minX, minY, maxX - minX, maxY - minY);
+    } else {
+      ui.ctx.fillStyle = "#1e293b";
+      ui.ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+      ui.ctx.fillStyle = "#d8d8d8";
+      ui.ctx.textAlign = "center";
+      ui.ctx.font = `${Math.max(12, Math.min(28, (maxX - minX) * 0.08))}px system-ui`;
+      ui.ctx.fillText("SUBJECT CARD", (minX + maxX) / 2, (minY + maxY) / 2);
+    }
   }
   ui.ctx.restore();
-  ui.ctx.strokeStyle = "#b3b8c1";
-  ui.ctx.lineWidth = 2;
+  ui.ctx.strokeStyle = media ? "#b3b8c1" : "#38bdf8";
+  ui.ctx.lineWidth = 1.5;
   ui.ctx.beginPath();
   ui.ctx.moveTo(corners[0][0], corners[0][1]);
   for (let i = 1; i < 4; i++) ui.ctx.lineTo(corners[i][0], corners[i][1]);
@@ -483,9 +532,11 @@ export function drawOverlays(ui) {
     c.fillText(`F ${ui.frame}/${ui.state.duration_frames - 1}  ${ui.state.fps}fps  FOV ${camera.fov.toFixed(1)}  ${ui.state.render_mode}`, 12, h - 12);
     c.restore();
   }
-  // Burned-in Viewport Labels: opt in with `playblast_labels` (the live DOM
-  // overlay stays hidden during a capture).
-  if (ui.recording && ui.state.playblast_labels) drawPlayblastLabels(ui);
+  // Burned-in Viewport Labels: opt in with `playblast_labels`, or in editor view
+  // modes when labels are actively displayed in the viewport.
+  const showLabelsInCapture = Boolean(ui.state.playblast_labels)
+    || (ui.state.view_mode !== "camera" && ui.state?.metadata?.viewport_labels?.mode && ui.state.metadata.viewport_labels.mode !== "off");
+  if (ui.recording && showLabelsInCapture) drawPlayblastLabels(ui);
 }
 
 export { drawTopDownRadar, getCameraHeightColor, getCameraHeightLabel } from "./viewport/minimap.js";

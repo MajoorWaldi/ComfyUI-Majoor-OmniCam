@@ -23,19 +23,26 @@ function sceneTab() {
     <details class="toolbar-menu" data-menu="scene"><summary><i class="pi pi-box"></i> ${t("Viewport")} <i class="pi pi-chevron-down"></i></summary><div class="menu-panel">
       <div class="menu-title">${t("Upstream Sync & Imports")}</div>
       <button data-act="sync-inputs" class="primary"><i class="pi pi-sync"></i> ${t("Sync Upstream Inputs")}</button>
-      <button data-act="load-card"><i class="pi pi-image"></i> ${t("Set Subject Card")}</button>
-      <button data-act="add-card"><i class="pi pi-images"></i> ${t("Add Media Card")}</button>
-      <button data-act="load-model"><i class="pi pi-box"></i> ${t("Import 3D Scene")}</button>
-      <button data-act="load-audio"><i class="pi pi-volume-up"></i> ${t("Load Audio Track")}</button>
+      <div class="menu-grid">
+        <button data-act="load-card"><i class="pi pi-image"></i> ${t("Set Subject Card")}</button>
+        <button data-act="add-card"><i class="pi pi-images"></i> ${t("Add Media Card")}</button>
+        <button data-act="load-model"><i class="pi pi-box"></i> ${t("Import 3D Scene")}</button>
+        <button data-act="load-audio"><i class="pi pi-volume-up"></i> ${t("Load Audio Track")}</button>
+      </div>
       <span class="hint">${t("GLB, OBJ, FBX, STL, PLY. Audio WAV/MP3/OGG.")}</span>
-      <div class="menu-divider"></div><div class="menu-title">${t("Objects & Primitives")}</div>
-      <button data-object-type="card"><i class="pi pi-image"></i> ${t("Card")}</button>
-      <button data-object-type="cube"><i class="pi pi-stop"></i> ${t("Cube")}</button>
-      <button data-object-type="sphere"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
-      <button data-object-type="cylinder"><i class="pi pi-database"></i> ${t("Cylinder")}</button>
-      <button data-object-type="torus"><i class="pi pi-circle"></i> ${t("Torus")}</button>
-      <button data-object-type="human"><i class="pi pi-user"></i> ${t("Human Proxy")}</button>
-      <button data-object-type="null"><i class="pi pi-plus"></i> ${t("Null Locator")}</button>
+      <div class="menu-divider"></div>
+      <div class="menu-pack">
+        <div class="menu-pack-header"><span>${t("Objects & Primitives")}</span><span class="menu-pack-badge">7</span></div>
+        <div class="menu-grid">
+          <button data-object-type="cube"><i class="pi pi-stop"></i> ${t("Cube")}</button>
+          <button data-object-type="sphere"><i class="pi pi-circle"></i> ${t("Sphere")}</button>
+          <button data-object-type="cylinder"><i class="pi pi-database"></i> ${t("Cylinder")}</button>
+          <button data-object-type="torus"><i class="pi pi-circle"></i> ${t("Torus")}</button>
+          <button data-object-type="card"><i class="pi pi-image"></i> ${t("Card")}</button>
+          <button data-object-type="human"><i class="pi pi-user"></i> ${t("Human Proxy")}</button>
+          <button data-object-type="null" class="span-2"><i class="pi pi-plus"></i> ${t("Null Locator")}</button>
+        </div>
+      </div>
       <div class="menu-section" data-density-min="animation">
         <div class="menu-divider"></div><div class="menu-title">${t("Camera Interchange")}</div>
         <button data-act="import-camera"><i class="pi pi-download"></i> ${t("Import Camera…")}</button>
@@ -46,13 +53,16 @@ function sceneTab() {
         <input data-role="camera-file" type="file" accept=".gltf,.glb,.fbx,.chan,.json" hidden>
       </div>
       <div class="menu-section" data-density-min="advanced">
-        <div class="menu-divider"></div><div class="menu-title">${t("Blocking Scene Sets (Parallax / Occlusion)")}</div>
-        <div class="menu-grid">
-          <button data-blocking-scene="foreground_reveal" title="${t("Foreground pillar sweep reveal")}">${t("FG Reveal")}</button>
-          <button data-blocking-scene="doorway_pass" title="${t("Push-in through doorway opening")}">${t("Doorway Pass")}</button>
-          <button data-blocking-scene="over_the_shoulder" title="${t("Over the shoulder frame")}">${t("OTS Frame")}</button>
-          <button data-blocking-scene="perspective_corridor" title="${t("Perspective depth colonnade")}">${t("Corridor")}</button>
-          <button data-blocking-scene="tabletop_orbit" class="span-2" title="${t("Product pedestal 360 orbit")}">${t("Tabletop 360° Orbit")}</button>
+        <div class="menu-divider"></div>
+        <div class="menu-pack">
+          <div class="menu-pack-header"><span>${t("Blocking Scene Sets (Parallax / Occlusion)")}</span><span class="menu-pack-badge">5</span></div>
+          <div class="menu-grid">
+            <button data-blocking-scene="foreground_reveal" title="${t("Foreground pillar sweep reveal")}">${t("FG Reveal")}</button>
+            <button data-blocking-scene="doorway_pass" title="${t("Push-in through doorway opening")}">${t("Doorway Pass")}</button>
+            <button data-blocking-scene="over_the_shoulder" title="${t("Over the shoulder frame")}">${t("OTS Frame")}</button>
+            <button data-blocking-scene="perspective_corridor" title="${t("Perspective depth colonnade")}">${t("Corridor")}</button>
+            <button data-blocking-scene="tabletop_orbit" class="span-2" title="${t("Product pedestal 360 orbit")}">${t("Tabletop 360° Orbit")}</button>
+          </div>
         </div>
       </div>
     </div></details>`;
@@ -68,20 +78,29 @@ function camerasTab() {
       <button data-act="aim-at-object" class="primary"><i class="pi pi-compass"></i> ${t("Aim at Target Subject")}</button>
       <button data-act="focus-target"><i class="pi pi-expand"></i> ${t("Frame Camera Target")}</button>
       <div class="menu-section" data-density-min="animation">
-        <button data-act="bake-aim-keys"><i class="pi pi-check-square"></i> ${t("Bake")}</button>
-        <button data-act="bake-aim-per-frame" title="${t("One camera key per frame, so an exported track matches the viewport exactly")}"><i class="pi pi-list-check"></i> ${t("Bake Per Frame")}</button>
+        <div class="menu-grid">
+          <button data-act="bake-aim-keys"><i class="pi pi-check-square"></i> ${t("Bake")}</button>
+          <button data-act="bake-aim-per-frame" title="${t("One camera key per frame, so an exported track matches the viewport exactly")}"><i class="pi pi-list-check"></i> ${t("Bake Per Frame")}</button>
+        </div>
       </div>
-      <div class="menu-divider"></div><div class="menu-title">${t("Motion Presets & Shake")}</div>
-      <div class="menu-grid">
-        <button data-preset="orbit_360">${t("Orbit 360°")}</button>
-        <button data-preset="push_in">${t("Push In")}</button>
-        <button data-preset="pull_out">${t("Pull Out")}</button>
-        <button data-preset="dolly_zoom">${t("Dolly Zoom (Vertigo)")}</button>
-        <button data-shake="handheld_subtle">${t("Handheld Shake")}</button>
-        <button data-shake="turbulence">${t("Turbulence Shake")}</button>
-        <button data-shake="handheld">${t("Handheld")}</button>
-        <button data-shake="subtle">${t("Subtle")}</button>
-        <button data-shake="crash">${t("Crash")}</button>
+      <div class="menu-divider"></div>
+      <div class="menu-pack">
+        <div class="menu-pack-header"><span>${t("Motion Presets & Shake")}</span><span class="menu-pack-badge">9</span></div>
+        <div class="menu-title" style="margin-top:2px">${t("Camera Path Presets")}</div>
+        <div class="menu-grid">
+          <button data-preset="orbit_360">${t("Orbit 360°")}</button>
+          <button data-preset="push_in">${t("Push In")}</button>
+          <button data-preset="pull_out">${t("Pull Out")}</button>
+          <button data-preset="dolly_zoom">${t("Dolly Zoom (Vertigo)")}</button>
+        </div>
+        <div class="menu-title" style="margin-top:5px">${t("Camera Shake")}</div>
+        <div class="menu-grid">
+          <button data-shake="handheld">${t("Handheld")}</button>
+          <button data-shake="subtle">${t("Subtle")}</button>
+          <button data-shake="handheld_subtle">${t("Handheld Shake")}</button>
+          <button data-shake="turbulence">${t("Turbulence Shake")}</button>
+          <button data-shake="crash" class="span-2">${t("Crash")}</button>
+        </div>
       </div>
       <div class="menu-divider"></div>
       <label>${t("New key interpolation")} <select data-role="interp">
@@ -206,14 +225,20 @@ export function toolbarMarkup() {
       <input data-role="viewport-bg-seq-file" type="file" accept="image/*" multiple hidden>
       <span class="oc-toolbar-spacer"></span>
       <div class="oc-shelf-modes">
-        <select class="oc-render-mode" data-role="mode" title="${t("Proxy mode")}">
-          <option value="omni_ref">${t("Omni Ref")}</option>
-          <option value="card_grid">${t("Card + Grid")}</option>
-          <option value="graybox">${t("Graybox")}</option>
-          <option value="grid">${t("Grid")}</option>
-          <option value="point_field">${t("Point Field")}</option>
-          <option value="wireframe">${t("Wireframe")}</option>
-          <option value="beauty">${t("Beauty (lit)")}</option>
+        <select class="oc-render-mode" data-role="mode" title="${t("Proxy / Shading Mode: Visual conditioning reference for generative video models and scene staging")}">
+          <optgroup label="${t("AI Video Reference")}">
+            <option value="omni_ref">${t("Omni Ref (Card + Grid + Depth)")}</option>
+            <option value="card_grid">${t("Card + Grid (Clean Reference)")}</option>
+            <option value="point_field">${t("Point Field (Wan ATI Trajectories)")}</option>
+          </optgroup>
+          <optgroup label="${t("Layout & Geometry")}">
+            <option value="graybox">${t("Clay Blockout (Neutral Massing)")}</option>
+            <option value="wireframe">${t("Wireframe (Mesh Structure)")}</option>
+            <option value="grid">${t("Grid Only (Camera Motion)")}</option>
+          </optgroup>
+          <optgroup label="${t("Presentation")}">
+            <option value="beauty">${t("Beauty (Studio Lit)")}</option>
+          </optgroup>
         </select>
         <button class="icon-button oc-strip-toggle" data-act="toggle-camera-view" title="${t("Toggle Camera Previews Strip")}"><i class="pi pi-video"></i></button>
         <button class="icon-button oc-drawer-toggle" data-act="toggle-inspector-panel" title="${t("Inspector")}" aria-pressed="false"><i class="pi pi-sliders-h"></i></button>

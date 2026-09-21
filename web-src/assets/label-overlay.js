@@ -59,7 +59,7 @@ export function createLabelOverlay(ui, options = {}) {
         position: object.position,
         size: object.size,
       };
-      const screen = ui.webgl.projectWorldToScreen(labelAnchorWorld(transform, object.type));
+      const screen = ui.webgl.projectWorldToScreen(labelAnchorWorld(transform, object.type, object.annotation?.anchor));
       if (!screen || screen.behind) continue;
 
       const node = nodeAt(used);

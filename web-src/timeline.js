@@ -139,8 +139,7 @@ export function refreshKeys(ui) {
     element.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      if (event.shiftKey) return;
-      if (!event.shiftKey) ui.selectedKeyFrames = new Set([key.frame]);
+      if (event.shiftKey || ui.suppressKeyClick) return;
       ui.selectKeyframe(key);
     });
     box.appendChild(element);

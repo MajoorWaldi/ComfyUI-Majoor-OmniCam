@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultCamera } from "../../web-src/director/core.js";
-import { drawPlayblastLabels } from "../../web-src/viewport-overlays.js";
+import { defaultCamera, defaultEditorViews } from "../../web-src/director/core.js";
+import { drawOverlays, drawPlayblastLabels } from "../../web-src/viewport-overlays.js";
+import { viewportCamera } from "../../web-src/viewport-controls.js";
 
 function fakeCtx() {
   const calls = { fillText: [], roundRect: 0, stroke: 0 };
@@ -23,20 +24,27 @@ function fakeUi(overrides = {}) {
   const camera = defaultCamera();
   camera.position = [0, 2, 6];
   camera.target = [0, 1, 0];
+  const editorViews = defaultEditorViews();
   return {
     ctx: fakeCtx(),
     canvas: { width: 1280, height: 720 },
     frame: 0,
     recording: true,
+    selectedObjectId: null,
     selectedObjectIds: new Set(),
-    viewportCamera: () => camera,
+    viewportCamera() { return viewportCamera(this); },
+    playblastCameraAtFrame() { return camera; },
+    camera,
     state: {
+      view_mode: "camera",
+      editor_views: editorViews,
       objects: [
         { id: "hero", type: "cube", position: [0, 1, 0], size: [1, 1, 1], enabled: true, tags: ["hero"] },
       ],
       metadata: { viewport_labels: { mode: "all", content: "tag" } },
       playblast_labels: true,
       ...overrides.state,
+      editor_views: overrides.state?.editor_views || editorViews,
     },
     ...overrides,
   };
@@ -79,4 +87,66 @@ test("a hidden object is skipped", () => {
   ui.state.objects[0].enabled = false;
   drawPlayblastLabels(ui);
   assert.equal(ui.ctx.calls.fillText.length, 0);
+});
+
+test("viewportCamera preserves editor view mode during recording", () => {
+  const ui = fakeUi();
+  ui.state.view_mode = "front";
+  ui.recording = true;
+  assert.equal(viewportCamera(ui), ui.state.editor_views.front);
+
+  ui.state.view_mode = "top";
+  assert.equal(viewportCamera(ui), ui.state.editor_views.top);
+
+  ui.state.view_mode = "camera";
+  assert.equal(viewportCamera(ui), ui.camera);
+});
+
+test("drawPlayblastLabels works in view modes (perspective, top, front, iso)", () => {
+  for (const mode of ["perspective", "top", "front", "iso"]) {
+    const ui = fakeUi({ state: {
+      view_mode: mode,
+      objects: [{
+        id: "hero", type: "cube", position: [0, 1, 0], size: [1, 1, 1], enabled: true,
+        annotation: { text: `Hero in ${mode}`, visible: true, color: "#4aa3ef" },
+      }],
+      metadata: { viewport_labels: { mode: "all", content: "annotation" } },
+      playblast_labels: true,
+    } });
+    drawPlayblastLabels(ui);
+    assert.equal(ui.ctx.calls.fillText.length, 1, `draws label in view mode ${mode}`);
+    assert.equal(ui.ctx.calls.fillText[0].text, `Hero in ${mode}`);
+    const py = ui.ctx.calls.fillText[0].y;
+    assert.ok(py >= 0 && py <= 720, `label y (${py}) should be within viewport bounds for ${mode}`);
+  }
+});
+
+test("drawPlayblastLabels supports selected object with single selectedObjectId", () => {
+  const ui = fakeUi({
+    selectedObjectId: "hero",
+    selectedObjectIds: new Set(),
+    state: {
+      objects: [{ id: "hero", type: "cube", position: [0, 1, 0], size: [1, 1, 1], enabled: true, tags: ["target"] }],
+      metadata: { viewport_labels: { mode: "selected", content: "tag" } },
+      playblast_labels: true,
+    },
+  });
+  drawPlayblastLabels(ui);
+  assert.equal(ui.ctx.calls.fillText.length, 1);
+  assert.equal(ui.ctx.calls.fillText[0].text, "target");
+});
+
+test("drawOverlays includes labels in playblast during editor view modes when viewport labels are active", () => {
+  const ui = fakeUi({
+    recording: true,
+    state: {
+      view_mode: "front",
+      metadata: { viewport_labels: { mode: "all", content: "tag" } },
+      playblast_labels: false, // Notice false, but view mode has active labels!
+      objects: [{ id: "hero", type: "cube", position: [0, 1, 0], size: [1, 1, 1], enabled: true, tags: ["front-label"] }],
+    },
+  });
+  drawOverlays(ui);
+  assert.equal(ui.ctx.calls.fillText.length, 1, "labels automatically burn in during view mode playblast");
+  assert.equal(ui.ctx.calls.fillText[0].text, "front-label");
 });

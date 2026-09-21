@@ -1,3 +1,5 @@
+import { applyMediaAspectToCard } from "./viewport/subject-placeholder.js";
+
 /** Apply known upstream dimensions, frame rate and duration to Director widgets. */
 export function adoptUpstreamMediaMetadata(ui, media, { frameCount = 0, fps = 0 } = {}) {
   const width = Math.round(Number(media?.videoWidth || media?.naturalWidth) || 0);
@@ -13,5 +15,10 @@ export function adoptUpstreamMediaMetadata(ui, media, { frameCount = 0, fps = 0 
   // Keep graph-facing widgets valid when a still is a one-frame source.
   if (frames && rate) ui.durationWidget && (ui.durationWidget.value = Math.max(0.25, frames / rate));
   ui.syncFromWidgets();
+
+  const subject = ui.state?.objects?.find((o) => o.id === "subject");
+  if (subject) {
+    applyMediaAspectToCard(subject, media);
+  }
   return true;
 }

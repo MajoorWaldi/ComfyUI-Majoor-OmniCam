@@ -87,9 +87,12 @@ const ORPHAN_TYPES = new Set(["camera", "null", "sun_light", "point_light", "spo
  * @param transform  a sampled world transform `{ position, size }`
  * @param type       the object's `type`
  */
-export function labelAnchorWorld(transform, type) {
+export function labelAnchorWorld(transform, type, anchor = "top") {
   const position = Array.isArray(transform?.position) ? transform.position : [0, 0, 0];
   const size = Array.isArray(transform?.size) ? transform.size : [1, 1, 1];
-  const lift = ORPHAN_TYPES.has(type) ? 0.35 : Math.max(0.2, (Number(size[1]) || 1) * 0.5 + 0.2);
+  const halfH = (Number(size[1]) || 1) * 0.5;
+  let lift = ORPHAN_TYPES.has(type) ? 0.35 : Math.max(0.2, halfH + 0.2);
+  if (anchor === "center") lift = 0;
+  else if (anchor === "bottom") lift = -Math.max(0.2, halfH + 0.2);
   return [Number(position[0]) || 0, (Number(position[1]) || 0) + lift, Number(position[2]) || 0];
 }

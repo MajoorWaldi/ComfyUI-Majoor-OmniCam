@@ -1,4 +1,4 @@
-﻿import { clamp } from "../core.js";
+import { clamp } from "../core.js";
 import { sampleCamera } from "./camera.js";
 
 export function generateHarmonicNoise(t, seed = 0) {
@@ -8,15 +8,17 @@ export function generateHarmonicNoise(t, seed = 0) {
 export function applyCameraShake(source, { type = "handheld_subtle", intensity = 1.0, duration_frames = null, subdivide = true } = {}) {
   const keyframes = Array.isArray(source) ? source : (source?.keyframes || []);
   if (!keyframes || keyframes.length === 0) return keyframes;
+  const isCrash = type === "crash";
   const isTurbulence = type === "turbulence";
   const isHeavy = type === "handheld_heavy";
-  const posScale = (isTurbulence ? 0.12 : isHeavy ? 0.18 : 0.06) * intensity;
-  const rotScale = (isTurbulence ? 2.0 : isHeavy ? 2.8 : 0.9) * intensity;
-  const freq = isTurbulence ? 0.45 : isHeavy ? 0.22 : 0.12;
+  const isHandheld = type === "handheld";
+  const posScale = (isCrash ? 0.35 : isHeavy ? 0.18 : isTurbulence ? 0.12 : isHandheld ? 0.09 : 0.06) * intensity;
+  const rotScale = (isCrash ? 5.0 : isHeavy ? 2.8 : isTurbulence ? 2.0 : isHandheld ? 1.4 : 0.9) * intensity;
+  const freq = isCrash ? 0.6 : isTurbulence ? 0.45 : isHeavy ? 0.22 : isHandheld ? 0.16 : 0.12;
 
   const lastKeyFrame = keyframes[keyframes.length - 1]?.frame ?? 119;
   const totalFrames = Math.max(lastKeyFrame + 1, Number(duration_frames || (source?.duration_frames ?? lastKeyFrame + 1)));
-  const interval = isTurbulence ? 4 : isHeavy ? 6 : 8;
+  const interval = isCrash ? 3 : isTurbulence ? 4 : (isHeavy || isHandheld) ? 6 : 8;
 
   const trackState = Array.isArray(source) ? { keyframes, duration_frames: totalFrames } : source;
   const framesToSample = new Set(keyframes.map((k) => k.frame));

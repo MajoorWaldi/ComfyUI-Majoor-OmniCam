@@ -185,6 +185,7 @@ export function onKeyDragMove(ui, event) {
     const moved = Math.hypot(event.clientX - (drag.startClientX ?? event.clientX), event.clientY - (drag.startClientY ?? event.clientY));
     if (moved < KEY_DRAG_THRESHOLD) return;
     drag.engaged = true;
+    ui.suppressKeyClick = true;
   }
   if (!drag.historyCheckpointed) {
     ui.checkpoint?.("Move keyframe");
@@ -214,13 +215,42 @@ export function onKeyDragMove(ui, event) {
     if (delta === drag.lastDelta) return;
     drag.lastDelta = delta;
     const keys = ui.timelineKeyframes();
-    const others = new Set(keys.filter((item) => !ui.selectedKeyFrames.has(item.frame)).map((item) => item.frame));
-    for (const entry of drag.moving) {
-      let target = clamp(entry.startFrame + delta, 0, ui.state.duration_frames - 1);
-      while (others.has(target) && target > 0 && target < ui.state.duration_frames - 1) target += Math.sign(delta || 1);
-      entry.key.frame = others.has(target) ? entry.key.frame : target;
+    const movingKeys = new Set(drag.moving.map((m) => m.key));
+    const others = keys.filter((item) => !movingKeys.has(item)).map((item) => item.frame);
+    const maxFrame = Math.max(0, ui.state.duration_frames - 1);
+
+    let effectiveDelta = 0;
+    if (delta > 0) {
+      let maxPositive = Infinity;
+      for (const entry of drag.moving) {
+        maxPositive = Math.min(maxPositive, maxFrame - entry.startFrame);
+        for (const obs of others) {
+          if (obs > entry.startFrame) {
+            maxPositive = Math.min(maxPositive, (obs - 1) - entry.startFrame);
+          }
+        }
+      }
+      effectiveDelta = Math.max(0, Math.min(delta, maxPositive));
+    } else if (delta < 0) {
+      let maxNegative = Infinity;
+      for (const entry of drag.moving) {
+        maxNegative = Math.min(maxNegative, entry.startFrame - 0);
+        for (const obs of others) {
+          if (obs < entry.startFrame) {
+            maxNegative = Math.min(maxNegative, entry.startFrame - (obs + 1));
+          }
+        }
+      }
+      effectiveDelta = Math.min(0, Math.max(delta, -Math.max(0, maxNegative)));
     }
+
+    const finalTargets = drag.moving.map((entry) => entry.startFrame + effectiveDelta);
+    drag.moving.forEach((entry, i) => {
+      entry.key.frame = finalTargets[i];
+    });
     keys.sort((a, b) => a.frame - b.frame);
+    ui.selectedKeyFrames = new Set(finalTargets);
+    ui.selectedKeyFrame = drag.key.frame;
     ui.editingKeyFrame = drag.key.frame;
     ui.scheduleSerialize();
     ui.setFrame(drag.key.frame, false, true);

@@ -21,7 +21,13 @@ export function timelineObject(ui) {
 }
 
 export function timelineKeyframes(ui) {
-  return timelineObject(ui)?.keyframes || ui.state.keyframes;
+  const object = timelineObject(ui);
+  if (object) {
+    if (!Array.isArray(object.keyframes)) object.keyframes = [];
+    return object.keyframes;
+  }
+  const cam = ui.activeCameraTrack ? ui.activeCameraTrack() : null;
+  return cam?.keyframes || ui.state.keyframes;
 }
 
 export function applyObjectAnimationFrame(ui, sampleObjectTransformFn) {
@@ -38,6 +44,9 @@ export function insertKeyframe(ui) {
   ui.checkpoint("Set keyframe");
   const interpolation = ui.root.querySelector('[data-role="key-interp"]')?.value || ui.root.querySelector('[data-role="interp"]')?.value || "ease";
   const object = timelineObject(ui);
+  if (object && !Array.isArray(object.keyframes)) {
+    object.keyframes = [];
+  }
   const keys = timelineKeyframes(ui);
   const key = object
     ? { frame: ui.frame, transform: cloneTransform(object), interpolation }
@@ -46,6 +55,9 @@ export function insertKeyframe(ui) {
   if (index >= 0) keys[index] = key;
   else keys.push(key);
   keys.sort((a, b) => a.frame - b.frame);
+  if (!object && ui.syncActiveCameraTrack) {
+    ui.syncActiveCameraTrack();
+  }
   ui.selectedKeyFrame = ui.frame;
   ui.selectedKeyFrames = new Set([ui.frame]);
   ui.editingKeyFrame = null;
@@ -58,10 +70,18 @@ export function insertKeyframe(ui) {
 }
 
 export function setKeyInterpolation(ui, interpolation) {
-  const key = selectedKeyframe(ui);
-  if (!key) return;
-  ui.checkpoint("Change key interpolation");
-  key.interpolation = interpolation;
+  const allKeys = timelineKeyframes(ui);
+  const selectedFrames = ui.selectedKeyFrames && ui.selectedKeyFrames.size >= 2
+    ? ui.selectedKeyFrames
+    : null;
+  const targetKeys = selectedFrames
+    ? allKeys.filter((item) => selectedFrames.has(item.frame))
+    : [selectedKeyframe(ui)].filter(Boolean);
+  if (!targetKeys.length) return;
+  ui.checkpoint(targetKeys.length > 1 ? t("Interpolation on {n} keys").replace("{n}", targetKeys.length) : "Change key interpolation");
+  for (const key of targetKeys) {
+    key.interpolation = interpolation;
+  }
   const interpSelect = ui.root.querySelector('[data-role="key-interp"]');
   if (interpSelect) interpSelect.value = interpolation;
   // Scoped to the Shot panel's own interpolation buttons: a timeline
@@ -72,11 +92,18 @@ export function setKeyInterpolation(ui, interpolation) {
   for (const btn of ui.root.querySelectorAll(".key-interp-buttons [data-interp]")) {
     btn.classList.toggle("active", btn.dataset.interp === interpolation);
   }
+  for (const btn of ui.root.querySelectorAll("[data-curve-mode]")) {
+    const isMode = btn.dataset.curveMode === interpolation;
+    btn.classList.toggle("active", isMode);
+    btn.setAttribute("aria-pressed", String(isMode));
+  }
   ui.serialize();
   ui.refreshKeys();
   ui.refreshKeyEditor();
   ui.drawCurveEditor();
-  ui.setStatus(t("Key @ {value1} interpolation set to {value2}", { value1: key.frame, value2: interpolation }));
+  ui.setStatus(targetKeys.length > 1
+    ? t("{mode} interpolation on {n} keys").replace("{mode}", interpolation.replace(/_/g, " ")).replace("{n}", targetKeys.length)
+    : t("Key @ {value1} interpolation set to {value2}", { value1: targetKeys[0].frame, value2: interpolation }));
 }
 
 export function deleteKeyframe(ui) {
@@ -320,26 +347,41 @@ export function updateKeyVisualState(ui) {
   ui.updateEditState();
 }
 export function setKeyTangentMode(ui, mode) {
-  const key = selectedKeyframe(ui);
-  if (!key) return;
-  ui.checkpoint("Change key tangent mode");
-  key.tangents = key.tangents && typeof key.tangents === "object" ? key.tangents : {};
-  key.tangents.mode = mode;
-  key.tangent_mode = mode;
-  // sampleChannel only honours tangent handles when an endpoint key is bezier,
-  // so a non-auto tangent mode is inert until the key is promoted -- mirror the
-  // multi-key batch path (director/key-ops.js setKeyframeTangentMode).
-  if (mode !== "auto" && key.interpolation !== "bezier") key.interpolation = "bezier";
+  const allKeys = timelineKeyframes(ui);
+  const selectedFrames = ui.selectedKeyFrames && ui.selectedKeyFrames.size >= 2
+    ? ui.selectedKeyFrames
+    : null;
+  const targetKeys = selectedFrames
+    ? allKeys.filter((item) => selectedFrames.has(item.frame))
+    : [selectedKeyframe(ui)].filter(Boolean);
+  if (!targetKeys.length) return;
+  ui.checkpoint(targetKeys.length > 1 ? t("Tangents on {n} keys").replace("{n}", targetKeys.length) : "Change key tangent mode");
+  for (const key of targetKeys) {
+    key.tangents = key.tangents && typeof key.tangents === "object" ? key.tangents : {};
+    key.tangents.mode = mode;
+    key.tangent_mode = mode;
+    // sampleChannel only honours tangent handles when an endpoint key is bezier,
+    // so a non-auto tangent mode is inert until the key is promoted -- mirror the
+    // multi-key batch path (director/key-ops.js setKeyframeTangentMode).
+    if (mode !== "auto" && key.interpolation !== "bezier") key.interpolation = "bezier";
+  }
   const tangentSelect = ui.root.querySelector('[data-role="key-tangent-mode"]');
   if (tangentSelect) tangentSelect.value = mode;
   for (const btn of ui.root.querySelectorAll("[data-tangent]")) {
     btn.classList.toggle("active", btn.dataset.tangent === mode);
   }
+  for (const btn of ui.root.querySelectorAll("[data-tangent-mode]")) {
+    const isMode = btn.dataset.tangentMode === mode;
+    btn.classList.toggle("active", isMode);
+    btn.setAttribute("aria-pressed", String(isMode));
+  }
   ui.serialize();
   ui.refreshKeys();
   ui.refreshKeyEditor();
   ui.drawCurveEditor();
-  ui.setStatus(t("Key @ {frame} tangent mode set to {mode}").replace("{frame}", String(key.frame)).replace("{mode}", mode));
+  ui.setStatus(targetKeys.length > 1
+    ? t("{mode} tangents on {n} keys").replace("{mode}", mode).replace("{n}", targetKeys.length)
+    : t("Key @ {frame} tangent mode set to {mode}").replace("{frame}", String(targetKeys[0].frame)).replace("{mode}", mode));
 }
 
 // Pure, read-only camera path diagnostics (plan section 26 Task 12): never

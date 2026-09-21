@@ -83,7 +83,7 @@ export function createResourceMethods(dependencies) {
       if (object.color) mat.color = new THREE.Color(object.color);
       return mat;
     };
-    const primitiveMaterial = (object) => captureOverrideActive
+    const primitiveMaterial = (object) => (captureOverrideActive || mode === "graybox")
       ? captureOverrideMaterial(object, Boolean(state.backface_culling))
       : objectMaterial(object, mode, Boolean(state.backface_culling));
     // Dual-tier 3D grid: major 5-unit grid + fine 1-unit subdivisions + ground axes
@@ -131,7 +131,9 @@ export function createResourceMethods(dependencies) {
         && !["sun_light", "point_light", "spot_light", "null"].includes(object.type)).length;
       const density = wantsDepthCues && realObjectCount <= 1 && (!state.point_density || state.point_density === "none")
         ? "sparse"
-        : (state.point_density || "balanced");
+        : (mode === "omni_ref" && (!state.point_density || state.point_density === "none")
+          ? "balanced"
+          : (state.point_density || "balanced"));
       const { points, colors } = generatePointField(density, state.point_spread || "all_views", state.point_color || null);
       if (points.length > 0) {
         const pointGeometry = new THREE.BufferGeometry();
@@ -160,9 +162,11 @@ export function createResourceMethods(dependencies) {
         // Clay demands *all* scene geometry neutralized, not only reconstructed
         // objects -- a straight matte/textured GLB must go neutral too. motion_proxy
         // is not this strict (doc 5.1 vs 5.2): it leaves GLB handling as today.
-        const effectiveAppearance = cleanCapture && captureStyle === "clay"
+        const effectiveAppearance = (cleanCapture && captureStyle === "clay") || mode === "graybox"
           ? "neutral"
-          : reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
+          : mode === "wireframe"
+            ? "wireframe"
+            : reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
         if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object, cull); }
       } else if (object.type === "sphere") {
         mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), primitiveMaterial(object));
@@ -235,8 +239,15 @@ export function createResourceMethods(dependencies) {
         mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), primitiveMaterial(object));
       } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), primitiveMaterial(object));
       else if (object.type === "card") {
-        const isCardTextured = !object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode);
-        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), primitiveMaterial(object)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        const isCardTextured = !["graybox", "wireframe"].includes(mode) && (!object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode));
+        if (!isCardTextured) {
+          const planeGeom = mode === "wireframe"
+            ? new THREE.PlaneGeometry(size[0], size[1], 4, 4)
+            : new THREE.PlaneGeometry(size[0], size[1]);
+          mesh = new THREE.Mesh(planeGeom, primitiveMaterial(object));
+        } else {
+          mesh = cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        }
       } else if (object.type === "null") {
         const axes = new THREE.AxesHelper(0.5); axes.position.fromArray(object.position || [0, 0, 0]); axes.userData.omnicamId = object.id; axes.frustumCulled = false; this.objectNodes.set(object.id, axes); this.content.add(axes); continue;
       } else {
@@ -257,6 +268,7 @@ export function createResourceMethods(dependencies) {
       if (!isLight) {
         const isWireframeActive = Boolean(
           state.show_wireframe ||
+          mode === "wireframe" ||
           state.render_mode === "wireframe_texture" ||
           object.material_mode === "wireframe_texture" ||
           object.material_mode === "wireframe_neutral"
