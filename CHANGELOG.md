@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Director Graph Editor gained a camera-only **Timing / Speed** view backed by the existing per-key Timing Weight contract, with Custom / Constant / Ease In / Ease Out / Ease In-Out remap presets. Apply Remap bakes timing into ordinary camera key frames without changing MotionScene schema or introducing model-specific camera semantics.
+- Camera Health gained **Inspect Timing**, which opens the active camera directly in the Timing / Speed graph for manual repair after speed, acceleration or jerk diagnostics.
+- Extractor gained optional **Horizon Stabilization** (`0..1`): a per-pose residual-roll damper applied after global Level Horizon/alignment and before quaternion continuity/smoothing. It preserves position and look direction and defaults to zero for backward compatibility.
+
 ### Changed
 
 - Director and Extractor nodes now show a compact status shell with an
