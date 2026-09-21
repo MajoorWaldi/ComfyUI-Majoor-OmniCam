@@ -93,6 +93,8 @@ export function createResourceMethods(dependencies) {
   },
 
   rebuild(state, mediaById, modelUrlsById, cleanCapture = false, captureStyle = "auto") {
+    const persistentChildren = this.content.children.filter((child) => child.userData?.omnicamPersistent);
+    for (const child of persistentChildren) this.content.remove(child);
     this.content.traverse((parent) => {
       for (const child of [...parent.children]) {
         if (!child.userData.omnicamHelper) continue;
@@ -101,6 +103,7 @@ export function createResourceMethods(dependencies) {
       }
     });
     disposeObject(this.content); this.content.clear();
+    for (const child of persistentChildren) this.content.add(child);
     this.objectNodes.clear();
     this.selectionKey = "";
     const mode = state.render_mode;
@@ -587,4 +590,3 @@ export function createResourceMethods(dependencies) {
 
   };
 }
-

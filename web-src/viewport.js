@@ -201,8 +201,12 @@ export class OmniWebGLViewport {
     setStudioEnabled(THREE, this.scene, this.renderer, this.studio, true);
     this.content = new THREE.Group(); this.scene.add(this.content);
     // Built once: geometry/colours never depend on scene state, only its
-    // visibility does (toggled per frame in render()).
-    this.gridGroup = buildCaptureGrid(THREE); this.scene.add(this.gridGroup);
+    // visibility does (toggled per frame in render()). Keep it under content so
+    // grid-only modes and capture-guide traversals see the same scene subtree as
+    // the rest of the authored viewport content.
+    this.gridGroup = buildCaptureGrid(THREE);
+    this.gridGroup.userData.omnicamPersistent = true;
+    this.content.add(this.gridGroup);
     this.path = new THREE.Group(); this.scene.add(this.path);
     this.liveCameras = new THREE.Group(); this.scene.add(this.liveCameras);
     this.selectionGroup = new THREE.Group(); this.scene.add(this.selectionGroup);
