@@ -232,6 +232,7 @@ export function renderHealthPanel(ui) {
       <button data-act="health-slow" title="${t("Respace the keys so the shot travels at a constant speed")}"><i class="pi pi-clock"></i> ${t("Slow to limits")}</button>
       <button data-act="health-smooth" title="${t("Blend the keys inside the flagged zones only")}"><i class="pi pi-chart-line"></i> ${t("Smooth flagged")}</button>
       <button data-act="health-recenter" title="${t("Aim the keys of the flagged zones back at the subject")}"><i class="pi pi-crosshairs"></i> ${t("Recenter subject")}</button>
+      <button data-act="health-timing" title="${t("Open the Graph Editor on camera timing weights")}"><i class="pi pi-sliders-h"></i> ${t("Inspect Timing")}</button>
     </div>
     <p class="oc-health-note">${t("A valid trajectory stays inside the limits recommended for this model. It is not a guarantee about the generated video.")}</p>`;
 }
