@@ -235,6 +235,7 @@ export function extractorMarkup() {
           <details class="oc-details"><summary>Advanced cleanup</summary>
             <div class="oc-sliders">
               ${slider("rotation-smoothing", "Rotation smooth", { value: 0.1 })}
+              ${slider("horizon-stabilization", "Horizon stabilize", { value: 0 })}
               ${slider("position-tolerance", "Key reduction", { min: 0, max: 0.5, step: 0.001, value: 0.01 })}
               ${slider("align-pitch", "Pitch", { min: -180, max: 180, step: 0.5, value: 0 })}
               ${slider("align-yaw", "Yaw", { min: -180, max: 180, step: 0.5, value: 0 })}

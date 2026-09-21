@@ -10,6 +10,7 @@ export const REFINE_DEBOUNCE_MS = 200;
 export const REFINE_DEFAULTS = {
   position_smoothing: 0.15,
   rotation_smoothing: 0.1,
+  horizon_stabilization: 0.0,
   motion_scale: 1.0,
   normalize_origin: true,
   trim_start_frame: 0,

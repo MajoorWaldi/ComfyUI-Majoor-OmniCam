@@ -205,6 +205,7 @@ def extract_camera_track(
     motion_scale: float = 1.0,
     position_smoothing: float = 0.15,
     rotation_smoothing: float = 0.10,
+    horizon_stabilization: float = 0.0,
     simplify_keys: bool = True,
     position_tolerance: float = 0.01,
     rotation_tolerance_deg: float = 0.25,
@@ -236,6 +237,7 @@ def extract_camera_track(
     settings = RefinementSettings(
         position_smoothing=position_smoothing,
         rotation_smoothing=rotation_smoothing,
+        horizon_stabilization=horizon_stabilization,
         motion_scale=motion_scale,
         normalize_origin=normalize_origin,
         simplify_keys=simplify_keys,

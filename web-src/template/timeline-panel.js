@@ -117,7 +117,23 @@ function curveToolbar() {
         <option value="position">${t("Position XYZ")}</option>
         <option value="target">${t("Target XYZ")}</option>
         <option value="lens">${t("FOV / Roll / Zoom")}</option>
+        <option value="timing">${t("Timing / Speed")}</option>
       </select>
+      <span class="oc-graph-spacer"></span>
+      <span data-role="time-remap-controls" hidden style="align-items:center;gap:5px">
+        <select data-role="time-remap-preset" title="${t("Timing preset")}">
+          <option value="custom">${t("Custom")}</option>
+          <option value="constant">${t("Constant")}</option>
+          <option value="ease_in">${t("Ease In")}</option>
+          <option value="ease_out">${t("Ease Out")}</option>
+          <option value="ease_in_out">${t("Ease In/Out")}</option>
+        </select>
+        <label title="${t("Blend the timing preset with the currently authored weights")}">${t("Strength")}
+          <input data-role="time-remap-strength" type="range" min="0" max="100" step="1" value="100">
+        </label>
+        <output data-role="time-remap-strength-out">100%</output>
+        <button type="button" data-act="time-remap-apply" title="${t("Bake Timing Weights into camera keyframe times")}">${t("Apply Remap")}</button>
+      </span>
       <span class="oc-graph-spacer"></span>
       <div class="oc-graph-modes" data-role="curve-modes">
         <button class="curve-mode" data-tangent-mode="auto" title="${t("Automatic smooth tangents")}">${t("Auto")}</button>

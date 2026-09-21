@@ -428,6 +428,7 @@ the node does cancel a running solve.
 | `motion_scale` | `1.0` | sizes the relative translation for your scene; never touches rotation |
 | `position_smoothing` | `0.15` | centred, so it adds no temporal lag; `0` = raw solve |
 | `rotation_smoothing` | `0.10` | weighted quaternion mean after sign-continuity |
+| `horizon_stabilization` | `0.0` | per-pose residual roll damping after global alignment; `0` preserves solved roll, `1` fully levels canonical roll |
 | `simplify_keys` | `True` | key reduction that accounts for position **and** orientation |
 | `position_tolerance` | `0.01` | allowed position error; `0` = lossless |
 | `rotation_tolerance_deg` | `0.25` | allowed angular error; `0` = lossless |

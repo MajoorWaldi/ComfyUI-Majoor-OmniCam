@@ -231,6 +231,7 @@ export class ExtractorUI {
     const sliders = {
       "position-smoothing": "position_smoothing",
       "rotation-smoothing": "rotation_smoothing",
+      "horizon-stabilization": "horizon_stabilization",
       "motion-scale": "motion_scale",
       "position-tolerance": "position_tolerance",
     };
@@ -402,7 +403,7 @@ export class ExtractorUI {
     this.refine.reset();
     for (const [role, value] of [
       ["position-smoothing", 0.15], ["rotation-smoothing", 0.1],
-      ["motion-scale", 1], ["position-tolerance", 0.01],
+      ["horizon-stabilization", 0], ["motion-scale", 1], ["position-tolerance", 0.01],
       ["align-pitch", 0], ["align-yaw", 0], ["align-roll", 0],
     ]) {
       const input = this.$(role);
@@ -600,7 +601,7 @@ export class ExtractorUI {
 
   renderRefineValues() {
     for (const role of [
-      "position-smoothing", "rotation-smoothing", "motion-scale", "position-tolerance",
+      "position-smoothing", "rotation-smoothing", "horizon-stabilization", "motion-scale", "position-tolerance",
       "align-pitch", "align-yaw", "align-roll",
     ]) {
       const input = this.$(role);

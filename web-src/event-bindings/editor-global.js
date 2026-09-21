@@ -9,6 +9,7 @@ import { onCurveWheel } from "../curve-editor.js";
 import { onTimelineWheel } from "../timeline-interaction.js";
 import { bindRulerScrub } from "../timeline/ruler.js";
 import { bindGraphTabs } from "../curve-editor/tabs.js";
+import { bindTimeRemapControls, syncTimeRemapControls } from "../director/time-remap-ui.js";
 import { renderChannelList } from "../curve-editor/channel-list.js";
 import { syncMirroredControl } from "../event-bindings.js";
 import { panelWheelKeeper } from "../shared/panel-scroll.js";
@@ -116,11 +117,13 @@ export function bindEditorAndGlobal(ui, q, signal) {
   }, { signal });
   bindRulerScrub(ui, signal);
   bindGraphTabs(ui, signal);
+  bindTimeRemapControls(ui, signal);
   q('[data-role="curve-group"]')?.addEventListener("change", () => {
     // A new group means new channels, so the solo filter no longer refers to
     // anything: reset it before the list is rebuilt from the new channels.
     ui.setChannelFilter("all");
     renderChannelList(ui);
+    syncTimeRemapControls(ui);
     ui.drawCurveEditor();
   }, { signal });
   q('[data-act="curve-handles"]')?.addEventListener("click", () => ui.toggleCurveHandles(), { signal });

@@ -11,6 +11,7 @@ import { loadMotionProfiles, recenterSubject, renderHealthPanel, slowToLimits, s
 import { commitPendingExtractorImport, dismissPendingExtractorImport } from "../extractor/director-link.js";
 import { setupAxisResetButtons, setupAxisScrubbing } from "../scene/axis-scrub.js";
 import { setupViewportHudHandlers } from "../viewport/viewport-hud.js";
+import { openTimingEditor } from "../director/time-remap-ui.js";
 
 function bindLensCard(ui, signal) {
   const focal = ui.root.querySelector('[data-role="camera-focal"]');
@@ -261,6 +262,7 @@ function bindHealthPanel(ui, signal) {
     if (action === "health-slow") slowToLimits(ui);
     else if (action === "health-smooth") smoothFlaggedZones(ui);
     else if (action === "health-recenter") recenterSubject(ui);
+    else if (action === "health-timing") openTimingEditor(ui);
   }, { signal });
 
   // Opening the tab must show the current shot, not the last render.

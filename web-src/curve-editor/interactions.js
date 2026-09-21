@@ -527,7 +527,7 @@ export function fitCurveView(ui, { selectedOnly = false } = {}) {
     for (let f = 0; f <= lastFrame; f += step) {
       const s = sampleVal(f);
       for (const ch of channels) {
-        const val = ch.get(s);
+        const val = ch.sample ? ch.sample(f) : ch.get(s);
         if (Number.isFinite(val)) allValues.push(val);
       }
     }
