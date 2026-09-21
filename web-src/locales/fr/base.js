@@ -53,6 +53,7 @@ export const FR_BASE = {
   "Track Object": "Suivre un objet",
   "Track a fixed 3D point": "Suivre un point 3D fixe",
   "Tracks": "Pistes",
+  "Unsaved changes": "Modifications non enregistrées",
   "Visible": "Visible",
   "1 optional adapter issue": "1 problème d’adaptateur optionnel",
   "1 key": "1 clé",

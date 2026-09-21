@@ -32,7 +32,7 @@
         result.role = backdrop?.getAttribute("role");
         result.ariaModal = backdrop?.getAttribute("aria-modal");
         result.hasAriaLabelledby = Boolean(backdrop?.getAttribute("aria-labelledby"));
-        result.titleText = backdrop?.querySelector(".oc-workbench-title")?.textContent;
+        result.titleText = backdrop?.querySelector(".oc-workbench-title-text")?.textContent;
         result.contentHasButtons = backdrop?.querySelectorAll("button#first, button#last").length === 2;
         result.mountedGetter = host.mounted;
 

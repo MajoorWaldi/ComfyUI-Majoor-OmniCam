@@ -45,7 +45,10 @@ export class WorkbenchHost {
     backdrop.innerHTML = `
       <section class="oc-workbench-window" tabindex="-1">
         <header class="oc-workbench-header">
-          <div id="${titleId}" class="oc-workbench-title"></div>
+          <div id="${titleId}" class="oc-workbench-title">
+            <span class="oc-workbench-dirty-dot" aria-hidden="true" hidden></span>
+            <span class="oc-workbench-title-text"></span>
+          </div>
           <div class="oc-workbench-actions">
             <button type="button" data-workbench-act="maximize" aria-label="${escapeHtml(t("Maximize workbench"))}">[ ]</button>
             <button type="button" data-workbench-act="close" aria-label="${escapeHtml(t("Close workbench"))}">x</button>
@@ -95,8 +98,18 @@ export class WorkbenchHost {
 
   setTitle(title) {
     this.title = String(title || "OmniCam");
-    const el = this.backdrop?.querySelector(".oc-workbench-title");
+    const el = this.backdrop?.querySelector(".oc-workbench-title-text");
     if (el) el.textContent = this.title;
+  }
+
+  // Dirty dot next to the workbench title (spec section 05, top bar "nom
+  // scène + dirty state"). A dot rather than a text suffix so it never fights
+  // a locale's word order, matching the compact node shell's own dirty dot.
+  setDirty(value) {
+    const el = this.backdrop?.querySelector(".oc-workbench-dirty-dot");
+    if (!el) return;
+    el.hidden = !value;
+    el.title = value ? t("Unsaved changes") : "";
   }
 
   setBusy(busy) {

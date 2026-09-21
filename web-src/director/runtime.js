@@ -113,7 +113,20 @@ export class DirectorRuntime extends EventTarget {
       cameraCount: state.cameras?.length ?? 0,
       objectCount: state.objects?.length ?? 0,
       previewDataUrl: this.previewDataUrl,
+      isDirty: this.isDirty,
     };
+  }
+
+  /**
+   * True once the serialized state_json widget has drifted from
+   * sceneBaseline -- the same "last saved or opened" snapshot scene-library.js
+   * already maintains for Reset Scene (New/Open/Save/Reset all refresh it).
+   * Widget value lags a live edit by at most one RAF (scheduleSerialize), so
+   * this is accurate to within a frame, never a second source of truth.
+   */
+  get isDirty() {
+    if (!this.stateWidget) return false;
+    return (this.stateWidget.value ?? "") !== (this.sceneBaseline ?? "");
   }
 
   /** Immediate, synchronous widget flush -- reuses the existing headless-safe serializer. */
