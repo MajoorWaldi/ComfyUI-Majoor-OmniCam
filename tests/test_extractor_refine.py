@@ -326,7 +326,9 @@ def test_a_refined_track_is_canonical_and_fingerprinted():
 def test_changing_a_setting_changes_the_fingerprint():
     a = refine_raw_solve(raw_solve(), RefinementSettings())
     b = refine_raw_solve(raw_solve(), RefinementSettings(motion_scale=2.0))
+    c = refine_raw_solve(raw_solve(), RefinementSettings(horizon_stabilization=0.5))
     assert a["metadata"]["extractor_fingerprint"] != b["metadata"]["extractor_fingerprint"]
+    assert a["metadata"]["extractor_fingerprint"] != c["metadata"]["extractor_fingerprint"]
 
 
 def test_the_same_settings_reproduce_the_same_fingerprint():
@@ -357,11 +359,12 @@ def test_refining_an_empty_solve_is_refused():
 
 def test_settings_from_an_untrusted_body_are_clamped():
     settings = RefinementSettings.from_dict({
-        "position_smoothing": 99.0, "rotation_smoothing": -5.0, "motion_scale": 1e9,
+        "position_smoothing": 99.0, "rotation_smoothing": -5.0, "horizon_stabilization": 9.0, "motion_scale": 1e9,
         "trim_start_frame": -20, "position_tolerance": "nonsense",
     })
     assert settings.position_smoothing == 1.0
     assert settings.rotation_smoothing == 0.0
+    assert settings.horizon_stabilization == 1.0
     assert settings.motion_scale == 100.0
     assert settings.trim_start_frame == 0
     assert settings.position_tolerance == 0.01
