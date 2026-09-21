@@ -70,10 +70,12 @@ model-independent MotionScene.
 The node itself shows a compact status card (scene name, fps/duration/
 resolution, camera/object counts) with an **OPEN DIRECTOR** button; the full
 editor below opens in its own window on demand and closes back to that card.
-Only one Director or Extractor editor is open at a time. State, the semantic
-Director API and the external Agent bridge all work the same whether or not
-the editor is open — closing it does not lose anything, and an upstream
-Extractor can adopt a solve into a Director that has never been opened.
+Only one Director workbench is open at a time (the Extractor's panel is
+mounted directly on its node and has no open/close step of its own — see
+below). State, the semantic Director API and the external Agent bridge all
+work the same whether or not the editor is open — closing it does not lose
+anything, and an upstream Extractor can adopt a solve into a Director that
+has never been opened.
 
 ![OmniCam Director](assets/director-panel.png)
 
