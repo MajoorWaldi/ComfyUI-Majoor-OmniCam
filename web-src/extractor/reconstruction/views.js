@@ -22,9 +22,6 @@ export function renderReconstructionView(root, state) {
   const openBtn = root.querySelector('[data-role="reconstruction-open-director"]');
   if (openBtn) openBtn.disabled = !actions.canOpenDirector;
 
-  const previewBtn = root.querySelector('[data-role="reconstruction-preview-toggle"]');
-  if (previewBtn) previewBtn.disabled = !actions.canPreview;
-
   const discardBtn = root.querySelector('[data-role="reconstruction-discard"]');
   if (discardBtn) discardBtn.disabled = !actions.canDiscard;
 

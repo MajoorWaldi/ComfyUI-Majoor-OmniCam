@@ -6,11 +6,10 @@ import { frameObjects } from "./viewport-controls/framing.js";
 import { resolveTransformTarget } from "./viewport-controls/transform-target.js";
 
 export function viewportCamera(ui) {
-  return ui.recording
-    ? ui.playblastCameraAtFrame()
-    : ui.state.view_mode === "camera"
-      ? ui.camera
-      : ui.state.editor_views[ui.state.view_mode];
+  if (ui.state?.view_mode && ui.state.view_mode !== "camera" && ui.state.editor_views) {
+    return ui.state.editor_views[ui.state.view_mode] || ui.camera;
+  }
+  return ui.recording ? (ui.playblastCameraAtFrame ? ui.playblastCameraAtFrame() : ui.camera) : ui.camera;
 }
 
 export function setViewMode(ui, mode) {

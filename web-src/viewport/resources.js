@@ -14,6 +14,43 @@ const CURVE_POINT_RADIUS = 0.17;
 const CURVE_HANDLE_COLOR = 0x36d6c3;
 const CURVE_HANDLE_RADIUS = 0.06;
 
+/**
+ * Builds the dual-tier 3D floor grid + ground axes once. Its geometry and
+ * colours never depend on scene state, so it lives outside content/rebuild()
+ * and only has its visibility toggled per frame -- rebuilding it on every
+ * unrelated object edit (color, material_mode, ...) tore down and re-uploaded
+ * ~14k line segments for nothing.
+ */
+export function buildCaptureGrid(THREE) {
+  const gridGroup = new THREE.Group();
+  gridGroup.userData.omnicamCaptureGuide = true;
+
+  const majorGrid = new THREE.GridHelper(120, 24, 0x3e4758, 0x323947);
+  majorGrid.userData.omnicamCaptureGuide = true;
+  majorGrid.frustumCulled = false;
+  majorGrid.position.y = 0.0005;
+  gridGroup.add(majorGrid);
+
+  const minorGrid = new THREE.GridHelper(120, 120, 0x222631, 0x1d212b);
+  minorGrid.userData.omnicamCaptureGuide = true;
+  minorGrid.frustumCulled = false;
+  gridGroup.add(minorGrid);
+
+  const axisMatX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2, transparent: true, opacity: 0.85 });
+  const axisGeoX = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-60, 0.001, 0), new THREE.Vector3(60, 0.001, 0)]);
+  const axisLineX = new THREE.Line(axisGeoX, axisMatX);
+  axisLineX.userData.omnicamCaptureGuide = true;
+  gridGroup.add(axisLineX);
+
+  const axisMatZ = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2, transparent: true, opacity: 0.85 });
+  const axisGeoZ = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.001, -60), new THREE.Vector3(0, 0.001, 60)]);
+  const axisLineZ = new THREE.Line(axisGeoZ, axisMatZ);
+  axisLineZ.userData.omnicamCaptureGuide = true;
+  gridGroup.add(axisLineZ);
+
+  return gridGroup;
+}
+
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
   return {
@@ -56,6 +93,8 @@ export function createResourceMethods(dependencies) {
   },
 
   rebuild(state, mediaById, modelUrlsById, cleanCapture = false, captureStyle = "auto") {
+    const persistentChildren = this.content.children.filter((child) => child.userData?.omnicamPersistent);
+    for (const child of persistentChildren) this.content.remove(child);
     this.content.traverse((parent) => {
       for (const child of [...parent.children]) {
         if (!child.userData.omnicamHelper) continue;
@@ -64,6 +103,7 @@ export function createResourceMethods(dependencies) {
       }
     });
     disposeObject(this.content); this.content.clear();
+    for (const child of persistentChildren) this.content.add(child);
     this.objectNodes.clear();
     this.selectionKey = "";
     const mode = state.render_mode;
@@ -83,37 +123,9 @@ export function createResourceMethods(dependencies) {
       if (object.color) mat.color = new THREE.Color(object.color);
       return mat;
     };
-    const primitiveMaterial = (object) => captureOverrideActive
+    const primitiveMaterial = (object) => (captureOverrideActive || mode === "graybox")
       ? captureOverrideMaterial(object, Boolean(state.backface_culling))
       : objectMaterial(object, mode, Boolean(state.backface_culling));
-    // Dual-tier 3D grid: major 5-unit grid + fine 1-unit subdivisions + ground axes
-    const gridGroup = new THREE.Group();
-    gridGroup.userData.omnicamCaptureGuide = true;
-
-    const majorGrid = new THREE.GridHelper(120, 24, 0x3e4758, 0x323947);
-    majorGrid.userData.omnicamCaptureGuide = true;
-    majorGrid.frustumCulled = false;
-    majorGrid.position.y = 0.0005;
-    gridGroup.add(majorGrid);
-
-    const minorGrid = new THREE.GridHelper(120, 120, 0x222631, 0x1d212b);
-    minorGrid.userData.omnicamCaptureGuide = true;
-    minorGrid.frustumCulled = false;
-    gridGroup.add(minorGrid);
-
-    const axisMatX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2, transparent: true, opacity: 0.85 });
-    const axisGeoX = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-60, 0.001, 0), new THREE.Vector3(60, 0.001, 0)]);
-    const axisLineX = new THREE.Line(axisGeoX, axisMatX);
-    axisLineX.userData.omnicamCaptureGuide = true;
-    gridGroup.add(axisLineX);
-
-    const axisMatZ = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2, transparent: true, opacity: 0.85 });
-    const axisGeoZ = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.001, -60), new THREE.Vector3(0, 0.001, 60)]);
-    const axisLineZ = new THREE.Line(axisGeoZ, axisMatZ);
-    axisLineZ.userData.omnicamCaptureGuide = true;
-    gridGroup.add(axisLineZ);
-
-    this.content.add(gridGroup);
     // depth_rich reuses the same layered near/mid/far point field omni_ref /
     // point_field already draw for Viewport Shading (generatePointField's four
     // depth-stratified layers already are doc 5.3's "near/mid/far landmarks"
@@ -131,7 +143,9 @@ export function createResourceMethods(dependencies) {
         && !["sun_light", "point_light", "spot_light", "null"].includes(object.type)).length;
       const density = wantsDepthCues && realObjectCount <= 1 && (!state.point_density || state.point_density === "none")
         ? "sparse"
-        : (state.point_density || "balanced");
+        : (mode === "omni_ref" && (!state.point_density || state.point_density === "none")
+          ? "balanced"
+          : (state.point_density || "balanced"));
       const { points, colors } = generatePointField(density, state.point_spread || "all_views", state.point_color || null);
       if (points.length > 0) {
         const pointGeometry = new THREE.BufferGeometry();
@@ -160,9 +174,11 @@ export function createResourceMethods(dependencies) {
         // Clay demands *all* scene geometry neutralized, not only reconstructed
         // objects -- a straight matte/textured GLB must go neutral too. motion_proxy
         // is not this strict (doc 5.1 vs 5.2): it leaves GLB handling as today.
-        const effectiveAppearance = cleanCapture && captureStyle === "clay"
+        const effectiveAppearance = (cleanCapture && captureStyle === "clay") || mode === "graybox"
           ? "neutral"
-          : reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
+          : mode === "wireframe"
+            ? "wireframe"
+            : reconstructionMaterialMode(object, state, cleanCapture) ?? (object.material_mode || "textured");
         if (model?.url === url) { mesh = model.scene; applyModelMaterial(mesh, effectiveAppearance, object, cull); }
       } else if (object.type === "sphere") {
         mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 24, 16), primitiveMaterial(object));
@@ -235,8 +251,15 @@ export function createResourceMethods(dependencies) {
         mesh = new THREE.Mesh(createLowPolyHumanGeometry(THREE), primitiveMaterial(object));
       } else if (object.type === "ground") mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), primitiveMaterial(object));
       else if (object.type === "card") {
-        const isCardTextured = !object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode);
-        mesh = !isCardTextured ? new THREE.Mesh(new THREE.PlaneGeometry(size[0], size[1]), primitiveMaterial(object)) : cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        const isCardTextured = !["graybox", "wireframe"].includes(mode) && (!object.material_mode || ["textured", "wireframe_texture"].includes(object.material_mode));
+        if (!isCardTextured) {
+          const planeGeom = mode === "wireframe"
+            ? new THREE.PlaneGeometry(size[0], size[1], 4, 4)
+            : new THREE.PlaneGeometry(size[0], size[1]);
+          mesh = new THREE.Mesh(planeGeom, primitiveMaterial(object));
+        } else {
+          mesh = cardMesh(object, mediaById.get(object.id), state.card_fit || "contain");
+        }
       } else if (object.type === "null") {
         const axes = new THREE.AxesHelper(0.5); axes.position.fromArray(object.position || [0, 0, 0]); axes.userData.omnicamId = object.id; axes.frustumCulled = false; this.objectNodes.set(object.id, axes); this.content.add(axes); continue;
       } else {
@@ -257,6 +280,7 @@ export function createResourceMethods(dependencies) {
       if (!isLight) {
         const isWireframeActive = Boolean(
           state.show_wireframe ||
+          mode === "wireframe" ||
           state.render_mode === "wireframe_texture" ||
           object.material_mode === "wireframe_texture" ||
           object.material_mode === "wireframe_neutral"
@@ -566,4 +590,3 @@ export function createResourceMethods(dependencies) {
 
   };
 }
-

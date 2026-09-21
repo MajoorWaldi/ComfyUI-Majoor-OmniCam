@@ -127,13 +127,21 @@ export function viewportMarkup() {
           <button type="button" class="vp-overlay-btn" data-act="toggle-radar-overlay" data-role="overlay-radar-btn" title="${t("Toggle 2D Radar Mini-Map")}"><i class="pi pi-compass"></i></button>
         </div>
         <select class="vp-pill vp-pill-select vp-shading-select" data-role="shading-mode-select" title="${t("Viewport Shading Mode")}">
-          <option value="omni_ref">Omni Ref</option>
-          <option value="graybox">Graybox</option>
-          <option value="textured">${t("Textured")}</option>
-          <option value="wireframe">Wireframe</option>
-          <option value="wireframe_texture">${t("Wireframe + Texture")}</option>
-          <option value="grid">Grid</option>
-          <option value="beauty">Beauty</option>
+          <optgroup label="${t("AI Video Reference")}">
+            <option value="omni_ref">${t("Omni Ref (Card + Grid + Depth)")}</option>
+            <option value="card_grid">${t("Card + Grid (Clean Reference)")}</option>
+            <option value="point_field">${t("Point Field (Wan ATI Trajectories)")}</option>
+          </optgroup>
+          <optgroup label="${t("Layout & Geometry")}">
+            <option value="graybox">${t("Clay Blockout (Neutral Massing)")}</option>
+            <option value="textured">${t("Textured")}</option>
+            <option value="wireframe">${t("Wireframe (Mesh Structure)")}</option>
+            <option value="wireframe_texture">${t("Wireframe + Texture")}</option>
+            <option value="grid">${t("Grid Only (Camera Motion)")}</option>
+          </optgroup>
+          <optgroup label="${t("Presentation")}">
+            <option value="beauty">${t("Beauty (Studio Lit)")}</option>
+          </optgroup>
         </select>
         <select class="vp-pill vp-pill-select" data-role="label-mode" title="${t("Viewport Labels")}">
           <option value="off">${t("Labels: Off")}</option>

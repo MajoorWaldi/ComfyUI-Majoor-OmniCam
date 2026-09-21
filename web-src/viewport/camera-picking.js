@@ -211,13 +211,26 @@ export function createCameraPickingMethods(dependencies) {
   },
 
   /**
-   * World point -> logical viewport pixels, for the DOM label overlay
-   * (design spec section 14). `behind` is true when the point is outside the
-   * near/far clip and the caller should hide its label.
+   * World point -> screen pixels, for the DOM label overlay and playblast
+   * canvas (design spec section 14). `behind` is true when the point is
+   * outside the near/far clip and the caller should hide its label.
+   *
+   * @param world   - [x, y, z] world-space position
+   * @param width   - Optional explicit output width in the caller's pixel
+   *                  space. When omitted, logicalSize(this) is used.
+   * @param height  - Optional explicit output height in the caller's pixel
+   *                  space. When omitted, logicalSize(this) is used.
+   *
+   * Pass the canvas' CSS clientWidth/clientHeight for DOM overlays so that
+   * the returned coordinates are in CSS pixels and can be used directly for
+   * element.style.transform positioning.  Pass the 2D canvas buffer width/
+   * height for playblast canvas draws so that coordinates match the buffer.
    */
-  projectWorldToScreen(world) {
+  projectWorldToScreen(world, width = null, height = null) {
     if (!this.activeCamera || !Array.isArray(world) || world.length < 3) return null;
-    const { w, h } = logicalSize(this);
+    const { w: lw, h: lh } = logicalSize(this);
+    const w = (width != null && height != null) ? width : lw;
+    const h = (width != null && height != null) ? height : lh;
     const v = new THREE.Vector3(Number(world[0]) || 0, Number(world[1]) || 0, Number(world[2]) || 0);
     v.project(this.activeCamera);
     return {

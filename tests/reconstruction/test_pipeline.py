@@ -83,6 +83,31 @@ def test_pipeline_end_to_end_fake_provider(tmp_path):
     assert isinstance(output.warnings, list)
 
 
+def test_depth_mesh_camera_is_recentred_onto_the_detected_floor(tmp_path):
+    """Regression: the depth-mesh Source Camera used to always sit at literal
+    (0, 0, 0) looking down -Z, disconnected from wherever the recovered floor
+    actually was. It must now be re-levelled/recentred with the mesh and
+    planes, exactly like the blockout/scan pipelines already are."""
+    source, _ = _setup_image(tmp_path)
+    settings = ReconstructionSettings(provider="fake", triangle_budget=10_000)
+    provider = FakeReconstructionProvider(grid_size=64)
+
+    output = run_reconstruction_pipeline(
+        source=source,
+        settings=settings,
+        provider=provider,
+        input_root=tmp_path,
+        triangulate_fn=_stub_triangulate,
+        save_glb_fn=_stub_save_glb,
+    )
+
+    camera = output.motion_scene["cameras"][0]["track"]["keyframes"][0]["camera"]
+    # The fake provider's floor sits one unit below the shooting camera, so a
+    # confident ground detection must lift the recentred camera's Y well above
+    # the raw evidence origin instead of leaving it at literal 0.
+    assert camera["position"][1] > 0.5
+
+
 def test_reconstruction_stops_if_prompt_starts_mid_inference(tmp_path):
     """A ComfyUI workflow queued after admission must not race MoGe for VRAM.
 

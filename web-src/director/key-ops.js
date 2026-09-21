@@ -242,3 +242,56 @@ export function setKeyframeTangentMode(keys, frames, mode, channelIds = []) {
     return { ...key, interpolation, tangents };
   });
 }
+
+/** Smooth camera or object values across the selected `frames` using weighted Laplacian filtering. */
+export function smoothKeyframes(keys, frames, kind = "camera", factor = 0.5) {
+  const target = new Set(frames);
+  const sorted = [...keys].sort((a, b) => a.frame - b.frame);
+  const selectedIndices = [];
+  sorted.forEach((key, index) => {
+    if (target.has(key.frame)) selectedIndices.push(index);
+  });
+  if (selectedIndices.length < 2) return keys;
+
+  const wNeighbor = factor * 0.5;
+  const wCenter = 1 - factor;
+
+  const smoothed = sorted.map((key) => ({
+    ...key,
+    camera: key.camera ? { ...key.camera, position: [...key.camera.position], target: [...(key.camera.target || [0, 0, 0])] } : undefined,
+    transform: key.transform ? { ...key.transform, position: [...key.transform.position], rotation: [...(key.transform.rotation || [0, 0, 0])] } : undefined,
+  }));
+
+  for (let s = 0; s < selectedIndices.length; s += 1) {
+    const i = selectedIndices[s];
+    const prevIdx = s > 0 ? selectedIndices[s - 1] : (i > 0 ? i - 1 : null);
+    const nextIdx = s < selectedIndices.length - 1 ? selectedIndices[s + 1] : (i < sorted.length - 1 ? i + 1 : null);
+    if (prevIdx === null || nextIdx === null) continue;
+
+    const prev = sorted[prevIdx];
+    const cur = sorted[i];
+    const next = sorted[nextIdx];
+
+    if (kind === "object" && cur.transform && prev.transform && next.transform) {
+      for (let d = 0; d < 3; d += 1) {
+        smoothed[i].transform.position[d] = wNeighbor * prev.transform.position[d] + wCenter * cur.transform.position[d] + wNeighbor * next.transform.position[d];
+        if (cur.transform.rotation && prev.transform.rotation && next.transform.rotation) {
+          smoothed[i].transform.rotation[d] = wNeighbor * prev.transform.rotation[d] + wCenter * cur.transform.rotation[d] + wNeighbor * next.transform.rotation[d];
+        }
+      }
+    } else if (cur.camera && prev.camera && next.camera) {
+      for (let d = 0; d < 3; d += 1) {
+        smoothed[i].camera.position[d] = wNeighbor * prev.camera.position[d] + wCenter * cur.camera.position[d] + wNeighbor * next.camera.position[d];
+        smoothed[i].camera.target[d] = wNeighbor * (prev.camera.target?.[d] ?? 0) + wCenter * (cur.camera.target?.[d] ?? 0) + wNeighbor * (next.camera.target?.[d] ?? 0);
+      }
+      if (Number.isFinite(cur.camera.roll) && Number.isFinite(prev.camera.roll) && Number.isFinite(next.camera.roll)) {
+        smoothed[i].camera.roll = wNeighbor * prev.camera.roll + wCenter * cur.camera.roll + wNeighbor * next.camera.roll;
+      }
+      if (Number.isFinite(cur.camera.fov) && Number.isFinite(prev.camera.fov) && Number.isFinite(next.camera.fov)) {
+        smoothed[i].camera.fov = wNeighbor * prev.camera.fov + wCenter * cur.camera.fov + wNeighbor * next.camera.fov;
+      }
+    }
+  }
+
+  return smoothed;
+}

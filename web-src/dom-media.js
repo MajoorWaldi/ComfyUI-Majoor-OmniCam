@@ -10,6 +10,7 @@ import { upstreamPreviewMedia } from "./shared/upstream-preview.js";
 import { linkedOrigin } from "./graph-links.js";
 import { adoptUpstreamMediaMetadata } from "./upstream-media-metadata.js";
 import { fileSizeError } from "./shared/upload-limits.js";
+import { applyMediaAspectToCard } from "./viewport/subject-placeholder.js";
 // The real path, not the omnicam-* build alias: both resolve to this same
 // module in vite, but only this one resolves under plain node for the tests.
 import { releaseAudio } from "./playback-transport.js";
@@ -134,12 +135,14 @@ export async function loadMediaUrl(ui, object, url, isCurrent = () => true, isVi
     // superseded this one, while it resolved.
     if (!stillWanted()) { stopDomMedia(video); return; }
     setCardMedia(ui, object.id, video, true, object.asset || url);
+    applyMediaAspectToCard(object, video);
   } else {
     const image = new Image();
     image.src = url;
     await image.decode().catch(() => {});
     if (!stillWanted()) { image.src = ""; return; }
     setCardMedia(ui, object.id, image, true, object.asset || url);
+    applyMediaAspectToCard(object, image);
   }
   if (ui.disposed) return null;
   ui.render();
@@ -297,12 +300,14 @@ export async function loadCardFile(ui, file) {
     await video.play().catch(() => {});
     if (ui.disposed) { stopDomMedia(video); return; }
     setCardMedia(ui, object.id, video, true, ui.cardUrl);
+    applyMediaAspectToCard(object, video);
   } else {
     const image = new Image();
     image.src = ui.cardUrl;
     await image.decode().catch(() => {});
     if (ui.disposed) { image.src = ""; return; }
     setCardMedia(ui, object.id, image, true, ui.cardUrl);
+    applyMediaAspectToCard(object, image);
   }
   ui.render();
   ui.setStatus(t("Uploading card…"));
@@ -355,6 +360,8 @@ export function loadSelectedReference(ui) {
     // onload fires a turn or more later; the node may be gone by then.
     if (ui.disposed) return;
     setCardMedia(ui, "subject", image, false, image.src);
+    const subject = ui.state.objects.find((o) => o.id === "subject");
+    if (subject) applyMediaAspectToCard(subject, image);
     ui.render();
     ui.setStatus(t("Upstream media refreshed"));
   };
@@ -431,6 +438,8 @@ export async function syncUpstreamInputs(ui) {
           if (media instanceof HTMLVideoElement && media.paused) media.play().catch(() => {});
           setCardMedia(ui, "subject", media, false, media.currentSrc || media.src || "");
           adoptUpstreamMediaMetadata(ui, media, { frameCount: media instanceof HTMLVideoElement ? 0 : 1 });
+          const subject = ui.state.objects.find((o) => o.id === "subject");
+          if (subject) applyMediaAspectToCard(subject, media);
           ui.upstreamImageConnected = true;
           anyUpdated = true;
           ui.render();
@@ -516,7 +525,10 @@ export async function syncUpstreamInputs(ui) {
   if (!hasImageLink && ui.upstreamImageConnected) {
     releaseCardMedia(ui, "subject");
     const subject = ui.state.objects.find((o) => o.id === "subject");
-    if (subject) subject.asset = "";
+    if (subject) {
+      subject.asset = "";
+      subject.size = [2, 3, subject.size?.[2] || 0.01];
+    }
     ui.upstreamImageConnected = false;
     anyUpdated = true;
     ui.setStatus(t("Upstream image disconnected · card reset"));

@@ -29,15 +29,29 @@ export function applyCameraShake(ui, shakeType) {
       { frame: ui.state.duration_frames - 1, camera: cloneCamera(ui.camera), interpolation: "smooth" },
     ];
   }
-  const shaken = coreApplyCameraShake(cam, { type: shakeType, intensity: 1.0, duration_frames: ui.state.duration_frames });
-  cam.keyframes = shaken;
+  const selFrames = ui.resolveSelectedFrames ? ui.resolveSelectedFrames() : [...(ui.selectedKeyFrames || [])].sort((a, b) => a - b);
+  let nextKeys;
+  if (selFrames.length >= 2) {
+    const minF = selFrames[0];
+    const maxF = selFrames.at(-1);
+    const before = (cam.keyframes || []).filter((k) => k.frame < minF);
+    const after = (cam.keyframes || []).filter((k) => k.frame > maxF);
+    const mid = (cam.keyframes || []).filter((k) => k.frame >= minF && k.frame <= maxF);
+    const shaken = coreApplyCameraShake({ keyframes: mid, duration_frames: maxF + 1 }, { type: shakeType, intensity: 1.0, duration_frames: maxF + 1 });
+    nextKeys = [...before, ...shaken, ...after].sort((a, b) => a.frame - b.frame);
+  } else {
+    nextKeys = coreApplyCameraShake(cam, { type: shakeType, intensity: 1.0, duration_frames: ui.state.duration_frames });
+  }
+  cam.keyframes = nextKeys;
   if (cam.id === ui.state.active_camera_id) {
-    ui.state.keyframes = shaken;
+    ui.state.keyframes = nextKeys;
   }
   ui.serialize();
   ui.refreshKeys();
   ui.render();
-  ui.setStatus(`Camera shake applied: ${shakeType}`);
+  ui.setStatus(selFrames.length >= 2
+    ? `Camera shake applied on selection: ${shakeType}`
+    : `Camera shake applied: ${shakeType}`);
 }
 
 export function applyProxyPreset(ui, preset) {

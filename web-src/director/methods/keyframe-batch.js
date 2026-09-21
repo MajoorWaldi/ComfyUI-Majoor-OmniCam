@@ -10,6 +10,7 @@ import {
   setKeyframeTangentMode,
   shiftKeyframes,
   simplifyKeyframes,
+  smoothKeyframes,
 } from "../key-ops.js";
 import { activeCameraTrack, syncActiveCameraTrack } from "../../state-sync.js";
 import { timelineKeyframes, timelineObject } from "../../scene.js";
@@ -127,6 +128,20 @@ export function createKeyframeBatchMethods() {
       this.drawCurveEditor();
       this.setStatus(t("{mode} tangents on {n} keys")
         .replace("{mode}", mode).replace("{n}", frames.length));
+    },
+
+    smoothSelectedKeyframes() {
+      const frames = this.resolveSelectedFrames();
+      if (frames.length < 2) return this.setStatus(t("Select at least 2 keyframes to smooth"));
+      const track = this._activeTrack();
+      this.checkpoint(t("Smooth {n} keys").replace("{n}", frames.length));
+      track.write(smoothKeyframes(timelineKeyframes(this), frames, track.kind));
+      this.serialize();
+      this.refreshKeys();
+      this.refreshKeyEditor();
+      this.render();
+      this.drawCurveEditor();
+      this.setStatus(t("Smoothed {n} keyframes").replace("{n}", frames.length));
     },
 
     /**

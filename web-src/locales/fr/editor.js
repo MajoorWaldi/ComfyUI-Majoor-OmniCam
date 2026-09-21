@@ -352,6 +352,10 @@ export const FR_EDITOR = {
   "Auto Smooth": "Lissage auto",
   "Corner": "Coin (Corner)",
   "Selection": "Sélection",
+  "Smooth keys": "Lisser les clés",
+  "Smooth motion across selected keys": "Lisser le mouvement sur les clés sélectionnées",
+  "Smoothed {n} keyframes": "{n} images-clés lissées",
+  "Select at least 2 keyframes to smooth": "Sélectionnez au moins 2 images-clés à lisser",
   "Simplify keys": "Simplifier les clés",
   "Drop keys that barely change the motion": "Supprimer les clés sans impact notable sur le mouvement",
   "Reduce keys…": "Réduire les clés…",
@@ -520,4 +524,7 @@ export const FR_EDITOR = {
   "Testing...": "Test en cours…",
   "The Agent finished without a change.": "L'Agent a terminé sans changement.",
   "The Director changed after this preview. Generate a new preview.": "Le Director a changé depuis cet aperçu. Générez un nouvel aperçu.",
+  "Path key": "Clé de trajectoire",
+  "{count} keys selected": "{count} clés sélectionnées",
+  "Smooth {n} keys": "Lisser {n} clés",
 };

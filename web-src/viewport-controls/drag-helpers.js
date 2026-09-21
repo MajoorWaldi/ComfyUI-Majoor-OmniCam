@@ -6,6 +6,7 @@
 
 import { project, sampleObjectTransform } from "../director/core.js";
 import { viewportCamera } from "../viewport-controls.js";
+import { releaseViewportPointer } from "./navigation-gesture.js";
 import { t } from "../i18n.js";
 
 export function checkpointDrag(ui, drag, label) {
@@ -103,6 +104,7 @@ export function finishBoxSelection(ui) {
   ui.selectedEntity = ids.size ? "object" : "camera";
   ui.boxSelection = null;
   ui.boxSelectMode = false;
+  releaseViewportPointer(ui);
   if (ui.interactionElement?.style) ui.interactionElement.style.cursor = "";
   ui.refreshObjects();
   ui.refreshInspector();
@@ -110,3 +112,37 @@ export function finishBoxSelection(ui) {
   ui.setStatus(t("{count} object(s) selected").replace("{count}", String(ids.size)));
   return true;
 }
+
+export function deselectOnEmptyClick(ui, event) {
+  if (!ui.pointerHit && !ui.gizmoDrag && !ui.targetFreeDrag && ui.drag && !ui.drag.navigationOnly && event) {
+    const moved = Math.hypot(event.clientX - ui.drag.x, event.clientY - ui.drag.y);
+    if (moved < 5 && (event.button === 0 || event.button === undefined)) {
+      if (ui.selectedEntity === "object" || ui.selectedObjectId !== null || ui.selectedEntity === "camera_target" || ui.selectedEntity === "camera_path") {
+        ui.selectedEntity = "camera";
+        ui.selectedObjectId = null;
+        ui.selectedObjectIds = new Set();
+        ui.selectedKeyFrame = null;
+        ui.subSelection = null;
+        ui.refreshObjects();
+        ui.refreshKeys();
+        ui.refreshInspector();
+        ui.render();
+        ui.setStatus(t("Deselected"));
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function resetViewportInteractionState(ui) {
+  releaseViewportPointer(ui);
+  ui.drag = null;
+  ui.gizmoDrag = null;
+  ui.targetFreeDrag = null;
+  ui.keyDrag = null;
+  ui.pointerHit = false;
+  ui.canvas.classList.remove("dragging");
+  if (ui.interactionElement?.style) ui.interactionElement.style.cursor = "default";
+}
+

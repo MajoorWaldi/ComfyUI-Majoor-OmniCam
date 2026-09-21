@@ -8,7 +8,7 @@ import { activeGizmoEntity, gizmoAxes, gizmoGeometry, pickGizmo, pickSceneObject
 import { t } from "../i18n.js";
 import { cancelModalTransform, confirmModalTransform, selectedTransformObjects, updateModalTransform } from "./modal-transform.js";
 import { isNavigationGesture, navigationGesture, navigationProfile, releaseViewportPointer, wheelPixels, worldPerPixel } from "./navigation-gesture.js";
-import { applyTrackingOffset, checkpointDrag, checkpointWheelGesture, projectedObjectScreenBounds, snapValue, spatiallySnap } from "./drag-helpers.js";
+import { applyTrackingOffset, checkpointDrag, checkpointWheelGesture, deselectOnEmptyClick, finishBoxSelection, projectedObjectScreenBounds, resetViewportInteractionState, snapValue, spatiallySnap } from "./drag-helpers.js";
 
 export function onPointerDown(ui, e) {
   if (ui.modalTransform) {
@@ -349,6 +349,8 @@ export function onPointerDown(ui, e) {
   ui.drag = {
     x: e.clientX,
     y: e.clientY,
+    button: e.button,
+    moved: false,
     shift: isPan,
     dolly: isDolly,
     fly: isFly,
@@ -578,6 +580,7 @@ export function onPointerMove(ui, e) {
   const dx = e.clientX - ui.drag.x;
   const dy = e.clientY - ui.drag.y;
   if (!ui.drag.historyCheckpointed && Math.hypot(dx, dy) < 3) return;
+  ui.drag.moved = true;
   const beginsCameraEdit = !ui.drag.historyCheckpointed && !ui.drag.editorView;
   checkpointDrag(ui, ui.drag, ui.drag.editorView ? "Navigate viewport" : "Move camera");
   if (beginsCameraEdit) ui.beginCameraEdit();
@@ -679,27 +682,7 @@ export function onPointerUp(ui, event) {
     return;
   }
   if (ui.boxSelection) {
-    const selection = ui.boxSelection;
-    const camera = viewportCamera(ui);
-    const minX = Math.min(selection.start[0], selection.current[0]), maxX = Math.max(selection.start[0], selection.current[0]);
-    const minY = Math.min(selection.start[1], selection.current[1]), maxY = Math.max(selection.start[1], selection.current[1]);
-    const ids = selection.additive ? new Set(selection.initial) : new Set();
-    for (const object of ui.state.objects) {
-      if (object.enabled === false) continue;
-      // Maya/Blender select an object the marquee merely overlaps, not just
-      // one whose pivot happens to land inside it -- a marquee drawn over
-      // most of a large object (pivot outside the box) or a thin sliver of a
-      // small one both count. Test the projected screen-space footprint of
-      // its world bounds against the marquee rectangle instead of a single
-      // point; a synthetic box from position +/- size/2 stands in for
-      // objects with no WebGL mesh to measure (nulls, cameras-as-objects).
-      const screenBox = projectedObjectScreenBounds(ui, object, camera);
-      if (screenBox && screenBox.maxX >= minX && screenBox.minX <= maxX && screenBox.maxY >= minY && screenBox.minY <= maxY) ids.add(object.id);
-    }
-    ui.selectedObjectIds = ids; ui.selectedObjectId = [...ids].at(-1) || null;
-    ui.selectedEntity = ids.size ? "object" : "camera"; ui.boxSelection = null;
-    releaseViewportPointer(ui);
-    ui.refreshObjects(); ui.refreshInspector(); ui.render(); ui.setStatus(t("{count} object(s) selected").replace("{count}", String(ids.size)));
+    finishBoxSelection(ui);
     return;
   }
   const finishedKeyDrag = ui.keyDrag;
@@ -707,39 +690,21 @@ export function onPointerUp(ui, event) {
   const finishedObjectEdit = Boolean(ui.gizmoDrag);
   const finishedPathTransform = ui.gizmoDrag?.type === "camera_path";
   if (finishedPathTransform) { ui.serialize?.(); ui.refreshKeys?.(); ui.setStatus(t("Camera path transformed")); }
-
-  // Deselect when user clicked in an empty area without dragging
-  if (!ui.pointerHit && !ui.gizmoDrag && !ui.targetFreeDrag && ui.drag && !ui.drag.navigationOnly && event) {
-    const moved = Math.hypot(event.clientX - ui.drag.x, event.clientY - ui.drag.y);
-    if (moved < 5 && (event.button === 0 || event.button === undefined)) {
-      if (ui.selectedEntity === "object" || ui.selectedObjectId !== null || ui.selectedEntity === "camera_target" || ui.selectedEntity === "camera_path") {
-        ui.selectedEntity = "camera";
-        ui.selectedObjectId = null;
-        ui.selectedObjectIds = new Set();
-        ui.selectedKeyFrame = null;
-        ui.subSelection = null;
-        ui.refreshObjects();
-        ui.refreshKeys();
-        ui.refreshInspector();
-        ui.render();
-        ui.setStatus(t("Deselected"));
-      }
-    }
+  if (ui.drag) {
+    ui.lastRightClickWasDrag = Boolean(ui.drag.button === 2 && (ui.drag.moved || ui.drag.historyCheckpointed));
   }
 
-  releaseViewportPointer(ui);
-  ui.drag = null;
-  ui.gizmoDrag = null;
-  ui.targetFreeDrag = null;
-  ui.keyDrag = null;
-  ui.pointerHit = false;
-  ui.canvas.classList.remove("dragging");
-  if (ui.interactionElement.style) ui.interactionElement.style.cursor = "default";
+  deselectOnEmptyClick(ui, event);
+  resetViewportInteractionState(ui);
   if (finishedKeyDrag) {
     finishedKeyDrag.badge?.remove();
     ui.editingKeyFrame = null;
     ui.updateKeyVisualState();
     ui.root.focus({ preventScroll: true });
+    if (finishedKeyDrag.engaged) {
+      ui.suppressKeyClick = true;
+      setTimeout(() => { ui.suppressKeyClick = false; }, 100);
+    }
   }
   if (finishedCameraDrag) ui.finishCameraEdit();
   if (finishedObjectEdit) {

@@ -47,8 +47,9 @@ export function curveChannels(ui) {
       id: `${prefix}_${"xyz"[index]}`,
       name: `${title} ${"XYZ"[index]}`,
       color: ["#ef5350", "#53d86a", "#4aa3ef"][index],
-      get: (transform) => (transform[field] || [0, 0, 0])[index],
+      get: (transform) => ((transform && transform[field]) || [0, 0, 0])[index],
       set: (transform, value) => {
+        if (!transform) return;
         if (!transform[field]) transform[field] = [0, 0, 0];
         transform[field][index] = field === "size" ? Math.max(0.01, value) : value;
       },
@@ -58,8 +59,9 @@ export function curveChannels(ui) {
       id: `target_${"xyz"[index]}`,
       name: `Target ${"XYZ"[index]}`,
       color: ["#ef5350", "#53d86a", "#4aa3ef"][index],
-      get: (camera) => (camera.target || [0, 0, 0])[index],
+      get: (camera) => ((camera && camera.target) || [0, 0, 0])[index],
       set: (camera, value) => {
+        if (!camera) return;
         if (!camera.target) camera.target = [0, 0, 0];
         camera.target[index] = value;
       },
@@ -72,28 +74,30 @@ export function curveChannels(ui) {
         id: `pos_${"xyz"[index]}`,
         name: `Position ${"XYZ"[index]}`,
         color: ["#ef5350", "#53d86a", "#4aa3ef"][index],
-        get: (camera) => (camera.position || [0, 0, 0])[index],
+        get: (camera) => ((camera && camera.position) || [0, 0, 0])[index],
         set: (camera, value) => {
+          if (!camera) return;
           if (!camera.position) camera.position = [0, 0, 0];
           camera.position[index] = value;
         },
       })),
-      { id: "fov", name: "Focal Length", color: "#43c7db", get: (camera) => camera.fov ?? 35, set: (camera, value) => { camera.fov = clamp(value, 5, 150); } },
-      { id: "roll", name: "Roll", color: "#ec4899", get: (camera) => camera.roll || 0, set: (camera, value) => { camera.roll = clamp(value, -180, 180); } },
+      { id: "fov", name: "Focal Length", color: "#43c7db", get: (camera) => camera?.fov ?? 35, set: (camera, value) => { if (camera) camera.fov = clamp(value, 5, 150); } },
+      { id: "roll", name: "Roll", color: "#ec4899", get: (camera) => camera?.roll || 0, set: (camera, value) => { if (camera) camera.roll = clamp(value, -180, 180); } },
     ];
   } else if (group === "lens") {
     allChannels = [
-      { id: "fov", name: "FOV", color: "#ef8b3e", get: (camera) => camera.fov ?? 35, set: (camera, value) => { camera.fov = clamp(value, 5, 150); } },
-      { id: "roll", name: "Roll", color: "#43c7db", get: (camera) => camera.roll || 0, set: (camera, value) => { camera.roll = clamp(value, -180, 180); } },
-      { id: "zoom", name: "Zoom", color: "#66d17a", get: (camera) => camera.zoom || 1, set: (camera, value) => { camera.zoom = Math.max(0.01, value); } },
+      { id: "fov", name: "FOV", color: "#ef8b3e", get: (camera) => camera?.fov ?? 35, set: (camera, value) => { if (camera) camera.fov = clamp(value, 5, 150); } },
+      { id: "roll", name: "Roll", color: "#43c7db", get: (camera) => camera?.roll || 0, set: (camera, value) => { if (camera) camera.roll = clamp(value, -180, 180); } },
+      { id: "zoom", name: "Zoom", color: "#66d17a", get: (camera) => camera?.zoom || 1, set: (camera, value) => { if (camera) camera.zoom = Math.max(0.01, value); } },
     ];
   } else {
     allChannels = [0, 1, 2].map((index) => ({
       id: `pos_${"xyz"[index]}`,
       name: `Position ${"XYZ"[index]}`,
       color: ["#ef5350", "#53d86a", "#4aa3ef"][index],
-      get: (camera) => (camera.position || [0, 0, 0])[index],
+      get: (camera) => ((camera && camera.position) || [0, 0, 0])[index],
       set: (camera, value) => {
+        if (!camera) return;
         if (!camera.position) camera.position = [0, 0, 0];
         camera.position[index] = value;
       },
@@ -221,7 +225,7 @@ export function drawCurveEditor(ui) {
 
     // Draw Keyframe Points
     for (const key of keys) {
-      const value = object ? key.transform : key.camera;
+      const value = object ? (key.transform || object) : (key.camera || key);
       const x = xFor(key.frame);
       const y = yFor(channel.get(value));
       const isSelected = key.frame === ui.selectedKeyFrame || ui.selectedKeyFrames?.has(key.frame);

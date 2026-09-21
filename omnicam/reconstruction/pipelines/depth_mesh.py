@@ -1,9 +1,10 @@
 """Depth-mesh reconstruction orchestrator.
 
 This is the historical single-image MoGe path: geometry inference -> proxy mesh
--> camera + planes -> GLB asset -> MotionScene. It is unchanged behaviour; the
-facade in ``reconstruction.pipeline`` routes ``mode in {geometry, depth_mesh}``
-here.
+-> camera + planes -> GLB asset -> MotionScene. The mesh, camera and planes are
+then re-levelled and recentred exactly like the blockout/scan pipelines
+(see ``..leveling``), so the Source Camera ends up anchored to the recovered
+floor on Director's grid instead of always sitting at the raw evidence origin.
 """
 
 from __future__ import annotations
@@ -13,9 +14,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+import torch
+
 from ..asset_writer import write_reconstruction_assets
 from ..cache import CacheEntry, lookup_cache, write_cache_manifest
 from ..camera import reconstruct_camera_from_evidence, resolve_source_dimensions
+from ..coordinates import evidence_points_omnicam
 from ..errors import (
     ReconCancelledError,
     ReconEmptyGeometryError,
@@ -25,6 +30,7 @@ from ..errors import (
 )
 from ..fingerprint import compute_reconstruction_fingerprint
 from ..geometry import EmptyGeometryError, MeshTooLargeError, build_proxy_mesh
+from ..leveling import level_rotation_from_normal, level_scene, recenter_scene
 from ..planes import detect_planes, scale_planes
 from ..providers.base import CancelToken, ProgressSink, ReconstructionProvider
 from ..scene_builder import build_reconstructed_scene
@@ -32,6 +38,7 @@ from ..settings import ReconstructionSettings
 from ..source import ReconstructionSourceResolutionError, resolve_reconstruction_source
 from ..types import (
     ReconstructedAsset,
+    ReconstructedCamera,
     ReconstructionMetrics,
     ReconstructionResult,
     ReconstructionSource,
@@ -144,8 +151,57 @@ def run_depth_mesh_pipeline(
     source_width, source_height = resolve_source_dimensions(evidence)
     planes = scale_planes(detect_planes(evidence, settings, seed=fp), settings.scene_scale)
 
+    # scene_scale as one similarity about the origin on the camera + the points
+    # used to detect the ground, matching the mesh's own internal scaling in
+    # build_proxy_mesh and the planes already scaled above.
+    scale = float(settings.scene_scale)
+    points_omnicam = evidence_points_omnicam(evidence)
+    if scale > 0 and abs(scale - 1.0) > 1e-9:
+        points_omnicam = (points_omnicam.astype(np.float64) * scale).astype(np.float32)
+        camera = ReconstructedCamera(
+            fov_x_degrees=camera.fov_x_degrees,
+            fov_y_degrees=camera.fov_y_degrees,
+            position=tuple(float(v) * scale for v in camera.position),
+            target=tuple(float(v) * scale for v in camera.target),
+            near=camera.near,
+            far=camera.far,
+            scale_mode=camera.scale_mode,
+        )
+    ground_plane = next((p for p in planes if p.plane_type == "ground"), None)
+
+    # Re-level (a confident, gently-tilted floor becomes world-horizontal) and
+    # recentre (the floor drops onto Director's grid at the origin) the camera
+    # and planes exactly like the blockout/scan pipelines (see ..leveling).
+    # The environment mesh keeps its own vertices in the raw evidence frame
+    # until here; the identical rigid transform is applied to it below so it
+    # stays superimposed on the camera instead of the Source Camera always
+    # sitting at literal (0, 0, 0) regardless of the photo.
+    _pre_level_ground = ground_plane
+    _, camera, planes, was_levelled = level_scene(
+        points=points_omnicam, camera=camera, planes=planes, ground=ground_plane
+    )
+    level_rot = (
+        level_rotation_from_normal(tuple(_pre_level_ground.normal))
+        if was_levelled and _pre_level_ground is not None
+        else None
+    )
+    if was_levelled:
+        ground_plane = next((p for p in planes if p.plane_type == "ground"), None)
+    _, camera, planes, recenter_offset = recenter_scene(
+        points=points_omnicam, camera=camera, planes=planes, ground=ground_plane
+    )
+
     ground_plane = next((p for p in planes if p.plane_type == "ground"), None)
     ground_conf = ground_plane.confidence if ground_plane else 0.0
+
+    if level_rot is not None:
+        rot_t = torch.as_tensor(level_rot, dtype=proxy_mesh.vertices.dtype)
+        proxy_mesh.vertices = proxy_mesh.vertices @ rot_t.T
+        if proxy_mesh.normals is not None:
+            proxy_mesh.normals = proxy_mesh.normals @ rot_t.T
+    if np.any(np.abs(recenter_offset) > 1e-6):
+        offset_t = torch.as_tensor(recenter_offset, dtype=proxy_mesh.vertices.dtype)
+        proxy_mesh.vertices = proxy_mesh.vertices + offset_t
 
     report("SAVE_ASSETS", 0.84, "Saving bounded GLB environment proxy")
     asset_summary = {

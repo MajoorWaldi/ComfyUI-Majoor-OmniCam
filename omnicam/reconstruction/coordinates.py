@@ -5,6 +5,33 @@ from __future__ import annotations
 import math
 from typing import Any
 
+import numpy as np
+
+
+def evidence_points_omnicam(evidence: Any) -> np.ndarray:
+    """A ``GeometryEvidence``'s point map as a plain OmniCam-frame array.
+
+    Used wherever a pipeline needs the raw points just to detect a ground
+    plane / leveling rotation, decoupled from whatever a geometry-specific
+    consumer (mesh triangulation, blockout fitting) does with the same
+    evidence.
+    """
+    pts = evidence.points
+    if hasattr(pts, "detach"):
+        pts = pts.detach().cpu()
+    arr = np.asarray(pts)
+    if arr.ndim == 4:
+        arr = arr[0]
+    if evidence.coordinate_system == "opencv_x_right_y_down_z_forward":
+        converted = opencv_points_to_omnicam(evidence.points)
+        if hasattr(converted, "detach"):
+            converted = converted.detach().cpu().numpy()
+        converted = np.asarray(converted)
+        if converted.ndim == 4:
+            converted = converted[0]
+        return converted.astype(np.float32, copy=False)
+    return arr.astype(np.float32, copy=False)
+
 
 def opencv_points_to_omnicam(points: Any) -> Any:
     """Convert points from OpenCV coordinate system (X right, Y down, Z forward)

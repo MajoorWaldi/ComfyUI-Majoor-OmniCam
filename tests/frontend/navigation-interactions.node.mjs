@@ -623,3 +623,45 @@ test("a camera explicitly selected as itself never has its own path marker hijac
 
   assert.equal(ui.pathDrag, undefined, "the camera's own marker must not arm a path-key drag while it is selected as itself");
 });
+
+test("in simple navigation mode, right-drag pan suppresses context menu but stationary right-click preserves it", () => {
+  const ui = fixture("simple", "perspective");
+  let menuOpened = false;
+  ui.openViewportContext = () => { menuOpened = true; };
+  ui.pickSceneObject = () => null;
+
+  // Case 1: Right-drag (Pan)
+  onPointerDown(ui, event({ button: 2, clientX: 100, clientY: 100 }));
+  assert.ok(ui.drag, "RMB in simple profile arms pan drag");
+  assert.equal(ui.drag.shift, true, "RMB in simple profile is pan");
+  onPointerMove(ui, event({ button: 2, clientX: 150, clientY: 150 }));
+  assert.equal(ui.drag.moved, true, "movement flagged drag as moved");
+  onPointerUp(ui, event({ button: 2, clientX: 150, clientY: 150 }));
+  assert.equal(ui.lastRightClickWasDrag, true, "drag was recorded as right-drag");
+
+  // Simulate contextmenu event after drag
+  const targetWrap = { closest: (sel) => (sel === ".viewport-wrap" ? targetWrap : null) };
+  const ctxEvent = { target: targetWrap, altKey: false, shiftKey: false, clientX: 150, clientY: 150, preventDefault() {}, stopPropagation() {} };
+  ui.onContextMenu = function(e) {
+    if (this.state.navigation_profile === "simple" && e.target?.closest?.(".viewport-wrap")) {
+      if (this.lastRightClickWasDrag && !e.shiftKey) {
+        this.lastRightClickWasDrag = false;
+        return;
+      }
+      this.lastRightClickWasDrag = false;
+    }
+    this.openViewportContext(e);
+  };
+  ui.onContextMenu(ctxEvent);
+  assert.equal(menuOpened, false, "right-drag must suppress context menu");
+
+  // Case 2: Stationary right-click (no drag movement)
+  onPointerDown(ui, event({ button: 2, clientX: 100, clientY: 100 }));
+  assert.ok(ui.drag, "RMB arms drag");
+  onPointerUp(ui, event({ button: 2, clientX: 100, clientY: 100 }));
+  assert.equal(ui.lastRightClickWasDrag, false, "stationary click was not a drag");
+
+  ui.onContextMenu(ctxEvent);
+  assert.equal(menuOpened, true, "stationary right-click must open context menu in simple profile");
+});
+

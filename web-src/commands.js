@@ -68,7 +68,7 @@ export function isEditableTarget(target) {
 
 /** The zone `target` sits in, or null when it is in none. */
 export function resolveZone(target) {
-  const element = target instanceof HTMLElement ? target : null;
+  const element = (typeof HTMLElement !== "undefined" && target instanceof HTMLElement) || target?.closest ? target : null;
   for (const [zone, selector] of ZONE_SELECTORS) {
     if (element?.closest?.(selector)) return zone;
   }
@@ -279,6 +279,10 @@ function viewportKeymap(ui, event) {
   // both packages reserve it for their own add menu.
   if ((key === "a" || event.key === "Home") && !ui.isNavigatingFly && !event.shiftKey) {
     if (!event.repeat) ui.frameTarget({ all: true });
+    return true;
+  }
+  if ((key === "i" || key === "k") && !event.ctrlKey && !event.metaKey && !event.altKey && !ui.isNavigatingFly) {
+    if (!event.repeat) ui.insertKeyframe();
     return true;
   }
   if (key === "n") {

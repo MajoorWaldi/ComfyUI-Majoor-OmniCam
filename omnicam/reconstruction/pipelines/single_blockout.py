@@ -19,7 +19,7 @@ from ..blockout.object_fitter import fit_blockout_object
 from ..blockout.types import BlockoutScene
 from ..cache import CacheEntry, lookup_cache, write_cache_manifest
 from ..camera import reconstruct_camera_from_evidence, resolve_source_dimensions
-from ..coordinates import opencv_points_to_omnicam
+from ..coordinates import evidence_points_omnicam
 from ..errors import (
     ReconBlockoutEmptyError,
     ReconCancelledError,
@@ -121,24 +121,6 @@ def _compose_reference_transform(
     }
 
 
-def _evidence_points_omnicam(evidence: Any) -> np.ndarray:
-    pts = evidence.points
-    if hasattr(pts, "detach"):
-        pts = pts.detach().cpu()
-    arr = np.asarray(pts)
-    if arr.ndim == 4:
-        arr = arr[0]
-    if evidence.coordinate_system == "opencv_x_right_y_down_z_forward":
-        converted = opencv_points_to_omnicam(evidence.points)
-        if hasattr(converted, "detach"):
-            converted = converted.detach().cpu().numpy()
-        converted = np.asarray(converted)
-        if converted.ndim == 4:
-            converted = converted[0]
-        return converted.astype(np.float32, copy=False)
-    return arr.astype(np.float32, copy=False)
-
-
 def run_single_blockout_pipeline(
     *,
     source: ReconstructionSource,
@@ -231,7 +213,7 @@ def run_single_blockout_pipeline(
     if evidence is None or evidence.points is None:
         raise ReconEmptyGeometryError("Geometry provider returned no points")
 
-    points_omnicam = _evidence_points_omnicam(evidence)
+    points_omnicam = evidence_points_omnicam(evidence)
 
     # 2. Segmentation -------------------------------------------------- #
     report("SEGMENT_SCENE", 0.40, "Detecting semantic instances")

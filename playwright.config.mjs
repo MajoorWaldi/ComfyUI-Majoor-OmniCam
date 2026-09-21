@@ -13,6 +13,7 @@ export default defineConfig({
   // room and let a genuinely unlucky frame retry once rather than fail the run.
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 2 : (process.platform === "win32" ? 4 : undefined),
   use: {
     baseURL: "http://127.0.0.1:4173",
     headless: true,

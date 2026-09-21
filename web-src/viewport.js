@@ -13,12 +13,13 @@ const PLAYBLAST_QUALITY = { low: QUALITY_LOW, balanced: QUALITY_MEDIUM, high: QU
 
 import { generatePointField, sampleCamera, sampleObjectTransform } from "./director/core.js";
 import { attachPlayblastMetrics } from "./playblast-contract.js";
-import { createResourceMethods } from "./viewport/resources.js";
+import { createResourceMethods, buildCaptureGrid } from "./viewport/resources.js";
 import { createSceneMethods } from "./viewport/scene.js";
 import { createCameraPickingMethods } from "./viewport/camera-picking.js";
 import { createRenderMethods } from "./viewport/render.js";
 import { hasOutlineMesh, SelectionOutlineRenderer } from "./viewport/selection-outline.js";
 import { DEFAULT_QUALITY, applyQuality, createStudio, setStudioEnabled } from "./viewport/studio.js";
+import { applyMediaAspectToCard, getSubjectPlaceholderTexture } from "./viewport/subject-placeholder.js";
 
 const neutral = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.48, metalness: 0.06, side: THREE.DoubleSide });
 const matte = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.95, metalness: 0, side: THREE.DoubleSide });
@@ -103,7 +104,7 @@ function disposeObject(object, includeModels = false) {
     child.geometry?.dispose?.();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     for (const material of materials) {
-      material?.map?.dispose?.();
+      if (!material?.map?.userData?.omnicamSharedResource) material?.map?.dispose?.();
       material?.dispose?.();
     }
   });
@@ -118,16 +119,21 @@ function textureFor(media) {
 }
 
 function cardMesh(object, media, fit) {
+  if (media) applyMediaAspectToCard(object, media);
   const [width, height] = object.size || [2, 3];
   const group = new THREE.Group();
   const basePlane = new THREE.Mesh(new THREE.PlaneGeometry(width, height), new THREE.MeshBasicMaterial({ color: 0x161a22, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
   basePlane.frustumCulled = false;
   group.add(basePlane);
-  const texture = textureFor(media);
+  let texture = media ? textureFor(media) : null;
+  const isPlaceholder = !texture && (object.id === "subject" || !object.asset);
+  if (isPlaceholder) {
+    texture = getSubjectPlaceholderTexture(THREE);
+  }
   if (!texture) return group;
 
-  const sourceWidth = media.videoWidth || media.naturalWidth || media.width || width;
-  const sourceHeight = media.videoHeight || media.naturalHeight || media.height || height;
+  const sourceWidth = media?.videoWidth || media?.naturalWidth || media?.width || width;
+  const sourceHeight = media?.videoHeight || media?.naturalHeight || media?.height || height;
   const sourceAspect = sourceWidth / Math.max(1, sourceHeight);
   const cardAspect = width / Math.max(0.01, height);
   let imageWidth = width;
@@ -194,6 +200,13 @@ export class OmniWebGLViewport {
     this.studioEnabled = true;
     setStudioEnabled(THREE, this.scene, this.renderer, this.studio, true);
     this.content = new THREE.Group(); this.scene.add(this.content);
+    // Built once: geometry/colours never depend on scene state, only its
+    // visibility does (toggled per frame in render()). Keep it under content so
+    // grid-only modes and capture-guide traversals see the same scene subtree as
+    // the rest of the authored viewport content.
+    this.gridGroup = buildCaptureGrid(THREE);
+    this.gridGroup.userData.omnicamPersistent = true;
+    this.content.add(this.gridGroup);
     this.path = new THREE.Group(); this.scene.add(this.path);
     this.liveCameras = new THREE.Group(); this.scene.add(this.liveCameras);
     this.selectionGroup = new THREE.Group(); this.scene.add(this.selectionGroup);
