@@ -177,6 +177,8 @@ def test_reconstruct_with_stubbed_nodes(tmp_path, monkeypatch):
     call_args = mock_module.MoGeInference.execute.call_args[0]
     # resolution_level is 3rd arg in execute(cls, moge_model, image, resolution_level, ...)
     assert call_args[2] == 7
+    # refine_steps is the trailing arg -- required by core since MoGe-3
+    assert call_args[7] == 3
 
 
 def test_reconstruct_with_node_output_args(tmp_path, monkeypatch):
@@ -213,6 +215,7 @@ def test_reconstruct_with_node_output_args(tmp_path, monkeypatch):
     assert evidence.points.shape == (1, 16, 16, 3)
     call_args = mock_module.MoGeInference.execute.call_args[0]
     assert call_args[2] == 9  # high quality = level 9
+    assert call_args[7] == 6  # high quality = 6 refine steps
 
 
 def _stub_provider_for_cache_test(monkeypatch, checkpoint_file, image_size=16):

@@ -4,7 +4,8 @@ Upstream verification (ComfyUI Core comfy_extras/nodes_moge.py):
 - Node classes:
     - LoadMoGeModel: execute(cls, model_name) -> io.NodeOutput(MoGeModel(sd))
     - MoGeInference: execute(cls, moge_model, image, resolution_level, fov_x_degrees,
-                            batch_size, force_projection, apply_mask) -> io.NodeOutput(moge_geometry)
+                            batch_size, force_projection, apply_mask, refine_steps)
+                            -> io.NodeOutput(moge_geometry)
 - Result accessor:
     - io.NodeOutput stores results in .args or .outputs. We support .args, .outputs, .result,
       and raw returns.
@@ -48,6 +49,15 @@ QUALITY_RESOLUTION_MAP = {
     "fast": 5,
     "balanced": 7,
     "high": 9,
+}
+
+# MoGe-3's sparse volumetric refinement passes (ignored by MoGe-1 / MoGe-2).
+# 0 disables it; upstream's own default is 3. Scaled with quality like
+# QUALITY_RESOLUTION_MAP above since it is the same speed/detail trade-off.
+QUALITY_REFINE_STEPS_MAP = {
+    "fast": 0,
+    "balanced": 3,
+    "high": 6,
 }
 
 #: A fresh ComfyMoGeProvider() is constructed per reconstruction (see
@@ -314,6 +324,7 @@ class ComfyMoGeProvider(ReconstructionProvider):
 
             image_tensor = self._load_image_tensor(resolved_path)
             resolution_level = QUALITY_RESOLUTION_MAP.get(settings.quality, 7)
+            refine_steps = QUALITY_REFINE_STEPS_MAP.get(settings.quality, 3)
             fov_x_degrees = 0.0  # 0.0 signals MoGe to auto-recover FOV
 
             try:
@@ -325,6 +336,7 @@ class ComfyMoGeProvider(ReconstructionProvider):
                     1,  # batch_size
                     True,  # force_projection
                     True,  # apply_mask
+                    refine_steps,
                 )
                 moge_geom = _extract_node_output(infer_out)
             except (torch.cuda.OutOfMemoryError, RuntimeError) as err:
