@@ -3,11 +3,43 @@
 import { clamp, cloneCamera, cloneTransform, resolveChannelHandles, sampleCamera, sampleObjectTransform } from "./director/core.js";
 import { t } from "./i18n.js";
 import { drawTimeAxis, drawValueAxis } from "./curve-editor/axes.js";
+import { cameraPathTimingWeight, setCameraPathTimingWeight } from "./director/camera-path-timing.js";
 
 export function curveChannels(ui) {
   const group = ui.root.querySelector('[data-role="curve-group"]')?.value || "camera";
   let allChannels = [];
-  if (ui.timelineObject()) {
+  if (!ui.timelineObject() && group === "timing") {
+    const keys = ui.timelineKeyframes().slice().sort((a, b) => a.frame - b.frame);
+    const keyByCamera = new Map(keys.map((key) => [key.camera, key]));
+    const weightAtFrame = (frame) => {
+      if (!keys.length) return 1;
+      if (frame <= keys[0].frame) return cameraPathTimingWeight(keys[0]);
+      if (frame >= keys.at(-1).frame) return cameraPathTimingWeight(keys.at(-1));
+      let index = 0;
+      while (index < keys.length - 2 && keys[index + 1].frame < frame) index += 1;
+      const left = keys[index], right = keys[index + 1];
+      const span = Math.max(1, right.frame - left.frame);
+      const amount = (frame - left.frame) / span;
+      const a = cameraPathTimingWeight(left), b = cameraPathTimingWeight(right);
+      return a + (b - a) * amount;
+    };
+    allChannels = [{
+      id: "timing_weight", name: t("Time Weight (higher = slower)"), color: "#f2d06b", keyBased: true,
+      get: (camera) => {
+        const key = keyByCamera.get(camera);
+        return key ? cameraPathTimingWeight(key) : 1;
+      },
+      set: (camera, value) => {
+        const key = keyByCamera.get(camera);
+        if (!key) return;
+        const clamped = Math.max(0.1, Math.min(10, Number(value) || 1));
+        const next = setCameraPathTimingWeight(key, clamped);
+        if (next.timing) key.timing = next.timing;
+        else delete key.timing;
+      },
+      sample: weightAtFrame,
+    }];
+  } else if (ui.timelineObject()) {
     const field = group === "target" ? "rotation" : group === "lens" ? "size" : "position";
     const prefix = group === "target" ? "rot" : group === "lens" ? "scale" : "pos";
     const title = field === "size" ? "Scale" : field[0].toUpperCase() + field.slice(1);
@@ -113,7 +145,7 @@ export function drawCurveEditor(ui) {
   const sampleValue = (frame) => (object ? sampleObjectTransform(object, frame) : sampleCamera(ui.state, frame));
   for (let frame = 0; frame <= totalDuration; frame += sampleStep) sampled.push({ frame, value: sampleValue(frame) });
   if (sampled[sampled.length - 1]?.frame !== totalDuration) sampled.push({ frame: totalDuration, value: sampleValue(totalDuration) });
-  const values = sampled.flatMap((sample) => channels.map((channel) => channel.get(sample.value)));
+  const values = sampled.flatMap((sample) => channels.map((channel) => channel.sample ? channel.sample(sample.frame) : channel.get(sample.value)));
   let minimum = Math.min(...values);
   let maximum = Math.max(...values);
   if (!Number.isFinite(minimum) || !Number.isFinite(maximum)) {
@@ -176,7 +208,7 @@ export function drawCurveEditor(ui) {
     let started = false;
     sampled.forEach((sample) => {
       const x = xFor(sample.frame);
-      const y = yFor(channel.get(sample.value));
+      const y = yFor(channel.sample ? channel.sample(sample.frame) : channel.get(sample.value));
       if (x >= left - 50 && x <= width - right + 50) {
         if (started) ctx.lineTo(x, y);
         else {
@@ -229,7 +261,7 @@ export function drawCurveEditor(ui) {
     }
 
     // Draw Tangent Handles for Bezier Keyframes
-    if (ui.showCurveHandles) {
+    if (ui.showCurveHandles && !channel.keyBased) {
       for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
         const key = keys[keyIndex];
         const isSelected = key.frame === ui.selectedKeyFrame || ui.selectedKeyFrames?.has(key.frame);
