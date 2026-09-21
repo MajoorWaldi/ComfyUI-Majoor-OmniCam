@@ -46,6 +46,13 @@ export function createLabelOverlay(ui, options = {}) {
     }
     layer.hidden = false;
 
+    // Project into CSS pixels so that the transform below positions labels
+    // correctly regardless of devicePixelRatio or supersampling factor.
+    // getBoundingClientRect gives us the rendered CSS size of the WebGL canvas.
+    const canvasEl = ui.webgl.canvas;
+    const cssW = canvasEl ? (canvasEl.clientWidth || canvasEl.getBoundingClientRect?.().width || 1) : 1;
+    const cssH = canvasEl ? (canvasEl.clientHeight || canvasEl.getBoundingClientRect?.().height || 1) : 1;
+
     const selected = selectedIdSet();
     const frame = Number(ui.frame) || 0;
     const objects = Array.isArray(ui.state?.objects) ? ui.state.objects : [];
@@ -59,7 +66,10 @@ export function createLabelOverlay(ui, options = {}) {
         position: object.position,
         size: object.size,
       };
-      const screen = ui.webgl.projectWorldToScreen(labelAnchorWorld(transform, object.type, object.annotation?.anchor));
+      const screen = ui.webgl.projectWorldToScreen(
+        labelAnchorWorld(transform, object.type, object.annotation?.anchor),
+        cssW, cssH,
+      );
       if (!screen || screen.behind) continue;
 
       const node = nodeAt(used);

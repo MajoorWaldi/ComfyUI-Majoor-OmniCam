@@ -37,7 +37,12 @@ export function drawPlayblastLabels(ui) {
     const worldPoint = labelAnchorWorld(transform, object.type, anchor);
     let px, py;
     if (ui.webgl?.projectWorldToScreen && ui.webgl.activeCamera) {
-      const screen = ui.webgl.projectWorldToScreen(worldPoint);
+      // Pass the 2D canvas buffer dimensions explicitly so the coordinates are
+      // in buffer-pixel space. logicalSize() would divide by supersampleFactor()
+      // which is wrong here -- the WebGL canvas may have been resized to the
+      // playblast dimensions but supersampleFactor() still returns the studio
+      // quality value, shifting labels toward the top-left.
+      const screen = ui.webgl.projectWorldToScreen(worldPoint, w, h);
       if (!screen || screen.behind) continue;
       px = screen.x;
       py = screen.y;

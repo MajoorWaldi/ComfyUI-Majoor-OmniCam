@@ -43,13 +43,18 @@ export function createRigOverlay(ui, options = {}) {
     const runtime = ui.characterRuntime;
     const shown = new Set();
 
+    // Project into CSS pixels so dot positions match the DOM overlay space.
+    const canvasEl = ui.webgl.canvas;
+    const cssW = canvasEl ? (canvasEl.clientWidth || canvasEl.getBoundingClientRect?.().width || 1) : 1;
+    const cssH = canvasEl ? (canvasEl.clientHeight || canvasEl.getBoundingClientRect?.().height || 1) : 1;
+
     for (const joint of REQUIRED_JOINTS) {
       const boneName = boneMap?.[joint];
       if (!boneName) continue;
       const bone = runtime?.getJointWorldTransform?.(objectId, joint, boneMap)
         || ui.webgl.resolveModelBone?.(objectId, boneName);
       if (!bone?.world) continue;
-      const screen = ui.webgl.projectWorldToScreen(bone.world);
+      const screen = ui.webgl.projectWorldToScreen(bone.world, cssW, cssH);
       if (!screen || screen.behind) continue;
       const dot = dotFor(joint);
       dot.hidden = false;
