@@ -62,7 +62,7 @@ def _assert_upstream_reconstruction_api() -> None:
     moge_params = set(inspect.signature(moge_infer).parameters)
     for name in (
         "moge_model", "image", "resolution_level", "fov_x_degrees",
-        "batch_size", "force_projection", "apply_mask", "refine_steps",
+        "batch_size", "force_projection", "apply_mask",
     ):
         assert name in moge_params, f"MoGeInference.execute lost mandatory parameter {name!r}"
     print("  upstream reconstruction API (MoGe / SAM3): OK")

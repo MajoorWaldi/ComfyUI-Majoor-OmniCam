@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -216,6 +217,51 @@ def test_reconstruct_with_node_output_args(tmp_path, monkeypatch):
     call_args = mock_module.MoGeInference.execute.call_args[0]
     assert call_args[2] == 9  # high quality = level 9
     assert call_args[7] == 6  # high quality = 6 refine steps
+
+
+def test_reconstruct_without_refine_steps_in_upstream_signature(tmp_path, monkeypatch):
+    img_file = tmp_path / "photo.png"
+    img_file.write_bytes(b"\x89PNG\r\n\x1a\nfake")
+
+    provider = ComfyMoGeProvider()
+    mock_module = MagicMock()
+    monkeypatch.setattr(provider, "_get_moge_module", lambda: mock_module)
+    monkeypatch.setattr(provider, "_get_checkpoints", lambda: ["test_model.safetensors"])
+    monkeypatch.setattr(provider, "_load_image_tensor", lambda p: torch.zeros((1, 16, 16, 3), dtype=torch.float32))
+
+    mock_model = MagicMock()
+    mock_module.LoadMoGeModel.execute.return_value = MagicMock(outputs=[mock_model])
+    mock_geom = {
+        "points": torch.zeros((1, 16, 16, 3)),
+        "depth": torch.zeros((1, 16, 16)),
+        "intrinsics": torch.eye(3).unsqueeze(0),
+        "mask": torch.ones((1, 16, 16), dtype=torch.bool),
+        "normal": torch.zeros((1, 16, 16, 3)),
+        "image": torch.zeros((1, 16, 16, 3)),
+    }
+    seen: dict[str, tuple] = {}
+
+    def execute_no_refine(moge_model, image, resolution_level, fov_x_degrees, batch_size, force_projection, apply_mask):
+        seen["args"] = (
+            moge_model,
+            image,
+            resolution_level,
+            fov_x_degrees,
+            batch_size,
+            force_projection,
+            apply_mask,
+        )
+        return MagicMock(outputs=[mock_geom])
+
+    mock_module.MoGeInference = SimpleNamespace(execute=execute_no_refine)
+
+    source = ReconstructionSource(kind="annotated_input", value="photo.png")
+    settings = ReconstructionSettings(provider="comfy_moge", quality="balanced")
+
+    evidence = provider.reconstruct(source, settings, resolved_path=img_file)
+    assert evidence.points.shape == (1, 16, 16, 3)
+    assert len(seen["args"]) == 7
+    assert seen["args"][2] == 7  # balanced quality = level 7
 
 
 def _stub_provider_for_cache_test(monkeypatch, checkpoint_file, image_size=16):

@@ -4,7 +4,7 @@ Upstream verification (ComfyUI Core comfy_extras/nodes_moge.py):
 - Node classes:
     - LoadMoGeModel: execute(cls, model_name) -> io.NodeOutput(MoGeModel(sd))
     - MoGeInference: execute(cls, moge_model, image, resolution_level, fov_x_degrees,
-                            batch_size, force_projection, apply_mask, refine_steps)
+                            batch_size, force_projection, apply_mask[, refine_steps])
                             -> io.NodeOutput(moge_geometry)
 - Result accessor:
     - io.NodeOutput stores results in .args or .outputs. We support .args, .outputs, .result,
@@ -16,6 +16,7 @@ Upstream verification (ComfyUI Core comfy_extras/nodes_moge.py):
 from __future__ import annotations
 
 import contextlib
+import inspect
 import logging
 import threading
 import uuid
@@ -71,6 +72,25 @@ QUALITY_REFINE_STEPS_MAP = {
 #: own eviction -- it only skips the redundant reload when nothing evicted it.
 _model_cache_lock = threading.Lock()
 _model_cache: dict[str, Any] = {}
+
+
+def _moge_inference_supports_refine_steps(moge_infer: Any) -> bool:
+    """Return True when MoGeInference.execute accepts ``refine_steps``.
+
+    ComfyUI stable (v0.36.0) does not expose this parameter yet, while newer
+    core builds do. If signature introspection is not conclusive (e.g. mocks),
+    default to True to keep existing callsites/tests behavior.
+    """
+    try:
+        params = list(inspect.signature(moge_infer).parameters.values())
+    except (TypeError, ValueError):
+        return True
+
+    names = {p.name for p in params}
+    if "refine_steps" in names:
+        return True
+
+    return any(p.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD) for p in params)
 
 
 def _cached_load_moge_model(mod: Any, checkpoint_name: str, identity: dict[str, Any]) -> Any:
@@ -328,7 +348,7 @@ class ComfyMoGeProvider(ReconstructionProvider):
             fov_x_degrees = 0.0  # 0.0 signals MoGe to auto-recover FOV
 
             try:
-                infer_out = mod.MoGeInference.execute(
+                infer_args = [
                     moge_model,
                     image_tensor,
                     resolution_level,
@@ -336,8 +356,10 @@ class ComfyMoGeProvider(ReconstructionProvider):
                     1,  # batch_size
                     True,  # force_projection
                     True,  # apply_mask
-                    refine_steps,
-                )
+                ]
+                if _moge_inference_supports_refine_steps(mod.MoGeInference.execute):
+                    infer_args.append(refine_steps)
+                infer_out = mod.MoGeInference.execute(*infer_args)
                 moge_geom = _extract_node_output(infer_out)
             except (torch.cuda.OutOfMemoryError, RuntimeError) as err:
                 if "out of memory" in str(err).lower() or isinstance(err, torch.cuda.OutOfMemoryError):
