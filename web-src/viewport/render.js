@@ -160,7 +160,7 @@ export function createRenderMethods(dependencies) {
     // the recipe itself, not the optional "keep the grid in the playblast"
     // toggle -- force it on for that capture regardless of playblast_grid.
     const captureGrid = captureStyle === "depth_rich" || Boolean(state.playblast_grid);
-    this.content.traverse((object) => { if (object.userData.omnicamCaptureGuide) object.visible = cleanCapture ? captureGrid : editorGrid; });
+    this.gridGroup.visible = cleanCapture ? captureGrid : editorGrid;
 
     // Looking through the active camera, its own path and frustum are just
     // clutter drawn over the shot -- the look-at target still shows so it can
@@ -309,7 +309,7 @@ export function createRenderMethods(dependencies) {
     if (this.disposed) return; this.disposed = true;
     this.bgLoadGeneration += 1;
     this.bgTextureLoads.clear();
-    disposeObject(this.content); disposeObject(this.path); disposeObject(this.liveCameras); disposeObject(this.selectionGroup);
+    disposeObject(this.content); disposeObject(this.gridGroup); disposeObject(this.path); disposeObject(this.liveCameras); disposeObject(this.selectionGroup);
     for (const texture of new Set(this.bgTextureCache.values())) texture.dispose();
     this.bgTextureCache.clear(); this.bgTexture = null;
     for (const model of this.models.values()) disposeObject(model.scene, true);

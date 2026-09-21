@@ -13,7 +13,7 @@ const PLAYBLAST_QUALITY = { low: QUALITY_LOW, balanced: QUALITY_MEDIUM, high: QU
 
 import { generatePointField, sampleCamera, sampleObjectTransform } from "./director/core.js";
 import { attachPlayblastMetrics } from "./playblast-contract.js";
-import { createResourceMethods } from "./viewport/resources.js";
+import { createResourceMethods, buildCaptureGrid } from "./viewport/resources.js";
 import { createSceneMethods } from "./viewport/scene.js";
 import { createCameraPickingMethods } from "./viewport/camera-picking.js";
 import { createRenderMethods } from "./viewport/render.js";
@@ -104,7 +104,7 @@ function disposeObject(object, includeModels = false) {
     child.geometry?.dispose?.();
     const materials = Array.isArray(child.material) ? child.material : [child.material];
     for (const material of materials) {
-      material?.map?.dispose?.();
+      if (!material?.map?.userData?.omnicamSharedResource) material?.map?.dispose?.();
       material?.dispose?.();
     }
   });
@@ -200,6 +200,9 @@ export class OmniWebGLViewport {
     this.studioEnabled = true;
     setStudioEnabled(THREE, this.scene, this.renderer, this.studio, true);
     this.content = new THREE.Group(); this.scene.add(this.content);
+    // Built once: geometry/colours never depend on scene state, only its
+    // visibility does (toggled per frame in render()).
+    this.gridGroup = buildCaptureGrid(THREE); this.scene.add(this.gridGroup);
     this.path = new THREE.Group(); this.scene.add(this.path);
     this.liveCameras = new THREE.Group(); this.scene.add(this.liveCameras);
     this.selectionGroup = new THREE.Group(); this.scene.add(this.selectionGroup);

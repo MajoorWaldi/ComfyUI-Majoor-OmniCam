@@ -14,6 +14,43 @@ const CURVE_POINT_RADIUS = 0.17;
 const CURVE_HANDLE_COLOR = 0x36d6c3;
 const CURVE_HANDLE_RADIUS = 0.06;
 
+/**
+ * Builds the dual-tier 3D floor grid + ground axes once. Its geometry and
+ * colours never depend on scene state, so it lives outside content/rebuild()
+ * and only has its visibility toggled per frame -- rebuilding it on every
+ * unrelated object edit (color, material_mode, ...) tore down and re-uploaded
+ * ~14k line segments for nothing.
+ */
+export function buildCaptureGrid(THREE) {
+  const gridGroup = new THREE.Group();
+  gridGroup.userData.omnicamCaptureGuide = true;
+
+  const majorGrid = new THREE.GridHelper(120, 24, 0x3e4758, 0x323947);
+  majorGrid.userData.omnicamCaptureGuide = true;
+  majorGrid.frustumCulled = false;
+  majorGrid.position.y = 0.0005;
+  gridGroup.add(majorGrid);
+
+  const minorGrid = new THREE.GridHelper(120, 120, 0x222631, 0x1d212b);
+  minorGrid.userData.omnicamCaptureGuide = true;
+  minorGrid.frustumCulled = false;
+  gridGroup.add(minorGrid);
+
+  const axisMatX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2, transparent: true, opacity: 0.85 });
+  const axisGeoX = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-60, 0.001, 0), new THREE.Vector3(60, 0.001, 0)]);
+  const axisLineX = new THREE.Line(axisGeoX, axisMatX);
+  axisLineX.userData.omnicamCaptureGuide = true;
+  gridGroup.add(axisLineX);
+
+  const axisMatZ = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2, transparent: true, opacity: 0.85 });
+  const axisGeoZ = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.001, -60), new THREE.Vector3(0, 0.001, 60)]);
+  const axisLineZ = new THREE.Line(axisGeoZ, axisMatZ);
+  axisLineZ.userData.omnicamCaptureGuide = true;
+  gridGroup.add(axisLineZ);
+
+  return gridGroup;
+}
+
 export function createResourceMethods(dependencies) {
   const { THREE, FBXLoader, GLTFLoader, OBJLoader, PLYLoader, STLLoader, neutral, wire, checkerMaterial, objectMaterial, applyModelMaterial, disposeObject, textureFor, cardMesh, generatePointField, sampleCamera, sampleObjectTransform } = dependencies;
   return {
@@ -86,34 +123,6 @@ export function createResourceMethods(dependencies) {
     const primitiveMaterial = (object) => (captureOverrideActive || mode === "graybox")
       ? captureOverrideMaterial(object, Boolean(state.backface_culling))
       : objectMaterial(object, mode, Boolean(state.backface_culling));
-    // Dual-tier 3D grid: major 5-unit grid + fine 1-unit subdivisions + ground axes
-    const gridGroup = new THREE.Group();
-    gridGroup.userData.omnicamCaptureGuide = true;
-
-    const majorGrid = new THREE.GridHelper(120, 24, 0x3e4758, 0x323947);
-    majorGrid.userData.omnicamCaptureGuide = true;
-    majorGrid.frustumCulled = false;
-    majorGrid.position.y = 0.0005;
-    gridGroup.add(majorGrid);
-
-    const minorGrid = new THREE.GridHelper(120, 120, 0x222631, 0x1d212b);
-    minorGrid.userData.omnicamCaptureGuide = true;
-    minorGrid.frustumCulled = false;
-    gridGroup.add(minorGrid);
-
-    const axisMatX = new THREE.LineBasicMaterial({ color: 0xef4444, linewidth: 2, transparent: true, opacity: 0.85 });
-    const axisGeoX = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-60, 0.001, 0), new THREE.Vector3(60, 0.001, 0)]);
-    const axisLineX = new THREE.Line(axisGeoX, axisMatX);
-    axisLineX.userData.omnicamCaptureGuide = true;
-    gridGroup.add(axisLineX);
-
-    const axisMatZ = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2, transparent: true, opacity: 0.85 });
-    const axisGeoZ = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.001, -60), new THREE.Vector3(0, 0.001, 60)]);
-    const axisLineZ = new THREE.Line(axisGeoZ, axisMatZ);
-    axisLineZ.userData.omnicamCaptureGuide = true;
-    gridGroup.add(axisLineZ);
-
-    this.content.add(gridGroup);
     // depth_rich reuses the same layered near/mid/far point field omni_ref /
     // point_field already draw for Viewport Shading (generatePointField's four
     // depth-stratified layers already are doc 5.3's "near/mid/far landmarks"

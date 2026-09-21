@@ -334,6 +334,9 @@ export function getSubjectPlaceholderTexture(THREE) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
+  // Shared across every OmniCam viewport instance on the page: disposeObject()
+  // must skip it rather than tearing down GPU state other instances still use.
+  texture.userData.omnicamSharedResource = true;
   cachedPlaceholderTexture = texture;
   return texture;
 }
