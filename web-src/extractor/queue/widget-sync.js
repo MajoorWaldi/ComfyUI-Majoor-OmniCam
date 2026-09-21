@@ -23,6 +23,7 @@ export const CAMERA_TRACK_REFINE_WIDGETS = [
   "motion_scale",
   "position_smoothing",
   "rotation_smoothing",
+  "horizon_stabilization",
   "simplify_keys",
   "position_tolerance",
   "rotation_tolerance_deg",

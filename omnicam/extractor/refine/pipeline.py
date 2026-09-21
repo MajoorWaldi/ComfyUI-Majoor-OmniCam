@@ -24,6 +24,7 @@ from ..track_builder import build_omnicam_track
 from ..transforms import normalize_quaternion, quaternion_slerp, relative_to_first_pose, scale_positions
 from ..types import PoseSample
 from .alignment import apply_global_rotation, estimate_up_correction
+from .horizon import stabilize_horizon
 from .types import RefinementSettings
 
 
@@ -139,6 +140,7 @@ def refine_poses(
         poses = relative_to_first_pose(poses)
     poses = apply_global_rotation(poses, resolve_alignment(poses, settings))
     poses = scale_positions(poses, settings.motion_scale)
+    poses = stabilize_horizon(poses, settings.horizon_stabilization)
     poses = enforce_quaternion_continuity(poses)
     poses = smooth_positions(poses, settings.position_smoothing)
     poses = smooth_rotations(poses, settings.rotation_smoothing)

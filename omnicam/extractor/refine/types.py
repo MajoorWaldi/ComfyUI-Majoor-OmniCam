@@ -52,6 +52,7 @@ class PoseAnomaly:
 class RefinementSettings:
     position_smoothing: float = 0.15
     rotation_smoothing: float = 0.10
+    horizon_stabilization: float = 0.0
     motion_scale: float = 1.0
     normalize_origin: bool = True
 
@@ -119,6 +120,7 @@ class RefinementSettings:
         return cls(
             position_smoothing=number("position_smoothing", 0.15, 0.0, 1.0),
             rotation_smoothing=number("rotation_smoothing", 0.10, 0.0, 1.0),
+            horizon_stabilization=number("horizon_stabilization", 0.0, 0.0, 1.0),
             motion_scale=number("motion_scale", 1.0, 0.01, 100.0),
             normalize_origin=bool(data.get("normalize_origin", True)),
             trim_start_frame=integer("trim_start_frame", 0, 0, 10_000_000),
@@ -135,6 +137,7 @@ class RefinementSettings:
         return {
             "position_smoothing": self.position_smoothing,
             "rotation_smoothing": self.rotation_smoothing,
+            "horizon_stabilization": self.horizon_stabilization,
             "motion_scale": self.motion_scale,
             "normalize_origin": self.normalize_origin,
             "trim_start_frame": self.trim_start_frame,
