@@ -11,6 +11,7 @@
 
 import { CAMERA_PALETTE, nextCameraId } from "../cameras.js";
 import { cloneCamera, project, sampleCamera } from "./core.js";
+import { smoothKeyframes } from "./key-ops.js";
 import { t } from "../i18n.js";
 import { screenToPlane } from "../viewport/path-editing.js";
 
@@ -167,7 +168,15 @@ export function buildPathKeyframes(session) {
     });
   }
   // Guard against the seed and the first emitted key colliding on one frame.
-  return result.filter((key, i, all) => i === 0 || key.frame > all[i - 1].frame);
+  const deduped = result.filter((key, i, all) => i === 0 || key.frame > all[i - 1].frame);
+
+  // A freehand stroke still carries raw mouse jitter after resamplePolyline()
+  // only evens out the frame spacing -- run it through the same Laplacian
+  // filter the manual "Smooth" action uses (key-ops.js) so a drawn path
+  // reads cleanly right away instead of needing a manual cleanup pass. The
+  // first/last key of the segment are anchors and are never touched.
+  if (deduped.length < 3) return deduped;
+  return smoothKeyframes(deduped, deduped.map((key) => key.frame), "camera");
 }
 
 function nextDrawnCameraName(state) {

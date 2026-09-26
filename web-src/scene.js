@@ -3,6 +3,7 @@
 import { add, clamp, cloneCamera, cloneTransform, sampleCamera } from "./director/core.js";
 import { cameraPathTimingWeight, setCameraPathTimingWeight } from "./director/camera-path-timing.js";
 import { analyzeCameraPath } from "./director/camera-path-diagnostics.js";
+import { smoothKeyframes } from "./director/key-ops.js";
 import { selectPathKey } from "./director/camera-path-selection.js";
 import { confirmAction, promptText } from "./director/ui-services.js";
 import { t } from "./i18n.js";
@@ -55,6 +56,21 @@ export function insertKeyframe(ui) {
   if (index >= 0) keys[index] = key;
   else keys.push(key);
   keys.sort((a, b) => a.frame - b.frame);
+
+  // A freshly set key starts out a hard corner against its neighbours; run
+  // it and its two direct neighbours through the same Laplacian filter the
+  // manual "Smooth" action uses (key-ops.js) so it settles in instead of
+  // needing a manual cleanup pass. No-op with fewer than 2 keys to smooth
+  // (a lone key, or a key at the very start/end of the track with only one
+  // neighbour on that side).
+  const placedIndex = keys.findIndex((item) => item.frame === ui.frame);
+  const smoothFrames = [keys[placedIndex - 1]?.frame, ui.frame, keys[placedIndex + 1]?.frame].filter((frame) => frame != null);
+  if (smoothFrames.length >= 2) {
+    const smoothed = smoothKeyframes(keys, smoothFrames, object ? "object" : "camera");
+    keys.length = 0;
+    keys.push(...smoothed);
+  }
+
   if (!object && ui.syncActiveCameraTrack) {
     ui.syncActiveCameraTrack();
   }

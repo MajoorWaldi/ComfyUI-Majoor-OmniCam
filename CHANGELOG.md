@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A freehand-drawn camera path (Draw Camera Path) now runs its keys through
+  the same Laplacian smoothing filter used by the manual "Smooth" keyframe
+  action before the path is committed, instead of only resampling the raw
+  mouse points to even frame spacing. Path start/end stay exactly where drawn.
+- Setting a keyframe (`I` / Set key) now automatically smooths that key
+  together with its two direct neighbours, the same way, so a freshly placed
+  key settles in instead of landing as a hard corner.
+
 ### Changed
 
 - **Breaking:** the Agent's `OMNICAM_OPENAI_API_KEY`, `OMNICAM_OPENAI_COMPAT_API_KEY`,
