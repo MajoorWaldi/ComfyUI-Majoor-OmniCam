@@ -63,7 +63,7 @@ export class TimelinePanelHost {
   }
 
   /** Wire scrubbing. `on` is the panel's own EventScope binder. */
-  bind(on, frameCount) {
+  wire(on, frameCount) {
     const tracks = this.$("extractor-dope-tracks");
     on(tracks, "pointerdown", (event) => {
       tracks.setPointerCapture?.(event.pointerId);

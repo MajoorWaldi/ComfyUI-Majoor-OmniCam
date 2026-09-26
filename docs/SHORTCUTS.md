@@ -153,10 +153,13 @@ Outside Fly mode, `W` `Q` `E` deliberately carry no competing tool command.
 While Draw / Continue Camera Path is armed, MMB / Maya `Alt` navigation is never
 stolen by the mode: only plain LMB draws and RMB cancels. Drawing is laid on a
 plane fixed at pointer-down — horizontal in top/bottom, Z-fixed in front/back,
-X-fixed in left/right, the view-facing plane in perspective/iso. After
-committing, the active camera's keyframes are editable spatial control points
-with Bézier tangent handles (see NODES.md → Draw Camera Path → Reshaping the
-curve), and the whole path can be moved / scaled / rotated as one via the gizmo.
+X-fixed in left/right, the view-facing plane in perspective/iso. On commit, the
+keys are run through the same Laplacian smoothing filter as the manual
+**Smooth** action (start/end are anchors and stay exactly where drawn) so the
+path reads cleanly right away. After committing, the active camera's
+keyframes are editable spatial control points with Bézier tangent handles
+(see NODES.md → Draw Camera Path → Reshaping the curve), and the whole path
+can be moved / scaled / rotated as one via the gizmo.
 
 The toolbar's **Transform space** (World / Local) applies to **Move only**.
 Scale and Rotate always use the object's own axes, as Maya's own manipulators
@@ -180,7 +183,7 @@ unsnaps immediately, without needing to restart the drag.
 
 | Shortcut | Action |
 |---|---|
-| `I` or `K` | Insert / replace a keyframe at the current frame |
+| `I` or `K` | Insert / replace a keyframe at the current frame, then smooth it against its two direct neighbours |
 | `Space` | Play / stop |
 | `←` / `→` | Previous / next frame |
 | `↑` / `↓`, `.` / `,`, or `Shift` + `→` / `Shift` + `←` | Previous / next keyframe |

@@ -180,8 +180,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       const status = await getProviderStatus(api, settings.provider);
       if (disposed) return;
       if (status.configured) {
-        credentialStatus.textContent =
-          status.source === "environment" ? t("Configured by server environment") : t("Configured");
+        credentialStatus.textContent = t("Configured");
       } else {
         credentialStatus.textContent = t("Not configured");
       }

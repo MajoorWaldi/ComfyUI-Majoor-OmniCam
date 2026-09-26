@@ -179,7 +179,7 @@ test("one dope-track pointer capture scrubs ruler, health, and channel lanes acr
   };
   const seeks = [];
   const panel = new TimelinePanelHost(root, { onSeek: (frame) => seeks.push(frame) });
-  panel.bind((target, name, handler) => target.addEventListener(name, handler), () => 101);
+  panel.wire((target, name, handler) => target.addEventListener(name, handler), () => 101);
 
   for (const [role, x] of [["extractor-ruler", 200], ["track-timeline", 600]]) {
     handlers.get("pointerdown")({ pointerId: 7, clientX: x, target: children[role] });

@@ -11,7 +11,7 @@ section 13).
 These are browser-callback routes (the Director's own Settings/Agent UI
 talking to its own backend) -- unlike the external Agent's loopback-only
 control routes, they carry no scene data and never see or return a raw
-credential, only {"configured": bool, "source": "environment"|"local_store"|"none"}.
+credential, only {"configured": bool, "source": "local_store"|"none"}.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from .protocol import AgentProtocolError
 from .providers.models import PROVIDER_IDS, ProviderConfig
 from .providers.public_errors import public_provider_error
 from .providers.registry import get_provider, provider_capabilities
-from .providers.secret_store import ENV_VAR_BY_PROVIDER, SECRET_STORE, SecretStoreError, env_credential
+from .providers.secret_store import SECRET_STORE, SecretStoreError
 
 MAX_PROVIDER_JSON_BYTES = 64 * 1024
 MAX_CREDENTIAL_BYTES = 16 * 1024
@@ -40,16 +40,6 @@ def _error_response(error: AgentProtocolError) -> web.Response:
 def _require_provider(provider_id: str) -> None:
     if provider_id not in PROVIDER_IDS:
         raise AgentProtocolError("UNKNOWN_PROVIDER", f"Unknown provider: {provider_id!r}", 404)
-
-
-def _require_env_unmanaged(provider_id: str) -> None:
-    if env_credential(provider_id):
-        env_var = ENV_VAR_BY_PROVIDER.get(provider_id, "an environment variable")
-        raise AgentProtocolError(
-            "CREDENTIAL_MANAGED_BY_ENV",
-            f"{provider_id} credential is managed by the {env_var} environment variable",
-            409,
-        )
 
 
 async def list_providers(request: web.Request) -> web.Response:
@@ -72,7 +62,6 @@ async def set_provider_credential(request: web.Request) -> web.Response:
     provider_id = request.match_info["provider"]
     try:
         _require_provider(provider_id)
-        _require_env_unmanaged(provider_id)
         body = await read_bounded_json_object(request, max_bytes=MAX_CREDENTIAL_BYTES + 1024)
         secret = body.get("secret")
         if not isinstance(secret, str) or not secret:
@@ -90,7 +79,6 @@ async def delete_provider_credential(request: web.Request) -> web.Response:
     provider_id = request.match_info["provider"]
     try:
         _require_provider(provider_id)
-        _require_env_unmanaged(provider_id)
         SECRET_STORE.delete(request, provider_id)
         status = SECRET_STORE.status(request, provider_id)
         return web.json_response({"provider": provider_id, **status})

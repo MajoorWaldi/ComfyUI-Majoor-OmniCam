@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A freehand-drawn camera path (Draw Camera Path) now runs its keys through
+  the same Laplacian smoothing filter used by the manual "Smooth" keyframe
+  action before the path is committed, instead of only resampling the raw
+  mouse points to even frame spacing. Path start/end stay exactly where drawn.
+- Setting a keyframe (`I` / Set key) now automatically smooths that key
+  together with its two direct neighbours, the same way, so a freshly placed
+  key settles in instead of landing as a hard corner.
+
+### Changed
+
+- **Breaking:** the Agent's `OMNICAM_OPENAI_API_KEY`, `OMNICAM_OPENAI_COMPAT_API_KEY`,
+  and `OMNICAM_ANTHROPIC_API_KEY` environment-variable credential overrides are
+  removed. Provider credentials are now configured only through the Agent
+  panel's own UI, stored in the private per-user SecretStore.
+- **Breaking:** `OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS=1` is removed. An
+  operator who needs remote custom provider endpoints now sets
+  `"allow_remote_custom_providers": true` in a server-side policy file at
+  `<system user dir>/omnicam/agent/policy.json`.
+- Shipped Python no longer reads `os.environ`/`os.getenv` anywhere, closing a
+  Registry-scanner credential-access/environment-manipulation finding.
+
 ## [0.4.0] - 2026-09-21
 
 ### Added

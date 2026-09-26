@@ -26,8 +26,6 @@ def _isolated_store(tmp_path, monkeypatch):
     root.mkdir(parents=True)
     monkeypatch.setattr(store_module, "_store_root", lambda: root)
     monkeypatch.setattr(store_module, "_request_user_id", lambda request: "user_a")
-    monkeypatch.delenv("OMNICAM_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OMNICAM_ANTHROPIC_API_KEY", raising=False)
     yield root
 
 
@@ -116,26 +114,6 @@ async def test_delete_credential_resets_status():
     response = await provider_routes.delete_provider_credential(delete_request)
     body = json.loads(response.body)
     assert body == {"provider": "openai", "configured": False, "source": "none"}
-
-
-@pytest.mark.asyncio
-async def test_env_managed_credential_cannot_be_written_or_deleted(monkeypatch):
-    monkeypatch.setenv("OMNICAM_OPENAI_API_KEY", "env-secret")
-
-    put_request = _json_request(
-        "PUT", "/majoor/omnicam/agent/v1/providers/openai/credential",
-        {"secret": "sk-1"}, match_info={"provider": "openai"},
-    )
-    put_response = await provider_routes.set_provider_credential(put_request)
-    assert put_response.status == 409
-    assert json.loads(put_response.body)["error"]["code"] == "CREDENTIAL_MANAGED_BY_ENV"
-
-    delete_request = _plain_request(
-        "DELETE", "/majoor/omnicam/agent/v1/providers/openai/credential", match_info={"provider": "openai"}
-    )
-    delete_response = await provider_routes.delete_provider_credential(delete_request)
-    assert delete_response.status == 409
-    assert json.loads(delete_response.body)["error"]["code"] == "CREDENTIAL_MANAGED_BY_ENV"
 
 
 @pytest.mark.asyncio

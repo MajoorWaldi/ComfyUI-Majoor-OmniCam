@@ -13,10 +13,11 @@ It **fails** (exit 1) on:
   ``pyproject.toml``);
 * a direct runtime ``eval(...)`` / ``exec(...)`` or a ``pip install`` subprocess
   in shipped Python -- matched on the AST, never on comment/docstring text;
-* the return of avoidable scanner triggers OmniCam removed on purpose:
-  ``os.environ`` / ``os.getenv`` reads in shipped code -- except the narrow,
-  by-name ``ALLOWED_ENV_VAR_READS`` allowlist below (the OmniCam Agent v1
-  provider credential/SSRF overrides; see omnicam/agent/providers/) -- the
+* the return of avoidable scanner triggers OmniCam removed on purpose: any
+  ``os.environ`` / ``os.getenv`` read in shipped code at all (the Agent v1
+  provider credential/SSRF-policy overrides that used to be exempted through
+  ``ALLOWED_ENV_VAR_READS`` were removed in favor of a local secret store and
+  a server-side policy file; see omnicam/agent/providers/) -- the
   string-based ``importlib.import_module("comfy_extras.nodes_moge")``, and
   duplex ``Connection.send``/``recv`` in the DPVO worker.
 
@@ -54,20 +55,6 @@ JS_BINDING_MARKERS = (".bind(", ".connect(", ".listen(")
 #: Emitted by vite's manualChunks (see vite.config.mjs). Everything else under
 #: web-chunks/ is OmniCam's own source.
 VENDOR_CHUNK_PREFIX = "vendor-"
-
-#: The *only* environment variables shipped Python may ever read, each a
-#: narrow, explicitly reviewed OmniCam Agent v1 override: per-provider
-#: credential precedence (environment beats the local SecretStore) and the
-#: default-deny SSRF gate for a custom provider base_url. Only a *literal*
-#: string naming one of these -- never a dynamically computed name, even one
-#: that happens to match -- is exempted; everything else still fails.
-ALLOWED_ENV_VAR_READS = (
-    "OMNICAM_OPENAI_API_KEY",
-    "OMNICAM_OPENAI_COMPAT_API_KEY",
-    "OMNICAM_ANTHROPIC_API_KEY",
-    "OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS",
-)
-
 
 @dataclass
 class AuditResult:
@@ -149,22 +136,6 @@ def _is_os_environ_read(node: ast.AST) -> bool:
         and _is_os_environ_attr(node.value)
         and isinstance(getattr(node, "ctx", None), ast.Load)
     )
-
-
-def _allowed_env_var_name(node: ast.AST) -> str | None:
-    """The literal env var name this read targets, if -- and only if -- it is
-    a plain string constant matching ``ALLOWED_ENV_VAR_READS`` exactly.
-    Anything else (a different name, or one computed rather than literal)
-    returns None, which keeps the read a violation."""
-    if isinstance(node, ast.Call) and node.args:
-        target = node.args[0]
-    elif isinstance(node, ast.Subscript):
-        target = node.slice
-    else:
-        return None
-    if isinstance(target, ast.Constant) and isinstance(target.value, str) and target.value in ALLOWED_ENV_VAR_READS:
-        return target.value
-    return None
 
 
 def _is_dynamic_moge_import(node: ast.AST) -> bool:
@@ -295,10 +266,10 @@ def _scan_python(name: str, source: str, result: AuditResult) -> None:
                 network_reported = True
             else:
                 result.violations.append(f"{name}:{getattr(node, 'lineno', '?')}: outbound network client outside reviewed provider layer")
-        if _is_os_environ_read(node) and not _allowed_env_var_name(node):
+        if _is_os_environ_read(node):
             result.violations.append(
                 f"{name}:{getattr(node, 'lineno', '?')}: os.environ / os.getenv read returned "
-                "(runtime limits must stay fixed constants; only ALLOWED_ENV_VAR_READS is exempt)"
+                "(shipped code must never read process environment for credentials or policy)"
             )
         if _is_dynamic_moge_import(node):
             result.violations.append(

@@ -157,6 +157,10 @@ across the active Playback Range and creates a new animated camera.
   keep the source camera's pitch).
 - Use the existing **Look At** control to track a scene object. Clearing Look At
   restores the original tangent-based Follow Path orientation.
+- On commit, the resulting keys are run through the same smoothing filter as
+  the Shot panel's manual **Smooth** action, so raw mouse jitter never
+  survives into the committed keyframes; the stroke's start and end are
+  anchors and stay exactly where drawn.
 
 The freehand stroke itself is editor-only and is never serialized or recorded
 into a playblast; only committed camera keyframes become Director state.

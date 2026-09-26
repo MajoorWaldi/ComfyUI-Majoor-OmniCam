@@ -1,7 +1,7 @@
 // Thin fetch client for the built-in Agent's Preview/Apply endpoints (design
 // spec sections 30-31). Never sends a credential -- the server resolves it
-// from the SecretStore/environment using the same session the Agent bridge
-// already registered.
+// from the SecretStore using the same session the Agent bridge already
+// registered.
 
 const PLAN_ROUTE = "/majoor/omnicam/agent/v1/plan";
 const APPLY_ROUTE = "/majoor/omnicam/agent/v1/apply-plan";
