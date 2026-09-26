@@ -220,7 +220,7 @@ export class ExtractorUI {
     this.events.on(this.$("scrubber"), "input", (event) => this.coordinator.seek(Number(event.target.value), "input"));
     this.events.on(this.$("frame"), "change", (event) => this.coordinator.seek(Number(event.target.value), "input"));
     this.events.on(this.$("follow-solve"), "change", (event) => this.sourceViewer.setFollow(event.target.checked));
-    this.timeline.bind((target, event, handler) => this.events.on(target, event, handler),
+    this.timeline.wire((target, event, handler) => this.events.on(target, event, handler),
       () => this.state.frameCount);
     this.bindRefineControls();
   }

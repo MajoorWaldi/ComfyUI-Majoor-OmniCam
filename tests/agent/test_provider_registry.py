@@ -128,14 +128,16 @@ async def test_openai_custom_base_url_is_flagged_custom_for_complete_and_list_mo
 
 
 @pytest.mark.asyncio
-async def test_openai_remote_custom_endpoint_makes_zero_http_calls_without_opt_in(monkeypatch):
+async def test_openai_remote_custom_endpoint_makes_zero_http_calls_without_opt_in(tmp_path, monkeypatch):
     # End-to-end through the *real* guarded_request/validate_provider_url --
     # a blocked remote custom endpoint must never reach session.request().
     pytest.importorskip("aiohttp")
-    monkeypatch.delenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", raising=False)
     import aiohttp
 
+    from omnicam.agent.providers import network as network_module
     from omnicam.agent.providers.network import NetworkPolicyError
+
+    monkeypatch.setattr(network_module, "_policy_path", lambda: tmp_path / "policy.json")
 
     class _NeverCalledSession:
         def __init__(self, *a, **kw):

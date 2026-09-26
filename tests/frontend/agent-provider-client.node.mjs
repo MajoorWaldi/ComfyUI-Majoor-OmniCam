@@ -34,7 +34,7 @@ test("listProviders GETs the providers route and returns the list", async () => 
 });
 
 test("getProviderStatus GETs the provider-specific status route", async () => {
-  const api = makeApi(() => ok({ provider: "anthropic", configured: true, source: "environment" }));
+  const api = makeApi(() => ok({ provider: "anthropic", configured: true, source: "local_store" }));
   const status = await getProviderStatus(api, "anthropic");
   assert.equal(status.configured, true);
   assert.equal(api.calls[0].url, "/majoor/omnicam/agent/v1/providers/anthropic/status");
@@ -76,12 +76,12 @@ test("a non-ok response raises with the structured error code", async () => {
   const api = makeApi(() => ({
     ok: false,
     status: 409,
-    json: async () => ({ error: { code: "CREDENTIAL_MANAGED_BY_ENV", message: "nope" } }),
+    json: async () => ({ error: { code: "SECRET_TOO_LARGE", message: "nope" } }),
   }));
   await assert.rejects(
     () => setProviderCredential(api, "openai", "sk-x"),
     (error) => {
-      assert.equal(error.code, "CREDENTIAL_MANAGED_BY_ENV");
+      assert.equal(error.code, "SECRET_TOO_LARGE");
       assert.equal(error.status, 409);
       return true;
     },

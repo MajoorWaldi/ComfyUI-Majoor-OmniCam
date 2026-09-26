@@ -28,11 +28,11 @@ def test_provider_error_preserves_network_policy_error():
 
 
 def test_provider_error_preserves_secret_store_error():
-    error = SecretStoreError("CREDENTIAL_MANAGED_BY_ENV", "managed by env")
+    error = SecretStoreError("SECRET_TOO_LARGE", "secret exceeds the per-credential size limit")
     public = public_provider_error(error)
-    assert public.code == "CREDENTIAL_MANAGED_BY_ENV"
+    assert public.code == "SECRET_TOO_LARGE"
     assert public.status == 409
-    assert public.message == "managed by env"
+    assert public.message == "secret exceeds the per-credential size limit"
 
 
 def test_provider_error_preserves_agent_protocol_error_status():

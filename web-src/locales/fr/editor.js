@@ -510,7 +510,6 @@ export const FR_EDITOR = {
   "Apply failed": "Échec de l'application",
   "Applying...": "Application en cours…",
   "Configured": "Configurée",
-  "Configured by server environment": "Configurée par l'environnement du serveur",
   "Connection OK": "Connexion OK",
   "Connection failed": "Échec de la connexion",
   "Could not remove the credential": "Impossible de supprimer la clé d'accès",

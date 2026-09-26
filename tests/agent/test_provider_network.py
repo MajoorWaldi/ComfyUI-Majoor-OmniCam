@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
+from omnicam.agent.providers import network as network_module
 from omnicam.agent.providers.network import (
     MAX_RESPONSE_BYTES,
     NetworkPolicyError,
@@ -13,6 +16,12 @@ from omnicam.agent.providers.network import (
     guarded_request,
     validate_provider_url,
 )
+
+
+def _set_remote_custom_provider_policy(tmp_path, monkeypatch, *, allowed: bool) -> None:
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(json.dumps({"allow_remote_custom_providers": allowed}), encoding="utf-8")
+    monkeypatch.setattr(network_module, "_policy_path", lambda: policy_path)
 
 
 def test_official_openai_endpoint_is_accepted():
@@ -50,71 +59,69 @@ def test_embedded_url_credentials_are_rejected():
     assert excinfo.value.code == "BAD_URL"
 
 
-def test_remote_custom_provider_is_blocked_by_default(monkeypatch):
-    monkeypatch.delenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", raising=False)
+def test_remote_custom_provider_is_blocked_by_default(tmp_path, monkeypatch):
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=False)
     with pytest.raises(NetworkPolicyError) as excinfo:
         validate_provider_url("http://192.168.1.50:1234/v1/chat/completions", is_custom_endpoint=True)
     assert excinfo.value.code == "REMOTE_CUSTOM_PROVIDER_BLOCKED"
 
 
-def test_remote_custom_provider_allowed_by_server_policy(monkeypatch):
-    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+def test_remote_custom_provider_blocked_when_policy_file_is_absent(tmp_path, monkeypatch):
+    monkeypatch.setattr(network_module, "_policy_path", lambda: tmp_path / "policy.json")
+    with pytest.raises(NetworkPolicyError) as excinfo:
+        validate_provider_url("http://192.168.1.50:1234/v1/chat/completions", is_custom_endpoint=True)
+    assert excinfo.value.code == "REMOTE_CUSTOM_PROVIDER_BLOCKED"
+
+
+def test_remote_custom_provider_allowed_by_server_policy(tmp_path, monkeypatch):
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
     assert validate_provider_url("http://192.168.1.50:1234/v1/chat/completions", is_custom_endpoint=True)
 
 
-def test_ipv4_link_local_metadata_target_is_blocked_even_with_opt_in(monkeypatch):
+def test_ipv4_link_local_metadata_target_is_blocked_even_with_opt_in(tmp_path, monkeypatch):
     # 169.254.169.254 is the cloud-metadata IP on AWS/GCP/Azure -- never a
     # legitimate Agent provider target, and must stay blocked regardless of
-    # OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS (design spec Task 10).
-    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+    # the remote-custom-provider policy opt-in (design spec Task 10).
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
     with pytest.raises(NetworkPolicyError) as excinfo:
         validate_provider_url("http://169.254.169.254/latest/meta-data/", is_custom_endpoint=True)
     assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
 
 
-def test_ipv4_link_local_range_is_blocked_even_with_opt_in(monkeypatch):
-    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+def test_ipv4_link_local_range_is_blocked_even_with_opt_in(tmp_path, monkeypatch):
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
     with pytest.raises(NetworkPolicyError) as excinfo:
         validate_provider_url("http://169.254.1.1:1234/v1", is_custom_endpoint=True)
     assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
 
 
-def test_ipv6_link_local_is_blocked_even_with_opt_in(monkeypatch):
-    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+def test_ipv6_link_local_is_blocked_even_with_opt_in(tmp_path, monkeypatch):
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
     with pytest.raises(NetworkPolicyError) as excinfo:
         validate_provider_url("http://[fe80::1]:1234/v1", is_custom_endpoint=True)
     assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
 
 
-def test_unspecified_address_is_blocked_even_with_opt_in(monkeypatch):
-    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+def test_unspecified_address_is_blocked_even_with_opt_in(tmp_path, monkeypatch):
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
     with pytest.raises(NetworkPolicyError) as excinfo:
         validate_provider_url("http://[::]:1234/v1", is_custom_endpoint=True)
     assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
 
 
-def test_multicast_address_is_blocked_even_with_opt_in(monkeypatch):
-    monkeypatch.setenv("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", "1")
+def test_multicast_address_is_blocked_even_with_opt_in(tmp_path, monkeypatch):
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
     with pytest.raises(NetworkPolicyError) as excinfo:
         validate_provider_url("http://224.0.0.1:1234/v1", is_custom_endpoint=True)
     assert excinfo.value.code == "SENSITIVE_TARGET_BLOCKED"
 
 
-def test_rfc1918_lan_target_is_still_allowed_with_opt_in():
+def test_rfc1918_lan_target_is_still_allowed_with_opt_in(tmp_path, monkeypatch):
     # Sensitive-address blocking must not swallow the existing, intentional
     # RFC1918 allowance once the operator opts in to remote custom providers.
-    import os
-
-    old = os.environ.get("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS")
-    os.environ["OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS"] = "1"
-    try:
-        assert validate_provider_url("http://10.0.0.5:1234/v1", is_custom_endpoint=True)
-        assert validate_provider_url("http://192.168.1.50:1234/v1", is_custom_endpoint=True)
-    finally:
-        if old is None:
-            os.environ.pop("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS", None)
-        else:
-            os.environ["OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS"] = old
+    _set_remote_custom_provider_policy(tmp_path, monkeypatch, allowed=True)
+    assert validate_provider_url("http://10.0.0.5:1234/v1", is_custom_endpoint=True)
+    assert validate_provider_url("http://192.168.1.50:1234/v1", is_custom_endpoint=True)
 
 
 def test_loopback_is_still_allowed_alongside_sensitive_address_blocking():

@@ -10,8 +10,9 @@ resolution against ``_is_sensitive_address()`` at actual connection time.
 from __future__ import annotations
 
 import ipaddress
-import os
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 ALLOWED_SCHEMES = {"http", "https"}
@@ -41,10 +42,10 @@ def _is_sensitive_address(host: str) -> bool:
     """True for a literal IP that is categorically unsafe as an Agent
     provider target -- unspecified (0.0.0.0/::), multicast, link-local
     (including the 169.254.169.254 cloud-metadata address every major
-    provider uses), or otherwise IANA-reserved. Blocked unconditionally,
-    even when OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS=1 (design spec
-    Task 10) -- unlike the RFC1918 LAN allowance, there is no legitimate
-    provider use case this would ever break.
+    provider uses), or otherwise IANA-reserved. Blocked unconditionally, even
+    with the remote-custom-provider policy opt-in (design spec Task 10) --
+    unlike the RFC1918 LAN allowance, there is no legitimate provider use
+    case this would ever break.
 
     Only literal IP addresses are checked here, not DNS names -- a hostname
     that merely resolves to a sensitive address (DNS rebinding) is instead
@@ -57,8 +58,23 @@ def _is_sensitive_address(host: str) -> bool:
     return addr.is_unspecified or addr.is_multicast or addr.is_link_local or addr.is_reserved
 
 
+def _policy_path() -> Path:
+    import folder_paths
+
+    root = Path(folder_paths.get_system_user_directory("omnicam")) / "agent"
+    return root / "policy.json"
+
+
 def allow_remote_custom_providers() -> bool:
-    return os.environ.get("OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS") == "1"
+    """Whether the operator has opted in to remote custom provider
+    endpoints, read from a server-side policy file under the private
+    ``__omnicam`` system-user directory -- never from the browser or a
+    workflow. Absent or unreadable means the default-deny stays in force."""
+    try:
+        data = json.loads(_policy_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get("allow_remote_custom_providers") is True
 
 
 def _canonical_base_url(value: str) -> str:
@@ -121,8 +137,8 @@ def validate_provider_url(url: str, *, is_custom_endpoint: bool) -> str:
     if is_custom_endpoint and not _is_loopback_host(host) and not allow_remote_custom_providers():
         raise NetworkPolicyError(
             "REMOTE_CUSTOM_PROVIDER_BLOCKED",
-            "Remote custom provider endpoints are disabled; set "
-            "OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS=1 to allow them",
+            "Remote custom provider endpoints are disabled; an operator can allow them by "
+            "setting allow_remote_custom_providers: true in the server-side agent policy file",
         )
 
     return url

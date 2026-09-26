@@ -4,10 +4,6 @@ Credentials never live in a workflow, in comfy.settings.json, or anywhere an
 HTTP-exposed userdata route could serve them: they sit under the private
 ``__omnicam`` system-user directory, one JSON file per Comfy user, named by a
 SHA-256 hash of that user's id (never the raw id).
-
-Precedence is environment > local private store > none -- an operator can pin
-a credential via env var and it always wins, and ``set``/``delete`` refuse to
-touch a provider an env var already controls (see ``ENV_VAR_BY_PROVIDER``).
 """
 
 from __future__ import annotations
@@ -25,16 +21,7 @@ from .models import PROVIDER_IDS
 MAX_SECRET_BYTES = 16 * 1024
 MAX_STORE_BYTES = 64 * 1024
 
-# Keyed by plain str (not ProviderId) because callers -- HTTP route handlers --
-# hold an unvalidated request-supplied string until _require_known_provider()
-# checks it against PROVIDER_IDS at runtime.
-ENV_VAR_BY_PROVIDER: dict[str, str] = {
-    "openai": "OMNICAM_OPENAI_API_KEY",
-    "openai_compatible": "OMNICAM_OPENAI_COMPAT_API_KEY",
-    "anthropic": "OMNICAM_ANTHROPIC_API_KEY",
-}
-
-CredentialSource = Literal["environment", "local_store", "none"]
+CredentialSource = Literal["local_store", "none"]
 
 
 class SecretStoreError(Exception):
@@ -48,34 +35,6 @@ class SecretStoreError(Exception):
 def _require_known_provider(provider_id: str) -> None:
     if provider_id not in PROVIDER_IDS:
         raise SecretStoreError("UNKNOWN_PROVIDER", f"Unknown provider: {provider_id!r}")
-
-
-def _ensure_local_secret_mutable(provider_id: str) -> None:
-    """Refuses a local set()/delete() for a provider an env var already
-    controls. The route layer (provider_routes.py) has its own copy of this
-    check for a friendlier HTTP error, but correctness must not depend on
-    that -- the store itself is the lowest level and owns this invariant
-    (design spec Task 9)."""
-    if env_credential(provider_id):
-        raise SecretStoreError(
-            "CREDENTIAL_MANAGED_BY_ENV",
-            f"{provider_id} credential is managed by the server environment",
-        )
-
-
-def env_credential(provider_id: str) -> str | None:
-    """The operator-supplied environment override for ``provider_id``, if
-    any. Each branch reads a literal env var name (never one assembled from
-    ``ENV_VAR_BY_PROVIDER``) so scripts/registry_package_audit.py's narrow,
-    by-name allowlist can verify statically that shipped code never reads an
-    arbitrary/dynamically-named environment variable."""
-    if provider_id == "openai":
-        return os.environ.get("OMNICAM_OPENAI_API_KEY")
-    if provider_id == "openai_compatible":
-        return os.environ.get("OMNICAM_OPENAI_COMPAT_API_KEY")
-    if provider_id == "anthropic":
-        return os.environ.get("OMNICAM_ANTHROPIC_API_KEY")
-    return None
 
 
 def _request_user_id(request: object) -> str:
@@ -129,13 +88,10 @@ def _atomic_write(path: Path, payload: dict) -> None:
 
 
 class SecretStore:
-    """Backend-only credential store: environment > local private store > none."""
+    """Backend-only credential store: local private store, or none."""
 
     def status(self, request: object, provider_id: str) -> dict:
         _require_known_provider(provider_id)
-        if env_credential(provider_id):
-            return {"configured": True, "source": "environment"}
-
         secrets = _read_secrets(_store_path(request))
         if secrets.get(provider_id):
             return {"configured": True, "source": "local_store"}
@@ -144,16 +100,11 @@ class SecretStore:
 
     def resolve(self, request: object, provider_id: str) -> str | None:
         _require_known_provider(provider_id)
-        env_value = env_credential(provider_id)
-        if env_value:
-            return env_value
-
         secrets = _read_secrets(_store_path(request))
         return secrets.get(provider_id) or None
 
     def set(self, request: object, provider_id: str, secret: str) -> None:
         _require_known_provider(provider_id)
-        _ensure_local_secret_mutable(provider_id)
         if not isinstance(secret, str) or not secret.strip():
             raise SecretStoreError("BAD_REQUEST", "secret must be a non-empty string")
         if len(secret.encode("utf-8")) > MAX_SECRET_BYTES:
@@ -166,7 +117,6 @@ class SecretStore:
 
     def delete(self, request: object, provider_id: str) -> None:
         _require_known_provider(provider_id)
-        _ensure_local_secret_mutable(provider_id)
         path = _store_path(request)
         secrets = _read_secrets(path)
         if provider_id not in secrets:

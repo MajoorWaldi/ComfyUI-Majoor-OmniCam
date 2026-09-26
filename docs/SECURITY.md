@@ -67,21 +67,22 @@ above.
 - **Credentials live in a private, per-user secrets backend only**
   (`omnicam/agent/providers/secret_store.py`): never in a workflow, in
   `comfy.settings.json`, or anywhere an HTTP-exposed userdata route could
-  serve them. Precedence is environment > local secret store > none, and an
-  `OMNICAM_*_API_KEY` environment variable always wins; `SecretStore.set()`
-  and `.delete()` themselves refuse to touch a provider an env var already
-  controls (`CREDENTIAL_MANAGED_BY_ENV`) -- this is not only a route-level
-  check, so a future direct caller cannot bypass it.
+  serve them, and never in the process environment either -- shipped code
+  reads no `os.environ`/`os.getenv` at all (enforced by
+  `scripts/registry_package_audit.py`).
 - **Remote custom provider endpoints are disabled by default.** A
   caller-supplied `base_url` (OpenAI-compatible, Ollama, or a native
   OpenAI/Anthropic override) is subject to the network policy in
   `omnicam/agent/providers/network.py`: loopback is always allowed; any other
   host is rejected with `REMOTE_CUSTOM_PROVIDER_BLOCKED` unless the operator
-  sets `OMNICAM_AGENT_ALLOW_REMOTE_CUSTOM_PROVIDERS=1`. **Native custom base
-  URLs are treated as custom endpoints too** -- `endpoint_is_custom()`
-  compares a supplied OpenAI/Anthropic `base_url` against that provider's own
-  hardcoded official endpoint, so a different host is never silently treated
-  as official regardless of which provider it claims to be.
+  sets `"allow_remote_custom_providers": true` in the server-side policy file
+  at `<system user dir>/omnicam/agent/policy.json` -- a file only an operator
+  with filesystem access can write, never the browser or a workflow.
+  **Native custom base URLs are treated as custom endpoints too** --
+  `endpoint_is_custom()` compares a supplied OpenAI/Anthropic `base_url`
+  against that provider's own hardcoded official endpoint, so a different
+  host is never silently treated as official regardless of which provider it
+  claims to be.
 - **Even with that opt-in, sensitive infrastructure/metadata targets stay
   blocked unconditionally**: unspecified, multicast, and link-local
   addresses -- including `169.254.169.254`, the cloud-metadata IP on
