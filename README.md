@@ -1,10 +1,3 @@
-> [!WARNING]
-> **Work in progress — expect breaking changes.**
-> Majoor OmniCam is under active construction. Nodes, inputs, outputs and the
-> saved motion format may change from one release to the next, and existing
-> workflows can break after an update. Pin a version if you need stability, and
-> check the [CHANGELOG](CHANGELOG.md) before upgrading.
-
 <p align="center">
   <img src="web/assets/omnicam-icon.png" width="112" alt="Majoor OmniCam">
 </p>
@@ -89,7 +82,7 @@ Then restart ComfyUI. The generated frontend bundle (`web/omnicam.js`,
 `web-chunks/`) is committed to the repository, so a plain clone is enough --
 no Node.js or local build step required.
 
-The stable CI target is ComfyUI **0.36.0**, with live coverage for both classic
+The stable CI target is ComfyUI **0.37.0**, with live coverage for both classic
 and Vue nodes. The three workbenches adapt to the browser window and use ComfyUI
 theme colors. French labels and parameterized status messages are included;
 the locale check rejects missing translations and dynamic translation keys.
