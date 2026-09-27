@@ -16,10 +16,10 @@ stable release.
 |---|---|
 | Minimum Core | ComfyUI 0.31.0 — blocking |
 | Previous Stable Regression | ComfyUI 0.34.0 — blocking |
-| Current Stable Integration | ComfyUI 0.35.0 — blocking |
+| Current Stable Integration | ComfyUI 0.37.0 — blocking |
 | Core Canary | ComfyUI master — non-blocking |
 | Frontend minimum | `comfyui-frontend-package >= 1.48.7` — blocking live-browser gate |
-| Current stable Core frontend | 1.51.10 via ComfyUI 0.35.0 requirements |
+| Current stable Core frontend | 1.53.6 via ComfyUI 0.37.0 requirements |
 | Deterministic newer frontend gate | 1.55.2 — blocking at this audit baseline |
 | Latest frontend canary | dynamically resolved latest — non-blocking |
 | Nodes 2.0 | live Playwright validation |
