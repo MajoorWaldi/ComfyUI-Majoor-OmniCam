@@ -6,6 +6,7 @@ import { captureRealtimePlayblast, uploadPlayblast, waitForSeekingMedia } from "
 import { SEQUENCE_TARGET } from "./director/sequence.js";
 import { t } from "./i18n.js";
 import { storePlayblastManifest } from "./playblast-contract.js";
+import { playblastDimensions } from "./playblast-size.js";
 
 export async function waitForMediaFrame(ui) {
   await waitForSeekingMedia(ui.cardMediaById.values());
@@ -34,27 +35,19 @@ export async function uploadDirectorPlayblast(ui, blob) {
   }
   if (ui.recordingWidget) ui.recordingWidget.value = uploaded.path;
   ui.serialize();
-  ui.setStatus(t("Playblast ready: {value1}", { value1: uploaded.name }));
+  const message = t("Playblast ready: {value1}", { value1: uploaded.name });
+  ui.setStatus(message);
+  return message;
 }
 
-// Drawing-buffer size for the recorded playblast. "viewport" keeps whatever the
-// panel currently is; the other modes lock the output to the node's configured
-// width x height so the proxy resolution is predictable regardless of layout.
-export function playblastDimensions(ui) {
-  const current = { width: ui.canvas.width, height: ui.canvas.height };
-  const mode = ui.state.playblast_resolution || "output";
-  if (mode === "viewport") return current;
-  const factor = mode === "half" ? 0.5 : mode === "double" ? 2 : 1;
-  const outW = Math.max(16, Math.round(Number(ui.state.width) || current.width));
-  const outH = Math.max(16, Math.round(Number(ui.state.height) || current.height));
-  const cap = 3840;
-  const scale = Math.min(factor, cap / Math.max(outW * factor, outH * factor));
-  const even = (value) => Math.max(2, Math.round(value * scale / 2) * 2);
-  return { width: even(outW), height: even(outH) };
-}
-
-export async function makePlayblast(ui) {
-  if (ui.recording) return;
+/**
+ * Records the playblast. Resolves to `{ ok, message }` -- the same text the
+ * editor shows in its footer -- so a caller with no footer (the node's REC
+ * button) can say how it went. Frame progress is announced as a
+ * `playblastprogress` event on the runtime.
+ */
+export async function makePlayblast(ui, { inline = false } = {}) {
+  if (ui.recording) return { ok: false, message: "" };
   ui.stopPlay();
   ui.recording = true;
   ui.root.classList.add("recording");
@@ -62,12 +55,13 @@ export async function makePlayblast(ui) {
   const oldFrame = ui.frame;
   const restoreW = ui.canvas.width;
   const restoreH = ui.canvas.height;
-  const target = playblastDimensions(ui);
+  const target = playblastDimensions(ui, { inline });
   if (target.width !== ui.canvas.width || target.height !== ui.canvas.height) {
     ui.canvas.width = target.width;
     ui.canvas.height = target.height;
     ui.render();
   }
+  let outcome = { ok: false, message: "" };
   try {
     let blob = null;
     const encoderChoice = ui.root.querySelector('[data-role="encoder"]').value;
@@ -79,6 +73,7 @@ export async function makePlayblast(ui) {
       blob = await encodeDeterministicPlayblast(ui.canvas, ui.state.duration_frames, ui.state.fps, async (frame) => {
         ui.setFrame(frame, true);
         ui.setStatus(t("Encoding frame {value1}/{value2}…", { value1: frame + 1, value2: ui.state.duration_frames }));
+        ui.runtime?.dispatchEvent(new CustomEvent("playblastprogress", { detail: { frame: frame + 1, total: ui.state.duration_frames } }));
         await waitForMediaFrame(ui);
         await new Promise((resolve) => requestAnimationFrame(resolve));
       }, ui.abortController?.signal, ui.state.playblast_quality);
@@ -88,10 +83,11 @@ export async function makePlayblast(ui) {
       blob = await captureRealtime(ui);
     }
     ui.setFrame(oldFrame);
-    await uploadDirectorPlayblast(ui, blob);
+    outcome = { ok: true, message: await uploadDirectorPlayblast(ui, blob) };
   } catch (error) {
     console.error(error);
-    ui.setStatus(t("Playblast failed: {value1}", { value1: error.message || error }));
+    outcome = { ok: false, message: t("Playblast failed: {value1}", { value1: error.message || error }) };
+    ui.setStatus(outcome.message);
   } finally {
     ui.recording = false;
     ui.root.classList.remove("recording");
@@ -102,4 +98,5 @@ export async function makePlayblast(ui) {
     ui.resizeCanvas?.();
     ui.setFrame(oldFrame);
   }
+  return outcome;
 }

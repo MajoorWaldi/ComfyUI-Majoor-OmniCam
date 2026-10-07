@@ -98,6 +98,7 @@ function primitiveDefaults(type) {
     size,
     color,
     material_mode: ground ? "checker" : "textured",
+    ...(isSunLight || isPointLight || isSpotLight ? { light_role: "auto" } : {}),
     ...(intensity !== undefined ? { intensity } : {}),
     ...(cast_shadow !== undefined ? { cast_shadow } : {}),
     ...(cone_angle !== undefined ? { cone_angle } : {}),

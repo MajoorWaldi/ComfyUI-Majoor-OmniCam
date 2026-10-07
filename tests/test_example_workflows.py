@@ -102,6 +102,43 @@ def test_a_workflow_names_a_real_monitor_profile(path: Path):
         )
 
 
+# The order ComfyUI's frontend gives a Monitor's widgets: required inputs first,
+# then the optional ones. widgets_values is matched to it by position, so a
+# value in the wrong slot lands in the wrong widget -- a prompt in
+# target_profile is a validation error on queue.
+MONITOR_WIDGET_ORDER = (
+    "target_profile", "target_width", "target_height", "duration_seconds", "target_fps",
+    "guide_reference_index", "guide_style", "base_prompt", "reference_plan_json",
+)
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
+def test_monitor_widget_values_follow_the_frontend_widget_order(path: Path):
+    from omnicam.profiles.catalog import PROFILE_REGISTRY
+
+    for node in _load(path)["nodes"]:
+        if node["type"] != "MajoorOmniCamMonitor":
+            continue
+        values = dict(zip(MONITOR_WIDGET_ORDER, node["widgets_values"]))
+        assert len(node["widgets_values"]) == len(MONITOR_WIDGET_ORDER), path.name
+        assert values["target_profile"] in PROFILE_REGISTRY.ids, path.name
+        for name in ("target_width", "target_height", "guide_reference_index"):
+            assert isinstance(values[name], int) and not isinstance(values[name], bool), (path.name, name)
+        for name in ("duration_seconds", "target_fps"):
+            assert isinstance(values[name], (int, float)) and not isinstance(values[name], bool), (path.name, name)
+        assert isinstance(values["base_prompt"], str), path.name
+
+
+def test_monitor_widget_order_matches_the_schema():
+    pytest.importorskip("comfy_api.latest")
+    from omnicam.nodes.monitor import MajoorOmniCamMonitor
+
+    inputs = [item for item in MajoorOmniCamMonitor.define_schema().inputs if item.id not in {"motion_scene", "playblast_video"}]
+    required = [item.id for item in inputs if not item.optional]
+    optional = [item.id for item in inputs if item.optional]
+    assert tuple(required + optional) == MONITOR_WIDGET_ORDER
+
+
 @pytest.mark.parametrize("path", WORKFLOWS, ids=lambda path: path.name)
 def test_every_link_connects_sockets_that_still_exist(path: Path):
     payload = _load(path)

@@ -4,11 +4,12 @@
 
 # OmniCam keyboard shortcuts and controls
 
-The Director node shows a compact status card with an **OPEN DIRECTOR**
-button; every shortcut below only exists once that editor is open, since the
-closed node has no editor DOM to claim keys from. Only one Director editor is
-ever open at once. Extractor and Monitor mount their full panel inline on the
-node itself instead, with no open step.
+The Director node shows a live mini view of the editor; **OPEN DIRECTOR**
+moves that same editor into a full window. The shortcuts below work in both:
+in the node they apply to the node you clicked into, so several Directors on
+one graph never receive each other's keys. Only one Director window is open at
+once. Extractor and Monitor mount their full panel inline on the node itself,
+with no open step.
 
 Shortcuts are live only while the OmniCam viewport or timeline has focus. They
 never capture the keyboard while you are typing into a field, and OmniCam
@@ -300,6 +301,8 @@ altitude dot coloured by height band. The scale adapts to keep the paths, the
 - **Lens Presets**: Instant focal length buttons: `14mm`, `18mm`, `24mm`, `35mm`, `50mm`, `85mm`, `135mm`.
 - **Near Presets**: Quick camera clipping presets: `0.001` (Interior / Close-up), `0.01` (Standard), `0.1` (Large scene / Exterior).
 - **Sensor / Gate Presets**: Dropdown selection for standard camera formats: Full Frame 35mm, Super 35, Micro 4/3, 16:9 Digital Cinema, Mobile 9:16 Vertical.
+- **Quick Camera**: The collapsed camera inspector section orbits the active camera around its existing target with Front, three-quarter, profile, Back, Top, and Low presets. It edits the canonical position/target key and preserves lens, roll, clipping, and projection type.
+- **Lighting role**: Light objects expose an additive `Auto / Key / Fill / Rim / Background / Practical / Environment` role. Existing scenes without a role remain valid.
 
 ## Asset Browser, characters & labels
 
@@ -408,3 +411,8 @@ The Outliner quick-bar, toolbar, and viewport right-click menu provide instant o
    drag. A stationary click followed by `Esc` must preserve the previous edit.
 10. Compare pan at different display scales and wheel/trackpad zoom. Save and
     reload the workflow; the editor view and authored camera must survive.
+
+When a camera keyframe is selected, the viewport uses a compact marker and thin
+selection ring, dims the path and removes its glow, camera body and filled film
+gate. Transform axes and Bezier handles remain visible; the live camera guides
+return when the keyframe selection is cleared.

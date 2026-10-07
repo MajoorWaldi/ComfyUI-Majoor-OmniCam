@@ -288,8 +288,7 @@ export function refreshInspector(ui) {
 
   // Always populate camera panel inputs
   const activeCamera = ui.activeCameraTrack();
-  const targetSelect = q('[data-role="camera-target-object"]');
-  if (targetSelect) {
+  for (const targetSelect of ui.root.querySelectorAll('[data-role="camera-target-object"]')) {
     const currentTarget = activeCamera.target_object_id || ui.state.target_object_id || "";
     const signature = `T${getLocale()}${ui.state.objects.map((sceneObj) => `${sceneObj.id} ${sceneObj.name || sceneObj.type}`).join("|")}`;
     syncSelectOptions(targetSelect, signature, () => [

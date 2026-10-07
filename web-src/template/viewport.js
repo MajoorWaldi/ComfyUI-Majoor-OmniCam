@@ -4,6 +4,7 @@
 // the Playwright mount test both resolve it as ".viewport-wrap > canvas".
 
 import { t } from "../i18n.js";
+import { inlineBarMarkup } from "./inline-bar.js";
 
 function toolRail() {
   return `
@@ -158,6 +159,7 @@ export function viewportMarkup() {
       </div>
 
       ${toolRail()}
+      ${inlineBarMarkup()}
 
       <svg class="vp-axis" data-role="viewport-axis" viewBox="0 0 52 52" width="52" height="52"
            aria-label="${t("World axis navigation")}" role="group">

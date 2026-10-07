@@ -233,8 +233,8 @@ export function createRenderMethods(dependencies) {
   setStatus(text) {
     (this.dom?.status || this.root.querySelector('[data-role="status"]')).textContent = text;
   },
-  async makePlayblast() {
-    return makePlayblast(this);
+  async makePlayblast(options) {
+    return makePlayblast(this, options);
   },
   async waitForMediaFrame() {
     return waitForMediaFrame(this);

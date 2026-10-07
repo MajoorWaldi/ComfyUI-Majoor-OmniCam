@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ..comfy_compat import IO, UI
 from ..core.director_compile import compile_director_motion_scene, parse_director_state
+from ..core.importers import import_load3d_camera
 from ..core.motion_scene import MotionScene
 from .base import OMNICAM_MOTION_SCENE, resolve_video
 from .media import as_image_batch, as_video, media_input
@@ -36,6 +37,11 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 media_input("video", optional=True, tooltip="A proxy clip, or an IMAGE batch read at the node fps."),
                 IO.Audio.Input("audio", optional=True),
                 IO.Custom("*").Input("scene_3d", optional=True),
+                IO.Custom("LOAD3D_CAMERA").Input(
+                    "camera_info",
+                    optional=True,
+                    tooltip="Optional Load3D camera metadata imported into the canonical Director camera track.",
+                ),
                 OMNICAM_MOTION_SCENE.Input(
                     "solved_scene",
                     optional=True,
@@ -69,6 +75,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         video=None,
         audio=None,
         scene_3d=None,
+        camera_info=None,
         solved_scene=None,
     ) -> IO.NodeOutput:
         # Both media sockets take either type: a clip connected to `image` is
@@ -79,6 +86,14 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         raw_state = parse_director_state(state_json)
 
         upstream_track = None
+        if isinstance(camera_info, dict):
+            upstream_track = import_load3d_camera(
+                camera_info,
+                width=width,
+                height=height,
+                fps=fps,
+                duration_frames=max(1, round(float(duration_seconds) * fps)),
+            ).to_dict()
         # Deliberately only the camera. The socket is named solved_scene rather
         # than motion_scene because that is all it imports: a full MotionScene
         # merge -- layers, objects, cuts, other cameras -- is a feature, not a

@@ -326,12 +326,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "A golden-hour tennis match on a red clay court.",
         "h3_api",
         1280,
         720,
         6,
-        24
+        24,
+        1,
+        "auto",
+        "A golden-hour tennis match on a red clay court.",
+        ""
       ],
       "id": 6,
       "flags": {},

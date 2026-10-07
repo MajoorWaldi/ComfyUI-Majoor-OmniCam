@@ -32,7 +32,9 @@ INTERPOLATION_MODES = frozenset({
 # from a pretty reference, which is exactly what the proxy exists to avoid.
 RENDER_MODES = frozenset({"omni_ref", "card_grid", "graybox", "textured", "grid", "point_field", "wireframe", "wireframe_texture", "beauty"})
 CAMERA_TYPES = frozenset({"perspective", "orthographic"})
-OBJECT_TYPES = frozenset({"card", "cube", "sphere", "cylinder", "torus", "human", "null", "ground", "model", "glb", "pyramid", "sun_light", "point_light", "spot_light"})
+LIGHT_TYPES = frozenset({"sun_light", "point_light", "spot_light"})
+OBJECT_TYPES = frozenset({"card", "cube", "sphere", "cylinder", "torus", "human", "null", "ground", "model", "glb", "pyramid"}) | LIGHT_TYPES
+LIGHT_ROLES = frozenset({"auto", "key", "fill", "rim", "background", "practical", "environment"})
 MATERIAL_MODES = frozenset({"textured", "checker", "neutral", "wireframe", "wireframe_texture", "wireframe_neutral", "matte"})
 ASSET_KINDS = frozenset({"character", "prop", "environment", "vehicle", "helper"})
 PROJECTION_MODES = CAMERA_TYPES
@@ -222,6 +224,10 @@ def validate_object(payload: dict[str, Any], duration_frames: int, path: str, li
     obj["id"] = object_id
     obj["name"] = str(obj.get("name") or object_id)[:80]
     obj["type"] = whitelist(obj.get("type", "card"), OBJECT_TYPES, f"{path}.type")
+    if "light_role" in obj:
+        if obj["type"] not in LIGHT_TYPES:
+            raise ValidationError(f"{path}.light_role is only valid on light objects")
+        obj["light_role"] = whitelist(obj.get("light_role", "auto"), LIGHT_ROLES, f"{path}.light_role")
     obj["material_mode"] = whitelist(obj.get("material_mode", "textured"), MATERIAL_MODES, f"{path}.material_mode")
     transform = validate_transform(obj, path)
     obj["position"], obj["rotation"], obj["size"] = transform["position"], transform["rotation"], transform["size"]

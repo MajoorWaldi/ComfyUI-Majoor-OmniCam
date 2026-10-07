@@ -33,6 +33,8 @@ export function outlinerPanel() {
         <div class="oc-field-row" data-role="light-props-row" hidden>
           <span class="oc-field-label">${t("Light")}</span>
           <input data-role="object-light-color" type="color" value="#ffffff" title="${t("Light Color")}">
+          <select data-role="object-light-role" title="${t("Lighting role")}"
+            ><option value="auto">${t("Auto")}</option><option value="key">${t("Key")}</option><option value="fill">${t("Fill")}</option><option value="rim">${t("Rim")}</option><option value="background">${t("Background")}</option><option value="practical">${t("Practical")}</option><option value="environment">${t("Environment")}</option></select>
           <label style="display:flex;align-items:center;gap:3px;font-size:11px;color:var(--oc-text-dim,#94a3b8)">
             ${t("Intensity")}
             <input data-role="object-intensity" type="number" min="0" max="100" step="0.1" value="2.2" style="width:52px">

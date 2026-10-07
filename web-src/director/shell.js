@@ -1,9 +1,9 @@
-// Lazy shell entry point for the OmniCam Director node -- the only Director
-// module main.js's nodeCreated() imports (migration plan Task 10). Builds a
-// persistent DirectorRuntime plus a compact always-mounted DOMWidget with an
-// "OPEN DIRECTOR" button; the full editor (web-src/director.js, its ~30
-// method modules and, on demand, three.js) loads only when that button is
-// pressed.
+// Shell entry point for the OmniCam Director node -- the only Director module
+// main.js's nodeCreated() imports. Builds the persistent DirectorRuntime, a
+// status card, and the live inline editor (director/inline-view.js): the real
+// editor in a compact layout inside the node, which OPEN DIRECTOR moves into
+// the full modal workbench and back. The editor code and three.js still load
+// lazily, after the node itself is up.
 
 import { app, api } from "../comfy-runtime.js";
 import { t } from "../i18n.js";
@@ -12,9 +12,12 @@ import { attachDirectorApi } from "../director-api/index.js";
 import { createDirectorAgentBridge } from "../agent/bridge.js";
 import { watchGraphConnections } from "../graph-connection-watch.js";
 import { createNodeShell } from "../workbench/node-shell.js";
-import { WorkbenchHost } from "../workbench/host.js";
 import { workbenchSessions } from "../workbench/session-manager.js";
 import { directorPlayblastSource } from "../monitor/reference-source.js";
+import { DirectorInlineView } from "./inline-view.js";
+
+const MIN_WIDGET_HEIGHT = 420;
+const RECORD_NOTICE_MS = 6000;
 
 function hideInternalWidgets(node) {
   for (const name of ["state_json", "recording_path", "card_asset"]) {
@@ -37,15 +40,19 @@ function updateShell(runtime) {
   runtime.shell?.setDirty(snapshot.isDirty);
   runtime.shell?.setMeta(metaParts.join("  |  "));
   runtime.shell?.setStatus(
-    `${snapshot.cameraCount} ${t("cameras")}  |  ${snapshot.objectCount} ${t("objects")}`,
+    runtime.recordNotice || `${snapshot.cameraCount} ${t("cameras")}  |  ${snapshot.objectCount} ${t("objects")}`,
   );
   // Live-mirrors onto the open workbench's own top bar, if one is mounted
-  // right now (openDirectorWorkbenchSession() below sets/clears this ref).
+  // right now (DirectorInlineView.expand() sets/clears this ref).
   runtime.activeWorkbenchHost?.setTitle(snapshot.sceneName || t("OmniCam Director"));
   runtime.activeWorkbenchHost?.setDirty(snapshot.isDirty);
-  // The recorded playblast video wins over the single downscaled still frame
+  // The live inline editor replaces the card preview entirely; otherwise the
+  // recorded playblast video wins over the single downscaled still frame
   // whenever one is available -- see refreshDirectorPreview() below.
-  if (runtime.previewVideoUrl) {
+  if (runtime.inlineView?.ui) {
+    runtime.shell?.setPreviewVideo(null);
+    runtime.shell?.setPreview(null);
+  } else if (runtime.previewVideoUrl) {
     runtime.shell?.setPreviewVideo(runtime.previewVideoUrl);
   } else {
     runtime.shell?.setPreviewVideo(null);
@@ -53,9 +60,9 @@ function updateShell(runtime) {
   }
 }
 
-//: Thumbnail size the compact shell's preview <img> is scaled to. Small on
-//: purpose -- this is a ~124px-tall box, not a viewport -- so the captured
-//: dataURL stays cheap to hold in memory across many closed nodes.
+//: Thumbnail size the static card's preview <img> is scaled to. Small on
+//: purpose -- it only stands in for a retired live view -- so the captured
+//: dataURL stays cheap to hold in memory across many nodes.
 const PREVIEW_WIDTH = 240;
 const PREVIEW_HEIGHT = 135;
 
@@ -111,74 +118,35 @@ function refreshDirectorPreview(runtime, ui) {
   captureDirectorPreview(runtime, ui);
 }
 
-function sessionKeyFor(node) {
-  return `director:${node.id}`;
-}
-
-async function openDirectorWorkbenchSession(runtime, opener) {
-  return workbenchSessions.open({
-    key: sessionKeyFor(runtime.node),
-    nodeId: runtime.node.id,
-    opener,
-    createSession: async () => {
-      const generation = ++runtime.workbenchGeneration;
-      const { openDirectorWorkbench, closeDirectorWorkbench } = await import("../director.js");
-      // The node may have been removed, or another open already superseded
-      // this one, while the chunk above was in flight (plan section 29).
-      if (runtime.disposed || generation !== runtime.workbenchGeneration) return null;
-
-      const ui = openDirectorWorkbench(runtime);
-      if (runtime.pendingUpstreamResync) {
-        runtime.pendingUpstreamResync = false;
-        ui.syncUpstreamInputs?.();
-      }
-
-      const key = sessionKeyFor(runtime.node);
-      const host = new WorkbenchHost({
-        kind: "director",
-        nodeId: runtime.node.id,
-        title: runtime.getSnapshot().sceneName || t("OmniCam Director"),
-        onRequestClose: (reason) => workbenchSessions.close(key, reason),
-        onResize: () => ui.scheduleResizeAndRender?.(),
-      });
-      host.mount(ui.root);
-      // Lets updateShell() mirror scene name/dirty state live onto this
-      // workbench's own top bar while it is open (cleared below on close/
-      // dispose so a stale reference can never outlive its host).
-      runtime.activeWorkbenchHost = host;
-      host.setDirty(runtime.isDirty);
-
-      return {
-        key,
-        nodeId: runtime.node.id,
-        host,
-        close: async () => {
-          // A playblast recording (deterministic encode or the realtime
-          // fallback, web-src/record.js's makePlayblast) is a
-          // non-interruptible finalization window: closing here would abort
-          // an in-flight encode/upload with no way to resume it (plan
-          // section 15 / non-negotiable behavior 8). Node removal still
-          // tears the workbench down regardless -- see dispose() below.
-          if (ui.recording) {
-            ui.setStatus?.(t("Cannot close Director while a playblast is recording"));
-            return false;
-          }
-          ui.serialize?.();
-          refreshDirectorPreview(runtime, ui);
-          closeDirectorWorkbench(ui);
-          if (runtime.activeWorkbenchHost === host) runtime.activeWorkbenchHost = null;
-          host.dispose();
-          return true;
-        },
-        dispose: () => {
-          refreshDirectorPreview(runtime, ui);
-          closeDirectorWorkbench(ui);
-          if (runtime.activeWorkbenchHost === host) runtime.activeWorkbenchHost = null;
-          host.dispose();
-        },
-      };
-    },
-  });
+/**
+ * The node's REC button: records the playblast with the live inline editor,
+ * bringing it up first if the node had been retired to its card -- no modal.
+ * The card shows the frame progress and then how it went, for a few seconds.
+ */
+async function recordPlayblast(runtime) {
+  if (runtime.shellRecording) return;
+  runtime.shellRecording = true;
+  runtime.shell.setRecording(true, "…");
+  let outcome = { ok: false, message: t("The Director editor could not be started") };
+  try {
+    const ui = await runtime.inlineView.show();
+    if (ui) {
+      await ui.webglReady;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      outcome = await ui.makePlayblast({ inline: true });
+    }
+  } finally {
+    runtime.shellRecording = false;
+    runtime.shell.setRecording(false);
+    runtime.shell.setProgress(null);
+    runtime.recordNotice = outcome.message;
+    clearTimeout(runtime.recordNoticeTimer);
+    runtime.recordNoticeTimer = setTimeout(() => {
+      runtime.recordNotice = "";
+      updateShell(runtime);
+    }, RECORD_NOTICE_MS);
+    updateShell(runtime);
+  }
 }
 
 export function attachDirectorShell(node) {
@@ -197,26 +165,52 @@ export function attachDirectorShell(node) {
 
   hideInternalWidgets(node);
 
+  const widgetRoot = document.createElement("div");
+  widgetRoot.className = "oc-director-node";
+  widgetRoot.dataset.live = "false";
+  const inlineHost = document.createElement("div");
+  inlineHost.className = "oc-director-inline";
+  const inlineView = new DirectorInlineView(runtime, {
+    container: inlineHost,
+    onLiveChange: (live) => {
+      widgetRoot.dataset.live = String(live);
+      updateShell(runtime);
+    },
+    onRetire: (ui) => refreshDirectorPreview(runtime, ui),
+  });
+  runtime.inlineView = inlineView;
+
   const shell = createNodeShell({
     kind: "director",
     title: t("OmniCam Director"),
     buttonLabel: t("OPEN DIRECTOR"),
-    onOpen: (event) => { void openDirectorWorkbenchSession(runtime, event.currentTarget); },
+    onOpen: (event) => { void inlineView.expand(event.currentTarget); },
+    secondaryLabel: t("LIVE VIEW"),
+    onSecondary: () => { void inlineView.show(); },
+    recordLabel: t("● REC"),
+    recordTitle: t("Record the playblast without opening the editor"),
+    onRecord: () => { void recordPlayblast(runtime); },
   });
   runtime.shell = shell;
+  runtime.addEventListener("playblastprogress", (event) => {
+    if (!runtime.shellRecording) return;
+    const { frame, total } = event.detail;
+    shell.setRecording(true, `${frame}/${total}`);
+    shell.setProgress(frame / total);
+  });
+  widgetRoot.append(shell.root, inlineHost);
   updateShell(runtime);
   runtime.addEventListener("statechange", () => updateShell(runtime));
   runtime.addEventListener("statuschange", () => updateShell(runtime));
   runtime.addEventListener("upstreamchange", () => updateShell(runtime));
 
   node.__majoorOmniCamDirectorRuntime = runtime;
-  node.addDOMWidget("majoor_omnicam_director_shell", "omnicam", shell.root, {
+  node.addDOMWidget("majoor_omnicam_director_shell", "omnicam", widgetRoot, {
     serialize: false,
     hideOnZoom: false,
-    getMinHeight: () => 124,
-    getHeight: () => 124,
-    getMaxHeight: () => 124,
+    getMinHeight: () => MIN_WIDGET_HEIGHT,
   });
+  inlineView.showWhenVisible(widgetRoot);
 
   // Graph lifecycle lives here, on the node, for the runtime's full life --
   // not inside the transient workbench (plan Task 6). Each hook does the full
@@ -287,6 +281,8 @@ export function attachDirectorShell(node) {
   const originalRemoved = node.onRemoved;
   node.onRemoved = function (...args) {
     workbenchSessions.disposeForNode(node.id);
+    clearTimeout(runtime.recordNoticeTimer);
+    inlineView.dispose();
     unwatchGraphConnections();
     cancelAnimationFrame(runtime.restoreFrame);
     clearTimeout(runtime.connectionTimer);

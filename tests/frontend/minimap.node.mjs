@@ -225,3 +225,9 @@ test("drawTopDownRadar highlights selection from transient ui selection state", 
 
   assert.ok(fills.includes("#a855f7"), "selected object uses the selection colour");
 });
+
+test("getMinimapBounds leaves the radar out of a viewport too small to hold it", () => {
+  const ui = createMockUi();
+  assert.equal(getMinimapBounds(ui, 325, 183), null);
+  assert.ok(getMinimapBounds(ui, 700, 400));
+});

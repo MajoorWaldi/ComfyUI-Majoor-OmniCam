@@ -20,7 +20,7 @@ import { OMNICAM_VERSION } from "../shared/version.js";
 // image. Director is the only kind that exists today.
 const VIDEO_PREVIEW_KINDS = new Set(["director"]);
 
-export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
+export function createNodeShell({ kind, title, buttonLabel, onOpen, secondaryLabel, onSecondary, recordLabel, recordTitle, onRecord }) {
   injectWorkbenchStyles(document);
 
   const root = document.createElement("div");
@@ -83,15 +83,40 @@ export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
   openButton.className = "oc-node-shell-open";
   openButton.textContent = buttonLabel ?? "Open";
 
+  // Optional second action beside Open (Director: bring the live inline
+  // view back after it was retired to this card).
+  let secondaryButton = null;
+  if (secondaryLabel) {
+    secondaryButton = document.createElement("button");
+    secondaryButton.type = "button";
+    secondaryButton.className = "oc-node-shell-secondary";
+    secondaryButton.textContent = secondaryLabel;
+  }
+  // Optional record action beside Open (Director: record the playblast
+  // without opening the editor).
+  let recordButton = null;
+  if (recordLabel) {
+    recordButton = document.createElement("button");
+    recordButton.type = "button";
+    recordButton.className = "oc-node-shell-record";
+    recordButton.textContent = recordLabel;
+    recordButton.title = recordTitle ?? "";
+  }
+  const actionsEl = document.createElement("div");
+  actionsEl.className = "oc-node-shell-actions";
+  actionsEl.append(...[secondaryButton, recordButton, openButton].filter(Boolean));
+
   const versionEl = document.createElement("span");
   versionEl.className = "oc-node-shell-version";
   versionEl.textContent = `v${OMNICAM_VERSION}`;
 
-  if (videoEl) root.append(previewEl, videoEl, versionEl, titleEl, metaEl, statusEl, progressEl, openButton);
-  else root.append(previewEl, versionEl, titleEl, metaEl, statusEl, progressEl, openButton);
+  if (videoEl) root.append(previewEl, videoEl, versionEl, titleEl, metaEl, statusEl, progressEl, actionsEl);
+  else root.append(previewEl, versionEl, titleEl, metaEl, statusEl, progressEl, actionsEl);
 
   const abort = new AbortController();
   openButton.addEventListener("click", (event) => onOpen?.(event), { signal: abort.signal });
+  secondaryButton?.addEventListener("click", (event) => onSecondary?.(event), { signal: abort.signal });
+  recordButton?.addEventListener("click", (event) => onRecord?.(event), { signal: abort.signal });
 
   function stopVideo() {
     if (!videoEl) return;
@@ -104,6 +129,15 @@ export function createNodeShell({ kind, title, buttonLabel, onOpen }) {
   return {
     root,
     openButton,
+    secondaryButton,
+    recordButton,
+    /** Busy state of the record action: disabled, with `label` (e.g. "12/121") instead of its own text. */
+    setRecording(busy, label = recordLabel) {
+      if (!recordButton) return;
+      recordButton.disabled = busy;
+      recordButton.textContent = busy ? label : recordLabel;
+      root.dataset.recording = String(busy);
+    },
     setTitle(value) {
       titleTextEl.textContent = value ?? "";
     },

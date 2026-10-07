@@ -437,7 +437,7 @@ export function defaultState() {
     cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(camera), keyframes }], active_camera_id: "camera_1", playblast_camera_id: "camera_1",
     objects: [
       { id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" },
-      { id: "sun_light", type: "sun_light", name: "Sun light", position: [5.0, 8.5, 4.0], rotation: [-55, 35, 0], size: [1, 1, 1], color: "#fff6ec", intensity: 2.2, cast_shadow: true, keyframes: [], enabled: true },
+      { id: "sun_light", type: "sun_light", name: "Sun light", position: [5.0, 8.5, 4.0], rotation: [-55, 35, 0], size: [1, 1, 1], color: "#fff6ec", intensity: 2.2, cast_shadow: true, light_role: "auto", keyframes: [], enabled: true },
     ],
     metadata: {}, guides: true, burn_in: false, speed_heatmap: false, playblast_grid: false, playblast_labels: false, playblast_resolution: "output", playblast_quality: "balanced", guide_capture_style: "auto", card_fit: "contain", card_asset: "", reference_index: 0,
     // Interactive inspection defaults to the recovered source texture (the plan's

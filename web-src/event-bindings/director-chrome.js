@@ -12,6 +12,7 @@ import { commitPendingExtractorImport, dismissPendingExtractorImport } from "../
 import { setupAxisResetButtons, setupAxisScrubbing } from "../scene/axis-scrub.js";
 import { setupViewportHudHandlers } from "../viewport/viewport-hud.js";
 import { openTimingEditor } from "../director/time-remap-ui.js";
+import { cameraToSpherical, sphericalToCamera, QUICK_CAMERA_PRESETS } from "../quick-camera.js";
 
 function bindLensCard(ui, signal) {
   const focal = ui.root.querySelector('[data-role="camera-focal"]');
@@ -39,6 +40,28 @@ function bindLensCard(ui, signal) {
   }, { signal });
   fov.addEventListener("input", () => {
     if (document.activeElement !== focal) focal.value = formatFocalLength(fov.value);
+  }, { signal });
+}
+
+function bindQuickCamera(ui, signal) {
+  for (const root of ui.root.querySelectorAll('[data-role="quick-camera"]')) bindQuickCameraRoot(ui, root, signal);
+}
+
+function bindQuickCameraRoot(ui, root, signal) {
+  root.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-camera-preset]");
+    if (!button) return;
+    const preset = QUICK_CAMERA_PRESETS[button.dataset.cameraPreset];
+    if (!preset || !ui.camera) return;
+    const next = sphericalToCamera(ui.camera, { ...cameraToSpherical(ui.camera), ...preset });
+    ui.checkpoint(`Camera preset: ${button.dataset.cameraPreset}`);
+    if (!ui.beginCameraEdit()) return;
+    ui.camera.position = [...next.position];
+    ui.camera.target = [...next.target];
+    ui.commitCameraEdit();
+    ui.finishCameraEdit();
+    ui.refreshInspector();
+    ui.render();
   }, { signal });
 }
 
@@ -330,6 +353,7 @@ function bindOutlinerBatchActions(ui, signal) {
 export function bindDirectorChrome(ui, signal) {
   bindCameraExchange(ui, signal);
   bindLensCard(ui, signal);
+  bindQuickCamera(ui, signal);
   bindPathSmoothing(ui, signal);
   bindKeySimplify(ui, signal);
   bindOutlinerSearch(ui, signal);

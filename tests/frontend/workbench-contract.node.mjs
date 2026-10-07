@@ -60,8 +60,10 @@ test("MajoorOmniCamDirector Python schema is unchanged by the workbench migratio
     "video",
     "audio",
     "scene_3d",
+    "camera_info",
     "solved_scene",
-  ], "Director inputs must not change for a frontend-only lifecycle migration");
+  ], "Director inputs must not change for a frontend-only lifecycle migration, and the LOAD3D_CAMERA " +
+     "interoperability input (docs/CAMERA_SEMANTICS_LIGHTING_IMPLEMENTATION.md PART G) is the only intentional addition");
   assert.match(source, /node_id="MajoorOmniCamDirector"/);
 });
 

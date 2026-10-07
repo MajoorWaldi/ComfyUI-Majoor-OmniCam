@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 
 import pytest
@@ -86,10 +87,10 @@ def _request(*, layers_enabled: bool = True) -> CompileRequest:
 
 def test_ltx_motion_profile_resolves_timeline():
     timeline = LTX_MOTION_PROFILE.resolve_timeline(_request())
-    # 2.0 * 24.0 = 48. LTX grid is 8n+1. 48 -> 41.
-    assert timeline.frame_count == 41
+    # 2.0 * 24.0 = 48 -> 1 + floor(48 / 8) * 8 = 49, as LTX-2.5's own workflows compute it.
+    assert timeline.frame_count == 49
     assert timeline.fps == 24.0
-    assert timeline.duration_seconds == pytest.approx(41 / 24.0)
+    assert timeline.duration_seconds == pytest.approx(49 / 24.0)
     assert timeline.frame_policy == "8n_plus_1"
 
 
@@ -101,7 +102,7 @@ def test_ltx_motion_profile_compiles_json():
     tracks = json.loads(result.tracks_json)
     assert len(tracks) == 1
     points = tracks[0]
-    assert len(points) == 41
+    assert len(points) == 49
     # Check that points are in pixel coordinates for target resolution
     # start is 0.1, 0.2. target_width=832, target_height=480
     assert points[0]["x"] == pytest.approx(0.1 * 832)
@@ -122,3 +123,16 @@ def test_ltx_motion_profile_requires_enabled_layers():
     assert any(c.id == "motion_layers" and c.state == "BLOCKED" for c in checks)
     with pytest.raises(ValueError, match="at least one enabled motion layer"):
         LTX_MOTION_PROFILE.compile(request)
+
+
+def test_ltx_motion_profile_warns_when_the_size_is_off_the_32_pixel_grid():
+    request = dataclasses.replace(_request(), target_width=840)
+    checks = {check.id: check for check in LTX_MOTION_PROFILE.preflight(request)}
+    assert checks["target_size"].state == "WARNING"
+    assert "multiples of 32" in checks["target_size"].message
+    assert {check.id: check for check in LTX_MOTION_PROFILE.preflight(_request())}["target_size"].state == "PASS"
+
+
+def test_ltx_motion_profile_says_how_to_add_a_motion_layer():
+    checks = {check.id: check for check in LTX_MOTION_PROFILE.preflight(_request(layers_enabled=False))}
+    assert "Project" in checks["motion_layers"].message

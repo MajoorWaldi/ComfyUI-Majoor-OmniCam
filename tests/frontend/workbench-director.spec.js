@@ -121,7 +121,7 @@ for (const size of [{ width: 1366, height: 768 }, { width: 980, height: 900 }]) 
   });
 }
 
-test("open, edit, close, reopen: the edit survives with no workbench mounted in between", async ({ page }) => {
+test("open, edit, close, reopen: the edit survives the trip back into the node", async ({ page }) => {
   await mount(page);
 
   await page.locator("#host-a .oc-node-shell-open").click();
@@ -137,7 +137,8 @@ test("open, edit, close, reopen: the edit survives with no workbench mounted in 
   await page.locator('.oc-workbench-backdrop[data-kind="director"] [data-workbench-act="close"]').click();
   await expect(page.locator('.oc-workbench-backdrop[data-kind="director"]')).toHaveCount(0);
 
-  // Canonical state lives on the runtime with no workbench mounted.
+  // Canonical state lives on the runtime; the editor went back inline.
+  await expect(page.locator('#host-a .majoor-omnicam[data-inline="true"]')).toHaveCount(1);
   const persisted = await page.evaluate(() => window.omnicamNodeA.__majoorOmniCamDirectorRuntime.state.cameras[0].name);
   expect(persisted).toBe("Renamed Camera");
   const widgetValue = await page.evaluate(() => {
@@ -190,7 +191,8 @@ test("only one heavy workbench exists at a time: its full-screen modal blocks re
   const reachedB = await page.locator("#host-b .oc-node-shell-open")
     .click({ timeout: 1000 }).then(() => true).catch(() => false);
   expect(reachedB).toBe(false);
-  expect(await page.evaluate(() => Boolean(window.omnicamNodeB.__majoorOmniCamDirectorRuntime?.workbench))).toBe(false);
+  // B keeps its own live inline view; only A is in the modal.
+  await expect(page.locator('#host-b .majoor-omnicam[data-inline="true"]')).toHaveCount(1);
 
   // Close A, exactly as a user must, then B opens cleanly and only one
   // backdrop ever exists.
@@ -219,18 +221,22 @@ test("the session manager still switches workbenches when opened programmaticall
   await page.waitForFunction(() => Boolean(window.omnicamNodeB.__majoorOmniCamDirectorRuntime?.workbench));
 
   await expect(page.locator('.oc-workbench-backdrop[data-kind="director"]')).toHaveCount(1);
+  // A's editor went back into its node (same instance, still live), B's is in the modal.
   const state = await page.evaluate(() => ({
-    aWorkbenchAttached: Boolean(window.omnicamNodeA.__majoorOmniCamDirectorRuntime?.workbench),
+    aInline: Boolean(window.omnicamNodeA.__majoorOmniCam?.root?.matches('#host-a [data-inline="true"]')),
     bNodeId: document.querySelector('.oc-workbench-backdrop[data-kind="director"]')?.dataset.nodeId,
   }));
-  expect(state.aWorkbenchAttached).toBe(false);
+  expect(state.aInline).toBe(true);
   expect(state.bNodeId).toBe("2");
 });
 
 test("opening and closing repeatedly leaves no growth in DOM nodes or WebGL viewport instances (migration plan Task 20)", async ({ page }) => {
   await mount(page);
+  // Both nodes show their live inline editor before anything is measured.
+  await page.waitForFunction(() => Boolean(window.omnicamNodeA.__majoorOmniCam?.webgl && window.omnicamNodeB.__majoorOmniCam?.webgl));
 
   const idleCount = await page.evaluate(() => document.querySelectorAll("*").length);
+  const idleCanvases = await page.locator("canvas").count();
 
   for (let i = 0; i < 5; i++) {
     await page.locator("#host-a .oc-node-shell-open").click();
@@ -245,7 +251,8 @@ test("opening and closing repeatedly leaves no growth in DOM nodes or WebGL view
   // canvas/media elements) never getting removed and piling up over repeated
   // open/close cycles.
   expect(settledCount).toBeLessThanOrEqual(idleCount + 5);
-  expect(await page.locator("canvas").count()).toBe(0);
+  expect(await page.locator("canvas").count()).toBe(idleCanvases);
+  expect(await page.locator(".majoor-omnicam.oc-director").count()).toBe(2);
   expect(await page.locator(".oc-workbench-backdrop").count()).toBe(0);
 });
 

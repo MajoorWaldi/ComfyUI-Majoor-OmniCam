@@ -131,11 +131,9 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   // renders once the editor is opened -- the plan's literal acceptance
   // criterion for this scenario.
   await directorHost.locator(".oc-node-shell-open").click();
-  await page.waitForFunction(
-    () => Boolean(window.omnicamDirector?.__majoorOmniCamDirectorRuntime?.workbench),
-    null,
-    { timeout: 10_000 },
-  );
+  // The node's live editor exists before the click; OPEN DIRECTOR moves it into
+  // the modal, which is what the assertions below read.
+  await page.waitForSelector(".oc-workbench-backdrop .majoor-omnicam.oc-director", { timeout: 10_000 });
 
   // 6. Verify Director receives Environment Proxy and Ground, both locked
   const directorObjects = directorWorkbench.locator('[data-role="objects"]');
