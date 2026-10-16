@@ -5,12 +5,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .camera_math import fov_to_focal_length
+from ..guides.model import CameraViewSemantic, FramingSemantic
+from .camera_math import fov_to_focal_length, rotate_quaternion
 from .projection import project_point
-from .camera_math import rotate_quaternion
 from .track import CameraState, OmniCamTrack, sample_object_world_transform
 from .validation import LIGHT_TYPES
-from ..guides.model import CameraViewSemantic, FramingSemantic
 
 SENSOR_HEIGHT_MM = 24.0
 NON_SUBJECT_TYPES = LIGHT_TYPES | {"null", "ground"}

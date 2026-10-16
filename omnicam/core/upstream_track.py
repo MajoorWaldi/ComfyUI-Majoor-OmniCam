@@ -11,8 +11,13 @@ fingerprint:
 * no upstream track                     -> the Director's own state;
 * upstream whose fingerprint was already imported -> the Director's own state,
   edits and all;
-* upstream the Director has not imported -> the upstream camera motion, kept
-  inside the Director's scene and render context.
+* upstream the Director has not imported -> the upstream camera motion,
+  retimed to the Director's frame rate, kept inside the Director's scene and
+  render context.
+
+Headless execution does not write the import marker back into the saved
+state, so it adopts the connected solve on every run; the browser stages the
+solve and records its fingerprint once seen.
 
 The third case is what makes headless execution agree with the browser: the
 frontend imports by fingerprint too, so a graph run before any UI sync still
@@ -71,6 +76,7 @@ def resolve_director_camera_track(
     upstream_track: dict[str, Any] | None,
     width: int,
     height: int,
+    fps: int,
     render_mode: str,
 ) -> dict[str, Any]:
     """The track the Director should actually execute, strictly validated."""
@@ -91,12 +97,20 @@ def resolve_director_camera_track(
         "monocular_scale": bool((upstream_metadata or {}).get("monocular_scale", True)),
     }
 
+    # Key frames are counted at the solve's rate; the Director plays at its own,
+    # so the same moments land on different frame numbers.
+    source_fps = float(upstream_track.get("fps") or fps)
+    keyframes = [
+        {**key, "frame": round(key["frame"] * fps / source_fps)} if source_fps != fps else key
+        for key in upstream_track.get("keyframes", [])
+    ]
+
     merged = {
         **local_track,
-        # Camera motion, its timing and its lens come from the solve...
-        "keyframes": upstream_track.get("keyframes", []),
-        "fps": upstream_track.get("fps", local_track.get("fps", 24)),
-        "duration_frames": upstream_track.get("duration_frames", local_track.get("duration_frames", 1)),
+        # Camera motion and its lens come from the solve, retimed to the Director's rate...
+        "keyframes": keyframes,
+        "fps": int(fps),
+        "duration_frames": local_track.get("duration_frames", 1),
         # ...while the render context stays the Director's: the extractor knows
         # the source footage resolution, not what the user is rendering.
         "width": int(width),

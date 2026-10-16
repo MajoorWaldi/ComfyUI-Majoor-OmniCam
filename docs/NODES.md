@@ -670,6 +670,9 @@ execution as TRACK (`extract_mode: "scene_reconstruct"`), ending at the
 Extractor; downstream Director / Monitor / video generation are not executed.
 The reconstructed scene returns through the Extractor's result envelope and is
 routed back into the panel for preview and Director adoption.
+**OPEN IN DIRECTOR** immediately refreshes an already-open inline or expanded
+Director editor; if its editor is closed, the adopted scene is preserved and
+shown the next time it opens.
 
 #### Result modes
 

@@ -1,4 +1,4 @@
-"""examples/sdk/run_ltx_motion_track.py: graph preparation, install checks, and
+"""examples/sdk/run_ltx_layout_to_render.py: graph preparation, install checks, and
 that its API-format export still matches the shipped UI workflow."""
 
 from __future__ import annotations
@@ -8,13 +8,11 @@ import importlib.util
 import json
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
-API = ROOT / "examples" / "sdk" / "ltx25_motion_track.api.json"
-UI = ROOT / "examples" / "workflows" / "09_ltx25_motion_track.json"
+API = ROOT / "examples" / "sdk" / "ltx25_layout_to_render.api.json"
+UI = ROOT / "examples" / "workflows" / "10_ltx25_layout_to_render.json"
 
-spec = importlib.util.spec_from_file_location("run_ltx_motion_track", ROOT / "examples" / "sdk" / "run_ltx_motion_track.py")
+spec = importlib.util.spec_from_file_location("run_ltx_layout_to_render", ROOT / "examples" / "sdk" / "run_ltx_layout_to_render.py")
 launcher = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(launcher)
 
@@ -24,7 +22,7 @@ def _graph() -> dict:
 
 
 def _args(**overrides) -> argparse.Namespace:
-    values = {"prompt": "A test shot.", "scene": None, "seed": None, "tracks_only": False}
+    values = {"prompt": "A test shot.", "seed": None}
     values.update(overrides)
     return argparse.Namespace(**values)
 
@@ -32,55 +30,41 @@ def _args(**overrides) -> argparse.Namespace:
 def test_the_api_export_is_the_shipped_example():
     graph = _graph()
     ui = json.loads(UI.read_text(encoding="utf-8"))
+    nodes = {node["id"]: node for node in ui["nodes"]}
+    assert graph[launcher.POSITIVE_PROMPT]["inputs"]["value"] == nodes[5508]["widgets_values"][0]
+    assert graph[launcher.LOOK_IMAGE]["class_type"] == "LoadImage"
+    assert graph[launcher.LOOK_IMAGE]["inputs"]["image"] == nodes[9009]["widgets_values"][0]
+    assert graph[launcher.LAYOUT_VIDEO]["class_type"] == "LoadVideo"
+    assert graph[launcher.LAYOUT_VIDEO]["inputs"]["file"] == nodes[9201]["widgets_values"][0]
+    assert graph[launcher.VIDEO_OUT]["class_type"] == "SaveVideo"
+    for node_id in launcher.NOISE_SEEDS:
+        assert graph[node_id]["class_type"] == "RandomNoise"
     director = next(node for node in ui["nodes"] if node["type"] == "MajoorOmniCamDirector")
-    assert graph[launcher.DIRECTOR]["inputs"]["state_json"] == director["widgets_values"][0]
-    assert graph[launcher.MONITOR]["inputs"]["target_profile"] == "ltx25_motion_track"
-    assert graph[launcher.LOAD_IMAGE]["class_type"] == "LoadImage"
-    assert graph[launcher.POSITIVE_PROMPT]["class_type"] == "PrimitiveStringMultiline"
-    assert graph[launcher.NOISE]["class_type"] == "RandomNoise"
-    assert graph[launcher.LATENT_MULTIPLE]["class_type"] == "ComfyMathExpression"
-    for node_id in (launcher.VIDEO_OUT, launcher.TRACKS_OUT):
-        assert graph[node_id]["class_type"] == "SaveVideo"
-    # Monitor.tracks_json feeds LTXVDrawTracks, inside the Preprocess subgraph.
-    draw = next(node for node in graph.values() if node["class_type"] == "LTXVDrawTracks")
-    assert draw["inputs"]["tracks"] == [launcher.MONITOR, 5]
+    assert graph["9100"]["inputs"]["state_json"] == director["widgets_values"][0]
+    assert graph["9100"]["inputs"]["video"] == [launcher.LAYOUT_VIDEO, 0]
+    assert graph["9101"]["inputs"]["target_profile"] == "external_reference_video"
 
 
-def test_prepare_graph_applies_prompt_seed_and_scene(tmp_path: Path):
-    scene = tmp_path / "scene.json"
-    scene.write_text(json.dumps({"cameras": [{"id": "camera_1"}], "fps": 24}), encoding="utf-8")
-    graph, outputs = launcher.prepare_graph(_graph(), _args(seed=7, scene=scene))
+def test_prepare_graph_applies_prompt_and_seed():
+    graph = launcher.prepare_graph(_graph(), _args(seed=7))
     assert graph[launcher.POSITIVE_PROMPT]["inputs"]["value"] == "A test shot."
-    assert graph[launcher.NOISE]["inputs"]["noise_seed"] == 7
-    assert json.loads(graph[launcher.DIRECTOR]["inputs"]["state_json"])["cameras"][0]["id"] == "camera_1"
-    assert outputs == [launcher.VIDEO_OUT, launcher.TRACKS_OUT]
+    assert {graph[node_id]["inputs"]["noise_seed"] for node_id in launcher.NOISE_SEEDS} == {7}
 
 
-def test_tracks_only_runs_no_model_loader():
-    graph, outputs = launcher.prepare_graph(_graph(), _args(tracks_only=True))
-    assert outputs == [launcher.TRACKS_OUT]
-    assert launcher.VIDEO_OUT not in graph
-    running = launcher.nodes_that_run(graph, outputs)
-    loaders = {graph[node]["class_type"] for node in running if "Loader" in graph[node]["class_type"]}
-    assert loaders == set()
-    assert {graph[node]["class_type"] for node in running} >= {"LTXVDrawTracks", "MajoorOmniCamMonitor", "MajoorOmniCamDirector"}
+def test_the_seed_defaults_to_the_workflows():
+    before = _graph()
+    after = launcher.prepare_graph(_graph(), _args())
+    for node_id in launcher.NOISE_SEEDS:
+        assert after[node_id]["inputs"]["noise_seed"] == before[node_id]["inputs"]["noise_seed"]
 
 
-def test_the_full_run_needs_the_ltx_weights():
-    graph, outputs = launcher.prepare_graph(_graph(), _args())
-    running = launcher.nodes_that_run(graph, outputs)
+def test_the_render_runs_the_layout_to_render_models():
+    graph = _graph()
+    running = launcher.nodes_that_run(graph, [launcher.VIDEO_OUT])
+    assert {graph[node]["class_type"] for node in running} >= {"MajoorOmniCamMonitor", "LTXAddVideoICLoRAGuide", "LTXVLatentUpsampler"}
     names = {value for node in running for value in graph[node]["inputs"].values() if isinstance(value, str) and value.endswith(".safetensors")}
-    assert names >= {"ltx-2.5-22b-distilled-transformer-bf16.safetensors", "ltx-2.3-22b-ic-lora-motion-track-control-ref0.5.safetensors"}
-    assert names <= set(launcher.MODEL_LINKS) | {"ltx-2.5-22b-distilled-transformer-bf16.safetensors"}
-
-
-def test_director_state_reads_a_saved_workflow_or_a_state(tmp_path: Path):
-    state = launcher.director_state(UI)
-    assert json.loads(state)["motion_layers"]
-    bad = tmp_path / "bad.json"
-    bad.write_text(json.dumps({"nodes": []}), encoding="utf-8")
-    with pytest.raises(launcher.SetupError, match="no OmniCam Director"):
-        launcher.director_state(bad)
+    assert "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors" in names
+    assert names <= set(launcher.MODEL_LINKS)
 
 
 def test_combo_options_reads_both_schema_styles():

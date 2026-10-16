@@ -108,7 +108,7 @@ def import_load3d_camera(
     # stable one from the payload itself: the same camera pose across reruns
     # must not keep re-clobbering local Director edits, but a real change in
     # the upstream camera must be adopted (see upstream_track.should_adopt_upstream).
-    fingerprint = hashlib.sha1(json.dumps(camera_payload, sort_keys=True).encode("utf-8")).hexdigest()
+    fingerprint = hashlib.sha1(json.dumps(camera_payload, sort_keys=True).encode("utf-8"), usedforsecurity=False).hexdigest()
     return OmniCamTrack.from_dict({
         "fps": fps,
         "duration_frames": max(1, duration_frames),

@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import Any, Literal, TypedDict
 
+from ..guides.model import LightingSemantic
 from .camera_math import camera_basis, rotate_quaternion
 from .track import CameraState, sample_object_world_transform
 from .validation import LIGHT_ROLES, LIGHT_TYPES
-from ..guides.model import LightingSemantic
+
+
+class _LightCandidate(TypedDict):
+    object: dict[str, Any]
+    direction: str
+    height: str
+    color: str
+    intensity: float
+    role: str
 
 
 def _height(value: float) -> str:
@@ -65,7 +74,7 @@ def analyze_lighting(objects: list[dict[str, Any]], camera: CameraState, *, fram
     lights = [obj for obj in objects if isinstance(obj, dict) and obj.get("enabled", True) and obj.get("type") in LIGHT_TYPES]
     if not lights:
         return None
-    candidates = []
+    candidates: list[_LightCandidate] = []
     for obj in lights:
         transform = sample_object_world_transform(objects, obj, frame)
         vector = _light_vector(obj, transform, subject_center)
@@ -92,7 +101,7 @@ def analyze_lighting(objects: list[dict[str, Any]], camera: CameraState, *, fram
         if rear:
             explicit["rim"] = max(rear, key=lambda item: item["intensity"])
 
-    def value(role: str, field: str) -> str | None:
+    def value(role: str, field: Literal["direction", "height", "color"]) -> str | None:
         item = explicit.get(role)
         return item[field] if item else None
 

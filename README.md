@@ -229,14 +229,14 @@ Direct MiniMax starter: [`07_minimax_h3_native_global_example.json`](examples/wo
 
 **LTX-2.5:** [`09_ltx25_motion_track.json`](examples/workflows/09_ltx25_motion_track.json)
 drives Lightricks' Motion Track IC-LoRA from the Director's camera and motion
-layers; versions, weights and limits are in [docs/LTX.md](docs/LTX.md). To run
-it from a script, without opening the Director, use the Comfy SDK launcher in
-[`examples/sdk/`](examples/sdk/README.md).
+layers; versions, weights and limits are in [docs/LTX.md](docs/LTX.md).
 
 **LTX-2.5 Layout to Render:** [`10_ltx25_layout_to_render.json`](examples/workflows/10_ltx25_layout_to_render.json)
 uses an OmniCam playblast plus a separate art-directed reference image through
 the Monitor's generic video profile. It does not require motion layers. See
-[the tested setup and bundled assets](docs/LTX.md#layout-to-render).
+[the tested setup and bundled assets](docs/LTX.md#layout-to-render). To run it from a
+script, without opening ComfyUI, use the Comfy SDK launcher in
+[`examples/sdk/`](examples/sdk/README.md).
 
 ## What OmniCam will refuse to do
 
@@ -282,7 +282,7 @@ These are preflight results, not bugs:
 - [Security](docs/SECURITY.md) — managed files, upload limits, request boundaries.
 - [Agent Integration](docs/AGENT_INTEGRATION.md) — headless MCP vs. live Director Agent control.
 - [LTX-2.5](docs/LTX.md) — version matrix, weights, length/size rules, limits and licences.
-- [Comfy SDK launcher](examples/sdk/README.md) — run the LTX workflow from a script.
+- [Comfy SDK launcher](examples/sdk/README.md) — run the LTX-2.5 Layout to Render workflow from a script.
 
 ## License
 

@@ -1,12 +1,16 @@
-# Run the LTX-2.5 workflow with the Comfy SDK
+# Run the LTX-2.5 Layout to Render workflow with the Comfy SDK
 
-[`run_ltx_motion_track.py`](run_ltx_motion_track.py) runs
-[`09_ltx25_motion_track.json`](../workflows/09_ltx25_motion_track.json) from a
-script through the official [Comfy SDK](https://docs.comfy.org/development/api-development/sdks):
-it loads the API-format export [`ltx25_motion_track.api.json`](ltx25_motion_track.api.json),
-sets your image, prompt, seed and (optionally) a saved Director scene, submits
-the job, prints its progress and downloads the videos. No Director UI is needed
-to replay a saved scene.
+[`run_ltx_layout_to_render.py`](run_ltx_layout_to_render.py) runs
+[`10_ltx25_layout_to_render.json`](../workflows/10_ltx25_layout_to_render.json)
+from a script through the official [Comfy SDK](https://docs.comfy.org/development/api-development/sdks):
+it loads the API-format export [`ltx25_layout_to_render.api.json`](ltx25_layout_to_render.api.json),
+sets your layout video, look still, prompt and seed, submits the job, prints
+its progress and downloads the render.
+
+The **layout video** is an OmniCam playblast: it sets camera and composition.
+The **look still** sets the appearance. Record the playblast in the OmniCam
+Director (see [docs/LTX.md](../../docs/LTX.md#layout-to-render)) and run any
+number of looks and seeds against it from the script.
 
 ## Setup
 
@@ -17,7 +21,7 @@ to replay a saved scene.
 2. In a separate Python 3.10+ environment:
 
    ```bash
-   pip install -r examples/sdk/requirements.txt
+   pip3 install -r examples/sdk/requirements.txt
    comfy-api-proxy run
    ```
 
@@ -29,20 +33,20 @@ to replay a saved scene.
 ## Run
 
 ```bash
-python examples/sdk/run_ltx_motion_track.py \
-  --image start.png \
-  --prompt "A lighthouse keeper walks along the jetty at dusk." \
+python examples/sdk/run_ltx_layout_to_render.py \
+  --layout layout.mp4 \
+  --look look.png \
+  --prompt "A tall freestanding metallic monolith floating in deep space." \
   --out renders/
 ```
 
 | Option | Meaning |
 |---|---|
-| `--image` | Start image: the video's first frame and the Director's card. |
-| `--prompt` | Positive prompt; OmniCam appends the camera wording. |
-| `--scene` | A saved workflow `.json` containing an OmniCam Director, or a Director `state_json` file. Default: the example's scene. |
-| `--seed` | Noise seed. |
-| `--out` | Folder for the downloaded videos (`output_*.mp4`, `tracks_*.mp4`). |
-| `--tracks-only` | Render only the motion-track guide — no LTX weights needed. |
+| `--layout` | Layout video: an OmniCam playblast that sets camera and composition. |
+| `--look` | Look still: the appearance reference. |
+| `--prompt` | Positive prompt. |
+| `--seed` | Noise seed for both samplers. Default: the workflow's. |
+| `--out` | Folder for the downloaded video. |
 | `--base-url` | Comfy API v2 URL (default `COMFY_BASE_URL` or `http://127.0.0.1:8189`). |
 | `--comfyui` | ComfyUI URL, used to check nodes and models before submitting. |
 
@@ -51,13 +55,8 @@ the run needs is installed, and that every model file it loads is present; each
 failure names the fix (node pack to install, weight file and download page). A
 failed job reports the node and ComfyUI's message.
 
-`--tracks-only` is the quick install check: Director → Monitor →
-`LTXVDrawTracks` → video, on CPU in seconds. It uses a resize multiple of 32
-because the IC-LoRA's own downscale factor is only known once its weights load;
-the full run uses the factor the LoRA declares.
-
 ## Updating the API export
 
-`ltx25_motion_track.api.json` is ComfyUI's *Export (API)* of workflow 9. Re-export
-it after editing that workflow; `tests/test_sdk_launcher.py` fails if the two
-drift apart.
+`ltx25_layout_to_render.api.json` is ComfyUI's *Export (API)* of workflow 10.
+Re-export it after editing that workflow; `tests/test_sdk_launcher.py` fails if
+the two drift apart.

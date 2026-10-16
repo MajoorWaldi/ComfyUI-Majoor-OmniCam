@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+from ..extractor.fingerprint import FINGERPRINT_KEY
 from .pipeline import run_reconstruction_pipeline
 from .providers import get_provider
 from .settings import (
@@ -273,6 +274,10 @@ def execute_reconstruction(
             f"OmniCam Reconstruction [depth_mesh]: {prov_name} "
             f"({tri_count:,} triangles, camera FOV {fov_x:.1f}°)."
         )
+
+    # The Director tells solves apart by this key in the camera track's metadata.
+    scene_camera = next(camera for camera in output.motion_scene["cameras"] if camera["id"] == output.motion_scene["playblast_camera_id"])
+    scene_camera["track"]["metadata"][FINGERPRINT_KEY] = output.fingerprint
 
     envelope = {
         "kind": "omnicam_extractor_result_v2",

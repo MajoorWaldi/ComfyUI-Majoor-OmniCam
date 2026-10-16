@@ -63,6 +63,7 @@ def compile_director_motion_scene(
         upstream_track=upstream_track,
         width=int(width),
         height=int(height),
+        fps=int(fps),
         render_mode=str(render_mode),
     )
     effective_track.update(

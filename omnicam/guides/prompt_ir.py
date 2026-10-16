@@ -13,11 +13,18 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ..core.motion_scene import CameraSceneItem, CutEvent, MotionKey, MotionScene
-from ..guides.analysis import camera_phases_from_track
 from ..core.camera_semantics import analyze_track_endpoints
 from ..core.lighting_semantics import analyze_lighting
-from ..guides.model import CameraPhase, CameraViewSemantic, LightingSemantic, ReferenceSpec, ShotIntent, parse_reference_plan
+from ..core.motion_scene import CameraSceneItem, CutEvent, MotionKey, MotionScene
+from ..guides.analysis import camera_phases_from_track
+from ..guides.model import (
+    CameraPhase,
+    CameraViewSemantic,
+    LightingSemantic,
+    ReferenceSpec,
+    ShotIntent,
+    parse_reference_plan,
+)
 
 if TYPE_CHECKING:
     from ..profiles.base import CompileRequest

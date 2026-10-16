@@ -268,6 +268,23 @@ def test_director_adopts_an_unimported_extractor_scene():
     assert (track["width"], track["height"]) == (1280, 720)
 
 
+def test_director_retimes_a_solve_made_at_another_frame_rate():
+    scene = _extractor_scene()
+    track = scene["cameras"][0]["track"]
+    track["fps"] = 30
+    track["keyframes"][1]["frame"] = 75
+    adopted = _run_with_upstream({"duration_frames": 48, "fps": 24}, scene)
+    assert adopted["fps"] == 24
+    assert [key["frame"] for key in adopted["keyframes"]] == [0, 60]
+
+
+def test_director_rejects_a_solved_scene_without_its_playblast_camera():
+    scene = _extractor_scene()
+    scene["playblast_camera_id"] = "missing"
+    with pytest.raises(ValueError, match="no camera 'missing'"):
+        _run_with_upstream({}, scene)
+
+
 def test_director_keeps_local_edits_once_the_fingerprint_is_imported():
     state = {
         "duration_frames": 48, "fps": 24,

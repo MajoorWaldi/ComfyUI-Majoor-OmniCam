@@ -40,7 +40,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 IO.Custom("LOAD3D_CAMERA").Input(
                     "camera_info",
                     optional=True,
-                    tooltip="Optional Load3D camera metadata imported into the canonical Director camera track.",
+                    tooltip="Optional Load3D camera metadata imported into the canonical Director camera track. Ignored when solved_scene is connected.",
                 ),
                 OMNICAM_MOTION_SCENE.Input(
                     "solved_scene",
@@ -101,10 +101,11 @@ class MajoorOmniCamDirector(IO.ComfyNode):
         if isinstance(solved_scene, dict):
             upstream_scene = MotionScene.from_dict(solved_scene)
             upstream_camera = next(
-                camera
-                for camera in upstream_scene.cameras
-                if camera.id == upstream_scene.playblast_camera_id
+                (camera for camera in upstream_scene.cameras if camera.id == upstream_scene.playblast_camera_id),
+                None,
             )
+            if upstream_camera is None:
+                raise ValueError(f"solved_scene has no camera '{upstream_scene.playblast_camera_id}' to import")
             upstream_track = upstream_camera.track.to_dict()
 
         # A connected Extractor is authoritative once per solve, never on every

@@ -1,13 +1,13 @@
-"""Run the OmniCam -> LTX-2.5 Motion Track workflow through the official Comfy SDK.
+"""Run the OmniCam LTX-2.5 Layout to Render workflow through the official Comfy SDK.
 
-    python examples/sdk/run_ltx_motion_track.py --image start.png \
-        --prompt "A lighthouse keeper walks along the jetty at dusk." --out renders/
+    python examples/sdk/run_ltx_layout_to_render.py --layout layout.mp4 --look look.png \
+        --prompt "A tall metallic monolith floating in deep space." --out renders/
 
-The workflow is examples/sdk/ltx25_motion_track.api.json, the API-format export
-of examples/workflows/09_ltx25_motion_track.json. The Comfy SDK submits it to a
-self-hosted ComfyUI through comfy-api-proxy, follows the job and downloads the
-videos. --tracks-only runs just the OmniCam -> LTXVDrawTracks part, which needs
-no LTX weights, to check an install end to end. See examples/sdk/README.md.
+The workflow is examples/sdk/ltx25_layout_to_render.api.json, the API-format
+export of examples/workflows/10_ltx25_layout_to_render.json. The layout video
+(an OmniCam playblast) drives camera and composition, the look still drives
+appearance. The Comfy SDK submits the job to a self-hosted ComfyUI through
+comfy-api-proxy, follows it and downloads the render. See examples/sdk/README.md.
 """
 
 from __future__ import annotations
@@ -21,18 +21,14 @@ import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-WORKFLOW = HERE / "ltx25_motion_track.api.json"
+WORKFLOW = HERE / "ltx25_layout_to_render.api.json"
 
-# Node ids in ltx25_motion_track.api.json (subgraph nodes are "<subgraph>:<node>").
-LOAD_IMAGE = "2004"
+# Node ids in ltx25_layout_to_render.api.json (subgraph nodes are "<subgraph>:<node>").
+LOOK_IMAGE = "9009"
+LAYOUT_VIDEO = "9201"
 POSITIVE_PROMPT = "5508"
-DIRECTOR = "9100"
-MONITOR = "9101"
-NOISE = "5516:4832"
-LATENT_MULTIPLE = "5014:5563"
+NOISE_SEEDS = ("5516:4832", "9034:9031")
 VIDEO_OUT = "4852"
-TRACKS_OUT = "9006"
-PROMPT_PREVIEW = "5544"
 
 NODE_PACKS = {
     "MajoorOmniCam": "ComfyUI-Majoor-OmniCam",
@@ -42,9 +38,9 @@ MODEL_LINKS = {
     "ltx-2.5-22b-distilled-transformer-bf16.safetensors": "https://huggingface.co/Lightricks/LTX-2.5",
     "ltx-2.5-video-vae-bf16.safetensors": "https://huggingface.co/Lightricks/LTX-2.5",
     "ltx-2.5-audio-vae-bf16.safetensors": "https://huggingface.co/Lightricks/LTX-2.5",
+    "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors": "https://huggingface.co/Lightricks/LTX-2.5",
     "gemma4-12b-with-proj-ltx-2.5-bf16.safetensors": "https://huggingface.co/Lightricks/LTX-2.5",
-    "gemma4_e2b_it_bf16.safetensors": "https://huggingface.co/Comfy-Org/gemma-4",
-    "ltx-2.3-22b-ic-lora-motion-track-control-ref0.5.safetensors": "https://huggingface.co/Lightricks/LTX-2.3-22b-IC-LoRA-Motion-Track-Control",
+    "ltx-2.5-22b-ic-lora-layout-to-render-1.0.safetensors": "https://huggingface.co/Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render",
 }
 
 
@@ -54,51 +50,29 @@ class SetupError(Exception):
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--image", type=Path, required=True, help="Start image (the first frame and the Director's card).")
-    parser.add_argument("--prompt", default="", help="Positive prompt; OmniCam appends the camera wording.")
-    parser.add_argument("--scene", type=Path, help="Director scene: a saved workflow .json with an OmniCam Director, or a Director state_json file.")
+    parser.add_argument("--layout", type=Path, required=True, help="Layout video: an OmniCam playblast that sets camera and composition.")
+    parser.add_argument("--look", type=Path, required=True, help="Look still: the appearance reference.")
+    parser.add_argument("--prompt", default="", help="Positive prompt.")
     parser.add_argument("--seed", type=int, help="Noise seed (default: the workflow's).")
-    parser.add_argument("--out", type=Path, default=Path("omnicam_renders"), help="Folder for the downloaded videos.")
-    parser.add_argument("--tracks-only", action="store_true", help="Only render the motion-track guide; needs no LTX weights.")
+    parser.add_argument("--out", type=Path, default=Path("omnicam_renders"), help="Folder for the downloaded video.")
     parser.add_argument("--base-url", default=os.environ.get("COMFY_BASE_URL", "http://127.0.0.1:8189"), help="comfy-api-proxy URL (Comfy API v2).")
     parser.add_argument("--comfyui", default="http://127.0.0.1:8188", help="ComfyUI URL, used to check nodes and models before submitting.")
     parser.add_argument("--timeout", type=float, default=3600.0, help="Seconds to wait for the job.")
     return parser.parse_args(argv)
 
 
-def director_state(path: Path) -> str:
-    """The Director state_json in `path`: a saved UI workflow or the state itself."""
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if isinstance(data, dict) and isinstance(data.get("nodes"), list):
-        for node in data["nodes"]:
-            if node.get("type") == "MajoorOmniCamDirector":
-                return node["widgets_values"][0]
-        raise SetupError(f"{path} has no OmniCam Director node")
-    if isinstance(data, dict) and isinstance(data.get("cameras"), list):
-        return json.dumps(data)
-    raise SetupError(f"{path} is neither a workflow with a Director nor a Director state")
-
-
-def prepare_graph(graph: dict, args: argparse.Namespace) -> tuple[dict, list[str]]:
-    """Apply the user's inputs; returns the graph and the output nodes to download."""
+def prepare_graph(graph: dict, args: argparse.Namespace) -> dict:
+    """Apply the user's prompt and seed."""
     graph[POSITIVE_PROMPT]["inputs"]["value"] = args.prompt
-    if args.scene:
-        graph[DIRECTOR]["inputs"]["state_json"] = director_state(args.scene)
     if args.seed is not None:
-        graph[NOISE]["inputs"]["noise_seed"] = args.seed
-    if not args.tracks_only:
-        return graph, [VIDEO_OUT, TRACKS_OUT]
-    # Without the model the IC-LoRA loader cannot report its reference downscale
-    # factor; 1 keeps the template's own resize math (a multiple of 32).
-    graph[LATENT_MULTIPLE]["inputs"]["values.a"] = 1.0
-    for node_id in (VIDEO_OUT, PROMPT_PREVIEW):
-        graph.pop(node_id, None)
-    return graph, [TRACKS_OUT]
+        for node_id in NOISE_SEEDS:
+            graph[node_id]["inputs"]["noise_seed"] = args.seed
+    return graph
 
 
 def nodes_that_run(graph: dict, outputs: list[str]) -> set[str]:
-    """Every node an output depends on, plus the outputs (and the Monitor, an output node)."""
-    pending = [*outputs, MONITOR]
+    """Every node an output depends on, plus the outputs."""
+    pending = list(outputs)
     seen: set[str] = set()
     while pending:
         node_id = pending.pop()
@@ -125,7 +99,7 @@ def combo_options(spec) -> list | None:
 def check_install(comfyui: str, graph: dict, running: set[str]) -> None:
     """Fail early, with the fix, on a missing node pack or model file."""
     try:
-        with urllib.request.urlopen(f"{comfyui.rstrip('/')}/object_info", timeout=30) as response:
+        with urllib.request.urlopen(f"{comfyui.rstrip('/')}/object_info", timeout=30) as response:  # noqa: S310 - operator-supplied ComfyUI URL
             info = json.load(response)
     except (urllib.error.URLError, OSError) as error:
         raise SetupError(f"ComfyUI is not reachable at {comfyui} ({error}). Start it first.") from error
@@ -145,13 +119,15 @@ def check_install(comfyui: str, graph: dict, running: set[str]) -> None:
                 missing_models.append(value)
     if missing_models:
         lines = [f"  {name}  <- {MODEL_LINKS.get(name, 'see docs/LTX.md')}" for name in sorted(set(missing_models))]
-        raise SetupError("Missing model files (see docs/LTX.md for folders):\n" + "\n".join(lines) + "\nOr run with --tracks-only.")
+        raise SetupError("Missing model files (see docs/LTX.md for folders):\n" + "\n".join(lines))
 
 
 def run(args: argparse.Namespace) -> list[Path]:
-    if not args.image.is_file():
-        raise SetupError(f"Start image not found: {args.image}")
-    graph, outputs = prepare_graph(json.loads(WORKFLOW.read_text(encoding="utf-8")), args)
+    for label, path in (("Layout video", args.layout), ("Look still", args.look)):
+        if not path.is_file():
+            raise SetupError(f"{label} not found: {path}")
+    graph = prepare_graph(json.loads(WORKFLOW.read_text(encoding="utf-8")), args)
+    outputs = [VIDEO_OUT]
     check_install(args.comfyui, graph, nodes_that_run(graph, outputs))
 
     # The SDK reads its target from the environment; pin it to the local proxy
@@ -166,7 +142,8 @@ def run(args: argparse.Namespace) -> list[Path]:
     try:
         with Comfy() as client:
             workflow = client.workflows.from_json(graph)
-            workflow.set_input(LOAD_IMAGE, "image", client.assets.from_file(args.image))
+            workflow.set_input(LOOK_IMAGE, "image", client.assets.from_file(args.look))
+            workflow.set_input(LAYOUT_VIDEO, "file", client.assets.from_file(args.layout))
             job = client.submit(workflow)
             print(f"Submitted job {job.id} to {args.base_url}")
             for event in job.events():

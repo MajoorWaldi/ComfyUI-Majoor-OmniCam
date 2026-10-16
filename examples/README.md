@@ -58,7 +58,7 @@ the length on the downstream node.
 official template to build on. It is a `screen_tracks` profile, so workflow 2
 is the wiring: swap the profile and connect `tracks_json` to that node's
 `tracks` input instead. LTX-2.5 versions, weights and limits are in
-[docs/LTX.md](../docs/LTX.md); running workflow 9 from a script is in
+[docs/LTX.md](../docs/LTX.md); running workflow 10 from a script is in
 [sdk/README.md](sdk/README.md).
 
 ### These are checked
