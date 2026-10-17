@@ -68,8 +68,10 @@ test("double-clicking the rendered path inserts a new camera key there, one undo
 
   const canvas = page.locator(".viewport-wrap > canvas");
   const cbox = await canvas.boundingBox();
-  const cssX = cbox.x + target.fracX * cbox.width;
-  const cssY = cbox.y + target.fracY * cbox.height;
+  // dblclick uses integer MouseEvent coordinates, unlike pointerdown. Round
+  // before dispatch so truncation cannot move its ray off the thin path tube.
+  const cssX = Math.round(cbox.x + target.fracX * cbox.width);
+  const cssY = Math.round(cbox.y + target.fracY * cbox.height);
   await page.mouse.dblclick(cssX, cssY);
 
   const after = await page.evaluate(() => {

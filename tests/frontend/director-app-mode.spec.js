@@ -2,7 +2,13 @@ import { expect, test } from "@playwright/test";
 
 test("App host displays the same Director and returns its state to the graph", async ({ page }) => {
   await page.goto("/tests/frontend/director-mount.html");
-  await expect(page.locator("#status")).toHaveText("ready");
+  await page.waitForFunction(
+    () => document.querySelector("#status")?.textContent !== "loading",
+    null,
+    { timeout: 30000 },
+  );
+  const mountResult = await page.evaluate(() => window.omnicamMount);
+  expect(await page.locator("#status").textContent(), mountResult?.error ?? "no error").toBe("ready");
   const initial = await page.evaluate(() => {
     const runtime = window.omnicamNode.__majoorOmniCamDirectorRuntime;
     runtime.inlineView.collapse();
