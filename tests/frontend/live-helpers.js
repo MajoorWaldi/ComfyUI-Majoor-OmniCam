@@ -4,7 +4,11 @@ export async function waitForComfyCanvas(page) {
   await page.waitForFunction(() => {
     const app = window.comfyAPI?.app?.app;
     const canvas = app?.canvas?.canvas;
-    return app?.isGraphReady && canvas?.isConnected && canvas.getBoundingClientRect().width > 0;
+    // GraphCanvas publishes window.app after registering the canvas, then
+    // clears the workspace spinner after restoring the saved workflow/tabs.
+    // isGraphReady alone becomes true before either step has finished.
+    return window.app === app && app?.extensionManager?.spinner === false
+      && app.isGraphReady && canvas?.isConnected && canvas.getBoundingClientRect().width > 0;
   }, null, {timeout: 30000});
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
