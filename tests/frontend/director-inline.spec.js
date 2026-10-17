@@ -253,8 +253,11 @@ test("REC on a node retired to its card brings the live editor back first", asyn
   await page.evaluate(() => window.omnicamNodeA.__majoorOmniCamDirectorRuntime.inlineView.hide());
   await expect(page.locator("#host-a .oc-director-node")).toHaveAttribute("data-live", "false");
   await stubRecorder(page, { outcome: { ok: true, message: "Playblast ready: stub.webm" } });
-  await page.locator("#host-a .oc-node-shell-record").click();
+  const record = page.locator("#host-a .oc-node-shell-record");
+  await record.click();
   await expect(page.locator("#host-a .oc-director-node")).toHaveAttribute("data-live", "true");
+  // Restoring the editor also waits for WebGL before recording can finish.
+  await expect(record).toBeEnabled({ timeout: 20_000 });
   await expect(page.locator("#host-a .oc-node-shell-status")).toHaveText("Playblast ready: stub.webm");
   expect(await page.evaluate(() => window.__recorderCalls.length)).toBe(1);
   expect(await page.locator(".oc-workbench-backdrop").count()).toBe(0);
