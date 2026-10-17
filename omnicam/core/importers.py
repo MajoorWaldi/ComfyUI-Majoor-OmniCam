@@ -10,6 +10,8 @@ this module keeps the canonical conversion pure and testable.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from dataclasses import asdict
 from typing import Any
@@ -75,6 +77,53 @@ def import_blender_camera(payload: dict[str, Any], fps: int = 24) -> OmniCamTrac
 def import_track_json(payload: dict[str, Any]) -> OmniCamTrack:
     """Round-trip import of a canonical MAJOOR_OMNICAM_TRACK document."""
     return OmniCamTrack.from_dict(payload)
+
+
+def _load3d_vec3(value: Any) -> list[float] | None:
+    """LOAD3D_CAMERA carries position/target as {"x", "y", "z"}, not [x, y, z]."""
+    if isinstance(value, dict) and {"x", "y", "z"} <= value.keys():
+        return [value["x"], value["y"], value["z"]]
+    if isinstance(value, (list, tuple)) and len(value) == 3:
+        return list(value)
+    return None
+
+
+def import_load3d_camera(
+    camera_info: dict[str, Any], *, width: int, height: int, fps: int = 24, duration_frames: int = 1,
+) -> OmniCamTrack:
+    """Import a ComfyUI Load3D camera without introducing a second camera model."""
+    if not isinstance(camera_info, dict):
+        raise TypeError("camera_info must be a dict")
+    camera_payload = {
+        "position": _load3d_vec3(camera_info.get("position")),
+        "target": _load3d_vec3(camera_info.get("target")),
+        "fov": camera_info.get("fov", 35.0),
+        "camera_type": camera_info.get("cameraType", camera_info.get("camera_type", "perspective")),
+        "zoom": camera_info.get("zoom", 1.0),
+        "near": camera_info.get("near", 0.01),
+        "far": camera_info.get("far", 10000.0),
+    }
+    state = CameraState.from_dict(camera_payload)
+    # The Load3D viewport has no extractor-issued solve identity, so derive a
+    # stable one from the payload itself: the same camera pose across reruns
+    # must not keep re-clobbering local Director edits, but a real change in
+    # the upstream camera must be adopted (see upstream_track.should_adopt_upstream).
+    fingerprint = hashlib.sha1(json.dumps(camera_payload, sort_keys=True).encode("utf-8"), usedforsecurity=False).hexdigest()
+    return OmniCamTrack.from_dict({
+        "fps": fps,
+        "duration_frames": max(1, duration_frames),
+        "width": width,
+        "height": height,
+        "render_mode": "omni_ref",
+        "keyframes": [{"frame": 0, "camera": asdict(state), "interpolation": "linear"}],
+        "objects": [],
+        "metadata": {
+            "source": "load3d_camera",
+            "source_aspect": camera_info.get("aspect"),
+            "source_quaternion": camera_info.get("quaternion"),
+            "extractor_fingerprint": f"load3d:{fingerprint}",
+        },
+    })
 
 
 def stabilize_track(track: OmniCamTrack, strength: float = 0.5) -> OmniCamTrack:

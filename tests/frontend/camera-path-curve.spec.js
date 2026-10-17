@@ -108,3 +108,38 @@ test("Handle Type: Corner freezes the tangents and undo restores the smooth path
   }, frame);
   expect(reverted).not.toBe("corner");
 });
+
+
+test("selected waypoint keeps edit handles clear and restores live guides on deselection", async ({ page }) => {
+  await mount(page);
+  await drawPath(page);
+  const result = await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    const key = ui.activeCameraTrack().keyframes[0];
+    ui.state.view_mode = "orbit";
+    ui.selectKeyframe(key);
+    ui.setFrame(key.frame);
+    ui.render();
+    const marker = ui.webgl.path.children.find(c => c.userData.omnicamPathKey?.frame === key.frame);
+    const selected = {
+      radius: marker.geometry.parameters.radius,
+      handles: ui.webgl.path.children.filter(c => c.userData.omnicamCurveHandle).length,
+      gates: ui.webgl.path.children.filter(c => c.isMesh && c.userData.omnicamWidget === "gizmo" && !c.userData.omnicamCurveHandle).length,
+      live: ui.webgl.liveCameras.children.filter(c => c.userData.omnicamWidget === "gizmo").length,
+    };
+    ui.selectedKeyFrame = null;
+    ui.selectedKeyFrames?.clear();
+    ui.render();
+    return { ...selected, restoredLive: ui.webgl.liveCameras.children.filter(c => c.userData.omnicamWidget === "gizmo").length };
+  });
+  expect(result.radius).toBeLessThan(0.1);
+  expect(result.handles).toBe(2);
+  expect(result.gates).toBe(0);
+  expect(result.restoredLive).toBeGreaterThan(result.live);
+  await page.evaluate(() => {
+    const ui = window.omnicamNode.__majoorOmniCam;
+    ui.selectKeyframe(ui.activeCameraTrack().keyframes[0]);
+    ui.render();
+  });
+  await page.locator(".viewport-wrap").screenshot({ path: test.info().outputPath("selected-key.png") });
+});

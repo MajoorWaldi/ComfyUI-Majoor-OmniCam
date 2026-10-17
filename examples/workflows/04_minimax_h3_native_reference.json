@@ -1421,12 +1421,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "Bold comic-book ink style, heavy linework, night city.",
         "h3_native",
         1344,
         768,
         5,
-        24
+        24,
+        1,
+        "auto",
+        "Bold comic-book ink style, heavy linework, night city.",
+        ""
       ],
       "id": 148,
       "flags": {},

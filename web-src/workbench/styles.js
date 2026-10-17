@@ -64,9 +64,41 @@ export const WORKBENCH_STYLES = `
   .oc-node-shell-progress{position:relative;height:5px;border-radius:3px;background:var(--oc-bg-control);border:1px solid var(--oc-border-default);overflow:hidden;display:none}
   .oc-node-shell-progress[data-active="true"]{display:block}
   .oc-node-shell-progress>span{display:block;height:100%;background:${TOKENS.accent};width:0%;transition:width .15s ease}
-  .oc-node-shell-open{margin-top:auto;padding:6px 10px;border-radius:6px;background:${TOKENS.accent};border:1px solid ${TOKENS.accent};color:#fff;font-weight:600;cursor:pointer;transition:filter .15s ease}
+  .oc-node-shell-actions{position:relative;z-index:2;display:flex;gap:6px;margin-top:auto}
+  .oc-node-shell-actions>button{flex:1 1 0}
+  .oc-node-shell-secondary{padding:6px 10px;border-radius:6px;background:var(--oc-bg-control);border:1px solid var(--oc-border-default);color:var(--oc-text-primary);font-weight:600;cursor:pointer}
+  .oc-node-shell-secondary:hover{border-color:${TOKENS.accent}}
+  .oc-node-shell-record{padding:6px 10px;border-radius:6px;background:var(--oc-bg-control);border:1px solid var(--oc-border-default);color:var(--oc-text-primary);font-weight:600;cursor:pointer;white-space:nowrap}
+  .oc-node-shell-record:hover:not(:disabled){border-color:${TOKENS.error};color:${TOKENS.error}}
+  .oc-node-shell-record:disabled{opacity:.8;cursor:default;border-color:${TOKENS.error};color:${TOKENS.error}}
+  .oc-node-shell-record:focus-visible{outline:2px solid ${TOKENS.accent};outline-offset:2px}
+  .oc-node-shell-open{white-space:nowrap;padding:6px 10px;border-radius:6px;background:${TOKENS.accent};border:1px solid ${TOKENS.accent};color:#fff;font-weight:600;cursor:pointer;transition:filter .15s ease}
   .oc-node-shell-open:hover{filter:brightness(1.12)}
   .oc-node-shell-open:focus-visible{outline:2px solid ${TOKENS.accent};outline-offset:2px}
+
+  /* Director node: status card, then the live inline editor
+     (director/inline-view.js). While live, the card shrinks to one header
+     row and the editor takes the rest of the node. */
+  .oc-director-node{${HOST_THEME_VARS};display:flex;flex-direction:column;gap:6px;width:100%;height:100%;min-height:420px;container-type:inline-size}
+  .oc-director-node>.oc-node-shell{flex:1 1 auto;height:auto;min-height:124px}
+  .oc-director-inline{display:none;flex:1 1 auto;min-height:0}
+  .oc-director-inline>.majoor-omnicam{flex:1 1 auto;width:100%;min-width:0;min-height:0}
+  .oc-director-node[data-live="true"] .oc-director-inline{display:flex}
+  .oc-director-node[data-live="true"]>.oc-node-shell{flex:0 0 auto;min-height:0;flex-direction:row;align-items:center;gap:10px;padding:4px 6px 4px 10px}
+  .oc-director-node[data-live="true"] .oc-node-shell-preview,
+  .oc-director-node[data-live="true"] .oc-node-shell-version,
+  .oc-director-node[data-live="true"] .oc-node-shell-secondary{display:none}
+  .oc-director-node[data-live="true"] .oc-node-shell-title{flex:0 1 auto;min-width:0}
+  .oc-director-node[data-live="true"] .oc-node-shell-meta,
+  .oc-director-node[data-live="true"] .oc-node-shell-status{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .oc-director-node[data-live="true"] .oc-node-shell-actions{flex:none;margin:0 0 0 auto}
+  .oc-director-node[data-live="true"] .oc-node-shell-open,
+  .oc-director-node[data-live="true"] .oc-node-shell-record{padding:3px 10px;font-size:11px}
+  .oc-director-node[data-live="true"] .oc-node-shell-progress{position:absolute;left:0;right:0;bottom:0;height:3px;border:none;border-radius:0}
+  @container (max-width:520px){
+    .oc-director-node[data-live="true"] .oc-node-shell-meta,
+    .oc-director-node[data-live="true"] .oc-node-shell-status{display:none}
+  }
 `;
 
 export function injectWorkbenchStyles(doc = document) {

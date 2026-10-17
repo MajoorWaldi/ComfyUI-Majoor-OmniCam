@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-06",
+  "status": "success",
+  "scope": "25-frame two-stage generation with bundled fallback guide and separate art-directed image",
+  "workflow": "10_ltx25_layout_to_render.json",
+  "comfyui_version": "0.39.0",
+  "gpu": "NVIDIA GeForce RTX 4090 24GB",
+  "profile": "external_reference_video",
+  "motion_layers": 0,
+  "stage_1": {
+    "width": 640,
+    "height": 320,
+    "steps": 8
+  },
+  "stage_2": {
+    "width": 1280,
+    "height": 640,
+    "steps": 3
+  },
+  "frames": 25,
+  "fps": 24,
+  "elapsed_seconds": 59.384,
+  "cache": "models and some upstream nodes cached",
+  "visual_checks": [
+    "metallic look reference appears in the output",
+    "visible guide movement is retained",
+    "placeholder text and figure do not appear in the output"
+  ],
+  "limits": [
+    "short clip only",
+    "no quantitative camera fidelity measurement",
+    "starter blockout is approximate; original authoring state unavailable"
+  ],
+  "output_filename": "LTX25_Layout_Test_00003_.mp4",
+  "source_workflow": "Lightricks/LTX-2.5-22b-IC-LoRA-Layout-To-Render/LTX-2.5_ICLoRA_Layout_To_Render_Two_Stage_Distilled.json"
+}

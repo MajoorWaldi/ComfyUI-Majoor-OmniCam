@@ -1276,12 +1276,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "Two rovers race past a base tower, camera craning over the ridge.",
         "wan_camera_native",
         832,
         480,
         5,
-        16
+        16,
+        1,
+        "auto",
+        "Two rovers race past a base tower, camera craning over the ridge.",
+        ""
       ],
       "id": 117,
       "flags": {},

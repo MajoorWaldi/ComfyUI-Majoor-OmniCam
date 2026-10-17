@@ -30,6 +30,7 @@ carry the authored camera itself.
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 from ..core.track import OmniCamTrack
@@ -42,6 +43,17 @@ def ltx_frame_count(length: int) -> int:
     """Round a frame count down onto LTX's 8n+1 temporal grid."""
     length = max(1, int(length))
     return ((length - 1) // LTX_TEMPORAL_FACTOR) * LTX_TEMPORAL_FACTOR + 1
+
+
+def ltx25_frame_count(duration_seconds: float, fps: float) -> int:
+    """The frame count LTX-2.5's official workflows derive from a duration.
+
+    Same expression as the "calculate frames count" node of
+    ComfyUI-LTXVideo's example_workflows/2.5: ``1 + floor(fps * duration / 8) * 8``
+    -- 5 s at 24 fps is 121 frames, not the 113 that rounding 120 down gives.
+    """
+    frames = math.floor(float(fps) * float(duration_seconds) + 1e-9)
+    return 1 + (max(0, frames) // LTX_TEMPORAL_FACTOR) * LTX_TEMPORAL_FACTOR
 
 
 def is_ltx_frame_count(length: int) -> bool:

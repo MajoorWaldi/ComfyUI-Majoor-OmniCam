@@ -221,6 +221,68 @@ class CameraPhase:
 
 
 @dataclass(frozen=True, slots=True)
+class FramingSemantic:
+    """Derived subject framing; never persisted in MotionScene."""
+
+    shot_type: str
+    coverage_x: float | None = None
+    coverage_y: float | None = None
+    coverage_area: float | None = None
+    center_offset_x: float | None = None
+    center_offset_y: float | None = None
+    clipped: bool = False
+    subject_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.shot_type, str) or not self.shot_type:
+            raise ValueError("shot_type must be a non-empty string")
+        for name in ("coverage_x", "coverage_y", "coverage_area", "center_offset_x", "center_offset_y"):
+            value = getattr(self, name)
+            if value is not None and not math.isfinite(float(value)):
+                raise ValueError(f"{name} must be finite")
+
+
+@dataclass(frozen=True, slots=True)
+class CameraViewSemantic:
+    """Derived camera viewpoint, lens and framing description."""
+
+    viewpoint: str
+    vertical_angle: str
+    roll_style: str
+    distance: float
+    focal_length_mm: float
+    lens_class: str
+    framing: FramingSemantic | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("distance", "focal_length_mm"):
+            value = float(getattr(self, name))
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"{name} must be a finite non-negative number")
+
+
+@dataclass(frozen=True, slots=True)
+class LightingSemantic:
+    """Derived lighting intent from actual scene light objects."""
+
+    key_direction: str | None = None
+    key_height: str | None = None
+    key_color: str | None = None
+    fill_direction: str | None = None
+    fill_height: str | None = None
+    fill_color: str | None = None
+    rim_direction: str | None = None
+    rim_height: str | None = None
+    rim_color: str | None = None
+    active_light_count: int = 0
+
+    def __post_init__(self) -> None:
+        if isinstance(self.active_light_count, bool) or int(self.active_light_count) < 0:
+            raise ValueError("active_light_count must be a non-negative integer")
+        object.__setattr__(self, "active_light_count", int(self.active_light_count))
+
+
+@dataclass(frozen=True, slots=True)
 class ShotCompileIR:
     """Transient compiler-side IR (doc section 8). Never persisted."""
 

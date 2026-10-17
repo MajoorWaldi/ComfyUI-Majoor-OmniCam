@@ -18,6 +18,11 @@ export const FR = {
   ...FR_MONITOR,
   ...FR_BASE,
   ...FR_EDITOR,
+  "Lighting role": "Rôle de la lumière",
+  "Rim": "Contre-jour",
+  "Background": "Arrière-plan",
+  "Practical": "Lumière de décor",
+  "Environment": "Environnement",
 };
 
 export default FR;

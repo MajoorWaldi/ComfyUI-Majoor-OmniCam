@@ -37,6 +37,11 @@ const SINGLE_BOUND_ACTS = new Set([
   "previous-key", "update-key", "view-key",
 ]);
 
+// data-role hooks deliberately declared twice in Director's markup: the full
+// editor's control plus its copy in the inline bar (template/inline-bar.js).
+// Each is bound with querySelectorAll and kept in step across copies.
+const MIRRORED_ROLES = new Set(["camera-target-object", "quick-camera", "show-camera-paths"]);
+
 async function jsFiles(dir) {
   const found = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -129,7 +134,7 @@ for (const component of PRODUCT_COMPONENTS) {
       .reduce((counts, name) => counts.set(name, (counts.get(name) || 0) + 1), new Map());
     if (attribute === "data-role" || attribute === "data-act") {
       const doubled = [...duplicates].filter(([name, count]) =>
-        count > 1 && (attribute === "data-role" || SINGLE_BOUND_ACTS.has(name)));
+        count > 1 && (attribute === "data-role" ? !MIRRORED_ROLES.has(name) : SINGLE_BOUND_ACTS.has(name)));
       if (doubled.length) {
         failed = true;
         console.error(`${component} ${attribute}: declared more than once, so only the first is ever bound:`);

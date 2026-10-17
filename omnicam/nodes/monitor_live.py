@@ -21,6 +21,7 @@ from typing import Any
 
 from ..capabilities import detect_capabilities
 from ..core.director_compile import compile_director_motion_scene, parse_director_state
+from ..guides.cinematic_text import semantic_panel
 from ..guides.prompt_ir import build_prompt_compile_ir
 from ..monitor.result import panel_payload
 from ..profiles.base import CompileRequest
@@ -140,12 +141,15 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
     # touches playblast_video), and the same compile_prompt() a real Queue
     # Prompt run would call -- so this preview can never diverge from the
     # actual final_prompt output.
+    semantics = None
     try:
-        final_prompt = profile.compile_prompt(request, build_prompt_compile_ir(request)).text
+        ir = build_prompt_compile_ir(request)
+        final_prompt = profile.compile_prompt(request, ir).text
+        semantics = semantic_panel(ir)
     except Exception:  # noqa: BLE001 - a live preview must never 500 on a mid-edit scene
         final_prompt = ""
 
-    result = panel_payload(checks, capabilities, target_profile, final_prompt=final_prompt)
+    result = panel_payload(checks, capabilities, target_profile, final_prompt=final_prompt, semantics=semantics)
     result["live"] = True
     result["recording_path"] = active_recording_path
     return result

@@ -232,7 +232,9 @@ export function createEditorMethods(dependencies) {
     const clientH = wrap.clientHeight || 180;
     const w = Math.max(320, Math.round(clientW * dpr));
     const h = Math.max(180, Math.round(clientH * dpr));
-    if (this.canvas.width !== w || this.canvas.height !== h) {
+    // A recording owns the canvas size: resizing it back to the panel mid-encode
+    // would change the frame size between frames. record.js re-fits it afterwards.
+    if (!this.recording && (this.canvas.width !== w || this.canvas.height !== h)) {
       this.canvas.width = w;
       this.canvas.height = h;
     }

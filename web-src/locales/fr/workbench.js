@@ -141,5 +141,17 @@ export const FR_WORKBENCH = {
   "Authoring preference used by Redistribute Timing; does not change playback speed by itself": "Préférence utilisée par la redistribution du timing ; ne modifie pas directement la vitesse de lecture",
   "Timing Weight": "Poids temporel",
   "Redistribute this camera's key timing across its current frame range using each key's Timing Weight": "Redistribuer les clés de cette caméra sur leur plage actuelle selon leur poids temporel",
-  "Redistribute Timing": "Redistribuer le timing"
+  "Redistribute Timing": "Redistribuer le timing",
+  "LIVE VIEW": "VUE LIVE",
+  "● REC": "● REC",
+  "Record the playblast without opening the editor": "Enregistrer le playblast sans ouvrir l’éditeur",
+  "The Director editor could not be started": "Impossible de démarrer l’éditeur du Director",
+  "Quick camera controls": "Contrôles caméra rapides",
+  "Quick Camera": "Caméra rapide",
+  "Path": "Chemin",
+  "Front 3/4 L": "Face 3/4 G",
+  "Front 3/4 R": "Face 3/4 D",
+  "Profile L": "Profil G",
+  "Profile R": "Profil D",
+  "Low": "Contre-plongée"
 };

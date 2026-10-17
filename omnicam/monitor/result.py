@@ -197,7 +197,7 @@ class CompiledMotion:
 
 
 def panel_payload(
-    checks: Any, capabilities: dict[str, Any], target_profile: str, *, final_prompt: str = "",
+    checks: Any, capabilities: dict[str, Any], target_profile: str, *, final_prompt: str = "", semantics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The payload the Monitor panel renders, blocked or not.
 
@@ -231,6 +231,7 @@ def panel_payload(
         "capabilities": capabilities,
         "target_profile": target_profile,
         "final_prompt": final_prompt,
+        **({"semantics": semantics} if semantics else {}),
     }
 
 

@@ -8,6 +8,10 @@ from omnicam.reconstruction import node_bridge
 from omnicam.reconstruction.pipeline import PipelineOutput
 
 
+def _scene():
+    return {"version": 1, "objects": [], "playblast_camera_id": "camera_1", "cameras": [{"id": "camera_1", "track": {"metadata": {}}}]}
+
+
 def _one_pixel_image() -> torch.Tensor:
     return torch.zeros((1, 4, 4, 3), dtype=torch.float32)
 
@@ -19,7 +23,7 @@ def test_solver_coverage_reports_overall_confidence_not_ground_confidence(tmp_pa
     monkeypatch.setattr(node_bridge, "get_provider", lambda provider_id: object())
 
     fake_output = PipelineOutput(
-        motion_scene={"version": 1, "objects": [], "cameras": []},
+        motion_scene=_scene(),
         summary={
             "provider": "comfy_moge",
             "triangle_count": 90_000,
@@ -43,6 +47,8 @@ def test_solver_coverage_reports_overall_confidence_not_ground_confidence(tmp_pa
     # contract: kind / mode / motion_scene / solver_coverage / report / source.
     assert envelope["kind"] == "omnicam_extractor_result_v2"
     assert envelope["mode"] == "scene_reconstruct"
+    camera = _motion_scene["cameras"][0]
+    assert camera["track"]["metadata"]["extractor_fingerprint"] == envelope["fingerprint"]
     for key in ("motion_scene", "solver_coverage", "report", "source", "fingerprint"):
         assert key in envelope
     # Reconstruction-specific detail rides in its own block.
@@ -55,7 +61,7 @@ def test_solver_coverage_falls_back_to_ground_confidence_for_old_cache_entries(t
     monkeypatch.setattr(node_bridge, "get_provider", lambda provider_id: object())
 
     fake_output = PipelineOutput(
-        motion_scene={"version": 1, "objects": [], "cameras": []},
+        motion_scene=_scene(),
         summary={"provider": "comfy_moge", "ground_confidence": 0.72},  # no "confidence" key
         warnings=[],
         fingerprint="fp_old_cache",
@@ -131,7 +137,7 @@ def test_queued_execution_builds_the_same_settings_the_bridge_receives(tmp_path,
     def _fake_pipeline(**kwargs):
         captured["settings"] = kwargs["settings"]
         return PipelineOutput(
-            motion_scene={"version": 1, "objects": [], "cameras": []},
+            motion_scene=_scene(),
             summary={"provider": "comfy_moge", "confidence": 0.9, "resolved_mode": "depth_mesh"},
             warnings=[],
             fingerprint="fp",
@@ -160,7 +166,7 @@ def test_execute_reconstruction_threads_progress_and_cancel_into_the_pipeline(tm
         if kwargs.get("progress"):
             kwargs["progress"]("INFER_GEOMETRY", 0.4, "half way")
         return PipelineOutput(
-            motion_scene={"version": 1, "objects": [], "cameras": []},
+            motion_scene=_scene(),
             summary={"provider": "comfy_moge", "confidence": 0.9},
             warnings=[],
             fingerprint="fp",

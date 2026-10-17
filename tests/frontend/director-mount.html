@@ -57,7 +57,9 @@
         const openButton = document.querySelector("#host .oc-node-shell-open");
         if (!openButton) throw new Error("Director compact shell did not mount an Open button");
         openButton.click();
-        for (let retry = 0; retry < 200 && !node.__majoorOmniCamDirectorRuntime?.workbench; retry++) {
+        // The live inline editor is created first and then moved into the
+        // modal; wait for the move, not just for the editor to exist.
+        for (let retry = 0; retry < 200 && !document.querySelector(".oc-workbench-backdrop .majoor-omnicam.oc-director"); retry++) {
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
         const workbench = node.__majoorOmniCamDirectorRuntime?.workbench;

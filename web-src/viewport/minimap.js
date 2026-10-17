@@ -40,6 +40,9 @@ export function getMinimapBounds(ui, w, h) {
   const state = getRadarState(ui);
   const baseSize = state.expanded ? 220 : 138;
   const radarSize = Math.min(baseSize, Math.max(80, Math.min(w, h) - 20));
+  // A radar wider than half the short side buries the scene it maps (a small
+  // inline Director, an App Mode panel): leave it out until there is room.
+  if (radarSize * 2 > Math.min(w, h)) return null;
   const margin = 10;
   const rx = Math.max(0, w - radarSize - margin);
   const ry = Math.max(0, h - radarSize - margin);

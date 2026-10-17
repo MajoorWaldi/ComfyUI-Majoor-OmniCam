@@ -13,9 +13,18 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ..core.camera_semantics import analyze_track_endpoints
+from ..core.lighting_semantics import analyze_lighting
 from ..core.motion_scene import CameraSceneItem, CutEvent, MotionKey, MotionScene
 from ..guides.analysis import camera_phases_from_track
-from ..guides.model import CameraPhase, ReferenceSpec, ShotIntent, parse_reference_plan
+from ..guides.model import (
+    CameraPhase,
+    CameraViewSemantic,
+    LightingSemantic,
+    ReferenceSpec,
+    ShotIntent,
+    parse_reference_plan,
+)
 
 if TYPE_CHECKING:
     from ..profiles.base import CompileRequest
@@ -97,6 +106,9 @@ class PromptCompileIR:
     action_cues: tuple[ActionCue, ...]
     references: tuple[ReferenceSpec, ...]
     intent: ShotIntent
+    camera_start: CameraViewSemantic | None = None
+    camera_end: CameraViewSemantic | None = None
+    lighting: LightingSemantic | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "camera_phases", tuple(self.camera_phases))
@@ -190,6 +202,15 @@ def build_prompt_compile_ir(request: CompileRequest) -> PromptCompileIR:
     scene = request.motion_scene
     camera = _selected_camera(scene)
     camera_phases = camera_phases_from_track(camera.track) if camera is not None else ()
+    camera_start = camera_end = lighting = None
+    if camera is not None and not scene.is_multi_shot:
+        camera_start, camera_end = analyze_track_endpoints(camera.track, objects=scene.objects)
+        lighting = analyze_lighting(
+            scene.objects,
+            camera.track.sample(0),
+            frame=0,
+            subject_center=list(camera.track.sample(0).target),
+        )
 
     try:
         declared = parse_reference_plan(request.reference_plan_json)
@@ -202,6 +223,9 @@ def build_prompt_compile_ir(request: CompileRequest) -> PromptCompileIR:
         duration_seconds=request.duration_seconds,
         base_prompt=request.base_prompt,
         camera_phases=camera_phases,
+        camera_start=camera_start,
+        camera_end=camera_end,
+        lighting=lighting,
         cuts=tuple(scene.cuts),
         subject_trajectories=extract_subject_trajectories(scene),
         action_cues=extract_action_cues(scene),

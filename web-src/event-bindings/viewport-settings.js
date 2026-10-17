@@ -452,6 +452,16 @@ export function bindViewportSettings(ui, q, signal) {
       }
     }, { signal });
   }
+  for (const el of ui.root.querySelectorAll('[data-role="object-light-role"]')) {
+    el.addEventListener("change", (event) => {
+      const object = ui.selectedObject?.();
+      if (!object) return;
+      if (object.light_role !== event.target.value) ui.checkpoint("Change light role");
+      object.light_role = event.target.value;
+      ui.scheduleSerialize();
+      ui.render();
+    }, { signal });
+  }
   for (const el of ui.root.querySelectorAll('[data-role="reference-select"]')) {
     el.addEventListener("change", (e) => {
       if (ui.state.reference_index !== Number(e.target.value)) ui.checkpoint("Change reference");

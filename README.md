@@ -128,6 +128,11 @@ navigation gestures, display-scale-aware pan and normalized wheel zoom. Press
 
 ![OmniCam Director](https://raw.githubusercontent.com/MajoorWaldi/ComfyUI-Majoor-OmniCam/main/docs/assets/director-panel.png)
 
+The node itself carries a live mini view -- viewport, path drawing, Look At,
+Quick Camera angles, Key/Auto-Key and a key timeline -- **OPEN DIRECTOR**
+expands that same editor to the full window, and **● REC** records the
+playblast right from the node, with its progress on the card.
+
 A small shot-layout tool in a live 3D viewport. Animate cameras and scene
 references, draw motion layers over the frame, cut between cameras, and record a
 neutral proxy playblast. This is where a MotionScene is authored:
@@ -217,9 +222,21 @@ To start from footage instead, put **OmniCam Extractor** in front and wire its
 `motion_scene` output to the Director's `solved_scene` input. To start from a still image, use Extractor in Scene Reconstruct mode to create a 3D proxy environment and open it in Director.
 
 Complete runnable graphs are in [`examples/workflows/`](examples/workflows):
-each is the official Comfy-Org template for that model with its motion source
-replaced by OmniCam, so every model, LoRA and sampler setting is upstream's.
+the model starters adapt official Comfy-Org or Lightricks templates with their
+motion source replaced by OmniCam. Model, LoRA and sampler choices follow
+upstream; the Layout to Render starter uses a documented smaller smoke test.
 Direct MiniMax starter: [`07_minimax_h3_native_global_example.json`](examples/workflows/07_minimax_h3_native_global_example.json).
+
+**LTX-2.5:** [`09_ltx25_motion_track.json`](examples/workflows/09_ltx25_motion_track.json)
+drives Lightricks' Motion Track IC-LoRA from the Director's camera and motion
+layers; versions, weights and limits are in [docs/LTX.md](docs/LTX.md).
+
+**LTX-2.5 Layout to Render:** [`10_ltx25_layout_to_render.json`](examples/workflows/10_ltx25_layout_to_render.json)
+uses an OmniCam playblast plus a separate art-directed reference image through
+the Monitor's generic video profile. It does not require motion layers. See
+[the tested setup and bundled assets](docs/LTX.md#layout-to-render). To run it from a
+script, without opening ComfyUI, use the Comfy SDK launcher in
+[`examples/sdk/`](examples/sdk/README.md).
 
 ## What OmniCam will refuse to do
 
@@ -264,7 +281,11 @@ These are preflight results, not bugs:
 - [Technical Reference](docs/TECHNICAL_REFERENCE.md) — runtime behaviour, DPVO, validation, development.
 - [Security](docs/SECURITY.md) — managed files, upload limits, request boundaries.
 - [Agent Integration](docs/AGENT_INTEGRATION.md) — headless MCP vs. live Director Agent control.
+- [LTX-2.5](docs/LTX.md) — version matrix, weights, length/size rules, limits and licences.
+- [Comfy SDK launcher](examples/sdk/README.md) — run the LTX-2.5 Layout to Render workflow from a script.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). This covers OmniCam's code only: each model,
+LoRA and third-party node an example uses keeps its own licence (for LTX-2.5,
+see [docs/LTX.md](docs/LTX.md)). OmniCam redistributes no model weights.

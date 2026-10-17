@@ -1,0 +1,3 @@
+# Only for examples/sdk/run_ltx_motion_track.py -- not needed by OmniCam itself.
+comfy-sdk==0.4.0
+comfy-api-proxy==0.1.6

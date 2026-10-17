@@ -121,21 +121,23 @@ test("scene reconstruction end-to-end: run, adopt into director, unlock, and tra
   // Open in Director should now be enabled
   await expect(openDirectorBtn).toBeEnabled();
 
-  // 5. Click OPEN IN DIRECTOR -- adopted headlessly into the Director's
-  // persistent runtime, since the Director node itself has never had its
-  // workbench opened yet (migration plan Task 16).
+  // 5. The inline editor is already mounted, but has never been expanded.
+  // Adoption must update both persistent state and its visible object rows.
+  await page.waitForFunction(() => Boolean(window.omnicamDirector.__majoorOmniCamDirectorRuntime.workbench));
   await openDirectorBtn.click();
+  const adoptedObjectIds = await page.evaluate(() => (
+    window.omnicamDirector.__majoorOmniCamDirectorRuntime.state.objects.map((object) => object.id)
+  ));
+  expect(adoptedObjectIds).toEqual(["recon_environment", "recon_ground"]);
 
   // Open the Director workbench the way a user would, to verify the
-  // reconstructed scene the headless adoption above just wrote actually
+  // reconstructed scene the inline adoption above just wrote actually
   // renders once the editor is opened -- the plan's literal acceptance
   // criterion for this scenario.
   await directorHost.locator(".oc-node-shell-open").click();
-  await page.waitForFunction(
-    () => Boolean(window.omnicamDirector?.__majoorOmniCamDirectorRuntime?.workbench),
-    null,
-    { timeout: 10_000 },
-  );
+  // The node's live editor exists before the click; OPEN DIRECTOR moves it into
+  // the modal, which is what the assertions below read.
+  await page.waitForSelector(".oc-workbench-backdrop .majoor-omnicam.oc-director", { timeout: 10_000 });
 
   // 6. Verify Director receives Environment Proxy and Ground, both locked
   const directorObjects = directorWorkbench.locator('[data-role="objects"]');

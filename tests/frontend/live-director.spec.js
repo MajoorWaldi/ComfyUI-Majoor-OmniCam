@@ -36,16 +36,16 @@ test("Director serializes and remains interactive in Nodes 2.0", async ({ page }
     return {
       height: ui.root.getBoundingClientRect().height,
       widgetNames: node.widgets.map((widget) => widget.name),
-      // The workbench is a body-level WorkbenchHost window now, not a graph
-      // DOMWidget -- the always-mounted compact shell is the DOMWidget, with
-      // a small fixed height (web-src/director/shell.js).
+      // The full editor opens in a body-level WorkbenchHost window; the node's
+      // DOMWidget holds the status card and the live inline view, with a
+      // minimum height (web-src/director/shell.js).
       shellMinHeight: shellWidget?.options?.getMinHeight?.(),
       graphScale: window.comfyAPI.app.app.canvas.ds.scale,
     };
   });
   expect(mounted.height).toBeGreaterThan(500);
   expect(mounted.widgetNames).toContain("majoor_omnicam_director_shell");
-  expect(mounted.shellMinHeight).toBe(124);
+  expect(mounted.shellMinHeight).toBe(420);
   expect(mounted.graphScale).toBeCloseTo(0.65, 2);
   // Scene / Viewport / Cameras / View / Display -- unrelated to the workbench
   // migration; kept in sync with web-src/template/toolbar.js's current menus.

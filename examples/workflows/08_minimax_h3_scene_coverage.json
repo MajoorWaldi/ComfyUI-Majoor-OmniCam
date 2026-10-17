@@ -295,12 +295,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "A frozen product on a sunlit table.",
         "h3_scene_coverage",
         832,
         480,
         6,
-        24
+        24,
+        1,
+        "auto",
+        "A frozen product on a sunlit table.",
+        ""
       ],
       "flags": {},
       "mode": 0,

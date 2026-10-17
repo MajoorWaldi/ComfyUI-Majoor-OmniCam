@@ -7,6 +7,8 @@ from ..capabilities import detect_capabilities
 from ..comfy_compat import IO
 from ..core.motion_scene import MotionScene
 from ..core.validation import ValidationError
+from ..guides.cinematic_text import semantic_panel
+from ..guides.prompt_ir import build_prompt_compile_ir
 from ..monitor.events import MONITOR_PREFLIGHT_EVENT, monitor_preflight_event_payload
 from ..monitor.execution_ui import execution_ui_payload
 from ..monitor.result import panel_payload, raise_on_blocked
@@ -192,7 +194,11 @@ class MajoorOmniCamMonitor(IO.ComfyNode):
             raise
 
         checks = [*result.checks, downstream] if downstream is not None else list(result.checks)
-        ui = panel_payload(checks, capabilities, target_profile, final_prompt=result.final_prompt)
+        try:
+            semantics = semantic_panel(build_prompt_compile_ir(request))
+        except Exception:  # noqa: BLE001 - the panel is diagnostics, never the gate
+            semantics = None
+        ui = panel_payload(checks, capabilities, target_profile, final_prompt=result.final_prompt, semantics=semantics)
         ordered = (
             result.final_prompt,
             result.reference_video,

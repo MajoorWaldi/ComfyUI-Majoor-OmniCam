@@ -253,6 +253,47 @@ test("Director survives widget edit, workflow reload, recreation and queueing", 
   await assertAttachReady(page, "MajoorOmniCamDirector", "omnicamCiDirector", "__majoorOmniCam");
 });
 
+test("Director REC button records a real playblast from the node without opening the editor", async ({ page }, testInfo) => {
+  test.slow();
+  await openComfyReady(page);
+  const diagnostics = captureBrowserDiagnostics(page, testInfo);
+  await page.evaluate(async () => {
+    const { app } = await import("/scripts/app.js");
+    app.graph.clear();
+    const director = window.LiteGraph.createNode("MajoorOmniCamDirector");
+    app.graph.add(director);
+    window.omnicamCiDirector = director;
+  });
+  // The node shows its live editor by itself; the REC button needs no workbench.
+  await page.waitForFunction(() => Boolean(window.omnicamCiDirector?.__majoorOmniCam?.webgl), null, { timeout: 60_000 });
+
+  const button = page.locator(".oc-director-node .oc-node-shell-record");
+  await expect(button).toBeEnabled();
+  await button.click();
+  await expect(button).toBeDisabled();
+  // Back to idle once the encode and the upload are done.
+  await expect(button).toBeEnabled({ timeout: 120_000 });
+  expect(await page.locator(".oc-workbench-backdrop").count()).toBe(0);
+
+  const result = await page.evaluate(() => {
+    const node = window.omnicamCiDirector;
+    const state = JSON.parse(node.widgets.find((widget) => widget.name === "state_json").value);
+    return {
+      path: node.widgets.find((widget) => widget.name === "recording_path").value,
+      frames: state.metadata?.playblast?.frame_count,
+      width: state.metadata?.playblast?.width,
+      expectedWidth: state.width,
+      notice: document.querySelector(".oc-director-node .oc-node-shell-status")?.textContent,
+    };
+  });
+  expect(result.path).toMatch(/^omnicam\/playblasts\/omnicam_playblast_[0-9a-f]+\.webm/);
+  expect(result.frames).toBeGreaterThan(1);
+  // Recorded at the node's output size, not at the small inline viewport's.
+  expect(result.width).toBe(result.expectedWidth);
+  expect(result.notice).toContain("Playblast ready");
+  expect(diagnostics.pageErrors).toEqual([]);
+});
+
 test("Extractor attaches and detaches its lazy UI on a real ComfyUI graph", async ({ page }, testInfo) => {
   await openComfyReady(page);
   const diagnostics = captureBrowserDiagnostics(page, testInfo);

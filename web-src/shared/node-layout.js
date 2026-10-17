@@ -30,11 +30,12 @@ import { DIRECTOR_NODE_CLASS, EXTRACTOR_NODE_CLASS, MONITOR_NODE_CLASS } from ".
 
 // `default` values are taken verbatim (rounded to whole pixels) from a real
 // workflow saved with each node laid out comfortably: Extractor's SOURCE/
-// TRACK 3D player and solve timeline, Director's viewport/outliner/graph
-// editor, and Monitor's playblast player and preflight all visible without
-// scrolling.
+// TRACK 3D player and solve timeline and Monitor's playblast player and
+// preflight all visible without scrolling. Director's node holds only its
+// compact inline view (director/inline-view.js) -- the full editor opens in
+// the modal -- so it starts much smaller.
 export const NODE_LAYOUTS = {
-  [DIRECTOR_NODE_CLASS]: { default: [1313, 1633], min: [760, 760] },
+  [DIRECTOR_NODE_CLASS]: { default: [720, 640], min: [480, 460] },
   [EXTRACTOR_NODE_CLASS]: { default: [761, 1458], min: [700, 760] },
   [MONITOR_NODE_CLASS]: { default: [798, 1634], min: [640, 680] },
 };

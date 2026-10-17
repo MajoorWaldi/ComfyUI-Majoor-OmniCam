@@ -155,11 +155,15 @@ ADAPTER_INFO = {
             ),
         ],
         repository="https://github.com/Lightricks/ComfyUI-LTXVideo",
-        tested_ref="ac4d99839020b983e956a8ab67ec38aec1b6e65a",
-        tested_commit="ac4d99839020b983e956a8ab67ec38aec1b6e65a",
-        docs="https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/sparse_tracks.py",
-        motion_limits={"length": "8n+1"},
-        connection_recipe="Connect tracks to LTXVDrawTracks, then its IMAGE into LTX Add Video IC-LoRA Guide.",
+        tested_ref="3bf3ca62595f1764c47d01c35c8e5dfe47e1a88f",
+        tested_commit="3bf3ca62595f1764c47d01c35c8e5dfe47e1a88f",
+        docs="https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/example_workflows/2.5/LTX-2.5_ICLoRA_Motion_Track_Distilled.json",
+        motion_limits={"length": "8n+1", "size": "multiple of 32"},
+        connection_recipe=(
+            "Connect tracks to LTXVDrawTracks, then its IMAGE into LTX Add Video IC-LoRA Guide; "
+            "target_length drives the latent length, and target_width/height come from the "
+            "resized image LTXVDrawTracks draws on."
+        ),
     ),
     # No upstream pin: this profile names no specific downstream node, so
     # there is nothing to detect and nothing to verify a socket contract

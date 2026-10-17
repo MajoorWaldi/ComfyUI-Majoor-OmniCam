@@ -33,6 +33,19 @@ export function inspectorPanel() {
           <input data-role="camera-fov" type="number" min="5" max="150" step="0.1"><span class="oc-unit">°</span>
         </div>
         <div class="oc-lens-presets">${lensButtons}</div>
+        <details class="oc-quick-camera" data-role="quick-camera">
+          <summary>${t("Quick Camera")}</summary>
+          <div class="oc-lens-presets">
+            <button type="button" data-camera-preset="front">${t("Front")}</button>
+            <button type="button" data-camera-preset="front_left_three_quarter">${t("Front 3/4 L")}</button>
+            <button type="button" data-camera-preset="front_right_three_quarter">${t("Front 3/4 R")}</button>
+            <button type="button" data-camera-preset="left_profile">${t("Profile L")}</button>
+            <button type="button" data-camera-preset="right_profile">${t("Profile R")}</button>
+            <button type="button" data-camera-preset="back">${t("Back")}</button>
+            <button type="button" data-camera-preset="top">${t("Top")}</button>
+            <button type="button" data-camera-preset="low">${t("Low")}</button>
+          </div>
+        </details>
 
         <div class="oc-section">${t("Transform")}</div>
         <div class="oc-vec-row">

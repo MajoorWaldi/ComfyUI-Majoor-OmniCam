@@ -1001,12 +1001,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "The white dragon warrior stands still, the camera circling closer.",
         "wan_track_native",
         720,
         480,
         5.0625,
-        16
+        16,
+        1,
+        "auto",
+        "The white dragon warrior stands still, the camera circling closer.",
+        ""
       ],
       "id": 264,
       "flags": {},

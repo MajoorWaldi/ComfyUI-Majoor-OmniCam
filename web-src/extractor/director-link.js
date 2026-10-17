@@ -193,13 +193,10 @@ export function adoptReconstructionIntoDownstreamDirectors(extractorNode, result
       if (!link || targetId == null || seen.has(targetId)) continue;
       seen.add(targetId);
       const target = graph.getNodeById?.(targetId);
-      // adoptReconstructedScene() only ever touches ui.state/ui.camera/ui.frame
-      // plus a handful of optional-chained visual refreshes, so it already
-      // works headlessly against a runtime with no workbench attached
-      // (migration plan Task 16) -- prefer the persistent runtime and fall
-      // back to the bare pre-migration UI object for a node whose shell has
-      // not attached yet.
-      const ui = target?.__majoorOmniCamDirectorRuntime ?? target?.__majoorOmniCam;
+      // A mounted workbench aliases runtime state and also refreshes the
+      // outliner, viewport and asset URLs. The runtime alone is headless.
+      const runtime = target?.__majoorOmniCamDirectorRuntime;
+      const ui = runtime?.workbench ?? runtime ?? target?.__majoorOmniCam;
       if (ui) {
         adoptReconstructedScene(ui, result);
         adopted += 1;
@@ -208,4 +205,3 @@ export function adoptReconstructionIntoDownstreamDirectors(extractorNode, result
   }
   return adopted;
 }
-

@@ -55,7 +55,7 @@ def extractor_track(fingerprint="abc123", fps=30, duration=90, fov=53.0):
 
 
 def resolve(local, upstream, **overrides):
-    settings = {"width": 1280, "height": 720, "render_mode": "omni_ref"}
+    settings = {"width": 1280, "height": 720, "fps": 24, "render_mode": "omni_ref"}
     settings.update(overrides)
     return resolve_director_camera_track(local_track=local, upstream_track=upstream, **settings)
 
@@ -73,9 +73,10 @@ def test_no_upstream_uses_local_director_track():
 
 def test_unimported_upstream_fingerprint_uses_upstream_camera_motion():
     resolved = resolve(director_state(), extractor_track())
-    assert [key["frame"] for key in resolved["keyframes"]] == [0, 60]
-    assert resolved["fps"] == 30
-    assert resolved["duration_frames"] == 90
+    # Solved at 30 fps, played at the Director's 24: frame 60 is frame 48.
+    assert [key["frame"] for key in resolved["keyframes"]] == [0, 48]
+    assert resolved["fps"] == 24
+    assert resolved["duration_frames"] == director_state()["duration_frames"]
     assert resolved["metadata"][UPSTREAM_METADATA_KEY]["fingerprint"] == "abc123"
     assert resolved["metadata"][UPSTREAM_METADATA_KEY]["backend"] == "dpvo"
 

@@ -9,6 +9,7 @@ import json
 
 from omnicam.adapters.ltx_tracks import (
     is_ltx_frame_count,
+    ltx25_frame_count,
     ltx_frame_count,
     ltx_motion_track_profile,
     track_to_ltx_tracks,
@@ -78,3 +79,13 @@ def test_points_that_leave_frame_are_truncated_not_clamped():
     assert any(len(points) < 49 for points in tracks)
     for points in tracks:
         assert all(0 <= point["x"] <= 640 and 0 <= point["y"] <= 360 for point in points)
+
+
+def test_ltx25_frame_count_matches_the_official_workflow_expression():
+    # 1 + floor(fps * duration / 8) * 8, from example_workflows/2.5.
+    assert ltx25_frame_count(5.0, 24.0) == 121
+    assert ltx25_frame_count(2.0, 24.0) == 49
+    assert ltx25_frame_count(0.0, 24.0) == 1
+    assert ltx25_frame_count(2.7, 24.0) == 65
+    for seconds in (0.5, 1.0, 3.3, 5.0, 8.0):
+        assert is_ltx_frame_count(ltx25_frame_count(seconds, 24.0))

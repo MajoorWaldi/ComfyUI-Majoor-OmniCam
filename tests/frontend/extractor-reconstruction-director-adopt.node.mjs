@@ -9,6 +9,7 @@ import {
   motionSceneToEditorState,
 } from "../../web-src/extractor/reconstruction/director-adopt.js";
 import { restoreAssets } from "../../web-src/dom-media.js";
+import { adoptReconstructionIntoDownstreamDirectors } from "../../web-src/extractor/director-link.js";
 
 function createMockDirector({ objects = [], cameras = [{ id: "camera_1", name: "Camera 1", keyframes: [] }] } = {}) {
   return {
@@ -42,6 +43,36 @@ test("adoptReconstructedScene rejects result with no objects array", () => {
     () => adoptReconstructedScene(director, {}),
     /objects/i
   );
+});
+
+test("downstream reconstruction adoption refreshes a mounted workbench and still works headlessly", () => {
+  for (const mounted of [false, true]) {
+    const director = createMockDirector();
+    const runtime = mounted ? { workbench: director } : director;
+    const target = { id: 2, __majoorOmniCamDirectorRuntime: runtime };
+    const extractor = {
+      outputs: [{ links: [101] }],
+      graph: {
+        links: new Map([[101, { target_id: 2 }]]),
+        getNodeById: (id) => id === 2 ? target : null,
+      },
+    };
+    const result = {
+      motion_scene: {
+        cameras: [],
+        objects: [{
+          id: "env_mesh", type: "glb",
+          asset: "majoor_omnicam/reconstruction/abc/environment.glb [input]",
+        }],
+      },
+    };
+    assert.equal(adoptReconstructionIntoDownstreamDirectors(extractor, result), 1);
+    assert.equal(director.state.objects[0].id, "env_mesh");
+    assert.equal(director.serialized, true);
+    assert.equal(director.refreshedObjects, true);
+    assert.equal(director.rendered, true);
+    assert.ok(director.modelUrlsById.has("env_mesh"));
+  }
 });
 
 test("isDirectorEmpty detects fresh/empty Director state", () => {

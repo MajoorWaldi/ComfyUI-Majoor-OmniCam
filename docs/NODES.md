@@ -67,15 +67,52 @@ Interactive camera-layout, motion-track, animation, timeline and playblast
 environment. Execution compiles the complete editor state to a strict,
 model-independent MotionScene.
 
-The node itself shows a compact status card (scene name, fps/duration/
-resolution, camera/object counts) with an **OPEN DIRECTOR** button; the full
-editor below opens in its own window on demand and closes back to that card.
-Only one Director workbench is open at a time (the Extractor's panel is
-mounted directly on its node and has no open/close step of its own — see
-below). State, the semantic Director API and the external Agent bridge all
-work the same whether or not the editor is open — closing it does not lose
-anything, and an upstream Extractor can adopt a solve into a Director that
-has never been opened.
+The node shows a one-line status bar (scene name, fps/duration/resolution,
+camera/object counts, **OPEN DIRECTOR**) above a **live mini view** of the
+editor: the 3D viewport with quick views (Perspective/Top/Front/Right/Camera/
+ISO) and the camera switcher, the tool rail (select, move, rotate, Draw /
+Continue Camera Path, path presets, frame), a bar with Quick Camera angles,
+the Look At target and camera-path display, and the transport with **Key**,
+**Auto-Key** and a one-row key timeline. Keys and edits made there are the
+same as in the full editor.
+
+**OPEN DIRECTOR** moves that same editor into its own window with every
+panel; closing the window puts it back in the node, nothing rebuilt or lost.
+Only one Director window is open at a time.
+
+**● REC** (beside OPEN DIRECTOR) records the playblast without opening
+anything. It uses the node's live editor — bringing it back first if the node
+had been retired to its card — and the card shows the frame progress (`57/120`
+and a thin bar), then *Playblast ready: …* or the failure, for a few seconds.
+It records at the node's **output size** (`width` × `height`, scaled by the
+*Playblast resolution* choice) even when that choice is *Viewport*: the node's
+viewport is a small preview, and the playblast must not inherit its size. The
+recording is the same as the editor's Record button — same encoder, same
+managed upload, same freshness check against the scene.
+
+**App Mode.** In the App builder, select the Director's
+`majoor_omnicam_director_shell` widget as an input: the mini view appears in
+the app's control panel and works the same there (keys, angles, Look At,
+OPEN DIRECTOR). In a narrow panel it keeps the Perspective/Top/Camera views
+and one transport row, and the radar stays hidden until the viewport is
+large enough to hold it. Tested on ComfyUI 0.39.0 / frontend 1.53.10.
+
+**Subgraphs.** A Director inside a subgraph works as usual; its mini view
+goes live when you open the subgraph, not before. The mini view itself cannot
+be promoted onto the subgraph node: ComfyUI promotes a widget as a value
+input, which carries no live editor, so do not promote
+`majoor_omnicam_director_shell`. Promote ordinary inputs (`fps`,
+`duration_seconds`, …) as needed; the scene stays in the inner node. A
+Director inside a subgraph cannot be selected as an App Mode input either,
+for the same reason -- keep it at the top level of an app workflow.
+
+Each live view costs two WebGL contexts, so at most four Director nodes are
+live at once. Bringing up a fifth returns the least recently used one to a
+static preview card (its last playblast or viewport still) with a **LIVE
+VIEW** button to bring it back; a node whose window is open or that is
+recording is never retired. State, the semantic Director API and the external
+Agent bridge work the same either way, and an upstream Extractor can adopt a
+solve into a Director that is not live.
 
 ![OmniCam Director](assets/director-panel.png)
 
@@ -633,6 +670,9 @@ execution as TRACK (`extract_mode: "scene_reconstruct"`), ending at the
 Extractor; downstream Director / Monitor / video generation are not executed.
 The reconstructed scene returns through the Extractor's result envelope and is
 routed back into the panel for preview and Director adoption.
+**OPEN IN DIRECTOR** immediately refreshes an already-open inline or expanded
+Director editor; if its editor is closed, the adopted scene is preserved and
+shown the next time it opens.
 
 #### Result modes
 

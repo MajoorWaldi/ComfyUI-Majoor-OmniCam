@@ -1,6 +1,7 @@
+import { keyEditDisplay } from "./key-edit-display.js";
 // WebGL viewport methods extracted from the public facade.
 
-import { cameraBodyGizmo, targetCrosshair } from "./camera-gizmo.js";
+import { targetCrosshair } from "./camera-gizmo.js";
 import { attachMeshOverlays } from "./mesh-overlays.js";
 import { createLowPolyHumanGeometry } from "./human-geometry.js";
 import { reconstructionMaterialMode } from "../scene/reconstruction-badges.js";
@@ -331,11 +332,12 @@ export function createResourceMethods(dependencies) {
           return new THREE.Vector3().fromArray(sampleCamera(trackState, frame, state.objects).position);
         });
         const curve = new THREE.CatmullRomCurve3(points, false, "centripetal");
+        const display = keyEditDisplay(isActive, selectedFrame);
         const radius = isSelected ? 0.06 : isActive ? 0.045 : 0.025;
         const material = new THREE.MeshBasicMaterial({
           color: palette.line,
           transparent: true,
-          opacity: isActive ? 1.0 : 0.55,
+          opacity: display.pathOpacity,
           depthTest: false,
         });
         const pathMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(48, samples), radius, 8, false), material);
@@ -354,7 +356,7 @@ export function createResourceMethods(dependencies) {
           };
         }
         this.path.add(pathMesh);
-        if (isActive) {
+        if (display.showGlow) {
           const glow = new THREE.Mesh(
             new THREE.TubeGeometry(curve, Math.max(48, samples), radius * (isSelected ? 3 : 2.4), 8, false),
             new THREE.MeshBasicMaterial({ color: palette.line, transparent: true, opacity: isSelected ? 0.3 : 0.18, depthTest: false }),
@@ -389,8 +391,9 @@ export function createResourceMethods(dependencies) {
         // points: draw them larger and in a fixed colour so they never blend
         // into their own camera's path line.
         const controlPoint = isActive;
+        const pointRadius = controlPoint ? keyEditDisplay(isActive, selectedFrame).pointRadius : 0.085;
         const marker = new THREE.Mesh(
-          new THREE.SphereGeometry(controlPoint ? CURVE_POINT_RADIUS : 0.085, 16, 12),
+          new THREE.SphereGeometry(pointRadius, 16, 12),
           new THREE.MeshBasicMaterial({ color: controlPoint ? CURVE_POINT_COLOR : palette.marker, depthTest: false })
         );
         marker.position.fromArray(key.camera.position);
@@ -402,10 +405,11 @@ export function createResourceMethods(dependencies) {
 
         // Sleek outer waypoint halo ring
         const outerRing = new THREE.Mesh(
-          new THREE.RingGeometry((controlPoint ? CURVE_POINT_RADIUS : 0.085) * 1.3, (controlPoint ? CURVE_POINT_RADIUS : 0.085) * 1.7, 24),
+          new THREE.RingGeometry((pointRadius) * 1.3, (pointRadius) * 1.7, 24),
           new THREE.MeshBasicMaterial({ color: controlPoint ? 0xffffff : palette.marker, side: THREE.DoubleSide, transparent: true, opacity: 0.65, depthTest: false })
         );
         outerRing.position.fromArray(key.camera.position);
+        outerRing.visible = !(isActive && key.frame === selectedFrame);
         outerRing.renderOrder = 909;
         outerRing.userData.omnicamBillboard = true;
         outerRing.userData.omnicamWidget = "path";
@@ -423,8 +427,8 @@ export function createResourceMethods(dependencies) {
         // Radiant beacon halo on the selected keyframe control point
         if (selectedKeyHere) {
           const beacon = new THREE.Mesh(
-            new THREE.RingGeometry(CURVE_POINT_RADIUS * 2.1, CURVE_POINT_RADIUS * 2.6, 24),
-            new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.9, depthTest: false })
+            new THREE.RingGeometry(pointRadius * 1.5, pointRadius * 1.65, 24),
+            new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, transparent: true, opacity: 0.65, depthTest: false })
           );
           beacon.position.fromArray(key.camera.position);
           beacon.renderOrder = 911;
@@ -469,41 +473,13 @@ export function createResourceMethods(dependencies) {
           const frustumLines = new THREE.LineSegments(frustum, new THREE.LineBasicMaterial({
             color: palette.marker,
             transparent: true,
-            opacity: 1.0,
-            depthTest: false,
+            opacity: 0.25,
+            depthTest: true,
           }));
           frustumLines.userData.omnicamWidget = "gizmo";
           this.path.add(frustumLines);
 
-          // Translucent near-plane film gate quad
-          const gateGeo = new THREE.BufferGeometry();
-          gateGeo.setIndex([0, 1, 2, 0, 2, 3]);
-          gateGeo.setAttribute("position", new THREE.Float32BufferAttribute([
-            corners[0].x, corners[0].y, corners[0].z,
-            corners[1].x, corners[1].y, corners[1].z,
-            corners[2].x, corners[2].y, corners[2].z,
-            corners[3].x, corners[3].y, corners[3].z,
-          ], 3));
-          const gateMesh = new THREE.Mesh(gateGeo, new THREE.MeshBasicMaterial({
-            color: palette.marker,
-            transparent: true,
-            opacity: 0.12,
-            depthTest: false,
-            side: THREE.DoubleSide,
-          }));
-          gateMesh.userData.omnicamWidget = "gizmo";
-          this.path.add(gateMesh);
 
-          // A shaded body with a lens cone reads as a camera at a glance, where
-          // the frustum lines alone read as an abstract shape.
-          const body = cameraBodyGizmo(THREE, {
-            position, forward, up,
-            color: palette.marker,
-            scale: THREE.MathUtils.clamp(distance * 1.15, 0.35, 1.6),
-            active: isActive,
-          });
-          body.userData.omnicamWidget = "gizmo";
-          this.path.add(body);
         }
 
         // Same rule as the frustum above: a look-at crosshair per keyframe was
@@ -523,7 +499,7 @@ export function createResourceMethods(dependencies) {
           // as a direction, not just a point in space.
           const sight = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints([position.clone(), target.clone()]),
-            new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.9, depthTest: false }),
+            new THREE.LineBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.35, depthTest: true }),
           );
           sight.renderOrder = 914;
           sight.userData.omnicamWidget = "lookat";

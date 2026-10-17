@@ -284,12 +284,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "Cinematic slow push-in through the reconstructed room.",
         "h3_api",
         1280,
         720,
         5,
-        24
+        24,
+        1,
+        "auto",
+        "Cinematic slow push-in through the reconstructed room.",
+        ""
       ]
     },
     {

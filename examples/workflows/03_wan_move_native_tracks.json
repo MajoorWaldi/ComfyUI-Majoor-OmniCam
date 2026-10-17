@@ -731,12 +731,15 @@
         "Node name for S&R": "MajoorOmniCamMonitor"
       },
       "widgets_values": [
-        "A snowboarder carves down the slope, camera tracking alongside.",
         "wan_move_native",
         832,
         480,
         5.0625,
-        16
+        16,
+        1,
+        "auto",
+        "A snowboarder carves down the slope, camera tracking alongside.",
+        ""
       ],
       "id": 260,
       "flags": {},

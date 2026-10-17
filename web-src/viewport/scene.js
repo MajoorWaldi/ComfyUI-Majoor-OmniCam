@@ -25,6 +25,8 @@ export function createSceneMethods(dependencies) {
         ? { line: new THREE.Color(camera.color), marker: new THREE.Color(camera.color), frustum: new THREE.Color(camera.color), body: new THREE.Color(camera.color).multiplyScalar(0.35) }
         : cameraColors[camIdx % cameraColors.length];
       const isActive = camera.id === state.active_camera_id;
+      // The selected waypoint already supplies its camera and look-at guides.
+      if (isActive && selectedFrame != null && viewMode !== "camera") return;
       const isSelected = isActive && selectedEntity === "camera";
       // Through its own lens the active camera's body, frustum and beacon are
       // just clutter over the shot. Keep only the look-at target + sightline so

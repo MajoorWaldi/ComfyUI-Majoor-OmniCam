@@ -1,11 +1,14 @@
-"""LTX Motion Track profile."""
+"""LTX-2.5 Motion Track profile.
+
+Targets the Motion Track IC-LoRA (trained on LTX-2.3, documented by Lightricks
+as reused unchanged with LTX-2.5) through LTXVDrawTracks, exactly as the
+official ``LTX-2.5_ICLoRA_Motion_Track_Distilled.json`` wires it.
+"""
 
 from __future__ import annotations
 
-import math
-
 from ..adapters.ltx_prompt import build_ltx_prompt
-from ..adapters.ltx_tracks import ltx_frame_count
+from ..adapters.ltx_tracks import ltx25_frame_count
 from ..core.motion_resolution import resolve_motion_scene_tracks
 from ..guides.prompt_ir import PromptCompileIR, build_prompt_compile_ir
 from ..monitor.result import Check, CompiledMotion, PromptCompilation, ResolvedTimeline, raise_on_blocked
@@ -21,8 +24,7 @@ class LtxMotionProfile:
     frame_policy = "8n_plus_1"
 
     def resolve_timeline(self, request: CompileRequest) -> ResolvedTimeline:
-        requested_frames = max(1, math.ceil(request.duration_seconds * request.target_fps))
-        frame_count = ltx_frame_count(requested_frames)
+        frame_count = ltx25_frame_count(request.duration_seconds, request.target_fps)
         return ResolvedTimeline(
             width=request.target_width,
             height=request.target_height,
@@ -52,7 +54,11 @@ class LtxMotionProfile:
                 id="motion_layers",
                 label=f"Enabled motion layers: {enabled_count}",
                 state="PASS" if enabled_count else "BLOCKED",
-                message="LTX Motion requires at least one enabled motion layer."
+                message=(
+                    "LTX Motion requires at least one enabled motion layer. In the Director, "
+                    "draw one with the motion track tool, or use Project to follow a scene "
+                    "point through the camera."
+                )
                 if not enabled_count
                 else "",
             ),
@@ -60,6 +66,17 @@ class LtxMotionProfile:
                 id="target_length",
                 label=f"LTX target length: {timeline.frame_count} (8n+1)",
                 state="PASS",
+            ),
+            Check(
+                id="target_size",
+                label=f"LTX target size: {timeline.width}x{timeline.height}",
+                state="PASS" if timeline.width % 32 == 0 and timeline.height % 32 == 0 else "WARNING",
+                message=""
+                if timeline.width % 32 == 0 and timeline.height % 32 == 0
+                else (
+                    "LTX-2.5 renders at multiples of 32. Feed target_width/height from the "
+                    "resized image LTXVDrawTracks draws on, or the tracks will not line up."
+                ),
             ),
             multi_shot_check(
                 request.motion_scene,
