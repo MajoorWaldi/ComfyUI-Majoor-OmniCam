@@ -4,6 +4,21 @@
 
 # OmniCam — node guide
 
+## Director in App Mode
+
+Select `majoor_omnicam_director_shell` during App Builder's input step, then
+open **View app** for camera and timeline interaction. The viewer keeps the
+Director runtime and serialized workflow state when moving between the App
+panel and graph. Its App layout reserves at least 420 pixels and can be resized
+vertically; **OPEN DIRECTOR** opens the existing larger editor. App Builder
+preview may make widgets inert while arranging inputs. A results video must
+be selected separately in the output step. This integration requires a
+ComfyUI frontend that supports custom DOM widgets in App Mode.
+
+In **View app**, the Director restores input if its App item retains the
+builder's `inert` content lock. This recovery is scoped to that App item;
+builder arrangement previews and outer modal dialogs keep their input locks.
+
 This document describes only the nodes OmniCam actually registers
 (`omnicam/node_registry.py`): **three product nodes**. The unpublished
 compatibility nodes, Sequencer and DCC exporters are not part of the public

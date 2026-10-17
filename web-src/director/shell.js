@@ -15,6 +15,7 @@ import { createNodeShell } from "../workbench/node-shell.js";
 import { workbenchSessions } from "../workbench/session-manager.js";
 import { directorPlayblastSource } from "../monitor/reference-source.js";
 import { DirectorInlineView } from "./inline-view.js";
+import { attachDirectorAppMode, DIRECTOR_APP_MODE_STYLES } from "./app-mode.js";
 
 const MIN_WIDGET_HEIGHT = 420;
 const RECORD_NOTICE_MS = 6000;
@@ -199,6 +200,9 @@ export function attachDirectorShell(node) {
     shell.setProgress(frame / total);
   });
   widgetRoot.append(shell.root, inlineHost);
+  const appStyles = document.createElement("style");
+  appStyles.textContent = DIRECTOR_APP_MODE_STYLES;
+  widgetRoot.append(appStyles);
   updateShell(runtime);
   runtime.addEventListener("statechange", () => updateShell(runtime));
   runtime.addEventListener("statuschange", () => updateShell(runtime));
@@ -211,6 +215,7 @@ export function attachDirectorShell(node) {
     getMinHeight: () => MIN_WIDGET_HEIGHT,
   });
   inlineView.showWhenVisible(widgetRoot);
+  const detachAppMode = attachDirectorAppMode(widgetRoot, inlineView);
 
   // Graph lifecycle lives here, on the node, for the runtime's full life --
   // not inside the transient workbench (plan Task 6). Each hook does the full
@@ -282,6 +287,7 @@ export function attachDirectorShell(node) {
   node.onRemoved = function (...args) {
     workbenchSessions.disposeForNode(node.id);
     clearTimeout(runtime.recordNoticeTimer);
+    detachAppMode();
     inlineView.dispose();
     unwatchGraphConnections();
     cancelAnimationFrame(runtime.restoreFrame);

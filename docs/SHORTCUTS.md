@@ -4,6 +4,11 @@
 
 # OmniCam keyboard shortcuts and controls
 
+In App Mode, click inside the Director viewer before using its shortcuts.
+Use **View app** to interact; App Builder's layout preview may disable input.
+Drag the viewer's bottom resize handle to adjust its height, or choose
+**OPEN DIRECTOR** for the larger workspace.
+
 The Director node shows a live mini view of the editor; **OPEN DIRECTOR**
 moves that same editor into a full window. The shortcuts below work in both:
 in the node they apply to the node you clicked into, so several Directors on

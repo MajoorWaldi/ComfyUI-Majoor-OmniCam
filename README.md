@@ -4,6 +4,13 @@
 
 <h1 align="center">Majoor OmniCam</h1>
 
+In ComfyUI App Builder, select the Director's `majoor_omnicam_director_shell`
+widget as an input to expose its viewer. The App viewer uses the same scene and
+timeline as the workflow editor, with a vertically resizable canvas area and
+the existing **OPEN DIRECTOR** action for a larger workspace. Builder preview
+can disable interaction; use **View app** to edit. Select a video output
+separately to display an executed playblast in the results area.
+
 <p align="center">
   <strong>Author camera and object motion in ComfyUI, then compile it for whichever video model you are using.</strong>
 </p>
