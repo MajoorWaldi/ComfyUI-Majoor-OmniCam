@@ -41,6 +41,16 @@ function fakeNode(stateJson = "{}") {
   return { id: 1, widgets, graph: { setDirtyCanvas() {} } };
 }
 
+test("headless restore invalidates an observed revision before notifying consumers", () => {
+  const runtime = new DirectorRuntime(fakeNode(), {});
+  const before = runtime.directorRevision;
+  let observed;
+  runtime.addEventListener("upstreamchange", () => { observed = runtime.directorRevision; });
+  runtime.restoreFromWidgetsHeadless();
+  assert.ok(runtime.directorRevision > before);
+  assert.equal(observed, runtime.directorRevision);
+});
+
 test("restores canonical state from the state_json widget on construction", () => {
   const runtime = new DirectorRuntime(fakeNode(), {});
   assert.equal(runtime.state.fps, 24);

@@ -195,7 +195,7 @@ def _camera_track(
         "duration_frames": total_frames,
         "width": width,
         "height": height,
-        "render_mode": "omni_ref",
+        "render_mode": "graybox",
         "keyframes": [
             {
                 "frame": 0,

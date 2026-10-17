@@ -4,6 +4,8 @@
 
 <h1 align="center">Majoor OmniCam</h1>
 
+New layouts and imported scenes use **Graybox (Clay Blockout)** by default. Saved workflows preserve their explicit render mode.
+
 In ComfyUI App Builder, select the Director's `majoor_omnicam_director_shell`
 widget as an input to expose its viewer. The App viewer uses the same scene and
 timeline as the workflow editor, with a vertically resizable canvas area and
@@ -261,6 +263,11 @@ These are preflight results, not bugs:
   missing LTX install never blocks a Wan Camera compile.
 
 ## Agent integration
+
+The official **Comfy Agent** side panel is not yet wired to OmniCam's live
+Director API. A versioned discovery contract, exact document/session targets,
+idempotent transaction recovery and a local example client prepare that future
+adapter. See [integration status and acceptance checks](docs/AGENT_INTEGRATION.md).
 
 - **Generic workflow automation:** the official Comfy MCP discovers and runs
   OmniCam's three nodes like any other ComfyUI node.

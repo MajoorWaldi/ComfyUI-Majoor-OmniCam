@@ -1,5 +1,7 @@
+import { rotateObjectInGroup } from "../viewport/object-group-rotation.js";
+import { createPointerMotion } from "./pointer-motion.js";
 // Blender-style modal object transforms shared by keyboard, snapping and groups.
-import { add, cameraBasis, cloneTransform, mul, rotateEuler, sub } from "../director/core.js";
+import { add, cameraBasis, cloneTransform, mul, sub } from "../director/core.js";
 
 const AXES = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
 const snap = (value, step) => Math.round(value / step) * step;
@@ -23,7 +25,7 @@ export function beginModalTransform(ui, mode) {
   const start = ui.lastViewportPointer || fallback;
   const rect = ui.interactionElement.getBoundingClientRect();
   const lastEvent = ui.lastPointerEvent || { clientX: rect.left + start[0] * rect.width / ui.canvas.width, clientY: rect.top + start[1] * rect.height / ui.canvas.height };
-  ui.modalTransform = { mode, axis: null, numeric: "", start, lastEvent, snapshots, pivot };
+  ui.modalTransform = { mode, axis: null, numeric: "", start, lastEvent, snapshots, pivot, motion: createPointerMotion(start) };
   ui.setTransformMode(mode);
   ui.setStatus(`${mode.toUpperCase()} · move mouse · X/Y/Z constrain · type value · Enter confirm · Esc cancel`);
   ui.render();
@@ -73,8 +75,7 @@ export function updateModalTransform(ui, event) {
     ((event.clientY - rect.top) * ui.canvas.height) / Math.max(1, rect.height),
   ];
   ui.lastViewportPointer = pointer;
-  const dx = pointer[0] - session.start[0], dy = pointer[1] - session.start[1];
-  const precision = event.shiftKey ? 0.1 : 1;
+  const [dx, dy] = session.motion(pointer, event.shiftKey ? 0.1 : 1);
   const typed = numericValue(session);
   const axis = session.axis ? AXES[session.axis] : null;
   const camera = ui.state.view_mode === "camera" ? ui.camera : ui.state.editor_views[ui.state.view_mode];
@@ -85,14 +86,14 @@ export function updateModalTransform(ui, event) {
 
   let positions = session.snapshots.map((item) => [...item.transform.position]);
   if (session.mode === "translate") {
-    const amount = typed ?? (dx - dy) * worldScale * precision;
-    const delta = axis ? mul(axis, amount) : add(mul(basis.right, dx * worldScale * precision), mul(basis.up, -dy * worldScale * precision));
+    const amount = typed ?? (dx - dy) * worldScale;
+    const delta = axis ? mul(axis, amount) : add(mul(basis.right, dx * worldScale), mul(basis.up, -dy * worldScale));
     positions = positions.map((position) => add(position, delta));
     positions = snappedGroupOffset(ui, session, positions, pointer, event.ctrlKey || event.metaKey, axis, session.snapshots.map((item) => item.transform.position));
   }
 
-  const angle = session.mode === "rotate" ? (typed ?? (dx - dy) * 0.5 * precision) : 0;
-  const factor = session.mode === "scale" ? Math.max(0.01, typed ?? 1 + (dx - dy) * 0.01 * precision) : 1;
+  const angle = session.mode === "rotate" ? (typed ?? (dx - dy) * 0.5) : 0;
+  const factor = session.mode === "scale" ? Math.max(0.01, typed ?? 1 + (dx - dy) * 0.01) : 1;
   const rotationAxis = axis || AXES.z;
   const snapping = event.ctrlKey || event.metaKey || ui.state.spatial_snap_mode === "grid";
   session.snapshots.forEach((item, index) => {
@@ -101,8 +102,9 @@ export function updateModalTransform(ui, event) {
     if (session.mode === "rotate") {
       const snappedAngle = snapping ? snap(angle, 15) : angle;
       const deltaRotation = mul(rotationAxis, snappedAngle);
-      object.position = add(session.pivot, rotateEuler(sub(item.transform.position, session.pivot), deltaRotation));
-      object.rotation = add(item.transform.rotation, deltaRotation);
+      const result = rotateObjectInGroup(item.transform, session.pivot, deltaRotation);
+      object.position = result.position;
+      object.rotation = result.rotation;
     }
     if (session.mode === "scale") {
       const snappedFactor = snapping ? snap(factor, 0.1) : factor;

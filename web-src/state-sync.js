@@ -5,6 +5,7 @@ import { clamp, cloneCamera, sanitizeState, sampleCamera } from "./director/core
 import { SEQUENCE_TARGET, cutAtFrame, sequenceActive } from "./director/sequence.js";
 import { motionFingerprint } from "./shared/motion-fingerprint.js";
 import { applyPanelLayout } from "./event-bindings/panel-resize.js";
+import { invalidateDirectorRevision } from "./director/revision.js";
 
 export function activeCameraTrack(ui) {
   if (!ui?.state?.cameras?.length) {
@@ -238,6 +239,7 @@ export function syncFromWidgets(ui, persist = true) {
 }
 
 export function restoreFromWidgets(ui) {
+  invalidateDirectorRevision(ui);
   let parsed = null;
   try {
     parsed = JSON.parse(ui.stateWidget?.value || "{}");

@@ -108,23 +108,16 @@ async def test_openai_official_base_url_is_never_flagged_custom(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_openai_custom_base_url_is_flagged_custom_for_complete_and_list_models(monkeypatch):
-    # A user-supplied base_url (e.g. a self-hosted proxy) must be subjected
-    # to the custom-endpoint network policy, not silently treated as the
-    # official OpenAI endpoint (design spec section 12 / Task 1).
-    pytest.importorskip("aiohttp")
-    from omnicam.agent.providers import openai as openai_module
-
-    calls: list = []
+async def test_openai_custom_origin_rejected_before_any_http(monkeypatch):
+    from omnicam.agent.providers import openai as module
+    calls = []
+    _patch_guarded_request(monkeypatch, module, 200, b'{}', calls=calls)
     config = _config("openai", base_url="https://my-openai-proxy.example.com/v1")
-    _patch_guarded_request(monkeypatch, openai_module, 200, b'{"output_text":"hi"}', calls=calls)
-    await get_provider("openai").complete("hi", config, "sk-x")
-    assert calls[0]["is_custom_endpoint"] is True
-
-    calls.clear()
-    _patch_guarded_request(monkeypatch, openai_module, 200, b'{"data":[]}', calls=calls)
-    await get_provider("openai").list_models(config, "sk-x")
-    assert calls[0]["is_custom_endpoint"] is True
+    for method, args in (("complete", ("hi", config, "fake")), ("list_models", (config, "fake"))):
+        with pytest.raises(NetworkPolicyError) as error:
+            await getattr(get_provider("openai"), method)(*args)
+        assert error.value.code == "CREDENTIAL_ORIGIN_MISMATCH"
+    assert calls == []
 
 
 @pytest.mark.asyncio
@@ -158,24 +151,20 @@ async def test_openai_remote_custom_endpoint_makes_zero_http_calls_without_opt_i
     config = _config("openai", base_url="https://my-openai-proxy.example.com/v1")
     with pytest.raises(NetworkPolicyError) as excinfo:
         await get_provider("openai").complete("hi", config, "sk-x")
-    assert excinfo.value.code == "REMOTE_CUSTOM_PROVIDER_BLOCKED"
+    assert excinfo.value.code == "CREDENTIAL_ORIGIN_MISMATCH"
 
 
 @pytest.mark.asyncio
-async def test_anthropic_custom_base_url_is_flagged_custom(monkeypatch):
-    pytest.importorskip("aiohttp")
-    from omnicam.agent.providers import anthropic as anthropic_module
-
-    calls: list = []
+async def test_anthropic_custom_origin_rejected_before_any_http(monkeypatch):
+    from omnicam.agent.providers import anthropic as module
+    calls = []
+    _patch_guarded_request(monkeypatch, module, 200, b'{}', calls=calls)
     config = _config("anthropic", base_url="https://claude-proxy.example.com")
-    _patch_guarded_request(monkeypatch, anthropic_module, 200, b'{"content":[]}', calls=calls)
-    await get_provider("anthropic").complete("hi", config, "sk-ant")
-    assert calls[0]["is_custom_endpoint"] is True
-
-    calls.clear()
-    _patch_guarded_request(monkeypatch, anthropic_module, 200, b'{"data":[]}', calls=calls)
-    await get_provider("anthropic").list_models(config, "sk-ant")
-    assert calls[0]["is_custom_endpoint"] is True
+    for method, args in (("complete", ("hi", config, "fake")), ("list_models", (config, "fake"))):
+        with pytest.raises(NetworkPolicyError) as error:
+            await getattr(get_provider("anthropic"), method)(*args)
+        assert error.value.code == "CREDENTIAL_ORIGIN_MISMATCH"
+    assert calls == []
 
 
 @pytest.mark.asyncio
@@ -320,8 +309,10 @@ async def test_openai_probe_uses_custom_endpoint_policy(monkeypatch):
     calls: list = []
     _patch_guarded_request(monkeypatch, openai_module, 200, b'{"data":[]}', calls=calls)
     config = _config("openai", "https://my-openai-proxy.example.com/v1")
-    await get_provider("openai").probe(config, "sk-x")
-    assert calls[0]["is_custom_endpoint"] is True
+    with pytest.raises(NetworkPolicyError) as error:
+        await get_provider("openai").probe(config, "sk-x")
+    assert error.value.code == "CREDENTIAL_ORIGIN_MISMATCH"
+    assert calls == []
 
 
 @pytest.mark.asyncio

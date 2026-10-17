@@ -106,7 +106,7 @@ def build_scan_camera_track(
         "duration_frames": duration_frames,
         "width": int(width),
         "height": int(height),
-        "render_mode": "omni_ref",
+        "render_mode": "graybox",
         "keyframes": ordered or [
             {
                 "frame": 0,

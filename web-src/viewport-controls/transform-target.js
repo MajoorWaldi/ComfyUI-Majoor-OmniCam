@@ -46,13 +46,19 @@ export function resolveTransformTarget(ui) {
     const object = ui.selectedObject();
     if (!object || object.locked) return null;
     const transform = object.keyframes?.length ? sampleObjectTransform(object, ui.frame) : object;
-    const position = transform.position || [0, 0, 0];
+    const selected = ui.selectedObjectIds instanceof Set
+      ? ui.state.objects.filter((item) => ui.selectedObjectIds.has(item.id) && !item.locked) : [];
+    const group = selected.length > 1 ? selected.map((item) => item.keyframes?.length ? sampleObjectTransform(item, ui.frame) : item) : null;
+    const position = group
+      ? group.reduce((sum, item) => sum.map((v, i) => v + (item.position?.[i] || 0)), [0, 0, 0]).map((v) => v / group.length)
+      : transform.position || [0, 0, 0];
     return {
       id: `object:${object.id}`,
       type: "object",
       position,
-      rotation: transform.rotation || [0, 0, 0],
-      scale: transform.size || [1, 1, 1],
+      rotation: group ? [0, 0, 0] : transform.rotation || [0, 0, 0],
+      // The anchor measures relative scale factors, never absolute dimensions.
+      scale: [1, 1, 1],
       allowedModes: ALLOWED_MODES.object,
       // Legacy fields some existing call sites still read directly.
       object,

@@ -27,7 +27,11 @@ async function enableVueNodes(page) {
   await page.evaluate(async () => {
     const { app } = await import("/scripts/app.js");
     await app.extensionManager.setting.set("Comfy.VueNodes.Enabled", true);
-    app.graph.clear();
+  });
+  await waitForComfyCanvas(page);
+  await page.evaluate(async () => {
+    const { app } = await import("/scripts/app.js");
+    await app.loadGraphData({ version: 0.4, nodes: [], links: [], groups: [], extra: {} });
   });
   await waitForComfyCanvas(page);
 }

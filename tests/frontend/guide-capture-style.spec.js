@@ -104,7 +104,7 @@ test("guide capture style toolbar select mirrors and serializes state without to
     };
   });
   expect(result.state).toBe("clay");
-  expect(result.renderMode).toBe("omni_ref");
+  expect(result.renderMode).toBe("graybox");
   expect(result.serialized).toBe("clay");
 });
 

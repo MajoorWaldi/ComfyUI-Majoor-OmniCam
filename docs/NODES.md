@@ -145,6 +145,11 @@ optional `scene_3d`, and an optional upstream `solved_scene` (an OmniCam
 Extractor connects here). `state_json`, `recording_path` and `card_asset` are
 advanced fields the interface manages.
 
+Live agents should discover `/majoor/omnicam/agent/v1/contract` and use the
+Director's revision-checked transactions for edits. `state_json` is serialized
+`OMNICAM_EDITOR_STATE` v1; replacing that string is a whole-document operation,
+not a substitute for live query/Preview/Apply. See [Agent integration](AGENT_INTEGRATION.md).
+
 `scene_3d` is a **UI interoperability bridge**, not a serialized MotionScene 3D
 data contract. The backend `execute()` does not consume it; the frontend
 inspects the connected upstream node and reads a mesh path from a set of
@@ -999,3 +1004,9 @@ model-agnostic synthetic anchors.
 
 Projected 2D trajectories consumed by LTXVDrawTracks and the IC-LoRA Motion Track.
 The length must satisfy the 8n+1 frame rule.
+
+New layouts and imported scenes default to `graybox` (Clay Blockout / Neutral Massing). Explicit render modes saved in workflows remain preserved. The clean proxy preset still selects `omni_ref`.
+
+The Director Agent displays an animated activity bar while planning or applying, and a completed green bar on success. Messages use blue for activity, green for success, amber for warnings and red for errors. No percentage is estimated while waiting for the model; reduced-motion preferences are respected.
+
+Agent completion, applied changes, warnings and failures appear through ComfyUI?s native toast notifications. Playblast completion is announced once the video is uploaded and stored; recording/upload failures are announced as errors. Progress stays in the panel. Notification appearance and dismissal are managed by ComfyUI; no separate OmniCam toast overlay is added.

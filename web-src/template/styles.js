@@ -1,3 +1,4 @@
+import { AGENT_FEEDBACK_STYLES } from "./styles/agent-feedback.js";
 // OmniCam Director component styles.
 //
 // Layered on purpose: this file holds the component and state styling that
@@ -419,4 +420,4 @@ const COMPONENT_STYLES = `
       @container (max-width:460px){.majoor-omnicam .viewport-wrap{min-height:360px}.majoor-omnicam .camera-preview-strip[data-layout="2"],.majoor-omnicam .camera-preview-strip[data-layout="4"]{grid-auto-flow:row;grid-template-columns:1fr;grid-auto-columns:100%}.majoor-omnicam .menu-panel{width:min(240px,calc(100cqw - 24px))}}
 `;
 
-export const DIRECTOR_STYLES = SHARED_STYLES + COMPONENT_STYLES + SHELL_STYLES + LOWER_DECK_STYLES + DENSITY_STYLES + RESPONSIVE_STYLES + INLINE_STYLES;
+export const DIRECTOR_STYLES = SHARED_STYLES + COMPONENT_STYLES + SHELL_STYLES + LOWER_DECK_STYLES + DENSITY_STYLES + RESPONSIVE_STYLES + INLINE_STYLES + AGENT_FEEDBACK_STYLES;

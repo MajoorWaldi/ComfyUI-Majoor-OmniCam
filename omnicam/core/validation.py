@@ -362,7 +362,7 @@ def validate_track_payload(payload: dict[str, Any], limits: TrackLimits | None =
     track["duration_frames"] = _clamp_int(track.get("duration_frames", track["fps"] * 5), 1, limits.max_duration_frames, "duration_frames")
     track["width"] = _clamp_int(track.get("width", 1280), *DIMENSION_RANGE, "width")
     track["height"] = _clamp_int(track.get("height", 720), *DIMENSION_RANGE, "height")
-    track["render_mode"] = whitelist(track.get("render_mode", "omni_ref"), RENDER_MODES, "render_mode")
+    track["render_mode"] = whitelist(track.get("render_mode", "graybox"), RENDER_MODES, "render_mode")
     track["keyframes"] = validate_camera_keyframes(track.get("keyframes", []), track["duration_frames"], "keyframes", limits)
     objects = track.get("objects", [])
     if not isinstance(objects, list):

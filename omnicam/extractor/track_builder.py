@@ -88,7 +88,7 @@ def build_omnicam_track(
         "duration_frames": max(1, int(duration_frames)),
         "width": int(width),
         "height": int(height),
-        "render_mode": "omni_ref",
+        "render_mode": "graybox",
         "keyframes": keyframes,
         "objects": [],
         "metadata": {

@@ -34,7 +34,7 @@ export function directorLivePayload(originNode) {
     height: Number(widgetValue(originNode, "height", 720)),
     fps: Number(widgetValue(originNode, "fps", 24)),
     duration_seconds: Number(widgetValue(originNode, "duration_seconds", 5)),
-    render_mode: String(widgetValue(originNode, "render_mode", "omni_ref")),
+    render_mode: String(widgetValue(originNode, "render_mode", "graybox")),
   };
 }
 

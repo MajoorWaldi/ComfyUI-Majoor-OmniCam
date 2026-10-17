@@ -54,7 +54,7 @@ def moving(count=12, step=0.2):
 def test_builder_emits_schema_v1_track():
     track = build(moving())
     assert track["schema_version"] == 1
-    assert track["render_mode"] == "omni_ref"
+    assert track["render_mode"] == "graybox"
     assert track["objects"] == []
     assert track["fps"] == 24
     assert track["duration_frames"] == 48

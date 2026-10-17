@@ -1,3 +1,4 @@
+import { notifyCompletion } from "./director/completion-toast.js";
 // Playblast recording orchestration: deterministic encoder selection,
 // realtime fallback, media synchronization, progress reporting, upload.
 
@@ -98,5 +99,6 @@ export async function makePlayblast(ui, { inline = false } = {}) {
     ui.resizeCanvas?.();
     ui.setFrame(oldFrame);
   }
+  notifyCompletion(ui, outcome.message, outcome.ok ? "success" : "error");
   return outcome;
 }

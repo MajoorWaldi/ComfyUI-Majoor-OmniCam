@@ -433,7 +433,7 @@ export function defaultState() {
   const camera = defaultCamera();
   const keyframes = [{ frame: 0, camera: cloneCamera(camera), interpolation: "ease" }];
   return {
-    schema_version: 1, fps: 24, duration_frames: 120, width: 1280, height: 720, render_mode: "omni_ref", camera, keyframes,
+    schema_version: 1, fps: 24, duration_frames: 120, width: 1280, height: 720, render_mode: "graybox", camera, keyframes,
     cameras: [{ id: "camera_1", name: "Camera 1", color: "#4aa3ef", camera: cloneCamera(camera), keyframes }], active_camera_id: "camera_1", playblast_camera_id: "camera_1",
     objects: [
       { id: "subject", type: "card", name: "Subject Card", position: [0, 1.5, 0], rotation: [0, 0, 0], size: [2, 3, 0.01], material_mode: "textured", color: "#8c929b", keyframes: [], enabled: true, asset: "" },

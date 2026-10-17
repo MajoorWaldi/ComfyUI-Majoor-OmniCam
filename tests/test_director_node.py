@@ -262,7 +262,7 @@ def test_director_schema_exposes_an_optional_solved_scene_input():
 
 def test_director_adopts_an_unimported_extractor_scene():
     track = _run_with_upstream({"duration_frames": 48, "fps": 24}, _extractor_scene())
-    assert [key["frame"] for key in track["keyframes"]] == [0, 60]
+    assert [key["frame"] for key in track["keyframes"]] == [0, 48]
     assert track["metadata"]["upstream_camera_track"]["fingerprint"] == "fp-1"
     # The render context stays the Director's queue widgets.
     assert (track["width"], track["height"]) == (1280, 720)
@@ -281,7 +281,7 @@ def test_director_retimes_a_solve_made_at_another_frame_rate():
 def test_director_rejects_a_solved_scene_without_its_playblast_camera():
     scene = _extractor_scene()
     scene["playblast_camera_id"] = "missing"
-    with pytest.raises(ValueError, match="no camera 'missing'"):
+    with pytest.raises(ValueError, match="unknown camera 'missing'"):
         _run_with_upstream({}, scene)
 
 

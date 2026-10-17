@@ -28,6 +28,7 @@
 // over the same drag; `ui.transformControlsDragging` (set from
 // onDraggingChanged) is the same signal for "a drag is already in progress".
 
+import { rotateObjectInGroup } from "./object-group-rotation.js";
 import * as THREE from "../three-runtime.js";
 import { createTransformControlsAdapter } from "./transform-controls-adapter.js";
 import { resolveTransformTarget } from "../viewport-controls/transform-target.js";
@@ -268,8 +269,11 @@ export function createTransformControlsWiring(ui, { controlsFactory, anchorFacto
       if (mode === "translate") {
         item.object.position = add(item.transform.position, delta.position);
       } else if (mode === "rotate") {
-        item.object.position = add(pivot, rotateEuler(sub(item.transform.position, pivot), delta.rotationDeg));
-        item.object.rotation = add(item.transform.rotation, delta.rotationDeg);
+        if (group.length > 1) {
+          const result = rotateObjectInGroup(item.transform, pivot, delta.rotationDeg);
+          item.object.position = result.position;
+          item.object.rotation = result.rotation;
+        } else item.object.rotation = add(item.transform.rotation, delta.rotationDeg);
       } else if (mode === "scale") {
         const relative = sub(item.transform.position, pivot);
         item.object.position = add(pivot, relative.map((value, index) => value * delta.scaleFactors[index]));

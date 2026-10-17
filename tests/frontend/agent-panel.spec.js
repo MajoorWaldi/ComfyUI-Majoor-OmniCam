@@ -34,6 +34,8 @@ async function mountAgentPanel(page) {
       }
       if (path === "/majoor/omnicam/agent/v1/plan") {
         window.__planCalls.push(body);
+        if (window.__holdPlan) await window.__holdPlan;
+        if (window.__planFailure) throw new Error("Provider timed out");
         return { ok: true, status: 200, json: async () => window.__nextPlanResponse };
       }
       if (path === "/majoor/omnicam/agent/v1/apply-plan") {
@@ -51,6 +53,9 @@ async function mountAgentPanel(page) {
     // Re-register the Agent bridge under the intercepted fetch, same as
     // agent-bridge.spec.js -- the one from mount used the plain stub.
     const ui = window.omnicamNode.__majoorOmniCam;
+    window.__nativeToasts = [];
+    ui.app.extensionManager.toast = Object.fromEntries(["success", "error", "warning"].map((tone) =>
+      [tone, (message) => window.__nativeToasts.push({ tone, message })]));
     ui.agentBridge.dispose();
     const { createDirectorAgentBridge } = await import("/web-src/agent/bridge.js");
     ui.agentBridge = createDirectorAgentBridge(ui, window.omnicamNode, api);
@@ -73,6 +78,7 @@ async function openAgentTab(page) {
   // (the same caveat agent-bridge.spec.js works around for the bridge).
   // Replace the auto-mounted panel with one explicitly given the
   // intercepted `api` so this spec's customFetch actually gets hit.
+  await page.waitForFunction(() => window.omnicamNode.__majoorOmniCam.agentPanel);
   await page.evaluate(async () => {
     const { api } = await import("/tests/frontend/stubs/api.js");
     const ui = window.omnicamNode.__majoorOmniCam;
@@ -140,6 +146,9 @@ test("Preview renders the diff without mutating the scene, then Apply mutates it
   const applyCalls = await page.evaluate(() => window.__applyCalls);
   expect(applyCalls).toHaveLength(1);
   expect(applyCalls[0]).toEqual({ plan_id: "plan_1" });
+  expect(await page.evaluate(() => window.__nativeToasts)).toEqual([
+    { tone: "success", message: "Move the cube" }, { tone: "success", message: "Applied." },
+  ]);
 });
 
 test("a STALE_PLAN response disables Apply and asks for a new preview", async ({ page }) => {
@@ -168,6 +177,8 @@ test("a STALE_PLAN response disables Apply and asks for a new preview", async ({
 
   await expect(root.locator('[data-role="agent-hint"]')).toHaveText(/changed after this preview/, { timeout: 10000 });
   await expect(root.locator('[data-agent-act="apply"]')).toBeDisabled();
+
+  expect(await page.evaluate(() => window.__nativeToasts.at(-1).tone)).toBe("warning");
 
   // A stale Apply must never have touched the scene.
   const after = await page.evaluate(() => window.omnicamNode.__majoorOmniCam.state.objects.find((o) => o.id === "qa_cube").position);
@@ -223,4 +234,38 @@ test("re-enabling the built-in Agent live shows its tab again without a reload",
     entry.onChange(true);
   });
   await expect(root.locator('[data-asset-view="agent"]')).toBeVisible();
+});
+
+
+test("Agent feedback animates during waiting, completes green and stops on errors", async ({ page }) => {
+  await mountAgentPanel(page);
+  await openAgentTab(page);
+  const root = page.locator(".majoor-omnicam");
+  const progress = root.locator('[data-role="agent-progress"]');
+  const hint = root.locator('[data-role="agent-hint"]');
+  await expect(progress).toBeHidden();
+  await page.evaluate(() => {
+    window.__holdPlan = new Promise((resolve) => { window.__releasePlan = resolve; });
+    window.__nextPlanResponse = { finished: true, message: "All done" };
+  });
+  await root.locator('[data-role="agent-describe"]').fill("a perfume bottle on a table");
+  await root.locator('[data-agent-act="preview"]').click();
+  await expect(progress).toBeVisible();
+  await expect(progress).not.toHaveAttribute("aria-valuenow");
+  await expect(hint).toHaveCSS("color", "rgb(147, 197, 253)");
+  await expect(progress.locator("div")).toHaveCSS("animation-name", "oc-agent-working");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(progress.locator("div")).toHaveCSS("animation-name", "none");
+  await page.evaluate(() => window.__releasePlan());
+  await expect(hint).toHaveText("All done");
+  expect(await page.evaluate(() => window.__nativeToasts)).toEqual([{ tone: "success", message: "All done" }]);
+  await expect(hint).toHaveCSS("color", "rgb(134, 239, 172)");
+  await expect(progress).toHaveAttribute("aria-valuenow", "100");
+  await expect(progress.locator("div")).toHaveCSS("animation-name", "none");
+  await page.evaluate(() => { window.__planFailure = true; });
+  await root.locator('[data-agent-act="preview"]').click();
+  await expect(hint).toHaveText("Provider timed out");
+  expect(await page.evaluate(() => window.__nativeToasts.at(-1))).toEqual({ tone: "error", message: "Provider timed out" });
+  await expect(hint).toHaveCSS("color", "rgb(252, 165, 165)");
+  await expect(progress).toBeHidden();
 });

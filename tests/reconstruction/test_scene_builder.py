@@ -91,7 +91,7 @@ def test_build_reconstructed_scene_validates_and_matches_schema():
     # fov_x_degrees, is the field that belongs here.
     cam_item = scene.cameras[0]
     assert cam_item.id == "camera_1"
-    assert cam_item.track.render_mode == "omni_ref"
+    assert cam_item.track.render_mode == "graybox"
     assert cam_item.track.keyframes[0].camera.fov == 45.0
 
     # Objects check

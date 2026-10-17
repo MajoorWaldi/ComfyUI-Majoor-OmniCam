@@ -10,6 +10,8 @@ __pycache__/
 .codex-pytest-temp/
 # Scratch dirs from audit / TDD runs (matching *.log files already ignored above).
 .tmp_*/
+# Local captures and scratch files (including App Mode QA screenshots).
+/.tmp-*
 .ruff_cache/
 .venv/
 venv/
@@ -47,10 +49,14 @@ docs/*
 !docs/CONFORMANCE.md
 !docs/REFACTOR_CHECKLIST.md
 !docs/AUDIT.md
+!docs/TRANSFORM_AUDIT.md
 !docs/BLOCKOUT_ASSET_LIBRARY.md
 !docs/ASSET_LIBRARY.md
 !docs/CHARACTERS.md
 !docs/AGENT_INTEGRATION.md
+!docs/COMFY_AGENT_AUDIT.md
+!docs/BRANCH_PROTECTION.md
+!docs/CAMERA_SEMANTICS_LIGHTING_IMPLEMENTATION.md
 !docs/LTX.md
 !docs/assets/
 

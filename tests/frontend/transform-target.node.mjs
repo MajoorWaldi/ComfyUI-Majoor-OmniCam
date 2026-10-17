@@ -159,3 +159,13 @@ test("a locked camera track resolves to null for path_point/path_group too", () 
   ui.pathSelection = { cameraId: "camera_1", frames: new Set([0]), primaryFrame: 0, component: "position" };
   assert.equal(resolveTransformTarget(ui), null);
 });
+
+
+test("a multi-object gizmo uses the same group pivot as the applied transform", () => {
+  const ui = baseUi();
+  ui.state.objects = [baseObject({ id: "a", position: [-2, 0, 0] }), baseObject({ id: "b", position: [2, 0, 0] })];
+  ui.selectedObjectId = "b";
+  ui.selectedObjectIds = new Set(["a", "b"]);
+  assert.deepEqual(resolveTransformTarget(ui).position, [0, 0, 0]);
+  assert.deepEqual(resolveTransformTarget(ui).scale, [1, 1, 1]);
+});

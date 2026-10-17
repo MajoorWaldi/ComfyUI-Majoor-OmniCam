@@ -1,3 +1,4 @@
+import { createPointerMotion } from "../viewport-controls/pointer-motion.js";
 // DCC 3D Drag-to-Scrub Numeric Controller
 // Enables Blender/Maya/Houdini-style click-and-drag value scrubbing on numeric inputs.
 
@@ -24,6 +25,7 @@ export function attachDragScrub(element, options = {}) {
   let startX = 0;
   let startVal = 0;
   let hasMoved = false;
+  let motion = null;
 
   const onMouseDown = (e) => {
     // Only primary mouse button (LMB)
@@ -36,6 +38,7 @@ export function attachDragScrub(element, options = {}) {
 
     startX = e.clientX;
     startVal = parseFloat(input.value) || 0;
+    motion = createPointerMotion([e.clientX]);
     hasMoved = false;
 
     window.addEventListener("mousemove", onMouseMove);
@@ -61,7 +64,7 @@ export function attachDragScrub(element, options = {}) {
     if (e.shiftKey) multiplier = shiftMultiplier;
     else if (e.ctrlKey || e.metaKey) multiplier = ctrlMultiplier;
 
-    const change = deltaX * baseStep * multiplier;
+    const change = motion([e.clientX], baseStep * multiplier)[0];
     let newVal = startVal + change;
 
     // Precision rounding to avoid floating point jitter (e.g. 0.30000000000000004)

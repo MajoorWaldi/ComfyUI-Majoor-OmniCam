@@ -3,6 +3,7 @@
 // Enables Maya/Blender-style horizontal dragging on X/Y/Z labels to increment
 // or decrement numeric inputs smoothly, with single grouped undo checkpoints.
 
+import { createPointerMotion } from "../viewport-controls/pointer-motion.js";
 import { t } from "../i18n.js";
 
 const DEFAULT_SENSITIVITY = 0.05;
@@ -37,6 +38,7 @@ export function setupAxisScrubbing(ui, signal) {
 
     const startX = event.clientX;
     const startVal = parseFloat(input.value) || 0;
+    const motion = createPointerMotion([event.clientX]);
     const stepAttr = parseFloat(input.getAttribute("step")) || 0.1;
     const minAttr = input.hasAttribute("min") ? parseFloat(input.getAttribute("min")) : -Infinity;
     const maxAttr = input.hasAttribute("max") ? parseFloat(input.getAttribute("max")) : Infinity;
@@ -68,14 +70,16 @@ export function setupAxisScrubbing(ui, signal) {
       else if (moveEvt.ctrlKey || moveEvt.metaKey) multiplier = CTRL_SENSITIVITY;
 
       const rawStep = stepAttr * multiplier * 20;
-      let nextVal = startVal + deltaX * rawStep;
+      let nextVal = startVal + motion([moveEvt.clientX], rawStep)[0];
 
       // Clamp to min/max
       nextVal = Math.max(minAttr, Math.min(maxAttr, nextVal));
 
       // Format based on step precision
-      const decimals = stepAttr >= 1 ? 0 : stepAttr >= 0.1 ? 1 : 2;
-      input.value = nextVal.toFixed(decimals);
+      const decimals = Math.min(8, Math.max(0, Math.ceil(-Math.log10(Math.abs(rawStep)))));
+      const formatted = nextVal.toFixed(decimals);
+      if (Number(input.value) === Number(formatted)) return;
+      input.value = formatted;
 
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));

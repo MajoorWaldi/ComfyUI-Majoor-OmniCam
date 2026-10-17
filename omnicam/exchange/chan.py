@@ -88,7 +88,7 @@ def read_chan(text: str, fps: int = 24, width: int = 1280, height: int = 720) ->
         "duration_frames": max(1, max(frames) + 1),  # type: ignore[type-var, operator]
         "width": int(width),
         "height": int(height),
-        "render_mode": "omni_ref",
+        "render_mode": "graybox",
         "keyframes": keyframes,
         "objects": [],
         "metadata": {"imported_from": "chan"},

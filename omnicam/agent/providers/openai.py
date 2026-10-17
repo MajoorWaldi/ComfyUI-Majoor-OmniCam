@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 
+from .credential_origin import require_native_origin
 from .models import ProviderConfig, ProviderResponse
 from .network import NetworkPolicyError, endpoint_is_custom, guarded_client_session, guarded_request
 
@@ -15,7 +16,7 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 
 def _base_url(config: ProviderConfig) -> str:
-    return (config.base_url or DEFAULT_BASE_URL).rstrip("/")
+    return require_native_origin(config.base_url, DEFAULT_BASE_URL)
 
 
 def _headers(credential: str | None) -> dict[str, str]:

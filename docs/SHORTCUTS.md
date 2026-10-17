@@ -421,3 +421,5 @@ When a camera keyframe is selected, the viewport uses a compact marker and thin
 selection ring, dims the path and removes its glow, camera body and filled film
 gate. Transform axes and Bezier handles remain visible; the live camera guides
 return when the keyframe selection is cleared.
+
+Transform stability: dragging the scale gizmo center uses proportional screen-space motion, including when grabbed exactly at the pivot. Scale snapping uses relative factors, preserving proportions for small objects. Shift precision changes affect only subsequent movement in modal transforms and numeric scrubbing. Multi-object gizmos use the selection centroid; group rotations compose each member?s existing orientation.

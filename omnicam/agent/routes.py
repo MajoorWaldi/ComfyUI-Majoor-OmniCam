@@ -34,6 +34,7 @@ except ImportError:  # pragma: no cover - aiohttp ships with ComfyUI
 from ..comfy_compat.server import PromptServer
 from ..http_json import read_bounded_json_object
 from .broker import BROKER
+from .contract import integration_contract
 from .protocol import (
     AGENT_PROTOCOL,
     AGENT_SCHEMA_VERSION,
@@ -72,6 +73,8 @@ async def agent_capabilities(request: web.Request) -> web.Response:
             "external_access": "loopback-only",
             "request_timeout_seconds": REQUEST_TIMEOUT_SECONDS,
             "session_ttl_seconds": SESSION_TTL_SECONDS,
+            "contract_url": "/majoor/omnicam/agent/v1/contract",
+            "features": ["session-target", "transaction-status", "commit-deadline", "idempotent-retry"],
         }
     )
 
@@ -83,6 +86,25 @@ async def agent_sessions(request: web.Request) -> web.Response:
         return _error_response(error)
 
     return web.json_response({"sessions": BROKER.list_sessions()})
+
+
+async def agent_contract(request: web.Request) -> web.Response:
+    try:
+        require_local_agent(request)
+        return web.json_response(integration_contract())
+    except AgentProtocolError as error:
+        return _error_response(error)
+
+
+async def agent_transaction_status(request: web.Request) -> web.Response:
+    try:
+        require_local_agent(request)
+        body = await read_bounded_json_object(request, max_bytes=1024)
+        session_id = bounded_string(body.get("session_id"), "session_id", 64)
+        transaction_id = bounded_string(body.get("transaction_id"), "transaction_id", 120)
+        return web.json_response(BROKER.transaction_status(session_id, transaction_id, body.get("validateOnly") is True))
+    except AgentProtocolError as error:
+        return _error_response(error)
 
 
 async def agent_query(request: web.Request) -> web.Response:
@@ -145,6 +167,12 @@ async def agent_session_register(request: web.Request) -> web.Response:
 
         operations = _string_list(body.get("operations", []), name="operations", max_items=MAX_ADVERTISED_OPERATIONS, item_limit=100)
         queries = _string_list(body.get("queries", []), name="queries", max_items=MAX_ADVERTISED_QUERIES, item_limit=100)
+        target = body.get("target")
+        if target is not None:
+            if not isinstance(target, dict):
+                raise AgentProtocolError("BAD_REQUEST", "target must be an object")
+            target = {name: bounded_string(target.get(name), name, 200)
+                      for name in ("document_id", "graph_id", "node_locator", "instance_id")}
 
         # A registration must come from a browser tab ComfyUI's own WebSocket
         # transport already knows about -- otherwise anyone who can reach this
@@ -166,6 +194,7 @@ async def agent_session_register(request: web.Request) -> web.Response:
             operations=operations,
             queries=queries,
             owner_id=owner_id,
+            target=target,
         )
         return web.json_response({"session_id": session.session_id, "session_token": session.token})
     except AgentProtocolError as error:
@@ -218,8 +247,10 @@ async def agent_reply(request: web.Request) -> web.Response:
 if web is not None:
     PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/capabilities")(agent_capabilities)
     PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/sessions")(agent_sessions)
+    PromptServer.instance.routes.get("/majoor/omnicam/agent/v1/contract")(agent_contract)
     PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/query")(agent_query)
     PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/transaction")(agent_transaction)
+    PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/transaction/status")(agent_transaction_status)
     PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/register")(agent_session_register)
     PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/heartbeat")(agent_session_heartbeat)
     PromptServer.instance.routes.post("/majoor/omnicam/agent/v1/session/close")(agent_session_close)

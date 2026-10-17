@@ -31,6 +31,7 @@ from .protocol import (
     SESSION_TTL_SECONDS,
     AgentProtocolError,
 )
+from .transaction_journal import TransactionJournal
 
 
 @dataclass(slots=True)
@@ -51,6 +52,7 @@ class AgentSession:
     # live Director session (design spec section 13's owner scoping, now
     # extended from plans to the session itself).
     owner_id: str = ""
+    target: dict[str, str] | None = None
 
 
 @dataclass(slots=True)
@@ -65,6 +67,7 @@ class AgentBroker:
     def __init__(self) -> None:
         self._sessions: dict[str, AgentSession] = {}
         self._pending: dict[str, PendingRequest] = {}
+        self._transactions = TransactionJournal()
 
     # -- internal ---------------------------------------------------------
 
@@ -83,6 +86,7 @@ class AgentBroker:
                 pending.future.set_exception(
                     AgentProtocolError("SESSION_CLOSED", "The Director session was closed", 410)
                 )
+        self._transactions.drop_session(session_id)
 
     def require_session(self, session_id: str) -> AgentSession:
         self._prune_expired()
@@ -108,6 +112,7 @@ class AgentBroker:
         operations: tuple[str, ...],
         queries: tuple[str, ...],
         owner_id: str = "",
+        target: dict[str, str] | None = None,
     ) -> AgentSession:
         self._prune_expired()
 
@@ -118,6 +123,7 @@ class AgentBroker:
             sid
             for sid, session in self._sessions.items()
             if session.client_id == client_id and session.node_id == node_id
+            and session.target == target
         ]
         for sid in stale:
             self._drop_session(sid)
@@ -137,6 +143,7 @@ class AgentBroker:
             queries=queries,
             touched_at=time.monotonic(),
             owner_id=owner_id,
+            target=target,
         )
         self._sessions[session.session_id] = session
         return session
@@ -165,12 +172,16 @@ class AgentBroker:
                 "revision": session.revision,
                 "operations": list(session.operations),
                 "queries": list(session.queries),
+                "target": session.target,
             }
             for session in self._sessions.values()
         ]
 
     async def dispatch(self, session_id: str, kind: str, payload: dict[str, Any]) -> dict[str, Any]:
         session = self.require_session(session_id)
+        record = self._transactions.find(session_id, payload) if kind == "transaction" else None
+        if record is not None:
+            return await self._await_reply(record.future, record)
 
         if len(self._pending) >= MAX_PENDING_REQUESTS:
             raise AgentProtocolError("AGENT_BUSY", "Too many OmniCam Agent requests are pending", 503)
@@ -178,6 +189,8 @@ class AgentBroker:
         request_id = uuid.uuid4().hex
         loop = asyncio.get_running_loop()
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
+        if kind == "transaction":
+            record = self._transactions.create(session_id, payload, request_id, future)
 
         self._pending[request_id] = PendingRequest(session_id=session.session_id, future=future)
 
@@ -189,29 +202,48 @@ class AgentBroker:
             "node_id": session.node_id,
             "kind": kind,
             "payload": payload,
+            "target": session.target,
+            "deadline_ms": round((time.time() + REQUEST_TIMEOUT_SECONDS) * 1000),
         }
 
         try:
             PromptServer.instance.send_sync(AGENT_EVENT, message, session.client_id)
-            return await asyncio.wait_for(future, timeout=REQUEST_TIMEOUT_SECONDS)
-        except asyncio.TimeoutError as exc:
-            raise AgentProtocolError(
-                "AGENT_BROWSER_TIMEOUT", "The live OmniCam Director did not answer in time", 504
-            ) from exc
+            return await self._await_reply(future, record)
         finally:
             self._pending.pop(request_id, None)
+
+    async def _await_reply(self, future, record=None):
+        try:
+            # An HTTP timeout/disconnect must not cancel outcome recovery.
+            return await asyncio.wait_for(asyncio.shield(future) if record else future, timeout=REQUEST_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError as exc:
+            if record is not None and record.result is None:
+                record.status = "unknown"
+            raise AgentProtocolError(
+                "AGENT_BROWSER_TIMEOUT", "The live OmniCam Director did not answer in time; recover transaction status before retrying", 504
+            ) from exc
+
+    def transaction_status(self, session_id: str, transaction_id: str, validate_only: bool = False) -> dict:
+        self.require_session(session_id)
+        return self._transactions.status(session_id, transaction_id, validate_only)
 
     def reply(self, session_id: str, token: str, request_id: str, result: dict[str, Any]) -> None:
         session = self.require_session(session_id)
         self.verify_token(session, token)
 
         pending = self._pending.get(request_id)
+        record = self._transactions.by_request(request_id)
+        if pending is None and record is not None:
+            pending = PendingRequest(record.session_id, record.future)
         if pending is None:
             raise AgentProtocolError("UNKNOWN_REQUEST", "No such pending OmniCam Agent request", 404)
         if pending.session_id != session_id:
             raise AgentProtocolError("REQUEST_SESSION_MISMATCH", "Request does not belong to this Director session", 403)
 
         if not pending.future.done():
+            if record is not None:
+                record.status = "completed"
+                record.result = result
             pending.future.set_result(result)
 
 

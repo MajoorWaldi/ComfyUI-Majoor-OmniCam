@@ -1,5 +1,12 @@
 # Headless Agent example
 
+For live integration preparation, `live_client.py` provides a dependency-free
+loopback client. Discover `/majoor/omnicam/agent/v1/contract` and `/sessions`,
+select the complete advertised target, call `preview()`, review the returned diff,
+then call `apply_reviewed()` explicitly. Retain the transaction id on timeout and
+use `status()`; do not automatically retry with a fresh id. No code runs on import.
+This example does not register with the official Comfy Agent side panel.
+
 `omnicam-agent-headless.json` is the simplest runnable pair: **OmniCam
 Director -> OmniCam Monitor** (`wan_camera_native` profile), with a short
 two-camera-key scene already authored in the Director's `state_json`.

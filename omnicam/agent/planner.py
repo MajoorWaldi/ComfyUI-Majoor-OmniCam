@@ -25,6 +25,7 @@ from .planner_schema import (
     parse_action,
     render_conversation,
 )
+from .protocol import AgentProtocolError
 from .providers.models import ProviderConfig
 from .providers.registry import get_provider
 
@@ -57,6 +58,7 @@ async def run_planner(
         {"role": "system", "content": build_system_prompt(operations=operations, queries=queries)},
         {"role": "user", "content": instruction},
     ]
+    observed_revision: int | None = None
 
     for _step in range(max(1, max_planner_steps)):
         prompt = render_conversation(conversation)
@@ -96,12 +98,17 @@ async def run_planner(
                 })
                 continue
             observation = await BROKER.dispatch(session_id, "query", action["query"])
+            revision = observation.get("revision")
+            if isinstance(revision, int) and not isinstance(revision, bool):
+                if observed_revision is not None and observed_revision != revision:
+                    raise AgentProtocolError("STALE_PLAN", "Director changed during planning; generate a new preview", 409)
+                observed_revision = revision
             conversation.append({"role": "assistant", "content": response.text})
             conversation.append({"role": "user", "content": encode_planner_observation(observation)})
             continue
 
         if action["type"] == "transaction":
-            base_revision = await _current_revision(session_id)
+            base_revision = observed_revision if observed_revision is not None else await _current_revision(session_id)
             transaction = {
                 "version": DIRECTOR_API_VERSION,
                 "id": f"plan_preview_{uuid.uuid4().hex}",
@@ -112,6 +119,8 @@ async def run_planner(
             }
             preview = await BROKER.dispatch(session_id, "transaction", transaction)
             if not preview.get("ok"):
+                if (preview.get("error") or {}).get("code") == "STALE_REVISION":
+                    raise AgentProtocolError("STALE_PLAN", "Director changed during planning; generate a new preview", 409)
                 conversation.append({"role": "assistant", "content": response.text})
                 conversation.append({"role": "user", "content": json.dumps(preview)})
                 continue

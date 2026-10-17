@@ -1,3 +1,5 @@
+import { notifyCompletion } from "../director/completion-toast.js";
+import { updateAgentFeedback } from "./feedback.js";
 // The Director Agent tab: describe a shot, generate a bounded Preview
 // against the live Director session, review the semantic diff, then Apply
 // or discard (design spec section 32). Also owns the provider credential
@@ -119,7 +121,6 @@ export function createDirectorAgentPanel(ui, options = {}) {
   const el = (role) => root.querySelector(`[data-role="${role}"]`);
 
   const panel = el("agent-panel");
-  const hint = el("agent-hint");
   const privacyNote = el("agent-privacy-note");
   const describeInput = el("agent-describe");
   const planList = el("agent-plan");
@@ -138,8 +139,15 @@ export function createDirectorAgentPanel(ui, options = {}) {
   let inFlightController = null;
   let disposed = false;
 
-  function setHint(text) {
-    if (hint) hint.textContent = text || "";
+  function setHint(text, tone = state === "error" ? "error" : state === "stale" ? "warning" : "info") {
+    updateAgentFeedback(root, {
+      text: text || "", tone, busy: state === "planning" || state === "applying",
+    });
+  }
+
+  function finishNotice(message, tone) {
+    setHint(message, tone);
+    notifyCompletion(ui, message, tone);
   }
 
   function render() {
@@ -164,7 +172,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
     else if (state === "preview_ready") {
       const description = pendingPlan?.description || "";
       const warnings = pendingPlan?.warnings || [];
-      setHint(warnings.length ? [description, ...warnings.map((warning) => `⚠ ${warning}`)].join(" ") : description);
+      setHint(warnings.length ? [description, ...warnings.map((warning) => `⚠ ${warning}`)].join(" ") : description, warnings.length ? "warning" : "success");
     }
   }
 
@@ -254,7 +262,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
     const sessionId = ui.agentBridge?.sessionId;
     if (!sessionId) {
       setState("error");
-      setHint(t("Agent session is not ready yet."));
+      finishNotice(t("Agent session is not ready yet."), "error");
       return;
     }
 
@@ -285,7 +293,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
       if (result.finished) {
         pendingPlan = null;
         setState("idle");
-        setHint(result.message || t("The Agent finished without a change."));
+        finishNotice(result.message || t("The Agent finished without a change."), "success");
         return;
       }
 
@@ -297,12 +305,15 @@ export function createDirectorAgentPanel(ui, options = {}) {
         truncated: Boolean(result.truncated),
       };
       setState(pendingPlan.truncated ? "error" : "preview_ready");
-      if (pendingPlan.truncated) setHint(t("Preview was truncated; Apply is disabled for safety."));
+      if (pendingPlan.truncated) finishNotice(t("Preview was truncated; Apply is disabled for safety."), "error");
+      else notifyCompletion(ui,
+        [pendingPlan.description || t("No visible changes"), ...pendingPlan.warnings].join(" "),
+        pendingPlan.warnings.length ? "warning" : "success");
     } catch (error) {
       if (disposed || error?.name === "AbortError") return;
       pendingPlan = null;
       setState("error");
-      setHint(error?.message || t("Preview failed"));
+      finishNotice(error?.message || t("Preview failed"), "error");
     }
   }
 
@@ -315,16 +326,17 @@ export function createDirectorAgentPanel(ui, options = {}) {
       if (disposed) return;
       pendingPlan = null;
       setState("idle");
-      setHint(t("Applied."));
+      finishNotice(t("Applied."), "success");
     } catch (error) {
       if (disposed) return;
       if (error?.code === "STALE_PLAN") {
         pendingPlan = null;
         setState("stale");
+        notifyCompletion(ui, t("The Director changed after this preview. Generate a new preview."), "warning");
         return;
       }
       setState("error");
-      setHint(error?.message || t("Apply failed"));
+      finishNotice(error?.message || t("Apply failed"), "error");
     }
   }
 
@@ -352,7 +364,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
     try {
       await setProviderCredential(api, settings.provider, secret);
     } catch (error) {
-      if (!disposed) setHint(error?.message || t("Could not save the credential"));
+      if (!disposed) finishNotice(error?.message || t("Could not save the credential"), "error");
     } finally {
       toggleCredentialForm(false);
       await refreshCredentialStatus();
@@ -365,7 +377,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
     try {
       await deleteProviderCredential(api, settings.provider);
     } catch (error) {
-      if (!disposed) setHint(error?.message || t("Could not remove the credential"));
+      if (!disposed) finishNotice(error?.message || t("Could not remove the credential"), "error");
     } finally {
       await refreshCredentialStatus();
       await refreshModels();
@@ -382,9 +394,9 @@ export function createDirectorAgentPanel(ui, options = {}) {
         timeout_seconds: settings.requestTimeoutSeconds,
       });
       if (disposed) return;
-      setHint(result.ok ? t("Connection OK") : (result.error?.message || t("Connection failed")));
+      finishNotice(result.ok ? t("Connection OK") : (result.error?.message || t("Connection failed")), result.ok ? "success" : "error");
     } catch (error) {
-      if (!disposed) setHint(error?.message || t("Connection failed"));
+      if (!disposed) finishNotice(error?.message || t("Connection failed"), "error");
     }
   }
 
@@ -425,6 +437,7 @@ export function createDirectorAgentPanel(ui, options = {}) {
     },
     dispose() {
       disposed = true;
+      updateAgentFeedback(root);
       inFlightController?.abort?.();
       panel?.removeEventListener("click", onClick);
       providerSelect?.removeEventListener("change", onProviderChange);

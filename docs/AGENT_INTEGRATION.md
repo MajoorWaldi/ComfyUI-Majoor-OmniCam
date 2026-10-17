@@ -1,5 +1,87 @@
 # OmniCam Agent integration
 
+## Comfy Agent preparation status
+
+The official **Comfy Agent** side panel and OmniCam's built-in AGENT tab are
+separate products. OmniCam does not register tools with that official panel
+or import its internal stores. The integration seam is ready for a future
+version-specific adapter; a real conversation with the official panel remains
+an acceptance gate, not a claimed capability.
+
+Read `GET /majoor/omnicam/agent/v1/contract` (loopback plus
+`X-OmniCam-Agent: 1`) for the versioned envelope schema, operation/query
+vocabulary, route map, limits, and explicit integration status. The envelope
+schema is structural: `validateOnly` on the live Director is authoritative for
+operation parameters, locks, assets and entity existence. Camera-path operations
+are available to external integrations but intentionally excluded from the
+built-in planner's smaller vocabulary. A parity test checks Python/JS discovery.
+
+### Target selection and document lifetime
+
+New browser sessions advertise a `target` containing `document_id`, `graph_id`,
+`node_locator`, and `instance_id`. Use the complete target from `/sessions` to
+select exactly one `session_id`. Numeric node IDs alone are ambiguous. Graph IDs
+come from the node's owning graph/root, never the currently visible tab; older
+hosts without graph IDs receive ephemeral identities, including unsaved graphs.
+The locator is OmniCam's `graph_id:node_id`, not an official Comfy execution ID.
+Shared subgraph definitions target their authored definition, not a particular
+execution instance of that subgraph.
+
+Reconfiguration immediately invalidates revisions, closes the old bridge and
+rotates its instance identity. Rediscover after configure, reload, reconnect or
+server restart; never rebind an old plan to a newly discovered session. Legacy
+registrations without `target` remain accepted but must not be auto-selected by
+a future native adapter.
+
+### Timeouts and idempotency
+
+Every transaction needs a stable `id`. Keep the same content, id and
+`baseRevision` on a retry. Preview and commit use separate journal keys
+(`validateOnly=true/false`), so a reviewed preview can keep its id for Apply.
+Changing content under a retained id returns `TRANSACTION_ID_CONFLICT`.
+
+The browser checks the broker's `deadline_ms` immediately before committing,
+including after asynchronous catalogue lookup. Expired requests return
+`REQUEST_EXPIRED`. A timeout can still mean that commit already happened while
+resources were loading: it does **not** mean rollback. Query
+`POST /majoor/omnicam/agent/v1/transaction/status` with
+`{"session_id":"...","transaction_id":"..."}` before retrying.
+Status is `pending`, `unknown` (timed out, outcome not yet received), or
+`completed` with the original result. A retry does not resend an unresolved or
+completed intent. The in-memory journal retains up to 128 intents for 120 seconds,
+rejects new work when full and accepts late replies. Session close/restart drops
+its outcomes. After retention expiry/`UNKNOWN_TRANSACTION`, read the scene and
+reconcile the intent; never automatically issue a new ID. Browser and server
+wall clocks must agree for deadline checks (normally automatic on local installs).
+
+The planner preserves the revision of its first scene observation. A subsequent
+observation or preview at another revision yields `STALE_PLAN`, requiring a new
+preview rather than silently rebasing an old model response.
+
+`examples/agent/live_client.py` demonstrates exact target selection,
+query/preview, explicit reviewed Apply, and outcome recovery without an SDK,
+new server or provider credential. It is an example client, not a plugin for
+the official panel. It does not queue workflows or record playblasts.
+
+### Future adapter acceptance checklist
+
+- Record exact Core, Frontend, Desktop (if used) and Comfy Agent versions.
+- Verify the official extension/tool mechanism on that version before wiring it.
+- Discover actual node schemas and this contract; preserve the three public nodes.
+- Test two documents with reused node IDs, unsaved workflows, subgraphs,
+  tab switches, closed Director, reconnect and node removal.
+- Exercise Preview/Apply with concurrent manual edits and document reconfigure.
+- Recover a timeout after commit without repeating the edit.
+- Save/reload the workflow and compare authored cameras, objects and timing.
+- Run Monitor preflight independently; use the host's execution approval for
+  queued generation. Agent edits themselves never require diffusion execution.
+- Run classic/Vue live tests and a real official-panel conversation before
+  advertising native compatibility.
+
+`npm run test:live` includes the fixture-free classic and agent broker tests.
+Set `OMNICAM_LIVE_MATCH=live-vue-ci.spec.js` for the Vue lane. Live tests run
+serially because renderer settings and the queue belong to the shared server.
+
 OmniCam is controllable by an AI agent through three complementary, separate
 surfaces. None replaces another, and none adds an LLM SDK, a fourth public
 node, or any Agent metadata to the MotionScene contract:

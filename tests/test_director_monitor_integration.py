@@ -124,7 +124,7 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id, all_t
             target_profile=profile_id,
             target_width=832,
             target_height=480,
-            duration_seconds=2.0,
+            duration_seconds=4.0,
             target_fps=24.0,
         )
     )
@@ -153,6 +153,7 @@ def test_director_to_monitor_compiles_every_registered_profile(profile_id, all_t
         "h3_native": 2,
         "h3_scene_coverage": 9,
         "h3_api": 1,
+        "seedance25_reference": 1,
         "ltx25_motion_track": 5,
     }[profile_id]
     payload = monitor_outputs[payload_index]
