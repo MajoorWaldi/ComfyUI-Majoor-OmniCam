@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { waitForComfyCanvas } from "./live-helpers.js";
+import { waitForComfyCanvas, waitForDirectorInline } from "./live-helpers.js";
 
 test("real broker discovers the Director target, previews, commits once and recovers its outcome", async ({ page, request }) => {
   page.on("pageerror", (error) => console.error("agent live page error", error.message));
@@ -40,6 +40,7 @@ test("real broker discovers the Director target, previews, commits once and reco
     })));
     throw error;
   }
+  await waitForDirectorInline(page, "agentAuditNode");
   const sessionId = await page.evaluate(() => window.agentAuditNode.__majoorOmniCamDirectorRuntime.agentBridge.sessionId);
   const headers = { "X-OmniCam-Agent": "1" };
   const prefix = "/majoor/omnicam/agent/v1";
@@ -59,9 +60,9 @@ test("real broker discovers the Director target, previews, commits once and reco
     headers, data: { session_id: sessionId, transaction },
   })).json();
   const preview = await post(tx);
-  expect(preview.ok).toBe(true);
+  expect(preview.ok, JSON.stringify(preview)).toBe(true);
   const committed = await post({ ...tx, validateOnly: false });
-  expect(committed.ok).toBe(true);
+  expect(committed.ok, JSON.stringify(committed)).toBe(true);
   expect(await post({ ...tx, validateOnly: false })).toEqual(committed);
   const recovered = await (await request.post(`${prefix}/transaction/status`, {
     headers, data: { session_id: sessionId, transaction_id: tx.id },
