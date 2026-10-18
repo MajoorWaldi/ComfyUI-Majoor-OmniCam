@@ -4,6 +4,21 @@
 
 # OmniCam — node guide
 
+## Director in App Mode
+
+Select `majoor_omnicam_director_shell` during App Builder's input step, then
+open **View app** for camera and timeline interaction. The viewer keeps the
+Director runtime and serialized workflow state when moving between the App
+panel and graph. Its App layout reserves at least 420 pixels and can be resized
+vertically; **OPEN DIRECTOR** opens the existing larger editor. App Builder
+preview may make widgets inert while arranging inputs. A results video must
+be selected separately in the output step. This integration requires a
+ComfyUI frontend that supports custom DOM widgets in App Mode.
+
+In **View app**, the Director restores input if its App item retains the
+builder's `inert` content lock. This recovery is scoped to that App item;
+builder arrangement previews and outer modal dialogs keep their input locks.
+
 This document describes only the nodes OmniCam actually registers
 (`omnicam/node_registry.py`): **three product nodes**. The unpublished
 compatibility nodes, Sequencer and DCC exporters are not part of the public
@@ -129,6 +144,11 @@ OMNICAM_LIVE_URL=http://127.0.0.1:8188 OMNICAM_LIVE_MATCH=live-docs-screens.spec
 optional `scene_3d`, and an optional upstream `solved_scene` (an OmniCam
 Extractor connects here). `state_json`, `recording_path` and `card_asset` are
 advanced fields the interface manages.
+
+Live agents should discover `/majoor/omnicam/agent/v1/contract` and use the
+Director's revision-checked transactions for edits. `state_json` is serialized
+`OMNICAM_EDITOR_STATE` v1; replacing that string is a whole-document operation,
+not a substitute for live query/Preview/Apply. See [Agent integration](AGENT_INTEGRATION.md).
 
 `scene_3d` is a **UI interoperability bridge**, not a serialized MotionScene 3D
 data contract. The backend `execute()` does not consume it; the frontend
@@ -984,3 +1004,9 @@ model-agnostic synthetic anchors.
 
 Projected 2D trajectories consumed by LTXVDrawTracks and the IC-LoRA Motion Track.
 The length must satisfy the 8n+1 frame rule.
+
+New layouts and imported scenes default to `graybox` (Clay Blockout / Neutral Massing). Explicit render modes saved in workflows remain preserved. The clean proxy preset still selects `omni_ref`.
+
+The Director Agent displays an animated activity bar while planning or applying, and a completed green bar on success. Messages use blue for activity, green for success, amber for warnings and red for errors. No percentage is estimated while waiting for the model; reduced-motion preferences are respected.
+
+Agent completion, applied changes, warnings and failures appear through ComfyUI?s native toast notifications. Playblast completion is announced once the video is uploaded and stored; recording/upload failures are announced as errors. Progress stays in the panel. Notification appearance and dismissal are managed by ComfyUI; no separate OmniCam toast overlay is added.

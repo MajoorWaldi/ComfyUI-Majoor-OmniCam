@@ -45,7 +45,7 @@ test("directorLivePayload falls back to safe defaults for a widget-less node", (
   assert.equal(payload.width, 1280);
   assert.equal(payload.height, 720);
   assert.equal(payload.fps, 24);
-  assert.equal(payload.render_mode, "omni_ref");
+  assert.equal(payload.render_mode, "graybox");
 });
 
 test("directorLivePayload tolerates a null origin", () => {

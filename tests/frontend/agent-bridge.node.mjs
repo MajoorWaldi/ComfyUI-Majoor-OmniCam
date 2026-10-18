@@ -65,7 +65,7 @@ test("register() sends the current client id and the real semantic vocabulary", 
   assert.equal(registerCall.body.node_id, "42");
   assert.deepEqual(registerCall.body.operations, [...EXTERNAL_AGENT_OPERATIONS]);
   assert.equal(registerCall.body.operations.includes("asset.instantiate"), false);
-  assert.deepEqual(registerCall.body.queries, [...DIRECTOR_QUERY_VALUES]);
+  assert.deepEqual(registerCall.body.queries, [...DIRECTOR_QUERY_VALUES, "asset.catalog_search"]);
   assert.equal(bridge.sessionId, "s1");
   bridge.dispose();
 });
@@ -95,6 +95,58 @@ function baseDetail(overrides = {}) {
     ...overrides,
   };
 }
+
+test("an expired transaction cannot commit after asynchronous asset resolution", async () => {
+  let commits = 0;
+  const { api, bridge } = await registeredBridge({ directorApi: {
+    execute() { commits++; return { ok: true }; }, query() {},
+  } });
+  try {
+    api.dispatch(AGENT_EVENT, baseDetail({ kind: "transaction", deadline_ms: Date.now() - 1,
+      payload: { baseRevision: 0, operations: [{ type: "camera.transform" }] } }));
+    await flush();
+    assert.equal(commits, 0);
+    assert.equal(api.calls.find((c) => c.url === AGENT_ROUTES.reply).body.result.error.code, "REQUEST_EXPIRED");
+  } finally { bridge.dispose(); }
+});
+
+test("catalogue lookup crossing the deadline cannot create an asset", async (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: 1000 });
+  let release;
+  let available = false;
+  let commits = 0;
+  const loading = new Promise((resolve) => { release = resolve; });
+  const store = {
+    get: () => available ? { id: "cube", kind: "primitive" } : null,
+    async setFilter() { await loading; available = true; },
+  };
+  const { api, bridge } = await registeredBridge({ assetBrowser: { store }, directorApi: {
+    execute() { commits++; return { ok: true }; }, query() {},
+  } });
+  try {
+    api.dispatch(AGENT_EVENT, baseDetail({ kind: "transaction", deadline_ms: 1005,
+      payload: { baseRevision: 0, operations: [{ type: "asset.instantiate_by_id", assetId: "cube" }] } }));
+    await flush();
+    context.mock.timers.tick(10);
+    release();
+    await flush();
+    assert.equal(commits, 0);
+    assert.equal(api.calls.find((c) => c.url === AGENT_ROUTES.reply).body.result.error.code, "REQUEST_EXPIRED");
+  } finally { release(); bridge.dispose(); }
+});
+
+test("document reconfigure closes the old session and rotates instance identity", async () => {
+  const { api, bridge } = await registeredBridge();
+  try {
+    const first = api.calls.find((c) => c.url === AGENT_ROUTES.register).body.target;
+    bridge.invalidateDocument();
+    assert.equal(bridge.sessionId, null);
+    await flush();
+    const registrations = api.calls.filter((c) => c.url === AGENT_ROUTES.register);
+    assert.notEqual(registrations.at(-1).body.target.instance_id, first.instance_id);
+    assert.ok(api.calls.some((c) => c.url === AGENT_ROUTES.close));
+  } finally { bridge.dispose(); }
+});
 
 test("a request for a different session id is ignored", async () => {
   const { api, bridge } = await registeredBridge();

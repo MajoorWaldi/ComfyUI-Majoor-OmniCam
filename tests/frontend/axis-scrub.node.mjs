@@ -126,11 +126,24 @@ test("setupAxisScrubbing respects keyboard precision modifiers and min max clamp
   try {
     fixture.pointerDown();
     fixture.axis.dispatch("pointermove", { clientX: 110, shiftKey: true, ctrlKey: false, metaKey: false });
-    assert.equal(fixture.input.value, "2", "Shift uses the fine scrub step");
+    assert.equal(Number(fixture.input.value), 2, "Shift uses the fine scrub step");
 
     fixture.axis.dispatch("pointermove", { clientX: 200, shiftKey: false, ctrlKey: true, metaKey: false });
-    assert.equal(fixture.input.value, "3", "Ctrl acceleration is still clamped at max");
+    assert.equal(Number(fixture.input.value), 3, "Ctrl acceleration is still clamped at max");
   } finally {
     fixture.restore();
   }
+});
+
+
+test("changing precision without pointer movement never changes the scrubbed value", () => {
+  const fixture = makeFixture(makeInput({ value: "1", step: "0.1" }));
+  try {
+    fixture.pointerDown();
+    fixture.axis.dispatch("pointermove", { clientX: 110 });
+    const before = fixture.input.value;
+    fixture.axis.dispatch("pointermove", { clientX: 110, shiftKey: true });
+    assert.equal(Number(fixture.input.value), Number(before));
+    fixture.axis.dispatch("pointerup", { pointerId: 7 });
+  } finally { fixture.restore(); }
 });

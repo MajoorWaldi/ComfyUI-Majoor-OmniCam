@@ -238,7 +238,7 @@ export function directorDefaults() {
     durationSeconds: numericSetting(SETTING_DURATION, 5, 1, 120, true),
     width: numericSetting(SETTING_WIDTH, 1280, 64, 4096, true),
     height: numericSetting(SETTING_HEIGHT, 720, 64, 4096, true),
-    renderMode: String(readSetting(SETTING_RENDER_MODE, "omni_ref")),
+    renderMode: String(readSetting(SETTING_RENDER_MODE, "graybox")),
     encoder: String(readSetting(SETTING_ENCODER, "auto")),
     playblastResolution: choiceSetting(SETTING_PLAYBLAST_RESOLUTION, "output", ["viewport", "half", "output", "double"]),
     playblastQuality: choiceSetting(SETTING_PLAYBLAST_QUALITY, "balanced", ["low", "balanced", "high"]),

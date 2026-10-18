@@ -214,7 +214,7 @@ export function buildOmniCamSettings({
       "Output height applied to newly created Director nodes.", { min: 64, max: 4096, step: 16 }, 720),
     choice(SETTING_RENDER_MODE, "Defaults", "Default proxy render mode",
       "Render mode applied to newly created Director nodes.",
-      ["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"], "omni_ref"),
+      ["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"], "graybox"),
     choice(SETTING_ENCODER, "Defaults", "Default playblast encoder",
       "WebCodecs is deterministic; realtime is the MediaRecorder fallback.", [
         { text: "WebCodecs (deterministic)", value: "auto" },

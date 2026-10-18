@@ -245,7 +245,7 @@ def read_camera_track(data: bytes, fps: int = 24, width: int = 1280, height: int
         "duration_frames": max(1, duration),
         "width": width,
         "height": height,
-        "render_mode": "omni_ref",
+        "render_mode": "graybox",
         "keyframes": keyframes,
         "objects": [],
         "metadata": {"imported_from": "gltf", "camera_name": camera.get("name") or node.get("name") or "camera"},

@@ -98,6 +98,22 @@ async def test_capabilities_allowed_from_127_0_0_1_with_header():
 
 
 @pytest.mark.asyncio
+async def test_contract_uses_external_loopback_guard():
+    request = make_mocked_request("GET", "/majoor/omnicam/agent/v1/contract",
+                                  headers={"X-OmniCam-Agent": "1"}).clone(remote="127.0.0.1")
+    response = await agent_routes.agent_contract(request)
+    assert json.loads(response.body)["official_comfy_agent"]["registered"] is False
+    blocked = await _call(agent_routes.agent_contract, request.clone(remote="192.168.1.2"))
+    assert blocked.status == 403
+
+
+@pytest.mark.asyncio
+async def test_transaction_status_uses_external_loopback_guard():
+    request = _json_request("POST", "/majoor/omnicam/agent/v1/transaction/status", {}, remote="192.168.1.2")
+    assert (await _call(agent_routes.agent_transaction_status, request)).status == 403
+
+
+@pytest.mark.asyncio
 async def test_capabilities_allowed_from_ipv6_loopback():
     request = make_mocked_request(
         "GET", "/majoor/omnicam/agent/v1/capabilities", headers={"X-OmniCam-Agent": "1"}

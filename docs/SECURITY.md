@@ -13,6 +13,15 @@ paths relative to that managed root.
 
 ## OmniCam Agent v1 (`omnicam/agent/`)
 
+The read-only `/contract` and POST `/transaction/status` routes use the same
+loopback/header guard as external control. New registrations include document,
+graph, locator and runtime-instance identity; reconfigure retires the session.
+The bounded transaction journal retains outcomes for 120 seconds, including late
+replies after HTTP timeout, and rejects conflicting reuse of an id. These are
+ephemeral process-local results, never secrets or MotionScene metadata. A timeout
+does not imply rollback: clients must recover the outcome or reconcile the scene
+before issuing a fresh intent. See `docs/AGENT_INTEGRATION.md` for retention limits.
+
 See `docs/AGENT_INTEGRATION.md` for the full design. Security-relevant facts:
 
 - **Loopback-only external control.** `/majoor/omnicam/agent/v1/capabilities`,
@@ -71,18 +80,17 @@ above.
   reads no `os.environ`/`os.getenv` at all (enforced by
   `scripts/registry_package_audit.py`).
 - **Remote custom provider endpoints are disabled by default.** A
-  caller-supplied `base_url` (OpenAI-compatible, Ollama, or a native
-  OpenAI/Anthropic override) is subject to the network policy in
+  caller-supplied `base_url` (OpenAI-compatible or Ollama) is subject to the network policy in
   `omnicam/agent/providers/network.py`: loopback is always allowed; any other
   host is rejected with `REMOTE_CUSTOM_PROVIDER_BLOCKED` unless the operator
   sets `"allow_remote_custom_providers": true` in the server-side policy file
   at `<system user dir>/omnicam/agent/policy.json` -- a file only an operator
   with filesystem access can write, never the browser or a workflow.
-  **Native custom base URLs are treated as custom endpoints too** --
-  `endpoint_is_custom()` compares a supplied OpenAI/Anthropic `base_url`
-  against that provider's own hardcoded official endpoint, so a different
-  host is never silently treated as official regardless of which provider it
-  claims to be.
+  **Native OpenAI and Anthropic endpoints are fixed** to their official HTTPS
+  origin and API base path. An override returns `CREDENTIAL_ORIGIN_MISMATCH`
+  before network access, even for loopback or after remote-provider opt-in.
+  Configure proxies as a separate compatible provider with a separate key;
+  saved native credentials are never forwarded to a caller-selected origin.
 - **Even with that opt-in, sensitive infrastructure/metadata targets stay
   blocked unconditionally**: unspecified, multicast, and link-local
   addresses -- including `169.254.169.254`, the cloud-metadata IP on

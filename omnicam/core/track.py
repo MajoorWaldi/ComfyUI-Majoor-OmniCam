@@ -443,7 +443,7 @@ class OmniCamTrack:
         duration_frames = max(1, int(_finite(data.get("duration_frames", data.get("durationFrames", fps * 5)), fps * 5)))
         width = max(64, min(4096, int(_finite(data.get("width", 1280), 1280))))
         height = max(64, min(4096, int(_finite(data.get("height", 720), 720))))
-        render_mode = str(data.get("render_mode", data.get("renderMode", "omni_ref")))
+        render_mode = str(data.get("render_mode", data.get("renderMode", "graybox")))
 
         raw_keyframes = data.get("keyframes", [])
         keyframes = [CameraKeyframe.from_dict(k) for k in raw_keyframes if isinstance(k, dict)]

@@ -25,7 +25,7 @@ def _to_track(payload: dict[str, Any], keyframes: list[CameraKeyframe], default_
         "duration_frames": payload.get("duration_frames") or (max((k.frame for k in keyframes), default=0) + 1),
         "width": payload.get("width", 1280),
         "height": payload.get("height", 720),
-        "render_mode": payload.get("render_mode", "omni_ref"),
+        "render_mode": payload.get("render_mode", "graybox"),
         "objects": payload.get("objects", []),
         "metadata": payload.get("metadata", {}),
     }
@@ -114,7 +114,7 @@ def import_load3d_camera(
         "duration_frames": max(1, duration_frames),
         "width": width,
         "height": height,
-        "render_mode": "omni_ref",
+        "render_mode": "graybox",
         "keyframes": [{"frame": 0, "camera": asdict(state), "interpolation": "linear"}],
         "objects": [],
         "metadata": {

@@ -6,6 +6,7 @@ from omnicam.core.track import OmniCamTrack
 def test_default_track_is_valid():
     track = OmniCamTrack.from_dict({})
     assert track.fps == 24
+    assert track.render_mode == "graybox"
     assert track.duration_frames > 0
     assert len(track.keyframes) == 1
 
@@ -308,3 +309,8 @@ def test_new_interpolation_modes():
         payload = validate_track_payload({"keyframes": [{"frame": 0, "camera": {}, "interpolation": mode}]})
         assert payload["keyframes"][0]["interpolation"] == mode
 
+
+
+def test_explicit_render_mode_survives_round_trip():
+    track = OmniCamTrack.from_dict({"render_mode": "omni_ref"})
+    assert OmniCamTrack.from_dict(track.to_dict()).render_mode == "omni_ref"

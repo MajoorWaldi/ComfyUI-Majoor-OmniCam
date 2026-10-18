@@ -1,0 +1,68 @@
+import { expect, test } from "@playwright/test";
+import { waitForComfyCanvas } from "./live-helpers.js";
+
+test("Director viewer mounts in the real App panel and survives a graph round trip", async ({ page }, testInfo) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await waitForComfyCanvas(page);
+  await page.waitForFunction(() => window.LiteGraph?.registered_node_types?.MajoorOmniCamDirector);
+  await page.evaluate(async () => {
+    const { app } = await import("/scripts/app.js");
+    await app.extensionManager.setting.set("Comfy.VueNodes.Enabled", true);
+    await app.loadGraphData({ version: 0.4, nodes: [], links: [], groups: [], extra: {} });
+  });
+  await waitForComfyCanvas(page);
+  await page.evaluate(async () => {
+    const { app } = await import("/scripts/app.js");
+    const node = window.LiteGraph.createNode("MajoorOmniCamDirector");
+    app.graph.add(node);
+    window.appModeDirector = node;
+  });
+  await page.waitForFunction(() => window.appModeDirector?.__majoorOmniCamDirectorRuntime?.inlineView);
+  await page.evaluate(async () => {
+    await window.appModeDirector.__majoorOmniCamDirectorRuntime.inlineView.show();
+    const vue = [...document.querySelectorAll("*")].find((element) => element.__vue_app__).__vue_app__;
+    const stores = vue.config.globalProperties.$pinia._s;
+    window.appModeTestStores = stores;
+    stores.get("appMode").enterBuilder();
+    const node = window.appModeDirector;
+    window.appModeTestEditor = node.__majoorOmniCamDirectorRuntime.inlineView.ui;
+    const widget = node.widgets.find((item) => item.name === "majoor_omnicam_director_shell");
+    const output = window.LiteGraph.createNode("PreviewImage");
+    node.graph.add(output);
+    const selections = { inputs: [[widget.widgetId, widget.name]], outputs: [String(output.id)] };
+    node.graph.extra.linearData = selections;
+    const workflow = stores.get("workflow").activeWorkflow;
+    workflow.changeTracker.activeState.extra.linearData = selections;
+    stores.get("appMode").loadSelections(selections);
+    stores.get("workflow").activeWorkflow.activeMode = "builder:arrange";
+  });
+  await expect(page.locator('[data-testid="builder-widget-item"] .oc-director-node')).toBeVisible();
+  await page.getByRole("button", { name: "View app", exact: true }).click();
+  const root = page.locator('[data-testid="app-mode-widget-item"] .oc-director-node');
+  await expect(root).toBeVisible();
+  await expect(root).toHaveAttribute("data-app-mode", "true");
+  await expect(root.locator(".viewport-wrap > canvas").first()).toBeVisible();
+  const skip = page.getByRole("button", { name: "Skip", exact: true });
+  if (await skip.isVisible()) await skip.click();
+  await root.locator('[data-view="top"]').click();
+  await expect.poll(() => page.evaluate(() => window.appModeTestEditor.state.view_mode)).toBe("top");
+  await root.locator('[data-view="perspective"]').click();
+  const beforeOrbit = await page.evaluate(() => JSON.stringify(window.appModeTestEditor.state.editor_views.perspective));
+  const box = await root.locator(".viewport-wrap > canvas").first().boundingBox();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.4);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.6, { steps: 8 });
+  await page.mouse.up({ button: "middle" });
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.appModeTestEditor.state.editor_views.perspective))).not.toBe(beforeOrbit);
+  await root.locator(".oc-node-shell-open").click();
+  await expect(page.locator(".oc-workbench-backdrop .majoor-omnicam.oc-director")).toBeVisible();
+  await page.locator('[data-workbench-act="close"]').click();
+  await expect(root.locator(".viewport-wrap > canvas").first()).toBeVisible();
+  await root.locator(".viewport-wrap > canvas").first().click();
+  await page.keyboard.press("f");
+  await page.screenshot({ path: testInfo.outputPath("app-viewer.png") });
+  expect(await page.evaluate(() => window.appModeDirector.__majoorOmniCamDirectorRuntime.inlineView.ui === window.appModeTestEditor)).toBe(true);
+  await page.evaluate(() => { window.appModeTestStores.get("workflow").activeWorkflow.activeMode = "graph"; });
+  await expect(page.locator('.oc-director-node[data-app-mode="true"]')).toHaveCount(0);
+  await expect(page.locator(".oc-director-node")).toBeVisible();
+});

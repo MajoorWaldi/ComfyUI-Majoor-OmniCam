@@ -14,6 +14,7 @@
 //
 // See docs/superpowers/plans/2026-09-13-spatial-camera-editor-v2.md section 18.
 
+import { installStableUniformScale } from "./stable-uniform-scale.js";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
 
 const VALID_MODES = new Set(["translate", "rotate", "scale"]);
@@ -57,6 +58,8 @@ export function createTransformControlsAdapter({
   const controls = controlsFactory
     ? controlsFactory(camera, domElement)
     : new TransformControls(camera, domElement);
+
+  const disposeStableScale = installStableUniformScale(controls, domElement);
 
   let helper = null;
   if (scene?.add) {
@@ -256,6 +259,7 @@ export function createTransformControlsAdapter({
     controls.removeEventListener?.("dragging-changed", handleDraggingChanged);
     if (scene?.remove && helper) scene.remove(helper);
     if (scene?.remove) scene.remove(anchor);
+    disposeStableScale();
     controls.dispose?.();
     currentTargetSpec = null;
     dragStart = null;

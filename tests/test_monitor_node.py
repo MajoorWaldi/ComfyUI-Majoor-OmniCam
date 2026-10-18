@@ -89,7 +89,8 @@ def test_monitor_v3_schema_has_stable_typed_contract():
     assert schema.is_experimental is True
     assert [item.id for item in schema.inputs] == [
         "motion_scene", "playblast_video", "base_prompt", "target_profile",
-        "target_width", "target_height", "duration_seconds", "target_fps"
+        "target_width", "target_height", "duration_seconds", "target_fps",
+        "guide_reference_index", "guide_style", "reference_plan_json"
     ]
     assert [item.display_name for item in schema.outputs] == [
         "final_prompt", "reference_video", "reference_frames",
@@ -131,7 +132,7 @@ def test_inactive_typed_outputs_are_none_not_fake_tensors(all_targets_installed)
 
     assert len(values) == 11
 
-    assert values[0] == "A test"
+    assert values[0].startswith("A test")
     assert values[1] is None
     assert values[2] is None
     assert values[3] is None

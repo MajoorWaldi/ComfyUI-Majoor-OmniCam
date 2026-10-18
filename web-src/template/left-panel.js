@@ -57,7 +57,8 @@ function agentTabMarkup() {
           <button type="button" class="oc-btn oc-btn--primary" data-agent-act="credential-save">${t("Save")}</button>
         </div>
         <p class="oc-asset-status hint oc-agent-privacy" data-role="agent-privacy-note"></p>
-        <p class="oc-asset-status hint" data-role="agent-hint"></p>
+        <p class="oc-asset-status hint oc-agent-feedback" data-role="agent-hint" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="oc-agent-progress" data-role="agent-progress" role="progressbar" aria-label="${t("Planning...")}" aria-valuemin="0" aria-valuemax="100" hidden><div class="oc-agent-progress-fill"></div></div>
         <textarea class="oc-search oc-agent-describe" data-role="agent-describe" rows="5"
                   placeholder="${t('Describe the shot... ex: "the camera slowly orbits the character while zooming in on the face"')}"
                   aria-label="${t("Describe the shot")}"></textarea>

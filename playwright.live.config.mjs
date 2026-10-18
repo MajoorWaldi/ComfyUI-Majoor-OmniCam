@@ -44,8 +44,11 @@ export default defineConfig({
   testDir: "tests/frontend",
   // The CI suite is intentionally fixture-free; exploratory tests that need a
   // local video opt in through OMNICAM_LIVE_MATCH instead.
-  testMatch: process.env.OMNICAM_LIVE_MATCH || "live-ci.spec.js",
+  testMatch: process.env.OMNICAM_LIVE_MATCH || "live-{ci,agent-ci,app-mode}.spec.js",
   timeout: 60_000,
+  // These suites share a real server's user settings and queue. Renderer
+  // switches (classic/Vue) must not race another test's workflow setup.
+  workers: 1,
   // This lane cold-boots a throwaway ComfyUI on a CPU-only runner and, on the
   // current-frontend job, fetches an unreleased frontend build from GitHub
   // before the first paint. The first Vue-root mount occasionally overruns its

@@ -445,3 +445,35 @@ test("dispose tears down the adapter", () => {
   wiring.dispose();
   assert.equal(scene.children.length, 0);
 });
+
+
+test("world rotation of an already rotated object matches the gizmo orientation", () => {
+  const { ui, wiring, getControls } = makeUi();
+  ui.selectedEntity = "object";
+  ui.state.gizmo_mode = "rotate";
+  const object = { id: "a", position: [0, 0, 0], rotation: [45, 30, 10], size: [1, 1, 1] };
+  ui.state.objects.push(object); ui.selectedObjectId = "a";
+  wiring.sync();
+  const controls = getControls();
+  controls.emit("mouseDown");
+  const expected = [70, 40, 25];
+  controls.attached.rotation.set(...expected.map((v) => v * Math.PI / 180));
+  controls.emit("objectChange");
+  object.rotation.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-8));
+});
+
+
+test("group world rotation composes with each member's existing orientation", async () => {
+  const { Euler, Quaternion } = await import("three");
+  const { ui, wiring, getControls } = makeUi();
+  ui.selectedEntity = "object"; ui.state.gizmo_mode = "rotate";
+  const a = { id: "a", position: [-1, 0, 0], rotation: [45, 0, 0], size: [1, 1, 1] };
+  const b = { id: "b", position: [1, 0, 0], rotation: [0, 0, 0], size: [1, 1, 1] };
+  ui.state.objects.push(a, b); ui.selectedObjectId = "b"; ui.selectedObjectIds = new Set(["a", "b"]);
+  wiring.sync(); const controls = getControls(); controls.emit("mouseDown");
+  controls.attached.rotation.set(0, Math.PI / 4, 0); controls.emit("objectChange");
+  const actual = new Quaternion().setFromEuler(new Euler(...a.rotation.map((v) => v * Math.PI / 180)));
+  const expected = new Quaternion().setFromEuler(new Euler(0, Math.PI / 4, 0))
+    .multiply(new Quaternion().setFromEuler(new Euler(Math.PI / 4, 0, 0)));
+  assert.ok(Math.abs(actual.dot(expected)) > 1 - 1e-10);
+});

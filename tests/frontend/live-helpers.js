@@ -13,6 +13,17 @@ export async function waitForComfyCanvas(page) {
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
+export async function waitForDirectorInline(page, handle) {
+  await page.evaluate(async (handle) => {
+    const runtime = window[handle].__majoorOmniCamDirectorRuntime;
+    // Registration precedes the lazy editor mount, whose initial widget sync
+    // serializes on RAF and advances the revision used by Agent transactions.
+    const ui = await runtime.inlineView.show();
+    await ui.webglReady;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }, handle);
+}
+
 // Give every product a real output sink. Extractor without footage must reject
 // validation explicitly; Director/Monitor must execute and preserve their UI data.
 export async function queueProductGraph(page, handle, { repeat = false } = {}) {

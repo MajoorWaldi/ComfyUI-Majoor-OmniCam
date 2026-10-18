@@ -4,6 +4,11 @@
 
 # OmniCam keyboard shortcuts and controls
 
+In App Mode, click inside the Director viewer before using its shortcuts.
+Use **View app** to interact; App Builder's layout preview may disable input.
+Drag the viewer's bottom resize handle to adjust its height, or choose
+**OPEN DIRECTOR** for the larger workspace.
+
 The Director node shows a live mini view of the editor; **OPEN DIRECTOR**
 moves that same editor into a full window. The shortcuts below work in both:
 in the node they apply to the node you clicked into, so several Directors on
@@ -416,3 +421,5 @@ When a camera keyframe is selected, the viewport uses a compact marker and thin
 selection ring, dims the path and removes its glow, camera body and filled film
 gate. Transform axes and Bezier handles remain visible; the live camera guides
 return when the keyframe selection is cleared.
+
+Transform stability: dragging the scale gizmo center uses proportional screen-space motion, including when grabbed exactly at the pivot. Scale snapping uses relative factors, preserving proportions for small objects. Shift precision changes affect only subsequent movement in modal transforms and numeric scrubbing. Multi-object gizmos use the selection centroid; group rotations compose each member?s existing orientation.

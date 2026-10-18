@@ -32,6 +32,8 @@ class FakeElement {
   addEventListener(name, handler) { this.handlers.set(name, handler); }
   removeEventListener(name) { this.handlers.delete(name); }
   focus() {}
+  setAttribute(name, value) { (this.attributes ||= {})[name] = value; }
+  removeAttribute(name) { delete (this.attributes ||= {})[name]; }
 
   closest(selector) {
     const roleMatch = selector.match(/\[data-role="([^"]+)"\]/);
@@ -67,6 +69,7 @@ function makeElements() {
   const elements = {
     "agent-panel": new FakeElement("agent-panel"),
     "agent-hint": new FakeElement("agent-hint"),
+    "agent-progress": new FakeElement("agent-progress"),
     "agent-privacy-note": new FakeElement("agent-privacy-note"),
     "agent-describe": new FakeElement("agent-describe"),
     "agent-plan": new FakeElement("agent-plan"),
@@ -419,6 +422,8 @@ test("a preview carrying warnings shows them alongside the plan description", as
   assert.equal(panel.state, "preview_ready");
   assert.match(elements["agent-hint"].textContent, /Orbit the camera/);
   assert.match(elements["agent-hint"].textContent, /created from the existing pose/);
+  assert.equal(elements["agent-hint"].dataset.tone, "warning");
+  assert.equal(elements["agent-progress"].hidden, true);
   panel.dispose();
 });
 
@@ -444,6 +449,10 @@ test("preview -> apply happy path enables then clears the pending plan", async (
   await flush();
 
   click(elements, "act:preview");
+  assert.equal(elements["agent-progress"].dataset.busy, "true");
+  assert.equal(elements["agent-progress"].hidden, false);
+  assert.equal(elements["agent-progress"].attributes["aria-valuenow"], undefined);
+  assert.equal(elements["agent-hint"].dataset.tone, "info");
   await flush();
   assert.equal(panel.state, "preview_ready");
   assert.equal(elements["act:apply"].disabled, false);
@@ -456,6 +465,9 @@ test("preview -> apply happy path enables then clears the pending plan", async (
   click(elements, "act:apply");
   await flush();
   assert.equal(panel.state, "idle");
+  assert.equal(elements["agent-hint"].dataset.tone, "success");
+  assert.equal(elements["agent-progress"].dataset.busy, "false");
+  assert.equal(elements["agent-progress"].attributes["aria-valuenow"], "100");
   assert.equal(elements["act:apply"].disabled, true);
 
   const applyCall = api.calls.find((c) => c.url === "/majoor/omnicam/agent/v1/apply-plan");
@@ -610,4 +622,22 @@ test("dispose() stops the panel from reacting to further clicks", async () => {
   click(elements, "act:preview");
   await flush();
   assert.equal(api.calls.some((c) => c.url === "/majoor/omnicam/agent/v1/plan"), false);
+});
+
+
+test("failed planning stops progress and colors the error message", async () => {
+  const elements = makeElements();
+  elements["agent-describe"].value = "a product shot";
+  const api = makeApi({
+    "/majoor/omnicam/agent/v1/plan": () => { throw new Error("Provider timed out"); },
+  });
+  const panel = createDirectorAgentPanel({ root: makeRoot(elements), api, agentBridge: { sessionId: "s" } });
+  await flush();
+  click(elements, "act:preview");
+  assert.equal(elements["agent-progress"].dataset.busy, "true");
+  await flush();
+  assert.equal(elements["agent-hint"].dataset.tone, "error");
+  assert.equal(elements["agent-hint"].textContent, "Provider timed out");
+  assert.equal(elements["agent-progress"].hidden, true);
+  panel.dispose();
 });

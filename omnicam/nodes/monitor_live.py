@@ -77,7 +77,7 @@ def build_live_preflight(payload: dict[str, Any]) -> dict[str, Any]:
             height=_numeric(director, "height", 720, cast=int),
             fps=_numeric(director, "fps", 24, cast=int),
             duration_seconds=_numeric(director, "duration_seconds", 5.0, cast=float),
-            render_mode=str(director.get("render_mode", "omni_ref")),
+            render_mode=str(director.get("render_mode", "graybox")),
             card_asset=str(director.get("card_asset", "")),
             recording_path=str(director.get("recording_path", "")),
         )

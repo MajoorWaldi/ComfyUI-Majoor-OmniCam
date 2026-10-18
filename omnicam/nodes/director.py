@@ -22,7 +22,10 @@ class MajoorOmniCamDirector(IO.ComfyNode):
             search_aliases=["camera director", "camera path", "omni reference camera", "playblast"],
             is_experimental=True,
             inputs=[
-                IO.String.Input("state_json", default="{}", multiline=True, advanced=True),
+                IO.String.Input(
+                    "state_json", default="{}", multiline=True, advanced=True,
+                    tooltip="Serialized OMNICAM_EDITOR_STATE v1, compiled to MotionScene. Live agents should discover /majoor/omnicam/agent/v1/contract and use validated Director transactions instead of replacing this JSON.",
+                ),
                 IO.String.Input("recording_path", default="", multiline=False, advanced=True),
                 IO.String.Input("card_asset", default="", multiline=False, advanced=True),
                 IO.Int.Input("width", default=1280, min=64, max=4096, step=8),
@@ -31,7 +34,7 @@ class MajoorOmniCamDirector(IO.ComfyNode):
                 IO.Float.Input("duration_seconds", default=5.0, min=0.25, max=120.0, step=0.25),
                 IO.Combo.Input(
                     "render_mode",
-                    options=["omni_ref", "graybox", "grid", "point_field", "wireframe", "card_grid", "beauty"],
+                    options=["graybox", "omni_ref", "grid", "point_field", "wireframe", "card_grid", "beauty"],
                 ),
                 media_input("image", optional=True, tooltip="Reference stills, or a clip sampled for them."),
                 media_input("video", optional=True, tooltip="A proxy clip, or an IMAGE batch read at the node fps."),

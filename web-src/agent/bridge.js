@@ -18,6 +18,7 @@ import {
   AGENT_ROUTES,
   AGENT_SCHEMA_VERSION,
 } from "./protocol.js";
+import { createSessionTarget } from "./session-target.js";
 
 const REGISTER_RETRY_MS = 5_000;
 
@@ -42,6 +43,7 @@ export const EXTERNAL_AGENT_OPERATIONS = Object.freeze([
   ...DIRECTOR_OP_VALUES.filter((operation) => operation !== DIRECTOR_OPS.ASSET_INSTANTIATE),
   ASSET_INSTANTIATE_BY_ID,
 ]);
+export const EXTERNAL_AGENT_QUERIES = Object.freeze([...DIRECTOR_QUERY_VALUES, ASSET_CATALOG_SEARCH]);
 
 /** The three "Human Neutral/Male/Female 01" rows shipped in
  * catalog.default.json (and any future row like them) exist only to
@@ -160,6 +162,7 @@ function failureResult(ui, code, message) {
 }
 
 export function createDirectorAgentBridge(ui, node, api) {
+  let currentTarget = createSessionTarget(ui, node);
   let disposed = false;
   let sessionId = null;
   let sessionToken = null;
@@ -202,10 +205,14 @@ export function createDirectorAgentBridge(ui, node, api) {
         director_api: DIRECTOR_API_VERSION,
         revision: Number(ui.directorRevision || 0),
         operations: [...EXTERNAL_AGENT_OPERATIONS],
-        queries: [...DIRECTOR_QUERY_VALUES],
+        queries: [...EXTERNAL_AGENT_QUERIES],
+        target: currentTarget(),
       });
 
-      if (disposed || generation !== registrationGeneration) return;
+      if (disposed || generation !== registrationGeneration) {
+        await closeSessionBestEffort(result.session_id, result.session_token);
+        return;
+      }
 
       sessionId = result.session_id;
       sessionToken = result.session_token;
@@ -258,6 +265,13 @@ export function createDirectorAgentBridge(ui, node, api) {
     if (Number(detail.schema_version) !== AGENT_SCHEMA_VERSION) return;
     if (detail.session_id !== sessionId) return;
     if (String(detail.node_id) !== String(node.id)) return;
+    if (detail.target && JSON.stringify(detail.target) !== JSON.stringify(currentTarget())) return;
+    // Capture routing before an await: a reconnect must not send this reply
+    // with the token of a different registration.
+    const replySession = sessionId;
+    const replyToken = sessionToken;
+    const expired = () => disposed || sessionId !== replySession
+      || (Number.isFinite(detail.deadline_ms) && Date.now() >= detail.deadline_ms);
 
     let result;
     try {
@@ -288,7 +302,9 @@ export function createDirectorAgentBridge(ui, node, api) {
           // asset.instantiate they become -- that real op stays off the
           // advertised list on purpose).
           const resolved = await resolveTrustedAssetOperations(ui, tx.operations);
-          if (resolved.ok) {
+          if (expired()) {
+            result = failureResult(ui, "REQUEST_EXPIRED", "The request expired before commit; query the current state before retrying");
+          } else if (resolved.ok) {
             result = ui.directorApi.execute({ ...tx, operations: resolved.operations });
             // Unlike the Director UI's own synchronous callers, this reply is
             // serialized and posted back immediately -- await the same
@@ -309,8 +325,8 @@ export function createDirectorAgentBridge(ui, node, api) {
 
     try {
       await postJson(api, AGENT_ROUTES.reply, {
-        session_id: sessionId,
-        session_token: sessionToken,
+        session_id: replySession,
+        session_token: replyToken,
         request_id: detail.request_id,
         result,
       });
@@ -353,6 +369,15 @@ export function createDirectorAgentBridge(ui, node, api) {
   return {
     get sessionId() {
       return sessionId;
+    },
+
+    invalidateDocument() {
+      const oldId = sessionId;
+      const oldToken = sessionToken;
+      registrationGeneration += 1;
+      clearSession();
+      currentTarget = createSessionTarget(ui, node);
+      void closeSessionBestEffort(oldId, oldToken).finally(() => register());
     },
 
     dispose() {

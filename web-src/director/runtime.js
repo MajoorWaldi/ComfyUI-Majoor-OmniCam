@@ -14,6 +14,7 @@
 import { clamp, sampleCamera, sanitizeState } from "./core.js";
 import { serializeEditorState } from "../state-sync.js";
 import { EditorHistory } from "./history.js";
+import { invalidateDirectorRevision } from "./revision.js";
 
 function findWidget(node, name) {
   return node.widgets?.find((widget) => widget.name === name) ?? null;
@@ -95,6 +96,7 @@ export class DirectorRuntime extends EventTarget {
         if (this.workbench) return this.workbench.restoreHistorySnapshot(snapshot);
         const value = JSON.parse(snapshot);
         this.state = sanitizeState(value.state);
+        invalidateDirectorRevision(this);
         this.frame = clamp(value.frame, 0, this.state.duration_frames - 1);
         this.camera = sampleCamera(this.state, this.frame);
       },
@@ -162,6 +164,7 @@ export class DirectorRuntime extends EventTarget {
    * the workbench runs the full DOM-aware restore instead when one is open.
    */
   restoreFromWidgetsHeadless() {
+    invalidateDirectorRevision(this);
     let parsed = null;
     try {
       parsed = JSON.parse(this.stateWidget?.value || "{}");
@@ -178,12 +181,14 @@ export class DirectorRuntime extends EventTarget {
   /** Apply a state mutation headlessly, whether or not a workbench is open. */
   mutate(mutator, { reason = "mutation", dirty = 0 } = {}) {
     mutator(this.state);
+    invalidateDirectorRevision(this);
     this.scheduleSerialize(reason);
     if (dirty) this.requestUiUpdate(dirty, reason);
   }
 
   replaceState(nextState, { reason = "replace" } = {}) {
     this.state = sanitizeState(nextState);
+    invalidateDirectorRevision(this);
     this.sceneName = this.state.metadata?.scene_name || "";
     this.scheduleSerialize(reason);
     this.dispatchEvent(new CustomEvent("upstreamchange", { detail: { reason } }));

@@ -1,3 +1,4 @@
+import { notifyCompletion } from "./completion-toast.js";
 // Shell entry point for the OmniCam Director node -- the only Director module
 // main.js's nodeCreated() imports. Builds the persistent DirectorRuntime, a
 // status card, and the live inline editor (director/inline-view.js): the real
@@ -15,6 +16,8 @@ import { createNodeShell } from "../workbench/node-shell.js";
 import { workbenchSessions } from "../workbench/session-manager.js";
 import { directorPlayblastSource } from "../monitor/reference-source.js";
 import { DirectorInlineView } from "./inline-view.js";
+import { invalidateDirectorRevision } from "./revision.js";
+import { attachDirectorAppMode, DIRECTOR_APP_MODE_STYLES } from "./app-mode.js";
 
 const MIN_WIDGET_HEIGHT = 420;
 const RECORD_NOTICE_MS = 6000;
@@ -134,7 +137,10 @@ async function recordPlayblast(runtime) {
       await ui.webglReady;
       await new Promise((resolve) => requestAnimationFrame(resolve));
       outcome = await ui.makePlayblast({ inline: true });
-    }
+    } else notifyCompletion(runtime, outcome.message, "error");
+  } catch (error) {
+    outcome = { ok: false, message: t("Playblast failed: {value1}", { value1: error.message || error }) };
+    notifyCompletion(runtime, outcome.message, "error");
   } finally {
     runtime.shellRecording = false;
     runtime.shell.setRecording(false);
@@ -199,6 +205,9 @@ export function attachDirectorShell(node) {
     shell.setProgress(frame / total);
   });
   widgetRoot.append(shell.root, inlineHost);
+  const appStyles = document.createElement("style");
+  appStyles.textContent = DIRECTOR_APP_MODE_STYLES;
+  widgetRoot.append(appStyles);
   updateShell(runtime);
   runtime.addEventListener("statechange", () => updateShell(runtime));
   runtime.addEventListener("statuschange", () => updateShell(runtime));
@@ -211,6 +220,7 @@ export function attachDirectorShell(node) {
     getMinHeight: () => MIN_WIDGET_HEIGHT,
   });
   inlineView.showWhenVisible(widgetRoot);
+  const detachAppMode = attachDirectorAppMode(widgetRoot, inlineView);
 
   // Graph lifecycle lives here, on the node, for the runtime's full life --
   // not inside the transient workbench (plan Task 6). Each hook does the full
@@ -231,6 +241,9 @@ export function attachDirectorShell(node) {
   };
   const originalConfigure = node.onConfigure;
   node.onConfigure = function (...args) {
+    // A request may arrive before the RAF restore. Invalidate it immediately.
+    invalidateDirectorRevision(runtime);
+    runtime.agentBridge?.invalidateDocument?.();
     originalConfigure?.apply(this, args);
     scheduleRestore();
   };
@@ -282,6 +295,7 @@ export function attachDirectorShell(node) {
   node.onRemoved = function (...args) {
     workbenchSessions.disposeForNode(node.id);
     clearTimeout(runtime.recordNoticeTimer);
+    detachAppMode();
     inlineView.dispose();
     unwatchGraphConnections();
     cancelAnimationFrame(runtime.restoreFrame);

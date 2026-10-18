@@ -137,7 +137,7 @@ export function updateViewportControls(ui) {
   const shadingSelect = ui.root.querySelector('[data-role="shading-mode-select"]');
   const isFocused = typeof document !== "undefined" && document.activeElement === shadingSelect;
   if (shadingSelect && !isFocused) {
-    shadingSelect.value = ui.state.render_mode || "omni_ref";
+    shadingSelect.value = ui.state.render_mode || "graybox";
   }
 }
 
